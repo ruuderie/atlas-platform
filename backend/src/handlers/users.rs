@@ -11,6 +11,7 @@ use axum::{
     body::Body, extract::{Extension, Json, Path, State, TypedHeader}, headers::{HeaderMap, UserAgent}, http::{header::USER_AGENT, StatusCode}, response::IntoResponse, routing::{get, post}, Router
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use crate::auth::{hash_password, verify_password, generate_jwt, generate_jwt_admin};
 use crate::models::user::{UserLogin, UserRegistration};
 use crate::models::session::UserInfo;
@@ -36,14 +37,17 @@ pub fn auth_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/login", post(login_user))
         .route("/register", post(register_user))
-        .route("/logout", post(logout_user))
-        .route("/refresh-token", post(refresh_token))
         .route("/validate-session", get(validate_session))
+        .route("/logout", post(logout_user))
 }
 
-pub fn authenticated_routes() -> Router<DatabaseConnection> {
+pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router {
     Router::new()
         .route("/profile", get(get_user_profile))
+        .route("/refresh-token", post(refresh_token))
+        .route("/validate-session", get(validate_session))
+        .with_state(db_connection)
+
 }
 
 pub async fn get_user_profile(
@@ -278,19 +282,25 @@ pub async fn login_user(
 pub async fn logout_user(
     State(db): State<DatabaseConnection>,
     Extension(session): Extension<crate::entities::session::Model>,
-) -> Result<impl IntoResponse, StatusCode> {
-    if !session.verify_integrity() {
-        return Err(StatusCode::UNAUTHORIZED);
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let update_result = session::Entity::update_many()
+        .filter(session::Column::Id.eq(session.id))
+        .filter(session::Column::IsActive.eq(true))
+        .set(session::ActiveModel {
+            is_active: Set(false),
+            last_modified_date: Set(Utc::now()),
+            ..Default::default()
+        })
+        .exec(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to update session: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+        })?;
+
+    if update_result.rows_affected == 0 {
+        return Err((StatusCode::NOT_FOUND, "Session not found".to_string()));
     }
 
-    session::Entity::update(session::ActiveModel {
-        id: Set(session.id),
-        is_active: Set(false),
-        ..Default::default()
-    })
-    .exec(&db)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(StatusCode::OK)
+    Ok((StatusCode::OK, Json(json!({"message": "Successfully logged out"}))))
 }

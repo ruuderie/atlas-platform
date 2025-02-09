@@ -96,6 +96,7 @@ pub async fn create_session(
             refresh_token_expiration: Set(refresh_token_expiration),
             created_at: Set(Utc::now()),
             last_accessed_at: Set(Utc::now()),
+            last_modified_date: Set(Utc::now()),
             is_admin: Set(user.is_admin),
             is_active: Set(true),
             integrity_hash: Set(String::new()), // Temporary placeholder
@@ -111,6 +112,7 @@ pub async fn create_session(
             refresh_token_expiration: new_session.refresh_token_expiration.clone().unwrap(),
             created_at: new_session.created_at.clone().unwrap(),
             last_accessed_at: new_session.last_accessed_at.clone().unwrap(),
+            last_modified_date: new_session.last_modified_date.clone().unwrap(),
             is_admin: new_session.is_admin.clone().unwrap(),
             is_active: new_session.is_active.clone().unwrap(),
             integrity_hash: String::new(), 

@@ -68,7 +68,7 @@ impl From<file::Model> for FileModel {
 }
 
 pub trait FileAssociation {
-    async fn add_file(&self, db: &DatabaseConnection, file_id: Uuid) -> Result<(), DbErr>;
-    async fn remove_file(&self, db: &DatabaseConnection, file_id: Uuid) -> Result<(), DbErr>;
-    async fn get_associated_files(&self, db: &DatabaseConnection) -> Result<Vec<FileModel>, DbErr>;
+    fn add_file(&self, db: &DatabaseConnection, file_id: Uuid) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
+    fn remove_file(&self, db: &DatabaseConnection, file_id: Uuid) -> impl std::future::Future<Output = Result<(), DbErr>> + Send;
+    fn get_associated_files(&self, db: &DatabaseConnection) -> impl std::future::Future<Output = Result<Vec<FileModel>, DbErr>> + Send;
 }

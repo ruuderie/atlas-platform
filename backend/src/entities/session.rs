@@ -20,6 +20,8 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub last_accessed_at: DateTime<Utc>,
+    #[sea_orm(column_type = "TimestampWithTimeZone")]
+    pub last_modified_date: DateTime<Utc>,
     pub is_admin: bool,
     pub is_active: bool,
     pub integrity_hash: String,
