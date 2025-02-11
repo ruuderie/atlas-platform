@@ -156,7 +156,19 @@ where
 
 // Check if the given path is a public route
 fn is_public_route(path: &str) -> bool {
-    let public_routes = vec!["/login", "/register","/validate-session", "/refresh-token", "/api/listings", "/api/listing/", "/api/health"];
+    let public_routes = vec![
+        "/login",
+        "/register",
+        "/validate-session",
+        "/refresh-token",
+        "/api/listings",
+        "/api/listing/",
+        "/api/health",
+        // Adding these routes to handle both prefixed and non-prefixed versions
+        "/api/login",
+        "/api/register",
+        "/api/validate-session"
+    ];
     public_routes.iter().any(|route| path.starts_with(route))
 }
 
@@ -168,6 +180,8 @@ fn extract_token<B>(req: &Request<B>) -> Option<String> {
         .and_then(|auth_value| {
             if auth_value.starts_with("Bearer ") {
                 Some(auth_value[7..].to_owned())
+            } else if auth_value.starts_with("bearer ") {
+                Some(auth_value[7..].to_owned())
             } else {
                 None
             }
@@ -175,19 +189,26 @@ fn extract_token<B>(req: &Request<B>) -> Option<String> {
 }
 
 // Validate the session using the provided token
+// Updated validate_session function with better error handling
 async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Result<session::Model, StatusCode> {
-    let token_clone = token.unwrap_or_default().clone();
-    tracing::debug!("Validating session");
-    tracing::debug!("Token: {}", &token_clone);
-    tracing::debug!("Token length: {}", token_clone.len());
+    let token = token.ok_or(StatusCode::UNAUTHORIZED)?;
+    
+    if token.is_empty() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
     let session = session::Entity::find()
-        .filter(session::Column::BearerToken.eq(token_clone))
+        .filter(session::Column::BearerToken.eq(token))
+        .filter(session::Column::IsActive.eq(true))
         .one(db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map_err(|e| {
+            tracing::error!("Database error in validate_session: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    if !session.is_active || !session.verify_integrity() || session.token_expiration < Utc::now() {
+    if !session.verify_integrity() || session.token_expiration < Utc::now() {
         return Err(StatusCode::UNAUTHORIZED);
     }
 

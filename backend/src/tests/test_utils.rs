@@ -48,7 +48,6 @@ pub async fn create_test_directory<C: ConnectionTrait>(db: &C, directory_type_id
         .expect("Failed to create test directory")
     
 }
-
 pub async fn register_test_user(
     app: &Router,
     directory_id: Uuid,
@@ -111,6 +110,7 @@ pub async fn login_test_user(
         .await
         .unwrap();
 
+    let status = response.status();
     let body_bytes = response.into_body()
         .collect()
         .await
@@ -118,8 +118,11 @@ pub async fn login_test_user(
         .to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     
-    // Handle potential non-JSON responses
-    serde_json::from_str(&body).unwrap_or_else(|_| {
-        panic!("Failed to parse login response as JSON. Response body: {}", body)
+    if status != StatusCode::OK {
+        panic!("Login failed with status {}: {}", status, body);
+    }
+    
+    serde_json::from_str(&body).unwrap_or_else(|e| {
+        panic!("Failed to parse login response as JSON. Error: {}. Response body: {}", e, body)
     })
 }

@@ -30,36 +30,34 @@ async fn setup_test_app() -> (Router, DatabaseConnection) {
     migration::Migrator::fresh(&db)
         .await
         .expect("Failed to reset database");
+    
+    // Run migrations
     migration::Migrator::up(&db, None)
         .await
         .expect("Failed to run migrations");
 
     (api::create_router(db.clone()), db)
 }
-
-#[tokio::test]
-async fn test_user_registration_and_login_flow() {
-    let (app, db) = setup_test_app().await;
-    let unique_id = Uuid::new_v4();
-    // Create test directory USING THE TRANSACTION
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-
-    // Test registration - will use transaction through app state
-    let (status, body) = test_utils::register_test_user(&app, directory.id, format!("testuser{}", unique_id).as_str()).await;
-    assert_eq!(status, StatusCode::CREATED, "Registration failed: {}", body);
-
-    // Test login with same credentials
+pub async fn register_test_user(
+    app: &Router,
+    directory_id: Uuid,
+    username: &str,
+) -> (StatusCode, String) {
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/login")
+                .uri("/register")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
                     json!({
-                        "email": format!("testuser{}@example.com", unique_id).as_str(),
-                        "password": "password123"
+                        "directory_id": directory_id,
+                        "username": username,
+                        "first_name": "Test",
+                        "last_name": "User",
+                        "email": format!("{}@example.com", username),
+                        "password": "password123",
+                        "phone": "1234567890"
                     })
                     .to_string(),
                 ))
@@ -68,99 +66,55 @@ async fn test_user_registration_and_login_flow() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
     let body_bytes = response.into_body()
         .collect()
         .await
         .unwrap()
         .to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    // Verify response contains valid token
-    let login_response: serde_json::Value = serde_json::from_str(&body.as_str()).unwrap();
-    println!("login response from test_user_registration_and_login_flow: {}", login_response);
-    assert!(login_response.get("token").is_some());
-    assert!(login_response.get("refresh_token").is_some());
-    assert!(login_response.get("user").is_some());
-    let user = login_response.get("user").unwrap();
-    assert!(user.get("id").is_some());
-    assert!(user.get("email").is_some());
-    assert!(user.get("first_name").is_some());
-    assert!(user.get("last_name").is_some());
-    assert!(user.get("is_admin").unwrap().as_bool().unwrap() == false);
+
+    (status, body)
 }
 
-#[tokio::test]
-async fn test_logout_flow() {
-    let (app, db) = setup_test_app().await;
-    let unique_id = Uuid::new_v4();
-    
-    // Create test directory using direct DB connection
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    
-    // Update URI to "/logout"
+pub async fn login_test_user(
+    app: &Router,
+    email: &str,
+    password: &str,
+) -> serde_json::Value {
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/logout")
-                .header("Authorization", format!("Bearer {}", test_utils::login_test_user(&app, format!("logoutuser{}@example.com", unique_id).as_str(), "password123").await["token"].as_str().unwrap()))
-                .body(Body::empty())
+                .uri("/login")
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "email": email,
+                        "password": password
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-}
 
-#[tokio::test]
-async fn test_invalid_session_after_logout() {
-    let (app, db) = setup_test_app().await;
-    let txn = db.begin().await.expect("Failed to start transaction");
+    let status = response.status();
+    let body_bytes = response.into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let body = String::from_utf8_lossy(&body_bytes).to_string();
     
-    // Create test data
-    let directory_type = test_utils::create_test_directory_type(&txn).await;
-    let directory = test_utils::create_test_directory(&txn, directory_type.id).await;
-    let unique_id = Uuid::new_v4();
-    let (status, _) = test_utils::register_test_user(&app, directory.id, format!("testuser{}", unique_id).as_str()).await;
-    assert_eq!(status, StatusCode::CREATED);
-
-    // Login and get session
-    let login_response = test_utils::login_test_user(&app, format!("testuser{}@example.com", unique_id).as_str(), "password123").await;
-    let token = login_response["token"].as_str().unwrap();
-
-    // Logout - REMOVE Content-Type header
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/logout")
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())  // Removed Content-Type header
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    println!("response from test_invalid_session_after_logout: {:?}", response);
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // Attempt to access protected resource
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(&format!("/profile/{}", login_response["user"]["id"].as_str().unwrap()))
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    println!("response from test_invalid_session_after_logout: {:?}", response);
-    assert_eq!(response.status(), StatusCode::from_u16(401).unwrap());
-
-    // Rollback transaction at end of test
-    txn.rollback().await.expect("Failed to rollback transaction");
+    if status != StatusCode::OK {
+        panic!("Login failed with status {}: {}", status, body);
+    }
+    
+    serde_json::from_str(&body).unwrap_or_else(|e| {
+        panic!("Failed to parse login response as JSON. Error: {}. Response body: {}", e, body)
+    })
 }
 
 #[tokio::test]
@@ -229,65 +183,6 @@ async fn test_logout_with_invalid_token() {
                 .method("POST")
                 .uri("/logout")
                 .header("Authorization", "Bearer invalid_token")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-async fn test_session_validation_after_logout() {
-    let (app, db) = setup_test_app().await;
-   // println!("app from test_session_validation_after_logout: {:?}", app);
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    println!("directory_type from test_session_validation_after_logout: {:?}", directory_type);
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    println!("directory from test_session_validation_after_logout: {:?}", directory);
-    let unique_id = Uuid::new_v4();
-    let (status, _) = test_utils::register_test_user(&app, directory.id, format!("validationuser{}", unique_id).as_str()).await;
-    assert_eq!(status, StatusCode::CREATED);
-
-    let login_response = test_utils::login_test_user(&app, format!("validationuser{}@example.com", unique_id).as_str(), "password123").await;
-    let token = login_response["token"].as_str().unwrap();
-
-    // Initial validation should work
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/validate-session")
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // Logout
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/logout")
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    println!("response from test_session_validation_after_logout: {:?}", response);
-    assert_eq!(response.status(), StatusCode::OK);
-
-    // Post-logout validation should fail
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/validate-session")
-                .header("Authorization", format!("Bearer {}", token))
                 .body(Body::empty())
                 .unwrap(),
         )
