@@ -19,7 +19,7 @@ use sea_orm::{DatabaseConnection, EntityTrait, Set, Condition, ColumnTrait, Quer
 use uuid::Uuid;
 use chrono::Utc;
 
-pub fn routes(db_connection: DatabaseConnection) -> Router {
+pub fn routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     
     Router::new()
         .route("/profiles", post(create_profile))

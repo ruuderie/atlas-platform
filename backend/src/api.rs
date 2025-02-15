@@ -29,7 +29,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(ad_purchases::routes())
         .merge(admin_routes(db.clone()))
         .merge(users::authenticated_routes(db.clone()))
-        .with_state(());
+        .with_state(db.clone());
 
     // Combine all routes
     Router::new()

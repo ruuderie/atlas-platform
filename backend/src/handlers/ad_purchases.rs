@@ -18,7 +18,7 @@ use crate::models::ad_purchase::*;
 use uuid::Uuid;
 use chrono::Utc;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/ad-purchases", post(create_ad_purchase))
         .route("/ad-purchases", get(get_ad_purchases))

@@ -35,7 +35,7 @@ pub fn public_routes() -> Router {
         .route("/listings/search", get(search_listings))
 }
 
-pub fn authenticated_routes() -> Router {
+pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", post(create_listing))
         .route("/listings/:id", put(update_listing))

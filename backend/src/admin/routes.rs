@@ -13,7 +13,7 @@ use axum::middleware::from_fn;
 
 use uuid::Uuid;
 
-pub fn admin_routes(db: DatabaseConnection) -> Router {
+pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     tracing::debug!("Setting up admin routes");
     Router::new()
         .nest("/", {

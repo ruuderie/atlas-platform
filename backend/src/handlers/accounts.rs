@@ -46,7 +46,7 @@ impl Default for AccountResponse {
     }
 }
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/accounts", post(create_account))
         .route("/accounts", get(get_accounts))

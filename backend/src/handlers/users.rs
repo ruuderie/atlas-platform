@@ -41,7 +41,7 @@ pub fn auth_routes() -> Router<DatabaseConnection> {
         .route("/logout", post(logout_user))
 }
 
-pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router {
+pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/profile", get(get_user_profile))
         .route("/refresh-token", post(refresh_token))

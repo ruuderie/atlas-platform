@@ -18,7 +18,7 @@ use crate::models::user_account::*;
 use uuid::Uuid;
 use chrono::Utc;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/user-accounts", post(create_user_account))
         .route("/user-accounts", get(get_user_accounts))
