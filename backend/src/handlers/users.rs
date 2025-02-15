@@ -8,21 +8,21 @@ use crate::entities::{
     directory::Entity,
 };
 use axum::{
-    body::Body, extract::{Extension, Json, Path, State, TypedHeader}, headers::{HeaderMap, UserAgent}, http::{header::USER_AGENT, StatusCode}, response::IntoResponse, routing::{get, post}, Router
+    body::Body, extract::{Extension, Json, Path, State}, headers::{HeaderMap, UserAgent}, http::{header::USER_AGENT, StatusCode}, response::IntoResponse, routing::{get, post}, Router
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use crate::auth::{hash_password, verify_password, generate_jwt, generate_jwt_admin};
-use crate::models::user::{UserLogin, UserRegistration};
-use crate::models::session::UserInfo;
-use crate::handlers::sessions::{create_session, refresh_token, validate_session};
+use crate::auth::{hash_password, verify_password, generate_jwt};
+use crate::models::session::{UserInfo, SessionResponse};
+use crate::models::user::UserRegistration;
+use crate::handlers::sessions::{refresh_token, validate_session, create_user_session};
 use crate::handlers::profiles::get_profile_by_id;
 use sea_orm::{DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter, ActiveModelTrait};
 use uuid::Uuid;
-use chrono::{Utc, Duration};
+use chrono::{Utc};
 use crate::handlers::request_logs::log_request;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct LoginCredentials {
     email: String,
     password: String,
@@ -32,14 +32,14 @@ pub struct LoginCredentials {
 pub struct LoginResponse {
     pub token: String,
 }
-
+/*
 pub fn auth_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/login", post(login_user))
         .route("/register", post(register_user))
         .route("/validate-session", get(validate_session))
         .route("/logout", post(logout_user))
-}
+}*/
 
 pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
@@ -227,80 +227,69 @@ pub async fn login_user(
     Json(credentials): Json<LoginCredentials>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Attempting to log in user: {}", credentials.email);
-
+    println!("TEST LOG: from login_user and credentials: {:?}", credentials);
     let user = match User::find()
         .filter(user::Column::Email.eq(&credentials.email))
         .one(&db)
         .await
     {
-        Ok(Some(user)) => user,
+        Ok(Some(user)) => {
+            println!("TEST LOG: from login_user and user found: {:?}", user);
+            user
+        },
         Ok(None) => {
+            println!("TEST LOG: from login_user and user not found");
             tracing::warn!("User not found for email: {}", credentials.email);
             return Err(StatusCode::UNAUTHORIZED);
         },
         Err(e) => {
+            println!("TEST LOG: from login_user and error: {:?}", e);
             tracing::error!("Database error when finding user: {:?}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
     match verify_password(&credentials.password, &user.password_hash) {
-        Ok(true) => tracing::info!("Password verified successfully"),
+        Ok(true) =>{
+            tracing::info!("Password verified successfully");
+            println!("TEST LOG: from login_user and password verified successfully");
+        },
         Ok(false) => {
+            println!("TEST LOG: from login_user and invalid password for user: {}", user.id);
             tracing::warn!("Invalid password for user: {}", user.id);
             return Err(StatusCode::UNAUTHORIZED);
         },
         Err(e) => {
+            println!("TEST LOG: from login_user and error verifying password: {:?}", e);
             tracing::error!("Error verifying password: {:?}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     }
 
-    // Use the create_session function from sessions.rs
-    match create_session(Extension(db.clone()), Json(UserLogin {
-        email: credentials.email.clone(),
-        password: credentials.password.clone(),
-    })).await {
-        Ok(mut session_response) => {
-            tracing::info!("Session created from user handler successfully for user: {}", user.id);
-            session_response.user = Some(UserInfo {
-                id: user.id,
-                email: user.email,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                is_admin: user.is_admin,
-            });
-            Ok(Json(session_response))
-        },
-        Err(e) => {
-            tracing::error!("Error creating session: {:?}", e);
-            Err(e)
-        }
-    }
+    // Replace direct handler call with shared logic
+    let session_response = create_user_session(&db, &credentials.email, &credentials.password).await?;
+
+    println!("TEST LOG: from login_user and session created successfully for user: {}", user.id);
+    tracing::info!("Session created from user handler successfully for user: {}", user.id);
+    
+    Ok(Json(session_response))
 }
+
 
 pub async fn logout_user(
     State(db): State<DatabaseConnection>,
     Extension(session): Extension<crate::entities::session::Model>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let update_result = session::Entity::update_many()
-        .filter(session::Column::Id.eq(session.id))
-        .filter(session::Column::IsActive.eq(true))
-        .set(session::ActiveModel {
-            is_active: Set(false),
-            last_modified_date: Set(Utc::now()),
-            ..Default::default()
-        })
-        .exec(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to update session: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
-        })?;
+    println!("TEST LOG: from logout_user and session: {:?}", session);
+    let mut active_session: session::ActiveModel = session.into();
+    active_session.is_active = Set(false);
+    active_session.last_modified_date = Set(Utc::now());
 
-    if update_result.rows_affected == 0 {
-        return Err((StatusCode::NOT_FOUND, "Session not found".to_string()));
-    }
+    active_session.update(&db).await.map_err(|e| {
+        println!("TEST LOG: from logout_user and error updating session: {:?}", e);
+        tracing::error!("Failed to update session: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
+    })?;
 
     Ok((StatusCode::OK, Json(json!({"message": "Successfully logged out"}))))
 }

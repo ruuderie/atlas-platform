@@ -17,8 +17,8 @@ use crate::models::request_log::RequestInfo;
 use crate::middleware::rate_limiter::RateLimiter;
 
 pub async fn auth_middleware<B>(
-    State(db): State<DatabaseConnection>,
-    Extension(rate_limiter): Extension<RateLimiter>,
+    db: DatabaseConnection,
+    rate_limiter: RateLimiter,
     mut req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, StatusCode>
@@ -191,6 +191,7 @@ fn extract_token<B>(req: &Request<B>) -> Option<String> {
 // Validate the session using the provided token
 // Updated validate_session function with better error handling
 async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Result<session::Model, StatusCode> {
+    println!("TEST LOG: from validate_session and token: {:?}", token);
     let token = token.ok_or(StatusCode::UNAUTHORIZED)?;
     
     if token.is_empty() {
@@ -204,6 +205,7 @@ async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Res
         .await
         .map_err(|e| {
             tracing::error!("Database error in validate_session: {:?}", e);
+            println!("TEST LOG: from validate_session and error: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;

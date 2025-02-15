@@ -15,137 +15,110 @@ use crate::models::session::{UserInfo, SessionResponse};
 use crate::models::user::UserLogin;
 use crate::models::request_log::{RequestStatus, RequestType};
 use crate::handlers::request_logs::log_request;
-
+use axum::extract::State;
 
 
 pub async fn create_session(
-    Extension(db): Extension<DatabaseConnection>,
-    Json(credentials): Json<UserLogin>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<UserLogin>,
 ) -> Result<SessionResponse, StatusCode> {
-    tracing::info!("Creating session for user: {}", credentials.email);
+    create_user_session(&db, &payload.email, &payload.password).await
+}
 
-    let user_result = user::Entity::find()
-        .filter(user::Column::Email.eq(credentials.email.clone()))
-        .one(&db)
-        .await;
+pub async fn create_user_session(
+    db: &DatabaseConnection,
+    email: &str,
+    password: &str
+) -> Result<SessionResponse, StatusCode> {
+    let user = user::Entity::find()
+        .filter(user::Column::Email.eq(email))
+        .one(db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error in session creation: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let (request_status, failure_reason, user_info) = match user_result {
-        Ok(Some(user)) => {
-            if verify_password(&credentials.password, &user.password_hash).map_err(|e| {
-                tracing::error!("Error verifying password: {:?}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })? {
-                // Password is correct, create session
-                (RequestStatus::Success, None, Some(user))
-            } else {
-                (RequestStatus::Failure, Some("Invalid password".to_string()), None)
-            }
-        },
-        Ok(None) => (RequestStatus::Failure, Some("User not found".to_string()), None),
-        Err(e) => {
-            tracing::error!("Database error when finding user: {:?}", e);
-            (RequestStatus::Failure, Some("Internal server error".to_string()), None)
-        }
+    if !verify_password(password, &user.password_hash).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    // Generate tokens
+    let bearer_token = if user.is_admin {
+        generate_jwt_admin(&user)
+    } else {
+        generate_jwt(&user)
+    }.map_err(|e| {
+        println!("TEST LOG: from create_user_session and token generation failed: {:?}", e);
+        tracing::error!("Token generation failed: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let refresh_token = generate_jwt(&user).map_err(|e| {
+        println!("TEST LOG: from create_user_session and refresh token generation failed: {:?}", e);
+        tracing::error!("Refresh token generation failed: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Create session model
+    let token_expiration = Utc::now() + Duration::hours(1);
+    let refresh_token_expiration = Utc::now() + Duration::days(7);
+    
+    let mut new_session = session::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(user.id),
+        bearer_token: Set(bearer_token.clone()),
+        refresh_token: Set(refresh_token.clone()),
+        token_expiration: Set(token_expiration),
+        refresh_token_expiration: Set(refresh_token_expiration),
+        created_at: Set(Utc::now()),
+        last_accessed_at: Set(Utc::now()),
+        last_modified_date: Set(Utc::now()),
+        is_admin: Set(user.is_admin),
+        is_active: Set(true),
+        integrity_hash: Set(String::new()),
     };
 
-    // Log the login attempt
-    if let Err(e) = log_request(
-        axum::http::Method::POST,
-        axum::http::Uri::from_static("/login"),
-        if request_status == RequestStatus::Success { StatusCode::OK } else { StatusCode::UNAUTHORIZED },
-        user_info.as_ref().map(|u| u.id),
-        "User Agent", // You might want to pass this from the request
-        "IP Address", // You might want to pass this from the request
-        RequestType::Login,
-        request_status.clone(),
-        failure_reason.clone(),
-        &db
-    ).await {
-        tracing::error!("Failed to log login attempt: {:?}", e);
-    }
-
-    if request_status == RequestStatus::Success {
-        let user = user_info.unwrap();  // Safe to unwrap here
-
-        // Generate bearer token
-        let bearer_token = if user.is_admin {
-            generate_jwt_admin(&user)
-        } else {
-            generate_jwt(&user)
-        }.map_err(|e| {
-            tracing::error!("Error generating bearer token: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-        // Generate refresh token
-        let refresh_token = generate_jwt(&user).map_err(|e| {
-            tracing::error!("Error generating refresh token: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-        let token_expiration = Utc::now() + Duration::hours(1);
-        let refresh_token_expiration = Utc::now() + Duration::days(7);
-        let refresh_token_clone = &refresh_token.as_str().to_string();
-        // Create new session
-        let new_session = session::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            user_id: Set(user.id),
-            bearer_token: Set(bearer_token.clone()),
-            refresh_token: Set(refresh_token),
-            token_expiration: Set(token_expiration),
-            refresh_token_expiration: Set(refresh_token_expiration),
-            created_at: Set(Utc::now()),
-            last_accessed_at: Set(Utc::now()),
-            last_modified_date: Set(Utc::now()),
-            is_admin: Set(user.is_admin),
-            is_active: Set(true),
-            integrity_hash: Set(String::new()), // Temporary placeholder
-        };
-
-        // Convert ActiveModel to Model to generate integrity hash
-        let model: session::Model = session::Model {
+    // Generate integrity hash
+    let integrity_hash = {
+        let temp_model = session::Model {
             id: new_session.id.clone().unwrap(),
-            user_id: new_session.user_id.clone().unwrap(),
-            bearer_token: new_session.bearer_token.clone().unwrap(),
-            refresh_token: new_session.refresh_token.clone().unwrap(),
-            token_expiration: new_session.token_expiration.clone().unwrap(),
-            refresh_token_expiration: new_session.refresh_token_expiration.clone().unwrap(),
-            created_at: new_session.created_at.clone().unwrap(),
-            last_accessed_at: new_session.last_accessed_at.clone().unwrap(),
-            last_modified_date: new_session.last_modified_date.clone().unwrap(),
-            is_admin: new_session.is_admin.clone().unwrap(),
-            is_active: new_session.is_active.clone().unwrap(),
-            integrity_hash: String::new(), 
+            user_id: user.id,
+            bearer_token: bearer_token.clone(),
+            refresh_token: refresh_token.clone(),
+            token_expiration,
+            refresh_token_expiration,
+            created_at: Utc::now(),
+            last_accessed_at: Utc::now(),
+            last_modified_date: Utc::now(),
+            is_admin: user.is_admin,
+            is_active: true,
+            integrity_hash: String::new(),
         };
-        let integrity_hash = model.generate_integrity_hash();
+        temp_model.generate_integrity_hash()
+    };
 
-        // Update the integrity_hash in the ActiveModel
-        let mut new_session = new_session;
-        new_session.integrity_hash = Set(integrity_hash);
+    new_session.integrity_hash = Set(integrity_hash);
 
-        match new_session.insert(&db).await {
-            Ok(_) => {
-                tracing::info!("Session created successfully for user: {}", user.id);
-                Ok(SessionResponse { 
-                    user: Some(UserInfo {
-                        id: user.id,
-                        email: user.email,
-                        first_name: user.first_name,
-                        last_name: user.last_name,
-                        is_admin: user.is_admin,
-                    }),
-                    token: bearer_token, 
-                    refresh_token: refresh_token_clone.to_string(),
-                })
-            },
-            Err(e) => {
-                tracing::error!("Error creating session: {:?}", e);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
-            }
-        }
-    } else {
-        Err(StatusCode::UNAUTHORIZED)
-    }
+    // Insert session
+    new_session.insert(db).await.map_err(|e| {
+        println!("TEST LOG: from create_user_session and session creation failed: {:?}", e);
+        tracing::error!("Session creation failed: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(SessionResponse {
+        user: Some(UserInfo {
+            id: user.id,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            is_admin: user.is_admin,
+        }),
+        token: bearer_token,
+        refresh_token,
+    })
 }
 
 pub async fn validate_session(

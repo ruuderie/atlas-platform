@@ -27,6 +27,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Session::IsAdmin).boolean().not_null())
                     .col(ColumnDef::new(Session::IsActive).boolean().not_null())
                     .col(ColumnDef::new(Session::IntegrityHash).string().not_null())
+                    .col(ColumnDef::new(Session::LastModifiedDate).timestamp_with_time_zone().not_null())
                     .to_owned(),
             )
             .await?;
@@ -75,4 +76,5 @@ enum Session {
     IsAdmin,
     IsActive,
     IntegrityHash,
+    LastModifiedDate,
 }

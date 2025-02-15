@@ -38,85 +38,6 @@ async fn setup_test_app() -> (Router, DatabaseConnection) {
 
     (api::create_router(db.clone()), db)
 }
-pub async fn register_test_user(
-    app: &Router,
-    directory_id: Uuid,
-    username: &str,
-) -> (StatusCode, String) {
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/register")
-                .header("Content-Type", "application/json")
-                .body(Body::from(
-                    json!({
-                        "directory_id": directory_id,
-                        "username": username,
-                        "first_name": "Test",
-                        "last_name": "User",
-                        "email": format!("{}@example.com", username),
-                        "password": "password123",
-                        "phone": "1234567890"
-                    })
-                    .to_string(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let status = response.status();
-    let body_bytes = response.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes();
-    let body = String::from_utf8_lossy(&body_bytes).to_string();
-
-    (status, body)
-}
-
-pub async fn login_test_user(
-    app: &Router,
-    email: &str,
-    password: &str,
-) -> serde_json::Value {
-    let response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/login")
-                .header("Content-Type", "application/json")
-                .body(Body::from(
-                    json!({
-                        "email": email,
-                        "password": password
-                    })
-                    .to_string(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let status = response.status();
-    let body_bytes = response.into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes();
-    let body = String::from_utf8_lossy(&body_bytes).to_string();
-    
-    if status != StatusCode::OK {
-        panic!("Login failed with status {}: {}", status, body);
-    }
-    
-    serde_json::from_str(&body).unwrap_or_else(|e| {
-        panic!("Failed to parse login response as JSON. Error: {}. Response body: {}", e, body)
-    })
-}
-
 #[tokio::test]
 async fn test_concurrent_logout_requests() {
     let (app, db) = setup_test_app().await;
@@ -128,6 +49,7 @@ async fn test_concurrent_logout_requests() {
 
     let login_response = test_utils::login_test_user(&app, format!("concurrentuser{}@example.com", unique_id).as_str(), "password123").await;
     let token = login_response["token"].as_str().unwrap();
+    println!("TEST LOG: from test_concurrent_logout_requests and token: {:?}", token);
 
     // Send multiple logout requests concurrently
     let requests = (0..3).map(|_| {
@@ -176,17 +98,19 @@ async fn test_concurrent_logout_requests() {
 async fn test_logout_with_invalid_token() {
     let (app, _) = setup_test_app().await;
     
-    // Update URI to "/logout"
+    // Changed URI to "/api/logout" to match route nesting
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/logout")
+                .uri("/api/logout")  // Added /api prefix
                 .header("Authorization", "Bearer invalid_token")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
+    println!("TEST LOG: from test_logout_with_invalid_token and status: {:?} , body: {:?}", response.status(), response);
+    println!("TEST LOG: expected status: {:?}", StatusCode::UNAUTHORIZED);
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }

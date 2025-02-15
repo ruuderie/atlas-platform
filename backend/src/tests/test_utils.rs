@@ -111,13 +111,14 @@ pub async fn login_test_user(
         .unwrap();
 
     let status = response.status();
+    println!("TEST LOG: from login_test_user status and response: {:?}", response);
     let body_bytes = response.into_body()
         .collect()
         .await
         .unwrap()
         .to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    
+    println!("TEST LOG: from login_test_user and status: {:?} , body: {:?}", status, body);
     if status != StatusCode::OK {
         panic!("Login failed with status {}: {}", status, body);
     }

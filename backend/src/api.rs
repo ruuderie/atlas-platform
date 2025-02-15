@@ -4,6 +4,7 @@ use crate::handlers::{users,admin, profiles, listings, accounts, user_accounts, 
 use crate::middleware::{auth_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
+use crate::middleware::rate_limiter::RateLimiter;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Auth routes (no /api prefix)
@@ -19,9 +20,12 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(listings::public_routes())
         .with_state(());
 
+    let rate_limiter = RateLimiter::new();
+    let db_clone = db.clone();
+
     // Authenticated routes
     let authenticated_routes = Router::new()
-        .route("/logout", post(users::logout_user))  // Add logout route here
+        .route("/logout", post(users::logout_user))
         .merge(profiles::routes(db.clone()))
         .merge(listings::authenticated_routes())
         .merge(accounts::routes())
@@ -33,14 +37,18 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 
     // Combine all routes
     Router::new()
-        .merge(auth_routes)  // Non-prefixed auth routes
-        .merge(public_routes)  // Public routes
+        .merge(auth_routes)
+        .merge(public_routes)
         .nest("/api", 
             authenticated_routes
-                .layer(axum::middleware::from_fn_with_state(
-                    db.clone(),
-                    auth_middleware
-                ))
+                .layer(Extension(rate_limiter.clone()))
+                .layer(axum::middleware::from_fn(move |req, next| {
+                    let db = db_clone.clone();
+                    let rate_limiter = rate_limiter.clone();
+                    async move {
+                        auth_middleware(db, rate_limiter, req, next).await
+                    }
+                }))
         )
         .layer(Extension(db.clone()))
         .layer(TraceLayer::new_for_http())

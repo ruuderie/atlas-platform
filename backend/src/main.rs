@@ -130,14 +130,6 @@ async fn main() {
                 .layer(from_fn_with_state(request_logger, log_request_middleware))
                 .into_inner()
         )
-        .layer(axum::middleware::from_fn(
-            |req: Request<Body>,
-             next: Next<Body>| async move {
-                let db = req.extensions().get::<DatabaseConnection>().cloned().unwrap();
-                let rate_limiter = req.extensions().get::<RateLimiter>().cloned().unwrap();
-                auth_middleware(State(db), Extension(rate_limiter), req, next).await
-            }
-        ))
         .layer(Extension(conn.clone()))
         .layer(Extension(rate_limiter));
 
