@@ -23,12 +23,13 @@ pub async fn auth_middleware<B>(
     next: Next<B>,
 ) -> Result<Response, StatusCode>
 where
-    B: axum::body::HttpBody + Send + 'static,
+    B: axum::body::HttpBody + Send + 'static + std::fmt::Debug,
 {
     // Allow OPTIONS requests to pass through without authentication
     if req.method() == Method::OPTIONS {
         return Ok(next.run(req).await);
     }
+    println!("TEST LOG: from auth_middleware and req: {:?}", req);
     // Initialize the request logger
     let request_logger = RequestLogger::new(db.clone());
 
@@ -55,9 +56,10 @@ where
         let user_id = req.extensions().get::<user::Model>().map(|user| user.id);
         (user_id, user_agent, ip_address)
     };
-
+    println!("TEST LOG: from auth_middleware and user_id: {:?}", user_id);
     // Determine the request type (Login or API)
     let request_type = if path == "/login" { RequestType::Login } else { RequestType::API };
+    println!("TEST LOG: from auth_middleware and request_type: {:?}", request_type);
     tracing::debug!("Request type: {:?}", request_type);
     tracing::info!("Path for request: {:?}", &path);
 
@@ -71,8 +73,10 @@ where
                 let mut req = Request::from_parts(parts, body);
 
                 if let Err(e) = request_logger.log_request(&req).await {
+                    println!("TEST LOG: from auth_middleware and error: {:?}", e);
                     tracing::error!("Failed to log request: {:?}", e);
                 }
+                println!("TEST LOG: from auth_middleware and req: {:?}", req);
                 tracing::debug!("Rate limiting successful");
                 let response = next.run(req).await;
                 return Ok(response)
@@ -89,10 +93,12 @@ where
     // Validate session using the token
     let session = match validate_session(&db, token).await {
         Ok(session) => {
+            println!("TEST LOG: from auth_middleware and session: {:?}", session);
             tracing::debug!("Session validated successfully");
             session
         },
         Err(status) => {
+            println!("TEST LOG: from auth_middleware and error: {:?}", status);
             tracing::warn!("Session validation failed: {:?}", status);
             return Err(status);
         }
@@ -101,10 +107,12 @@ where
     // Retrieve user associated with the session
     let user = match get_user(&db, &session).await {
         Ok(user) => {
+            println!("TEST LOG: from auth_middleware and user: {:?}", user);
             tracing::debug!("User retrieved successfully: {:?}", user.id);
             user
         },
         Err(status) => {
+            println!("TEST LOG: from auth_middleware and error: {:?}", status);
             tracing::warn!("Failed to retrieve user: {:?}", status);
             return Err(status);
         }
@@ -112,28 +120,33 @@ where
 
     // Check admin access for admin routes
     if req.uri().path().starts_with("/api/admin") && !user.is_admin {
+        println!("TEST LOG: from auth_middleware and user: {:?}", user);
         tracing::warn!("Non-admin user {:?} attempted to access admin route", user.id);
         return Err(StatusCode::FORBIDDEN);
     }
 
     // Update session's last accessed time
     if let Err(e) = update_session(&db, &session).await {
+        println!("TEST LOG: from auth_middleware and error: {:?}", e);
         tracing::error!("Failed to update session: {:?}", e);
         return Err(e);
     }
 
     // Insert user and session into request extensions for downstream handlers
     tracing::debug!("Inserting user and session into request extensions");
+    println!("TEST LOG: from auth_middleware and user: {:?}", user);
     req.extensions_mut().insert(user.clone());
     req.extensions_mut().insert(session.clone());
 
     // Retrieve and insert user's directory IDs into request extensions
     let directory_ids = match get_user_directory_ids(&db, &user).await {
         Ok(ids) => {
+            println!("TEST LOG: from auth_middleware and ids: {:?}", ids);
             tracing::debug!("Retrieved {} directory IDs for user", ids.len());
             ids
         },
         Err(e) => {
+            println!("TEST LOG: from auth_middleware and error: {:?}", e);
             tracing::error!("Failed to get user directory IDs: {:?}", e);
             return Err(e);
         }
@@ -144,10 +157,13 @@ where
     tracing::debug!("Executing next middleware");
 
     // Log the request
+    println!("TEST LOG: from auth_middleware and req: {:?}", req);
     if let Err(e) = request_logger.log_request(&req).await {
+        println!("TEST LOG: from auth_middleware and error: {:?}", e);
         tracing::error!("Failed to log request: {:?}", e);
     }
     let response = next.run(req).await;
+    println!("TEST LOG: from auth_middleware and response: {:?}", response);
     let status_code = response.status();
 
     tracing::info!("Request completed: {} {} - Status: {}", method, path, status_code);

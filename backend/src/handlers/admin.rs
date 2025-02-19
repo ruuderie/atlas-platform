@@ -8,7 +8,7 @@ use axum::{
     extract::{Extension, Json, Path, State, Query},
     routing::get,
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use sea_orm::{DatabaseConnection, EntityTrait,QuerySelect, QueryFilter,Order, ColumnTrait,QueryOrder, Set, ActiveModelTrait, PaginatorTrait};
 use serde::{Deserialize, Serialize};
@@ -92,13 +92,14 @@ pub async fn create_directory_type(
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
     Json(input): Json<CreateDirectoryType>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<(StatusCode, Json<DirectoryTypeModel>), StatusCode> {
     tracing::info!("Creating directory type via admin route");
 
     let state_db = State(db);
     let input = Json(input);
     let directory_type = directory_types::create_directory_type(state_db, input).await?;
-    Ok(directory_type)
+    
+    Ok((StatusCode::CREATED, Json(directory_type)))
 }
 
 
@@ -142,6 +143,18 @@ pub async fn get_directory_types(
     let state_db = State(db);
     let directory_types = directory_types::get_directory_types(state_db).await?;
     Ok(directory_types)
+}
+
+pub async fn get_directory_type(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(current_session): Extension<session::Model>,
+    Path(directory_type_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let state_db = State(db);
+    let path = Path(directory_type_id);
+    let directory_type = directory_types::get_directory_type(path, state_db).await.map_err(|e| e.0)?;
+    Ok(directory_type)
 }
 
 pub async fn get_directory_listings(

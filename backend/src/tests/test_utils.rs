@@ -12,7 +12,7 @@ use hyper::body::Bytes;
 use axum::body::HttpBody as _;  // Brings collect() into scope
 
 
-use crate::entities::{directory_type, directory};
+use crate::entities::{directory_type, directory, user};
 
 pub async fn create_test_directory_type<C: ConnectionTrait>(db: &C) -> directory_type::Model {
     let directory_type_id = Uuid::new_v4();
@@ -126,4 +126,33 @@ pub async fn login_test_user(
     serde_json::from_str(&body).unwrap_or_else(|e| {
         panic!("Failed to parse login response as JSON. Error: {}. Response body: {}", e, body)
     })
+}
+
+pub async fn create_and_login_admin_user(app: &Router, db: &DatabaseConnection) -> (user::Model, String) {
+    // Create admin user directly in the database
+    let admin_user = user::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        username: Set(format!("admin{}", Uuid::new_v4())),
+        first_name: Set("Admin".to_string()),
+        last_name: Set("User".to_string()),
+        email: Set(format!("admin{}@example.com", Uuid::new_v4())),
+        phone: Set("1234567890".to_string()),
+        password_hash: Set(crate::auth::hash_password("password123").unwrap()),
+        is_admin: Set(true),
+        is_active: Set(true),
+        last_login: Set(Some(Utc::now())),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }.insert(db).await.expect("Failed to create admin user");
+
+    // Login the admin user
+    let login_response = login_test_user(
+        app,
+        &admin_user.email,
+        "password123"
+    ).await;
+
+    let token = login_response["token"].as_str().unwrap().to_string();
+    
+    (admin_user, token)
 }

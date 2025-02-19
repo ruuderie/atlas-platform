@@ -53,8 +53,7 @@ pub async fn get_directory_type(
 pub async fn create_directory_type(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateDirectoryType>
-) -> Result<impl IntoResponse, StatusCode> {
-
+) -> Result<DirectoryTypeModel, StatusCode> {
     let new_directory_type = directory_type::ActiveModel {
         id: Set(Uuid::new_v4()),
         name: Set(payload.name),
@@ -75,7 +74,7 @@ pub async fn create_directory_type(
 
     println!("Directory type created: {:?}", directory_type);
 
-    Ok(Json(DirectoryTypeModel::from(directory_type)))
+    Ok(DirectoryTypeModel::from(directory_type))
 }
 
 pub async fn update_directory_type(

@@ -45,8 +45,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/cases/:case_id", get(cases::get_case).put(cases::update_case).delete(cases::delete_case))
 
                 //File Management
-.route("/admin/files", post(files::create_file))
-.route("/admin/files/:id", put(files::update_file))
+                .route("/admin/files", post(files::create_file))
+                .route("/admin/files/:id", put(files::update_file))
                 .route("/admin/files/:id", get(files::get_file))
                 .route("/admin/files/:id/info", get(files::get_file_info))
                 .route("/admin/files/:id/thumbnail", get(files::get_file_thumbnail))
@@ -59,7 +59,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 //ALL DIRECTORIES
                 .route("/admin/directories", get(admin::get_directories))
                 //DIRETORY TYPE
-                .route("/directory-types", get(admin::get_directory_types))
+                .route("/admin/directory-types", get(admin::get_directory_types))
+                .route("/admin/directory-types/:directory_type_id", get(admin::get_directory_type))
                 //create directory type
                 .route("/admin/directory-types", post(admin::create_directory_type))
                 //update directory type
