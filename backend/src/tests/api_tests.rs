@@ -13,7 +13,7 @@ use crate::{api, migration};
 use hyper::body::Bytes;
 use super::test_utils;
 use crate::models::directory_type::DirectoryTypeModel;
-
+use crate::models::directory::DirectoryModel;
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/business_directory_test".to_string());
@@ -172,6 +172,7 @@ async fn test_directory_operations() {
     println!("TEST LOG: from create directory type test_directory_operations and body_bytes: {:?}", body_bytes);
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     let directory_type: DirectoryTypeModel = serde_json::from_slice(body.as_bytes()).unwrap();
+    let directory_type_id = directory_type.id;
     println!("TEST LOG: from create directory type test_directory_operations and directory_type: {:?}", directory_type);
     assert_eq!(status, StatusCode::CREATED);
 
@@ -180,7 +181,7 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/admin/directory-types/{}", directory_type.id).as_str())
+                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone()).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -189,13 +190,12 @@ async fn test_directory_operations() {
         .unwrap();
     println!("TEST LOG: from get directory type test_directory_operations and response: {:?}", response);
     assert_eq!(response.status(), StatusCode::OK);
-    /*
     // Test updating directory type
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .method("PUT")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id).as_str())
+                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -206,28 +206,75 @@ async fn test_directory_operations() {
         )
         .await
         .unwrap();
+    println!("TEST LOG: from PUT directory type test_directory_operations and response: {:?}", response);
     assert_eq!(response.status(), StatusCode::OK);
-
+    
     // Test creating directory
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/directories")
+                .uri("/api/admin/directories/")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
                     "name": "Test Directory",
                     "description": "Test Directory Description",
-                    "directory_type_id": directory_type_id,
+                    "directory_type_id": directory_type_id.clone(),
                     "domain": "test.com"
                 }).to_string()))
                 .unwrap()
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::CREATED);
+    
+    let status = response.status();
+    let body_bytes = response.into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let body = String::from_utf8_lossy(&body_bytes).to_string();
+    let directory: DirectoryModel = serde_json::from_slice(body.as_bytes()).unwrap();
+    println!("TEST LOG: from POST CREATE directory test_directory_operations and status: {:?}", status);
+    assert_eq!(status, StatusCode::CREATED);
+    println!("TEST LOG: from ABOUT TO UPDATE directory test_directory_operations and directory: {:?}", directory.id);
+    // update directory
+    let response = app.clone()
+    .oneshot(
+        Request::builder()
+            .method("PUT")
+            .uri(format!("/api/admin/directories/{}", directory.id))
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", admin_token))
+            .body(Body::from(json!({
+                "name": "Updated Directory",
+                "description": "Updated Description",
+                "directory_type_id": directory_type_id, // Include this
+                "domain": "updated.com"                 // Include this
+            }).to_string()))
+            .unwrap()
+    )
+    .await
+    .unwrap();
+assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
 
+    // delete directory
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/admin/directories/{}", directory.id).as_str())
+                .header("Authorization", format!("Bearer {}", admin_token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();  
+    println!("TEST LOG: from DELETE directory test_directory_operations and response: {:?}", response);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    
+    
     // Test deleting directory type
     let response = app.clone()
         .oneshot(
@@ -241,7 +288,7 @@ async fn test_directory_operations() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    */
+    
 }
 #[tokio::test]
 async fn test_listing_operations() {

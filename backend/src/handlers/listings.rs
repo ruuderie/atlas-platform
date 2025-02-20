@@ -28,11 +28,12 @@ pub struct ListingSearch {
     q: String,
 }
 
-pub fn public_routes() -> Router {
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", get(get_listings))
         .route("/listing/:id", get(get_listing_by_id))
         .route("/listings/search", get(search_listings))
+        .with_state(db)
 }
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {

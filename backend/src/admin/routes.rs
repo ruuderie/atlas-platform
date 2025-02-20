@@ -58,6 +58,11 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/directory/:directory_id/listings/:listing_id", get(admin::get_listing))
                 //ALL DIRECTORIES
                 .route("/admin/directories", get(admin::get_directories))
+                .route("/admin/directories/:directory_id", get(admin::get_directory))
+                .route("/admin/directories/", post(admin::create_directory))
+                .route("/admin/directories/:directory_id", put(admin::update_directory))
+                .route("/admin/directories/:directory_id", delete(admin::delete_directory))
+                .route("/admin/directories/type/:type_id", get(admin::get_directories_by_type))
                 //DIRETORY TYPE
                 .route("/admin/directory-types", get(admin::get_directory_types))
                 .route("/admin/directory-types/:directory_type_id", get(admin::get_directory_type))

@@ -52,35 +52,31 @@ pub async fn get_directory_type(
 
 pub async fn create_directory_type(
     State(db): State<DatabaseConnection>,
-    Json(payload): Json<CreateDirectoryType>
-) -> Result<DirectoryTypeModel, StatusCode> {
+    Json(input): Json<CreateDirectoryType>
+) -> Result<Json<DirectoryTypeModel>, StatusCode> {
     let new_directory_type = directory_type::ActiveModel {
         id: Set(Uuid::new_v4()),
-        name: Set(payload.name),
-        description: Set(payload.description),
+        name: Set(input.name),
+        description: Set(input.description),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
-
-    println!("Creating directory type: {:?}", new_directory_type);
 
     let directory_type = new_directory_type
         .insert(&db)
         .await
         .map_err(|err| {
-            eprintln!("Error creating directory type: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
+            tracing::error!("Error creating directory type: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR   
         })?;
 
-    println!("Directory type created: {:?}", directory_type);
-
-    Ok(DirectoryTypeModel::from(directory_type))
+    Ok(Json(DirectoryTypeModel::from(directory_type)))
 }
 
 pub async fn update_directory_type(
     Path(directory_type_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
-    Json(payload): Json<UpdateDirectoryType>,
+    Json(input): Json<UpdateDirectoryType>,
 ) -> Result<Json<DirectoryTypeModel>, StatusCode> {
     let mut directory_type: directory_type::ActiveModel = directory_type::Entity::find_by_id(directory_type_id)
         .one(&db)
@@ -89,11 +85,14 @@ pub async fn update_directory_type(
         .ok_or(StatusCode::NOT_FOUND)?
         .into();
 
-    directory_type.name = Set(payload.name);
-    directory_type.description = Set(payload.description);
+    directory_type.name = Set(input.name);
+    directory_type.description = Set(input.description);
     directory_type.updated_at = Set(Utc::now());
 
-    let updated_directory_type = directory_type.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let updated_directory_type = directory_type
+        .update(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(DirectoryTypeModel::from(updated_directory_type)))
 }
@@ -101,7 +100,7 @@ pub async fn update_directory_type(
 pub async fn delete_directory_type(
     Path(directory_type_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
     // Check if there are any associated directories or categories
     let directory_count = directory::Entity::find()
         .filter(directory::Column::DirectoryTypeId.eq(directory_type_id))
@@ -109,7 +108,7 @@ pub async fn delete_directory_type(
         .await
         .map_err(|err| {
             (
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::BAD_REQUEST,
                 Json(json!({"error": "Failed to check for associated directories", "details": err.to_string()})),
             )
         })?;
@@ -120,7 +119,7 @@ pub async fn delete_directory_type(
         .await
         .map_err(|err| {
             (
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::BAD_REQUEST,
                 Json(json!({"error": "Failed to check for associated categories", "details": err.to_string()})),
             )
         })?;

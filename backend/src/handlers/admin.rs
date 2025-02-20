@@ -17,6 +17,7 @@ use crate::models::listing::ListingStatus;
 use crate::models::user::UserAdminView;
 use crate::models::ad_purchase::AdStatus;
 use crate::models::directory_type::{DirectoryTypeModel, CreateDirectoryType, UpdateDirectoryType};
+use crate::models::directory::{DirectoryModel, UpdateDirectory, CreateDirectory};
 use std::collections::HashMap;
 use crate::handlers::{listings,directories,directory_types,sessions};
 
@@ -69,22 +70,83 @@ pub struct ActivityReport {
     recent_accounts: Vec<account::Model>,
 }
 
-pub fn public_routes() -> Router {
-    Router::new()
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+        Router::new()
         .route("/health", get(|| async { "OK" }))
+        .with_state(db)
 }
 
 pub async fn get_directories(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<(StatusCode, Json<Vec<DirectoryModel>>), StatusCode> {
     tracing::info!("Getting directories via admin route");
 
-    let extension_db = Extension(db);
-    let directories = directories::get_directories(extension_db).await?;
+    let state_db = State(db);
+    let directories = directories::get_directories(state_db).await?;
     Ok(directories)
    
+}
+
+pub async fn get_directories_by_type(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(current_session): Extension<session::Model>,
+    Path(directory_type_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<Vec<DirectoryModel>>), StatusCode> {
+    tracing::info!("Getting directories by type via admin route");
+
+    let state_db = State(db);
+    let directories = directories::get_directories_by_type(Path(directory_type_id), state_db).await?;
+    Ok(directories)
+}
+
+pub async fn get_directory(
+    State(db): State<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+    Extension(session): Extension<session::Model>,
+    Path(directory_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
+    let state_db = State(db);
+    let directory = directories::get_directory_by_id(Path(directory_id), state_db).await?;
+    Ok(directory)
+}
+
+pub async fn update_directory(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(current_session): Extension<session::Model>,
+    Path(directory_id): Path<Uuid>,
+    Json(input): Json<UpdateDirectory>,
+) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
+    println!("TEST LOG: from admin_update_directory and input: {:?}", input);
+    let state_db = State(db);
+    let directory = directories::update_directory(Path(directory_id), state_db, Json(input)).await?;
+    Ok(directory)
+}
+
+pub async fn delete_directory(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(current_session): Extension<session::Model>,
+    Path(directory_id): Path<Uuid>,
+) -> Result<StatusCode, StatusCode> {
+    let state_db = State(db);
+    let status = directories::delete_directory(Path(directory_id), state_db).await?;
+    Ok(status)
+}
+
+pub async fn create_directory(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(current_session): Extension<session::Model>,
+    Json(input): Json<CreateDirectory>,
+) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
+    let state_db = State(db);
+    println!("TEST LOG: from create_directory and input: {:?}", input);
+    let directory = directories::create_directory(state_db, Json(input)).await?;
+    Ok( directory)
 }
 
 pub async fn create_directory_type(
@@ -93,15 +155,12 @@ pub async fn create_directory_type(
     Extension(current_session): Extension<session::Model>,
     Json(input): Json<CreateDirectoryType>,
 ) -> Result<(StatusCode, Json<DirectoryTypeModel>), StatusCode> {
-    tracing::info!("Creating directory type via admin route");
-
     let state_db = State(db);
     let input = Json(input);
     let directory_type = directory_types::create_directory_type(state_db, input).await?;
     
-    Ok((StatusCode::CREATED, Json(directory_type)))
+    Ok((StatusCode::CREATED, directory_type))
 }
-
 
 pub async fn update_directory_type(
     State(db): State<DatabaseConnection>,
@@ -109,29 +168,27 @@ pub async fn update_directory_type(
     Extension(current_session): Extension<session::Model>,
     Path(directory_type_id): Path<Uuid>,
     Json(input): Json<UpdateDirectoryType>,
-) -> Result<impl IntoResponse, StatusCode> {
-    tracing::info!("Updating directory type via admin route");
+) -> Result<(StatusCode, Json<DirectoryTypeModel>), StatusCode> {
     let state_db = State(db);
     let path = Path(directory_type_id);
     let input = Json(input);
     let directory_type = directory_types::update_directory_type(path, state_db, input).await?;
-    Ok(directory_type)
+    
+    Ok((StatusCode::OK, directory_type))
 }
-
 
 pub async fn delete_directory_type(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
     Path(directory_type_id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
+) -> Result<StatusCode, StatusCode> {
     tracing::info!("Deleting directory type via admin route");
     let path = Path(directory_type_id);
     let state_db = State(db);
 
-   
-
-    Ok(directory_types::delete_directory_type(path, state_db).await)
+    let status = directory_types::delete_directory_type(path, state_db).await.map_err(|e| e.0)?;
+    Ok(status)
 }
 
 pub async fn get_directory_types(
@@ -251,8 +308,6 @@ pub async fn get_user(
     Ok(Json(user_admin_view))
 }
 
-
-
 pub async fn update_user(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -314,7 +369,6 @@ pub async fn toggle_admin(
 
     Ok(Json(updated_user))
 }
-
 
 pub async fn get_all_directory_stats(
     State(db): State<DatabaseConnection>,

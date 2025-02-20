@@ -26,20 +26,20 @@ impl From<directory::Model> for DirectoryModel {
             description: model.description,
             created_at: model.created_at,
             updated_at: model.updated_at,
+        }
     }
-}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct DirectoryCreate {
+pub struct CreateDirectory {
     pub name: String,
     pub directory_type_id: Uuid,
     pub domain: String,
     pub description: String,
 }
 
-impl From<DirectoryCreate> for directory::ActiveModel {
-    fn from(input: DirectoryCreate) -> Self {
+impl From<CreateDirectory> for directory::ActiveModel {
+    fn from(input: CreateDirectory) -> Self {
         Self {
             id: Set(Uuid::new_v4()),
             name: Set(input.name),
@@ -53,23 +53,23 @@ impl From<DirectoryCreate> for directory::ActiveModel {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct DirectoryUpdate {
+pub struct UpdateDirectory {
     pub id: Uuid,
-    pub name: String,
-    pub directory_type_id: Uuid,
-    pub domain: String,
-    pub description: String,
+    pub name: Option<String>,
+    pub directory_type_id: Option<Uuid>,
+    pub domain: Option<String>,
+    pub description: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 
-impl From<DirectoryUpdate> for directory::ActiveModel {
-    fn from(input: DirectoryUpdate) -> Self {
+impl From<UpdateDirectory> for directory::ActiveModel {
+    fn from(input: UpdateDirectory) -> Self {
         Self {
             id: Set(input.id),
-            name: Set(input.name),
-            directory_type_id: Set(input.directory_type_id),
-            domain: Set(input.domain),
-            description: Set(input.description),
+            name: Set(input.name.unwrap_or_default()),
+            directory_type_id: Set(input.directory_type_id.unwrap_or_default()),
+            domain: Set(input.domain.unwrap_or_default()),
+            description: Set(input.description.unwrap_or_default()),
             updated_at: Set(Utc::now()),
             created_at: NotSet,  // Add this line
         }
