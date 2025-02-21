@@ -6,9 +6,10 @@ use axum::{
     routing::{get, post, put, delete},
     Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, DbErr};
 use crate::entities::directory::{self, Entity as Directory};
 use crate::models::directory::{DirectoryModel, CreateDirectory, UpdateDirectory};
+use crate::entities::directory_type::{self, Entity as DirectoryType};
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -110,7 +111,6 @@ pub async fn create_directory(
 
     Ok((StatusCode::CREATED, Json(DirectoryModel::from(directory))))
 }
-
 pub async fn update_directory(
     Path(directory_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
@@ -126,17 +126,18 @@ pub async fn update_directory(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     let mut active_directory: directory::ActiveModel = directory.clone().into();
+
     if let Some(name) = input.name {
         active_directory.name = Set(name);
-    }
-    if let Some(description) = input.description {
-        active_directory.description = Set(description);
     }
     if let Some(directory_type_id) = input.directory_type_id {
         active_directory.directory_type_id = Set(directory_type_id);
     }
     if let Some(domain) = input.domain {
         active_directory.domain = Set(domain);
+    }
+    if let Some(description) = input.description {
+        active_directory.description = Set(description);
     }
     active_directory.updated_at = Set(Utc::now());
 
@@ -150,7 +151,6 @@ pub async fn update_directory(
 
     Ok((StatusCode::OK, Json(DirectoryModel::from(directory))))
 }
-
 pub async fn delete_directory(
     Path(directory_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,

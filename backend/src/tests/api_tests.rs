@@ -136,6 +136,7 @@ async fn test_session_validation_and_expiry() {
         .unwrap();
     assert_eq!(validation_response.status(), StatusCode::OK);
 }
+
 #[tokio::test]
 async fn test_directory_operations() {
     let (app, db) = setup_test_app().await;

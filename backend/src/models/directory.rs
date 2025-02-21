@@ -54,14 +54,12 @@ impl From<CreateDirectory> for directory::ActiveModel {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UpdateDirectory {
-    pub id: Uuid,
     pub name: Option<String>,
     pub directory_type_id: Option<Uuid>,
     pub domain: Option<String>,
     pub description: Option<String>,
-    pub updated_at: DateTime<Utc>,
 }
-
+/* Not Needed anymore
 impl From<UpdateDirectory> for directory::ActiveModel {
     fn from(input: UpdateDirectory) -> Self {
         Self {
@@ -74,4 +72,4 @@ impl From<UpdateDirectory> for directory::ActiveModel {
             created_at: NotSet,  // Add this line
         }
     }
-}
+} */
