@@ -12,7 +12,7 @@ use hyper::body::Bytes;
 use axum::body::HttpBody as _;  // Brings collect() into scope
 
 
-use crate::entities::{directory_type, directory, user};
+use crate::entities::{directory_type, directory, user, profile, user_account, category};
 
 pub async fn create_test_directory_type<C: ConnectionTrait>(db: &C) -> directory_type::Model {
     let directory_type_id = Uuid::new_v4();
@@ -52,7 +52,7 @@ pub async fn register_test_user(
     app: &Router,
     directory_id: Uuid,
     username: &str,
-) -> (StatusCode, String) {
+) -> (StatusCode, serde_json::Value) {
     let response = app.clone()
         .oneshot(
             Request::builder()
@@ -83,8 +83,52 @@ pub async fn register_test_user(
         .unwrap()
         .to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
+    println!("TEST LOG: Registration response status: {:?}, body: {:?}", status, body);
+    let json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
+    println!("TEST LOG: Registration response json_body: {:?}", json_body);
+    let login_response = login_test_user(
+        app,
+        &format!("{}@example.com", username),
+        "password123"
+    ).await;
+    println!("TEST LOG: Login response: {:?}", login_response);
+    // After registration, create associated business profile
+    if status.is_success() {
+        // Login to get a valid token
+        
+        let token = &login_response["token"].as_str().expect("No token in login response");
+        
+        // Create a business profile for the new user
+        let profile_response = app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/profiles")
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", format!("Bearer {}", token.to_string()))
+                    .body(Body::from(
+                        json!({
+                            "directory_id": directory_id,
+                            "profile_type": "Business",
+                            "display_name": format!("{}'s Business", username),
+                            "contact_info": format!("contact@{}s-business.com", username),
+                            "business_details": {
+                                "business_name": format!("{} Enterprises", username),
+                                "business_address": "123 Main St, Test City",
+                                "business_phone": "555-1234",
+                                "website": format!("https://{}-business.com", username)
+                            }
+                        }).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        
+        println!("TEST LOG: Profile creation response: {:?}", profile_response);
+    }
 
-    (status, body)
+    (status, login_response)
 }
 
 pub async fn login_test_user(
@@ -155,4 +199,56 @@ pub async fn create_and_login_admin_user(app: &Router, db: &DatabaseConnection) 
     let token = login_response["token"].as_str().unwrap().to_string();
     
     (admin_user, token)
+}
+
+// New function to create staff user accounts
+pub async fn create_staff_user_account(
+    db: &DatabaseConnection,
+    admin_user: &user::Model,
+    profile: &profile::Model,
+    role: user_account::UserRole,
+) -> user_account::Model {
+    // Create staff user
+    let staff_user = user::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        username: Set(format!("staff-{}", Uuid::new_v4())),
+        first_name: Set("Staff".to_string()),
+        last_name: Set("User".to_string()),
+        email: Set(format!("staff-{}@example.com", Uuid::new_v4())),
+        phone: Set("555-9876".to_string()),
+        password_hash: Set(crate::auth::hash_password("staffpass123").unwrap()),
+        is_admin: Set(false),
+        is_active: Set(true),
+        last_login: Set(Some(Utc::now())),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }.insert(db).await.expect("Failed to create staff user");
+
+    // Create user account association
+    user_account::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(staff_user.id),
+        account_id: Set(profile.account_id),
+        role: Set(role),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }.insert(db).await.expect("Failed to create staff user account")
+}
+
+pub async fn create_default_category(db: &DatabaseConnection, directory_type_id: Uuid) -> category::Model {
+    category::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set("Default Category".to_string()),
+        description: Set("Default category for listings".to_string()),
+        directory_type_id: Set(directory_type_id),
+        parent_category_id: Set(None),
+        is_custom: Set(false),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .expect("Failed to create default category")
 }

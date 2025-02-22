@@ -9,7 +9,7 @@ use crate::entities::{
 };
 use crate::models::listing::{ListingCreate, ListingUpdate, ListingStatus};
 use sea_orm::{
-    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait,
+    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait,DatabaseTransaction, IntoActiveModel
 };
 use axum::{
     extract::{Path, Json, Extension, Query},
@@ -51,6 +51,7 @@ pub async fn get_listings(
     let directory_id = params.get("directory_id")
         .and_then(|id| Uuid::parse_str(id).ok())
         .ok_or(StatusCode::BAD_REQUEST)?;
+    println!("TEST LOG: from get_listings and directory_id: {:?}", directory_id);
     tracing::info!("Fetching listings for Directory ID: {}", directory_id);
 
     let listings = Listing::find()
@@ -58,6 +59,7 @@ pub async fn get_listings(
         .all(&db)
         .await
         .map_err(|err| {
+            println!("TEST LOG: from get_listings and err: {:?}", err);
             tracing::error!("Database error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
@@ -81,110 +83,83 @@ pub async fn get_listing_by_id(
     tracing::info!("Listing found: {:?}", listing);
     Ok(Json(listing))
 }
-
 pub async fn create_listing(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Json(input): Json<ListingCreate>,
 ) -> Result<Json<listing::Model>, StatusCode> {
-    let txn = db.begin().await.map_err(|err| {
-        tracing::error!("Error starting transaction: {:?}", err);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let user_accounts = UserAccount::find()
-        .filter(user_account::Column::UserId.eq(current_user.id))
-        .filter(user_account::Column::AccountId.eq(input.profile_id))
-        .all(&txn)
-        .await
-        .map_err(|err| {
-            tracing::error!("Error fetching user accounts: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
+    println!("TEST LOG: from create_listing and input: {:?}", input);
+    // Start transaction
+    let txn = db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    println!("TEST LOG: from create_listing and txn: {:?}", txn);
+    println!("TEST LOG: from create_listing and current_user: {:?}", current_user);
+    println!("TEST LOG: from create_listing and input.profile_id: {:?}", input.profile_id);
+    // Verify user has permission to create listing under this profile
     let profile = Profile::find_by_id(input.profile_id)
         .one(&txn)
         .await
-        .map_err(|err| {
-            tracing::error!("Error fetching profile: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
-
-    let user_account_exists = user_accounts
-        .iter()
-        .any(|ua| ua.account_id == profile.id);
-
+    println!("TEST LOG: from create_listing and profile: {:?}", profile);
+    let user_account_exists = UserAccount::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .filter(user_account::Column::AccountId.eq(profile.account_id))
+        .one(&txn)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .is_some();
+    println!("TEST LOG: from create_listing and user_account_exists: {:?}", user_account_exists);
     if !user_account_exists {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let new_listing = listing::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        profile_id: Set(profile.id),
-        directory_id: Set(profile.directory_id),
-        title: Set(input.title),
-        description: Set(input.description),
-        category_id: Set(input.category_id),
-        listing_type: Set(input.listing_type),
-        price: Set(input.price),
-        price_type: Set(input.price_type),
-        country: Set(input.country),
-        state: Set(input.state),
-        city: Set(input.city),
-        neighborhood: Set(input.neighborhood),
-        latitude: Set(input.latitude),
-        longitude: Set(input.longitude),
-        additional_info: Set(input.additional_info),
-        status: Set(ListingStatus::Pending),
-        is_featured: Set(input.is_featured),
-        is_based_on_template: Set(input.is_based_on_template),
-        based_on_template_id: Set(Some(input.template_id)),
-        is_ad_placement: Set(input.is_ad_placement),
-        is_active: Set(input.is_active),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-    };
-
+    // Create the listing
+    let new_listing = input.into_active_model();
+    println!("TEST LOG: from create_listing and new_listing: {:?}", new_listing);
     let inserted_listing = new_listing.insert(&txn).await.map_err(|err| {
-        tracing::error!("Error creating listing: {:?}", err);
+        println!("TEST LOG: from create_listing and err: {:?}", err);
+        tracing::error!("Failed to insert listing: {:?}", err);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-
-    if let template_id = input.template_id {
-        let template_attributes = ListingAttribute::find()
-            .filter(listing_attribute::Column::TemplateId.eq(template_id))
-            .all(&txn)
-            .await
-            .map_err(|err| {
-                tracing::error!("Error fetching template attributes: {:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
-        for attr in template_attributes {
-            let new_attr = listing_attribute::ActiveModel {
-                id: Set(Uuid::new_v4()),
-                listing_id: Set(Some(inserted_listing.id)),
-                template_id: Set(None),
-                attribute_type: Set(attr.attribute_type),
-                attribute_key: Set(attr.attribute_key),
-                value: Set(attr.value),
-                created_at: Set(Utc::now()),
-                updated_at: Set(Utc::now()),
-            };
-            new_attr.insert(&txn).await.map_err(|err| {
-                tracing::error!("Error creating listing attribute: {:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-        }
+    println!("TEST LOG: from create_listing and inserted_listing: {:?}", inserted_listing);
+    // Handle template attributes if applicable
+    if let Some(template_id) = inserted_listing.based_on_template_id {
+        copy_template_attributes(&txn, inserted_listing.id, template_id).await?;
     }
-
-    txn.commit().await.map_err(|err| {
-        tracing::error!("Error committing transaction: {:?}", err);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    
+    txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(inserted_listing))
+}
+
+// Separate function for template attribute copying
+async fn copy_template_attributes(
+    txn: &DatabaseTransaction,
+    listing_id: Uuid,
+    template_id: Uuid,
+) -> Result<(), StatusCode> {
+    let template_attributes = ListingAttribute::find()
+        .filter(listing_attribute::Column::TemplateId.eq(template_id))
+        .all(txn)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    for attr in template_attributes {
+        listing_attribute::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            listing_id: Set(Some(listing_id)),
+            template_id: Set(None),
+            attribute_type: Set(attr.attribute_type),
+            attribute_key: Set(attr.attribute_key),
+            value: Set(attr.value),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+        }
+        .insert(txn)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    Ok(())
 }
 
 pub async fn update_listing(
@@ -230,7 +205,7 @@ pub async fn update_listing(
     // Update fields if provided in input
     if let title = input.title { listing_active_model.title = Set(title); }
     if let description = input.description { listing_active_model.description = Set(description); }
-    if let category_id = input.category_id { listing_active_model.category_id = Set(category_id); }
+    if let category_id = input.category_id { listing_active_model.category_id = Set(Some(category_id)); }
     if let listing_type = input.listing_type { listing_active_model.listing_type = Set(listing_type); }
     if let price = input.price { listing_active_model.price = Set(price); }
     if let price_type = input.price_type { listing_active_model.price_type = Set(price_type); }

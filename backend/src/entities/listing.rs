@@ -12,7 +12,7 @@ pub struct Model {
     pub id: Uuid,
     pub profile_id: Uuid,
     pub directory_id: Uuid,
-    pub category_id: Uuid,
+    pub category_id: Option<Uuid>,
     pub title: String,
     pub description: String,
     pub listing_type: String,

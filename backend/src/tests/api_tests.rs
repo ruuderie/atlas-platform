@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{Database, DatabaseConnection, EntityTrait};
 use sea_orm_migration::MigratorTrait;
 use tower::ServiceExt;
 use serde_json::json;
@@ -14,6 +14,7 @@ use hyper::body::Bytes;
 use super::test_utils;
 use crate::models::directory_type::DirectoryTypeModel;
 use crate::models::directory::DirectoryModel;
+use crate::entities::user_account::UserRole;
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/business_directory_test".to_string());
@@ -297,13 +298,35 @@ async fn test_listing_operations() {
     let directory_type = test_utils::create_test_directory_type(&db).await;
     let directory = test_utils::create_test_directory(&db, directory_type.id).await;
     
-    // Register and login a user
     let username = format!("testuser{}", Uuid::new_v4());
-    let (_, _) = test_utils::register_test_user(&app, directory.id, &username).await;
-    let login_response = test_utils::login_test_user(&app, format!("{}@example.com", username).as_str(), "password123").await;
-    let token = login_response["token"].as_str().unwrap();
+    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    println!("TEST LOG: from test_listing_operations and registration_body: {:?}", registration_body);
     
-    // Test creating a listing
+    // Get the created profile from the registration
+    let token = registration_body["token"].as_str().unwrap();
+    let profile_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/profiles")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    // Get the first profile from the array
+    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
+        &profile_response.into_body().collect().await.unwrap().to_bytes()
+    ).unwrap();
+    let profile = profiles.first().expect("No profile found");
+
+    // In your test setup:
+    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
+
+    // Test creating a listing with full business context
     let create_listing_response = app.clone()
         .oneshot(
             Request::builder()
@@ -312,13 +335,60 @@ async fn test_listing_operations() {
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
-                    "name": "Test Listing",
+                    "title": "Test Listing",
                     "description": "Test Description",
-                    "directory_id": directory.id
+                    "directory_id": directory.id,
+                    "profile_id": profile.id,
+                    "category_id": default_category.id,
+                    "business_details": {
+                        "opening_hours": "9AM-5PM",
+                        "services": ["Consulting", "Development"]
+                    }
                 }).to_string()))
                 .unwrap()
         )
         .await
         .unwrap();
-    assert_eq!(create_listing_response.status(), StatusCode::CREATED);
+    assert_eq!(create_listing_response.status(), StatusCode::OK);
+
+    // Test staff user access
+    let staff_user = test_utils::create_staff_user_account(
+        &db,
+        &test_utils::create_and_login_admin_user(&app, &db).await.0,
+        &profile,  // Now passing the actual Model
+        UserRole::Member
+    ).await;
+    
+    // Get the full user record from the user_account
+    let user = crate::entities::user::Entity::find_by_id(staff_user.user_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let staff_login = test_utils::login_test_user(
+        &app,
+        &user.email,  // Use email from user entity
+        "staffpass123"
+    ).await;
+    let staff_token = staff_login["token"].as_str().unwrap();
+    
+    // Verify staff can access the listing
+    let listings_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/listings?directory_id={}", directory.id).as_str())
+                .header("Authorization", format!("Bearer {}", staff_token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(listings_response.status(), StatusCode::OK);
+    
+    // Verify response contains listings
+    let body_bytes = listings_response.into_body().collect().await.unwrap().to_bytes();
+    let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    assert!(!listings.is_empty(), "No listings returned");
 }
