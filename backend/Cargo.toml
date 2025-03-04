@@ -29,5 +29,13 @@ bitflags = {version = "2.6.0", features = ["serde"]}
 validator = { version = "0.18.1", features = ["derive"] }
 hyper = "1.6.0"
 once_cell = "1.20.3"
+fake = { version = "4", features = [
+    "derive",      # For deriving Dummy trait
+    "uuid",        # For generating fake UUIDs
+    "chrono",      # For generating fake timestamps
+    "http",        # For generating fake HTTP-related data
+    "serde_json"   # For generating fake JSON data
+]}
+urlencoding = "2.1.3"
 
 

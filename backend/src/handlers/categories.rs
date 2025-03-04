@@ -3,11 +3,10 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, Set, InsertResult, ActiveModelTrait, DbErr};
+use sea_orm::{DatabaseConnection, EntityTrait, Set,  ActiveModelTrait};
 use serde_json::json;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-
+use chrono::Utc;
 use crate::entities::category; 
 use crate::models::category::{CategoryModel, CreateCategory, UpdateCategory}; 
 

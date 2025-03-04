@@ -15,6 +15,16 @@ use super::test_utils;
 use crate::models::directory_type::DirectoryTypeModel;
 use crate::models::directory::DirectoryModel;
 use crate::entities::user_account::UserRole;
+use fake::{Fake, faker::{
+    company::en::{CompanyName, CatchPhrase},
+    internet::en::{DomainSuffix, SafeEmail},
+    address::en::{StreetName,CityName, StateAbbr, ZipCode},
+    lorem::en::Sentence,
+    phone_number::en::PhoneNumber,
+    name::en::{FirstName, LastName},
+}};
+use urlencoding;
+
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/business_directory_test".to_string());
@@ -35,13 +45,15 @@ async fn setup_test_app() -> (Router, DatabaseConnection) {
 
     (api::create_router(db.clone()), db)
 }
+
 #[tokio::test]
 async fn test_concurrent_logout_requests() {
     let (app, db) = setup_test_app().await;
     let directory_type = test_utils::create_test_directory_type(&db).await;
     let directory = test_utils::create_test_directory(&db, directory_type.id).await;
     let unique_id = Uuid::new_v4();
-    let (status, _) = test_utils::register_test_user(&app, directory.id, format!("concurrentuser{}", unique_id).as_str()).await;
+    let mut username = format!("concurrentuser{}", unique_id);
+    let (status, _) = test_utils::register_test_user(&app, directory.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
 
     let login_response = test_utils::login_test_user(&app, format!("concurrentuser{}@example.com", unique_id).as_str(), "password123").await;
@@ -111,6 +123,7 @@ async fn test_logout_with_invalid_token() {
     println!("TEST LOG: expected status: {:?}", StatusCode::UNAUTHORIZED);
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
+
 #[tokio::test]
 async fn test_session_validation_and_expiry() {
     let (app, db) = setup_test_app().await;
@@ -118,8 +131,8 @@ async fn test_session_validation_and_expiry() {
     let directory = test_utils::create_test_directory(&db, directory_type.id).await;
     
     // Register and login
-    let username = format!("testuser{}", Uuid::new_v4());
-    let (_, _) = test_utils::register_test_user(&app, directory.id, &username).await;
+    let mut username = format!("testuser{}", Uuid::new_v4());
+    let (_, _) = test_utils::register_test_user(&app, directory.id, &mut username).await;
     let login_response = test_utils::login_test_user(&app, format!("{}@example.com", username).as_str(), "password123").await;
     let token = login_response["token"].as_str().unwrap();
     
@@ -141,12 +154,11 @@ async fn test_session_validation_and_expiry() {
 #[tokio::test]
 async fn test_directory_operations() {
     let (app, db) = setup_test_app().await;
-    
-    // Create and login as admin user
-    let admin_username = format!("admin{}", Uuid::new_v4());
     let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     let directory_type_id = Uuid::new_v4();
+    let test_name = CompanyName().fake::<String>();
+    let test_desc = CatchPhrase().fake::<String>();
     
     // Test creating directory type
     let response = app.clone()
@@ -157,8 +169,8 @@ async fn test_directory_operations() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
-                    "name": format!("Test Directory Type {}", directory_type_id.to_string()),
-                    "description": format!("Test Description {}", directory_type_id.to_string()),
+                    "name": test_name,
+                    "description": test_desc,
                 }).to_string()))
                 .unwrap()
         )
@@ -212,6 +224,11 @@ async fn test_directory_operations() {
     assert_eq!(response.status(), StatusCode::OK);
     
     // Test creating directory
+    let domain = format!("{}.{}", 
+        CompanyName().fake::<String>().to_lowercase().replace(" ", "-"), 
+        DomainSuffix().fake::<String>()
+    );
+    
     let response = app.clone()
         .oneshot(
             Request::builder()
@@ -220,10 +237,10 @@ async fn test_directory_operations() {
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
-                    "name": "Test Directory",
-                    "description": "Test Directory Description",
-                    "directory_type_id": directory_type_id.clone(),
-                    "domain": "test.com"
+                    "name": CompanyName().fake::<String>(),
+                    "description": CatchPhrase().fake::<String>(),
+                    "directory_type_id": directory_type_id,
+                    "domain": domain
                 }).to_string()))
                 .unwrap()
         )
@@ -292,14 +309,16 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     
 }
+
 #[tokio::test]
 async fn test_listing_operations() {
     let (app, db) = setup_test_app().await;
     let directory_type = test_utils::create_test_directory_type(&db).await;
     let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    
-    let username = format!("testuser{}", Uuid::new_v4());
-    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &username).await;
+
+    let mut username = format!("testuser{}", Uuid::new_v4());
+    println!("TEST LOG: from test_listing_operations and username: {:?}", username);
+    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     println!("TEST LOG: from test_listing_operations and registration_body: {:?}", registration_body);
     
@@ -335,14 +354,24 @@ async fn test_listing_operations() {
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
-                    "title": "Test Listing",
-                    "description": "Test Description",
+                    "title": CompanyName().fake::<String>(),
+                    "description": CatchPhrase().fake::<String>(),
                     "directory_id": directory.id,
                     "profile_id": profile.id,
                     "category_id": default_category.id,
                     "business_details": {
                         "opening_hours": "9AM-5PM",
-                        "services": ["Consulting", "Development"]
+                        "address": {
+                            "street": StreetName().fake::<String>(),
+                            "city": CityName().fake::<String>(),
+                            "state": StateAbbr().fake::<String>(),
+                            "zip": ZipCode().fake::<String>()
+                        },
+                        "contact": {
+                            "phone": PhoneNumber().fake::<String>(),
+                            "email": SafeEmail().fake::<String>()
+                        },
+                        "services": ["Consulting", "Development", "Design"]
                     }
                 }).to_string()))
                 .unwrap()
@@ -391,4 +420,193 @@ async fn test_listing_operations() {
     let body_bytes = listings_response.into_body().collect().await.unwrap().to_bytes();
     let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
     assert!(!listings.is_empty(), "No listings returned");
+}
+
+#[tokio::test]
+async fn test_profile_management() {
+    println!("TEST LOG: from test_profile_management");
+    let (app, db) = setup_test_app().await;
+
+    let directory_type = test_utils::create_test_directory_type(&db).await;
+    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    println!("TEST LOG: from test_profile_management and directory: {:?}", directory);
+    println!("TEST LOG: from test_profile_management and directory_type: {:?}", directory_type);
+    let first_name = FirstName().fake::<String>();
+    let last_name = LastName().fake::<String>();
+    // Test profile creation
+    let mut username = format!("{}_{}", first_name, last_name).to_lowercase();
+    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    
+    let token = registration_body["token"].as_str().unwrap();
+    println!("TEST LOG: from test_profile_management and token: {:?}", token);
+    // query for profile using get
+    let profile_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/profiles")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    println!("TEST LOG: from test_profile_management and profile_response: {:?}", profile_response);
+    assert_eq!(profile_response.status(), StatusCode::OK);
+    //how many profiles are in the response
+    let body_bytes = profile_response.into_body().collect().await.unwrap().to_bytes();
+    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    println!("TEST LOG: from test_profile_management and profiles: {:?}", profiles.len());
+    //print the first profile in the response
+    println!("TEST LOG: from test_profile_management and profiles[0]: {:?}", profiles[0]);
+    assert!(!profiles.is_empty(), "No profile returned");
+
+    // we use the first profile from the array we already parsed
+    let profile = &profiles[0];
+    println!("TEST LOG: from test_profile_management and profile: {:?}", profile);
+
+    let display_name = CompanyName().fake::<String>();
+    // Test profile update
+    let update_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/profiles/{}", profile.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "display_name": display_name,
+                    "contact_info": SafeEmail().fake::<String>(),
+                    "business_description": CatchPhrase().fake::<String>(),
+                    "address": {
+                        "street": StreetName().fake::<String>(),
+                        "city": CityName().fake::<String>(),
+                        "state": StateAbbr().fake::<String>(),
+                        "zip": ZipCode().fake::<String>()
+                    }
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(update_response.status(), StatusCode::OK);
+    
+    // Test profile search
+    let search_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/profiles/search?q={}", urlencoding::encode(&display_name)).as_str())
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(search_response.status(), StatusCode::OK);
+    let body_bytes = search_response.into_body().collect().await.unwrap().to_bytes();
+    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    assert!(!profiles.is_empty(), "No profiles returned");
+    assert_eq!(profiles[0].display_name, display_name);
+}
+
+#[tokio::test]
+async fn test_rate_limiting() {
+    let (app, _) = setup_test_app().await;
+    
+    // Test rapid requests to public endpoint
+    for _ in 0..6 {
+        let response = app.clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/login")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(json!({
+                        "email": "test@example.com",
+                        "password": "password123"
+                    }).to_string()))
+                    .unwrap()
+            )
+            .await
+            .unwrap();
+            
+        if response.status() == StatusCode::TOO_MANY_REQUESTS {
+            return; // Test passed - rate limit kicked in
+        }
+    }
+    
+    panic!("Rate limiting did not trigger as expected");
+}
+
+#[tokio::test]
+async fn test_category_management() {
+    let (app, db) = setup_test_app().await;
+    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    
+    // Test category creation
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/admin/categories")
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", admin_token))
+                .body(Body::from(json!({
+                    "name": "Test Category",
+                    "description": "Test Category Description",
+                    "parent_id": null
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    
+    // Add tests for update, delete, and hierarchy management
+}
+
+#[tokio::test]
+async fn test_profile_operations() {
+    let (app, db) = setup_test_app().await;
+    let directory_type = test_utils::create_test_directory_type(&db).await;
+    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    
+    // Register a user and get their profile
+    let mut username = format!("testuser{}", Uuid::new_v4());
+    let (status, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    
+    let token = login_response["token"].as_str().unwrap();
+    println!("TEST LOG: from test_profile_operations and token: {:?}", token);
+    // Test getting profiles
+    let profiles_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/profiles")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(profiles_response.status(), StatusCode::OK);
+    
+    let profiles: Vec<serde_json::Value> = serde_json::from_slice(
+        &profiles_response.into_body().collect().await.unwrap().to_bytes()
+    ).unwrap();
+    //how many profiles are in the response
+    println!("TEST LOG: from test_profile_operations and profiles: {:?}", profiles.len());
+    //print the first profile in the response
+    println!("TEST LOG: from test_profile_operations and profiles[0]: {:?}", profiles[0]);
+    
+    assert_eq!(profiles.len(), 1, "User should have exactly one profile");
+    assert_eq!(
+        profiles[0]["display_name"].as_str().unwrap(),
+        format!("{}'s Business", username),
+        "Profile display name should match"
+    );
 }
