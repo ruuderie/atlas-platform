@@ -1,7 +1,7 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
 use crate::handlers::{users, admin, profiles, listings, accounts, user_accounts, ad_purchases, directories, sessions};
-use crate::middleware::{auth_middleware};
+use crate::middleware::auth_middleware;
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
@@ -16,7 +16,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     // Public routes (requires state, so merge with state-applied routers)
     let public_routes = Router::<DatabaseConnection>::new()
         .merge(admin::public_routes(db.clone()))
-        .merge(directories::public_routes(db.clone())) // Already has .with_state(db) inside
+        .merge(directories::public_routes(db.clone()))
         .merge(listings::public_routes(db.clone()));
 
     let rate_limiter = RateLimiter::new();
@@ -31,7 +31,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(user_accounts::routes())
         .merge(ad_purchases::routes())
         .merge(admin_routes(db.clone()))
-        .merge(users::authenticated_routes(db.clone()));
+        .merge(users::authenticated_routes(db.clone()))
+        .merge(directories::authenticated_routes(db.clone()));
 
     // Combine all routes and apply state at the top level
     Router::new()

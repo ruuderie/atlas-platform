@@ -23,7 +23,7 @@ use uuid::Uuid;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ListingSearch {
     q: String,
 }
@@ -31,7 +31,7 @@ pub struct ListingSearch {
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", get(get_listings))
-        .route("/listing/:id", get(get_listing_by_id))
+        .route("/listings/:id", get(get_listing_by_id))
         .route("/listings/search", get(search_listings))
         .with_state(db)
 }
@@ -39,6 +39,7 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", post(create_listing))
+        .route("/listings/:id", get(get_listing_by_id))
         .route("/listings/:id", put(update_listing))
         .route("/listings/:id", delete(delete_listing))
         // Add other authenticated listing routes here
@@ -87,7 +88,8 @@ pub async fn create_listing(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Json(input): Json<ListingCreate>,
-) -> Result<Json<listing::Model>, StatusCode> {
+    //tuple of (status, listing)
+) -> Result<(StatusCode, Json<listing::Model>), StatusCode> {
     println!("TEST LOG: from create_listing and input: {:?}", input);
     // Start transaction
     let txn = db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -128,8 +130,8 @@ pub async fn create_listing(
     }
     
     txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(inserted_listing))
+    // send 201 created status code
+    Ok((StatusCode::CREATED, Json(inserted_listing)))
 }
 
 // Separate function for template attribute copying
@@ -168,12 +170,15 @@ pub async fn update_listing(
     Path(id): Path<Uuid>,
     Json(input): Json<ListingUpdate>,
 ) -> Result<Json<listing::Model>, StatusCode> {
+    println!("TEST LOG: from update_listing and input: {:?}", input);
     let existing_listing = Listing::find_by_id(id)
         .one(&db)
         .await
         .map_err(|err| {
+            println!("TEST LOG: from update_listing and err: {:?}", err);
             tracing::error!("Error fetching listing: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
+            
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
@@ -181,6 +186,7 @@ pub async fn update_listing(
         .one(&db)
         .await
         .map_err(|err| {
+            println!("TEST LOG: from update_listing and err: {:?}", err);
             tracing::error!("Error fetching profile: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?
@@ -188,48 +194,51 @@ pub async fn update_listing(
 
     let user_account_exists = UserAccount::find()
         .filter(user_account::Column::UserId.eq(current_user.id))
-        .filter(user_account::Column::AccountId.eq(profile.id))
+        .filter(user_account::Column::AccountId.eq(profile.account_id))
         .one(&db)
         .await
         .map_err(|err| {
+            println!("TEST LOG: from update_listing and err: {:?}", err);
             tracing::error!("Error checking user_account association: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
     if user_account_exists.is_none() {
+        println!("TEST LOG: from update_listing and user_account_exists: {:?}", user_account_exists);
         return Err(StatusCode::FORBIDDEN);
     }
 
     let mut listing_active_model: listing::ActiveModel = existing_listing.into();
 
     // Update fields if provided in input
-    if let title = input.title { listing_active_model.title = Set(title); }
-    if let description = input.description { listing_active_model.description = Set(description); }
-    if let category_id = input.category_id { listing_active_model.category_id = Set(Some(category_id)); }
-    if let listing_type = input.listing_type { listing_active_model.listing_type = Set(listing_type); }
-    if let price = input.price { listing_active_model.price = Set(price); }
-    if let price_type = input.price_type { listing_active_model.price_type = Set(price_type); }
-    if let country = input.country { listing_active_model.country = Set(country); }
-    if let state = input.state { listing_active_model.state = Set(state); }
-    if let city = input.city { listing_active_model.city = Set(city); }
-    if let neighborhood = input.neighborhood { listing_active_model.neighborhood = Set(neighborhood); }
-    if let latitude = input.latitude { listing_active_model.latitude = Set(latitude); }
-    if let longitude = input.longitude { listing_active_model.longitude = Set(longitude); }
-    if let additional_info = input.additional_info { listing_active_model.additional_info = Set(additional_info.unwrap()); }
-    if let is_featured = input.is_featured { listing_active_model.is_featured = Set(is_featured); }
-    if let is_active = input.is_active { listing_active_model.is_active = Set(is_active); }
-    if let is_ad_placement = input.is_ad_placement { listing_active_model.is_ad_placement = Set(is_ad_placement); }
-    if let is_based_on_template = input.is_based_on_template { listing_active_model.is_based_on_template = Set(is_based_on_template); }
-    if let based_on_template_id = input.based_on_template_id { listing_active_model.based_on_template_id = Set(based_on_template_id); }
-    if let status = input.status { listing_active_model.status = Set(status); }
+    if let Some(title) = input.title.as_ref() { listing_active_model.title = Set(title.clone()); }
+    if let Some(description) = input.description.as_ref() { listing_active_model.description = Set(description.clone()); }
+    if let Some(category_id) = input.category_id { listing_active_model.category_id = Set(Some(category_id)); }
+    if let Some(listing_type) = input.listing_type.as_ref() { listing_active_model.listing_type = Set(listing_type.clone()); }
+    if let Some(price) = input.price { listing_active_model.price = Set(Some(price)); }
+    if let Some(price_type) = input.price_type.as_ref() { listing_active_model.price_type = Set(Some(price_type.clone())); }
+    if let Some(country) = input.country.as_ref() { listing_active_model.country = Set(country.clone()); }
+    if let Some(state) = input.state.as_ref() { listing_active_model.state = Set(state.clone()); }
+    if let Some(city) = input.city.as_ref() { listing_active_model.city = Set(city.clone()); }
+    if let Some(neighborhood) = input.neighborhood.as_ref() { listing_active_model.neighborhood = Set(Some(neighborhood.clone())); }
+    if let Some(latitude) = input.latitude { listing_active_model.latitude = Set(Some(latitude)); }
+    if let Some(longitude) = input.longitude { listing_active_model.longitude = Set(Some(longitude)); }
+    if let Some(additional_info) = input.additional_info { listing_active_model.additional_info = Set(additional_info); }
+    if let Some(is_featured) = input.is_featured { listing_active_model.is_featured = Set(is_featured); }
+    if let Some(is_active) = input.is_active { listing_active_model.is_active = Set(is_active); }
+    if let Some(is_ad_placement) = input.is_ad_placement { listing_active_model.is_ad_placement = Set(is_ad_placement); }
+    if let Some(is_based_on_template) = input.is_based_on_template { listing_active_model.is_based_on_template = Set(is_based_on_template); }
+    if let Some(based_on_template_id) = input.based_on_template_id { listing_active_model.based_on_template_id = Set(Some(based_on_template_id)); }
+    if let Some(status) = input.status { listing_active_model.status = Set(status); }
 
     listing_active_model.updated_at = Set(Utc::now());
 
     let updated_listing = listing_active_model.update(&db).await.map_err(|err| {
+        println!("TEST LOG: from update_listing and err: {:?}", err);
         tracing::error!("Error updating listing: {:?}", err);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-
+    println!("TEST LOG: from update_listing and updated_listing: {:?}", updated_listing);
     Ok(Json(updated_listing))
 }
 
@@ -258,7 +267,7 @@ pub async fn delete_listing(
 
     let user_account_exists = UserAccount::find()
         .filter(user_account::Column::UserId.eq(current_user.id))
-        .filter(user_account::Column::AccountId.eq(profile.id))
+        .filter(user_account::Column::AccountId.eq(profile.account_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -283,10 +292,12 @@ pub async fn delete_listing(
 
 pub async fn search_listings(
     Extension(db): Extension<DatabaseConnection>,
-    Query(query): Query<ListingSearch>,
+    Query(q): Query<ListingSearch>,
 ) -> Result<Json<Vec<listing::Model>>, StatusCode> {
+    tracing::info!("Searching listings with query: {:?}", q);
+    
     let listings = Listing::find()
-        .filter(listing::Column::Title.like(format!("%{}%", query.q).as_str()))
+        .filter(listing::Column::Title.like(format!("%{}%", q.q).as_str()))
         .all(&db)
         .await
         .map_err(|err| {

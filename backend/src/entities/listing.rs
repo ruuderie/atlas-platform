@@ -16,7 +16,7 @@ pub struct Model {
     pub title: String,
     pub description: String,
     pub listing_type: String,
-    pub price: Option<i64>,
+    pub price: Option<f64>,
     pub price_type: Option<String>,
     pub country: String,
     pub state: String,

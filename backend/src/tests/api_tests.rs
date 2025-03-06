@@ -324,7 +324,7 @@ async fn test_listing_operations() {
         )
         .await
         .unwrap();
-    assert_eq!(create_listing_response.status(), StatusCode::OK);
+    assert_eq!(create_listing_response.status(), StatusCode::CREATED);
 
     // Test staff user access
     let staff_user = test_utils::create_staff_user_account(
@@ -669,4 +669,165 @@ async fn test_concurrent_logout_requests() {
     assert!(success_count > 0, "No logout requests succeeded");
     // The rest should fail with 401 Unauthorized
     assert_eq!(success_count + unauthorized_count, 5, "Not all requests returned expected status codes");
+}
+
+#[tokio::test]
+async fn test_listing_crud_operations() {
+    let (app, db) = setup_test_app().await;
+    
+    // Create test directory type and directory
+    let directory_type = test_utils::create_test_directory_type(&db).await;
+    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    
+    // Create a default category for listings
+    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
+    
+    // Register a user and get their profile
+    let mut username = format!("testuser{}", Uuid::new_v4());
+    let (status, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    
+    let token = login_response["token"].as_str().unwrap();
+    
+    // Get user's profile
+    let profiles_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/profiles")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    // Get the first profile from the array
+    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
+        &profiles_response.into_body().collect().await.unwrap().to_bytes()
+    ).unwrap();
+    let profile = profiles.first().expect("No profile found");
+    
+    // Test creating a listing
+    let listing_title = fake::faker::company::en::CompanyName().fake::<String>();
+    let listing_description = fake::faker::lorem::en::Sentence(5..10).fake::<String>();
+    
+    let create_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/listings")
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "title": listing_title.clone(),
+                    "description": listing_description.clone(),
+                    "directory_id": directory.id,
+                    "profile_id": profile.id,
+                    "category_id": default_category.id,
+                    "status": "active"
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(create_listing_response.status(), StatusCode::CREATED);
+    
+    // Parse the created listing
+    let body_bytes = create_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let created_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
+    
+    // Test getting a specific listing
+    let get_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/listings/{}", created_listing.id))
+                //.header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(get_listing_response.status(), StatusCode::OK);
+    
+    // Test updating the listing
+    let updated_title = fake::faker::company::en::CompanyName().fake::<String>();
+    let update_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/listings/{}", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "title": updated_title.clone(),
+                    "description": listing_description,
+                    "directory_id": directory.id,
+                    "profile_id": profile.id,
+                    "category_id": default_category.id,
+                    "status": "active"
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(update_listing_response.status(), StatusCode::OK);
+    
+    // Verify the listing was updated
+    let body_bytes = update_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let updated_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(updated_listing.title, updated_title);
+    
+    // Test getting all listings for a directory
+    let directory_listings_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/directories/{}/listings", directory.id))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(directory_listings_response.status(), StatusCode::OK);
+    
+    // Verify response contains listings
+    let body_bytes = directory_listings_response.into_body().collect().await.unwrap().to_bytes();
+    let directory_listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    assert!(!directory_listings.is_empty(), "No listings returned for directory");
+    
+    // Test deleting the listing
+    let delete_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri(format!("/api/listings/{}", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(delete_listing_response.status(), StatusCode::NO_CONTENT);
+    
+    // Verify the listing was deleted
+    let get_deleted_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/listings/{}", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(get_deleted_listing_response.status(), StatusCode::NOT_FOUND);
 }

@@ -18,6 +18,7 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
         .route("/directories", get(get_directories))
         .route("/directories/:id", get(get_directory_by_id))
         .route("/directories/type/:type_id", get(get_directories_by_type))
+        .route("/directories/:id/listings", get(get_directory_listings))
         .with_state(db)
 }
 
@@ -164,4 +165,29 @@ pub async fn delete_directory(
         })?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn get_directory_listings(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<(StatusCode, Json<Vec<crate::entities::listing::Model>>), StatusCode> {
+    let directory = directory::Entity::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let listings = crate::entities::listing::Entity::find()
+        .filter(crate::entities::listing::Column::DirectoryId.eq(directory_id))
+        .all(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch listings: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok((StatusCode::OK, Json(listings)))
 }
