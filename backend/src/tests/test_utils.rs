@@ -247,6 +247,7 @@ pub async fn create_and_login_admin_user(
     app: &Router,
     db: &DatabaseConnection,
 ) -> (user::Model, String) {
+    let password = std::env::var("TEST_PASSWORD").unwrap_or_default();
     // Create admin user directly in the database
     let admin_user = user::ActiveModel {
         id: Set(Uuid::new_v4()),
@@ -255,7 +256,7 @@ pub async fn create_and_login_admin_user(
         last_name: Set("User".to_string()),
         email: Set(format!("admin{}@example.com", Uuid::new_v4())),
         phone: Set("1234567890".to_string()),
-        password_hash: Set(crate::auth::hash_password("password123").unwrap()),
+        password_hash: Set(crate::auth::hash_password(&password).unwrap()),
         is_admin: Set(true),
         is_active: Set(true),
         last_login: Set(Some(Utc::now())),
@@ -265,9 +266,8 @@ pub async fn create_and_login_admin_user(
     .insert(db)
     .await
     .expect("Failed to create admin user");
-
     // Login the admin user
-    let login_response = login_test_user(app, &admin_user.email, "password123").await;
+    let login_response = login_test_user(app, &admin_user.email, &password).await;
 
     let token = login_response["token"].as_str().unwrap().to_string();
 

@@ -57,8 +57,8 @@ pub async fn get_category(
 pub async fn create_category(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateCategory>, 
-) -> Result<Json<CategoryModel>, (StatusCode, Json<serde_json::Value>)> {
-
+) -> Result<(StatusCode, Json<CategoryModel>), (StatusCode, Json<serde_json::Value>)> {
+    println!("TEST LOG: from create_category and payload: {:?}", payload);
     let new_category = category::ActiveModel {
         id: Set(Uuid::new_v4()),
         directory_type_id: Set(payload.directory_type_id),
@@ -70,7 +70,7 @@ pub async fn create_category(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
-
+    println!("TEST LOG: from create_category and new_category: {:?}", new_category);
     let insert_result = category::Entity::insert(new_category)
         .exec(&db)
         .await
@@ -92,7 +92,7 @@ pub async fn create_category(
         })?
         .ok_or_else(|| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Created category not found"}))))?;
 
-    Ok(Json(CategoryModel::from(category)))
+    Ok((StatusCode::CREATED, Json(CategoryModel::from(category))))
 }
 
 pub async fn update_category(
@@ -100,9 +100,7 @@ pub async fn update_category(
     Path(category_id): Path<Uuid>,
     Json(payload): Json<UpdateCategory>,
 ) -> Result<Json<CategoryModel>, (StatusCode, Json<serde_json::Value>)> {
-
-
-    let category: category::ActiveModel = category::Entity::find_by_id(category_id)
+    let category_result = category::Entity::find_by_id(category_id)
         .one(&db)
         .await
         .map_err(|err| {
@@ -110,12 +108,40 @@ pub async fn update_category(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": "Failed to fetch category for update", "details": err.to_string()})),
             )
-        })?
-        .ok_or_else(|| (StatusCode::NOT_FOUND, Json(json!({"error": "Category not found"}))))?
-        .into();
+        })?;
 
+    let category = match category_result {
+        Some(c) => c,
+        None => return Err((StatusCode::NOT_FOUND, Json(json!({"error": "Category not found"})))),
+    };
 
-    let updated_category = category.update(&db).await.map_err(|err| {
+    // Create an ActiveModel and apply the updates from the payload
+    let mut category_active: category::ActiveModel = category.into();
+    
+    // Apply updates from payload
+    if let Some(name) = payload.name {
+        category_active.name = Set(name);
+    }
+    if let Some(description) = payload.description {
+        category_active.description = Set(description);
+    }
+    if let Some(directory_type_id) = payload.directory_type_id {
+        category_active.directory_type_id = Set(directory_type_id);
+    }
+    if let Some(parent_category_id) = payload.parent_category_id {
+        category_active.parent_category_id = Set(Some(parent_category_id));
+    }
+    if let Some(is_custom) = payload.is_custom {
+        category_active.is_custom = Set(is_custom);
+    }
+    if let Some(is_active) = payload.is_active {
+        category_active.is_active = Set(is_active);
+    }
+    
+    // Update the timestamp
+    category_active.updated_at = Set(Utc::now());
+
+    let updated_category = category_active.update(&db).await.map_err(|err| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "Failed to update category", "details": err.to_string()})),
