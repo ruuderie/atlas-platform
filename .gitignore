@@ -13,6 +13,9 @@
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+# Code coverage and profiling files
+*.profraw
+
 #test data 
 /listing_202409220054.csv
 

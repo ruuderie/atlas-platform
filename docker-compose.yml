@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: business-directory-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: business-directory-backend
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - RUST_LOG=info
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # Frontend service commented out for now
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: business-directory-frontend
+  #   depends_on:
+  #     - backend
+  #   environment:
+  #     - API_URL=http://localhost:8000/api
+  #     - VITE_DIRECTORY_ID=default
+  #   ports:
+  #     - "5000:5000"
+  #   restart: unless-stopped
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: business-directory-admin
+    env_file:
+      - .env
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://localhost:8000/api
+      - BASE_URL=http://localhost:8000
+    ports:
+      - "5150:5150"
+    restart: unless-stopped
+
+volumes:
+  postgres_data: 
