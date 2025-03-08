@@ -3,17 +3,25 @@ use crate::entities::user;
 use crate::auth::hash_password;
 use uuid::Uuid;
 use chrono::Utc;
-
+use dotenv::dotenv;
 pub async fn create_admin_user_if_not_exists(
     db: &DatabaseConnection,
     email: &str,
     password: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+    tracing::info!("Email: {:?}", email);
+    tracing::info!("Password: {:?}", password);
+    tracing::info!("Admin first name: {:?}", std::env::var("ADMIN_FIRST_NAME").unwrap());
+    tracing::info!("Admin last name: {:?}", std::env::var("ADMIN_LAST_NAME").unwrap());
+    tracing::info!("Admin phone: {:?}", std::env::var("ADMIN_PHONE").unwrap());
     // Check if the admin user already exists
     let existing_admin = user::Entity::find()
         .filter(user::Column::Email.eq(email))
         .one(db)
         .await?;
+    tracing::info!("Existing admin: {:?}", existing_admin);
+
     if existing_admin.is_none() {
         // Create the admin user
         let hashed_password = hash_password(password)?;

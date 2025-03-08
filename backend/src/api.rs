@@ -1,6 +1,6 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, admin, profiles, listings, accounts, user_accounts, ad_purchases, directories, sessions};
+use crate::handlers::{users, admin, profiles, listings, accounts, user_accounts, ad_purchases, directories, sessions, listing_attributes};
 use crate::middleware::auth_middleware;
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -27,6 +27,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/logout", post(users::logout_user))
         .merge(profiles::routes(db.clone()))
         .merge(listings::authenticated_routes())
+        .merge(listing_attributes::routes())
         .merge(accounts::routes())
         .merge(user_accounts::routes())
         .merge(ad_purchases::routes())

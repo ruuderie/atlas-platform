@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use serde_json::Value;
 use sea_orm::{IntoActiveModel, Set, ActiveModelTrait};
-use crate::entities::listing;
+use crate::entities::{listing, listing_attribute};
 use std::str::FromStr;
 
 #[derive(Debug, Deserialize)]
@@ -103,13 +103,13 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
             listing_type: Set(self.listing_type.unwrap_or("standard".to_string())),
             price: Set(self.price),
             price_type: Set(self.price_type),
-            country: Set(self.country.unwrap_or("Unknown".to_string())),
-            state: Set(self.state.unwrap_or("Unknown".to_string())),
-            city: Set(self.city.unwrap_or("Unknown".to_string())),
+            country: Set(Some(self.country.unwrap_or("Unknown".to_string()))),
+            state: Set(Some(self.state.unwrap_or("Unknown".to_string()))),
+            city: Set(Some(self.city.unwrap_or("Unknown".to_string()))),
             neighborhood: Set(self.neighborhood),
             latitude: Set(self.latitude),
             longitude: Set(self.longitude),
-            additional_info: Set(self.additional_info.unwrap_or(Value::Object(Default::default()))),
+            additional_info: Set(Some(self.additional_info.unwrap_or(Value::Object(Default::default())))),
             status: Set(ListingStatus::Pending),
             is_featured: Set(self.is_featured.unwrap_or(false)),
             is_based_on_template: Set(self.is_based_on_template.unwrap_or(false)),
@@ -175,5 +175,47 @@ where
             _ => Err(serde::de::Error::custom("Invalid listing status")),
         },
         None => Ok(None),
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListingWithAttributes {
+    pub listing: ListingModel,
+    pub attributes: Vec<crate::models::listing_attribute::ListingAttributeModel>,
+}
+
+impl From<(listing::Model, Vec<listing_attribute::Model>)> for ListingWithAttributes {
+    fn from((listing, attributes): (listing::Model, Vec<listing_attribute::Model>)) -> Self {
+        ListingWithAttributes {
+            listing: ListingModel {
+                id: listing.id,
+                profile_id: listing.profile_id,
+                directory_id: listing.directory_id,
+                category_id: listing.category_id,
+                title: listing.title,
+                description: listing.description,
+                listing_type: listing.listing_type,
+                price: listing.price,
+                price_type: listing.price_type,
+                country: listing.country,
+                state: listing.state,
+                city: listing.city,
+                neighborhood: listing.neighborhood,
+                latitude: listing.latitude,
+                longitude: listing.longitude,
+                additional_info: listing.additional_info.unwrap_or(Value::Object(Default::default())),
+                status: listing.status,
+                is_featured: listing.is_featured,
+                is_based_on_template: listing.is_based_on_template,
+                based_on_template_id: listing.based_on_template_id,
+                is_ad_placement: listing.is_ad_placement,
+                is_active: listing.is_active,
+                created_at: listing.created_at,
+                updated_at: listing.updated_at,
+            },
+            attributes: attributes.into_iter()
+                .map(crate::models::listing_attribute::ListingAttributeModel::from)
+                .collect(),
+        }
     }
 }

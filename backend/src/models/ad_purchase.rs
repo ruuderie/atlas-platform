@@ -16,6 +16,7 @@ pub struct AdPurchase {
     status: AdStatus,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+    price: f32,
 
 }
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -25,6 +26,7 @@ pub struct AdPurchaseCreate {
     pub content: String,
     pub start_date: DateTime<Utc>,
     pub end_date: DateTime<Utc>,
+    pub status: AdStatus,
     pub price: f32,
 }
 

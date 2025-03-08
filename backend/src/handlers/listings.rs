@@ -40,6 +40,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", post(create_listing))
         .route("/listings/:id", get(get_listing_by_id))
+        .route("/listings/:id/with-attributes", get(get_listing_with_attributes))
         .route("/listings/:id", put(update_listing))
         .route("/listings/:id", delete(delete_listing))
         // Add other authenticated listing routes here
@@ -217,13 +218,13 @@ pub async fn update_listing(
     if let Some(listing_type) = input.listing_type.as_ref() { listing_active_model.listing_type = Set(listing_type.clone()); }
     if let Some(price) = input.price { listing_active_model.price = Set(Some(price)); }
     if let Some(price_type) = input.price_type.as_ref() { listing_active_model.price_type = Set(Some(price_type.clone())); }
-    if let Some(country) = input.country.as_ref() { listing_active_model.country = Set(country.clone()); }
-    if let Some(state) = input.state.as_ref() { listing_active_model.state = Set(state.clone()); }
-    if let Some(city) = input.city.as_ref() { listing_active_model.city = Set(city.clone()); }
+    if let Some(country) = input.country.as_ref() { listing_active_model.country = Set(Some(country.clone())); }
+    if let Some(state) = input.state.as_ref() { listing_active_model.state = Set(Some(state.clone())); }
+    if let Some(city) = input.city.as_ref() { listing_active_model.city = Set(Some(city.clone())); }
     if let Some(neighborhood) = input.neighborhood.as_ref() { listing_active_model.neighborhood = Set(Some(neighborhood.clone())); }
     if let Some(latitude) = input.latitude { listing_active_model.latitude = Set(Some(latitude)); }
     if let Some(longitude) = input.longitude { listing_active_model.longitude = Set(Some(longitude)); }
-    if let Some(additional_info) = input.additional_info { listing_active_model.additional_info = Set(additional_info); }
+    if let Some(additional_info) = input.additional_info { listing_active_model.additional_info = Set(Some(additional_info)); }
     if let Some(is_featured) = input.is_featured { listing_active_model.is_featured = Set(is_featured); }
     if let Some(is_active) = input.is_active { listing_active_model.is_active = Set(is_active); }
     if let Some(is_ad_placement) = input.is_ad_placement { listing_active_model.is_ad_placement = Set(is_ad_placement); }
@@ -306,4 +307,36 @@ pub async fn search_listings(
         })?;
 
     Ok(Json(listings))
+}
+
+pub async fn get_listing_with_attributes(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<crate::models::listing::ListingWithAttributes>, StatusCode> {
+    tracing::info!("Fetching listing with attributes for ID: {}", id);
+    
+    // Get the listing
+    let listing = Listing::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Error fetching listing: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    // Get the attributes
+    let attributes = ListingAttribute::find()
+        .filter(listing_attribute::Column::ListingId.eq(Some(id)))
+        .all(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Error fetching listing attributes: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    // Combine them
+    let listing_with_attributes = crate::models::listing::ListingWithAttributes::from((listing, attributes));
+    
+    Ok(Json(listing_with_attributes))
 }

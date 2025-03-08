@@ -257,118 +257,6 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
 }
 
 #[tokio::test]
-async fn test_listing_operations() {
-    let (app, db) = setup_test_app().await;
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-
-    let mut username = format!("testuser{}", Uuid::new_v4());
-    println!("TEST LOG: from test_listing_operations and username: {:?}", username);
-    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
-    assert_eq!(status, StatusCode::CREATED);
-    println!("TEST LOG: from test_listing_operations and registration_body: {:?}", registration_body);
-    
-    // Get the created profile from the registration
-    let token = registration_body["token"].as_str().unwrap();
-    let profile_response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/api/profiles")
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    
-    // Get the first profile from the array
-    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
-        &profile_response.into_body().collect().await.unwrap().to_bytes()
-    ).unwrap();
-    let profile = profiles.first().expect("No profile found");
-
-    // In your test setup:
-    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
-
-    // Test creating a listing with full business context
-    let create_listing_response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/listings")
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Content-Type", "application/json")
-                .body(Body::from(json!({
-                    "title": CompanyName().fake::<String>(),
-                    "description": CatchPhrase().fake::<String>(),
-                    "directory_id": directory.id,
-                    "profile_id": profile.id,
-                    "category_id": default_category.id,
-                    "business_details": {
-                        "opening_hours": "9AM-5PM",
-                        "address": {
-                            "street": StreetName().fake::<String>(),
-                            "city": CityName().fake::<String>(),
-                            "state": StateAbbr().fake::<String>(),
-                            "zip": ZipCode().fake::<String>()
-                        },
-                        "contact": {
-                            "phone": PhoneNumber().fake::<String>(),
-                            "email": SafeEmail().fake::<String>()
-                        },
-                        "services": ["Consulting", "Development", "Design"]
-                    }
-                }).to_string()))
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    assert_eq!(create_listing_response.status(), StatusCode::CREATED);
-
-    // Test staff user access
-    let staff_user = test_utils::create_staff_user_account(
-        &db,
-        &test_utils::create_and_login_admin_user(&app, &db).await.0,
-        &profile,  // Now passing the actual Model
-        UserRole::Member
-    ).await;
-    
-    // Get the full user record from the user_account
-    let user = crate::entities::user::Entity::find_by_id(staff_user.user_id)
-        .one(&db)
-        .await
-        .unwrap()
-        .unwrap();
-
-    let staff_login = test_utils::login_test_user(
-        &app,
-        &user.email,  // Use email from user entity
-        "staffpass123"
-    ).await;
-    let staff_token = staff_login["token"].as_str().unwrap();
-    
-    // Verify staff can access the listing
-    let listings_response = app.clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(format!("/listings?directory_id={}", directory.id).as_str())
-                .header("Authorization", format!("Bearer {}", staff_token))
-                .body(Body::empty())
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    assert_eq!(listings_response.status(), StatusCode::OK);
-    
-    // Verify response contains listings
-    let body_bytes = listings_response.into_body().collect().await.unwrap().to_bytes();
-    let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
-    assert!(!listings.is_empty(), "No listings returned");
-}
-
-#[tokio::test]
 async fn test_profile_management() {
     println!("TEST LOG: from test_profile_management");
     let (app, db) = setup_test_app().await;
@@ -830,4 +718,277 @@ async fn test_listing_crud_operations() {
         .unwrap();
     
     assert_eq!(get_deleted_listing_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_listing_operations() {
+    let (app, db) = setup_test_app().await;
+    let directory_type = test_utils::create_test_directory_type(&db).await;
+    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+
+    let mut username = format!("testuser{}", Uuid::new_v4());
+    println!("TEST LOG: from test_listing_operations and username: {:?}", username);
+    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    println!("TEST LOG: from test_listing_operations and registration_body: {:?}", registration_body);
+    
+    // Get the created profile from the registration
+    let token = registration_body["token"].as_str().unwrap();
+    let profile_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/profiles")
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    // Get the first profile from the array
+    let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
+        &profile_response.into_body().collect().await.unwrap().to_bytes()
+    ).unwrap();
+    let profile = profiles.first().expect("No profile found");
+
+    // In your test setup:
+    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
+
+    // Test creating a listing with full business context
+    let create_listing_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/listings")
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "title": CompanyName().fake::<String>(),
+                    "description": CatchPhrase().fake::<String>(),
+                    "directory_id": directory.id,
+                    "profile_id": profile.id,
+                    "category_id": default_category.id,
+                    "business_details": {
+                        "opening_hours": "9AM-5PM",
+                        "address": {
+                            "street": StreetName().fake::<String>(),
+                            "city": CityName().fake::<String>(),
+                            "state": StateAbbr().fake::<String>(),
+                            "zip": ZipCode().fake::<String>()
+                        },
+                        "contact": {
+                            "phone": PhoneNumber().fake::<String>(),
+                            "email": SafeEmail().fake::<String>()
+                        },
+                        "services": ["Consulting", "Development", "Design"]
+                    }
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(create_listing_response.status(), StatusCode::CREATED);
+    
+    // Parse the created listing
+    let body_bytes = create_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let created_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
+    println!("TEST LOG: Created listing: {:?}", created_listing);
+    
+    // ===== LISTING ATTRIBUTES TESTING =====
+    
+    // 1. Create a listing attribute
+    let create_attribute_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/listings/{}/attributes", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "attribute_type": "ServiceDetail",
+                    "attribute_key": "Experience",
+                    "value": "10+ years in the industry"
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(create_attribute_response.status(), StatusCode::OK);
+    
+    // Parse the created attribute
+    let body_bytes = create_attribute_response.into_body().collect().await.unwrap().to_bytes();
+    let created_attribute: crate::models::listing_attribute::ListingAttributeModel = 
+        serde_json::from_slice(&body_bytes).unwrap();
+    println!("TEST LOG: Created attribute: {:?}", created_attribute);
+    
+    // 2. Get all attributes for the listing
+    let get_attributes_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/listings/{}/attributes", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(get_attributes_response.status(), StatusCode::OK);
+    
+    // Parse the attributes
+    let body_bytes = get_attributes_response.into_body().collect().await.unwrap().to_bytes();
+    let attributes: Vec<crate::models::listing_attribute::ListingAttributeModel> = 
+        serde_json::from_slice(&body_bytes).unwrap();
+    
+    assert!(!attributes.is_empty(), "No attributes returned for listing");
+    println!("TEST LOG: Retrieved attributes: {:?}", attributes);
+    
+    // 3. Get a specific attribute
+    let get_attribute_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(get_attribute_response.status(), StatusCode::OK);
+    
+    // 4. Update an attribute
+    let update_attribute_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({
+                    "value": "15+ years of specialized experience"
+                }).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    
+    assert_eq!(update_attribute_response.status(), StatusCode::OK);
+    
+    // Parse the updated attribute
+    let body_bytes = update_attribute_response.into_body().collect().await.unwrap().to_bytes();
+    let updated_attribute: crate::models::listing_attribute::ListingAttributeModel = 
+        serde_json::from_slice(&body_bytes).unwrap();
+    
+    // Verify the attribute was updated
+    assert_eq!(
+        updated_attribute.value.as_str().unwrap(),
+        "15+ years of specialized experience",
+        "Attribute value was not updated correctly"
+    );
+    
+   
+    
+    // Continue with staff user access testing
+    let staff_user = test_utils::create_staff_user_account(
+        &db,
+        &test_utils::create_and_login_admin_user(&app, &db).await.0,
+        &profile,  // Now passing the actual Model
+        UserRole::Member
+    ).await;
+    
+    // Get the full user record from the user_account
+    let user = crate::entities::user::Entity::find_by_id(staff_user.user_id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let staff_login = test_utils::login_test_user(
+        &app,
+        &user.email,  // Use email from user entity
+        "staffpass123"
+    ).await;
+    let staff_token = staff_login["token"].as_str().unwrap();
+    
+    // Verify staff can access the listing
+    let listings_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/listings?directory_id={}", directory.id).as_str())
+                .header("Authorization", format!("Bearer {}", staff_token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(listings_response.status(), StatusCode::OK);
+    
+    // Verify response contains listings
+    let body_bytes = listings_response.into_body().collect().await.unwrap().to_bytes();
+    let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    assert!(!listings.is_empty(), "No listings returned");
+
+    // Test getting a listing with all its attributes
+    let get_listing_with_attributes_response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/listings/{}/with-attributes", created_listing.id))
+                .header("Authorization", format!("Bearer {}", token))
+                .body(Body::empty())
+                .unwrap()
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(get_listing_with_attributes_response.status(), StatusCode::OK);
+
+    // Parse the response
+    let body_bytes = get_listing_with_attributes_response.into_body().collect().await.unwrap().to_bytes();
+    let listing_with_attributes: crate::models::listing::ListingWithAttributes = 
+        serde_json::from_slice(&body_bytes).unwrap();
+
+    // Verify the listing data is correct
+    assert_eq!(listing_with_attributes.listing.id, created_listing.id);
+    assert_eq!(listing_with_attributes.listing.title, created_listing.title);
+
+    // Verify the attributes are included
+    assert!(!listing_with_attributes.attributes.is_empty(), "No attributes included in the response");
+    println!("TEST LOG: Listing with attributes: {:?}", listing_with_attributes);
+
+     // 5. Delete an attribute
+     let delete_attribute_response = app.clone()
+     .oneshot(
+         Request::builder()
+             .method("DELETE")
+             .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
+             .header("Authorization", format!("Bearer {}", token))
+             .body(Body::empty())
+             .unwrap()
+     )
+     .await
+     .unwrap();
+ 
+ assert_eq!(delete_attribute_response.status(), StatusCode::NO_CONTENT);
+ 
+ // 6. Verify the attribute was deleted
+ let get_deleted_attribute_response = app.clone()
+     .oneshot(
+         Request::builder()
+             .method("GET")
+             .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
+             .header("Authorization", format!("Bearer {}", token))
+             .body(Body::empty())
+             .unwrap()
+     )
+     .await
+     .unwrap();
+ 
+ assert_eq!(get_deleted_attribute_response.status(), StatusCode::NOT_FOUND);
 }
