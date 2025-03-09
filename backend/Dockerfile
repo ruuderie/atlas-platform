@@ -1,4 +1,4 @@
-FROM rust:1.84.1 as builder
+FROM rust:1.84.1 AS builder
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -8,9 +8,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
-# Copy the .env file
-COPY .env .
 
 # Copy the entire project
 COPY . .

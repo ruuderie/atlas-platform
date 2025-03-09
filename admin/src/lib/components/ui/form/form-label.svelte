@@ -1,12 +1,15 @@
 <script>
-	import { getFormControl } from "formsnap";
-	import { cn } from "$lib/utils.js";
+	import * as FormPrimitive from "formsnap";
 	import { Label } from "$lib/components/ui/label/index.js";
-	let className = undefined;
-	export { className as class };
-	const { labelAttrs } = getFormControl();
+	import { cn } from "$lib/utils.js";
+
+	let { ref = $bindable(null), children, class: className, ...restProps } = $props();
 </script>
 
-<Label {...$labelAttrs} class={cn("data-[fs-error]:text-destructive", className)} {...$$restProps}>
-	<slot {labelAttrs} />
-</Label>
+<FormPrimitive.Label {...restProps} bind:ref>
+	{#snippet child({ props })}
+		<Label {...props} class={cn("data-[fs-error]:text-destructive", className)}>
+			{@render children?.()}
+		</Label>
+	{/snippet}
+</FormPrimitive.Label>

@@ -16,44 +16,20 @@
     import { goto } from '$app/navigation';
   
     let dashboardStats = null;
-    let chartData = {
-      labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-      datasets: [
-        {
-          label: 'Monthly Revenue',
-          data: [0, 0, 0, 0, 0, 0, 0],
-          backgroundColor: 'rgba(75, 192, 192, 0.6)',
-          borderColor: 'rgb(75, 192, 192)',
-          borderWidth: 1
-        }
-      ]
-    };
-  
-    const chartOptions = {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top',
-        },
-        title: {
-          display: true,
-          text: 'Monthly Revenue'
-        }
-      }
-    };
+    let chartData = [];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July'];
   
     async function loadDashboardStats() {
       console.log("loadDashboardStats called");
       try {
-        dashboardStats = await api.admin.fetchDashboardStats();  // Update this line
+        dashboardStats = await api.admin.fetchDashboardStats();
         console.log("Dashboard stats:", dashboardStats);
-        chartData = {
-          ...chartData,
-          datasets: [{
-            ...chartData.datasets[0],
-            data: dashboardStats.monthlyRevenue
-          }]
-        };
+        
+        // Transform the data for Unovis
+        chartData = months.map((month, index) => ({
+          label: month,
+          value: dashboardStats.monthlyRevenue[index] || 0
+        }));
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error);
       }
@@ -132,7 +108,12 @@
         <Card.Title>Monthly Revenue</Card.Title>
       </Card.Header>
       <Card.Content>
-        <ChartComponent type="bar" data={chartData} options={chartOptions} />
+        <ChartComponent 
+          data={chartData} 
+          xKey="label" 
+          yKey="value" 
+          color="rgba(75, 192, 192, 0.6)" 
+        />
       </Card.Content>
     </Card.Root>
   </div>

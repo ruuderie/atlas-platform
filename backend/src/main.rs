@@ -76,8 +76,16 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Determine database URL based on environment
+    let database_url = if std::env::var("USE_LOCAL_DB").unwrap_or_else(|_| "false".to_string()) == "true" {
+        std::env::var("LOCAL_DATABASE_URL").unwrap_or_else(|_| {
+            // Fallback to a default local connection string
+            "postgresql://postgres:postgres@localhost:5432/oplydb".to_string()
+        })
+    } else {
+        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set")
+    };
     
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let admin_email = std::env::var("ADMIN_USER").expect("ADMIN_USER must be set");
     let admin_password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
     let create_admin = std::env::var("CREATE_ADMIN_ON_STARTUP")
@@ -85,7 +93,7 @@ async fn main() {
         .parse::<bool>()
         .unwrap_or(true);
     tracing::info!("Create admin on startup: {}", create_admin);
-    tracing::info!("Database URL: {}", database_url);
+    tracing::info!("Using database URL: {}", database_url.replace(|c: char| !c.is_ascii_alphabetic() && !c.is_ascii_punctuation(), "*"));
 
     // Connect to the database
     let conn = Database::connect(&database_url)

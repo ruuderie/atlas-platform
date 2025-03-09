@@ -1,8 +1,12 @@
 import { get } from 'svelte/store';
 import { effectiveDirectoryId, isProduction } from './stores/directoryStore';
 
-// pull env variables from .env
-const API_URL = import.meta.env.API_URL || "http://localhost:8000/api";
+// Determine if we're running in Docker or locally
+const isDocker = window.location.port === '5001'; // Docker frontend port
+
+// Select the appropriate API URL
+const API_URL = import.meta.env.API_URL || 
+                (isDocker ? "http://localhost:8001/api" : "http://localhost:8000/api");
 
 console.log("API_URL:", API_URL);
 

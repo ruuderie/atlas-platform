@@ -4,21 +4,23 @@ services:
   postgres:
     image: postgres:15
     container_name: business-directory-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${PGUSER}
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_DB=${PGDB}
 
   backend:
     build:
@@ -31,10 +33,15 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - RUST_LOG=info
+      - RUST_LOG=debug
     ports:
-      - "8000:8000"
+      - "8001:8000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Frontend service commented out for now
   # frontend:
@@ -45,10 +52,10 @@ services:
   #   depends_on:
   #     - backend
   #   environment:
-  #     - API_URL=http://localhost:8000/api
+  #     - API_URL=http://localhost:8001/api
   #     - VITE_DIRECTORY_ID=default
   #   ports:
-  #     - "5000:5000"
+  #     - "5001:5000"
   #   restart: unless-stopped
 
   admin:
@@ -61,10 +68,10 @@ services:
     depends_on:
       - backend
     environment:
-      - API_URL=http://localhost:8000/api
-      - BASE_URL=http://localhost:8000
+      - API_URL=http://localhost:8001/api
+      - BASE_URL=http://localhost:8001
     ports:
-      - "5150:5150"
+      - "5151:5150"
     restart: unless-stopped
 
 volumes:

@@ -1,21 +1,23 @@
 <script>
     import { onMount } from 'svelte';
-    import { writable, readable } from 'svelte/store';
-    import { api } from '$lib/api';  // Update this import
-    import DataTableActions from "./data-table-actions.svelte";
-    import DataTableCheckbox from "./data-table-checkbox.svelte";
+    import { writable } from 'svelte/store';
+    import { api } from '$lib/api';
+    import DataTableActions from "../users/data-table-actions.svelte";
+    import DataTableCheckbox from "../users/data-table-checkbox.svelte";
     import * as Table from "$lib/components/ui/table";
     import { Button } from "$lib/components/ui/button";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Input } from "$lib/components/ui/input";
-    import { createTable } from "svelte-headless-table";
-    import {
-        addHiddenColumns,
-        addPagination,
-        addSelectedRows,
-        addSortBy,
-        addTableFilter,
-    } from "svelte-headless-table/plugins";
+    import { 
+        createSvelteTable, 
+        FlexRender
+    } from "$lib/components/ui/data-table";
+    import { 
+        getCoreRowModel,
+        getSortedRowModel,
+        getPaginationRowModel,
+        getFilteredRowModel,
+    } from   '@tanstack/table-core';
     import { cn } from "$lib/utils.js";
     import { ChevronDown, ChevronUp } from 'lucide-svelte';
     import { Plus } from 'lucide-svelte';
@@ -25,130 +27,152 @@
     let loading = true;
     let error = null;
 
-    const filterValue = writable('');
+    // State for table
+    let pagination = $state({ pageIndex: 0, pageSize: 10 });
+    let sorting = $state([]);
+    let columnFilters = $state([]);
+    let columnVisibility = $state({});
+    let rowSelection = $state({});
+    let globalFilter = $state('');
 
     let table;
-    const tableProps = writable(null);
-
-    const rows = writable([]); // Ensure rows is a writable store
 
     onMount(async () => {
         try {
-            users = await api.admin.fetchUsers();  // Update this line
+            users = await api.admin.fetchUsers();
             console.log('users', users);
             loading = false;
-            await initializeTable();
-            console.log('tableProps', $tableProps);
-            console.log('tableProps.flatColumns', $tableProps.flatColumns);
-            console.log('tableProps.flatColumns.length', $tableProps.flatColumns?.length);
-            console.log('rows', $rows);
+            initializeTable();
         } catch (err) {
             error = err.message;
             loading = false;
         }
     });
 
-    async function initializeTable() {
+    function initializeTable() {
         if (users.length === 0) return;
 
-        const data = readable(users);
-
-        table = createTable(data, {
-            sort: addSortBy({ disableMultiSort: true }),
-            page: addPagination({ initialPageSize: 10 }),
-            filter: addTableFilter({
-                fn: ({ filterValue, value }) => value.toLowerCase().includes(filterValue.toLowerCase()),
-            }),
-            select: addSelectedRows(),
-            hide: addHiddenColumns(),
-        });
-
-        const columns = table.createColumns([
-            table.column({
+        const columns = [
+            {
+                id: "select",
+                header: ({ table }) => ({
+                    component: DataTableCheckbox,
+                    props: {
+                        checked: table.getIsAllPageRowsSelected(),
+                        indeterminate: table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected(),
+                        onCheckedChange: (value) => table.toggleAllPageRowsSelected(!!value)
+                    }
+                }),
+                cell: ({ row }) => ({
+                    component: DataTableCheckbox,
+                    props: {
+                        checked: row.getIsSelected(),
+                        onCheckedChange: (value) => row.toggleSelected(!!value)
+                    }
+                }),
+                enableSorting: false,
+                enableHiding: false
+            },
+            {
+                accessorKey: 'username',
                 header: 'Username',
-                accessor: 'username',
-            }),
-            table.column({
+                cell: ({ row }) => row.getValue('username')
+            },
+            {
+                accessorKey: 'email',
                 header: 'Email',
-                accessor: 'email',
-            }),
-            table.column({
+                cell: ({ row }) => row.getValue('email')
+            },
+            {
+                accessorKey: 'is_admin',
                 header: 'Is Admin',
-                accessor: 'is_admin',
-                cell: ({ value }) => value ? 'Yes' : 'No',
-            }),
-            table.column({
+                cell: ({ row }) => row.getValue('is_admin') ? 'Yes' : 'No'
+            },
+            {
+                accessorKey: 'is_active',
                 header: 'Is Active',
-                accessor: 'is_active',
-                cell: ({ value }) => value ? 'Yes' : 'No',
-            }),
-            table.column({
+                cell: ({ row }) => row.getValue('is_active') ? 'Yes' : 'No'
+            },
+            {
+                accessorKey: 'created_at',
                 header: 'Created At',
-                accessor: 'created_at',
-                cell: ({ value }) => new Date(value).toLocaleString(),
-            }),
-            table.column({
+                cell: ({ row }) => new Date(row.getValue('created_at')).toLocaleString()
+            },
+            {
+                id: 'actions',
                 header: 'Actions',
-                accessor: 'id',
-                cell: ({ value }) => ({
+                cell: ({ row }) => ({
                     component: DataTableActions,
-                    props: { id: value }
-                })
-            }),
-        ]);
+                    props: { id: row.original.id }
+                }),
+                enableSorting: false,
+                enableHiding: false
+            }
+        ];
 
-        const viewModel = table.createViewModel(columns);
-        tableProps.set(viewModel);
-
-        console.log('Full tableProps after initialization:', JSON.parse(JSON.stringify($tableProps)));
-        console.log('Rows structure:', $tableProps.rows);
-        console.log('First row sample:', $tableProps.rows[0]);
+        table = createSvelteTable({
+            data: users,
+            columns,
+            state: {
+                get pagination() { return pagination; },
+                get sorting() { return sorting; },
+                get columnFilters() { return columnFilters; },
+                get columnVisibility() { return columnVisibility; },
+                get rowSelection() { return rowSelection; },
+                get globalFilter() { return globalFilter; }
+            },
+            onPaginationChange: (updater) => {
+                if (typeof updater === 'function') {
+                    pagination = updater(pagination);
+                } else {
+                    pagination = updater;
+                }
+            },
+            onSortingChange: (updater) => {
+                if (typeof updater === 'function') {
+                    sorting = updater(sorting);
+                } else {
+                    sorting = updater;
+                }
+            },
+            onColumnFiltersChange: (updater) => {
+                if (typeof updater === 'function') {
+                    columnFilters = updater(columnFilters);
+                } else {
+                    columnFilters = updater;
+                }
+            },
+            onColumnVisibilityChange: (updater) => {
+                if (typeof updater === 'function') {
+                    columnVisibility = updater(columnVisibility);
+                } else {
+                    columnVisibility = updater;
+                }
+            },
+            onRowSelectionChange: (updater) => {
+                if (typeof updater === 'function') {
+                    rowSelection = updater(rowSelection);
+                } else {
+                    rowSelection = updater;
+                }
+            },
+            onGlobalFilterChange: (updater) => {
+                if (typeof updater === 'function') {
+                    globalFilter = updater(globalFilter);
+                } else {
+                    globalFilter = updater;
+                }
+            },
+            getCoreRowModel: getCoreRowModel(),
+            getSortedRowModel: getSortedRowModel(),
+            getPaginationRowModel: getPaginationRowModel(),
+            getFilteredRowModel: getFilteredRowModel(),
+        });
     }
 
     function handleCreateUser() {
         goto('/users/create');
     }
-
-    $: if (table && $filterValue) {
-        table.filter.setGlobalFilter($filterValue);
-    }
-
-    let hideForId = {};
-    const flatColumns = [];
-
-    function initializeHideForId() {
-        hideForId = Object.fromEntries(flatColumns.map(c => [c.id, true]));
-    }
-
-    $: if ($tableProps) {
-        console.log('tableProps', $tableProps);
-        console.log('tableProps.flatColumns', $tableProps.flatColumns);
-        console.log('tableProps.flatColumns.length', $tableProps.flatColumns?.length);
-        console.log('rows', $rows);
-    }
-
-    $: if (tableProps?.pluginStates?.hide?.hiddenColumnIds) {
-        tableProps.pluginStates.hide.hiddenColumnIds = Object.entries(hideForId)
-            .filter(([, hide]) => !hide)
-            .map(([id]) => id);
-    }
-
-    const hideableCols = ["username", "email", "is_admin", "is_active", "created_at"];
-
-    $: if ($tableProps && $tableProps.rows && typeof $tableProps.rows.subscribe === 'function') {
-        $tableProps.rows.subscribe(value => {
-            rows.set(value);
-        });
-    }
-
-    $: if ($rows && typeof $rows.subscribe === 'function') {
-        $rows.subscribe(value => {
-            if (!Array.isArray(value)) {
-                console.error('rows is not an array:', value);
-            }
-        });
-    }
-
 </script>
 
 <div class="w-full">
@@ -157,7 +181,7 @@
             class="max-w-sm"
             placeholder="Filter users..."
             type="text"
-            bind:value={$filterValue}
+            bind:value={globalFilter}
         />
         <Button variant="outline" on:click={handleCreateUser} class="ml-auto">
             <Plus class="mr-2 h-4 w-4" />
@@ -170,19 +194,16 @@
                 </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="bg-white shadow-md rounded-md">
-                {#each tableProps?.flatColumns || [] as col}
-                    {#if hideableCols.includes(col.id)}
-                        <DropdownMenu.CheckboxItem 
-                            checked={hideForId[col.id]} 
-                            onCheckedChange={(checked) => {
-                                hideForId[col.id] = checked;
-                                hideForId = {...hideForId};
-                            }}
+                {#if table}
+                    {#each table.getAllColumns().filter(col => col.getCanHide()) as column}
+                        <DropdownMenu.CheckboxItem
+                            checked={column.getIsVisible()}
+                            onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
-                            {col.header}
+                            {column.id}
                         </DropdownMenu.CheckboxItem>
-                    {/if}
-                {/each}
+                    {/each}
+                {/if}
             </DropdownMenu.Content>
         </DropdownMenu.Root>
     </div>
@@ -190,64 +211,66 @@
         <p>Loading users...</p>
     {:else if error}
         <p class="text-red-500">Error: {error}</p>
-    {:else if $tableProps && hideableCols?.length > 0}
+    {:else if table}
         <div class="rounded-md border">
-            <Table.Root {...($tableProps.tableAttrs || {})}>
+            <Table.Root>
                 <Table.Header>
-                    <Table.Row>
-                        {#each $tableProps.flatColumns || [] as column (column.id)}
-                            <Table.Head {...(column.headerAttrs || {})} class={cn("[&:has([role=checkbox])]:pl-3")}>
-                                {#if column.id === "email"}
-                                    <Button variant="ghost" on:click={() => column.sort?.toggle?.()}>
-                                        {column.header}
-                                        {#if $tableProps.pluginStates?.sort?.sortKeys?.[0]?.id === column.id}
-                                            {#if $tableProps.pluginStates.sort.sortKeys[0].desc}
-                                                <ChevronDown class="ml-2 h-4 w-4 text-foreground" />
+                    {#each table.getHeaderGroups() as headerGroup}
+                        <Table.Row>
+                            {#each headerGroup.headers as header}
+                                <Table.Head class={cn("[&:has([role=checkbox])]:pl-3")}>
+                                    {#if !header.isPlaceholder}
+                                        <div class="flex items-center">
+                                            {#if header.column.getCanSort()}
+                                                <Button 
+                                                    variant="ghost" 
+                                                    on:click={() => header.column.toggleSorting(header.column.getIsSorted() === "asc")}
+                                                    class="flex items-center gap-1"
+                                                >
+                                                    <FlexRender 
+                                                        content={header.column.columnDef.header}
+                                                        context={header.getContext()}
+                                                    />
+                                                    {#if header.column.getIsSorted() === "asc"}
+                                                        <ChevronUp class="h-4 w-4" />
+                                                    {:else if header.column.getIsSorted() === "desc"}
+                                                        <ChevronDown class="h-4 w-4" />
+                                                    {:else}
+                                                        <ChevronUp class="h-4 w-4 opacity-0 group-hover:opacity-100" />
+                                                    {/if}
+                                                </Button>
                                             {:else}
-                                                <ChevronUp class="ml-2 h-4 w-4 text-foreground" />
+                                                <FlexRender 
+                                                    content={header.column.columnDef.header}
+                                                    context={header.getContext()}
+                                                />
                                             {/if}
-                                        {:else}
-                                            <ChevronUp class="ml-2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                                        {/if}
-                                    </Button>
-                                {:else}
-                                    {column.header}
-                                {/if}
-                            </Table.Head>
-                        {/each}
-                    </Table.Row>
+                                        </div>
+                                    {/if}
+                                </Table.Head>
+                            {/each}
+                        </Table.Row>
+                    {/each}
                 </Table.Header>
-                <Table.Body {...($tableProps.tableBodyAttrs || {})}>
-                    {#if Array.isArray($rows)}
-                        {#each $rows || [] as row (row.id)}
-                            <Table.Row {...(row.attrs?.() || {})} data-state={$tableProps.pluginStates?.select?.selectedDataIds?.[row.id] && "selected"}>
-                                {#each row.cells as cell (cell.id)}
-                                    <Table.Cell class="[&:has([role=checkbox])]:pl-3" {...(cell.attrs?.() || {})}>
-                                        {#if typeof cell.render === 'function'}
-                                            {#if cell.column.id === 'id'}
-                                                {@const renderResult = cell.render()}
-                                                {#if renderResult && renderResult.component}
-                                                    <svelte:component this={renderResult.component} {...renderResult.props} />
-                                                {:else}
-                                                    {cell.value ?? ''}
-                                                {/if}
-                                            {:else}
-                                                {cell.render()}
-                                            {/if}
-                                        {:else}
-                                            {cell.value ?? ''}
-                                        {/if}
+                <Table.Body>
+                    {#if table.getRowModel().rows.length}
+                        {#each table.getRowModel().rows as row}
+                            <Table.Row data-state={row.getIsSelected() && "selected"}>
+                                {#each row.getVisibleCells() as cell}
+                                    <Table.Cell class="[&:has([role=checkbox])]:pl-3">
+                                        <FlexRender 
+                                            content={cell.column.columnDef.cell}
+                                            context={cell.getContext()}
+                                        />
                                     </Table.Cell>
                                 {/each}
-                            </Table.Row>
-                        {:else}
-                            <Table.Row>
-                                <Table.Cell colspan={$tableProps.flatColumns?.length || 1}>No data available</Table.Cell>
                             </Table.Row>
                         {/each}
                     {:else}
                         <Table.Row>
-                            <Table.Cell colspan={$tableProps.flatColumns?.length || 1}>No data available</Table.Cell>
+                            <Table.Cell colspan={table.getAllColumns().length} class="h-24 text-center">
+                                No results.
+                            </Table.Cell>
                         </Table.Row>
                     {/if}
                 </Table.Body>
@@ -255,19 +278,19 @@
         </div>
         <div class="flex items-center justify-end space-x-2 py-4">
             <div class="text-muted-foreground flex-1 text-sm">
-                {Object.keys($tableProps.pluginStates?.select?.selectedDataIds || {})?.length} of {tableProps.rows?.length || 0} row(s) selected.
+                {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
             </div>
             <Button
                 variant="outline"
                 size="sm"
-                on:click={() => ($tableProps.pluginStates.page.pageIndex = $tableProps.pluginStates.page.pageIndex - 1)}
-                disabled={!$tableProps.pluginStates?.page?.hasPreviousPage}>Previous</Button
+                on:click={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}>Previous</Button
             >
             <Button
                 variant="outline"
                 size="sm"
-                disabled={!$tableProps.pluginStates?.page?.hasNextPage}
-                on:click={() => ($tableProps.pluginStates.page.pageIndex = $tableProps.pluginStates.page.pageIndex + 1)}>Next</Button
+                disabled={!table.getCanNextPage()}
+                on:click={() => table.nextPage()}>Next</Button
             >
         </div>
     {:else}

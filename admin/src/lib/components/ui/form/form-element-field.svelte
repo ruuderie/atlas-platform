@@ -1,16 +1,21 @@
-<script lang="ts" context="module"></script>
-
-<script lang="ts" generics="T extends Record<string, unknown>, U extends FormPathLeaves<T>">
+<script>
 	import * as FormPrimitive from "formsnap";
 	import { cn } from "$lib/utils.js";
-	export let form;
-	export let name;
-	let className = undefined;
-	export { className as class };
+
+	let {
+		ref = $bindable(null),
+		class: className,
+		form,
+		name,
+		children: childrenProp,
+		...restProps
+	} = $props();
 </script>
 
-<FormPrimitive.ElementField {form} {name} let:constraints let:errors let:tainted let:value>
-	<div class={cn("space-y-2", className)}>
-		<slot {constraints} {errors} {tainted} {value} />
-	</div>
+<FormPrimitive.ElementField {form} {name}>
+	{#snippet children({ constraints, errors, tainted, value })}
+		<div bind:this={ref} class={cn("space-y-2", className)} {...restProps}>
+			{@render childrenProp?.({ constraints, errors, tainted, value: value })}
+		</div>
+	{/snippet}
 </FormPrimitive.ElementField>

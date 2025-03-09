@@ -1,5 +1,5 @@
 <script>
-    import UserRegistration from '$lib/components/UserRegistration.svelte';
+   // import UserRegistration from '$lib/components/UserRegistration.svelte';
     import { api } from '$lib/api';  // Update this import
     import { goto } from '$app/navigation';
   
@@ -17,7 +17,7 @@
     }
 </script>
   
-<UserRegistration on:register={handleRegister} {errorMessage} />
+<!-- <UserRegistration on:register={handleRegister} {errorMessage} /> -->
   
 {#if errorMessage}
   <p class="text-red-500 text-center mt-4">{errorMessage}</p>

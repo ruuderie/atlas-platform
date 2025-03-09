@@ -29,6 +29,8 @@
 # Svelte build directory
 /frontend/public/build/
 /admin/public/build/
+/admin/build/
+/frontend/build/
 # SvelteKit
 /frontend/.svelte-kit/
 /admin/.svelte-kit/
@@ -39,6 +41,8 @@
 /admin/.env
 /admin/.env.*
 !/admin/.env.example
+# shadcn-svelte
+/admin/shadcn-svelte/
 
 # General
 

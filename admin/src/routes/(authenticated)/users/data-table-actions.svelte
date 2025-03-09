@@ -43,7 +43,7 @@
     </DropdownMenu.Trigger>
     <DropdownMenu.Content class="w-56 bg-background border border-border rounded-md shadow-md">
         <DropdownMenu.Group>
-            <DropdownMenu.Label class="px-2 py-1.5 text-sm font-semibold text-foreground">__</DropdownMenu.Label>
+            <DropdownMenu.Label class="px-2 py-1.5 text-sm font-semibold text-foreground">Actions</DropdownMenu.Label>
             <DropdownMenu.Item on:click={viewUserDetails} class="px-2 py-1.5 text-sm text-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer">
                 View user details
             </DropdownMenu.Item>
