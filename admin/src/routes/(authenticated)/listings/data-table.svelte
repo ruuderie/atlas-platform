@@ -17,7 +17,7 @@
         getSortedRowModel,
         getPaginationRowModel,
         getFilteredRowModel,
-    } from   '@tanstack/table-core';;
+    } from   '@tanstack/table-core';
     import { cn } from "$lib/utils.js";
     import { ChevronDown, ChevronUp } from 'lucide-svelte';
     import { Plus } from 'lucide-svelte';

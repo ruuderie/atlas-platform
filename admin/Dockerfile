@@ -1,7 +1,7 @@
 # Build stage
 FROM node:20-slim AS build
 
-RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && \
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init curl && \
     npm install -g pnpm
 
 WORKDIR /app
@@ -15,7 +15,7 @@ RUN ls -la /app && ls -la /app/build || echo "Build directory is empty or missin
 # Runtime stage
 FROM node:20-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends dumb-init && \
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init curl && \
     groupadd -r svelteuser && useradd -r -g svelteuser svelteuser && \
     npm install -g pnpm
 

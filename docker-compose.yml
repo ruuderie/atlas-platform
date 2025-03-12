@@ -8,7 +8,7 @@ services:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     ports:
       - "5433:5432"
     healthcheck:
@@ -21,6 +21,9 @@ services:
       - POSTGRES_USER=${PGUSER}
       - POSTGRES_PASSWORD=${PGPASSWORD}
       - POSTGRES_DB=${PGDB}
+      - POSTGRES_MULTIPLE_DATABASES=${PGDB}test
+    networks:
+      - app-network
 
   backend:
     build:
@@ -34,14 +37,22 @@ services:
         condition: service_healthy
     environment:
       - RUST_LOG=debug
+      - USE_LOCAL_DB=false
+      - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - FRONTEND_URL=http://localhost:5001
+      - ADMIN_URL=http://localhost:5150
     ports:
-      - "8001:8000"
+      - "8000:8000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - app-network
 
   # Frontend service commented out for now
   # frontend:
@@ -57,22 +68,32 @@ services:
   #   ports:
   #     - "5001:5000"
   #   restart: unless-stopped
-
   admin:
     build:
       context: ./admin
       dockerfile: Dockerfile
     container_name: business-directory-admin
     env_file:
-      - .env
+      - ./admin/.env
     depends_on:
       - backend
     environment:
-      - API_URL=http://localhost:8001/api
-      - BASE_URL=http://localhost:8001
+      - VITE_BROWSER_API_URL=http://localhost:8000
+      - VITE_CONTAINER_API_URL=http://backend:8000
     ports:
-      - "5151:5150"
+      - "5150:5150"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:5150"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data: 

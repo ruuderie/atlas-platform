@@ -13,23 +13,21 @@ let api = {
   admin: {}
 };
 
-// Select the appropriate API URL
-let BASE_URL;
-if (import.meta.env.BASE_URL && import.meta.env.BASE_URL !== '/') {
-  BASE_URL = import.meta.env.BASE_URL;
-} else {
-  BASE_URL = browser ? (window.location.port === '5151' ? "http://localhost:8001" : "http://localhost:8000") : "";
-}
+// Determine if we're running in a browser or in a container
+const isBrowser = typeof window !== 'undefined';
 
-const API_URL = import.meta.env.API_URL || `${BASE_URL}/api`;
+// Use different URLs based on environment
+const API_URL = isBrowser 
+  ? (import.meta.env.VITE_BROWSER_API_URL || 'http://admin.rustsveltebusinessdirectory.orb.local:8000')
+  : (import.meta.env.VITE_CONTAINER_API_URL || 'http://localhost:8000');
 
-console.log("Using API URL:", API_URL);
+console.log("Using API_URL:", API_URL);
 
 if (browser) {
   async function refreshToken() {
     try {
       console.log("Refreshing token");
-      const response = await fetch(`${BASE_URL}/refresh-token`, {
+      const response = await fetch(`${API_URL}/refresh-token`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
@@ -65,30 +63,24 @@ if (browser) {
 
   async function apiCall(endpoint, options = {}, isPublic = false) {
     console.log("API call endpoint:", endpoint);
-    console.log("API call options:", options);
     
-    const url = isPublic ? `${BASE_URL}${endpoint}` : `${API_URL}${endpoint}`;
+    // Ensure endpoint starts with a slash if it doesn't already
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Use API_URL directly from environment variable
+    const fullUrl = `${API_URL}${normalizedEndpoint}`;
+    
+    console.log("Final API URL:", fullUrl);
+    
     if (!isPublic) {
       options.headers = { ...options.headers, ...getAuthHeaders() };
     }
-    console.log("API call URL:", url);
 
     try {
-      let response = await fetch(url, options);
-
-      if (response.status === 401 && !isPublic) {
-        console.log("Token expired, attempting to refresh...");
-        const refreshResult = await refreshToken();
-        if (refreshResult.success) {
-          console.log("Token refreshed successfully, retrying original request");
-          options.headers['Authorization'] = `Bearer ${refreshResult.token}`;
-          response = await fetch(url, options);
-        } else {
-          console.error("Failed to refresh token:", refreshResult.error);
-          throw new Error("Authentication failed. Please log in again.");
-        }
-      }
-
+      console.log("Fetch options:", JSON.stringify(options));
+      const response = await fetch(fullUrl, options);
+      console.log("Response status:", response.status);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -104,8 +96,8 @@ if (browser) {
     try {
       console.log("Verifying session");
       console.log("Auth headers:", getAuthHeaders());
-      console.log("BASE_URL:", BASE_URL);
-      const response = await fetch(`${BASE_URL}/validate-session`, {
+      console.log("API_URL:", API_URL);
+      const response = await fetch(`${API_URL}/validate-session`, {
         method: 'GET',
         headers: getAuthHeaders(),
       });

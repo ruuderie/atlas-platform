@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [sveltekit()],
   server: {
     port: 5150,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    https: process.env.USE_HTTPS === 'true',
   },
   logLevel: 'info', // Set the log level to 'info' or 'debug' for more verbose logging
   clearScreen: false, // Prevent Vite from clearing the console
