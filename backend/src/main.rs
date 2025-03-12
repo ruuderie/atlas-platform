@@ -23,7 +23,8 @@ use crate::sea_orm::{Database, DatabaseConnection, ConnectionTrait};
 use sea_orm_migration::prelude::*;
 use migration::{Migrator};
 use std::net::SocketAddr;
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
+use tracing::Level;
 use crate::api::create_router;
 use crate::admin::setup::create_admin_user_if_not_exists;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -53,8 +54,8 @@ async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http:
 
 fn configure_cors(directory_client: &str, admin_client: &str) -> CorsLayer {
     let origins = vec![
-        directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://localhost:5001".parse().unwrap()),
-        admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://localhost:5150".parse().unwrap()),
+        directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
+        admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
         "http://localhost:5150".parse::<HeaderValue>().unwrap(),
         "http://127.0.0.1:5150".parse::<HeaderValue>().unwrap(),
         "http://localhost:8001".parse::<HeaderValue>().unwrap(),
@@ -133,7 +134,7 @@ async fn main() {
     tracing::info!("Directory URL: {}", directory_client);
     tracing::info!("Admin URL: {}", admin_client);
 
-    let cors = configure_cors(&directory_client, admin_client);
+    let cors = configure_cors(&directory_client, &admin_client);
 
     let rate_limiter = RateLimiter::new();
 
@@ -141,8 +142,21 @@ async fn main() {
         .merge(create_router(conn.clone()))
         .layer(cors)
         .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_request(|request: &Request<_>, _span: &tracing::Span| {
+                    // Log every single request that hits the server
+                    tracing::info!(
+                        "RAW REQUEST: method={}, uri={}, headers={:?}",
+                        request.method(),
+                        request.uri(),
+                        request.headers()
+                    );
+                })
+                .on_response(DefaultOnResponse::new().level(Level::INFO))
+        )
+        .layer(
             ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
                 .layer(from_fn_with_state(request_logger, log_request_middleware))
                 .into_inner()
         )

@@ -11,6 +11,7 @@ use std::env;
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
     let is_production = env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "production";
+    tracing::info!("Environment: {}", if is_production { "production" } else { "development" });
     
     // Configure CORS based on environment
     let cors_layer = if is_production {
@@ -19,8 +20,23 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         let frontend_url = env::var("FRONTEND_URL").expect("FRONTEND_URL must be set in production");
         let admin_url = env::var("ADMIN_URL").expect("ADMIN_URL must be set in production");
         
+        // Allow additional origins from environment variable if specified
+        let mut allowed_origins = vec![frontend_url.parse().unwrap(), admin_url.parse().unwrap()];
+        
+        // Optional: Allow additional origins from comma-separated env var
+        if let Ok(additional_origins) = env::var("ADDITIONAL_ALLOWED_ORIGINS") {
+            for origin in additional_origins.split(',') {
+                if let Ok(origin) = origin.trim().parse() {
+                    tracing::info!("Adding additional allowed origin: {:?}", origin);
+                    allowed_origins.push(origin);
+                }
+            }
+        }
+        
+        tracing::info!("Configured allowed origins: {:?}", allowed_origins);
+        
         CorsLayer::new()
-            .allow_origin([frontend_url.parse().unwrap(), admin_url.parse().unwrap()])
+            .allow_origin(allowed_origins)
             .allow_methods(Any)
             .allow_headers(Any)
             .allow_credentials(true)

@@ -32,7 +32,7 @@ impl RateLimiter {
         let method = req.method();
         let path = req.uri().path();
         
-        tracing::debug!("[{}] Rate limit check started for {} {}", request_id, method, path);
+        tracing::info!("[{}] Rate limit check started for {} {}", request_id, method, path);
         
         // Extract client IP address
         let ip = req
@@ -42,7 +42,7 @@ impl RateLimiter {
             .unwrap_or("unknown")
             .to_string();
             
-        tracing::debug!("[{}] Client IP for rate limiting: {}", request_id, ip);
+        tracing::info!("[{}] Client IP for rate limiting: {}", request_id, ip);
 
         let now = Instant::now();
         let mut should_allow = true;

@@ -41,8 +41,10 @@ services:
       - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
       - HOST=0.0.0.0
       - PORT=8000
-      - FRONTEND_URL=http://localhost:5001
-      - ADMIN_URL=http://localhost:5150
+      - FRONTEND_URL=${FRONTEND_URL}
+      - ADMIN_URL=${ADMIN_URL}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - ADDITIONAL_ALLOWED_ORIGINS=${ADDITIONAL_ALLOWED_ORIGINS}
     ports:
       - "8000:8000"
     restart: unless-stopped

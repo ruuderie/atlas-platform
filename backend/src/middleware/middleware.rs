@@ -30,6 +30,12 @@ where
     let method = req.method().clone();
     
     tracing::info!("[{}] Request started: {} {}", request_id, method, path);
+    
+    // Log all headers for debugging
+    tracing::debug!("[{}] Request headers:", request_id);
+    for (name, value) in req.headers() {
+        tracing::debug!("[{}]   {}: {:?}", request_id, name, value);
+    }
 
     // Allow OPTIONS requests to pass through without authentication
     if req.method() == Method::OPTIONS {
