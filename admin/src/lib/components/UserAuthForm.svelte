@@ -31,16 +31,17 @@
         if (mode === 'login') {
           const data = await api.user.login({ email, password });
           if (data.token) {
-            login(data.token);
-            dispatch('login', { email, password });
+            // Store both tokens and user data
+            login(data.token, data.refresh_token, data.user);
+            dispatch('login', { email });
             goto('/');
           } else {
             throw new Error('Login successful, but no token received');
           }
         } else {
           const data = await api.user.register({ username, email, password });
-          login(data.token);
-          dispatch('register', { username, email, password });
+          login(data.token, data.refresh_token, data.user);
+          dispatch('register', { username, email });
           goto('/');
         }
       } catch (error) {

@@ -51,6 +51,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/login", post(users::login_user))
         .route("/register", post(users::register_user))
         .route("/validate-session", get(sessions::validate_session))
+        .route("/refresh-token", post(sessions::refresh_token))
         .layer(cors_layer.clone());
 
     // Public routes (requires state, so merge with state-applied routers)

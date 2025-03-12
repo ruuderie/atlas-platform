@@ -27,9 +27,21 @@ if (browser) {
   async function refreshToken() {
     try {
       console.log("Refreshing token");
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!refreshToken) {
+        console.error("No refresh token found in localStorage");
+        return { success: false, error: "No refresh token available" };
+      }
+      
+      console.log("Using refresh token:", refreshToken.substring(0, 10) + "...");
+      
       const response = await fetch(`${API_URL}/refresh-token`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ refresh_token: refreshToken })
       });
 
       if (!response.ok) {
@@ -42,11 +54,26 @@ if (browser) {
       const data = await response.json();
       console.log('Refresh token response data:', data);
 
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('refreshToken', data.refresh_token);
-      console.log('New auth token and refresh token set in localStorage');
+      // Make sure we're storing the tokens correctly
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        console.log('New auth token set in localStorage:', data.token.substring(0, 10) + "...");
+      } else {
+        console.error('No token received in refresh response');
+      }
+      
+      if (data.refresh_token) {
+        localStorage.setItem('refreshToken', data.refresh_token);
+        console.log('New refresh token set in localStorage:', data.refresh_token.substring(0, 10) + "...");
+      } else {
+        console.error('No refresh token received in refresh response');
+      }
 
-      return { success: true, token: data.token, refreshToken: data.refresh_token };
+      return { 
+        success: true, 
+        token: data.token, 
+        refreshToken: data.refresh_token 
+      };
     } catch (error) {
       console.error('Error in refreshToken:', error);
       return { success: false, error: error.message };
@@ -78,9 +105,31 @@ if (browser) {
 
     try {
       console.log("Fetch options:", JSON.stringify(options));
-      const response = await fetch(fullUrl, options);
+      let response = await fetch(fullUrl, options);
       console.log("Response status:", response.status);
       
+      // If unauthorized and not a public endpoint, try to refresh token and retry
+      if (response.status === 401 && !isPublic) {
+        console.log("Unauthorized response, attempting to refresh token");
+        const refreshResult = await refreshToken();
+        
+        if (refreshResult.success) {
+          console.log("Token refreshed successfully, retrying original request");
+          // Update headers with new token
+          options.headers = { 
+            ...options.headers, 
+            'Authorization': `Bearer ${refreshResult.token}` 
+          };
+          
+          // Retry the request with new token
+          response = await fetch(fullUrl, options);
+          console.log("Retry response status:", response.status);
+        } else {
+          console.error("Token refresh failed:", refreshResult.error);
+          throw new Error("Authentication failed");
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

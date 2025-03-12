@@ -16,6 +16,7 @@ use crate::models::user::UserLogin;
 use crate::models::request_log::{RequestStatus, RequestType};
 use crate::handlers::request_logs::log_request;
 use axum::extract::State;
+use serde::Deserialize;
 
 
 pub async fn create_session(
@@ -123,9 +124,35 @@ pub async fn create_user_session(
 
 pub async fn validate_session(
     Extension(db): Extension<DatabaseConnection>,
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    headers: HeaderMap,
 ) -> Result<Json<SessionResponse>, StatusCode> {
-    let token = bearer.token().to_string();
+    tracing::info!("Validating session");
+    
+    // Extract token from Authorization header
+    let token = match headers.get("Authorization") {
+        Some(auth_header) => {
+            match auth_header.to_str() {
+                Ok(auth_str) => {
+                    if auth_str.starts_with("Bearer ") {
+                        auth_str[7..].to_string()
+                    } else {
+                        tracing::warn!("Authorization header doesn't start with 'Bearer '");
+                        return Err(StatusCode::UNAUTHORIZED);
+                    }
+                },
+                Err(e) => {
+                    tracing::error!("Failed to parse Authorization header: {:?}", e);
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+            }
+        },
+        None => {
+            tracing::warn!("No Authorization header found");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+    
+    tracing::info!("Token extracted: {}", token.chars().take(10).collect::<String>() + "...");
     
     let session = match session::Entity::find()
         .filter(session::Column::BearerToken.eq(token.clone()))
@@ -212,9 +239,11 @@ pub async fn cleanup_expired_sessions(db: &DatabaseConnection) {
 
 pub async fn refresh_token(
     Extension(db): Extension<DatabaseConnection>,
-    TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>,
+    Json(payload): Json<RefreshTokenRequest>,
 ) -> Result<Json<SessionResponse>, StatusCode> {
-    let refresh_token = bearer.token().to_string();
+    let refresh_token = payload.refresh_token;
+    tracing::info!("Refreshing token with refresh_token: {}", 
+                  refresh_token.chars().take(10).collect::<String>() + "...");
     
     // Find the session with the given refresh token
     let session = match session::Entity::find()
@@ -296,4 +325,10 @@ pub async fn refresh_token(
             Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
     }
+}
+
+// Add this struct for the refresh token request
+#[derive(Debug, Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
 }

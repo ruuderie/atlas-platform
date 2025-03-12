@@ -55,9 +55,22 @@ export async function checkAuth() {
 
 export async function login(token, refreshToken, userData) {
   if (browser) {
+    console.log('Storing auth data in localStorage:');
+    console.log('- Token:', token ? token.substring(0, 10) + "..." : 'undefined');
+    console.log('- Refresh token:', refreshToken ? refreshToken.substring(0, 10) + "..." : 'undefined');
+    console.log('- User data:', userData);
+    
     localStorage.setItem('authToken', token);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('userData', JSON.stringify(userData));
+    
+    // Verify storage was successful
+    const storedToken = localStorage.getItem('authToken');
+    const storedRefreshToken = localStorage.getItem('refreshToken');
+    
+    console.log('Verification - stored token:', storedToken ? storedToken.substring(0, 10) + "..." : 'undefined');
+    console.log('Verification - stored refresh token:', storedRefreshToken ? storedRefreshToken.substring(0, 10) + "..." : 'undefined');
+    
     isAuthenticated.set(true);
     console.log('Setting user data in login function:', userData);
     setUser(userData);
