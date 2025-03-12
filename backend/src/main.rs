@@ -8,7 +8,7 @@ mod handlers;
 mod admin;
 mod models;
 mod traits;
-use axum::http::{self,HeaderName, HeaderValue, Method,Request, StatusCode};
+use axum::http::{self,HeaderName, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
 use axum::middleware::{from_fn_with_state, from_fn, Next};
 use axum::{
@@ -52,17 +52,25 @@ async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http:
 }
 
 fn configure_cors(directory_client: &str, admin_client: &str) -> CorsLayer {
-    let allow_origin = vec![
-        directory_client.parse::<HeaderValue>().unwrap(),
-        admin_client.parse::<HeaderValue>().unwrap(),
+    let origins = vec![
+        directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://localhost:5001".parse().unwrap()),
+        admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://localhost:5150".parse().unwrap()),
+        "http://localhost:5150".parse::<HeaderValue>().unwrap(),
+        "http://127.0.0.1:5150".parse::<HeaderValue>().unwrap(),
+        "http://localhost:8001".parse::<HeaderValue>().unwrap(),
     ];
 
     CorsLayer::new()
-        .allow_origin(allow_origin)
+        .allow_origin(origins)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
-        .allow_headers(vec![
-            HeaderName::from_static("content-type"),
-            HeaderName::from_static("authorization"),
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::ACCEPT,
+            header::CONTENT_TYPE,
+            header::ORIGIN,
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            header::ACCESS_CONTROL_ALLOW_HEADERS,
         ])
         .allow_credentials(true)
 }
@@ -121,7 +129,7 @@ async fn main() {
     tracing::info!("Successfully connected to the database and ran migrations");
 
     let directory_client = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
-    let admin_client = "http://localhost:5150";
+    let admin_client = std::env::var("ADMIN_URL").unwrap_or_else(|_| "http://localhost:5002".to_string());
     tracing::info!("Directory URL: {}", directory_client);
     tracing::info!("Admin URL: {}", admin_client);
 

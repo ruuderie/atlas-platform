@@ -25,81 +25,110 @@ pub async fn auth_middleware<B>(
 where
     B: axum::body::HttpBody + Send + 'static + std::fmt::Debug,
 {
-    // Allow OPTIONS requests to pass through without authentication
-    if req.method() == Method::OPTIONS {
-        return Ok(next.run(req).await);
-    }
-    println!("TEST LOG: from auth_middleware and req: {:?}", req);
-    // Initialize the request logger
-    let request_logger = RequestLogger::new(db.clone());
-
-    // Extract request details
+    let request_id = Uuid::new_v4();
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
-    let uri = req.uri().clone();
+    
+    tracing::info!("[{}] Request started: {} {}", request_id, method, path);
 
-    tracing::info!("Processing request: {} {}", method, path);
+    // Allow OPTIONS requests to pass through without authentication
+    if req.method() == Method::OPTIONS {
+        tracing::info!("[{}] OPTIONS request detected - bypassing authentication", request_id);
+        let response = next.run(req).await;
+        tracing::info!("[{}] OPTIONS request completed with status: {}", request_id, response.status());
+        return Ok(response);
+    }
+
+    // Initialize the request logger
+    let request_logger = RequestLogger::new(db.clone());
+    tracing::debug!("[{}] Request logger initialized", request_id);
+
+    // Extract request details
+    let uri = req.uri().clone();
+    tracing::debug!("[{}] Processing request: {} {}", request_id, method, path);
 
     // Extract user information from request headers
     let (user_id, user_agent, ip_address) = {
         let headers = req.headers();
+        tracing::debug!("[{}] Request headers: {:?}", request_id, headers.keys().map(|k| k.as_str()).collect::<Vec<_>>());
+        
         let user_agent = headers
             .get(header::USER_AGENT)
             .and_then(|h| h.to_str().ok())
             .unwrap_or("Unknown")
             .to_string();
+            
         let ip_address = headers
             .get("x-forwarded-for")
             .and_then(|h| h.to_str().ok())
             .unwrap_or("Unknown")
             .to_string();
+            
         let user_id = req.extensions().get::<user::Model>().map(|user| user.id);
+        
+        tracing::debug!("[{}] Client info - IP: {}, User-Agent: {}, User ID: {:?}", 
+            request_id, ip_address, 
+            if user_agent.len() > 30 { &user_agent[0..30] } else { &user_agent },
+            user_id);
+            
         (user_id, user_agent, ip_address)
     };
-    println!("TEST LOG: from auth_middleware and user_id: {:?}", user_id);
+
     // Determine the request type (Login or API)
-    let request_type = if path == "/login" { RequestType::Login } else { RequestType::API };
-    println!("TEST LOG: from auth_middleware and request_type: {:?}", request_type);
-    tracing::debug!("Request type: {:?}", request_type);
-    tracing::info!("Path for request: {:?}", &path);
+    let request_type = if path == "/login" { 
+        tracing::info!("[{}] Login request detected", request_id);
+        RequestType::Login 
+    } else { 
+        RequestType::API 
+    };
+    
+    tracing::debug!("[{}] Request type: {:?}", request_id, request_type);
 
     // Handle public routes with rate limiting
     if is_public_route(&path) {
-        tracing::debug!("Public route detected, applying rate limiting");
+        tracing::info!("[{}] Public route detected: {}", request_id, path);
+        
+        // Apply rate limiting
+        tracing::debug!("[{}] Applying rate limiting", request_id);
         match rate_limiter.check_rate_limit(&req).await {
             Ok(_) => {
+                tracing::debug!("[{}] Rate limit check passed", request_id);
                 let (parts, body) = req.into_parts();
                 let req_info = RequestInfo::from_parts(&parts);
                 let mut req = Request::from_parts(parts, body);
 
-                if let Err(e) = request_logger.log_request(&req).await {
-                    println!("TEST LOG: from auth_middleware and error: {:?}", e);
-                    tracing::error!("Failed to log request: {:?}", e);
+                // Log the request
+                match request_logger.log_request(&req).await {
+                    Ok(_) => tracing::debug!("[{}] Request logged successfully", request_id),
+                    Err(e) => tracing::error!("[{}] Failed to log request: {:?}", request_id, e),
                 }
-                println!("TEST LOG: from auth_middleware and req: {:?}", req);
-                tracing::debug!("Rate limiting successful");
+                
+                tracing::info!("[{}] Forwarding public route request to handler", request_id);
                 let response = next.run(req).await;
+                tracing::info!("[{}] Public route request completed with status: {}", request_id, response.status());
                 return Ok(response)
             },
-            Err(status) => return Err(status),
+            Err(status) => {
+                tracing::warn!("[{}] Rate limit exceeded, returning status: {}", request_id, status);
+                return Err(status);
+            },
         }
     }
 
-    tracing::debug!("Authenticating request");
+    tracing::debug!("[{}] Protected route - authenticating request", request_id);
+    
     // Extract bearer token from request
     let token = extract_token(&req);
-    tracing::debug!("Token extracted: {}", token.is_some());
+    tracing::debug!("[{}] Bearer token extracted: {}", request_id, token.is_some());
 
     // Validate session using the token
     let session = match validate_session(&db, token).await {
         Ok(session) => {
-            println!("TEST LOG: from auth_middleware and session: {:?}", session);
-            tracing::debug!("Session validated successfully");
+            tracing::info!("[{}] Session validated successfully: {}", request_id, session.id);
             session
         },
         Err(status) => {
-            println!("TEST LOG: from auth_middleware and error: {:?}", status);
-            tracing::warn!("Session validation failed: {:?}", status);
+            tracing::warn!("[{}] Session validation failed with status: {}", request_id, status);
             return Err(status);
         }
     };
@@ -107,66 +136,66 @@ where
     // Retrieve user associated with the session
     let user = match get_user(&db, &session).await {
         Ok(user) => {
-            println!("TEST LOG: from auth_middleware and user: {:?}", user);
-            tracing::debug!("User retrieved successfully: {:?}", user.id);
+            tracing::info!("[{}] User retrieved successfully: {} ({})", request_id, user.id, user.email);
             user
         },
         Err(status) => {
-            println!("TEST LOG: from auth_middleware and error: {:?}", status);
-            tracing::warn!("Failed to retrieve user: {:?}", status);
+            tracing::warn!("[{}] Failed to retrieve user with status: {}", request_id, status);
             return Err(status);
         }
     };
 
     // Check admin access for admin routes
-    if req.uri().path().starts_with("/api/admin") && !user.is_admin {
-        println!("TEST LOG: from auth_middleware and user: {:?}", user);
-        tracing::warn!("Non-admin user {:?} attempted to access admin route", user.id);
-        return Err(StatusCode::FORBIDDEN);
+    if req.uri().path().starts_with("/api/admin") {
+        tracing::debug!("[{}] Admin route access attempt", request_id);
+        if !user.is_admin {
+            tracing::warn!("[{}] Non-admin user {} attempted to access admin route: {}", 
+                request_id, user.id, path);
+            return Err(StatusCode::FORBIDDEN);
+        }
+        tracing::info!("[{}] Admin access granted for user: {}", request_id, user.id);
     }
 
     // Update session's last accessed time
+    tracing::debug!("[{}] Updating session last accessed time", request_id);
     if let Err(e) = update_session(&db, &session).await {
-        println!("TEST LOG: from auth_middleware and error: {:?}", e);
-        tracing::error!("Failed to update session: {:?}", e);
+        tracing::error!("[{}] Failed to update session: {:?}", request_id, e);
         return Err(e);
     }
 
     // Insert user and session into request extensions for downstream handlers
-    tracing::debug!("Inserting user and session into request extensions");
-    println!("TEST LOG: from auth_middleware and user: {:?}", user);
+    tracing::debug!("[{}] Inserting user and session into request extensions", request_id);
     req.extensions_mut().insert(user.clone());
     req.extensions_mut().insert(session.clone());
 
     // Retrieve and insert user's directory IDs into request extensions
+    tracing::debug!("[{}] Retrieving user directory IDs", request_id);
     let directory_ids = match get_user_directory_ids(&db, &user).await {
         Ok(ids) => {
-            println!("TEST LOG: from auth_middleware and ids: {:?}", ids);
-            tracing::debug!("Retrieved {} directory IDs for user", ids.len());
+            tracing::debug!("[{}] Retrieved {} directory IDs for user", request_id, ids.len());
             ids
         },
         Err(e) => {
-            println!("TEST LOG: from auth_middleware and error: {:?}", e);
-            tracing::error!("Failed to get user directory IDs: {:?}", e);
+            tracing::error!("[{}] Failed to get user directory IDs: {:?}", request_id, e);
             return Err(e);
         }
     };
     req.extensions_mut().insert(directory_ids);
 
-    // Execute the next middleware in the chain
-    tracing::debug!("Executing next middleware");
-
     // Log the request
-    println!("TEST LOG: from auth_middleware and req: {:?}", req);
+    tracing::debug!("[{}] Logging authenticated request", request_id);
     if let Err(e) = request_logger.log_request(&req).await {
-        println!("TEST LOG: from auth_middleware and error: {:?}", e);
-        tracing::error!("Failed to log request: {:?}", e);
+        tracing::error!("[{}] Failed to log request: {:?}", request_id, e);
     }
+    
+    // Execute the next middleware in the chain
+    tracing::info!("[{}] Forwarding authenticated request to handler", request_id);
     let response = next.run(req).await;
-    println!("TEST LOG: from auth_middleware and response: {:?}", response);
     let status_code = response.status();
 
-    tracing::info!("Request completed: {} {} - Status: {}", method, path, status_code);
+    tracing::info!("[{}] Request completed: {} {} - Status: {}", 
+        request_id, method, path, status_code);
+        
     Ok(response)
 }
 
@@ -185,12 +214,17 @@ fn is_public_route(path: &str) -> bool {
         "/api/register",
         "/api/validate-session"
     ];
-    public_routes.iter().any(|route| path.starts_with(route))
+    
+    let is_public = public_routes.iter().any(|route| path.starts_with(route));
+    if is_public {
+        tracing::debug!("Path '{}' identified as public route", path);
+    }
+    is_public
 }
 
 // Extract bearer token from the request headers
 fn extract_token<B>(req: &Request<B>) -> Option<String> {
-    req.headers()
+    let token = req.headers()
         .get(http::header::AUTHORIZATION)
         .and_then(|header| header.to_str().ok())
         .and_then(|auth_value| {
@@ -201,83 +235,178 @@ fn extract_token<B>(req: &Request<B>) -> Option<String> {
             } else {
                 None
             }
-        })
+        });
+        
+    if token.is_none() {
+        tracing::debug!("No bearer token found in request");
+    }
+    
+    token
 }
 
 // Validate the session using the provided token
-// Updated validate_session function with better error handling
 async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Result<session::Model, StatusCode> {
-    println!("TEST LOG: from validate_session and token: {:?}", token);
-    let token = token.ok_or(StatusCode::UNAUTHORIZED)?;
+    let token = match token {
+        Some(t) if !t.is_empty() => {
+            tracing::debug!("Validating token: {}", t.chars().take(8).collect::<String>() + "...");
+            t
+        },
+        _ => {
+            tracing::debug!("Missing or empty token");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
     
-    if token.is_empty() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    let session = session::Entity::find()
+    tracing::debug!("Querying database for session with token");
+    let session = match session::Entity::find()
         .filter(session::Column::BearerToken.eq(token))
         .filter(session::Column::IsActive.eq(true))
         .one(db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error in validate_session: {:?}", e);
-            println!("TEST LOG: from validate_session and error: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::UNAUTHORIZED)?;
+        .await {
+            Ok(Some(session)) => {
+                tracing::debug!("Session found: {}", session.id);
+                session
+            },
+            Ok(None) => {
+                tracing::debug!("No active session found for token");
+                return Err(StatusCode::UNAUTHORIZED);
+            },
+            Err(e) => {
+                tracing::error!("Database error in validate_session: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
-    if !session.verify_integrity() || session.token_expiration < Utc::now() {
+    // Verify session integrity and expiration
+    if !session.verify_integrity() {
+        tracing::warn!("Session integrity check failed for session: {}", session.id);
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    
+    if session.token_expiration < Utc::now() {
+        tracing::warn!("Session token expired for session: {}", session.id);
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    tracing::debug!("Session validated successfully: {}", session.id);
     Ok(session)
 }
 
 // Retrieve the user associated with the given session
 async fn get_user(db: &DatabaseConnection, session: &session::Model) -> Result<user::Model, StatusCode> {
-    user::Entity::find_by_id(session.user_id)
+    tracing::debug!("Retrieving user for session: {}", session.id);
+    
+    match user::Entity::find_by_id(session.user_id)
         .one(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::UNAUTHORIZED)
+        .await {
+            Ok(Some(user)) => {
+                tracing::debug!("User found: {} ({})", user.id, user.email);
+                Ok(user)
+            },
+            Ok(None) => {
+                tracing::warn!("No user found for session: {}", session.id);
+                Err(StatusCode::UNAUTHORIZED)
+            },
+            Err(e) => {
+                tracing::error!("Database error in get_user: {:?}", e);
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
 }
 
 // Update the session's last accessed time
 async fn update_session(db: &DatabaseConnection, session: &session::Model) -> Result<(), StatusCode> {
-    session::Entity::update(session::ActiveModel {
+    tracing::debug!("Updating last_accessed_at for session: {}", session.id);
+    
+    match session::Entity::update(session::ActiveModel {
         id: Set(session.id),
         last_accessed_at: Set(Utc::now()),
         ..Default::default()
     })
     .exec(db)
-    .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(())
+    .await {
+        Ok(_) => {
+            tracing::debug!("Session updated successfully");
+            Ok(())
+        },
+        Err(e) => {
+            tracing::error!("Failed to update session: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }
 
 // Retrieve the directory IDs associated with the user
 async fn get_user_directory_ids(db: &DatabaseConnection, user: &user::Model) -> Result<Vec<Uuid>, StatusCode> {
+    tracing::debug!("Retrieving directory IDs for user: {}", user.id);
+    
     // Fetch user accounts associated with the user
-    let user_accounts: Vec<Uuid> = user_account::Entity::find()
+    let user_accounts = match user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user.id))
         .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .into_iter()
+        .await {
+            Ok(accounts) => {
+                tracing::debug!("Found {} user accounts", accounts.len());
+                accounts
+            },
+            Err(e) => {
+                tracing::error!("Failed to retrieve user accounts: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+        
+    let account_ids: Vec<Uuid> = user_accounts.into_iter()
         .map(|user_account| user_account.account_id)
         .collect();
+        
+    if account_ids.is_empty() {
+        tracing::debug!("User has no associated accounts");
+        return Ok(Vec::new());
+    }
+    
     // Get profiles from account ids on user_account
-    let profiles = profile::Entity::find()
-        .filter(profile::Column::AccountId.is_in(user_accounts))
+    let profiles = match profile::Entity::find()
+        .filter(profile::Column::AccountId.is_in(account_ids))
         .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .await {
+            Ok(profiles) => {
+                tracing::debug!("Found {} profiles", profiles.len());
+                profiles
+            },
+            Err(e) => {
+                tracing::error!("Failed to retrieve profiles: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+        
+    if profiles.is_empty() {
+        tracing::debug!("No profiles found for user's accounts");
+        return Ok(Vec::new());
+    }
+    
+    let profile_directory_ids: Vec<Uuid> = profiles.into_iter()
+        .map(|profile| profile.directory_id)
+        .collect();
+        
     // Get directories from profiles
-    let directories = directory::Entity::find()
-        .filter(directory::Column::Id.is_in(profiles.into_iter().map(|profile| profile.directory_id)))
+    let directories = match directory::Entity::find()
+        .filter(directory::Column::Id.is_in(profile_directory_ids))
         .all(db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    return Ok(directories.into_iter().map(|directory| directory.id).collect());
+        .await {
+            Ok(directories) => {
+                tracing::debug!("Found {} directories", directories.len());
+                directories
+            },
+            Err(e) => {
+                tracing::error!("Failed to retrieve directories: {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
+        
+    let directory_ids: Vec<Uuid> = directories.into_iter()
+        .map(|directory| directory.id)
+        .collect();
+        
+    tracing::debug!("Retrieved {} directory IDs for user", directory_ids.len());
+    Ok(directory_ids)
 }

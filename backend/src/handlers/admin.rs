@@ -70,12 +70,6 @@ pub struct ActivityReport {
     recent_accounts: Vec<account::Model>,
 }
 
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
-        Router::new()
-        .route("/health", get(|| async { "OK" }))
-        .with_state(db)
-}
-
 pub async fn get_directories(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

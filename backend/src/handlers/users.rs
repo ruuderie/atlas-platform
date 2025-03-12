@@ -227,7 +227,8 @@ pub async fn login_user(
     Json(credentials): Json<LoginCredentials>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Attempting to log in user: {}", credentials.email);
-    println!("TEST LOG: from login_user and credentials: {:?}", credentials);
+    println!("LOGIN ATTEMPT: Email: {}, Password length: {}", credentials.email, credentials.password.len());
+    
     let user = match User::find()
         .filter(user::Column::Email.eq(&credentials.email))
         .one(&db)

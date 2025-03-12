@@ -37,6 +37,10 @@ USER appuser
 # Set environment variables
 ENV RUST_LOG=info
 
+# Add health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
 # Expose the port
 EXPOSE 8000
 
