@@ -12,6 +12,9 @@ use crate::models::directory::{DirectoryModel, CreateDirectory, UpdateDirectory}
 use crate::entities::directory_type::{self, Entity as DirectoryType};
 use chrono::Utc;
 use uuid::Uuid;
+use crate::config::site_config::{SiteConfig, ModuleFlags};
+use serde_json::Value;
+use std::collections::HashMap;
 
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
@@ -190,4 +193,380 @@ pub async fn get_directory_listings(
         })?;
 
     Ok((StatusCode::OK, Json(listings)))
+}
+
+// Get site configuration
+pub async fn get_site_config(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let site_config = SiteConfig {
+        directory_id: directory.id,
+        name: directory.name,
+        domain: directory.domain,
+        subdomain: directory.subdomain,
+        custom_domain: directory.custom_domain,
+        enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules),
+        theme: directory.theme,
+        custom_settings: directory.custom_settings
+            .map(|v| serde_json::from_value(v).unwrap_or_default())
+            .unwrap_or_default(),
+        site_status: directory.site_status,
+    };
+    
+    Ok((StatusCode::OK, Json(site_config)))
+}
+
+// Get enabled modules
+pub async fn get_enabled_modules(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let modules = ModuleFlags::from_bits_truncate(directory.enabled_modules);
+    
+    #[derive(Serialize)]
+    struct ModulesResponse {
+        enabled_modules: i32,
+        modules: Vec<String>,
+    }
+    
+    // Convert module flags to a list of enabled module names
+    let module_names = get_module_names(modules);
+    
+    let response = ModulesResponse {
+        enabled_modules: directory.enabled_modules,
+        modules: module_names,
+    };
+    
+    Ok((StatusCode::OK, Json(response)))
+}
+
+// Helper function to get module names from flags
+fn get_module_names(flags: ModuleFlags) -> Vec<String> {
+    let mut modules = Vec::new();
+    
+    if flags.contains(ModuleFlags::LISTINGS) { modules.push("listings".to_string()); }
+    if flags.contains(ModuleFlags::PROFILES) { modules.push("profiles".to_string()); }
+    if flags.contains(ModuleFlags::MESSAGING) { modules.push("messaging".to_string()); }
+    if flags.contains(ModuleFlags::PAYMENTS) { modules.push("payments".to_string()); }
+    if flags.contains(ModuleFlags::ANALYTICS) { modules.push("analytics".to_string()); }
+    if flags.contains(ModuleFlags::REVIEWS) { modules.push("reviews".to_string()); }
+    if flags.contains(ModuleFlags::EVENTS) { modules.push("events".to_string()); }
+    if flags.contains(ModuleFlags::CUSTOM_FIELDS) { modules.push("custom_fields".to_string()); }
+    
+    modules
+}
+
+// Update enabled modules
+pub async fn update_enabled_modules(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<UpdateModulesRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let mut active_model: directory::ActiveModel = directory.clone().into();
+    active_model.enabled_modules = Set(payload.enabled_modules);
+    active_model.updated_at = Set(Utc::now());
+    
+    let updated_directory = active_model
+        .update(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to update directory modules: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    let modules = ModuleFlags::from_bits_truncate(updated_directory.enabled_modules);
+    let module_names = get_module_names(modules);
+    
+    #[derive(Serialize)]
+    struct ModulesResponse {
+        enabled_modules: i32,
+        modules: Vec<String>,
+    }
+    
+    let response = ModulesResponse {
+        enabled_modules: updated_directory.enabled_modules,
+        modules: module_names,
+    };
+    
+    Ok((StatusCode::OK, Json(response)))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateModulesRequest {
+    enabled_modules: i32,
+}
+
+// Get site theme
+pub async fn get_site_theme(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    #[derive(Serialize)]
+    struct ThemeResponse {
+        theme: Option<String>,
+    }
+    
+    let response = ThemeResponse {
+        theme: directory.theme,
+    };
+    
+    Ok((StatusCode::OK, Json(response)))
+}
+
+// Update site theme
+pub async fn update_site_theme(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<UpdateThemeRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let mut active_model: directory::ActiveModel = directory.clone().into();
+    active_model.theme = Set(payload.theme);
+    active_model.updated_at = Set(Utc::now());
+    
+    let updated_directory = active_model
+        .update(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to update directory theme: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    #[derive(Serialize)]
+    struct ThemeResponse {
+        theme: Option<String>,
+    }
+    
+    let response = ThemeResponse {
+        theme: updated_directory.theme,
+    };
+    
+    Ok((StatusCode::OK, Json(response)))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateThemeRequest {
+    theme: Option<String>,
+}
+
+// Get custom settings
+pub async fn get_custom_settings(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let custom_settings = directory.custom_settings.unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
+    
+    Ok((StatusCode::OK, Json(custom_settings)))
+}
+
+// Update custom settings
+pub async fn update_custom_settings(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<Value>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let mut active_model: directory::ActiveModel = directory.clone().into();
+    active_model.custom_settings = Set(Some(payload));
+    active_model.updated_at = Set(Utc::now());
+    
+    let updated_directory = active_model
+        .update(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to update directory custom settings: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    let custom_settings = updated_directory.custom_settings.unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
+    
+    Ok((StatusCode::OK, Json(custom_settings)))
+}
+
+// Update site configuration
+pub async fn update_site_config(
+    Path(directory_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<UpdateSiteConfigRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let directory = Directory::find_by_id(directory_id)
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch directory: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let mut active_model: directory::ActiveModel = directory.clone().into();
+    
+    if let Some(name) = payload.name {
+        active_model.name = Set(name);
+    }
+    
+    if let Some(domain) = payload.domain {
+        active_model.domain = Set(domain);
+    }
+    
+    if let Some(subdomain) = payload.subdomain {
+        active_model.subdomain = Set(subdomain);
+    }
+    
+    if let Some(custom_domain) = payload.custom_domain {
+        active_model.custom_domain = Set(custom_domain);
+    }
+    
+    if let Some(enabled_modules) = payload.enabled_modules {
+        active_model.enabled_modules = Set(enabled_modules);
+    }
+    
+    if let Some(theme) = payload.theme {
+        active_model.theme = Set(Some(theme));
+    }
+    
+    if let Some(custom_settings) = payload.custom_settings {
+        active_model.custom_settings = Set(Some(serde_json::to_value(custom_settings).unwrap_or_default()));
+    }
+    
+    if let Some(site_status) = payload.site_status {
+        active_model.site_status = Set(site_status);
+    }
+    
+    active_model.updated_at = Set(Utc::now());
+    
+    let updated_directory = active_model
+        .update(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to update directory configuration: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    let site_config = SiteConfig {
+        directory_id: updated_directory.id,
+        name: updated_directory.name,
+        domain: updated_directory.domain,
+        subdomain: updated_directory.subdomain,
+        custom_domain: updated_directory.custom_domain,
+        enabled_modules: ModuleFlags::from_bits_truncate(updated_directory.enabled_modules),
+        theme: updated_directory.theme,
+        custom_settings: updated_directory.custom_settings
+            .map(|v| serde_json::from_value(v).unwrap_or_default())
+            .unwrap_or_default(),
+        site_status: updated_directory.site_status,
+    };
+    
+    Ok((StatusCode::OK, Json(site_config)))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateSiteConfigRequest {
+    name: Option<String>,
+    domain: Option<String>,
+    subdomain: Option<Option<String>>,
+    custom_domain: Option<Option<String>>,
+    enabled_modules: Option<i32>,
+    theme: Option<String>,
+    custom_settings: Option<HashMap<String, Value>>,
+    site_status: Option<String>,
+}
+
+// Update the DirectoryModel to include the new fields
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DirectoryConfigModel {
+    pub id: Uuid,
+    pub name: String,
+    pub directory_type_id: Uuid,
+    pub domain: String,
+    pub description: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub enabled_modules: i32,
+    pub theme: Option<String>,
+    pub custom_settings: Option<Value>,
+    pub site_status: String,
+    pub subdomain: Option<String>,
+    pub custom_domain: Option<String>,
+}
+
+impl From<directory::Model> for DirectoryConfigModel {
+    fn from(model: directory::Model) -> Self {
+        Self {
+            id: model.id,
+            name: model.name,
+            directory_type_id: model.directory_type_id,
+            domain: model.domain,
+            description: model.description,
+            created_at: model.created_at,
+            updated_at: model.updated_at,
+            enabled_modules: model.enabled_modules,
+            theme: model.theme,
+            custom_settings: model.custom_settings,
+            site_status: model.site_status,
+            subdomain: model.subdomain,
+            custom_domain: model.custom_domain,
+        }
+    }
 }

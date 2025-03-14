@@ -25,3 +25,8 @@ pub mod listing_attribute;
 pub mod session;
 pub mod request_log;
 
+//NEW ENTITIES
+pub mod feed;
+pub mod feed_item;
+pub mod attachment;
+
