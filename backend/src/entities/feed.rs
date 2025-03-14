@@ -45,3 +45,4 @@ impl Related<super::feed_item::Entity> for Entity {
         Relation::FeedItem.def()
     }
 } 
+impl ActiveModelBehavior for ActiveModel {}

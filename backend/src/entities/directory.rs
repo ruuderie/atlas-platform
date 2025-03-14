@@ -18,7 +18,7 @@ pub struct Model {
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
     // New fields for multi-site management
-    pub enabled_modules: i32,
+    pub enabled_modules: u32,
     #[sea_orm(nullable)]
     pub theme: Option<String>,
     #[sea_orm(column_type = "JsonBinary")]
@@ -29,8 +29,33 @@ pub struct Model {
     pub subdomain: Option<String>,
     #[sea_orm(nullable, unique)]
     pub custom_domain: Option<String>,
+    #[sea_orm(nullable)]
+    pub logo: Option<String>,
+    #[sea_orm(nullable)]
+    pub favicon: Option<String>,
+    #[sea_orm(nullable)]
+    pub header_scripts: Option<String>,
+    #[sea_orm(nullable)]
+    pub footer_scripts: Option<String>,
+    #[sea_orm(nullable)]
+    pub google_analytics_id: Option<String>,
+    #[sea_orm(nullable)]
+    pub google_site_verification: Option<String>,
+    #[sea_orm(column_type = "Text", nullable = true)]
+    pub meta_description: Option<String>,
+    #[sea_orm(column_type = "Text", nullable = true)]
+    pub meta_keywords: Option<String>,
+    #[sea_orm(column_type = "Text", nullable = true)]
+    pub meta_title: Option<String>,
+    #[sea_orm(nullable)]
+    pub page_title: Option<String>,
+    #[sea_orm(nullable)]
+    pub page_description: Option<String>,
+    #[sea_orm(nullable)]
+    pub page_keywords: Option<String>,
+    #[sea_orm(column_type = "Text", nullable = true)]
+    pub canonical_url: Option<String>,
 }
-
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(

@@ -15,6 +15,9 @@ mod m20240001_update_timestamp_migration;
 mod m20230911_create_sessions_table;
 mod m20240922_create_crm_tables;
 mod m20240922_create_request_log_table;
+mod m20240923_create_feed_tables;
+mod m20240924_update_listings_nullable_category;
+mod m20240924_update_directory_multisite_fields;
 
 pub struct Migrator;
 
@@ -37,6 +40,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20240922_create_crm_tables::Migration),
             Box::new(m20240922_create_request_log_table::Migration),
             Box::new(m20240001_update_timestamp_migration::Migration),
+            Box::new(m20240923_create_feed_tables::Migration),
+            Box::new(m20240924_update_listings_nullable_category::Migration),
+            Box::new(m20240924_update_directory_multisite_fields::Migration),
         ]
     }
 }

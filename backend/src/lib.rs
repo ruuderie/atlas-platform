@@ -11,3 +11,5 @@ pub mod handlers;
 pub mod models;
 pub mod admin;
 pub mod traits;
+pub mod config;
+pub mod services;

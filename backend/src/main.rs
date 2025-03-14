@@ -33,7 +33,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
     request_logger::RequestLogger,
     rate_limiter::RateLimiter,
-    middleware::auth_middleware
+    middleware::auth_middleware,
+    site_context_middleware
 };
 use axum::response::{IntoResponse,Response};
 

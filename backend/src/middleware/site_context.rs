@@ -1,4 +1,3 @@
-
 // backend/src/middleware/site_context.rs
 use axum::{
     extract::{Extension, Host},
@@ -12,7 +11,8 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use crate::entities::directory;
-use crate::config::site_config::{SiteConfig, ModuleFlags};
+use crate::config::{SiteConfig, ModuleFlags};
+use serde_json::Value;
 
 // Cache for site configurations to avoid frequent DB lookups
 static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> = 
@@ -24,62 +24,67 @@ pub async fn site_context_middleware<B>(
     req: Request<B>,
     next: Next<B>,
 ) -> Result<Response, StatusCode> {
-    // Check cache first
     let domain = hostname.split(':').next().unwrap_or(&hostname).to_string();
     
-    // Try to get from cache
+    tracing::debug!("Processing site context for domain: {}", domain);
+    
+    // Try to get from cache first
     let site_config = {
         let cache = SITE_CACHE.read().await;
         cache.get(&domain).cloned()
     };
     
     let site_config = match site_config {
-        Some(config) => config,
+        Some(config) => {
+            tracing::debug!("Found site configuration in cache for domain: {}", domain);
+            config
+        },
         None => {
-            // Not in cache, fetch from database
+            tracing::debug!("Cache miss for domain: {}, fetching from database", domain);
+            
+            // Fetch from database
             let directory = directory::Entity::find()
-                .filter(directory::Column::Domain.eq(&domain))
+                .filter(
+                    directory::Column::Domain.eq(&domain)
+                    .or(directory::Column::CustomDomain.eq(&domain))
+                )
                 .one(&db)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                .map_err(|e| {
+                    tracing::error!("Database error fetching directory: {:?}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
             
             let directory = match directory {
                 Some(dir) => dir,
-                None => return Err(StatusCode::NOT_FOUND),
+                None => {
+                    tracing::warn!("No directory found for domain: {}", domain);
+                    return Err(StatusCode::NOT_FOUND);
+                }
             };
             
             // Convert to SiteConfig
-            let enabled_modules_value = directory.additional_info
-                .get("enabled_modules")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32;
-            
-            let enabled_modules = ModuleFlags::from_bits_truncate(enabled_modules_value);
-            
-            let theme = directory.additional_info
-                .get("theme")
-                .and_then(|v| v.as_str())
-                .unwrap_or("default")
-                .to_string();
-            
-            let custom_settings = directory.additional_info
-                .get("custom_settings")
-                .and_then(|v| v.as_object().cloned())
-                .unwrap_or_default();
-            
             let config = SiteConfig {
                 directory_id: directory.id,
                 name: directory.name,
-                domain,
-                enabled_modules,
-                theme,
-                custom_settings: custom_settings.into_iter().collect(),
+                domain: directory.domain,
+                subdomain: directory.subdomain,
+                custom_domain: directory.custom_domain,
+                enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules),
+                theme: directory.theme,
+                custom_settings: directory.custom_settings
+                    .unwrap_or_default()
+                    .as_object()
+                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                    .unwrap_or_default(),
+                site_status: Some(directory.site_status),
             };
             
             // Update cache
             {
                 let mut cache = SITE_CACHE.write().await;
                 cache.insert(config.domain.clone(), config.clone());
+                tracing::debug!("Updated cache with configuration for domain: {}", domain);
             }
             
             config
@@ -90,6 +95,12 @@ pub async fn site_context_middleware<B>(
     let mut req = req;
     req.extensions_mut().insert(site_config);
     
-    // Continue with the request
     Ok(next.run(req).await)
+}
+
+// Helper function to clear the cache (useful for testing or when configs are updated)
+pub async fn clear_site_cache() {
+    let mut cache = SITE_CACHE.write().await;
+    cache.clear();
+    tracing::info!("Site configuration cache cleared");
 }

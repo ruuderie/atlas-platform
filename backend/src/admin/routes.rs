@@ -6,7 +6,9 @@ use axum::{
     response::{IntoResponse, Json as JsonResponse},
 };
 use sea_orm::DatabaseConnection;
-use crate::handlers::{admin, categories, profiles, templates, contacts, customers, leads, deals, cases, files};
+use crate::handlers::{admin, categories, 
+    profiles, templates, contacts, customers,
+    leads, deals, cases, files, directories};
 use crate::auth::*;
 use crate::middleware::*;
 use axum::middleware::from_fn;
@@ -63,10 +65,10 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/directories/:directory_id", put(admin::update_directory))
                 .route("/admin/directories/:directory_id", delete(admin::delete_directory))
                 .route("/admin/directories/type/:type_id", get(admin::get_directories_by_type))
-                .route("/admin/directories/:directory_id/config", get(get_site_config).put(update_site_config))
-                .route("/admin/directories/:directory_id/modules", get(get_enabled_modules).put(update_enabled_modules))
-                .route("/admin/directories/:directory_id/theme", get(get_site_theme).put(update_site_theme))
-                .route("/admin/directories/:directory_id/custom-settings", get(get_custom_settings).put(update_custom_settings))
+                .route("/admin/directories/:directory_id/config", get(directories::get_site_config).put(directories::update_site_config))
+                .route("/admin/directories/:directory_id/modules", get(directories::get_enabled_modules).put(directories::update_enabled_modules))
+                .route("/admin/directories/:directory_id/theme", get(directories::get_site_theme).put(directories::update_site_theme))
+                .route("/admin/directories/:directory_id/custom-settings", get(directories::get_custom_settings).put(directories::update_custom_settings))
                 //DIRETORY TYPE
                 .route("/admin/directory-types", get(admin::get_directory_types))
                 .route("/admin/directory-types/:directory_type_id", get(admin::get_directory_type))

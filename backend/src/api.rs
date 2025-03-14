@@ -7,6 +7,7 @@ use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
 use tower_http::cors::{CorsLayer, Any};
 use std::env;
+use crate::middleware::site_context_middleware;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
@@ -52,7 +53,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/register", post(users::register_user))
         .route("/validate-session", get(sessions::validate_session))
         .route("/refresh-token", post(sessions::refresh_token))
-        .layer(cors_layer.clone());
+        .layer(cors_layer.clone())
+        .layer(Extension(db.clone()))
+        .layer(axum::middleware::from_fn(site_context_middleware));
 
     // Public routes (requires state, so merge with state-applied routers)
     let public_routes = Router::<DatabaseConnection>::new()
@@ -60,6 +63,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(listings::public_routes(db.clone()))
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))
+        .layer(axum::middleware::from_fn(site_context_middleware))
         .layer(cors_layer.clone());  // Add CORS to public routes
 
     let rate_limiter = RateLimiter::new();
@@ -86,13 +90,17 @@ pub fn create_router(db: DatabaseConnection) -> Router {
             "/api",
             authenticated_routes
                 .layer(Extension(rate_limiter.clone()))
-                .layer(axum::middleware::from_fn(move |req, next| {
-                    let db = db_clone.clone();
-                    let rate_limiter = rate_limiter.clone();
-                    async move {
-                        auth_middleware(db, rate_limiter, req, next).await
-                    }
-                })),
+                .layer(axum::middleware::from_fn(site_context_middleware))
+                .layer(axum::middleware::from_fn_with_state(
+                    db_clone.clone(),
+                    move |req, next| {
+                        let db = db_clone.clone();
+                        let rate_limiter = rate_limiter.clone();
+                        async move {
+                            auth_middleware(db, rate_limiter, req, next).await
+                        }
+                    },
+                )),
         )
         .layer(Extension(db.clone())) // For middleware that might need it
         .layer(TraceLayer::new_for_http())

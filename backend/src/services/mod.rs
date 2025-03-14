@@ -1,5 +1,3 @@
 // Export all service modules
-pub mod directory_service;
-pub mod listing_service;
-pub mod user_service;
+pub mod directory;
 // Add other services as needed 

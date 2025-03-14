@@ -33,6 +33,129 @@ graph TD
     L -->|Based on| E
 ```
 
+# Multi-Site Management Configuration
+
+## Site Configuration Structure
+
+```rust
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SiteConfig {
+    // Unique identifier for the directory/site
+    pub directory_id: Uuid,
+    
+    // Display name of the site
+    pub name: String,
+    
+    // Primary domain for accessing the site (e.g., "healthcare.example.com")
+    pub domain: String,
+    
+    // Bitflag configuration controlling which features are available
+    pub enabled_modules: ModuleFlags,
+    
+    // Theme identifier (e.g., "default", "dark", "professional")
+    pub theme: String,
+    
+    // Flexible JSON storage for site-specific settings
+    // Examples:
+    // - "logo_url": "https://..."
+    // - "primary_color": "#FF0000"
+    // - "contact_email": "admin@..."
+    pub custom_settings: HashMap<String, serde_json::Value>,
+}
+```
+
+## Module Flags
+
+```rust
+bitflags! {
+    #[derive(Serialize, Deserialize)]
+    pub struct ModuleFlags: u32 {
+        // Core listing functionality (required for directory features)
+        const LISTINGS = 0b00000001;
+        
+        // User profiles and account management
+        const PROFILES = 0b00000010;
+        
+        // Internal messaging system between users
+        const MESSAGING = 0b00000100;
+        
+        // Payment processing and subscription management
+        const PAYMENTS = 0b00001000;
+        
+        // Site usage and performance tracking
+        const ANALYTICS = 0b00010000;
+        
+        // User-generated reviews and ratings
+        const REVIEWS = 0b00100000;
+        
+        // Calendar and event management
+        const EVENTS = 0b01000000;
+        
+        // Customizable fields for listings/profiles
+        const CUSTOM_FIELDS = 0b10000000;
+    }
+}
+```
+
+## Usage Examples
+
+### Enabling Modules
+```rust
+// Enable listings and profiles for a basic directory
+site_config.enabled_modules = ModuleFlags::LISTINGS | ModuleFlags::PROFILES;
+
+// Full-featured directory with all modules
+site_config.enabled_modules = ModuleFlags::LISTINGS 
+    | ModuleFlags::PROFILES 
+    | ModuleFlags::MESSAGING 
+    | ModuleFlags::PAYMENTS 
+    | ModuleFlags::ANALYTICS 
+    | ModuleFlags::REVIEWS 
+    | ModuleFlags::EVENTS 
+    | ModuleFlags::CUSTOM_FIELDS;
+```
+
+### Custom Settings Examples
+```rust
+// Basic site customization
+{
+    "logo_url": "https://example.com/logo.png",
+    "contact_email": "support@example.com",
+    "social_links": {
+        "facebook": "https://facebook.com/mysite",
+        "twitter": "https://twitter.com/mysite"
+    },
+    "appearance": {
+        "primary_color": "#FF0000",
+        "secondary_color": "#00FF00",
+        "font_family": "Arial"
+    }
+}
+```
+
+## Caching Behavior
+
+- Site configurations are cached in memory using `SITE_CACHE`
+- Cache is keyed by domain name
+- Cache is updated when:
+  1. Configuration is first accessed
+  2. Configuration is explicitly updated via admin panel
+- Cache reduces database load for frequently accessed configurations
+
+## Security Considerations
+
+1. Module flags should be validated on both client and server side
+2. Custom settings should be sanitized before storage
+3. Domain verification required for custom domain setup
+4. Cache invalidation needed when configurations are updated
+
+## Performance Notes
+
+- Use `is_module_enabled()` for feature checks
+- Cache reduces database load
+- Consider periodic cache cleanup for inactive sites
+- Monitor custom_settings size to prevent excessive JSON storage
+
 // backend/src/config/site_config.rs
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
