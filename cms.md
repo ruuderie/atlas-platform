@@ -1,0 +1,17 @@
+struct Item {
+	id: String,
+	url: String,
+	external_url: String,
+	title: String,
+	content_html: String,
+	content_text: String,
+	summary: String,
+	image: String,
+	banner_image: String,
+	date_published: chrono::DateTime<chrono::Utc>,
+	date_modified: chrono::DateTime<chrono::Utc>,
+	author: Author,
+	authors: Vec<Author>,
+	tags: Vec<String>,
+	attachments: Vec<Attachment>,
+}
