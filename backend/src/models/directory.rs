@@ -32,6 +32,7 @@ pub struct DirectoryModel {
     pub page_title: Option<String>,
     pub page_description: Option<String>,
     pub page_keywords: Option<String>,
+    pub canonical_url: Option<String>,
 }
 
 impl From<directory::Model> for DirectoryModel {
@@ -65,6 +66,43 @@ impl From<directory::Model> for DirectoryModel {
             page_title: model.page_title,
             page_description: model.page_description,
             page_keywords: model.page_keywords,
+            canonical_url: model.canonical_url,
+        }
+    }
+}
+
+impl From<directory::ActiveModel> for DirectoryModel {
+    fn from(input: directory::ActiveModel) -> Self {
+        Self {
+            id: input.id.unwrap(),
+            name: input.name.unwrap(),
+            directory_type_id: input.directory_type_id.unwrap(),
+            domain: input.domain.unwrap(),
+            description: input.description.unwrap(),
+            created_at: input.created_at.unwrap(),
+            updated_at: input.updated_at.unwrap(),
+            enabled_modules: input.enabled_modules.unwrap(),
+            theme: input.theme.unwrap(),
+            custom_settings: input.custom_settings.unwrap()
+                .map(|v| v.as_object()
+                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                    .unwrap_or_default()),
+            site_status: input.site_status.unwrap(),
+            subdomain: input.subdomain.unwrap(),
+            custom_domain: input.custom_domain.unwrap(),
+            logo: input.logo.unwrap(),
+            favicon: input.favicon.unwrap(),
+            header_scripts: input.header_scripts.unwrap(),
+            footer_scripts: input.footer_scripts.unwrap(),
+            google_analytics_id: input.google_analytics_id.unwrap(),
+            google_site_verification: input.google_site_verification.unwrap(),
+            meta_description: input.meta_description.unwrap(),
+            meta_keywords: input.meta_keywords.unwrap(),
+            meta_title: input.meta_title.unwrap(),
+            page_title: input.page_title.unwrap(),
+            page_description: input.page_description.unwrap(),
+            page_keywords: input.page_keywords.unwrap(),
+            canonical_url: input.canonical_url.unwrap(),
         }
     }
 }
@@ -134,5 +172,5 @@ pub struct UpdateDirectory {
     pub page_title: Option<String>,
     pub page_description: Option<String>,
     pub page_keywords: Option<String>,
-    
+    pub canonical_url: Option<String>,
 }
