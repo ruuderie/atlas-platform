@@ -26,23 +26,29 @@ pub async fn site_context_middleware<B>(
 ) -> Result<Response, StatusCode> {
     let domain = hostname.split(':').next().unwrap_or(&hostname).to_string();
     
-    tracing::debug!("Processing site context for domain: {}", domain);
+    tracing::info!("Processing site context for domain: {}", domain);
+    tracing::debug!("Original hostname with potential port: {}", hostname);
     
     // Try to get from cache first
+    tracing::debug!("Attempting to retrieve site config from cache");
     let site_config = {
         let cache = SITE_CACHE.read().await;
+        tracing::debug!("Cache read lock acquired. Cache size: {} entries", cache.len());
         cache.get(&domain).cloned()
     };
     
     let site_config = match site_config {
         Some(config) => {
-            tracing::debug!("Found site configuration in cache for domain: {}", domain);
+            tracing::info!("Cache hit: Found site configuration for domain: {}", domain);
+            tracing::debug!("Site name: {}, Directory ID: {}", config.name, config.directory_id);
+            tracing::debug!("Enabled modules: {:?}", config.enabled_modules);
             config
         },
         None => {
-            tracing::debug!("Cache miss for domain: {}, fetching from database", domain);
+            tracing::info!("Cache miss for domain: {}, fetching from database", domain);
             
             // Fetch from database
+            tracing::debug!("Querying database for directory with domain or custom_domain = {}", domain);
             let directory = directory::Entity::find()
                 .filter(
                     directory::Column::Domain.eq(&domain)
@@ -56,14 +62,18 @@ pub async fn site_context_middleware<B>(
                 })?;
             
             let directory = match directory {
-                Some(dir) => dir,
+                Some(dir) => {
+                    tracing::info!("Found directory in database: id={}, name={}", dir.id, dir.name);
+                    dir
+                },
                 None => {
-                    tracing::warn!("No directory found for domain: {}", domain);
+                    tracing::warn!("No directory found in database for domain: {}", domain);
                     return Err(StatusCode::NOT_FOUND);
                 }
             };
             
             // Convert to SiteConfig
+            tracing::debug!("Converting directory entity to SiteConfig");
             let config = SiteConfig {
                 directory_id: directory.id,
                 name: directory.name,
@@ -80,11 +90,16 @@ pub async fn site_context_middleware<B>(
                 site_status: Some(directory.site_status),
             };
             
+            tracing::debug!("Created SiteConfig with modules: {:?}", config.enabled_modules);
+            
             // Update cache
             {
+                tracing::debug!("Acquiring write lock to update cache");
                 let mut cache = SITE_CACHE.write().await;
-                cache.insert(config.domain.clone(), config.clone());
-                tracing::debug!("Updated cache with configuration for domain: {}", domain);
+                tracing::debug!("Cache write lock acquired");
+                cache.insert(domain.clone(), config.clone());
+                tracing::info!("Updated cache with configuration for domain: {}", domain);
+                tracing::debug!("Cache now contains {} entries", cache.len());
             }
             
             config
@@ -92,9 +107,11 @@ pub async fn site_context_middleware<B>(
     };
     
     // Add site config to request extensions
+    tracing::debug!("Adding site config to request extensions for domain: {}", domain);
     let mut req = req;
     req.extensions_mut().insert(site_config);
     
+    tracing::info!("Site context middleware completed for domain: {}", domain);
     Ok(next.run(req).await)
 }
 

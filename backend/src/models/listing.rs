@@ -89,6 +89,7 @@ pub struct ListingCreate {
     pub based_on_template_id: Option<Uuid>,
     pub is_ad_placement: Option<bool>,
     pub is_active: Option<bool>,
+    pub slug: Option<String>,
 }
 
 impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
@@ -118,6 +119,7 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
             is_active: Set(self.is_active.unwrap_or(true)),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
+            slug: Set(self.slug),
         }
     }
 }

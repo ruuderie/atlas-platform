@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use sea_orm::entity::EntityTrait;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "directory")]
@@ -41,11 +42,11 @@ pub struct Model {
     pub google_analytics_id: Option<String>,
     #[sea_orm(nullable)]
     pub google_site_verification: Option<String>,
-    #[sea_orm(column_type = "Text", nullable = true)]
+    #[sea_orm(column_type = "Text", nullable)]
     pub meta_description: Option<String>,
-    #[sea_orm(column_type = "Text", nullable = true)]
+    #[sea_orm(column_type = "Text", nullable)]
     pub meta_keywords: Option<String>,
-    #[sea_orm(column_type = "Text", nullable = true)]
+    #[sea_orm(column_type = "Text", nullable)]
     pub meta_title: Option<String>,
     #[sea_orm(nullable)]
     pub page_title: Option<String>,
@@ -53,23 +54,32 @@ pub struct Model {
     pub page_description: Option<String>,
     #[sea_orm(nullable)]
     pub page_keywords: Option<String>,
-    #[sea_orm(column_type = "Text", nullable = true)]
+    #[sea_orm(column_type = "Text", nullable)]
     pub canonical_url: Option<String>,
 }
-#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+
+#[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::directory_type::Entity",
-        from = "Column::DirectoryTypeId",
-        to = "super::directory_type::Column::Id"
-    )]
     DirectoryType,
-    #[sea_orm(has_many = "super::profile::Entity")]
     Profile,
-    #[sea_orm(has_many = "super::template::Entity")]
     Template,
-    #[sea_orm(has_many = "super::listing::Entity")]
     Listing,
+    Account,
+}
+
+impl RelationTrait for Relation {
+    fn def(&self) -> RelationDef {
+        match self {
+            Self::DirectoryType => Entity::belongs_to(super::directory_type::Entity)
+                .from(Column::DirectoryTypeId)
+                .to(super::directory_type::Column::Id)
+                .into(),
+            Self::Profile => Entity::has_many(super::profile::Entity).into(),
+            Self::Template => Entity::has_many(super::template::Entity).into(),
+            Self::Listing => Entity::has_many(super::listing::Entity).into(),
+            Self::Account => Entity::has_many(super::account::Entity).into(),
+        }
+    }
 }
 
 impl Related<super::directory_type::Entity> for Entity {
@@ -93,6 +103,12 @@ impl Related<super::template::Entity> for Entity {
 impl Related<super::listing::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Listing.def()
+    }
+}
+
+impl Related<super::account::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Account.def()
     }
 }
 

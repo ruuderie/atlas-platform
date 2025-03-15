@@ -23,3 +23,6 @@ pub mod case;
 pub mod activity;
 pub mod note;
 pub mod file;
+pub mod attachment;
+pub mod feed;
+pub mod feed_item;

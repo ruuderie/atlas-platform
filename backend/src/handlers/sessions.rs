@@ -134,7 +134,9 @@ pub async fn validate_session(
             match auth_header.to_str() {
                 Ok(auth_str) => {
                     if auth_str.starts_with("Bearer ") {
-                        auth_str[7..].to_string()
+                        let token = auth_str[7..].to_string();
+                        tracing::info!("Token extracted: {}", token.chars().take(10).collect::<String>() + "...");
+                        token
                     } else {
                         tracing::warn!("Authorization header doesn't start with 'Bearer '");
                         return Err(StatusCode::UNAUTHORIZED);
@@ -152,14 +154,17 @@ pub async fn validate_session(
         }
     };
     
-    tracing::info!("Token extracted: {}", token.chars().take(10).collect::<String>() + "...");
-    
+    // Query for session with this token
+    tracing::info!("Querying database for session with token");
     let session = match session::Entity::find()
         .filter(session::Column::BearerToken.eq(token.clone()))
         .one(&db)
         .await
     {
-        Ok(Some(session)) => session,
+        Ok(Some(session)) => {
+            tracing::info!("Session found: {}", session.id);
+            session
+        },
         Ok(None) => {
             tracing::warn!("No session found for token");
             return Err(StatusCode::UNAUTHORIZED);
@@ -170,13 +175,20 @@ pub async fn validate_session(
         }
     };
 
-    if !session.is_active || !session.verify_integrity() {
-        tracing::warn!("Session is inactive or failed integrity check");
+    // Check session validity
+    if !session.is_active {
+        tracing::warn!("Session is inactive");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    
+    if !session.verify_integrity() {
+        tracing::warn!("Session failed integrity check");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     if session.token_expiration < Utc::now() {
-        tracing::warn!("Session has expired");
+        tracing::warn!("Session has expired at {}, current time is {}", 
+                      session.token_expiration, Utc::now());
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -196,7 +208,7 @@ pub async fn validate_session(
         };
 
     // Update last_accessed_at
-    let mut updated_session: session::ActiveModel = session.into();
+    let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -208,8 +220,8 @@ pub async fn validate_session(
             last_name: user.last_name,
             is_admin: user.is_admin,
         }),
-        token: token,
-        refresh_token: String::new(), // We don't need to return a new refresh token for validation
+        token: session.bearer_token.clone(),
+        refresh_token: session.refresh_token.clone(),
     }))
 }
 

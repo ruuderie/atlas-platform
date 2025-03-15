@@ -105,6 +105,7 @@ impl From<CreateDirectory> for directory::ActiveModel {
             page_title: NotSet,
             page_description: NotSet,
             page_keywords: NotSet,
+            canonical_url: NotSet,
         }
     }
 }

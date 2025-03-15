@@ -265,6 +265,7 @@ impl DirectoryService {
             page_title: sea_orm::NotSet,
             page_description: sea_orm::NotSet,
             page_keywords: sea_orm::NotSet,
+            canonical_url: sea_orm::NotSet,
         };
 
         let directory = new_directory

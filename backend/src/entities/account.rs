@@ -19,27 +19,21 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Directory,
     UserAccount,
     Profile,
+    Directory,
 }
 
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
+            Self::Profile => Entity::has_many(super::profile::Entity).into(),
             Self::Directory => Entity::belongs_to(super::directory::Entity)
                 .from(Column::DirectoryId)
                 .to(super::directory::Column::Id)
                 .into(),
-            Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
-            Self::Profile => Entity::has_many(super::profile::Entity).into(),
         }
-    }
-}
-
-impl Related<super::directory::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Directory.def()
     }
 }
 
@@ -52,6 +46,12 @@ impl Related<super::user_account::Entity> for Entity {
 impl Related<super::profile::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Profile.def()
+    }
+}
+
+impl Related<super::directory::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Directory.def()
     }
 }
 
