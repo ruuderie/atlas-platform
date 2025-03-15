@@ -1,0 +1,141 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Add subdomain and custom_domain fields to the directory table
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Directory::Table)
+                    .add_column(
+                        ColumnDef::new(Directory::Subdomain)
+                            .string()
+                            .null()
+                            .unique_key()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::CustomDomain)
+                            .string()
+                            .null()
+                            .unique_key()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::Logo)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::Favicon)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::HeaderScripts)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::FooterScripts)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::GoogleAnalyticsId)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::GoogleSiteVerification)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::MetaDescription)
+                            .text()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::MetaKeywords)
+                            .text()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::MetaTitle)
+                            .text()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::PageTitle)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::PageDescription)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::PageKeywords)
+                            .string()
+                            .null()
+                    )
+                    .add_column(
+                        ColumnDef::new(Directory::CanonicalUrl)
+                            .text()
+                            .null()
+                    )
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Remove the added columns
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(Directory::Table)
+                    .drop_column(Directory::Subdomain)
+                    .drop_column(Directory::CustomDomain)
+                    .drop_column(Directory::Logo)
+                    .drop_column(Directory::Favicon)
+                    .drop_column(Directory::HeaderScripts)
+                    .drop_column(Directory::FooterScripts)
+                    .drop_column(Directory::GoogleAnalyticsId)
+                    .drop_column(Directory::GoogleSiteVerification)
+                    .drop_column(Directory::MetaDescription)
+                    .drop_column(Directory::MetaKeywords)
+                    .drop_column(Directory::MetaTitle)
+                    .drop_column(Directory::PageTitle)
+                    .drop_column(Directory::PageDescription)
+                    .drop_column(Directory::PageKeywords)
+                    .drop_column(Directory::CanonicalUrl)
+                    .to_owned(),
+            )
+            .await
+    }
+}
+
+#[derive(Iden)]
+enum Directory {
+    Table,
+    Subdomain,
+    CustomDomain,
+    Logo,
+    Favicon,
+    HeaderScripts,
+    FooterScripts,
+    GoogleAnalyticsId,
+    GoogleSiteVerification,
+    MetaDescription,
+    MetaKeywords,
+    MetaTitle,
+    PageTitle,
+    PageDescription,
+    PageKeywords,
+    CanonicalUrl,
+} 
