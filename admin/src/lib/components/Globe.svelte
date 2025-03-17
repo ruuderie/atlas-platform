@@ -112,5 +112,5 @@
         x.set(delta / 200);
       }
     }}
-  />
+  ></canvas>
 </main>

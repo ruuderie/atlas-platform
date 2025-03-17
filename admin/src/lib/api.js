@@ -296,13 +296,13 @@ if (browser) {
       }),
   };
 
-  // Assign the API implementations when in browser environment
+  // Export the api object at the end
   api = {
     user: userApi,
     listing: listingApi,
-    admin: adminApi,
+    admin: adminApi
   };
 }
 
-// Export the api object (will be populated in browser, empty on server)
+// Export the api object
 export { api };

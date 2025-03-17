@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -28,13 +27,27 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      target: ${DOCKER_TARGET:-development}
     container_name: business-directory-backend
     env_file:
       - .env
+    volumes:
+      - ./backend:/app
+      - backend_cargo_cache:/usr/local/cargo/registry
+      - backend_target_cache:/app/target
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+    develop:
+      watch:
+        - path: ./backend/src
+          target: /app/src
+          action: rebuild
+        - path: ./backend/Cargo.toml
+          target: /app/Cargo.toml
+          action: rebuild
     environment:
       - RUST_LOG=debug
       - USE_LOCAL_DB=false
@@ -45,8 +58,6 @@ services:
       - ADMIN_URL=${ADMIN_URL}
       - ENVIRONMENT=${ENVIRONMENT}
       - ADDITIONAL_ALLOWED_ORIGINS=${ADDITIONAL_ALLOWED_ORIGINS}
-    ports:
-      - "8000:8000"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -73,17 +84,31 @@ services:
   admin:
     build:
       context: ./admin
-      dockerfile: Dockerfile
+      target: ${DOCKER_TARGET:-development}
     container_name: business-directory-admin
     env_file:
       - ./admin/.env
-    depends_on:
-      - backend
-    environment:
-      - VITE_BROWSER_API_URL=http://localhost:8000
-      - VITE_CONTAINER_API_URL=http://backend:8000
+    volumes:
+      - ./admin:/app
+      - /app/node_modules
     ports:
       - "5150:5150"
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: ./admin/src
+          target: /app/src
+          action: rebuild
+        - path: ./admin/package.json
+          target: /app/package.json
+          action: rebuild
+        - path: ./admin/pnpm-lock.yaml
+          target: /app/pnpm-lock.yaml
+          action: rebuild
+    environment:
+      - VITE_BROWSER_API_URL=${BROWSER_API_URL}
+      - VITE_CONTAINER_API_URL=${CONTAINER_API_URL}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:5150"]
@@ -98,4 +123,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  backend_cargo_cache:
+  backend_target_cache: 

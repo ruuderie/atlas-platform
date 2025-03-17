@@ -1,48 +1,46 @@
-FROM rust:1.84.1 AS builder
-
-# Install dependencies
+# Base stage with common dependencies
+FROM rust:1.84.1 AS base
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
-# Copy the entire project
-COPY . .
+# Development stage
+FROM base AS development
+# Development command will be specified in docker-compose.yml
+EXPOSE 8000
+ENV RUST_LOG=debug
+CMD ["cargo", "run"]
 
+# Build stage
+FROM base AS builder
+COPY Cargo.toml Cargo.lock ./
+# Create a dummy main.rs to build dependencies
+RUN mkdir -p src && \
+    echo "fn main() {println!(\"Dummy main\");}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+# Copy the actual source code
+COPY . .
 # Build the application
 RUN cargo build --release
 
-# Runtime image
-FROM debian:bookworm-slim
-
-# Install runtime dependencies
+# Production stage
+FROM debian:bookworm-slim AS production
 RUN apt-get update && apt-get install -y \
     libssl3 \
     libpq5 \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+    && rm -rf /var/lib/apt/lists/* && \
+    useradd -m appuser
 WORKDIR /app
-
-# Copy the binary from the builder stage
 COPY --from=builder /app/target/release/business_directory_backend .
-
-# Create a non-root user to run the application
-RUN useradd -m appuser
 USER appuser
-
-# Set environment variables
+EXPOSE 8000
 ENV RUST_LOG=info
-
-# Add health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose the port
-EXPOSE 8000
-
-# Run the application
 CMD ["./business_directory_backend"] 

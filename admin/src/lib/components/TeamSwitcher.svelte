@@ -22,8 +22,8 @@
 </script>
 
 <DropdownMenu.Root>
-  <DropdownMenu.Trigger asChild let:builder>
-    <Button variant="outline" builders={[builder]} class="w-[200px] justify-between">
+  <DropdownMenu.Trigger asChild>
+    <Button variant="outline" class="w-[200px] justify-between">
       <Avatar.Root class="mr-2 h-5 w-5">
         <Avatar.Image 
           src={teams.find(t => t.name === $selectedTeam)?.image} 
@@ -38,8 +38,8 @@
   <DropdownMenu.Content class="w-[200px] bg-background text-foreground border border-border shadow-md">
     {#each teams as team}
       <DropdownMenu.Item 
-        on:click={() => switchTeam(team)}
-        class="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+        onclick={() => switchTeam(team)}
+        class="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
       >
         <Avatar.Root class="mr-2 h-5 w-5">
           <Avatar.Image src={team.image} alt={team.name} />

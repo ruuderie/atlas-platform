@@ -29,6 +29,18 @@ pub async fn site_context_middleware<B>(
     tracing::info!("Processing site context for domain: {}", domain);
     tracing::debug!("Original hostname with potential port: {}", hostname);
     
+    // Skip site context for admin routes and authentication routes
+    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) {
+        tracing::debug!("Skipping site context for admin/auth route: {}", req.uri().path());
+        return Ok(next.run(req).await);
+    }
+    
+    // Skip for localhost in development mode (optional)
+    if domain == "localhost" && cfg!(debug_assertions) {
+        tracing::debug!("Development mode: Skipping site context for localhost");
+        return Ok(next.run(req).await);
+    }
+    
     // Try to get from cache first
     tracing::debug!("Attempting to retrieve site config from cache");
     let site_config = {
@@ -120,4 +132,15 @@ pub async fn clear_site_cache() {
     let mut cache = SITE_CACHE.write().await;
     cache.clear();
     tracing::info!("Site configuration cache cleared");
+}
+
+// Helper function to determine if a route is an admin route
+fn is_admin_route(path: &str) -> bool {
+    path.starts_with("/api/admin") || path.starts_with("/admin")
+}
+
+// Helper function to determine if a route is an authentication route
+fn is_auth_route(path: &str) -> bool {
+    matches!(path, "/login" | "/register" | "/validate-session" | "/refresh-token" | "/logout" |
+                  "/api/login" | "/api/register" | "/api/validate-session" | "/api/refresh-token" | "/api/logout")
 }

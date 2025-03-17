@@ -51,6 +51,9 @@ importers:
       '@sveltejs/kit':
         specifier: ^2.0.0
         version: 2.19.0(@sveltejs/vite-plugin-svelte@5.0.3(svelte@5.22.6)(vite@6.2.1(jiti@1.21.7)(yaml@2.7.0)))(svelte@5.22.6)(vite@6.2.1(jiti@1.21.7)(yaml@2.7.0))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.3
+        version: 5.0.3(svelte@5.22.6)(vite@6.2.1(jiti@1.21.7)(yaml@2.7.0))
       '@tailwindcss/typography':
         specifier: ^0.5.14
         version: 0.5.16(tailwindcss@3.4.17)
