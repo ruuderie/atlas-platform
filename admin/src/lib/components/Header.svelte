@@ -5,7 +5,6 @@
   import { Avatar, AvatarFallback, AvatarImage } from "$lib/components/ui/avatar";
   import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '$lib/components/ui/dropdown-menu';
   import { LogOut, UserPlus, Settings, HelpCircle, Command, Sun, Moon } from 'lucide-svelte';
-  import { toggleMode } from "mode-watcher";
   import { logout } from '$lib/auth';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -13,8 +12,8 @@
 
   let darkMode;
 
-  $: userName = $user ? `${$user.first_name} ${$user.last_name}` : 'User';
-  $: userInitials = $user ? `${$user.first_name[0]}${$user.last_name[0]}` : 'U';
+  let userName = $derived($user ? `${$user.first_name} ${$user.last_name}` : 'User');
+  let userInitials = $derived($user ? `${$user.first_name[0]}${$user.last_name[0]}` : 'U');
   
   onMount(() => {
     darkMode = localStorage.getItem('darkMode') === 'true';
@@ -35,8 +34,8 @@
     goto('/register');
   }
 
-  // Add this function to determine the home route
-  $: homeRoute = $isAuthenticated ? '/home' : '/';
+  // Use $derived for the home route
+  let homeRoute = $derived($isAuthenticated ? '/home' : '/');
 </script>
 
 <header class="bg-background border-b border-border">

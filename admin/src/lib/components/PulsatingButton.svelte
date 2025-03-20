@@ -1,13 +1,12 @@
 <script lang="ts">
     import { cn } from "$lib/utils";
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, props } from 'svelte';
 
-    export let pulseColor: string = "#0096ff";
-    export let duration: string = "1.5s";
-    export let href: string | null = null;
-    export let text: string = "Button";
-    let className: string = "";
-    export { className as class };
+    const pulseColor = $props<string>("#0096ff");
+    const duration = $props<string>("1.5s");
+    const href = $props<string | null>(null);
+    const text = $props<string>("Button");
+    const className = $props<string>("");
 
     const dispatch = createEventDispatcher();
 

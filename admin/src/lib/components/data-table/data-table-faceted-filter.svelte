@@ -4,8 +4,7 @@
 </script>
 
 <script lang="ts" generics="TData, TValue">
-	import CirclePlus from "lucide-svelte/icons/circle-plus";
-	import Check from "lucide-svelte/icons/check";
+	import Icon from "@iconify/svelte";
 	import type { Column } from "@tanstack/table-core";
 	import { SvelteSet } from "svelte/reactivity";
 	import * as Command from "$lib/registry/new-york/ui/command/index.js";
@@ -37,7 +36,7 @@
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<Button {...props} variant="outline" size="sm" class="h-8 border-dashed">
-				<CirclePlus />
+				<Icon icon="lucide:circle-plus" />
 				{title}
 				{#if selectedValues.size > 0}
 					<Separator orientation="vertical" class="mx-2 h-4" />
@@ -90,7 +89,7 @@
 										: "opacity-50 [&_svg]:invisible"
 								)}
 							>
-								<Check class="size-4" />
+								<Icon icon="lucide:check" />
 							</div>
 							{#if option.icon}
 								{@const Icon = option.icon}

@@ -2,11 +2,14 @@
   import { onMount } from 'svelte';
   import { VisXYContainer, VisGroupedBar, VisAxis, VisTooltip } from '@unovis/svelte';
 
-  export let data = [];
-  export let xKey = 'label';
-  export let yKey = 'value';
-  export let title = '';
-  export let color = '#4bc0c0';
+  // Convert props to use the $props rune
+  let { 
+    data = [], 
+    xKey = 'label', 
+    yKey = 'value', 
+    title = '', 
+    color = '#4bc0c0' 
+  } = $props();
 
   // Configure tooltip
   const tooltipConfig = {

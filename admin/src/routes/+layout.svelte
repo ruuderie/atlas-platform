@@ -1,6 +1,5 @@
 <script>
   import '../app.css';
-  import { ModeWatcher } from "mode-watcher";
   import { theme } from '$lib/stores/appStore';
   import { browser } from '$app/environment';
   import { isAuthenticated } from '$lib/stores/authStore';
@@ -30,14 +29,16 @@
   }
 
   // Subscribe to theme changes
-  $: if (browser) {
-    theme.subscribe(currentTheme => {
-      document.documentElement.classList.toggle('dark', currentTheme === 'dark');
-    });
-  }
+  $effect(() => {
+    if (browser) {
+      theme.subscribe(currentTheme => {
+        document.documentElement.classList.toggle('dark', currentTheme === 'dark');
+      });
+    }
+  });
 
-  // Add this to check if we're on the root or login route
-  $: showGlobe = $page.url.pathname === '/' || $page.url.pathname === '/login';
+  // Check if we're on the root or login route
+  let showGlobe = $derived($page.url.pathname === '/' || $page.url.pathname === '/login');
 </script>
 
 {#if isLoading}

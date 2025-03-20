@@ -21,7 +21,7 @@ export default defineConfig({
       '.orb.local'
     ]
   },
-  logLevel: 'info', // Set the log level to 'info' or 'debug' for more verbose logging
+  logLevel: 'debug', // Set the log level to 'info' or 'debug' for more verbose logging
   clearScreen: false, // Prevent Vite from clearing the console
   build: {
     minify: false, // Disable minification to keep console.log statements
@@ -30,4 +30,11 @@ export default defineConfig({
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
+  optimizeDeps: {
+    // Force esbuild to use a specific version
+    esbuildOptions: {
+      // This helps ensure esbuild version consistency
+      preserveSymlinks: true
+    }
+  }
 });

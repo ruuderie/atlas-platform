@@ -1,5 +1,4 @@
 <script lang="ts">
-	import CalendarIcon from "svelte-radix/Calendar.svelte";
 	import type { DateRange } from "bits-ui";
 	import {
 		CalendarDate,
@@ -35,7 +34,6 @@
 				)}
 				builders={[builder]}
 			>
-				<CalendarIcon class="mr-2 h-4 w-4" />
 				{#if value && value.start}
 					{#if value.end}
 						{df.format(value.start.toDate(getLocalTimeZone()))} - {df.format(

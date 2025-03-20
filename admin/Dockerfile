@@ -7,11 +7,14 @@ WORKDIR /app
 
 # Development stage
 FROM base AS development
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
+# Try to copy pnpm-lock.yaml if it exists, but don't fail if it doesn't
+COPY pnpm-lock.yaml* ./
 # Make sure to install all dependencies including dev dependencies
-RUN pnpm install --frozen-lockfile
+RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 # Explicitly install the missing package
 RUN pnpm add -D @sveltejs/vite-plugin-svelte
+RUN pnpm add -D esbuild@0.25.1
 COPY . .
 # Development command will be specified in docker-compose.yml
 EXPOSE 5150
@@ -20,10 +23,13 @@ CMD ["dumb-init", "pnpm", "dev", "--host"]
 
 # Build stage
 FROM base AS build
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json ./
+# Try to copy pnpm-lock.yaml if it exists, but don't fail if it doesn't
+COPY pnpm-lock.yaml* ./
+RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 # Explicitly install the missing package
 RUN pnpm add -D @sveltejs/vite-plugin-svelte
+RUN pnpm add -D esbuild@0.25.1
 COPY . .
 RUN pnpm exec svelte-kit sync && \
     pnpm run build -- --empty-outdir || exit 1

@@ -13,6 +13,11 @@ const config = {
       '$lib': './src/lib',
       '$lib/*': './src/lib/*'
     }
+  },
+  compilerOptions: {
+    // Add any additional compiler options here
+    // For example, you can enable strict mode
+    runes: true
   }
 };
 
