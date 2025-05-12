@@ -18,8 +18,13 @@ RUN pnpm add -D esbuild@0.25.1
 COPY . .
 # Development command will be specified in docker-compose.yml
 EXPOSE 5150
-ENV NODE_ENV=development HOST=0.0.0.0 PORT=5150
-CMD ["dumb-init", "pnpm", "dev", "--host"]
+ENV NODE_ENV=development \
+    HOST=0.0.0.0 \
+    PORT=5150 \
+    DEBUG=* \
+    VITE_DEBUG=true \
+    FORCE_COLOR=1
+CMD ["dumb-init", "--", "pnpm", "dev", "--host", "--debug"]
 
 # Build stage
 FROM base AS build

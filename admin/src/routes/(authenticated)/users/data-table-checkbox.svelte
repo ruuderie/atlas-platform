@@ -1,9 +1,7 @@
 <script>
     import * as Checkbox from "$lib/components/ui/checkbox";
     
-    export let checked = false;
-    export let indeterminate = false;
-    export let onCheckedChange = (value) => {};
+    let { checked = false, indeterminate = false, onCheckedChange = (value) => {} } = $props();
 </script>
 
 <Checkbox.Root 

@@ -17,7 +17,8 @@
 	{#snippet children({ checked })}
 		<span class="absolute left-2 flex size-3.5 items-center justify-center">
 			{#if checked}
-				<Icon icon="lucide:circle" class="size-2 fill-current" />
+				<!-- add icon here -->
+				 
 			{/if}
 		</span>
 		{@render childrenProp?.({ checked })}

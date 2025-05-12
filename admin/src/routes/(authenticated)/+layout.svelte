@@ -3,7 +3,7 @@
     import { isAuthenticated } from '$lib/stores/authStore'
     import { checkAuth, logout } from '$lib/auth';
     import { page } from '$app/stores';
-    import { onMount, afterUpdate } from 'svelte';
+    import { onMount } from 'svelte';
     import { browser } from '$app/environment';
     import { theme } from '$lib/stores/appStore';
     import { goto } from '$app/navigation';
@@ -50,7 +50,7 @@
         }
     }
 
-    afterUpdate(() => {
+    $effect(() => {
         console.log('Layout updated - Current user:', $user);
     });
 

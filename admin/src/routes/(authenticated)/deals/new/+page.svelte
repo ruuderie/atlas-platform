@@ -6,7 +6,7 @@
     import { Label } from "$lib/components/ui/label";
     import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "$lib/components/ui/card";
     import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "$lib/components/ui/select";
-    import { ArrowLeft } from 'lucide-svelte';
+    import { ArrowLeft } from '@lucide/svelte';
     import { Checkbox } from "$lib/components/ui/checkbox";
 
     let newDeal = {

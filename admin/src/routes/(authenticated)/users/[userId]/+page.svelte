@@ -8,7 +8,7 @@
   import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "$lib/components/ui/card";
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "$lib/components/ui/table";
   import { Switch } from "$lib/components/ui/switch";
-  import { ArrowLeft, Users, ListChecks, DollarSign, BarChart2, Download } from 'lucide-svelte';
+  import { ArrowLeft, Users, ListChecks, DollarSign, BarChart2, Download } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { formatDate } from '$lib/utils';
 
@@ -23,8 +23,8 @@
   let editing = false;
   let showDeactivatePrompt = false;
 
-  $: userId = $page.params.userId;
-  $: queryParams = $page.url.searchParams;
+  let userId = $derived($page.params.userId);
+  let queryParams = $derived($page.url.searchParams);
 
   onMount(() => {
     if (queryParams.get('edit') === 'true') {
@@ -35,9 +35,11 @@
     }
   });
 
-  $: if (userId) {
-    loadUserData(userId);
-  }
+  $effect(() => {
+    if (userId) {
+      loadUserData(userId);
+    }
+  });
 
   async function loadUserData(id) {
     loading = true;

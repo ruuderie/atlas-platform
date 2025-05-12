@@ -3,8 +3,8 @@
   import { goto } from '$app/navigation';
   import { isAuthenticated } from '$lib/stores/authStore';
   import { checkAuth } from '$lib/auth';
-  import Ripple from '$lib/components/Ripple.svelte';
-  import { Button } from '$lib/components/ui/button';
+  //import Ripple from '$lib/components/Ripple.svelte';
+  //import { Button } from '$lib/components/ui/button';
   import PulsatingButton from '$lib/components/PulsatingButton.svelte';
 
   onMount(async () => {

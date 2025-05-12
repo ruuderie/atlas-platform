@@ -36,8 +36,8 @@
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<Button {...props} variant="outline" size="sm" class="h-8 border-dashed">
-				<Icon icon="lucide:circle-plus" />
-				{title}
+			<!-- add icon here -->>				
+ 				{title}
 				{#if selectedValues.size > 0}
 					<Separator orientation="vertical" class="mx-2 h-4" />
 					<Badge variant="secondary" class="rounded-sm px-1 font-normal lg:hidden">
@@ -89,11 +89,11 @@
 										: "opacity-50 [&_svg]:invisible"
 								)}
 							>
-								<Icon icon="lucide:check" />
+											<!-- add icon here -->
 							</div>
 							{#if option.icon}
 								{@const Icon = option.icon}
-								<Icon class="text-muted-foreground" />
+								<!-- add icon here -->
 							{/if}
 
 							<span>{option.label}</span>

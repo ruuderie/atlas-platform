@@ -16,11 +16,13 @@
   let error = null;
   let editing = false;
 
-  $: userId = $page.params.userId;
+  let userId = $derived($page.params.userId);
 
-  $: if (userId) {
-    loadUserData(userId);
-  }
+  $effect(() => {
+    if (userId) {
+      loadUserData(userId);
+    }
+  });
 
   async function loadUserData(id) {
     loading = true;

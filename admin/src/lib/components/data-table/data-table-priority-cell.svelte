@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { priorities } from "../(data)/data.js";
+	//import { priorities } from "../(data)/data.js";
 
 	let { value }: { value?: string } = $props();
 
@@ -10,7 +10,7 @@
 {#if priority}
 	<div class="flex items-center">
 		{#if Icon}
-			<Icon class="text-muted-foreground mr-2 size-4" />
+			<!-- add icon here -->
 		{/if}
 		<span>{priority.label}</span>
 	</div>

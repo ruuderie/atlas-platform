@@ -3,10 +3,10 @@
 </script>
 
 <script lang="ts" generics="TData">
-	import X from "lucide-svelte/icons/x";
+	import X from "@lucide/svelte/dist/icons/x.svelte";
 	import type { Table } from "@tanstack/table-core";
-	import { priorities, statuses } from "../(data)/data.js";
-	import { DataTableFacetedFilter, DataTableViewOptions } from "./index.js";
+	//import { priorities, statuses } from "../(data)/data.js";
+	//import { DataTableFacetedFilter, DataTableViewOptions } from "./index.js";
 	import { Button } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
 

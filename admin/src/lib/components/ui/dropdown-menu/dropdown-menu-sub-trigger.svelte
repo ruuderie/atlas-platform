@@ -1,6 +1,6 @@
 <script>
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-	import Icon from "@iconify/svelte";
+	import { Icon } from "flowbite-svelte-icons";
 	import { cn } from "$lib/utils.js";
 
 	let { ref = $bindable(null), class: className, inset, children, ...restProps } = $props();
@@ -16,5 +16,4 @@
 	{...restProps}
 >
 	{@render children?.()}
-	<Icon icon="lucide:chevron-right" class="ml-auto" />
 </DropdownMenuPrimitive.SubTrigger>
