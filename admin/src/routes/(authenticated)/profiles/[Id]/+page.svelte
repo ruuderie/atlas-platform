@@ -8,7 +8,7 @@
   import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "$lib/components/ui/card";
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "$lib/components/ui/table";
   import { Switch } from "$lib/components/ui/switch";
-  import { ArrowLeft, Users, ListChecks, DollarSign, BarChart2, Download } from 'lucide-svelte';
+  import { ArrowLeft, Users, ListChecks, DollarSign, BarChart2, Download } from '@lucide/svelte';
   import { goto } from '$app/navigation';
 
   let user = null;

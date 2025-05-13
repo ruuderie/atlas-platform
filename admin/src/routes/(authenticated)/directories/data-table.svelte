@@ -5,7 +5,7 @@
     import DataTable from "$lib/components/DataTable.svelte";
     import { Button } from "$lib/components/ui/button";
     import { Input } from "$lib/components/ui/input";
-    import { Plus } from 'lucide-svelte';
+    import { Plus } from "@lucide/svelte";
     import { goto } from '$app/navigation';
     import { createColumnHelper } from '@tanstack/svelte-table';
 

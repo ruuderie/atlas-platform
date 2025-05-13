@@ -3,7 +3,7 @@
     import { checkAuth } from '$lib/auth';
     import { api } from '$lib/api';  // Update this import
     import { isAuthenticated } from '$lib/stores/authStore';
-    import { Users, ListChecks, DollarSign, BarChart2, Download } from 'lucide-svelte';
+    import { Users, ListChecks, DollarSign, BarChart2, Download } from '@lucide/svelte';
     import { Button } from "$lib/components/ui/button";
     import * as Card from "$lib/components/ui/card";
     import * as Tabs from "$lib/components/ui/tabs";
@@ -40,12 +40,14 @@
       checkAuth();
     });
   
-    $: if ($isAuthenticated) {
+    $effect(() => {
+      if ($isAuthenticated) {
       console.log("User is authenticated, loading dashboard stats");
       loadDashboardStats();
     } else {
       console.log("User is not authenticated");
     }
+  });
 </script>
   
 <div class="flex-col md:flex">

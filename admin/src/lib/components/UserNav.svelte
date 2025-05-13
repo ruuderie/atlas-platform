@@ -2,14 +2,14 @@
   import { createEventDispatcher } from 'svelte';
   import { Button } from "$lib/components/ui/button";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-  import { User, Settings, LogOut } from 'lucide-svelte';
+  import { User, Settings, LogOut } from '@lucide/svelte';
 
   export const user = { name: 'Admin User', email: 'admin@oply.com' };
 
-  const dispatch = createEventDispatcher();
+  let { onLogout } = $props();
 
   function handleLogout() {
-    dispatch('logout');
+    onLogout?.();
   }
 </script>
 

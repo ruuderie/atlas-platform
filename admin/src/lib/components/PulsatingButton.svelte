@@ -1,19 +1,12 @@
 <script lang="ts">
     import { cn } from "$lib/utils";
-    import { createEventDispatcher, props } from 'svelte';
 
-    const pulseColor = $props<string>("#0096ff");
-    const duration = $props<string>("1.5s");
-    const href = $props<string | null>(null);
-    const text = $props<string>("Button");
-    const className = $props<string>("");
-
-    const dispatch = createEventDispatcher();
+    let { pulseColor = "#0096ff", duration = "1.5s", href = null, text = "Button", className = "", onclick } = $props();
 
     function handleClick(event: MouseEvent) {
         if (!href) {
             event.preventDefault();
-            dispatch('click', event);
+            onclick?.(event);
         }
     }
 </script>
@@ -27,7 +20,7 @@
         )}
         style:--pulse-color={pulseColor}
         style:--duration={duration}
-        on:click={handleClick}
+        {onclick}
     >
         <div class="relative z-10">
             {text}
@@ -44,7 +37,7 @@
         )}
         style:--pulse-color={pulseColor}
         style:--duration={duration}
-        on:click={handleClick}
+        {onclick}
     >
         <div class="relative z-10">
             {text}

@@ -6,7 +6,7 @@
     import { Label } from "$lib/components/ui/label";
     import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "$lib/components/ui/card";
     import { Checkbox } from "$lib/components/ui/checkbox";
-    import { ArrowLeft } from 'lucide-svelte';
+    import { ArrowLeft } from  '@lucide/svelte';
 
     let newUser = {
         username: '',

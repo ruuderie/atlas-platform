@@ -18,7 +18,7 @@ const isBrowser = typeof window !== 'undefined';
 
 // Use different URLs based on environment
 const API_URL = isBrowser 
-  ? (import.meta.env.VITE_BROWSER_API_URL || 'http://admin.rustsveltebusinessdirectory.orb.local:8000')
+  ? (import.meta.env.VITE_BROWSER_API_URL || 'http://localhost:8000')
   : (import.meta.env.VITE_CONTAINER_API_URL || 'http://localhost:8000');
 
 console.log("Using API_URL:", API_URL);

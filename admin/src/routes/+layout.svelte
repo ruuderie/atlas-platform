@@ -10,22 +10,33 @@
   import Header from '$lib/components/Header.svelte';
   import Ripple from '$lib/components/Ripple.svelte';
   import Globe from '$lib/components/Globe.svelte';
-  let isLoading = true;
+  let isLoading = $state(true);
 
   onMount(async () => {
     if (browser) {
       console.log('Initializing app');
-      await initializeApp();
+      try {
+        await initializeApp();
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        isLoading = false; // Ensure loading state is cleared even on error
+      }
     }
   });
 
   async function initializeApp() {
-    const isAuth = await checkAuth();
-    isAuthenticated.set(isAuth);
-    isLoading = false;
-
-    console.log('App initialized, isAuthenticated:', isAuth);
-    console.log('Current path:', $page.url.pathname);
+    try {
+      const isAuth = await checkAuth();
+      isAuthenticated.set(isAuth);
+      console.log('App initialized, isAuthenticated:', isAuth);
+      console.log('Current path:', $page.url.pathname);
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      isAuthenticated.set(false);
+    } finally {
+      console.log('Loading state set to false');
+      isLoading = false; // Always set loading to false when done
+    }
   }
 
   // Subscribe to theme changes
@@ -59,7 +70,7 @@
 
     <footer class="bg-background border-t">
       <div class="container mx-auto px-4 py-4 text-center text-sm text-muted-foreground">
-        © 2023 Oply Command Center. All rights reserved.
+        © 2025 Oply Command Center. All rights reserved.
       </div>
     </footer>
   </div>

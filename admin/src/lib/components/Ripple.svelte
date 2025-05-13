@@ -1,9 +1,5 @@
 <script lang="ts">
-    import { props } from 'svelte';
-    
-    const mainCircleSize = $props<number>(210);
-    const mainCircleOpacity = $props<number>(0.24);
-    const numCircles = $props<number>(8);
+    let { mainCircleSize = 210, mainCircleOpacity = 0.24, numCircles = 8 } = $props();
 </script>
   
 <div

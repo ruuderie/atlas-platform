@@ -1,10 +1,10 @@
 <script lang="ts">
-    import Ellipsis from "lucide-svelte/icons/ellipsis";
+    import { Ellipsis } from  '@lucide/svelte';
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import { Button } from "$lib/components/ui/button";
     import { goto } from '$app/navigation';
     
-    export let id: string;
+    let { id }: { id: string } = $props();
     console.log('DataTableActions instantiated with id:', id);
 
     function viewUserDetails(): void {

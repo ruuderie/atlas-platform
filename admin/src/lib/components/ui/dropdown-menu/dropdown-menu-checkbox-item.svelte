@@ -1,6 +1,5 @@
 <script>
 	import { DropdownMenu as DropdownMenuPrimitive } from "bits-ui";
-	import Icon from "@iconify/svelte";
 	import { cn } from "$lib/utils.js";
 	let {
 		ref = $bindable(null),

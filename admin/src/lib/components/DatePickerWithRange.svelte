@@ -1,6 +1,6 @@
 <script>
     import { Button } from "$lib/components/ui/button";
-    import { Calendar } from 'lucide-svelte';
+    import { Calendar } from '@lucide/svelte';
     import { Popover } from "$lib/components/ui/popover";
     import { DateRangePicker } from "./date-range-picker.svelte";
   

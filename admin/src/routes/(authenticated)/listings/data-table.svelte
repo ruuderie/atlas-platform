@@ -19,8 +19,8 @@
         getFilteredRowModel,
     } from   '@tanstack/table-core';
     import { cn } from "$lib/utils.js";
-    import { ChevronDown, ChevronUp } from 'lucide-svelte';
-    import { Plus } from 'lucide-svelte';
+    import { ChevronDown, ChevronUp } from '@lucide/svelte';
+    import { Plus } from '@lucide/svelte';
     import { goto } from '$app/navigation';
 
     let users = [];

@@ -18,7 +18,9 @@
 
 	let phi = 0;
 	let width = 0;
-  $: console.log(width, "X");
+  $effect(() => {
+    console.log(width, "X");
+  });
 	let onResize = () => {
 		width = canvas.offsetWidth;
 	};

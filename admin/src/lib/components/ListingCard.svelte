@@ -2,7 +2,7 @@
  import { Button } from "$lib/components/ui/button/index.js";
  import * as Card from "$lib/components/ui/card/index.js";
  
- export let listing;
+ let { listing } = $props();
 
  // Format price with commas
  const formatPrice = (price) => {

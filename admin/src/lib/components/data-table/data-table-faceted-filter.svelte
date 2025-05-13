@@ -4,15 +4,14 @@
 </script>
 
 <script lang="ts" generics="TData, TValue">
-	import Icon from "@iconify/svelte";
 	import type { Column } from "@tanstack/table-core";
 	import { SvelteSet } from "svelte/reactivity";
-	import * as Command from "$lib/registry/new-york/ui/command/index.js";
-	import * as Popover from "$lib/registry/new-york/ui/popover/index.js";
-	import { Button } from "$lib/registry/new-york/ui/button/index.js";
+	import * as Command from "$lib/components/ui/command";
+	import * as Popover from "$lib/components/ui/popover";
+	import { Button } from "$lib/components/ui/button";
 	import { cn } from "$lib/utils.js";
-	import { Separator } from "$lib/registry/new-york/ui/separator/index.js";
-	import { Badge } from "$lib/registry/new-york/ui/badge/index.js";
+	import { Separator } from "$lib/components/ui/separator";
+	import { Badge } from "$lib/components/ui/badge";
 
 	type Props<TData, TValue> = {
 		column: Column<TData, TValue>;

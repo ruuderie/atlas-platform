@@ -1,17 +1,17 @@
 <script>
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
+  import { $page } from '$app/stores';
   import { api } from '$lib/api';
   import { Button } from "$lib/components/ui/button";
   import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "$lib/components/ui/card";
-  import { ArrowLeft, DollarSign, Users, Calendar, BarChart2 } from 'lucide-svelte';
+  import { ArrowLeft, DollarSign, Users, Calendar, BarChart2 } from "@lucide/svelte";
   import { goto } from '$app/navigation';
 
   let dealData = null;
   let loading = true;
   let error = null;
 
-  $: dealId = $page.params.dealId;
+  let dealId = $derived($page.params.dealId);
 
   onMount(async () => {
     // Simulate loading data

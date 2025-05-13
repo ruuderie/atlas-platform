@@ -8,7 +8,7 @@
   export { className as class };
 
   // Get the current path without the route group prefix
-  $: currentPath = $page.url.pathname.replace(/^\/(authenticated)/, '');
+  let currentPath = $derived($page.url.pathname.replace(/^\/(authenticated)/, ''));
   
   function handleNavigation(event, href) {
     event.preventDefault();
@@ -21,7 +21,7 @@
   {#each $currentNavItems as item}
     <a
       href={item.href}
-      on:click={(e) => handleNavigation(e, item.href)}
+      onclick={(e) => handleNavigation(e, item.href)}
       class={cn(
         "text-sm font-medium transition-colors hover:text-primary flex items-center",
         currentPath === item.href

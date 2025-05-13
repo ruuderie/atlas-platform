@@ -4,13 +4,12 @@
   import { Button } from "$lib/components/ui/button";
   import { Avatar, AvatarFallback, AvatarImage } from "$lib/components/ui/avatar";
   import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '$lib/components/ui/dropdown-menu';
-  import { LogOut, UserPlus, Settings, HelpCircle, Command, Sun, Moon } from 'lucide-svelte';
+  import { LogOut, UserPlus, Settings, HelpCircle, Command, Sun, Moon } from '@lucide/svelte';
   import { logout } from '$lib/auth';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
 
-  let darkMode;
+  let darkMode = $state(false);
 
   let userName = $derived($user ? `${$user.first_name} ${$user.last_name}` : 'User');
   let userInitials = $derived($user ? `${$user.first_name[0]}${$user.last_name[0]}` : 'U');
@@ -45,7 +44,7 @@
       <span>Oply Command Center</span>
     </a>
     <div class="flex items-center space-x-4">
-      <Button on:click={toggleDarkMode} variant="outline" size="icon">
+      <Button onclick={toggleDarkMode} variant="outline" size="icon">
         <Sun class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
         <Moon class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
         <span class="sr-only">Toggle theme</span>
@@ -75,17 +74,17 @@
               <Settings class="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem on:click={logout}>
+            <DropdownMenuItem onclick={logout}>
               <LogOut class="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       {:else}
-        <Button variant="ghost" on:click={handleLogin} class="text-muted-foreground hover:text-foreground">
+        <Button variant="ghost" onclick={handleLogin} class="text-muted-foreground hover:text-foreground">
           Login
         </Button>
-        <Button variant="default" on:click={handleRegister} class="bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button variant="default" onclick={handleRegister} class="bg-primary text-primary-foreground hover:bg-primary/90">
           <UserPlus class="mr-2 h-4 w-4" />
           Register
         </Button>
