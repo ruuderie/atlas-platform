@@ -210,7 +210,7 @@ pub async fn validate_session(
     // Update last_accessed_at
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
-
+/*
     // Generate new integrity hash
     let integrity_hash = {
         let temp_model = session::Model {
@@ -229,6 +229,7 @@ pub async fn validate_session(
         };
         temp_model.generate_integrity_hash()
     };
+    */
     updated_session.integrity_hash = Set(integrity_hash);
 
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
