@@ -49,15 +49,16 @@ services:
           target: /app/Cargo.toml
           action: rebuild
     environment:
-      - RUST_LOG=debug
-      - USE_LOCAL_DB=false
-      - DATABASE_URL=postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
-      - HOST=0.0.0.0
-      - PORT=8000
-      - FRONTEND_URL=${FRONTEND_URL}
-      - ADMIN_URL=${ADMIN_URL}
-      - ENVIRONMENT=${ENVIRONMENT}
-      - ADDITIONAL_ALLOWED_ORIGINS=${ADDITIONAL_ALLOWED_ORIGINS}
+      RUST_LOG: debug
+      RUSTFLAGS: -D warnings
+      USE_LOCAL_DB: false
+      DATABASE_URL: postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
+      HOST: 0.0.0.0
+      PORT: 8000
+      FRONTEND_URL: ${FRONTEND_URL}
+      ADMIN_URL: ${ADMIN_URL}
+      ENVIRONMENT: ${ENVIRONMENT}
+      ADDITIONAL_ALLOWED_ORIGINS: ${ADDITIONAL_ALLOWED_ORIGINS}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

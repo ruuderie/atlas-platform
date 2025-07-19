@@ -229,8 +229,10 @@ pub async fn validate_session(
         };
         temp_model.generate_integrity_hash()
     };
+    
+    updated_session.integrity_hash = Set(integrity_hash); 
+
     */
-    updated_session.integrity_hash = Set(integrity_hash);
 
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
