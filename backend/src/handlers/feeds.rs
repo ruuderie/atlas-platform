@@ -29,15 +29,15 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         // Feed routes
         .route("/feeds", get(feeds::get_feeds))
-        .route("/feeds/:feed_id", get(feeds::get_feed_by_id))
-        .route("/feeds/:feed_id/items", get(feeds::get_feed_with_items))
-        .route("/feeds/directory/:directory_id", get(feeds::get_feeds_by_directory))
-        .route("/feeds/:feed_id/json", get(feeds::get_json_feed))
+        .route("/feeds/{feed_id}", get(feeds::get_feed_by_id))
+        .route("/feeds/{feed_id}/items", get(feeds::get_feed_with_items))
+        .route("/feeds/directory/{directory_id}", get(feeds::get_feeds_by_directory))
+        .route("/feeds/{feed_id}/json", get(feeds::get_json_feed))
         
         // Feed item routes
         .route("/feed-items", get(feed_items::get_feed_items))
-        .route("/feed-items/:feed_item_id", get(feed_items::get_feed_item_by_id))
-        .route("/feed-items/feed/:feed_id", get(feed_items::get_feed_items_by_feed))
+        .route("/feed-items/{feed_item_id}", get(feed_items::get_feed_item_by_id))
+        .route("/feed-items/feed/{feed_id}", get(feed_items::get_feed_items_by_feed))
         .with_state(db)
 }
 
@@ -45,13 +45,13 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
     Router::new()
         // Feed management routes
         .route("/feeds", post(feeds::create_feed))
-        .route("/feeds/:feed_id", put(feeds::update_feed))
-        .route("/feeds/:feed_id", delete(feeds::delete_feed))
+        .route("/feeds/{feed_id}", put(feeds::update_feed))
+        .route("/feeds/{feed_id}", delete(feeds::delete_feed))
         
         // Feed item management routes
         .route("/feed-items", post(feed_items::create_feed_item))
-        .route("/feed-items/:feed_item_id", put(feed_items::update_feed_item))
-        .route("/feed-items/:feed_item_id", delete(feed_items::delete_feed_item))
+        .route("/feed-items/{feed_item_id}", put(feed_items::update_feed_item))
+        .route("/feed-items/{feed_item_id}", delete(feed_items::delete_feed_item))
         .with_state(db)
 }
 

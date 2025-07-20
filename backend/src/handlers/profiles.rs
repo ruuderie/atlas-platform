@@ -24,9 +24,9 @@ pub fn routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/profiles", post(create_profile))
         .route("/profiles", get(get_profiles))
-        .route("/profiles/:id", get(get_profile_by_id))
-        .route("/profiles/:id", put(update_profile))
-        .route("/profiles/:id", delete(delete_profile))
+        .route("/profiles/{id}", get(get_profile_by_id))
+        .route("/profiles/{id}", put(update_profile))
+        .route("/profiles/{id}", delete(delete_profile))
         .route("/profiles/search", get(search_profiles))
         .with_state(db_connection)
 }

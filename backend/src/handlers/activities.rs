@@ -20,10 +20,10 @@ pub fn routes() -> Router {
     Router::new()
         .route("/activities", post(create_activity))
         .route("/activities", get(get_activities))
-        .route("/activities/:id", get(get_activity))
-        .route("/activities/:id", put(update_activity))
-        .route("/activities/:id", delete(delete_activity))
-        .route("/activities/:id/files", get(get_activity_files))
+        .route("/activities/{id}", get(get_activity))
+        .route("/activities/{id}", put(update_activity))
+        .route("/activities/{id}", delete(delete_activity))
+        .route("/activities/{id}/files", get(get_activity_files))
 }
 
 pub async fn create_activity(

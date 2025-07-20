@@ -22,9 +22,9 @@ pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/user-accounts", post(create_user_account))
         .route("/user-accounts", get(get_user_accounts))
-        .route("/user-accounts/:id", get(get_user_account))
-        .route("/user-accounts/:id", put(update_user_account))
-        .route("/user-accounts/:id", delete(delete_user_account))
+        .route("/user-accounts/{id}", get(get_user_account))
+        .route("/user-accounts/{id}", put(update_user_account))
+        .route("/user-accounts/{id}", delete(delete_user_account))
 }
 
 pub async fn create_user_account(

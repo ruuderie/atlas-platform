@@ -21,17 +21,17 @@ use crate::services::directory::DirectoryService;
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/directories", get(get_directories))
-        .route("/directories/:id", get(get_directory_by_id))
-        .route("/directories/type/:type_id", get(get_directories_by_type))
-        .route("/directories/:id/listings", get(get_directory_listings))
+        .route("/directories/{id}", get(get_directory_by_id))
+        .route("/directories/type/{type_id}", get(get_directories_by_type))
+        .route("/directories/{id}/listings", get(get_directory_listings))
         .with_state(db)
 }
 
 pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/directories", post(create_directory))
-        .route("/directories/:id", put(update_directory))
-        .route("/directories/:id", delete(delete_directory))
+        .route("/directories/{id}", put(update_directory))
+        .route("/directories/{id}", delete(delete_directory))
         .with_state(db)
 }
 

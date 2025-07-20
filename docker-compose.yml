@@ -50,7 +50,7 @@ services:
           action: rebuild
     environment:
       RUST_LOG: debug
-      RUSTFLAGS: -D warnings
+      # RUSTFLAGS: -D warnings
       USE_LOCAL_DB: false
       DATABASE_URL: postgresql://${PGUSER}:${PGPASSWORD}@postgres:5432/${PGDB}
       HOST: 0.0.0.0

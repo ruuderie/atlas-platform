@@ -20,10 +20,10 @@ pub fn routes() -> Router {
     Router::new()
         .route("/notes", post(create_note))
         .route("/notes", get(get_notes))
-        .route("/notes/:id", get(get_note))
-        .route("/notes/:id", put(update_note))
-        .route("/notes/:id", delete(delete_note))
-        .route("/notes/:id/files", get(get_note_files))
+        .route("/notes/{id}", get(get_note))
+        .route("/notes/{id}", put(update_note))
+        .route("/notes/{id}", delete(delete_note))
+        .route("/notes/{id}/files", get(get_note_files))
 }
 
 async fn create_note(

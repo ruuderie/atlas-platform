@@ -31,7 +31,7 @@ pub struct ListingSearch {
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", get(get_listings))
-        .route("/listings/:id", get(get_listing_by_id))
+        .route("/listings/{id}", get(get_listing_by_id))
         .route("/listings/search", get(search_listings))
         .with_state(db)
 }
@@ -39,10 +39,10 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", post(create_listing))
-        .route("/listings/:id", get(get_listing_by_id))
-        .route("/listings/:id/with-attributes", get(get_listing_with_attributes))
-        .route("/listings/:id", put(update_listing))
-        .route("/listings/:id", delete(delete_listing))
+        .route("/listings/{id}", get(get_listing_by_id))
+        .route("/listings/{id}/with-attributes", get(get_listing_with_attributes))
+        .route("/listings/{id}", put(update_listing))
+        .route("/listings/{id}", delete(delete_listing))
         // Add other authenticated listing routes here
 }
 
