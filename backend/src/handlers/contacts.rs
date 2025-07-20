@@ -22,17 +22,17 @@ use crate::models::contact::Contact;
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/contacts", post(create_contact))
-        .route("/contacts", get(get_contacts))
-        .route("/contacts/{id}", get(get_contact))
-        .route("/contacts/{id}", put(update_contact))
-        .route("/contacts/{id}", delete(delete_contact))
-        .route("/contacts/{contact_id}/files/{file_id}", post(add_file_to_contact))
-        .route("/contacts/{id}/files", get(get_contact_files))
-        .route("/contacts/{id}/notes", post(create_contact_note))
-        .route("/contacts/{id}/notes", get(get_contact_notes))
-        .route("/contacts/{id}/activities", post(create_contact_activity))
-        .route("/contacts/{id}/activities", get(get_contact_activities))
+        .route("/api/contacts", post(create_contact))
+        .route("/api/contacts", get(get_contacts))
+        .route("/api/contacts/{id}", get(get_contact))
+        .route("/api/contacts/{id}", put(update_contact))
+        .route("/api/contacts/{id}", delete(delete_contact))
+        .route("/api/contacts/{contact_id}/files/{file_id}", post(add_file_to_contact))
+        .route("/api/contacts/{id}/files", get(get_contact_files))
+        .route("/api/contacts/{id}/notes", post(create_contact_note))
+        .route("/api/contacts/{id}/notes", get(get_contact_notes))
+        .route("/api/contacts/{id}/activities", post(create_contact_activity))
+        .route("/api/contacts/{id}/activities", get(get_contact_activities))
 }
 
 pub async fn create_contact(

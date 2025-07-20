@@ -20,15 +20,15 @@ use crate::models::activity::{ActivityModel, CreateActivityInput};
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/leads", post(create_lead))
-        .route("/leads", get(get_leads))
-        .route("/leads/{id}", get(get_lead))
-        .route("/leads/{id}", put(update_lead))
-        .route("/leads/{id}", delete(delete_lead))
-        .route("/leads/{lead_id}/files/{file_id}", post(add_file_to_lead))
-        .route("/leads/{id}/files", get(get_lead_files))
-        .route("/leads/{id}/notes", get(get_lead_notes))
-        .route("/leads/{id}/activities", get(get_lead_activities))
+        .route("/api/leads", post(create_lead))
+        .route("/api/leads", get(get_leads))
+        .route("/api/leads/{id}", get(get_lead))
+        .route("/api/leads/{id}", put(update_lead))
+        .route("/api/leads/{id}", delete(delete_lead))
+        .route("/api/leads/{lead_id}/files/{file_id}", post(add_file_to_lead))
+        .route("/api/leads/{id}/files", get(get_lead_files))
+        .route("/api/leads/{id}/notes", get(get_lead_notes))
+        .route("/api/leads/{id}/activities", get(get_lead_activities))
 }
 
 pub async fn create_lead(

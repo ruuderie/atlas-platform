@@ -48,15 +48,15 @@ impl Default for AccountResponse {
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/accounts", post(create_account))
-        .route("/accounts", get(get_accounts))
-        .route("/accounts/{id}", get(get_account))
-        .route("/accounts/{id}", put(update_account))
-        .route("/accounts/{id}", delete(delete_account))
-        .route("/accounts/{id}/users", post(add_user_to_account))
-        .route("/accounts/{id}/users", get(get_account_users))
-        .route("/accounts/{account_id}/users/{user_id}", delete(remove_user_from_account))
-        .route("/accounts/{account_id}/users/{user_id}/role", put(update_user_role_in_account))
+        .route("/api/accounts", post(create_account))
+        .route("/api/accounts", get(get_accounts))
+        .route("/api/accounts/{id}", get(get_account))
+        .route("/api/accounts/{id}", put(update_account))
+        .route("/api/accounts/{id}", delete(delete_account))
+        .route("/api/accounts/{id}/users", post(add_user_to_account))
+        .route("/api/accounts/{id}/users", get(get_account_users))
+        .route("/api/accounts/{account_id}/users/{user_id}", delete(remove_user_from_account))
+        .route("/api/accounts/{account_id}/users/{user_id}/role", put(update_user_role_in_account))
 }
 
 pub async fn create_account(

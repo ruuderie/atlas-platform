@@ -29,9 +29,9 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 
 pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
-        .route("/directories", post(create_directory))
-        .route("/directories/{id}", put(update_directory))
-        .route("/directories/{id}", delete(delete_directory))
+        .route("/api/directories", post(create_directory))
+        .route("/api/directories/{id}", put(update_directory))
+        .route("/api/directories/{id}", delete(delete_directory))
         .with_state(db)
 }
 

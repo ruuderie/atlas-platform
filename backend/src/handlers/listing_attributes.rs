@@ -19,11 +19,11 @@ use crate::{
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/listings/{listing_id}/attributes", post(create_listing_attribute))
-        .route("/listings/{listing_id}/attributes", get(get_listing_attributes))
-        .route("/listings/{listing_id}/attributes/{attribute_id}", get(get_listing_attribute))
-        .route("/listings/{listing_id}/attributes/{attribute_id}", put(update_listing_attribute))
-        .route("/listings/{listing_id}/attributes/{attribute_id}", delete(delete_listing_attribute))
+        .route("/api/listings/{listing_id}/attributes", post(create_listing_attribute))
+        .route("/api/listings/{listing_id}/attributes", get(get_listing_attributes))
+        .route("/api/listings/{listing_id}/attributes/{attribute_id}", get(get_listing_attribute))
+        .route("/api/listings/{listing_id}/attributes/{attribute_id}", put(update_listing_attribute))
+        .route("/api/listings/{listing_id}/attributes/{attribute_id}", delete(delete_listing_attribute))
 }
 
 pub async fn get_listing_attributes(

@@ -20,11 +20,11 @@ use chrono::Utc;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/ad-purchases", post(create_ad_purchase))
-        .route("/ad-purchases", get(get_ad_purchases))
-        .route("/ad-purchases/{id}", get(get_ad_purchase_by_id))
-        .route("/ad-purchases/{id}", put(update_ad_purchase))
-        .route("/ad-purchases/{id}", delete(delete_ad_purchase))
+        .route("/api/ad-purchases", post(create_ad_purchase))
+        .route("/api/ad-purchases", get(get_ad_purchases))
+        .route("/api/ad-purchases/{id}", get(get_ad_purchase_by_id))
+        .route("/api/ad-purchases/{id}", put(update_ad_purchase))
+        .route("/api/ad-purchases/{id}", delete(delete_ad_purchase))
 }
 
 pub async fn create_ad_purchase(

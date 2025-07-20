@@ -28,17 +28,17 @@ use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, 
 
 pub fn routes(db_connection: DatabaseConnection) -> Router {
     Router::new()
-        .route("/cases", post(create_case))
-        .route("/cases", get(get_cases))
-        .route("/cases/{id}", get(get_case))
-        .route("/cases/{id}", put(update_case))
-        .route("/cases/{id}", delete(delete_case))
-        .route("/cases/{id}/activities", get(get_case_activities))
-        .route("/cases/{id}/activities", post(create_case_activity))
-        .route("/cases/{id}/notes", get(get_case_notes))
-        .route("/cases/{id}/notes", post(create_case_note))
-        .route("/cases/{id}/files", get(get_case_files))
-        .route("/cases/{id}/files/{file_id}", post(add_file_to_case))
+        .route("/api/cases", post(create_case))
+        .route("/api/cases", get(get_cases))
+        .route("/api/cases/{id}", get(get_case))
+        .route("/api/cases/{id}", put(update_case))
+        .route("/api/cases/{id}", delete(delete_case))
+        .route("/api/cases/{id}/activities", get(get_case_activities))
+        .route("/api/cases/{id}/activities", post(create_case_activity))
+        .route("/api/cases/{id}/notes", get(get_case_notes))
+        .route("/api/cases/{id}/notes", post(create_case_note))
+        .route("/api/cases/{id}/files", get(get_case_files))
+        .route("/api/cases/{id}/files/{file_id}", post(add_file_to_case))
         .with_state(db_connection)
 }
 

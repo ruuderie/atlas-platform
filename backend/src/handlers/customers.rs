@@ -27,19 +27,19 @@ use crate::models::note::NoteModel;
 
 pub fn routes() -> Router {
     Router::new()
-        .route("/customers", post(create_customer))
-        .route("/customers", get(get_customers))
-        .route("/customers/{id}", get(get_customer))
-        .route("/customers/{id}", put(update_customer))
-        .route("/customers/{id}", delete(delete_customer))
-        .route("/customers/{customer_id}/files/{file_id}", post(add_file_to_customer))
-        .route("/customers/{id}/files", get(get_customer_files))
-        .route("/customers/{id}/contacts", post(create_customer_contact))
-        .route("/customers/{id}/contacts", get(get_customer_contacts))
-        .route("/customers/{id}/notes", post(create_customer_note))
-        .route("/customers/{id}/notes", get(get_customer_notes))
-        .route("/customers/{id}/activities", post(create_customer_activity))
-        .route("/customers/{id}/activities", get(get_customer_activities))
+        .route("/api/customers", post(create_customer))
+        .route("/api/customers", get(get_customers))
+        .route("/api/customers/{id}", get(get_customer))
+        .route("/api/customers/{id}", put(update_customer))
+        .route("/api/customers/{id}", delete(delete_customer))
+        .route("/api/customers/{customer_id}/files/{file_id}", post(add_file_to_customer))
+        .route("/api/customers/{id}/files", get(get_customer_files))
+        .route("/api/customers/{id}/contacts", post(create_customer_contact))
+        .route("/api/customers/{id}/contacts", get(get_customer_contacts))
+        .route("/api/customers/{id}/notes", post(create_customer_note))
+        .route("/api/customers/{id}/notes", get(get_customer_notes))
+        .route("/api/customers/{id}/activities", post(create_customer_activity))
+        .route("/api/customers/{id}/activities", get(get_customer_activities))
 }
 
 pub async fn create_customer(
