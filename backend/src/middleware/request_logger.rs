@@ -27,16 +27,15 @@ impl RequestLogger {
         req: &Request<B>,
     ) -> Result<(), StatusCode> {
         let method = req.method().clone();
-        let path = req.uri().path();
-        
+        let path = req.uri().path().to_string();
         tracing::debug!("Request logging started - Method: {:?}, Path: {:?}", method, path);
-
+    
         // Skip logging for validate-session to reduce noise
         if path == "/validate-session" {
             tracing::debug!("Skipping request logging for /validate-session endpoint");
             return Ok(());
         }
-
+    
         // Generate a unique ID for this request for correlation
         let request_id = Uuid::new_v4();
         let uri = req.uri().clone();
@@ -47,7 +46,7 @@ impl RequestLogger {
             tracing::debug!("Request associated with authenticated user ID: {}", user.id);
             user.id
         });
-
+    
         // Extract client information
         let ip_address = headers
             .get("x-forwarded-for")
@@ -60,7 +59,7 @@ impl RequestLogger {
             .and_then(|h| h.to_str().ok())
             .unwrap_or("Unknown")
             .to_string();
-
+    
         // Determine request type
         let request_type = if path == "/login" {
             tracing::debug!("Login request detected");
@@ -68,7 +67,7 @@ impl RequestLogger {
         } else {
             RequestType::API
         };
-
+    
         // Log detailed request information
         tracing::info!(
             "Request received: ID: {}, Method: {}, Path: {}, User ID: {:?}, IP: {}, User-Agent: {}, Type: {:?}",
@@ -76,7 +75,7 @@ impl RequestLogger {
             if user_agent.len() > 30 { &user_agent[0..30] } else { &user_agent }, // Truncate long user agents
             request_type
         );
-
+    
         // For login requests, add extra debugging
         if path == "/login" {
             tracing::debug!(
@@ -93,7 +92,7 @@ impl RequestLogger {
                 tracing::debug!("Received OPTIONS preflight request for login endpoint");
             }
         }
-
+    
         // Log the request to the database
         match log_request(
             method, 
@@ -113,7 +112,7 @@ impl RequestLogger {
                 eprintln!("Failed to log request: {}", e);
             }
         }
-
+    
         Ok(())
     }
 

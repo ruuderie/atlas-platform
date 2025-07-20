@@ -1,6 +1,8 @@
 use axum::{
     middleware::Next,
     response::Response,
+    extract::State,
+    body::Body,
     http::{StatusCode, Request, Method},
     Extension,
 };
@@ -9,25 +11,77 @@ use sea_orm::{EntityTrait, DatabaseConnection, QueryFilter, ColumnTrait, Set};
 use uuid::Uuid;
 use chrono::Utc;
 use axum::http;
-use axum::extract::State;
-use crate::middleware::request_logger::RequestLogger;
-use crate::models::request_log::RequestType;
+use crate::handlers::request_logs;
+use crate::models::request_log::{RequestType, RequestStatus};
 use http::header;
 use crate::models::request_log::RequestInfo;
 use crate::middleware::rate_limiter::RateLimiter;
 
-pub async fn auth_middleware<B>(
-    db: DatabaseConnection,
-    rate_limiter: RateLimiter,
-    mut req: Request<B>,
-    next: Next<B>,
-) -> Result<Response, StatusCode>
-where
-    B: axum::body::HttpBody + Send + 'static + std::fmt::Debug,
-{
+pub async fn log_request_middleware<B>(
+    State(db): State<DatabaseConnection>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    tracing::debug!("Logging request");
+    let method = request.method().clone();
+    let path = request.uri().path().to_string();
+    if path == "/validate-session" {
+        tracing::debug!("Skipping request logging for /validate-session endpoint");
+        return next.run(request).await;
+    }
+    let request_id = Uuid::new_v4();
+    let uri = request.uri().clone();
+    let headers = request.headers().clone();
+    let user_id = request.extensions().get::<crate::entities::user::Model>().map(|user| {
+        tracing::debug!("Request associated with authenticated user ID: {}", user.id);
+        user.id
+    });
+    let ip_address = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()).unwrap_or("Unknown").to_string();
+    let user_agent = headers.get("user-agent").and_then(|h| h.to_str().ok()).unwrap_or("Unknown").to_string();
+    let request_type = if path == "/login" { RequestType::Login } else { RequestType::API };
+    tracing::info!(
+        "Request received: ID: {}, Method: {}, Path: {}, User ID: {:?}, IP: {}, User-Agent: {}, Type: {:?}",
+        request_id, method, path, user_id, ip_address, 
+        if user_agent.len() > 30 { &user_agent[0..30] } else { &user_agent },
+        request_type
+    );
+    if path == "/login" {
+        tracing::debug!("Processing login request - Headers present: {:?}", headers.keys().map(|k| k.as_str()).collect::<Vec<_>>());
+        if let Some(origin) = headers.get("origin").and_then(|h| h.to_str().ok()) {
+            tracing::debug!("Login request origin: {}", origin);
+        }
+        if method == Method::OPTIONS {
+            tracing::debug!("Received OPTIONS preflight request for login endpoint");
+        }
+    }
+    match request_logs::log_request(
+        method, 
+        uri, 
+        StatusCode::OK, 
+        user_id, 
+        &user_agent, 
+        &ip_address, 
+        request_type, 
+        RequestStatus::Success, 
+        None, 
+        &db
+    ).await {
+        Ok(_) => tracing::debug!("Successfully logged request to database"),
+        Err(e) => tracing::error!("Failed to log request to database: {}", e),
+    }
+    next.run(request).await
+}
+
+pub async fn auth_middleware(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(rate_limiter): Extension<RateLimiter>,
+    mut req: Request<axum::body::Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
     let request_id = Uuid::new_v4();
     let path = req.uri().path().to_owned();
     let method = req.method().clone();
+    let uri = req.uri().clone();
     
     tracing::info!("[{}] Request started: {} {}", request_id, method, path);
     
@@ -44,14 +98,6 @@ where
         tracing::info!("[{}] OPTIONS request completed with status: {}", request_id, response.status());
         return Ok(response);
     }
-
-    // Initialize the request logger
-    let request_logger = RequestLogger::new(db.clone());
-    tracing::debug!("[{}] Request logger initialized", request_id);
-
-    // Extract request details
-    let uri = req.uri().clone();
-    tracing::debug!("[{}] Processing request: {} {}", request_id, method, path);
 
     // Extract user information from request headers
     let (user_id, user_agent, ip_address) = {
@@ -94,9 +140,9 @@ where
     if is_public_route(&path) {
         tracing::info!("[{}] Public route detected: {}", request_id, path);
         
-        // Apply rate limiting
+        // Apply rate limiting using extracted IP
         tracing::debug!("[{}] Applying rate limiting", request_id);
-        match rate_limiter.check_rate_limit(&req).await {
+        match rate_limiter.check_rate_limit(&ip_address).await {
             Ok(_) => {
                 tracing::debug!("[{}] Rate limit check passed", request_id);
                 let (parts, body) = req.into_parts();
@@ -104,7 +150,18 @@ where
                 let mut req = Request::from_parts(parts, body);
 
                 // Log the request
-                match request_logger.log_request(&req).await {
+                match request_logs::log_request(
+                    method.clone(),
+                    uri.clone(),
+                    StatusCode::OK,
+                    user_id,
+                    &user_agent,
+                    &ip_address,
+                    request_type,
+                    RequestStatus::Success,
+                    None,
+                    &db
+                ).await {
                     Ok(_) => tracing::debug!("[{}] Request logged successfully", request_id),
                     Err(e) => tracing::error!("[{}] Failed to log request: {:?}", request_id, e),
                 }
@@ -190,7 +247,18 @@ where
 
     // Log the request
     tracing::debug!("[{}] Logging authenticated request", request_id);
-    if let Err(e) = request_logger.log_request(&req).await {
+    if let Err(e) = request_logs::log_request(
+        method.clone(),
+        uri.clone(),
+        StatusCode::OK,
+        Some(user.id),
+        &user_agent,
+        &ip_address,
+        request_type,
+        RequestStatus::Success,
+        None,
+        &db
+    ).await {
         tracing::error!("[{}] Failed to log request: {:?}", request_id, e);
     }
     

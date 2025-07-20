@@ -1,13 +1,27 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
 use crate::handlers::{users, admin, profiles, listings, accounts, user_accounts, ad_purchases, directories, sessions, listing_attributes, health};
-use crate::middleware::auth_middleware;
+use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
 use tower_http::cors::{CorsLayer, Any};
+use axum::{extract::Request, middleware::Next, response::IntoResponse, http::{StatusCode, Response}};
 use std::env;
-use crate::middleware::site_context_middleware;
+
+// async fn auth_middleware_wrapper(
+//     Extension(db): Extension<DatabaseConnection>,
+//     Extension(rate_limiter): Extension<RateLimiter>,
+//     req: Request<axum::body::Body>,
+//     next: Next,
+// ) -> axum::response::Response {
+//     auth_middleware(Extension(db), Extension(rate_limiter), req, next).await.unwrap_or_else(|err| {
+//         axum::http::Response::builder()
+//             .status(err)
+//             .body(axum::body::Body::empty())
+//             .unwrap()
+//     })
+// }
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
@@ -53,7 +67,6 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/register", post(users::register_user))
         .route("/validate-session", get(sessions::validate_session))
         .route("/refresh-token", post(sessions::refresh_token))
-        .layer(cors_layer.clone())
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 
@@ -63,8 +76,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(listings::public_routes(db.clone()))
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))
-        .layer(axum::middleware::from_fn(site_context_middleware))
-        .layer(cors_layer.clone());  // Add CORS to public routes
+        .layer(axum::middleware::from_fn(site_context_middleware));
 
     let rate_limiter = RateLimiter::new();
     let db_clone = db.clone();
@@ -89,16 +101,22 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .nest(
             "/api",
             authenticated_routes
-                .layer(Extension(rate_limiter.clone()))
+                .layer(Extension(rate_limiter))
+                .layer(Extension(db_clone))
                 .layer(axum::middleware::from_fn(site_context_middleware))
-                .layer(axum::middleware::from_fn_with_state(
-                    db_clone.clone(),
-                    move |req, next| {
-                        let db = db_clone.clone();
-                        let rate_limiter = rate_limiter.clone();
-                        async move {
-                            auth_middleware(db, rate_limiter, req, next).await
-                        }
+                .layer(axum::middleware::from_fn(
+                    |Extension(db): Extension<DatabaseConnection>,
+                     Extension(rate_limiter): Extension<RateLimiter>,
+                     req: Request<axum::body::Body>,
+                     next: Next| async move {
+                        auth_middleware(Extension(db), Extension(rate_limiter), req, next)
+                            .await
+                            .unwrap_or_else(|err| {
+                                axum::http::Response::builder()
+                                    .status(err)
+                                    .body(axum::body::Body::empty())
+                                    .unwrap()
+                            })
                     },
                 )),
         )

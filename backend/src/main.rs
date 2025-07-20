@@ -12,6 +12,7 @@ mod config;
 mod services;
 use axum::http::{self,HeaderName, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
+use headers::{Server};
 use axum::middleware::{from_fn_with_state, from_fn, Next};
 use axum::{
     routing::get,
@@ -22,33 +23,24 @@ use axum::{
 use tower_http::cors::CorsLayer;
 use tower::ServiceBuilder;
 use crate::sea_orm::{Database, DatabaseConnection, ConnectionTrait};
+use crate::models::request_log::RequestStatus;
 use sea_orm_migration::prelude::*;
 use migration::{Migrator};
 use std::net::SocketAddr;
 use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tracing::Level;
+use tokio::net::TcpListener;
 use crate::api::create_router;
 use crate::admin::setup::create_admin_user_if_not_exists;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
     request_logger::RequestLogger,
     rate_limiter::RateLimiter,
-    middleware::auth_middleware,
-    site_context_middleware
+    middleware::{auth_middleware, log_request_middleware}
 };
 use axum::response::{IntoResponse,Response};
 
-async fn log_request_middleware<B>(
-    State(state): State<RequestLogger>,
-    request: Request<B>,
-    next: Next<B>,
-) -> Response {
-    tracing::debug!("Logging request");
-    match state.log_request(&request).await {
-        Ok(_) => next.run(request).await,
-        Err(status_code) => (status_code, "Error logging request").into_response(),
-    }
-}
+
 
 async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http::StatusCode, String) {
     tracing::error!("Unhandled error: {:?}", error);
@@ -160,7 +152,7 @@ async fn main() {
         )
         .layer(
             ServiceBuilder::new()
-                .layer(from_fn_with_state(request_logger, log_request_middleware))
+                .layer(from_fn_with_state(conn.clone(), log_request_middleware::<Body>))
                 .into_inner()
         )
         .layer(Extension(conn.clone()))
@@ -168,8 +160,8 @@ async fn main() {
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("Listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
+    let listener = TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, app)
         .await
         .unwrap();
 }

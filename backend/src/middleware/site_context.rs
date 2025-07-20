@@ -1,10 +1,11 @@
 // backend/src/middleware/site_context.rs
 use axum::{
-    extract::{Extension, Host},
+    extract::{Extension},
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
 };
+use axum_extra::extract::{Host};
 use sea_orm::{DatabaseConnection, EntityTrait, ColumnTrait, QueryFilter};
 use std::sync::Arc;
 use once_cell::sync::Lazy;
@@ -18,11 +19,11 @@ use serde_json::Value;
 static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> = 
     Lazy::new(|| Arc::new(RwLock::new(HashMap::new())));
 
-pub async fn site_context_middleware<B>(
+pub async fn site_context_middleware(
     Extension(db): Extension<DatabaseConnection>,
     Host(hostname): Host,
-    req: Request<B>,
-    next: Next<B>,
+    mut req: Request<axum::body::Body>,
+    next: Next,
 ) -> Result<Response, StatusCode> {
     let domain = hostname.split(':').next().unwrap_or(&hostname).to_string();
     
@@ -120,7 +121,6 @@ pub async fn site_context_middleware<B>(
     
     // Add site config to request extensions
     tracing::debug!("Adding site config to request extensions for domain: {}", domain);
-    let mut req = req;
     req.extensions_mut().insert(site_config);
     
     tracing::info!("Site context middleware completed for domain: {}", domain);

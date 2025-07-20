@@ -4,7 +4,7 @@ use axum::http::{Request, StatusCode};
 use axum::response::Response;
 use dashmap::DashMap;
 use axum::extract::FromRequest;
-use axum::body::{Body, boxed};
+use axum::body::{Body};
 use uuid::Uuid;
 
 const MAX_REQUESTS: u32 = 100;
@@ -24,32 +24,16 @@ impl RateLimiter {
         }
     }
 
-    pub async fn check_rate_limit<B>(&self, req: &Request<B>) -> Result<(), StatusCode> 
-    where
-        B: axum::body::HttpBody + Send + 'static,
-    {
+    pub async fn check_rate_limit(&self, ip: &str) -> Result<(), StatusCode> {
         let request_id = Uuid::new_v4();
-        let method = req.method();
-        let path = req.uri().path();
+        tracing::info!("[{}] Rate limit check started for IP: {}", request_id, ip);
         
-        tracing::info!("[{}] Rate limit check started for {} {}", request_id, method, path);
-        
-        // Extract client IP address
-        let ip = req
-            .headers()
-            .get("x-forwarded-for")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("unknown")
-            .to_string();
-            
-        tracing::info!("[{}] Client IP for rate limiting: {}", request_id, ip);
-
         let now = Instant::now();
         let mut should_allow = true;
         let mut current_count = 0;
 
         // Check if this IP is already in our store
-        if let Some(mut entry) = self.store.get_mut(&ip) {
+        if let Some(mut entry) = self.store.get_mut(ip) {
             let (window_start, count) = &mut *entry;
             let elapsed = now.duration_since(*window_start);
             
@@ -80,7 +64,7 @@ impl RateLimiter {
         } else {
             // First request from this IP
             tracing::debug!("[{}] First request from IP: {}, initializing rate limit counter", request_id, ip);
-            self.store.insert(ip.clone(), (now, 1));
+            self.store.insert(ip.to_string(), (now, 1));
             current_count = 1;
         }
 

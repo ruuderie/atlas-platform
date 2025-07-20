@@ -5,7 +5,6 @@ use chrono::{Utc, Duration};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use crate::entities::{profile, user};
 use axum::{
-    async_trait,
     extract::{FromRequest, Extension},
     http::{StatusCode, Request},
     response::IntoResponse,

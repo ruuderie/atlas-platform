@@ -1,9 +1,9 @@
 use axum::{
-    extract::{Extension, Json, TypedHeader},
+    extract::{Extension, Json},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    headers::{Authorization, authorization::Bearer},
 };
+use headers::{Authorization, authorization::Bearer, Host}; 
 use axum::http::{Method, Uri};
 use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrait, QueryFilter};
 use uuid::Uuid;

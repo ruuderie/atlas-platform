@@ -8,8 +8,9 @@ use crate::entities::{
     directory::Entity,
 };
 use axum::{
-    body::Body, extract::{Extension, Json, Path, State}, headers::{HeaderMap, UserAgent}, http::{header::USER_AGENT, StatusCode}, response::IntoResponse, routing::{get, post}, Router
+    body::Body, extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post}, Router
 };
+use headers::{UserAgent, Host, HeaderMap};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use crate::auth::{hash_password, verify_password, generate_jwt};
