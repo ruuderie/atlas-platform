@@ -44,9 +44,9 @@ pub fn auth_routes() -> Router<DatabaseConnection> {
 
 pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
-        .route("/profile", get(get_user_profile))
-        .route("/refresh-token", post(refresh_token))
-        .route("/validate-session", get(validate_session))
+        .route("/api/profile", get(get_user_profile))
+        .route("/api/refresh-token", post(refresh_token))
+        .route("/api/validate-session", get(validate_session))
         .with_state(db_connection)
 
 }

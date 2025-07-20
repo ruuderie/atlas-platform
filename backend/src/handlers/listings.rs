@@ -38,11 +38,11 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/listings", post(create_listing))
-        .route("/listings/{id}", get(get_listing_by_id))
-        .route("/listings/{id}/with-attributes", get(get_listing_with_attributes))
-        .route("/listings/{id}", put(update_listing))
-        .route("/listings/{id}", delete(delete_listing))
+        .route("/api/listings", post(create_listing))
+        .route("/api/listings/{id}", get(get_listing_by_id))
+        .route("/api/listings/{id}/with-attributes", get(get_listing_with_attributes))
+        .route("/api/listings/{id}", put(update_listing))
+        .route("/api/listings/{id}", delete(delete_listing))
         // Add other authenticated listing routes here
 }
 

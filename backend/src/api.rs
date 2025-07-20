@@ -98,8 +98,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     Router::new()
         .merge(auth_routes)  // Keep auth routes at the root level
         .merge(public_routes)
-        .nest(
-            "/api",
+        .merge(
             authenticated_routes
                 .layer(Extension(rate_limiter))
                 .layer(Extension(db_clone))
