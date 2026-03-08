@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: uat
+type: Opaque
+stringData:
+  # Base64 encoding not required in stringData
+  # Ensure these match the user created in your local-config.nix
+  POSTGRES_USER: "ruud"
+  POSTGRES_PASSWORD: "YOUR_SECURE_PASSWORD"
+  ADMIN_PASSWORD: "YOUR_ADMIN_PASSWORD"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: uat
+data:
+  ENVIRONMENT: "uat"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  # Connect to the host machine's Postgres
+  # 172.17.0.1 is often the docker bridge, but for K3s use the node IP
+  # defined in your local-config.nix (serverIP) or the CNI gateway.
+  DATABASE_HOST: "10.42.0.1" # Check 'ip route' inside a pod to confirm gateway
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "ruud"
