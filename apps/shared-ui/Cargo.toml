@@ -1,0 +1,21 @@
+[package]
+name = "shared-ui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+heck = "0.5.0"
+icons = { version = "0.18.0", features = ["leptos"] }
+leptos = { version = "0.8.17", features = ["csr"] }
+leptos_router = "0.8.12"
+leptos_ui = "0.3.21"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+strum = { version = "0.28.0", features = ["derive"] }
+time = "0.3.47"
+tw_merge = { version = "0.1.20", features = ["variant"] }
+validator = "0.20.0"
+wasm-bindgen = "0.2.114"
+js-sys = "0.3.77"
+web-sys = { version = "0.3.77", features = ["Window", "Document", "HtmlElement", "HtmlDivElement", "Storage", "MediaQueryList", "Navigator", "NodeList", "Element", "Clipboard"] }

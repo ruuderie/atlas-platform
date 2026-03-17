@@ -19,30 +19,13 @@
 #test data 
 /listing_202409220054.csv
 
-# Svelte - Frontend
-
-# Node modules
-/frontend/node_modules/
-/admin/node_modules/
-
-
-# Svelte build directory
-/frontend/public/build/
-/admin/public/build/
-/admin/build/
-/frontend/build/
-# SvelteKit
-/frontend/.svelte-kit/
-/admin/.svelte-kit/
-# Environment variables
-/frontend/.env
-/frontend/.env.*
-!/frontend/.env.example
-/admin/.env
-/admin/.env.*
-!/admin/.env.example
-# shadcn-svelte
-/admin/shadcn-svelte/
+# Frontend (Leptos/Trunk)
+/apps/*/dist/
+/apps/*/target/
+/apps/*/Cargo.lock
+/apps/*/.env
+/apps/*/.env.*
+!/apps/*/.env.example
 
 # General
 

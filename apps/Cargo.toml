@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "platform-admin",
+    "directory-instance",
+    "shared-ui"
+]
+resolver = "2"
