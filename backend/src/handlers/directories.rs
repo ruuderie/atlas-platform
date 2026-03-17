@@ -21,6 +21,7 @@ use crate::services::directory::DirectoryService;
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/directories", get(get_directories))
+        .route("/directories/lookup", get(lookup_directory_by_domain))
         .route("/directories/{id}", get(get_directory_by_id))
         .route("/directories/type/{type_id}", get(get_directories_by_type))
         .route("/directories/{id}/listings", get(get_directory_listings))
@@ -87,6 +88,25 @@ pub async fn get_directories_by_type(
         .collect();
 
     Ok((StatusCode::OK, Json(directory_models)))
+}
+
+pub async fn lookup_directory_by_domain(
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+    State(db): State<DatabaseConnection>,
+) -> Result<(StatusCode, Json<DirectoryConfigModel>), StatusCode> {
+    let domain = params.get("domain").ok_or(StatusCode::BAD_REQUEST)?;
+    
+    let directory = DirectoryService::get_directory_by_domain(&db, domain)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to lookup directory: {:?}", err);
+            match err.downcast_ref::<anyhow::Error>() {
+                Some(e) if e.to_string().contains("not found") => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        })?;
+
+    Ok((StatusCode::OK, Json(DirectoryConfigModel::from(directory))))
 }
 
 pub async fn create_directory(

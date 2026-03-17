@@ -336,6 +336,25 @@ impl DirectoryService {
         Ok(directory)
     }
     
+    pub async fn get_directory_by_domain(
+        db: &DatabaseConnection,
+        domain: &str
+    ) -> Result<directory::Model> {
+        let directory = directory::Entity::find()
+            .filter(
+                sea_orm::Condition::any()
+                    .add(directory::Column::Domain.eq(domain))
+                    .add(directory::Column::CustomDomain.eq(domain))
+                    .add(directory::Column::Subdomain.eq(domain))
+            )
+            .one(db)
+            .await
+            .context("Failed to query directory by domain")?
+            .ok_or_else(|| anyhow::anyhow!("Directory not found for domain"))?;
+            
+        Ok(directory)
+    }
+    
     pub async fn get_directories_by_type(
         db: &DatabaseConnection,
         directory_type_id: Uuid

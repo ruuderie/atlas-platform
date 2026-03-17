@@ -20,9 +20,10 @@
 /listing_202409220054.csv
 
 # Frontend (Leptos/Trunk)
+/apps/target/
 /apps/*/dist/
 /apps/*/target/
-/apps/*/Cargo.lock
+/apps/Cargo.lock
 /apps/*/.env
 /apps/*/.env.*
 !/apps/*/.env.example
