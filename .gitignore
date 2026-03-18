@@ -23,6 +23,8 @@
 /apps/target/
 /apps/*/dist/
 /apps/*/target/
+/apps/*/node_modules/
+node_modules/
 /apps/Cargo.lock
 /apps/*/.env
 /apps/*/.env.*
@@ -122,6 +124,3 @@ dist
 # Added by cargo
 
 /target
-
-# Node
-node_modules/
