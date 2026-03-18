@@ -122,3 +122,6 @@ dist
 # Added by cargo
 
 /target
+
+# Node
+node_modules/
