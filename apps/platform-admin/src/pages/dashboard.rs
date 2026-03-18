@@ -1,11 +1,27 @@
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
+use shared_ui::components::ui::input::{Input, InputType};
+use shared_ui::components::ui::label::Label;
+
+use crate::api::directories::get_directories;
+use crate::api::crm::{get_users, get_deals};
+use crate::app::GlobalToast;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
+    let users_res = LocalResource::new(|| async move { get_users().await.unwrap_or_default() });
+    let dirs_res = LocalResource::new(|| async move { get_directories().await.unwrap_or_default() });
+    let deals_res = LocalResource::new(|| async move { get_deals().await.unwrap_or_default() });
+
+    let active_dirs = Signal::derive(move || dirs_res.get().unwrap_or_default().len());
+    let total_users = Signal::derive(move || users_res.get().unwrap_or_default().len());
+    let deals_pipeline = Signal::derive(move || {
+        let sum: f32 = deals_res.get().unwrap_or_default().iter().map(|d| d.amount).sum();
+        format!("${:.2}", sum)
+    });
     view! {
-        <div class="max-w-7xl mx-auto space-y-8 p-6">
+        <div class="w-full max-w-[1600px] mx-auto space-y-8 p-6">
             <header class="space-y-2">
                 <h2 class="text-3xl font-bold tracking-tight">"Platform Overview"</h2>
                 <p class="text-lg text-muted-foreground">"High-level metrics and global activity across all directories."</p>
@@ -18,8 +34,8 @@ pub fn Dashboard() -> impl IntoView {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="m3 9 2.45-4.9A2 2 0 0 1 7.24 3h9.52a2 2 0 0 1 1.8 1.1L21 9"/><path d="M12 3v6"/></svg>
                     </div>
                     <div class="space-y-1">
-                        <h3 class="text-3xl font-bold tracking-tighter">"12"</h3>
-                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"+2"</span>" from last month"</p>
+                        <h3 class="text-3xl font-bold tracking-tighter">{move || active_dirs()}</h3>
+                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"Dynamic"</span>" from API"</p>
                     </div>
                 </Card>
 
@@ -29,8 +45,8 @@ pub fn Dashboard() -> impl IntoView {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </div>
                     <div class="space-y-1">
-                        <h3 class="text-3xl font-bold tracking-tighter">"4,291"</h3>
-                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"+12%"</span>" from last month"</p>
+                        <h3 class="text-3xl font-bold tracking-tighter">{move || total_users()}</h3>
+                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"Dynamic"</span>" from API"</p>
                     </div>
                 </Card>
 
@@ -40,8 +56,8 @@ pub fn Dashboard() -> impl IntoView {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
                     </div>
                     <div class="space-y-1">
-                        <h3 class="text-3xl font-bold tracking-tighter">"854"</h3>
-                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"+41"</span>" new this week"</p>
+                        <h3 class="text-3xl font-bold tracking-tighter">"MVP Placeholder"</h3>
+                        <p class="text-xs text-muted-foreground"><span class="text-emerald-500 font-medium">"WIP"</span>" coming soon"</p>
                     </div>
                 </Card>
 
@@ -51,8 +67,8 @@ pub fn Dashboard() -> impl IntoView {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     </div>
                     <div class="space-y-1">
-                        <h3 class="text-3xl font-bold tracking-tighter">"$842.5K"</h3>
-                        <p class="text-xs text-muted-foreground"><span class="text-rose-500 font-medium">"-$12K"</span>" from last month"</p>
+                        <h3 class="text-3xl font-bold tracking-tighter">{move || deals_pipeline()}</h3>
+                        <p class="text-xs text-muted-foreground"><span class="text-blue-500 font-medium">"Dynamic"</span>" sum mapped"</p>
                     </div>
                 </Card>
             </div>
@@ -102,9 +118,9 @@ pub fn Dashboard() -> impl IntoView {
                     <div class="space-y-4">
                         <h3 class="text-xl font-semibold tracking-tight">"Quick Actions"</h3>
                         <Card class="p-4 bg-card border border-border shadow-sm flex flex-col gap-2".to_string()>
-                            <Button variant=ButtonVariant::Default class="w-full justify-start".to_string()>"Register New Site"</Button>
-                            <Button variant=ButtonVariant::Outline class="w-full justify-start".to_string()>"Write Article"</Button>
-                            <Button variant=ButtonVariant::Outline class="w-full justify-start".to_string()>"Add CRM Lead"</Button>
+                            <a href="/sites/new" class="block w-full text-left inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2">"Register New Site"</a>
+                            <a href="/cms?tab=editor" class="block w-full text-left inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">"Write Article"</a>
+                            <a href="/crm/new" class="block w-full text-left inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">"New Lead"</a>
                         </Card>
                     </div>
 

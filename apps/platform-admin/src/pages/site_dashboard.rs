@@ -8,13 +8,41 @@ use shared_ui::components::ui::table::{
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
 use shared_ui::components::badge::{Badge, BadgeIntent};
+use shared_ui::components::ui::input::{Input, InputType};
+use shared_ui::components::ui::label::Label;
 
 #[component]
 pub fn SiteDashboard() -> impl IntoView {
     let params = use_params_map();
     let site_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
-    // Mock data for Listings (linked to this directory)
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
+    
+    let (show_add_listing, set_show_add_listing) = signal(false);
+    let (show_invite, set_show_invite) = signal(false);
+    
+    let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
+    let (managing_user_name, set_managing_user_name) = signal(None::<String>);
+
+    let domain_bind = RwSignal::new("".to_string());
+    
+    Effect::new(move |_| {
+        domain_bind.set(format!("{}.example.com", site_id()));
+    });
+    
+    let invite_email = RwSignal::new("".to_string());
+
+    let handle_save_domain = move |_| {
+        toast.message.set(Some("Domain configuration updated dynamically.".to_string()));
+    };
+
+    let handle_invite = move |_| {
+        if !invite_email.get().is_empty() {
+            toast.message.set(Some(format!("Invited {} to collaborate.", invite_email.get())));
+            invite_email.set("".to_string());
+        }
+    };
+
     let mock_listings = vec![
         ("L-101", "Acme Movers", "Transportation", "Active"),
         ("L-102", "Globe Freight", "Logistics", "Pending"),
@@ -22,7 +50,6 @@ pub fn SiteDashboard() -> impl IntoView {
         ("L-104", "City Transit Co", "Public Transit", "Inactive"),
     ];
 
-    // Mock data for Profiles (users linked to this directory)
     let mock_profiles = vec![
         ("usr_8821", "Alice Admin", "alice@example.com", "Site Admin"),
         ("usr_3194", "Bob Driver", "bob@example.com", "Contributor"),
@@ -30,7 +57,7 @@ pub fn SiteDashboard() -> impl IntoView {
     ];
 
     view! {
-        <div class="max-w-7xl mx-auto space-y-6">
+        <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
             <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
                 <div>
                     <div class="flex items-center space-x-3 mb-2">
@@ -66,7 +93,7 @@ pub fn SiteDashboard() -> impl IntoView {
                                 <h3 class="text-lg font-semibold leading-none tracking-tight">"Business Listings"</h3>
                                 <p class="text-sm text-muted-foreground mt-1">"Businesses registered in this specific directory network."</p>
                             </div>
-                            <Button variant=ButtonVariant::Default>"Add Listing"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_add_listing.set(true)>"Add Listing"</Button>
                         </div>
                         <div class="overflow-x-auto">
                             <DataTable class="w-full text-sm">
@@ -88,14 +115,14 @@ pub fn SiteDashboard() -> impl IntoView {
                                         };
                                         view! {
                                             <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                                <DataTableCell class="p-4 align-middle font-medium">{id}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">{name}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{cat}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{cat.to_string()}</DataTableCell>
                                                 <DataTableCell class="p-4 align-middle">
-                                                    <Badge intent=badge_intent>{status}</Badge>
+                                                    <Badge intent=badge_intent>{status.to_string()}</Badge>
                                                 </DataTableCell>
                                                 <DataTableCell class="p-4 align-middle text-right">
-                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Edit"</Button>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_editing_listing_name.set(Some(name.to_string()))>"Edit"</Button>
                                                 </DataTableCell>
                                             </DataTableRow>
                                         }
@@ -113,7 +140,7 @@ pub fn SiteDashboard() -> impl IntoView {
                                 <h3 class="text-lg font-semibold leading-none tracking-tight">"Directory Profiles"</h3>
                                 <p class="text-sm text-muted-foreground mt-1">"Users who have registered accounts specifically within this site."</p>
                             </div>
-                            <Button variant=ButtonVariant::Default>"Invite User"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_invite.set(true)>"Invite User"</Button>
                         </div>
                         <div class="overflow-x-auto">
                             <DataTable class="w-full text-sm">
@@ -135,14 +162,14 @@ pub fn SiteDashboard() -> impl IntoView {
                                         };
                                         view! {
                                             <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                                <DataTableCell class="p-4 align-middle font-medium">{id}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">{name}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{email}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{email.to_string()}</DataTableCell>
                                                 <DataTableCell class="p-4 align-middle">
-                                                    <Badge intent=role_badge>{role}</Badge>
+                                                    <Badge intent=role_badge>{role.to_string()}</Badge>
                                                 </DataTableCell>
                                                 <DataTableCell class="p-4 align-middle text-right">
-                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage"</Button>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_managing_user_name.set(Some(name.to_string()))>"Manage"</Button>
                                                 </DataTableCell>
                                             </DataTableRow>
                                         }
@@ -159,14 +186,103 @@ pub fn SiteDashboard() -> impl IntoView {
                         <div class="space-y-4 max-w-lg">
                             <div class="space-y-2">
                                 <label class="text-sm font-medium leading-none">"Custom Domain"</label>
-                                <input class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" value=move || format!("{}.example.com", site_id()) disabled=true />
-                                <p class="text-xs text-muted-foreground">"Contact platform admin to change domain routing."</p>
+                                <div class="flex items-center space-x-2">
+                                    <Input r#type=InputType::Text class="w-full".to_string() bind_value=domain_bind placeholder="www.example.com".to_string() />
+                                    <Button variant=ButtonVariant::Default on:click=handle_save_domain>"Save"</Button>
+                                </div>
+                                <p class="text-xs text-muted-foreground">"Configure DNS CNAME record pointing to proxy.foundry.local"</p>
                             </div>
                             <Button variant=ButtonVariant::Destructive>"Deactivate Directory"</Button>
                         </div>
                     </Card>
                 </TabsContent>
             </Tabs>
+
+            <Show when=move || show_add_listing.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_add_listing.set(false)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Register Business"</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Add a new commercial entity to this active directory."</p>
+                        <div class="space-y-4 mb-6">
+                            <div class="grid gap-2 text-left">
+                                <Label>"Business Name"</Label>
+                                <Input r#type=InputType::Text placeholder="e.g. Acme Corp".to_string() bind_value=RwSignal::new("".to_string()) />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_listing.set(false)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                toast.message.set(Some("Listing securely registered.".to_string()));
+                                set_show_add_listing.set(false);
+                            }>"Save Listing"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || editing_listing_name.get().is_some()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_editing_listing_name.set(None)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">{move || format!("Edit {}", editing_listing_name.get().unwrap_or_default())}</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Update metadata properties."</p>
+                        <div class="space-y-4 mb-6">
+                            <div class="grid gap-2 text-left">
+                                <Label>"Organization Alias"</Label>
+                                <Input r#type=InputType::Text bind_value=RwSignal::new(editing_listing_name.get().unwrap_or_default()) />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_editing_listing_name.set(None)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                toast.message.set(Some("Metadata updated successfully.".to_string()));
+                                set_editing_listing_name.set(None);
+                            }>"Apply Changes"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || show_invite.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_invite.set(false)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Invite Team Member"</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Send an invitation email to grant access."</p>
+                        <div class="space-y-4 mb-6">
+                            <div class="grid gap-2 text-left">
+                                <Label>"Email Address"</Label>
+                                <Input r#type=InputType::Email placeholder="user@example.com".to_string() bind_value=invite_email />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_invite.set(false)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                handle_invite(());
+                                set_show_invite.set(false);
+                            }>"Send Invite"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || managing_user_name.get().is_some()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_managing_user_name.set(None)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">{move || format!("Manage {}", managing_user_name.get().unwrap_or_default())}</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Configure robust access and permissions."</p>
+                        <div class="flex justify-end gap-3 mt-8">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_managing_user_name.set(None)>"Close"</Button>
+                            <Button variant=ButtonVariant::Destructive on:click=move |_| {
+                                toast.message.set(Some("User access rescinded.".to_string()));
+                                set_managing_user_name.set(None);
+                            }>"Revoke Access"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
         </div>
     }
 }

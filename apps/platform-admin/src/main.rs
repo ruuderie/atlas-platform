@@ -3,6 +3,7 @@ use crate::app::App;
 
 mod app;
 mod pages;
+pub mod api;
 
 fn main() {
     console_error_panic_hook::set_once();

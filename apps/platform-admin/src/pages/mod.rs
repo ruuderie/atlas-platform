@@ -4,3 +4,6 @@ pub mod cms_editor;
 pub mod crm_detail;
 pub mod dashboard;
 pub mod site_dashboard;
+pub mod login;
+pub mod site_create;
+pub mod crm_create;

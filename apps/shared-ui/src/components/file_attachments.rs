@@ -11,12 +11,16 @@ pub struct FileItem {
 #[component]
 pub fn FileAttachments(
     #[prop(into)] entity_type: String,
+    #[prop(into, optional)] files: Option<Signal<Vec<FileItem>>>,
+    #[prop(into, optional)] on_file_drop: Option<Callback<String>>,
 ) -> impl IntoView {
     let (is_dragging, set_dragging) = signal(false);
-    let (files, _) = signal(vec![
+    let default_files = signal(vec![
         FileItem { name: "contract.pdf".into(), file_type: "PDF".into(), size: "2.4 MB".into(), timestamp: "2 mins ago".into() },
         FileItem { name: "logo.png".into(), file_type: "Image".into(), size: "845 KB".into(), timestamp: "1 hour ago".into() },
-    ]);
+    ]).0;
+    
+    let display_files = files.unwrap_or_else(|| Signal::derive(move || default_files.get()));
 
     view! {
         <div class="file-attachments">
@@ -28,7 +32,13 @@ pub fn FileAttachments(
                 class=move || if is_dragging.get() { "drop-zone active" } else { "drop-zone" }
                 on:dragover=move |e| { e.prevent_default(); set_dragging.set(true); }
                 on:dragleave=move |e| { e.prevent_default(); set_dragging.set(false); }
-                on:drop=move |e| { e.prevent_default(); set_dragging.set(false); }
+                on:drop=move |e| { 
+                    e.prevent_default(); 
+                    set_dragging.set(false); 
+                    if let Some(cb) = on_file_drop {
+                        cb.run("uploaded_file.png".to_string());
+                    }
+                }
             >
                 <div class="upload-icon">"☁️"</div>
                 <p>"Drag & drop files here or " <a>"browse"</a></p>
@@ -36,7 +46,7 @@ pub fn FileAttachments(
             </div>
 
             <div class="file-list">
-                <For each=move || files.get() key=|f| f.name.clone() children=move |f| {
+                <For each=move || display_files.get() key=|f| f.name.clone() children=move |f| {
                     view! {
                         <div class="file-item">
                             <div class="file-icon">

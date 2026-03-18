@@ -1,0 +1,259 @@
+warning: unused import: `TabsList`
+ --> shared-ui/src/components/tabs.rs:3:55
+  |
+3 | use crate::components::ui::tabs::{Tabs as RustUITabs, TabsList};
+  |                                                       ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated function `time::util::days_in_year_month`: use `days_in_month` or `Month::length` instead
+  --> shared-ui/src/utils/date.rs:19:21
+   |
+19 |         time::util::days_in_year_month(year, month)
+   |                     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: module `QUERY` should have a snake case name
+ --> shared-ui/src/utils/query.rs:4:9
+  |
+4 | pub mod QUERY {
+  |         ^^^^^ help: convert the identifier to snake case: `query`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: module `PAGINATION` should have a snake case name
+ --> shared-ui/src/constants.rs:1:9
+  |
+1 | pub mod PAGINATION {
+  |         ^^^^^^^^^^ help: convert the identifier to snake case: `pagination`
+
+warning: `shared-ui` (lib) generated 4 warnings (run `cargo fix --lib -p shared-ui` to apply 1 suggestion)
+    Checking frontend v0.1.0 (/Users/oply/src/git/RustSvelteBusinessDirectory/apps/platform-admin)
+error[E0432]: unresolved import `uuid`
+  --> platform-admin/src/pages/multi_site.rs:11:5
+   |
+11 | use uuid::Uuid;
+   |     ^^^^ use of unresolved module or unlinked crate `uuid`
+   |
+   = help: if you wanted to use a crate named `uuid`, use `cargo add uuid` to add it to your `Cargo.toml`
+
+warning: unused import: `leptos::prelude::*`
+ --> platform-admin/src/main.rs:1:5
+  |
+1 | use leptos::prelude::*;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `AvatarImage`
+  --> platform-admin/src/app.rs:13:49
+   |
+13 | use shared_ui::components::ui::avatar::{Avatar, AvatarImage, AvatarFallback};
+   |                                                 ^^^^^^^^^^^
+
+warning: unused import: `DialogAction`
+ --> platform-admin/src/pages/crm_grid.rs:6:164
+  |
+6 | ...e, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogAction};
+  |                                                                 ^^^^^^^^^^^^
+
+warning: unused imports: `AccountModel`, `DealModel`, `LeadModel`, and `UserInfo`
+  --> platform-admin/src/pages/crm_grid.rs:12:26
+   |
+12 | use crate::api::models::{UserInfo, LeadModel, AccountModel, DealModel, CreateLead, CreateAccount};
+   |                          ^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `DialogAction`
+ --> platform-admin/src/pages/multi_site.rs:6:164
+  |
+6 | ...e, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogAction};
+  |                                                                 ^^^^^^^^^^^^
+
+warning: unused import: `InputType`
+ --> platform-admin/src/pages/multi_site.rs:7:47
+  |
+7 | use shared_ui::components::ui::input::{Input, InputType};
+  |                                               ^^^^^^^^^
+
+warning: unused import: `std::error::Error`
+ --> platform-admin/src/api/auth.rs:4:5
+  |
+4 | use std::error::Error;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ApiErrorResponse`
+ --> platform-admin/src/api/crm.rs:1:63
+  |
+1 | use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+  |                                                               ^^^^^^^^^^^^^^^^
+
+warning: unused import: `CreateDeal`
+ --> platform-admin/src/api/crm.rs:2:84
+  |
+2 | use super::models::{AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, CreateDeal, UserInfo};
+  |                                                                                    ^^^^^^^^^^
+
+error[E0373]: closure may outlive the current function, but it borrows `navigate`, which is owned by the current function
+   --> platform-admin/src/app.rs:56:58
+    |
+ 56 |         <Show when=move || user.get().is_some() fallback=|| view! { 
+    |                                                          ^^ may outlive borrowed value `navigate`
+...
+ 63 |                    navigate("/login", Default::default());
+    |                    -------- `navigate` is borrowed here
+    |
+note: function requires argument type to outlive `'static`
+   --> platform-admin/src/app.rs:55:5
+    |
+ 55 | /     view! {
+ 56 | |         <Show when=move || user.get().is_some() fallback=|| view! { 
+ 57 | |             <div class="h-screen w-full flex items-center justify-center bg-background">
+...   |
+126 | |         </Show>
+127 | |     }
+    | |_____^
+    = note: this error originates in the macro `view` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: to force the closure to take ownership of `navigate` (and any other referenced variables), use the `move` keyword
+    |
+ 56 |         <Show when=move || user.get().is_some() fallback=move || view! { 
+    |                                                          ++++
+
+error[E0599]: no method named `on_click` found for struct `ButtonPropsBuilder<TypedBuilderFields>` in the current scope
+   --> platform-admin/src/pages/crm_grid.rs:155:49
+    |
+104 | /     view! {
+105 | |         <div class="max-w-7xl mx-auto space-y-8 p-6">
+106 | |             <header class="space-y-2">
+107 | |                 <h2 class="text-3xl font-bold tracking-tight">"CRM"</h2>
+...   |
+154 | |                                         <DialogClose class="mt-2 sm:mt-0".to_string()>"Cancel"</DialogClose>
+155 | |                                         <Button on_click=handle_save_record>"Save Record"</Button>
+    | |                                                -^^^^^^^^ method not found in `ButtonPropsBuilder`
+    | |________________________________________________|
+    |
+
+error[E0599]: no method named `on_click` found for struct `ButtonPropsBuilder<TypedBuilderFields>` in the current scope
+  --> platform-admin/src/pages/multi_site.rs:96:37
+   |
+54 | /     view! {
+55 | |         <div class="max-w-7xl mx-auto space-y-8 p-6">
+56 | |             <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+57 | |                 <div class="space-y-2">
+...  |
+95 | |                             <DialogClose class="mt-2 sm:mt-0".to_string()>"Cancel"</DialogClose>
+96 | |                             <Button on_click=handle_create_site disabled=move || is_submitting.get()>"Create Site"</Button>
+   | |                                    -^^^^^^^^ method not found in `ButtonPropsBuilder`
+   | |____________________________________|
+   |
+
+error[E0277]: the trait bound `EntityDetail: serde::Serialize` is not satisfied
+    --> platform-admin/src/pages/crm_detail.rs:26:23
+     |
+  26 |       let details_res = Resource::new(
+     |  _______________________^
+  27 | |         move || (entity_type(), record_id()),
+  28 | |         |(entity, id)| async move {
+  29 | |             match entity.as_str() {
+...    |
+  37 | |     );
+     | |_____^ unsatisfied trait bound
+     |
+help: the trait `Serialize` is not implemented for `EntityDetail`
+    --> platform-admin/src/pages/crm_detail.rs:11:1
+     |
+  11 | pub enum EntityDetail {
+     | ^^^^^^^^^^^^^^^^^^^^^
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `EntityDetail` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 109 others
+     = note: required for `JsonSerdeCodec` to implement `Encoder<EntityDetail>`
+note: required by a bound in `leptos::prelude::Resource::<T>::new`
+    --> /Users/oply/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_server-0.8.7/src/resource.rs:1030:21
+     |
+1030 |     JsonSerdeCodec: Encoder<T> + Decoder<T>,
+     |                     ^^^^^^^^^^ required by this bound in `Resource::<T>::new`
+...
+1049 |     pub fn new<S, Fut>(
+     |            --- required by a bound in this associated function
+
+error[E0277]: the trait bound `EntityDetail: serde::Deserialize<'de>` is not satisfied
+    --> platform-admin/src/pages/crm_detail.rs:26:23
+     |
+  26 |       let details_res = Resource::new(
+     |  _______________________^
+  27 | |         move || (entity_type(), record_id()),
+  28 | |         |(entity, id)| async move {
+  29 | |             match entity.as_str() {
+...    |
+  37 | |     );
+     | |_____^ unsatisfied trait bound
+     |
+help: the trait `for<'de> Deserialize<'de>` is not implemented for `EntityDetail`
+    --> platform-admin/src/pages/crm_detail.rs:11:1
+     |
+  11 | pub enum EntityDetail {
+     | ^^^^^^^^^^^^^^^^^^^^^
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `EntityDetail` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               `&'a [u8]` implements `Deserialize<'de>`
+               `&'a str` implements `Deserialize<'de>`
+               `()` implements `Deserialize<'de>`
+               `(T,)` implements `Deserialize<'de>`
+               `(T0, T1)` implements `Deserialize<'de>`
+               `(T0, T1, T2)` implements `Deserialize<'de>`
+               `(T0, T1, T2, T3)` implements `Deserialize<'de>`
+               `(T0, T1, T2, T3, T4)` implements `Deserialize<'de>`
+             and 106 others
+     = note: required for `JsonSerdeCodec` to implement `Decoder<EntityDetail>`
+note: required by a bound in `leptos::prelude::Resource::<T>::new`
+    --> /Users/oply/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/leptos_server-0.8.7/src/resource.rs:1030:34
+     |
+1030 |     JsonSerdeCodec: Encoder<T> + Decoder<T>,
+     |                                  ^^^^^^^^^^ required by this bound in `Resource::<T>::new`
+...
+1049 |     pub fn new<S, Fut>(
+     |            --- required by a bound in this associated function
+
+error[E0599]: no method named `on_click` found for struct `ButtonPropsBuilder<TypedBuilderFields>` in the current scope
+  --> platform-admin/src/pages/login.rs:82:25
+   |
+45 | /     view! {
+46 | |         <div class="flex items-center justify-center min-h-screen bg-muted/40 p-4">
+47 | |             <Card class="w-full max-w-md p-8 bg-card border border-border shadow-lg".to_string()>
+48 | |                 <div class="text-center mb-8">
+...  |
+81 | |                         class="w-full mt-6".to_string() 
+82 | |                         on_click=handle_login 
+   | |                        -^^^^^^^^ method not found in `ButtonPropsBuilder<((), (), (leptos::prelude::Signal<std::string::String>,), (), (), ())>`
+   | |________________________|
+   |
+
+error[E0599]: no method named `fetch_credentials_include` found for struct `RequestBuilder` in the current scope
+  --> platform-admin/src/api/client.rs:16:13
+   |
+16 |     builder.fetch_credentials_include()
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `RequestBuilder`
+
+warning: unused variable: `session_check`
+  --> platform-admin/src/app.rs:25:9
+   |
+25 |     let session_check = leptos::task::spawn_local(async move {
+   |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_session_check`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0277, E0373, E0432, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `frontend` (bin "frontend") generated 10 warnings
+error: could not compile `frontend` (bin "frontend") due to 8 previous errors; 10 warnings emitted

@@ -186,3 +186,39 @@ h1, h2, h3, h4, h5, h6 {
   padding: 2rem;
   overflow-y: auto;
 }
+
+/* Palantir Dark Mode Glassmorphism Overrides */
+.bg-card {
+    background-color: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+}
+.border-border {
+    border-color: rgba(30, 41, 59, 0.6) !important;
+}
+
+/* Base body background enforces the global dark tone */
+body {
+    background-color: transparent !important;
+    color: #f8fafc !important;
+}
+
+/* Enforce light text globally to prevent black text fallback */
+*, .text-card-foreground, .text-foreground {
+    color: inherit;
+}
+.text-muted-foreground {
+    color: #94a3b8 !important;
+}
+.bg-muted, thead th, .hover\:bg-muted:hover, tr:hover, [data-state="selected"] {
+    background-color: rgba(30, 41, 59, 0.4) !important;
+}
+input, textarea, select, option {
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    color: #f8fafc !important;
+    border-color: rgba(30, 41, 59, 0.8) !important;
+}
+.bg-background, .bg-popover {
+    background-color: rgba(15, 23, 42, 0.95) !important;
+}

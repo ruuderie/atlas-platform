@@ -2,6 +2,7 @@
 module.exports = {
   content: [
     "./src/**/*.rs",
+    "../shared-ui/src/**/*.rs",
     "./index.html"
   ],
   theme: {
