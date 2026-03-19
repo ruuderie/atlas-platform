@@ -213,3 +213,28 @@ h1 { letter-spacing: -0.04em; }
   height: 100vh;
   overflow: hidden;
 }
+
+/* ============================
+   Architectural Curator Utils
+   ============================ */
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-nav {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, var(--brand-primary, #004289) 0%, #2059a9 100%);
+}
+
+.inner-glow {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+}
+
+.ambient-shadow {
+  box-shadow: 0 10px 30px rgba(25, 28, 29, 0.04), 0 4px 8px rgba(25, 28, 29, 0.02);
+}
