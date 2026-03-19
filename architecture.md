@@ -332,3 +332,22 @@ erDiagram
         UUID contact_id FK
     }
 ```
+
+## Deployment & Infrastructure Architecture
+
+```mermaid
+graph TD
+    User[End User / Tenant] -->|Visits tenant1.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress]
+    Proxy -->|Preserves Host Header| DirInst[Directory Instance SSR App]
+    DirInst -->|API Lookup with Host| Backend[Rust Axum Backend API]
+    Backend -->|Queries configurations| DB[(PostgreSQL Database)]
+    Admin[Platform Admin] -->|Visits admin.domain.com| Proxy
+    Proxy --> AdminApp[Platform Admin CSR App]
+    AdminApp --> Backend
+```
+
+The system uses a highly scalable Docker multi-stage environment natively supporting dynamic multi-tenancy. GitHub Actions automates CI/CD, pushing `ghcr.io` containers into Kubernetes using Kustomize overlays.
+
+---
+
+&copy; Copyright Ruud Salym Erie & Oplyst International, LLC. All Rights Reserved.

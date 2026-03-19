@@ -1,73 +1,47 @@
 # Business Directory
 
-This project is a business directory website using Svelte for the frontend and Rust for the backend API. It allows users to view and search for business listings, as well as register and login.
+This project is a high-performance business directory website using Svelte/Leptos for the frontend and Rust for the backend API. It allows users to view and search for business listings, register, and login. The architecture natively supports multi-tenant directories driven by a single codebase.
 
 ## Project Structure
 
-The project is divided into two main parts:
+The project has been migrated to a monorepo workspace containing:
 
-1. Frontend (Svelte with SvelteKit)
-2. Backend (Rust with Axum and SeaORM)
+1. **`apps/` (Frontend)**
+   - `platform-admin`: A Svelte/Leptos CSR app for platform administration.
+   - `directory-instance`: A Leptos SSR app that powers the user-facing directories.
+   - `shared-ui`: Shared UI components for a consistent design language.
+2. **`backend/` (Backend API)**
+   - Built using Rust, Axum, and SeaORM.
+3. **`k8s/`**
+   - Kustomize manifests for seamless Kubernetes deployments.
 
-### Frontend
+## Local Development (Docker & Caddy)
 
-The frontend is located in the `frontend` directory. It's built using Svelte and SvelteKit for routing.
+The easiest way to develop locally is using the included Docker Compose configuration, which automatically sets up the database, backend, frontends, and a local reverse proxy for simulating multi-tenant directories:
 
-To run the frontend:
+1. Ensure ports 80, 8080, 8081, and 8000 are free.
+2. Run standard Docker Compose in the root directory:
+   ```bash
+   docker compose up --build
+   ```
+3. **Accessing the applications:**
+   - **Backend API:** `http://api.localhost`
+   - **Platform Admin:** `http://admin.localhost`
+   - **Directory Instances:** You can simulate any multi-tenant directory by navigating to a `.directory.localhost` subdomain (e.g., `http://my-first-dir.directory.localhost`). The Caddy proxy will automatically route it to the instance, and the app will dynamically fetch the correct configurations!
 
-1. Navigate to the `frontend` directory
-2. Install dependencies: `npm install`
-3. Start the development server: `npm run dev`
+## Deployment & CI/CD
 
-The frontend will be available at `http://localhost:5000`.
+The project includes an enterprise-grade CI/CD pipeline using GitHub Actions (`.github/workflows/deploy.yml`). Pushing to the `main` branch automatically:
+1. Builds optimized, multi-stage Docker images.
+2. Pushes them to GitHub Container Registry (GHCR).
+3. Updates the `k8s/kustomization.yaml` manifests with the fresh commit hashes for continuous delivery to Kubernetes.
 
-### Backend
+## API & Features
 
-The backend is located in the `backend` directory. It's built using Rust with the Axum framework and SeaORM for database operations.
+- Dynamic Multi-Tenant Domain Routing
+- Business Directory listings, searching, and Profiles
+- CRM, CMS, and Site Settings management for Admins
 
-To run the backend:
+---
 
-1. Navigate to the `backend` directory
-2. Build and run the project: `cargo run`
-
-The backend API will be available at `http://localhost:8000`.
-
-## Features
-
-- Display a list of businesses
-- Search for businesses by name or category
-- View detailed information about a specific business
-- User registration and login
-
-## API Endpoints
-
-### Businesses
-- GET `/api/businesses`: Fetch all businesses
-- GET `/api/businesses/search?q={query}`: Search for businesses
-- GET `/api/businesses/{id}`: Fetch a specific business by ID
-
-### Users
-- POST `/api/users/register`: Register a new user
-- POST `/api/users/login`: Login a user
-
-## Database
-
-The project uses PostgreSQL as the database. Make sure to set up the database and update the `.env` file in the `backend` directory with the correct database credentials.
-
-## Development
-
-To work on this project, you'll need to have Node.js, npm, and Rust installed on your system. Follow the instructions in the respective directories to set up and run the frontend and backend components.
-
-### Environment Variables
-
-Make sure to set up the following environment variables:
-
-- Frontend:
-  - `API_URL`: The URL of the backend API (default: "http://localhost:8000/api")
-
-- Backend:
-  - Database connection string (in the `.env` file)
-
-## Security Note
-
-This project includes user authentication. Ensure that you're using HTTPS in production and following best practices for handling user data and authentication tokens.
+&copy; Copyright Ruud Salym Erie & Oplyst International, LLC. All Rights Reserved.

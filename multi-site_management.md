@@ -317,6 +317,17 @@ pub async fn create_listing(
 // backend/src/admin/routes.rs
 // Add to your existing admin_routes function
 .route("/admin/directories/:directory_id/config", get(get_site_config).put(update_site_config))
-.route("/admin/directories/:directory_id/modules", get(get_enabled_modules).put(update_enabled_modules))
-.route("/admin/directories/:directory_id/theme", get(get_site_theme).put(update_site_theme))
 .route("/admin/directories/:directory_id/custom-settings", get(get_custom_settings).put(update_custom_settings))
+
+## Infrastructure & Dynamic Routing
+
+To truly support a scalable multi-site environment, the backend logic works hand-in-hand with our proxy layers. 
+
+1. **Proxy Layer:** The system uses Caddy (locally) or Kubernetes Ingress (in production) to capture all wildcard subdomains or mapped domains (e.g. `*.directory.localhost` or `client1.com`).
+2. **Container Passthrough:** The proxy forwards the requests to the **same** static `directory-instance` container natively retaining the original `Host` HTTP Header.
+3. **Instance Lookup:** The frontend Rust app reads the `Host` header and immediately calls the Backend Lookup API (e.g., `http://127.0.0.1:8000/directories/lookup?domain={domain}`).
+4. **Content Serving:** If the database contains matching configurations based on the origin, the specific theme and settings are generated securely, achieving thousands of multi-tenant sites from a single deployment instance.
+
+---
+
+&copy; Copyright Ruud Salym Erie & Oplyst International, LLC. All Rights Reserved.

@@ -174,3 +174,14 @@ RustSvelteBusinessDirectory/
 **Benefits**:
 - **Code Reusability**: Both `platform-admin` and `directory-instance` depend directly on the local `shared-ui` package, allowing them to use the exact same aesthetic and UX components seamlessly without duplicating Leptos boilerplate.
 - **Independent Lifecycles**: The platform administration and public directories can be built, tested, and deployed independently as separate binaries.
+
+## 6. Monorepo Deployment Pipeline (Phase 6)
+
+The project leverages a robust DevSecOps pipeline natively tailored for Rust-based frontend frameworks:
+- **Docker Multi-Stage Builds:** `directory-instance` utilizes `cargo-leptos` to compile a hyper-optimized SSR Debian container. `platform-admin` utilizes `trunk build` and packages the static assets directly into an `nginx:alpine` HTTP web server.
+- **Local Multi-Tenancy Simulation:** A localized `Caddyfile` reverse proxy resolves wildcard domains (`*.directory.localhost`) transparently into the single Docker `directory-instance`, proving stateless multidirectory loadability locally.
+- **GitHub Actions & Kubernetes:** The CI/CD automates image building via GitHub Container Registry (`ghcr.io`) and dynamically injects commit SHA metadata into `k8s/kustomization.yaml` for instantaneous Kubernetes cluster synchronization.
+
+---
+
+&copy; Copyright Ruud Salym Erie & Oplyst International, LLC. All Rights Reserved.
