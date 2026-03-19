@@ -1,0 +1,39 @@
+# Base stage with common dependencies
+FROM rust:1.88.0-bookworm AS base
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# Development stage
+FROM base AS development
+RUN cargo install trunk
+EXPOSE 8081
+CMD ["trunk", "serve", "--port", "8081", "--address", "0.0.0.0"]
+
+# Build stage
+FROM base AS builder
+# Install Trunk
+RUN cargo install trunk && rustup target add wasm32-unknown-unknown
+COPY . .
+# Build the application with Trunk
+RUN trunk build --release
+
+# Production stage
+FROM nginx:alpine AS production
+COPY --from=builder /app/dist /usr/share/nginx/html
+# Custom Nginx configuration to support client-side routing
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget --spider http://localhost/ || exit 1
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,16 @@
+# Caddyfile for local multi-tenant development
+
+# Route any subdomain of directory.localhost to the directory instances
+http://*.directory.localhost, http://directory.localhost {
+    reverse_proxy directory-instance:8080
+}
+
+# Route admin.localhost to the Platform Admin app
+http://admin.localhost {
+    reverse_proxy platform-admin:8081
+}
+
+# Route api.localhost to the backend
+http://api.localhost {
+    reverse_proxy backend:8000
+}

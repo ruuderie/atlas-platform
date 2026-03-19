@@ -68,54 +68,89 @@ services:
     networks:
       - app-network
 
-  # Frontend service commented out for now
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: business-directory-frontend
-  #   depends_on:
-  #     - backend
-  #   environment:
-  #     - API_URL=http://localhost:8001/api
-  #     - VITE_DIRECTORY_ID=default
-  #   ports:
-  #     - "5001:5000"
-  #   restart: unless-stopped
-  admin:
+  directory-instance:
     build:
-      context: ./admin
+      context: ./apps/directory-instance
       target: ${DOCKER_TARGET:-development}
-    container_name: business-directory-admin
+    container_name: business-directory-instance
     env_file:
-      - ./admin/.env
+      - .env
     volumes:
-      - ./admin:/app
-      - /app/node_modules
+      - ./apps/directory-instance:/app
+      - backend_cargo_cache:/usr/local/cargo/registry
+      - backend_target_cache:/app/target
     ports:
-      - "5150:5150"
+      - "8080:8080"
     depends_on:
       - backend
     develop:
       watch:
-        - path: ./admin/src
+        - path: ./apps/directory-instance/src
           target: /app/src
           action: rebuild
-        - path: ./admin/package.json
-          target: /app/package.json
-          action: rebuild
-        - path: ./admin/pnpm-lock.yaml
-          target: /app/pnpm-lock.yaml
+        - path: ./apps/directory-instance/Cargo.toml
+          target: /app/Cargo.toml
           action: rebuild
     environment:
-      - VITE_BROWSER_API_URL=${BROWSER_API_URL}
-      - VITE_CONTAINER_API_URL=${CONTAINER_API_URL}
+      - API_URL=http://backend:8000
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:5150"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - app-network
+
+  platform-admin:
+    build:
+      context: ./apps/platform-admin
+      target: ${DOCKER_TARGET:-development}
+    container_name: business-directory-platform-admin
+    env_file:
+      - .env
+    volumes:
+      - ./apps/platform-admin:/app
+      - backend_cargo_cache:/usr/local/cargo/registry
+      - backend_target_cache:/app/target
+    ports:
+      - "8081:8081"
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: ./apps/platform-admin/src
+          target: /app/src
+          action: rebuild
+        - path: ./apps/platform-admin/Cargo.toml
+          target: /app/Cargo.toml
+          action: rebuild
+        - path: ./apps/platform-admin/index.html
+          target: /app/index.html
+          action: rebuild
+    environment:
+      - API_URL=http://backend:8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+  proxy:
+    image: caddy:2-alpine
+    container_name: business-directory-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      - directory-instance
+      - platform-admin
+      - backend
+    restart: unless-stopped
     networks:
       - app-network
 
