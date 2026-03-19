@@ -24,6 +24,13 @@ pub fn CmsEditor() -> impl IntoView {
     let author_name = RwSignal::new("".to_string());
     let summary = RwSignal::new("".to_string());
     let content_html = RwSignal::new("".to_string());
+    let listing_type = RwSignal::new("article".to_string());
+    let hero_headline = RwSignal::new("".to_string());
+    let cta_text = RwSignal::new("".to_string());
+    let show_price = RwSignal::new(false);
+    let show_map = RwSignal::new(false);
+    let whatsapp_number = RwSignal::new("".to_string());
+    let form_theme = RwSignal::new("light".to_string());
     
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     
@@ -64,7 +71,7 @@ pub fn CmsEditor() -> impl IntoView {
                 directory_id: dir,
                 profile_id: profile,
                 category_id: None,
-                listing_type: Some("article".to_string()),
+                listing_type: Some(listing_type.get()),
                 price: None,
                 price_type: None,
                 country: None,
@@ -73,7 +80,18 @@ pub fn CmsEditor() -> impl IntoView {
                 neighborhood: None,
                 latitude: None,
                 longitude: None,
-                additional_info: None,
+                additional_info: if listing_type.get() == "landing_page" {
+                    Some(serde_json::json!({
+                        "hero_headline": hero_headline.get(),
+                        "cta_text": cta_text.get(),
+                        "show_price": show_price.get(),
+                        "show_map": show_map.get(),
+                        "whatsapp_number": whatsapp_number.get(),
+                        "form_theme": form_theme.get()
+                    }))
+                } else {
+                    None
+                },
                 is_featured: Some(false),
                 is_based_on_template: Some(false),
                 based_on_template_id: None,
@@ -160,7 +178,19 @@ pub fn CmsEditor() -> impl IntoView {
                                 <div class="space-y-4">
                                     <div class="grid gap-2">
                                         <Label>"Title"</Label>
-                                        <Input r#type=InputType::Text placeholder="Enter article title..." bind_value=title />
+                                        <Input r#type=InputType::Text placeholder="Enter title..." bind_value=title />
+                                    </div>
+
+                                    <div class="grid gap-2">
+                                        <Label>"Content Type"</Label>
+                                        <select 
+                                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                            on:change=move |ev| listing_type.set(event_target_value(&ev))
+                                            prop:value=listing_type
+                                        >
+                                            <option value="article">"Article / Blog Post"</option>
+                                            <option value="landing_page">"Marketing Landing Page"</option>
+                                        </select>
                                     </div>
 
                                     <div class="grid grid-cols-2 gap-4">
@@ -183,6 +213,50 @@ pub fn CmsEditor() -> impl IntoView {
                                         <Label>"Content (HTML or Markdown)"</Label>
                                         <Textarea rows=10u32 placeholder="Write your content here..." bind_value=content_html />
                                     </div>
+
+                                    {move || if listing_type.get() == "landing_page" {
+                                        view! {
+                                            <div class="grid gap-2 mt-2 pt-4 border-t border-border">
+                                                <h4 class="text-sm font-medium text-muted-foreground">"Landing Page Configuration"</h4>
+                                                <div class="grid gap-2 mt-2">
+                                                    <Label>"Hero Headline"</Label>
+                                                    <Input r#type=InputType::Text placeholder="e.g. Get 50% Off Today!" bind_value=hero_headline />
+                                                </div>
+                                                <div class="grid gap-2">
+                                                    <Label>"Call-to-Action (CTA) Button Text"</Label>
+                                                    <Input r#type=InputType::Text placeholder="e.g. Subscribe Now" bind_value=cta_text />
+                                                </div>
+                                                <div class="grid grid-cols-2 gap-4 mt-2 border-t border-border pt-4">
+                                                    <div class="flex items-center space-x-2">
+                                                        <input type="checkbox" id="show_price" prop:checked=show_price on:change=move |ev| show_price.set(event_target_checked(&ev)) class="h-4 w-4 rounded border-gray-300 text-primary" />
+                                                        <Label>"Show Pricing Table"</Label>
+                                                    </div>
+                                                    <div class="flex items-center space-x-2">
+                                                        <input type="checkbox" id="show_map" prop:checked=show_map on:change=move |ev| show_map.set(event_target_checked(&ev)) class="h-4 w-4 rounded border-gray-300 text-primary" />
+                                                        <Label>"Show Interactive Map"</Label>
+                                                    </div>
+                                                </div>
+                                                <div class="grid grid-cols-2 gap-4 mt-2">
+                                                    <div class="grid gap-2">
+                                                        <Label>"WhatsApp Number"</Label>
+                                                        <Input r#type=InputType::Text placeholder="+1234567890" bind_value=whatsapp_number />
+                                                    </div>
+                                                    <div class="grid gap-2">
+                                                        <Label>"Form Theme"</Label>
+                                                        <select class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                on:change=move |ev| form_theme.set(event_target_value(&ev))
+                                                                prop:value=form_theme>
+                                                            <option value="light">"Light Layout"</option>
+                                                            <option value="dark">"Dark Layout"</option>
+                                                            <option value="brand">"Brand Contrast"</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! { <span/> }.into_any()
+                                    }}
 
                                     <div class="pt-4 border-t border-border mt-4">
                                         <FileAttachments entity_type="Item".to_string() on_file_drop=Callback::new(handle_file_drop) />

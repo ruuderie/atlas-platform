@@ -1,83 +1,77 @@
-use leptos::prelude::*;
-use leptos_router::components::Router;
+#[cfg(feature = "ssr")]
+#[tokio::main]
+async fn main() {
+    use axum::Router;
+    use leptos::prelude::*;
+    use leptos_axum::{generate_route_list, LeptosRoutes};
+    use directory_instance::app::*;
 
-use serde::{Deserialize, Serialize};
-use gloo_net::http::Request;
+    let conf = get_configuration(None).unwrap();
+    let addr = conf.leptos_options.site_addr;
+    let leptos_options = conf.leptos_options;
+    let routes = generate_route_list(App);
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DirectoryConfig {
-    pub id: String,
-    pub name: String,
-    pub domain: String,
-    pub description: String,
-    // Add additional theming fields later
+    let app = Router::new()
+        .route("/sitemap.xml", axum::routing::get(sitemap_handler))
+        .leptos_routes(&leptos_options, routes, {
+            let leptos_options = leptos_options.clone();
+            move || shell(leptos_options.clone())
+        })
+        .fallback(leptos_axum::file_and_error_handler(shell))
+        .with_state(leptos_options);
+
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    println!("Listening on http://{}", &addr);
+    axum::serve(listener, app.into_make_service()).await.unwrap();
 }
 
-async fn fetch_directory_config(domain: String) -> Result<DirectoryConfig, String> {
-    // In production, the ingress controller unifies routes. Locally, we proxy to the backend API.
-    let url = format!("/directories/lookup?domain={}", domain);
-    
-    let req = Request::get(&url);
-    match req.send().await {
-        Ok(resp) => {
-            if resp.ok() {
-                resp.json::<DirectoryConfig>().await.map_err(|e| e.to_string())
-            } else {
-                Err(format!("Error: {}", resp.status()))
-            }
-        },
-        Err(e) => Err(e.to_string())
-    }
+#[cfg(feature = "ssr")]
+async fn sitemap_handler(headers: axum::http::HeaderMap) -> impl axum::response::IntoResponse {
+    use axum::http::{StatusCode, header};
+    let host = headers.get("host").and_then(|h| h.to_str().ok()).unwrap_or("localhost");
+    let xml = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://{}/</loc>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>https://{}/ct-contractor-demo</loc>
+        <priority>0.8</priority>
+    </url>
+</urlset>"#, host, host);
+
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/xml")],
+        xml
+    )
 }
 
-#[component]
-fn App() -> impl IntoView {
-    // 1. Extract the Custom Domain from the browser window header natively
-    let host = window().location().hostname().unwrap_or_else(|_| "localhost".to_string());
-    
-    // 2. Fetch the corresponding tenant config based on that specific host
-    let fetch_host = host.clone();
-    let err_host = host.clone();
-    
-    // Using LocalResource because gloo_net futures are !Send (WASM main-thread bound)
-    let directory_resource = LocalResource::new(move || {
-        let h = fetch_host.clone();
-        async move { fetch_directory_config(h).await }
-    });
+#[cfg(feature = "ssr")]
+pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
+    use leptos::prelude::*;
+    use leptos_meta::MetaTags;
+    use directory_instance::app::App;
 
     view! {
-        <Router>
-            <main class="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4">
-                <Suspense fallback=|| view! { <p class="animate-pulse text-muted-foreground">"Resolving custom domain configuration..."</p> }>
-                    {move || match directory_resource.get() {
-                        None => view! { <div/> }.into_any(),
-                        Some(Ok(config)) => view! {
-                            <div class="text-center space-y-4 max-w-lg transition-all animate-in fade-in zoom-in duration-300">
-                                <h1 class="text-4xl font-bold tracking-tight">"Welcome to " {config.name}</h1>
-                                <p class="text-muted-foreground text-lg">{config.description}</p>
-                                <shared_ui::components::ui::badge::Badge variant=shared_ui::components::ui::badge::BadgeVariant::Secondary>
-                                    "Connected exactly via: " {config.domain}
-                                </shared_ui::components::ui::badge::Badge>
-                                <div class="mt-8">
-                                    <shared_ui::components::ui::button::Button variant=shared_ui::components::ui::button::ButtonVariant::Default>"Browse Local Listings"</shared_ui::components::ui::button::Button>
-                                </div>
-                            </div>
-                        }.into_any(),
-                        Some(Err(e)) => view! {
-                            <div class="text-center space-y-4 max-w-lg text-destructive border border-destructive/20 bg-destructive/5 p-8 rounded-xl">
-                                <h1 class="text-2xl font-bold">"Directory Not Found"</h1>
-                                <p>"We couldn't connect a dedicated database record for the domain [" {err_host.clone()} "]."</p>
-                                <p class="text-xs opacity-50 mt-4">{e}</p>
-                            </div>
-                        }.into_any(),
-                    }}
-                </Suspense>
-            </main>
-        </Router>
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options />
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
     }
 }
 
-fn main() {
-    console_error_panic_hook::set_once();
-    leptos::mount::mount_to_body(App);
+#[cfg(not(feature = "ssr"))]
+pub fn main() {
+    // no client-side main function
 }

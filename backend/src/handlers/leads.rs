@@ -17,10 +17,21 @@ use crate::models::address::AddressJson;
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
+use axum::http::HeaderMap;
+use std::time::{Instant, Duration};
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
+use std::sync::Arc;
 
-pub fn routes() -> Router {
+static RATE_LIMITER: Lazy<Arc<DashMap<String, (u32, Instant)>>> = Lazy::new(|| Arc::new(DashMap::new()));
+
+pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/leads", post(create_lead))
+}
+
+pub fn authenticated_routes() -> Router<DatabaseConnection> {
+    Router::new()
         .route("/api/leads", get(get_leads))
         .route("/api/leads/{id}", get(get_lead))
         .route("/api/leads/{id}", put(update_lead))
@@ -33,8 +44,36 @@ pub fn routes() -> Router {
 
 pub async fn create_lead(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(site_config): Extension<crate::config::site_config::SiteConfig>,
+    headers: HeaderMap,
     Json(input): Json<CreateLeadInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    // 1. Honeypot check
+    if let Some(bot_val) = &input._bot_check {
+        if !bot_val.is_empty() {
+            tracing::warn!("Honeypot triggered on lead submission");
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // 2. IP Rate Limiting
+    if let Some(ip) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()).or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok())) {
+        let ip = ip.split(',').next().unwrap_or("").trim().to_string();
+        if !ip.is_empty() {
+            let mut entry = RATE_LIMITER.entry(ip).or_insert((0, Instant::now()));
+            if entry.value().1.elapsed() > Duration::from_secs(60) {
+                entry.value_mut().0 = 1;
+                entry.value_mut().1 = Instant::now();
+            } else {
+                entry.value_mut().0 += 1;
+                if entry.value().0 > 3 { // Max 3 leads per minute per IP
+                    tracing::warn!("Rate limit exceeded for lead submissions from IP");
+                    return Err(StatusCode::TOO_MANY_REQUESTS);
+                }
+            }
+        }
+    }
+
     // Check if the listing exists if provided
     if let Some(listing_id) = input.listing_id {
         listing::Entity::find_by_id(listing_id)
@@ -44,20 +83,36 @@ pub async fn create_lead(
             .ok_or(StatusCode::NOT_FOUND)?;
     }
 
-    // Check if the account exists if provided
-    if let Some(account_id) = input.account_id {
-        account::Entity::find_by_id(account_id)
+    // 3. Resolve Account ID securely from SiteConfig/Listing
+    let mut resolved_account_id = None;
+    if let Some(listing_id) = input.listing_id {
+        // If a listing is provided, find the account associated with the listing's profile
+        if let Ok(Some(lst)) = listing::Entity::find_by_id(listing_id).one(&db).await {
+            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id).one(&db).await {
+                resolved_account_id = Some(profile.account_id);
+            }
+        }
+    }
+    
+    // If no listing provided or listing not found, fallback to the primary account of the active directory
+    if resolved_account_id.is_none() {
+        if let Ok(Some(primary_account)) = account::Entity::find()
+            .filter(account::Column::DirectoryId.eq(site_config.directory_id))
             .one(&db)
-            .await
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-            .ok_or(StatusCode::NOT_FOUND)?;
+            .await 
+        {
+            resolved_account_id = Some(primary_account.id);
+        } else {
+            // If the directory has no accounts at all, fallback
+            resolved_account_id = input.account_id;
+        }
     }
 
     let mut new_lead = lead::ActiveModel {
         id: Set(Uuid::new_v4()),
         name: Set(input.name),
         listing_id: Set(input.listing_id),
-        account_id: Set(input.account_id),
+        account_id: Set(resolved_account_id),
         first_name: Set(input.first_name),
         last_name: Set(input.last_name),
         email: Set(input.email),

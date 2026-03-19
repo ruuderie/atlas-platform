@@ -10,6 +10,18 @@ use std::str::FromStr;
 #[derive(Debug, Deserialize)]
 pub struct ListingSearch {
     pub q: String,
+    pub page: Option<u64>,
+    pub limit: Option<u64>,
+    pub category: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaginatedListings<T> {
+    pub items: Vec<T>,
+    pub total: u64,
+    pub page: u64,
+    pub limit: u64,
+    pub total_pages: u64,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ListingModel {

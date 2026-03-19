@@ -7,9 +7,9 @@ use crate::entities::{
     template::{self, Entity as Template},
     listing_attribute::{self, Entity as ListingAttribute},
 };
-use crate::models::listing::{ListingCreate, ListingUpdate, ListingStatus};
+use crate::models::listing::{ListingCreate, ListingUpdate, ListingStatus, PaginatedListings};
 use sea_orm::{
-    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait,DatabaseTransaction, IntoActiveModel
+    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait, DatabaseTransaction, IntoActiveModel, PaginatorTrait
 };
 use axum::{
     extract::{Path, Json, Extension, Query},
@@ -23,15 +23,12 @@ use uuid::Uuid;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Deserialize, Debug)]
-pub struct ListingSearch {
-    q: String,
-}
 
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/listings", get(get_listings))
         .route("/listings/{id}", get(get_listing_by_id))
+        .route("/listings/by-slug/{slug}", get(get_listing_by_slug))
         .route("/listings/search", get(search_listings))
         .with_state(db)
 }
@@ -85,6 +82,24 @@ pub async fn get_listing_by_id(
     tracing::info!("Listing found: {:?}", listing);
     Ok(Json(listing))
 }
+
+pub async fn get_listing_by_slug(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(slug): Path<String>,
+) -> Result<Json<listing::Model>, StatusCode> {
+    tracing::info!("Fetching listing with slug: {}", slug);
+    let listing = Listing::find()
+        .filter(listing::Column::Slug.eq(slug))
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Error fetching listing by slug: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(listing))
+}
+
 pub async fn create_listing(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -293,20 +308,49 @@ pub async fn delete_listing(
 
 pub async fn search_listings(
     Extension(db): Extension<DatabaseConnection>,
-    Query(q): Query<ListingSearch>,
-) -> Result<Json<Vec<listing::Model>>, StatusCode> {
+    Query(q): Query<crate::models::listing::ListingSearch>,
+) -> Result<Json<PaginatedListings<listing::Model>>, StatusCode> {
     tracing::info!("Searching listings with query: {:?}", q);
     
-    let listings = Listing::find()
-        .filter(listing::Column::Title.like(format!("%{}%", q.q).as_str()))
-        .all(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Error searching listings: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let limit = q.limit.unwrap_or(12);
+    let page = q.page.unwrap_or(1);
+    
+    let mut query = Listing::find()
+        .filter(listing::Column::Title.like(format!("%{}%", q.q).as_str()));
+        
+    if let Some(cat) = &q.category {
+        if !cat.is_empty() {
+            query = query.filter(listing::Column::ListingType.eq(cat));
+        }
+    }
 
-    Ok(Json(listings))
+    let paginator = query.paginate(&db, limit);
+    
+    let total = paginator.num_items().await.map_err(|err| {
+        tracing::error!("Error counting listings: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    let total_pages = paginator.num_pages().await.map_err(|err| {
+        tracing::error!("Error fetching total pages: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    // SeaORM pagination is 0-indexed, so we subtract 1 from the incoming page parameter
+    let fetch_page = if page > 0 { page - 1 } else { 0 };
+    
+    let items = paginator.fetch_page(fetch_page).await.map_err(|err| {
+        tracing::error!("Error fetching listings page: {:?}", err);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(PaginatedListings {
+        items,
+        total,
+        page,
+        limit,
+        total_pages,
+    }))
 }
 
 pub async fn get_listing_with_attributes(

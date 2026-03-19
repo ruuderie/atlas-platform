@@ -74,6 +74,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let public_routes = Router::<DatabaseConnection>::new()
         .merge(directories::public_routes(db.clone()))
         .merge(listings::public_routes(db.clone()))
+        .merge(crate::handlers::leads::public_routes())
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
@@ -90,6 +91,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(accounts::routes())
         .merge(user_accounts::routes())
         .merge(ad_purchases::routes())
+        .merge(crate::handlers::leads::authenticated_routes())
         .merge(admin_routes(db.clone()))
         .merge(users::authenticated_routes(db.clone()))
         .merge(directories::authenticated_routes(db.clone()));

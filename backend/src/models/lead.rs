@@ -52,6 +52,7 @@ pub struct CreateLeadInput {
     pub shipping_address: Option<AddressJson>,
     pub message: Option<String>,
     pub source: Option<String>,
+    pub _bot_check: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
