@@ -25,3 +25,8 @@ pub mod admin;
 pub mod sessions;
 pub mod request_logs;
 pub mod health;
+pub mod auth_frontend;
+pub mod my_accounts;
+pub mod ab_testing;
+pub mod feeds;
+pub mod feed_items;

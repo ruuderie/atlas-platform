@@ -452,7 +452,7 @@ impl From<directory::Model> for DirectoryConfigModel {
             description: model.description,
             created_at: model.created_at,
             updated_at: model.updated_at,
-            enabled_modules: model.enabled_modules,
+            enabled_modules: model.enabled_modules as u32,
             theme: model.theme,
             custom_settings: model.custom_settings,
             site_status: model.site_status,

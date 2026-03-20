@@ -28,7 +28,7 @@ impl DirectoryService {
             domain: directory.domain,
             subdomain: directory.subdomain,
             custom_domain: directory.custom_domain,
-            enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules),
+            enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules as u32),
             theme: directory.theme,
             custom_settings: directory.custom_settings
                 .map(|v| serde_json::from_value(v).unwrap_or_default())
@@ -59,7 +59,7 @@ impl DirectoryService {
         directory.domain = sea_orm::Set(config.domain);
         directory.subdomain = sea_orm::Set(config.subdomain);
         directory.custom_domain = sea_orm::Set(config.custom_domain);
-        directory.enabled_modules = sea_orm::Set(config.enabled_modules.bits());
+        directory.enabled_modules = sea_orm::Set(config.enabled_modules.bits() as i32);
         directory.theme = sea_orm::Set(config.theme);
         directory.custom_settings = sea_orm::Set(
             Some(serde_json::to_value(&config.custom_settings).unwrap_or_default())
@@ -115,10 +115,10 @@ impl DirectoryService {
             .context("Failed to query directory")?
             .ok_or_else(|| anyhow::anyhow!("Directory not found"))?;
         
-        let modules = ModuleFlags::from_bits_truncate(directory.enabled_modules);
+        let modules = ModuleFlags::from_bits_truncate(directory.enabled_modules as u32);
         let module_names = Self::get_module_names(modules);
         
-        Ok((directory.enabled_modules, module_names))
+        Ok((directory.enabled_modules as u32, module_names))
     }
     
     pub async fn update_enabled_modules(
@@ -133,7 +133,7 @@ impl DirectoryService {
             .ok_or_else(|| anyhow::anyhow!("Directory not found"))?;
         
         let mut active_model: directory::ActiveModel = directory.clone().into();
-        active_model.enabled_modules = sea_orm::Set(enabled_modules);
+        active_model.enabled_modules = sea_orm::Set(enabled_modules as i32);
         active_model.updated_at = sea_orm::Set(chrono::Utc::now());
         
         let updated_directory = active_model
@@ -141,10 +141,10 @@ impl DirectoryService {
             .await
             .context("Failed to update directory modules")?;
         
-        let modules = ModuleFlags::from_bits_truncate(updated_directory.enabled_modules);
+        let modules = ModuleFlags::from_bits_truncate(updated_directory.enabled_modules as u32);
         let module_names = Self::get_module_names(modules);
         
-        Ok((updated_directory.enabled_modules, module_names))
+        Ok((updated_directory.enabled_modules as u32, module_names))
     }
     
     pub async fn get_site_theme(

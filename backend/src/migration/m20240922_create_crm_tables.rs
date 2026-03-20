@@ -75,10 +75,25 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Lead::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Lead::AssociatedDealId).uuid().null())
                     .col(ColumnDef::new(Lead::Name).string().not_null())
+                    .col(ColumnDef::new(Lead::ListingId).uuid().null())
+                    .col(ColumnDef::new(Lead::AccountId).uuid().null())
+                    .col(ColumnDef::new(Lead::FirstName).string().null())
+                    .col(ColumnDef::new(Lead::LastName).string().null())
                     .col(ColumnDef::new(Lead::Email).string().null())
                     .col(ColumnDef::new(Lead::Phone).string().null())
-                    .col(ColumnDef::new(Lead::Status).string().not_null())
+                    .col(ColumnDef::new(Lead::Whatsapp).string().null())
+                    .col(ColumnDef::new(Lead::Telegram).string().null())
+                    .col(ColumnDef::new(Lead::Twitter).string().null())
+                    .col(ColumnDef::new(Lead::Instagram).string().null())
+                    .col(ColumnDef::new(Lead::Facebook).string().null())
+                    .col(ColumnDef::new(Lead::BillingAddress).json().null())
+                    .col(ColumnDef::new(Lead::ShippingAddress).json().null())
+                    .col(ColumnDef::new(Lead::Message).string().null())
+                    .col(ColumnDef::new(Lead::Source).string().null())
                     .col(ColumnDef::new(Lead::IsConverted).boolean().not_null())
+                    .col(ColumnDef::new(Lead::ConvertedToContact).boolean().not_null().default(false))
+                    .col(ColumnDef::new(Lead::ConvertedCustomerId).uuid().null())
+                    .col(ColumnDef::new(Lead::ConvertedContactId).uuid().null())
                     .col(ColumnDef::new(Lead::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Lead::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(
@@ -398,10 +413,25 @@ enum Lead {
     Id,
     AssociatedDealId,
     Name,
+    ListingId,
+    AccountId,
+    FirstName,
+    LastName,
     Email,
     Phone,
-    Status,
+    Whatsapp,
+    Telegram,
+    Twitter,
+    Instagram,
+    Facebook,
+    BillingAddress,
+    ShippingAddress,
+    Message,
+    Source,
     IsConverted,
+    ConvertedToContact,
+    ConvertedCustomerId,
+    ConvertedContactId,
     CreatedAt,
     UpdatedAt,
 }

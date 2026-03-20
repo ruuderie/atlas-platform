@@ -44,7 +44,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
 
 pub async fn create_lead(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(site_config): Extension<crate::config::site_config::SiteConfig>,
+    site_config_opt: Option<Extension<crate::config::site_config::SiteConfig>>,
     headers: HeaderMap,
     Json(input): Json<CreateLeadInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -96,14 +96,18 @@ pub async fn create_lead(
     
     // If no listing provided or listing not found, fallback to the primary account of the active directory
     if resolved_account_id.is_none() {
-        if let Ok(Some(primary_account)) = account::Entity::find()
-            .filter(account::Column::DirectoryId.eq(site_config.directory_id))
-            .one(&db)
-            .await 
-        {
-            resolved_account_id = Some(primary_account.id);
+        if let Some(Extension(site_config)) = site_config_opt {
+            if let Ok(Some(primary_account)) = account::Entity::find()
+                .filter(account::Column::DirectoryId.eq(site_config.directory_id))
+                .one(&db)
+                .await 
+            {
+                resolved_account_id = Some(primary_account.id);
+            } else {
+                // If the directory has no accounts at all, fallback
+                resolved_account_id = input.account_id;
+            }
         } else {
-            // If the directory has no accounts at all, fallback
             resolved_account_id = input.account_id;
         }
     }

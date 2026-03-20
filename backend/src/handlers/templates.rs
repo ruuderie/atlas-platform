@@ -31,11 +31,9 @@ use crate::models::{
 };
 
 pub async fn get_templates(
-    Path(directory_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<Vec<TemplateModel>>, (StatusCode, Json<serde_json::Value>)> {
     let templates = template::Entity::find()
-        .filter(template::Column::DirectoryId.eq(directory_id))
         .all(&db)
         .await
         .map_err(|err| {
@@ -54,12 +52,11 @@ pub async fn get_templates(
 }
 
 pub async fn get_template_by_id(
-    Path((directory_id, template_id)): Path<(Uuid, Uuid)>,
+    Path(template_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<TemplateModel>, (StatusCode, Json<serde_json::Value>)> {
     let template = template::Entity::find()
         .filter(template::Column::Id.eq(template_id))
-        .filter(template::Column::DirectoryId.eq(directory_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -78,12 +75,11 @@ pub async fn get_template_by_id(
 
 pub async fn create_template(
     State(db): State<DatabaseConnection>,
-    Path(directory_id): Path<Uuid>,
     Json(payload): Json<CreateTemplate>,
 ) -> Result<Json<TemplateModel>, (StatusCode, Json<serde_json::Value>)> {
     let new_template = template::ActiveModel {
         id: Set(Uuid::new_v4()),
-        directory_id: Set(directory_id),
+        directory_id: Set(payload.directory_id),
         category_id: Set(payload.category_id),
         name: Set(payload.name),
         description: Set(payload.description),
@@ -110,12 +106,11 @@ pub async fn create_template(
 
 pub async fn update_template(
     State(db): State<DatabaseConnection>,
-    Path((directory_id, template_id)): Path<(Uuid, Uuid)>,
+    Path(template_id): Path<Uuid>,
     Json(payload): Json<UpdateTemplate>,
 ) -> Result<Json<TemplateModel>, (StatusCode, Json<serde_json::Value>)> {
     let mut template: template::ActiveModel = template::Entity::find()
         .filter(template::Column::Id.eq(template_id))
-        .filter(template::Column::DirectoryId.eq(directory_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -156,14 +151,13 @@ pub async fn update_template(
 }
 
 pub async fn delete_template(
-    Path((directory_id, template_id)): Path<(Uuid, Uuid)>,
+    Path(template_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
     //  add checks here to prevent deletion if listings are based on this template
 
     let result = template::Entity::delete_many()
         .filter(template::Column::Id.eq(template_id))
-        .filter(template::Column::DirectoryId.eq(directory_id))
         .exec(&db)
         .await
         .map_err(|err| {

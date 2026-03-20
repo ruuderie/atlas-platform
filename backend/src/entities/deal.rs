@@ -14,7 +14,7 @@ pub struct Model {
     pub id: Uuid,
     pub customer_id: Uuid,  // Reference to the customer
     pub name: String,
-    pub amount: f32,  // Deal amount
+    pub amount: f64,  // Deal amount
     pub status: String,  // e.g., "Prospecting", "Qualification", "Closed Won", "Closed Lost"
     pub stage: String,  // Current stage in the sales process
     pub close_date: Option<DateTime<Utc>>,  // Expected or actual close date
@@ -23,6 +23,7 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
+    pub directory_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

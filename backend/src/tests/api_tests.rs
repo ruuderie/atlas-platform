@@ -1,5 +1,5 @@
 use axum::{
-    body::{Body, HttpBody},
+    body::Body,
     http::{Request, StatusCode},
     Router,
 };
@@ -11,6 +11,7 @@ use std::env;
 use uuid::Uuid;
 use crate::{api, migration};
 use hyper::body::Bytes;
+use http_body_util::BodyExt;
 use super::test_utils;
 use crate::models::directory_type::DirectoryTypeModel;
 use crate::models::directory::DirectoryModel;
@@ -27,9 +28,9 @@ use urlencoding;
 use dotenv::dotenv;
 
 
-async fn setup_test_app() -> (Router, DatabaseConnection) {
+pub async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/business_directory_test".to_string());
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string());
 
     let db = Database::connect(&database_url)
         .await
@@ -55,9 +56,9 @@ async fn test_logout_with_invalid_token() {
     // Changed URI to "/api/logout" to match route nesting
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/logout")  // Added /api prefix
+                .uri("/logout")
                 .header("Authorization", "Bearer invalid_token")
                 .body(Body::empty())
                 .unwrap(),
@@ -85,7 +86,7 @@ async fn test_session_validation_and_expiry() {
     // Test valid session - update the URI to include the /api prefix
     let validation_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri("/api/validate-session")  // Changed from "/validate-session" to "/api/validate-session"
                 .header("Authorization", format!("Bearer {}", token))
@@ -109,9 +110,9 @@ async fn test_directory_operations() {
     // Test creating directory type
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/admin/directory-types")
+                .uri("/admin/directory-types")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -139,9 +140,9 @@ async fn test_directory_operations() {
     // Test fetching directory types
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone()).as_str())
+                .uri(format!("/admin/directory-types/{}", directory_type_id.clone()).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -153,9 +154,9 @@ async fn test_directory_operations() {
     // Test updating directory type
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
+                .uri(format!("/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -177,9 +178,9 @@ async fn test_directory_operations() {
     
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/admin/directories/")
+                .uri("/admin/directories/")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -207,9 +208,9 @@ async fn test_directory_operations() {
     // update directory
     let response = app.clone()
     .oneshot(
-        Request::builder()
+        Request::builder().header("Host", "localhost")
             .method("PUT")
-            .uri(format!("/api/admin/directories/{}", directory.id))
+            .uri(format!("/admin/directories/{}", directory.id))
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", admin_token))
             .body(Body::from(json!({
@@ -227,9 +228,9 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
     // delete directory
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/directories/{}", directory.id).as_str())
+                .uri(format!("/admin/directories/{}", directory.id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -243,9 +244,9 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
     // Test deleting directory type
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id).as_str())
+                .uri(format!("/admin/directory-types/{}", directory_type_id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -277,7 +278,7 @@ async fn test_profile_management() {
     // query for profile using get
     let profile_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri("/api/profiles")
                 .header("Authorization", format!("Bearer {}", token))
@@ -289,7 +290,7 @@ async fn test_profile_management() {
     println!("TEST LOG: from test_profile_management and profile_response: {:?}", profile_response);
     assert_eq!(profile_response.status(), StatusCode::OK);
     //how many profiles are in the response
-    let body_bytes = profile_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(profile_response.into_body(), usize::MAX).await.unwrap();
     let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(&body_bytes).unwrap();
     println!("TEST LOG: from test_profile_management and profiles: {:?}", profiles.len());
     //print the first profile in the response
@@ -304,7 +305,7 @@ async fn test_profile_management() {
     // Test profile update
     let update_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("PUT")
                 .uri(format!("/api/profiles/{}", profile.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -329,7 +330,7 @@ async fn test_profile_management() {
     // Test profile search
     let search_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/profiles/search?q={}", urlencoding::encode(&display_name)).as_str())
                 .header("Authorization", format!("Bearer {}", token))
@@ -339,7 +340,7 @@ async fn test_profile_management() {
         .await
         .unwrap();
     assert_eq!(search_response.status(), StatusCode::OK);
-    let body_bytes = search_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(search_response.into_body(), usize::MAX).await.unwrap();
     let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(&body_bytes).unwrap();
     assert!(!profiles.is_empty(), "No profiles returned");
     assert_eq!(profiles[0].display_name, display_name);
@@ -356,9 +357,9 @@ async fn test_category_management() {
     // Test category creation
     let response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/admin/categories")
+                .uri("/admin/categories")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -376,15 +377,15 @@ async fn test_category_management() {
     assert_eq!(response.status(), StatusCode::CREATED);
     
     // Get the created category ID from the response
-    let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let category: crate::entities::category::Model = serde_json::from_slice(&body_bytes).unwrap();
     
     // Test fetching the category
     let get_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/api/admin/categories/{}", category.id))
+                .uri(format!("/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -396,9 +397,9 @@ async fn test_category_management() {
     // Test updating the category
     let update_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/api/admin/categories/{}", category.id))
+                .uri(format!("/admin/categories/{}", category.id))
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -418,9 +419,9 @@ async fn test_category_management() {
     //query for the category
     let get_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/api/admin/categories/{}", category.id))
+                .uri(format!("/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -428,16 +429,16 @@ async fn test_category_management() {
         .await
         .unwrap();
     assert_eq!(get_response.status(), StatusCode::OK);
-    let body_bytes = get_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(get_response.into_body(), usize::MAX).await.unwrap();
     let category: crate::entities::category::Model = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(category.name, "Updated Category");
     
     // Test deleting the category
     let delete_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/categories/{}", category.id))
+                .uri(format!("/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -463,7 +464,7 @@ async fn test_profile_operations() {
     // Test getting profiles
     let profiles_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri("/api/profiles")
                 .header("Authorization", format!("Bearer {}", token))
@@ -476,7 +477,7 @@ async fn test_profile_operations() {
     assert_eq!(profiles_response.status(), StatusCode::OK);
     
     let profiles: Vec<serde_json::Value> = serde_json::from_slice(
-        &profiles_response.into_body().collect().await.unwrap().to_bytes()
+        &axum::body::to_bytes(profiles_response.into_body(), usize::MAX).await.unwrap()
     ).unwrap();
     //how many profiles are in the response
     println!("TEST LOG: from test_profile_operations and profiles: {:?}", profiles.len());
@@ -517,9 +518,9 @@ async fn test_concurrent_logout_requests() {
         let handle = tokio::spawn(async move {
             let response = app_clone
                 .oneshot(
-                    Request::builder()
+                    Request::builder().header("Host", "localhost")
                         .method("POST")
-                        .uri("/api/logout")
+                        .uri("/logout")
                         .header("Authorization", format!("Bearer {}", token_clone))
                         .body(Body::empty())
                         .unwrap(),
@@ -580,7 +581,7 @@ async fn test_listing_crud_operations() {
     // Get user's profile
     let profiles_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri("/api/profiles")
                 .header("Authorization", format!("Bearer {}", token))
@@ -592,7 +593,7 @@ async fn test_listing_crud_operations() {
     
     // Get the first profile from the array
     let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
-        &profiles_response.into_body().collect().await.unwrap().to_bytes()
+        &axum::body::to_bytes(profiles_response.into_body(), usize::MAX).await.unwrap()
     ).unwrap();
     let profile = profiles.first().expect("No profile found");
     
@@ -602,7 +603,7 @@ async fn test_listing_crud_operations() {
     
     let create_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
                 .uri("/api/listings")
                 .header("Authorization", format!("Bearer {}", token))
@@ -623,13 +624,13 @@ async fn test_listing_crud_operations() {
     assert_eq!(create_listing_response.status(), StatusCode::CREATED);
     
     // Parse the created listing
-    let body_bytes = create_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(create_listing_response.into_body(), usize::MAX).await.unwrap();
     let created_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
     
     // Test getting a specific listing
     let get_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/listings/{}", created_listing.id))
                 //.header("Authorization", format!("Bearer {}", token))
@@ -645,7 +646,7 @@ async fn test_listing_crud_operations() {
     let updated_title = fake::faker::company::en::CompanyName().fake::<String>();
     let update_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("PUT")
                 .uri(format!("/api/listings/{}", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -666,14 +667,14 @@ async fn test_listing_crud_operations() {
     assert_eq!(update_listing_response.status(), StatusCode::OK);
     
     // Verify the listing was updated
-    let body_bytes = update_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(update_listing_response.into_body(), usize::MAX).await.unwrap();
     let updated_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(updated_listing.title, updated_title);
     
     // Test getting all listings for a directory
     let directory_listings_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/directories/{}/listings", directory.id))
                 .body(Body::empty())
@@ -685,14 +686,14 @@ async fn test_listing_crud_operations() {
     assert_eq!(directory_listings_response.status(), StatusCode::OK);
     
     // Verify response contains listings
-    let body_bytes = directory_listings_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(directory_listings_response.into_body(), usize::MAX).await.unwrap();
     let directory_listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
     assert!(!directory_listings.is_empty(), "No listings returned for directory");
     
     // Test deleting the listing
     let delete_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("DELETE")
                 .uri(format!("/api/listings/{}", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -707,7 +708,7 @@ async fn test_listing_crud_operations() {
     // Verify the listing was deleted
     let get_deleted_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/listings/{}", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -736,7 +737,7 @@ async fn test_listing_operations() {
     let token = registration_body["token"].as_str().unwrap();
     let profile_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri("/api/profiles")
                 .header("Authorization", format!("Bearer {}", token))
@@ -748,7 +749,7 @@ async fn test_listing_operations() {
     
     // Get the first profile from the array
     let profiles: Vec<crate::entities::profile::Model> = serde_json::from_slice(
-        &profile_response.into_body().collect().await.unwrap().to_bytes()
+        &axum::body::to_bytes(profile_response.into_body(), usize::MAX).await.unwrap()
     ).unwrap();
     let profile = profiles.first().expect("No profile found");
 
@@ -758,7 +759,7 @@ async fn test_listing_operations() {
     // Test creating a listing with full business context
     let create_listing_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
                 .uri("/api/listings")
                 .header("Authorization", format!("Bearer {}", token))
@@ -791,7 +792,7 @@ async fn test_listing_operations() {
     assert_eq!(create_listing_response.status(), StatusCode::CREATED);
     
     // Parse the created listing
-    let body_bytes = create_listing_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(create_listing_response.into_body(), usize::MAX).await.unwrap();
     let created_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
     println!("TEST LOG: Created listing: {:?}", created_listing);
     
@@ -800,7 +801,7 @@ async fn test_listing_operations() {
     // 1. Create a listing attribute
     let create_attribute_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
                 .uri(format!("/api/listings/{}/attributes", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -818,7 +819,7 @@ async fn test_listing_operations() {
     assert_eq!(create_attribute_response.status(), StatusCode::OK);
     
     // Parse the created attribute
-    let body_bytes = create_attribute_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(create_attribute_response.into_body(), usize::MAX).await.unwrap();
     let created_attribute: crate::models::listing_attribute::ListingAttributeModel = 
         serde_json::from_slice(&body_bytes).unwrap();
     println!("TEST LOG: Created attribute: {:?}", created_attribute);
@@ -826,7 +827,7 @@ async fn test_listing_operations() {
     // 2. Get all attributes for the listing
     let get_attributes_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/listings/{}/attributes", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -839,7 +840,7 @@ async fn test_listing_operations() {
     assert_eq!(get_attributes_response.status(), StatusCode::OK);
     
     // Parse the attributes
-    let body_bytes = get_attributes_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(get_attributes_response.into_body(), usize::MAX).await.unwrap();
     let attributes: Vec<crate::models::listing_attribute::ListingAttributeModel> = 
         serde_json::from_slice(&body_bytes).unwrap();
     
@@ -849,7 +850,7 @@ async fn test_listing_operations() {
     // 3. Get a specific attribute
     let get_attribute_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -864,7 +865,7 @@ async fn test_listing_operations() {
     // 4. Update an attribute
     let update_attribute_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("PUT")
                 .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -880,7 +881,7 @@ async fn test_listing_operations() {
     assert_eq!(update_attribute_response.status(), StatusCode::OK);
     
     // Parse the updated attribute
-    let body_bytes = update_attribute_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(update_attribute_response.into_body(), usize::MAX).await.unwrap();
     let updated_attribute: crate::models::listing_attribute::ListingAttributeModel = 
         serde_json::from_slice(&body_bytes).unwrap();
     
@@ -918,7 +919,7 @@ async fn test_listing_operations() {
     // Verify staff can access the listing
     let listings_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/listings?directory_id={}", directory.id).as_str())
                 .header("Authorization", format!("Bearer {}", staff_token))
@@ -930,14 +931,14 @@ async fn test_listing_operations() {
     assert_eq!(listings_response.status(), StatusCode::OK);
     
     // Verify response contains listings
-    let body_bytes = listings_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(listings_response.into_body(), usize::MAX).await.unwrap();
     let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
     assert!(!listings.is_empty(), "No listings returned");
 
     // Test getting a listing with all its attributes
     let get_listing_with_attributes_response = app.clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("GET")
                 .uri(format!("/api/listings/{}/with-attributes", created_listing.id))
                 .header("Authorization", format!("Bearer {}", token))
@@ -950,7 +951,7 @@ async fn test_listing_operations() {
     assert_eq!(get_listing_with_attributes_response.status(), StatusCode::OK);
 
     // Parse the response
-    let body_bytes = get_listing_with_attributes_response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(get_listing_with_attributes_response.into_body(), usize::MAX).await.unwrap();
     let listing_with_attributes: crate::models::listing::ListingWithAttributes = 
         serde_json::from_slice(&body_bytes).unwrap();
 
@@ -965,7 +966,7 @@ async fn test_listing_operations() {
      // 5. Delete an attribute
      let delete_attribute_response = app.clone()
      .oneshot(
-         Request::builder()
+         Request::builder().header("Host", "localhost")
              .method("DELETE")
              .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
              .header("Authorization", format!("Bearer {}", token))
@@ -980,7 +981,7 @@ async fn test_listing_operations() {
  // 6. Verify the attribute was deleted
  let get_deleted_attribute_response = app.clone()
      .oneshot(
-         Request::builder()
+         Request::builder().header("Host", "localhost")
              .method("GET")
              .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
              .header("Authorization", format!("Bearer {}", token))

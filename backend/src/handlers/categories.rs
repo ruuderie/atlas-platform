@@ -71,6 +71,7 @@ pub async fn create_category(
         is_active: Set(payload.is_active),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        directory_id: Set(None),
     };
     println!("TEST LOG: from create_category and new_category: {:?}", new_category);
     let insert_result = category::Entity::insert(new_category)

@@ -14,7 +14,7 @@ pub struct DirectoryModel {
     pub description: String,  // Added
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub enabled_modules: u32,
+    pub enabled_modules: i32,
     pub theme: Option<String>,
     pub custom_settings: Option<HashMap<String, serde_json::Value>>,
     pub site_status: String,
@@ -154,7 +154,7 @@ pub struct UpdateDirectory {
     pub directory_type_id: Option<Uuid>,
     pub domain: Option<String>,
     pub description: Option<String>,
-    pub enabled_modules: Option<u32>,
+    pub enabled_modules: Option<i32>,
     pub theme: Option<String>,
     pub custom_settings: Option<HashMap<String, serde_json::Value>>,
     pub site_status: Option<String>,

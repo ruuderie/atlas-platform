@@ -19,7 +19,7 @@ pub struct Model {
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
     // New fields for multi-site management
-    pub enabled_modules: u32,
+    pub enabled_modules: i32,
     #[sea_orm(nullable)]
     pub theme: Option<String>,
     #[sea_orm(column_type = "JsonBinary")]

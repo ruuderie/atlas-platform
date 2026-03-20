@@ -1,4 +1,4 @@
-use axum::body::HttpBody as _; // Brings collect() into scope
+use http_body_util::BodyExt; // Brings collect() into scope
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -36,6 +36,7 @@ pub async fn create_test_directory_type<C: ConnectionTrait>(db: &C) -> directory
         description: Set(Sentence(2..4).fake::<String>()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     };
 
     new_directory_type
@@ -61,6 +62,7 @@ pub async fn create_test_directory<C: ConnectionTrait>(
         description: Set(CatchPhrase().fake()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     };
 
     new_directory
@@ -101,7 +103,7 @@ pub async fn register_test_user(
     let response = app
         .clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
                 .uri("/register")
                 .header("Content-Type", "application/json")
@@ -123,7 +125,7 @@ pub async fn register_test_user(
         .unwrap();
 
     let status = response.status();
-    let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     let json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
 
@@ -139,7 +141,7 @@ pub async fn register_test_user(
         let profiles_response = app
             .clone()
             .oneshot(
-                Request::builder()
+                Request::builder().header("Host", "localhost")
                     .method("GET")
                     .uri("/api/profiles")
                     .header("Authorization", format!("Bearer {}", token))
@@ -149,15 +151,13 @@ pub async fn register_test_user(
             .await
             .unwrap();
 
-        let profiles: Vec<serde_json::Value> = serde_json::from_slice(
-            &profiles_response
-                .into_body()
-                .collect()
-                .await
-                .unwrap()
-                .to_bytes(),
-        )
-        .unwrap();
+        let status = profiles_response.status();
+        let body_bytes = profiles_response.into_body().collect().await.unwrap().to_bytes();
+        if !status.is_success() {
+            panic!("GET /api/profiles failed with status: {}, body: {:?}", status, String::from_utf8_lossy(&body_bytes));
+        }
+
+        let profiles: Vec<serde_json::Value> = serde_json::from_slice(&body_bytes).unwrap();
 
         let profile = profiles.first().expect("No profile found");
         let profile_id = profile["id"].as_str().expect("No profile ID found");
@@ -166,7 +166,7 @@ pub async fn register_test_user(
         let update_response = app
             .clone()
             .oneshot(
-                Request::builder()
+                Request::builder().header("Host", "localhost")
                     .method("PUT")
                     .uri(format!("/api/profiles/{}", profile_id))
                     .header("Content-Type", "application/json")
@@ -204,7 +204,7 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
     let response = app
         .clone()
         .oneshot(
-            Request::builder()
+            Request::builder().header("Host", "localhost")
                 .method("POST")
                 .uri("/login")
                 .header("Content-Type", "application/json")
@@ -225,7 +225,7 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
         "TEST LOG: from login_test_user status and response: {:?}",
         response
     );
-    let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     println!(
         "TEST LOG: from login_test_user and status: {:?} , body: {:?}",
@@ -335,6 +335,7 @@ pub async fn create_default_category(
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     }
     .insert(db)
     .await

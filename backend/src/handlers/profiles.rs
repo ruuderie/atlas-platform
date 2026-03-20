@@ -22,12 +22,9 @@ use chrono::Utc;
 pub fn routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     
     Router::new()
-        .route("/profiles", post(create_profile))
-        .route("/profiles", get(get_profiles))
-        .route("/profiles/{id}", get(get_profile_by_id))
-        .route("/profiles/{id}", put(update_profile))
-        .route("/profiles/{id}", delete(delete_profile))
-        .route("/profiles/search", get(search_profiles))
+        .route("/api/profiles", post(create_profile).get(get_profiles))
+        .route("/api/profiles/{id}", get(get_profile_by_id).put(update_profile).delete(delete_profile))
+        .route("/api/profiles/search", get(search_profiles))
         .with_state(db_connection)
 }
 
@@ -174,6 +171,7 @@ pub async fn get_profiles(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
 ) -> Result<Json<Vec<profile::Model>>, StatusCode> {
+    println!("TEST LOG: Fetching profiles for user: {}", current_user.id);
     tracing::info!("Fetching profiles for user: {}", current_user.id);
 
     // Fetch profiles associated with the user
