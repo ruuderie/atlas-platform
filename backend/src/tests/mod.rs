@@ -3,3 +3,6 @@ pub mod test_utils;
 pub mod crm_tests;
 pub mod template_tests;
 pub mod ad_purchase_tests;
+pub mod admin_tests;
+pub mod account_tests;
+pub mod crm_extended_tests;

@@ -28,7 +28,7 @@ use urlencoding;
 use dotenv::dotenv;
 
 
-async fn setup_test_app() -> (Router, DatabaseConnection) {
+pub async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string());
 
