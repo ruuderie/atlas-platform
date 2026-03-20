@@ -5,6 +5,8 @@ mod app;
 mod pages;
 pub mod api;
 
+#[cfg(test)]
+pub mod tests;
 fn main() {
     console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(App);

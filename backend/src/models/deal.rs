@@ -10,7 +10,7 @@ pub struct DealModel {
     pub id: Uuid,
     pub customer_id: Uuid,
     pub name: String,
-    pub amount: f32,
+    pub amount: f64,
     pub status: String,
     pub stage: String,
     pub close_date: Option<DateTime<Utc>>,
@@ -24,7 +24,7 @@ pub struct DealModel {
 pub struct CreateDealInput {
     pub customer_id: Uuid,
     pub name: String,
-    pub amount: f32,
+    pub amount: f64,
     pub status: String,
     pub stage: String,
     pub close_date: Option<DateTime<Utc>>,
@@ -33,7 +33,7 @@ pub struct CreateDealInput {
 #[derive(Debug, Deserialize)]
 pub struct UpdateDealInput {
     pub name: Option<String>,
-    pub amount: Option<f32>,
+    pub amount: Option<f64>,
     pub status: Option<String>,
     pub stage: Option<String>,
     pub close_date: Option<DateTime<Utc>>,

@@ -280,8 +280,6 @@ fn is_public_route(path: &str) -> bool {
         "/register",
         "/validate-session",
         "/refresh-token",
-        "/api/listings",
-        "/api/listing/",
         "/api/health",
         // Adding these routes to handle both prefixed and non-prefixed versions
         "/api/login",

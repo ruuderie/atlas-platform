@@ -39,6 +39,9 @@ ssr = [
     "leptos_router/ssr",
 ]
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.64"
+
 [package.metadata.leptos]
 output-name = "directory-instance"
 site-root = "target/site"

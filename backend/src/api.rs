@@ -107,9 +107,6 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(public_routes)
         .merge(
             authenticated_routes
-                .layer(Extension(rate_limiter))
-                .layer(Extension(db_clone))
-                .layer(axum::middleware::from_fn(site_context_middleware))
                 .layer(axum::middleware::from_fn(
                     |Extension(db): Extension<DatabaseConnection>,
                      Extension(rate_limiter): Extension<RateLimiter>,
@@ -124,7 +121,10 @@ pub fn create_router(db: DatabaseConnection) -> Router {
                                     .unwrap()
                             })
                     },
-                )),
+                ))
+                .layer(axum::middleware::from_fn(site_context_middleware))
+                .layer(Extension(db_clone))
+                .layer(Extension(rate_limiter)),
         )
         .layer(Extension(db.clone())) // For middleware that might need it
         .layer(TraceLayer::new_for_http())

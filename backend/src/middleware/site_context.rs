@@ -93,7 +93,7 @@ pub async fn site_context_middleware(
                 domain: directory.domain,
                 subdomain: directory.subdomain,
                 custom_domain: directory.custom_domain,
-                enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules),
+                enabled_modules: ModuleFlags::from_bits_truncate(directory.enabled_modules as u32),
                 theme: directory.theme,
                 custom_settings: directory.custom_settings
                     .unwrap_or_default()

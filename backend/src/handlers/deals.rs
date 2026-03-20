@@ -63,7 +63,10 @@ pub async fn create_deal(
         directory_id: Set(None),
     };
 
-    let deal = new_deal.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let deal = new_deal.insert(&db).await.map_err(|e| {
+        eprintln!("Failed to insert deal DB ERROR: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
     Ok((StatusCode::CREATED, JsonResponse(DealModel::from(deal))))
 }
