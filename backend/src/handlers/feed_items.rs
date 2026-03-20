@@ -6,7 +6,7 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, 
-    RelationTrait, QuerySelect, Condition, DbErr, QueryOrder, Order, TransactionTrait
+    RelationTrait, QuerySelect, Condition, DbErr, QueryOrder, Order, TransactionTrait, PaginatorTrait
 };
 use crate::entities::feed::{self, Entity as Feed};
 use crate::entities::feed_item::{self, Entity as FeedItem};

@@ -20,6 +20,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Feed::HomePageUrl).string().not_null())
                     .col(ColumnDef::new(Feed::Icon).string().null())
                     .col(ColumnDef::new(Feed::Favicon).string().null())
+                    .col(ColumnDef::new(Feed::Author).string().null())
                     .col(ColumnDef::new(Feed::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Feed::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(
@@ -164,6 +165,7 @@ enum Feed {
     HomePageUrl,
     Icon,
     Favicon,
+    Author,
     CreatedAt,
     UpdatedAt,
 }

@@ -28,3 +28,5 @@ pub mod health;
 pub mod auth_frontend;
 pub mod my_accounts;
 pub mod ab_testing;
+pub mod feeds;
+pub mod feed_items;

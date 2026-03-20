@@ -22,7 +22,6 @@ use axum::{
     Router,
     routing::{get, post, put, delete},
 };
-use sea_orm::DatabaseConnection;
 use crate::handlers::{feeds, feed_items};
 
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
@@ -44,14 +43,14 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         // Feed management routes
-        .route("/feeds", post(feeds::create_feed))
-        .route("/feeds/{feed_id}", put(feeds::update_feed))
-        .route("/feeds/{feed_id}", delete(feeds::delete_feed))
+        .route("/api/feeds", post(feeds::create_feed))
+        .route("/api/feeds/{feed_id}", put(feeds::update_feed))
+        .route("/api/feeds/{feed_id}", delete(feeds::delete_feed))
         
         // Feed item management routes
-        .route("/feed-items", post(feed_items::create_feed_item))
-        .route("/feed-items/{feed_item_id}", put(feed_items::update_feed_item))
-        .route("/feed-items/{feed_item_id}", delete(feed_items::delete_feed_item))
+        .route("/api/feed-items", post(feed_items::create_feed_item))
+        .route("/api/feed-items/{feed_item_id}", put(feed_items::update_feed_item))
+        .route("/api/feed-items/{feed_item_id}", delete(feed_items::delete_feed_item))
         .with_state(db)
 }
 
@@ -210,6 +209,7 @@ pub async fn create_feed(
     let feed = new_feed.insert(&db)
         .await
         .map_err(|err| {
+            println!("DB ERROR: {:?}", err);
             tracing::error!("Database error: {:?}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
@@ -412,7 +412,7 @@ pub async fn get_json_feed(
         json_feed_items.push(item);
     }
 
-    let json_feed = json!({
+    let mut json_feed = json!({
         "version": "https://jsonfeed.org/version/1.1",
         "title": feed.title,
         "description": feed.description,

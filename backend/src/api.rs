@@ -75,6 +75,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(directories::public_routes(db.clone()))
         .merge(listings::public_routes(db.clone()))
         .merge(crate::handlers::leads::public_routes())
+        .merge(crate::handlers::feeds::public_routes(db.clone()))
         .merge(auth_frontend::public_routes())
         .merge(ab_testing::public_routes())
         .route("/health", get(health::health_check))
@@ -99,6 +100,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(auth_frontend::authenticated_routes())
         .merge(my_accounts::authenticated_routes())
         .merge(ab_testing::authenticated_routes())
+        .merge(crate::handlers::feeds::authenticated_routes(db.clone()))
         .merge(directories::authenticated_routes(db.clone()));
 
     // Combine all routes and apply state at the top level
