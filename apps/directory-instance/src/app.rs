@@ -1160,14 +1160,21 @@ fn InnerApp(config: DirectoryConfig) -> impl IntoView {
         <Title text=config.name.clone() />
         <style>{css_payload}</style>
         
-        <Router>
-            <leptos_router::components::Routes fallback=|| view! { "Not Found" }>
-                <leptos_router::components::Route path=leptos_router::path!("/") view=Home />
-                <leptos_router::components::Route path=leptos_router::path!("/search") view=crate::pages::search::Search />
-                <leptos_router::components::Route path=leptos_router::path!("/list-property") view=HostLanding />
-                <leptos_router::components::Route path=leptos_router::path!(":slug") view=ListingDetail />
-            </leptos_router::components::Routes>
-        </Router>
+        <crate::auth::AuthProvider>
+            <Router>
+                <leptos_router::components::Routes fallback=|| view! { "Not Found" }>
+                    <leptos_router::components::Route path=leptos_router::path!("/") view=Home />
+                    <leptos_router::components::Route path=leptos_router::path!("/search") view=crate::pages::search::Search />
+                    <leptos_router::components::Route path=leptos_router::path!("/list-property") view=HostLanding />
+                    <leptos_router::components::Route path=leptos_router::path!("/auth/login") view=crate::pages::auth::login::Login />
+                    <leptos_router::components::Route path=leptos_router::path!("/auth/register") view=crate::pages::auth::register::Register />
+                    <leptos_router::components::ParentRoute path=leptos_router::path!("/dashboard") view=crate::pages::dashboard::layout::DashboardLayout>
+                        <leptos_router::components::Route path=leptos_router::path!("") view=crate::pages::dashboard::layout::DashboardOverview />
+                    </leptos_router::components::ParentRoute>
+                    <leptos_router::components::Route path=leptos_router::path!(":slug") view=ListingDetail />
+                </leptos_router::components::Routes>
+            </Router>
+        </crate::auth::AuthProvider>
     }
 }
 

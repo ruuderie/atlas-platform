@@ -24,6 +24,8 @@ pub mod listing;
 pub mod listing_attribute;
 pub mod session;
 pub mod request_log;
+pub mod listing_ab_test;
+pub mod listing_ab_variant;
 
 //NEW ENTITIES
 pub mod feed;

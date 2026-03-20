@@ -40,6 +40,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/listings/{id}/with-attributes", get(get_listing_with_attributes))
         .route("/api/listings/{id}", put(update_listing))
         .route("/api/listings/{id}", delete(delete_listing))
+        .route("/api/me/accounts/{account_id}/listings", get(get_account_listings))
         // Add other authenticated listing routes here
 }
 
@@ -383,4 +384,44 @@ pub async fn get_listing_with_attributes(
     let listing_with_attributes = crate::models::listing::ListingWithAttributes::from((listing, attributes));
     
     Ok(Json(listing_with_attributes))
+}
+
+pub async fn get_account_listings(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(account_id): Path<Uuid>,
+) -> Result<Json<Vec<listing::Model>>, StatusCode> {
+    // 1. Verify access
+    let user_account = UserAccount::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .filter(user_account::Column::AccountId.eq(account_id))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if user_account.is_none() {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // 2. Get profiles for this account
+    let profiles = Profile::find()
+        .filter(profile::Column::AccountId.eq(account_id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let profile_ids: Vec<Uuid> = profiles.into_iter().map(|p| p.id).collect();
+
+    if profile_ids.is_empty() {
+        return Ok(Json(vec![]));
+    }
+
+    // 3. Get listings
+    let listings = Listing::find()
+        .filter(listing::Column::ProfileId.is_in(profile_ids))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(listings))
 }

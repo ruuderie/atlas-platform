@@ -40,6 +40,7 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
+    pub directory_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
