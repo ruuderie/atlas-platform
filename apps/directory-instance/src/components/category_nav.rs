@@ -5,9 +5,9 @@ pub fn CategoryNavigation() -> impl IntoView {
     view! {
         <section class="max-w-[1440px] mx-auto w-full px-6 md:px-10 py-5 animate-slide-up border-b border-neutral-200/60">
             <div class="relative">
-                // Fade gradient edges
-                <div class="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none"></div>
-                <div class="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none"></div>
+                // Fade edges
+                <div class="absolute left-0 top-0 bottom-0 w-12 bg-background z-10 pointer-events-none" style="opacity:0.8"></div>
+                <div class="absolute right-0 top-0 bottom-0 w-12 bg-background z-10 pointer-events-none" style="opacity:0.8"></div>
                 
                 <div class="flex overflow-x-auto gap-8 pb-1 snap-x snap-mandatory hide-scrollbar px-2">
                     {vec![

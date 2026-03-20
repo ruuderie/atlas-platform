@@ -22,11 +22,7 @@ pub fn ChipsContainer(children: Children) -> impl IntoView {
             {"
             [data-name=\"ChipsContainer\"] label::after {
             content:\"\";
-            background:
-            linear-gradient(230deg, var(--warning) 0 0.96vmin, #fff0 0 100%),
-            linear-gradient(142deg, var(--warning) 0 1.12vmin, #fff0 0 100%),
-            conic-gradient(from 43deg at 43% calc(64% + 0.24vmin), #fff0 0 0%, var(--warning) 1% 76%, #fff0 77% 100%),
-            conic-gradient(from -45deg at 43% 64%, #fff0 0 0%, var(--warning) 2% 25%, #fff0 26% 100%);
+            background: var(--warning);
             }
             "}
         </style>

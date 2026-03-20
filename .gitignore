@@ -30,6 +30,7 @@ node_modules/
 /apps/*/.env.*
 !/apps/*/.env.example
 /apps/directory-instance/design spec
+/apps/platform-admin/design spec
 
 
 # General

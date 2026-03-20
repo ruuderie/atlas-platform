@@ -32,13 +32,13 @@ pub struct MaskClass {
 pub enum MaskSide {
     #[tw(default, class = "")]
     Default,
-    #[tw(class = "left-0 w-1/3 bg-gradient-to-r")]
+    #[tw(class = "left-0 w-1/3 bg-white dark:bg-background")]
     Left,
-    #[tw(class = "right-0 w-1/3 bg-gradient-to-l")]
+    #[tw(class = "right-0 w-1/3 bg-white dark:bg-background")]
     Right,
-    #[tw(class = "top-0 w-full bg-gradient-to-b")]
+    #[tw(class = "top-0 w-full bg-white dark:bg-background")]
     Top,
-    #[tw(class = "bottom-0 w-full bg-gradient-to-t")]
+    #[tw(class = "bottom-0 w-full bg-white dark:bg-background")]
     Bottom,
 }
 

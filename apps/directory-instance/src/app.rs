@@ -174,6 +174,7 @@ pub async fn fetch_directory_config_from_api(domain: String) -> Result<Directory
                 CategoryItem { slug: "general-handyman".to_string(), label: "General Handyman".to_string(), subtitle: "Repairs & Odd Jobs".to_string(), icon: "handyman".to_string() },
                 CategoryItem { slug: "roofing-siding".to_string(), label: "Roofing & Siding".to_string(), subtitle: "Exterior Specialists".to_string(), icon: "roofing".to_string() },
                 CategoryItem { slug: "electrical".to_string(), label: "Electrical".to_string(), subtitle: "Licensed Electricians".to_string(), icon: "electrical_services".to_string() },
+                CategoryItem { slug: "painting".to_string(), label: "Painting".to_string(), subtitle: "Professional Painter".to_string(), icon: "professional_painter".to_string() },
             ],
             featured_listings: vec![
                 FeaturedListingMock {
@@ -781,7 +782,7 @@ fn HostLanding() -> impl IntoView {
     view! {
         <crate::components::layout::MainLayout>
             // Hero Section
-            <section class="relative min-h-[700px] flex items-center bg-gradient-to-br from-[#004289] via-[#2059a9] to-[#004289] px-8 overflow-hidden">
+            <section class="relative min-h-[700px] flex items-center bg-[#004289] px-8 overflow-hidden">
                 <div class="absolute inset-0 opacity-15 pointer-events-none">
                     <img class="w-full h-full object-cover grayscale" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" alt="Construction site" />
                 </div>
@@ -987,7 +988,7 @@ fn Home() -> impl IntoView {
     view! {
         <crate::components::layout::MainLayout>
             // Hero Section
-            <section class="relative min-h-[870px] flex items-center bg-gradient-to-br from-[#004289] via-[#2059a9] to-[#004289] px-8 overflow-hidden">
+            <section class="relative min-h-[870px] flex items-center bg-[#004289] px-8 overflow-hidden">
                 <div class="absolute inset-0 opacity-20 pointer-events-none">
                     <img class="w-full h-full object-cover grayscale" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" alt="Home renovation" />
                 </div>

@@ -1,11 +1,6 @@
 use leptos::prelude::*;
-use shared_ui::components::card::Card;
-use shared_ui::components::badge::{Badge, BadgeIntent};
+use leptos::ev;
 use shared_ui::components::ui::switch::Switch;
-use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
-use shared_ui::components::ui::dialog::{Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter, DialogClose, DialogAction};
-use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::ui::label::Label;
 use crate::api::models::{DirectoryModel, CreateDirectory};
 use crate::api::directories::{get_directories, create_directory};
 
@@ -13,7 +8,6 @@ use crate::api::directories::{get_directories, create_directory};
 pub fn MultiSite() -> impl IntoView {
     let (trigger_fetch, set_trigger_fetch) = signal(0);
     
-    // Resource to fetch directories
     let directories = LocalResource::new(
         move || { 
             trigger_fetch.get();
@@ -26,12 +20,11 @@ pub fn MultiSite() -> impl IntoView {
     let theme = RwSignal::new("default".to_string());
     let is_submitting = RwSignal::new(false);
     
-    let handle_create_site = move |_| {
+    let handle_create_site = move |_: ev::MouseEvent| {
         is_submitting.set(true);
         let data = CreateDirectory {
             name: site_name.get(),
             domain: domain.get(),
-            // Provide a dummy UUID for the directory type if not selected, or just a default
             directory_type_id: "00000000-0000-0000-0000-000000000000".to_string(),
             description: format!("Created with theme: {}", theme.get()),
         };
@@ -39,7 +32,6 @@ pub fn MultiSite() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match create_directory(data).await {
                 Ok(_) => {
-                    // Refresh data
                     set_trigger_fetch.update(|v| *v += 1);
                     site_name.set("".to_string());
                     domain.set("".to_string());
@@ -53,110 +45,125 @@ pub fn MultiSite() -> impl IntoView {
     };
 
     view! {
-        <div class="w-full max-w-[1600px] mx-auto space-y-8 p-6">
-            <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div class="space-y-2">
-                    <h2 class="text-3xl font-bold tracking-tight">"Site Registry & Configuration"</h2>
-                    <p class="text-muted-foreground text-lg">"Manage tenants, themes, and feature flags across the network."</p>
+        <div class="space-y-8">
+            // ── Header ──
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
+                        <span>"Network"</span>
+                        <span class="material-symbols-outlined text-xs">"chevron_right"</span>
+                        <span class="text-primary/70">"Registry"</span>
+                    </nav>
+                    <h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">"Network Directories"</h1>
+                    <p class="text-on-surface-variant text-sm max-w-2xl">"Manage multi-site orchestration, domain routing, and feature modules across the global intelligence infrastructure."</p>
                 </div>
-                
-                <Dialog>
-                    <DialogTrigger class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2".to_string()>
-                        "+ New Site"
-                    </DialogTrigger>
-                    <DialogContent class="sm:max-w-[425px]".to_string()>
-                        <DialogHeader>
-                            <DialogTitle>"Register New Tenant"</DialogTitle>
-                            <DialogDescription>"Configure the domain and initial theme settings."</DialogDescription>
-                        </DialogHeader>
-                        <DialogBody>
-                            <div class="grid gap-4 py-4">
-                                <div class="grid grid-cols-4 items-center gap-4">
-                                    <Label class="text-right".to_string()>"Site Name"</Label>
-                                    <Input class="col-span-3".to_string() placeholder="e.g. Acme Corp Tenant".to_string() bind_value=site_name />
-                                </div>
-                                <div class="grid grid-cols-4 items-center gap-4">
-                                    <Label class="text-right".to_string()>"Domain"</Label>
-                                    <Input class="col-span-3".to_string() placeholder="acme.example.com".to_string() bind_value=domain />
-                                </div>
-                                <div class="grid grid-cols-4 items-center gap-4">
-                                    <Label class="text-right".to_string()>"Theme"</Label>
-                                    <select 
-                                        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 col-span-3"
-                                        on:change=move |ev| theme.set(event_target_value(&ev))
-                                    >
-                                        <option value="default">"Default"</option>
-                                        <option value="professional">"Professional"</option>
-                                        <option value="dark">"Dark Mode Only"</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </DialogBody>
-                        <DialogFooter>
-                            <DialogClose class="mt-2 sm:mt-0".to_string()>"Cancel"</DialogClose>
-                            <Button on:click=handle_create_site>"Create Site"</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </header>
+                <div class="flex items-center gap-3">
+                    <div class="flex bg-surface-container-high rounded-lg p-1">
+                        <button class="px-3 py-1.5 rounded-md bg-surface-bright text-primary text-xs font-bold transition-all">"GRID"</button>
+                        <button class="px-3 py-1.5 rounded-md text-on-surface-variant text-xs font-bold hover:text-on-surface transition-all">"LIST"</button>
+                    </div>
+                    <a href="/sites/new" class="flex items-center gap-2 btn-primary-gradient text-on-primary px-5 py-2.5 rounded-md font-bold text-sm shadow-xl shadow-primary/10 hover:opacity-90 active:scale-95 transition-all">
+                        <span class="material-symbols-outlined text-lg">"add_circle"</span>
+                        "New Site"
+                    </a>
+                </div>
+            </div>
 
-            <Suspense fallback=move || view! { <div class="text-muted-foreground">"Loading directories..."</div> }>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            // ── Directory Grid ──
+            <Suspense fallback=move || view! { <div class="text-on-surface-variant">"Loading directories..."</div> }>
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {move || directories.get().map(|dirs| view! {
                         <For
                             each=move || dirs.clone()
                             key=|dir: &DirectoryModel| dir.id.clone()
                             children=move |dir| {
+                                let status = dir.site_status.clone();
+                                let is_active = status == "active";
+                                let status_display = status.clone();
+                                let dir_id_manage = dir.id.clone();
+                                
                                 view! {
-                                    <Card class="p-6 bg-card border border-border flex flex-col h-full".to_string()>
-                                        <div class="flex flex-col gap-3 mb-4">
+                                    <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">
+                                        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                                        // Header
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="flex flex-col">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <h3 class="text-xl font-bold text-on-surface tracking-tight">{dir.name.clone()}</h3>
+                                                    {if is_active {
+                                                        view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-tertiary/10 text-tertiary border border-tertiary/20 uppercase tracking-wider">"Active"</span> }.into_any()
+                                                    } else {
+                                                        view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-error border border-error/20 uppercase tracking-wider">{status_display}</span> }.into_any()
+                                                    }}
+                                                </div>
+                                                <span class="text-xs text-on-surface-variant font-mono">{dir.domain.clone()}</span>
+                                            </div>
+                                            <div class="h-10 w-10 bg-surface-container-lowest rounded-lg flex items-center justify-center border border-outline-variant/20">
+                                                <span class="material-symbols-outlined text-primary-dim">"corporate_fare"</span>
+                                            </div>
+                                        </div>
+                                        // Stats
+                                        <div class="grid grid-cols-2 gap-4 mb-8">
+                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3">
+                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Theme"</span>
+                                                <span class="text-sm font-medium text-on-surface">{dir.theme.clone().unwrap_or_else(|| "Default".to_string())}</span>
+                                            </div>
+                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3">
+                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Modules"</span>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm font-medium text-on-surface">{dir.enabled_modules}</span>
+                                                    <span class="text-[10px] text-tertiary font-bold">"active"</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        // Active Modules
+                                        <div class="space-y-4 mb-8">
+                                            <h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest border-b border-outline-variant/10 pb-2">"Active Modules"</h4>
                                             <div class="flex items-center justify-between">
-                                                <h3 class="font-semibold text-lg leading-none tracking-tight">{dir.name.clone()}</h3>
-                                                <Badge intent=if dir.site_status == "active" { BadgeIntent::Success } else { BadgeIntent::Warning }>{dir.site_status.clone()}</Badge>
+                                                <div class="flex items-center gap-3">
+                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
+                                                    <span class="text-sm font-medium text-on-surface">"Listings"</span>
+                                                </div>
+                                                <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.id) checked=true />
                                             </div>
-                                            <div class="flex items-center gap-2 flex-wrap">
-                                                <a href=format!("/sites/{}", dir.id)>
-                                                    <Button variant=ButtonVariant::Default size=ButtonSize::Sm>"Manage Directory"</Button>
-                                                </a>
-                                                <Button variant=ButtonVariant::Outline size=ButtonSize::Sm>"Edit"</Button>
-                                                <Button variant=ButtonVariant::Destructive size=ButtonSize::Sm>"Delete"</Button>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"group"</span>
+                                                    <span class="text-sm font-medium text-on-surface">"CRM"</span>
+                                                </div>
+                                                <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.id) checked=true />
                                             </div>
-                                        </div>
-                                        <div class="space-y-2 text-sm text-muted-foreground mb-6">
-                                            <p><strong class="font-medium text-foreground">"Domain:"</strong> " " {dir.domain.clone()}</p>
-                                            <p><strong class="font-medium text-foreground">"Theme:"</strong> " " {dir.theme.clone().unwrap_or_else(|| "default".to_string())}</p>
-                                        </div>
-                                        <div class="mt-auto space-y-4 pt-6 border-t border-border">
-                                            <h4 class="text-sm font-medium leading-none mb-4">"Active Feature Flags (Status: " {dir.enabled_modules} ")"</h4>
-                                            // In a real app we would decode the u32 bitmask and toggle real modules
-                                            <div class="grid gap-3">
-                                                <div class="flex items-center justify-between">
-                                                    <label for=format!("t1_{}", dir.id) class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">"Listings Module"</label>
-                                                    <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.id) checked=true /> 
+                                            <div class="flex items-center justify-between opacity-60">
+                                                <div class="flex items-center gap-3">
+                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
+                                                    <span class="text-sm font-medium text-on-surface">"Payments"</span>
                                                 </div>
-                                                <div class="flex items-center justify-between">
-                                                    <label for=format!("t2_{}", dir.id) class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">"CRM Pipeline Tools"</label>
-                                                    <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.id) checked=true /> 
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <label for=format!("t3_{}", dir.id) class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">"Payments Engine"</label>
-                                                    <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.id) checked=false /> 
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <label for=format!("t4_{}", dir.id) class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">"User Profiles"</label>
-                                                    <Switch class="shrink-0".to_string() id=format!("t4_{}", dir.id) checked=true /> 
-                                                </div>
-                                                <div class="flex items-center justify-between">
-                                                    <label for=format!("t5_{}", dir.id) class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">"Advanced Analytics"</label>
-                                                    <Switch class="shrink-0".to_string() id=format!("t5_{}", dir.id) checked=false /> 
-                                                </div>
+                                                <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.id) checked=false />
                                             </div>
                                         </div>
-                                    </Card>
+                                        // Actions
+                                        <div class="flex items-center gap-2 pt-4 border-t border-outline-variant/10">
+                                            <a href=format!("/sites/{}", dir_id_manage) class="flex-1 bg-surface-bright text-on-surface text-xs font-bold py-2 rounded-md hover:bg-surface-bright/80 transition-all uppercase tracking-wider text-center">"Manage"</a>
+                                            <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-primary rounded-md border border-outline-variant/20 transition-all">
+                                                <span class="material-symbols-outlined text-sm">"edit"</span>
+                                            </button>
+                                            <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-error rounded-md border border-outline-variant/20 transition-all">
+                                                <span class="material-symbols-outlined text-sm">"delete"</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 }
                             }
                         />
                     })}
+                    // Empty State / Add Placeholder
+                    <a href="/sites/new" class="bg-surface-container-low border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center p-8 group hover:border-primary/40 transition-all cursor-pointer">
+                        <div class="h-16 w-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <span class="material-symbols-outlined text-3xl text-on-surface-variant group-hover:text-primary transition-colors">"add"</span>
+                        </div>
+                        <h3 class="text-on-surface font-bold text-lg mb-1">"Scale Network"</h3>
+                        <p class="text-on-surface-variant text-sm text-center">"Provision a new directory instance within this environment."</p>
+                    </a>
                 </div>
             </Suspense>
         </div>

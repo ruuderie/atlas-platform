@@ -13,38 +13,40 @@
 }
 
 .drop-zone {
-  border: 2px dashed var(--color-border);
-  border-radius: 8px;
-  padding: 2.5rem;
+  border: 2px dashed rgba(43, 70, 128, 0.3);
+  border-radius: 0.75rem;
+  padding: 2rem;
   text-align: center;
   transition: all 0.2s ease;
-  background-color: var(--glass-bg);
+  background-color: rgba(5, 24, 60, 0.3);
+}
+
+.drop-zone:hover {
+  border-color: rgba(123, 208, 255, 0.4);
+  background-color: rgba(0, 40, 103, 0.05);
 }
 
 .drop-zone p {
   margin-bottom: 0.25rem;
+  color: #dee5ff;
 }
 
 .drop-zone a {
-  color: var(--color-accent-primary);
+  color: #7bd0ff;
   text-decoration: none;
   cursor: pointer;
   font-weight: 500;
 }
 
 .drop-zone.active {
-  border-color: var(--color-accent-primary);
-  background-color: rgba(56, 189, 248, 0.05);
+  border-color: #7bd0ff;
+  background-color: rgba(123, 208, 255, 0.05);
 }
 
 .upload-icon {
   font-size: 2rem;
   margin-bottom: 0.75rem;
   opacity: 0.7;
-}
-
-.text-xs {
-  font-size: 0.75rem;
 }
 
 .file-list {
@@ -58,9 +60,9 @@
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  border-radius: 6px;
-  background-color: var(--color-bg-base);
-  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background-color: #031d4b;
+  border: 1px solid rgba(43, 70, 128, 0.2);
 }
 
 .file-icon {
@@ -76,11 +78,10 @@
 .file-name {
   font-weight: 500;
   font-size: 0.875rem;
+  color: #dee5ff;
 }
 
 .file-meta {
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: #91aaeb;
 }
-
-

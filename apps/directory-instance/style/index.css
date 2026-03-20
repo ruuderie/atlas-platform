@@ -65,19 +65,13 @@ h1 { letter-spacing: -0.04em; }
    Premium Utility Classes
    ============================ */
 
-/* Gradient text */
+/* Accent text */
 .text-gradient {
-  background: linear-gradient(135deg, var(--brand-primary), #7c3aed, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--brand-primary);
 }
 
 .text-gradient-warm {
-  background: linear-gradient(135deg, #f97316, #ef4444, #ec4899);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ef4444;
 }
 
 /* Premium glassmorphism */
@@ -109,7 +103,7 @@ h1 { letter-spacing: -0.04em; }
   transform: translateY(-2px);
 }
 
-/* Gradient border glow */
+/* Accent border glow */
 .gradient-border {
   position: relative;
   border: none;
@@ -121,7 +115,7 @@ h1 { letter-spacing: -0.04em; }
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, var(--brand-primary), #7c3aed, #ec4899);
+  background: var(--brand-primary);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -135,8 +129,7 @@ h1 { letter-spacing: -0.04em; }
 
 /* Shimmer skeleton loading */
 .shimmer-skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
+  background: #f0f0f0;
   animation: shimmer 2s linear infinite;
   border-radius: 8px;
 }
@@ -145,7 +138,7 @@ h1 { letter-spacing: -0.04em; }
 .accent-line {
   width: 40px;
   height: 3px;
-  background: linear-gradient(90deg, var(--brand-primary), #7c3aed);
+  background: var(--brand-primary);
   border-radius: 999px;
 }
 
@@ -179,11 +172,10 @@ h1 { letter-spacing: -0.04em; }
   box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--brand-primary);
 }
 
-/* Animated gradient background */
-.bg-gradient-animated {
-  background: linear-gradient(-45deg, #2563eb, #7c3aed, #ec4899, #f97316);
-  background-size: 400% 400%;
-  animation: gradient-x 6s ease infinite;
+/* Animated accent background */
+.bg-gradient-animated,
+.bg-accent-animated {
+  background: #2563eb;
 }
 
 /* Subtle noise texture overlay */
@@ -228,7 +220,7 @@ h1 { letter-spacing: -0.04em; }
 }
 
 .hero-gradient {
-  background: linear-gradient(135deg, var(--brand-primary, #004289) 0%, #2059a9 100%);
+  background: var(--brand-primary, #004289);
 }
 
 .inner-glow {

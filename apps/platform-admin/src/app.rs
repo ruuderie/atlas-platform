@@ -8,10 +8,6 @@ use crate::pages::crm_grid::CrmGrid;
 use crate::pages::cms_editor::CmsEditor;
 use crate::pages::login::Login;
 
-use shared_ui::components::ui::header::Header;
-use shared_ui::components::ui::select::{Select, SelectTrigger, SelectValue, SelectContent, SelectGroup, SelectLabel, SelectOption};
-use shared_ui::components::ui::avatar::{Avatar, AvatarImage, AvatarFallback};
-
 use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, DirectoryModel};
 use crate::api::directories::get_directories;
@@ -43,17 +39,15 @@ pub fn App() -> impl IntoView {
     view! {
         <div class="fixed bottom-4 right-4 z-[9999] pointer-events-none">
             {move || toast.message.get().map(|msg| view! {
-                <div class="bg-destructive text-destructive-foreground px-4 py-3 rounded-md shadow-xl flex items-center justify-between min-w-[300px] pointer-events-auto border border-border">
+                <div class="glass-panel text-on-surface px-4 py-3 rounded-xl flex items-center justify-between min-w-[300px] pointer-events-auto border border-outline-variant/40">
                     <span class="text-sm font-medium">{msg}</span>
-                    <button class="ml-4 hover:opacity-70 font-bold" on:click=move |_| toast.message.set(None)>"✕"</button>
+                    <button class="ml-4 hover:opacity-70 font-bold text-on-surface-variant" on:click=move |_| toast.message.set(None)>"✕"</button>
                 </div>
             })}
         </div>
         <Router>
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />
-                
-                // Catch-all auth wrapper for other routes
                 <Route path=path!("/*any") view=AuthenticatedLayout />
             </Routes>
         </Router>
@@ -65,121 +59,149 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     let user = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
     let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
     let navigate = leptos_router::hooks::use_navigate();
-    let (is_mobile_menu_open, set_is_mobile_menu_open) = signal(false);
+    let location = leptos_router::hooks::use_location();
     let (show_profile_menu, set_show_profile_menu) = signal(false);
 
     Effect::new(move |_| {
-        // Redirect to login if not authenticated
         if user.get().is_none() {
             // navigate("/login", Default::default());
         }
     });
 
+    // Derive active nav state from the current path
+    let current_path = Signal::derive(move || location.pathname.get());
+
+    let nav_active_class = move |path: &'static str| {
+        let p = current_path.get();
+        if (path == "/" && p == "/") || (path != "/" && p.starts_with(path)) {
+            "text-[#7bd0ff] border-b-2 border-[#7bd0ff] pb-1 font-semibold tracking-[-0.02em]"
+        } else {
+            "text-[#91aaeb] hover:text-[#dee5ff] font-semibold tracking-[-0.02em] transition-colors"
+        }
+    };
+
+    let side_active_class = move |path: &'static str| {
+        let p = current_path.get();
+        if (path == "/" && p == "/") || (path != "/" && p.starts_with(path)) {
+            "flex items-center gap-3 px-3 py-2.5 bg-[#05183c] text-[#7bd0ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase active:translate-x-1 duration-150 transition-all"
+        } else {
+            "flex items-center gap-3 px-3 py-2.5 text-[#91aaeb] hover:bg-[#05183c]/50 hover:text-[#dee5ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase active:translate-x-1 duration-150 transition-all"
+        }
+    };
+
     view! {
-        <Show when=move || user.get().is_some() fallback=move || view! { 
-            <div class="h-screen w-full flex items-center justify-center dark bg-slate-950 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 text-slate-300 font-sans antialiased">
-                // if it's explicitly navigating, this is a brief flash, or we show a loader
-                <div class="text-muted-foreground">"Checking session..."</div>
+        <Show when=move || user.get().is_some() fallback=move || view! {
+            <div class="h-screen w-full flex items-center justify-center bg-surface text-on-surface-variant font-sans antialiased">
+                <div>"Checking session..."</div>
                 {
-                   // Fallback logic to trigger navigation if user is really none
-                   // Effect sometimes runs too late in SSR, but this is CSR
                    navigate("/login", Default::default());
                    ""
                 }
-            </div> 
+            </div>
         }>
-            <div class="flex h-screen w-full dark bg-slate-950 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 text-slate-300 font-sans antialiased overflow-hidden">
-                <Show when=move || is_mobile_menu_open.get()>
-                    <div class="fixed inset-0 bg-background/80 backdrop-blur-sm z-[90] lg:hidden" on:click=move |_| set_is_mobile_menu_open.set(false)></div>
-                </Show>
-
-                <aside class=move || format!(
-                    "{} lg:relative lg:flex flex-col w-64 border-r border-border bg-card z-[100] transition-transform duration-300 ease-in-out shrink-0 {}",
-                    if is_mobile_menu_open.get() { "fixed inset-y-0 left-0 translate-x-0 flex shadow-2xl" } else { "fixed inset-y-0 left-0 -translate-x-full lg:translate-x-0 hidden lg:flex" },
-                    ""
-                )>
-                    <div class="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
-                        <h2 class="text-lg font-semibold text-primary">"Admin Portal"</h2>
-                        <button class="lg:hidden p-2 -mr-2 text-muted-foreground hover:text-foreground" on:click=move |_| set_is_mobile_menu_open.set(false)>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </button>
+            <div class="h-screen w-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
+                // ── Top Nav Bar ──
+                <header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#060e20]">
+                    <div class="flex items-center gap-8">
+                        <a href="/" class="text-xl font-bold text-[#dee5ff] tracking-[-0.02em] whitespace-nowrap">"The Intelligence Layer"</a>
+                        <nav class="hidden md:flex gap-6">
+                            <a href="/" class=move || nav_active_class("/")>"Platform Overview"</a>
+                            <a href="/sites" class=move || nav_active_class("/sites")>"Network Directories"</a>
+                            <a href="/crm" class=move || nav_active_class("/crm")>"Sales & Relationships"</a>
+                            <a href="/cms" class=move || nav_active_class("/cms")>"Content Management"</a>
+                        </nav>
                     </div>
-                    <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-                        <a href="/" on:click=move |_| { set_is_mobile_menu_open.set(false); } class="block px-4 py-2 text-sm rounded-md hover:bg-secondary hover:text-secondary-foreground transition-colors">"Platform Overview"</a>
-                        <a href="/sites" on:click=move |_| { set_is_mobile_menu_open.set(false); } class="block px-4 py-2 text-sm rounded-md hover:bg-secondary hover:text-secondary-foreground transition-colors">"Network Directories"</a>
-                        <a href="/crm" on:click=move |_| { set_is_mobile_menu_open.set(false); } class="block px-4 py-2 text-sm rounded-md hover:bg-secondary hover:text-secondary-foreground transition-colors">"Sales & Relationships"</a>
-                        <a href="/cms" on:click=move |_| { set_is_mobile_menu_open.set(false); } class="block px-4 py-2 text-sm rounded-md hover:bg-secondary hover:text-secondary-foreground transition-colors">"Content Management"</a>
-                    </nav>
-                </aside>
-                
-                <div class="flex-1 flex flex-col overflow-hidden w-full min-w-0 relative z-0 backdrop-blur-3xl">
-                    <Header>
-                        <div class="h-16 flex items-center justify-between px-4 lg:px-6 border-b border-border bg-card/50 backdrop-blur-sm relative z-50 shrink-0">
-                            <div class="flex items-center space-x-2 lg:space-x-4">
-                                <button class="lg:hidden p-2 -ml-2 rounded-md hover:bg-muted" on:click=move |_| set_is_mobile_menu_open.update(|v| *v = !*v)>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-                                </button>
-                                <span class="hidden sm:inline text-sm font-medium text-muted-foreground whitespace-nowrap">"Active Site:"</span>
-                                <div class="w-[180px] sm:w-[240px]">
-                                    <Select default_value="all".to_string()>
-                                        <SelectTrigger id="site-selector".to_string() class="w-full bg-background relative z-50">
-                                            <SelectValue placeholder="Select a site...".to_string() />
-                                        </SelectTrigger>
-                                        <SelectContent class="z-[100] mt-1 bg-popover shadow-md border rounded-md">
-                                            <SelectGroup>
-                                                <SelectLabel>"Global"</SelectLabel>
-                                                <SelectOption value="all".to_string()>"Global (All Sites)"</SelectOption>
-                                            </SelectGroup>
-                                            <SelectGroup>
-                                                <SelectLabel>"Network Directories"</SelectLabel>
-                                                <Suspense fallback=move || view! { <div class="px-2 py-1 text-sm text-muted-foreground">"Loading..."</div> }>
-                                                    {move || dirs_res.get().map(|dirs| view! {
-                                                        <For
-                                                            each=move || dirs.clone()
-                                                            key=|dir| dir.id.clone()
-                                                            children=move |dir| view! {
-                                                                <SelectOption value=dir.id.clone()>{dir.name}</SelectOption>
-                                                            }
-                                                        />
-                                                    })}
-                                                </Suspense>
-                                            </SelectGroup>
-                                        </SelectContent>
-                                    </Select>
+                    <div class="flex items-center gap-4">
+                        <button class="bg-surface-container-high px-3 py-1.5 rounded-md flex items-center gap-2 text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 transition-all">
+                            <span class="text-on-surface-variant uppercase tracking-widest text-[10px]">"Site Selector"</span>
+                            <span class="text-primary font-bold">"All"</span>
+                            <span class="material-symbols-outlined text-sm">"expand_more"</span>
+                        </button>
+                        <div class="flex items-center gap-2 ml-2">
+                            <button class="p-2 text-[#91aaeb] hover:bg-[#002867]/20 transition-colors rounded-full">
+                                <span class="material-symbols-outlined">"notifications"</span>
+                            </button>
+                            <button class="p-2 text-[#91aaeb] hover:bg-[#002867]/20 transition-colors rounded-full">
+                                <span class="material-symbols-outlined">"settings"</span>
+                            </button>
+                            <div class="relative cursor-pointer" on:click=move |_| set_show_profile_menu.update(|v| *v = !*v)>
+                                <div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden ml-2 border border-outline-variant/30 flex items-center justify-center text-primary text-xs font-bold">
+                                    {move || user.get().map(|u| u.first_name.chars().next().unwrap_or('A').to_string()).unwrap_or_else(|| "A".to_string())}
                                 </div>
-                            </div>
-                            <div class="flex items-center space-x-3 relative cursor-pointer" on:click=move |_| set_show_profile_menu.update(|v| *v = !*v)>
-                                <span class="text-sm font-medium">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin".to_string())}</span>
-                                <Avatar class="w-8 h-8 hover:ring-2 hover:ring-primary transition-all".to_string()>
-                                    <AvatarFallback>{move || user.get().map(|u| u.first_name.chars().next().unwrap_or('A').to_string()).unwrap_or_else(|| "A".to_string())}</AvatarFallback>
-                                </Avatar>
                                 <Show when=move || show_profile_menu.get()>
-                                    <div class="absolute right-0 top-10 mt-2 w-48 bg-card border border-border rounded-xl shadow-2xl py-1 z-[100] overflow-hidden">
-                                        <div class="px-4 py-3 border-b border-border/50 text-sm">
-                                            <p class="font-medium text-foreground">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin".to_string())}</p>
-                                            <p class="text-muted-foreground text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
+                                    <div class="absolute right-0 top-10 mt-2 w-48 glass-panel border border-outline-variant/40 rounded-xl py-1 z-[100] overflow-hidden">
+                                        <div class="px-4 py-3 border-b border-outline-variant/20 text-sm">
+                                            <p class="font-medium text-on-surface">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin".to_string())}</p>
+                                            <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                         </div>
-                                        <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" on:click=move |e| e.stop_propagation()>"Account Settings"</a>
-                                        <button class="block w-full text-left px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors" on:click=move |e| { e.stop_propagation(); set_show_profile_menu.set(false); }>"Sign out"</button>
+                                        <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-bright/20 transition-colors" on:click=move |e| e.stop_propagation()>"Account Settings"</a>
+                                        <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { e.stop_propagation(); set_show_profile_menu.set(false); }>"Sign out"</button>
                                     </div>
                                 </Show>
                             </div>
                         </div>
-                    </Header>
-                    
-                    <main class="flex-1 overflow-auto p-8 relative z-0">
-                        <Routes fallback=|| "Not found.">
-                            <Route path=path!("/") view=Dashboard />
-                            <Route path=path!("/sites") view=MultiSite />
-                            <Route path=path!("/sites/new") view=crate::pages::site_create::SiteCreate />
-                            <Route path=path!("/sites/:id") view=crate::pages::site_dashboard::SiteDashboard />
-                            <Route path=path!("/crm") view=CrmGrid />
-                            <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
-                            <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
-                            <Route path=path!("/cms") view=CmsEditor />
-                        </Routes>
-                    </main>
-                </div>
+                    </div>
+                </header>
+
+                // ── Side Nav Bar ──
+                <aside class="fixed left-0 top-16 bottom-0 w-64 flex flex-col py-4 px-3 bg-[#06122d]">
+                    <div class="px-3 mb-6 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary">"terminal"</span>
+                        </div>
+                        <div>
+                            <div class="text-on-surface font-bold text-sm">"Admin Console"</div>
+                            <div class="text-on-surface-variant text-[10px] uppercase tracking-widest">"Network Root"</div>
+                        </div>
+                    </div>
+                    <nav class="flex-1 space-y-1">
+                        <a href="/" class=move || side_active_class("/")>
+                            <span class="material-symbols-outlined">"dashboard"</span>
+                            <span>"Overview"</span>
+                        </a>
+                        <a href="/sites" class=move || side_active_class("/sites")>
+                            <span class="material-symbols-outlined">"lan"</span>
+                            <span>"Directories"</span>
+                        </a>
+                        <a href="/crm" class=move || side_active_class("/crm")>
+                            <span class="material-symbols-outlined">"handshake"</span>
+                            <span>"Sales"</span>
+                        </a>
+                        <a href="/cms" class=move || side_active_class("/cms")>
+                            <span class="material-symbols-outlined">"article"</span>
+                            <span>"Content"</span>
+                        </a>
+                    </nav>
+                    <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
+                            <span class="material-symbols-outlined text-sm">"help"</span>
+                            <span>"Support"</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
+                            <span class="material-symbols-outlined text-sm">"terminal"</span>
+                            <span>"Logs"</span>
+                        </a>
+                        <a href="/sites/new" class="block w-full mt-4">
+                            <button class="w-full btn-primary-gradient text-on-primary-container py-2.5 rounded-md text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/10 hover:opacity-90 transition-opacity">
+                                "New Site"
+                            </button>
+                        </a>
+                    </div>
+                </aside>
+
+                // ── Main Content ──
+                <main class="ml-64 mt-16 p-8 min-h-screen bg-surface-container">
+                    <Routes fallback=|| "Not found.">
+                        <Route path=path!("/") view=Dashboard />
+                        <Route path=path!("/sites") view=MultiSite />
+                        <Route path=path!("/sites/new") view=crate::pages::site_create::SiteCreate />
+                        <Route path=path!("/sites/:id") view=crate::pages::site_dashboard::SiteDashboard />
+                        <Route path=path!("/crm") view=CrmGrid />
+                        <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
+                        <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
+                        <Route path=path!("/cms") view=CmsEditor />
+                    </Routes>
+                </main>
             </div>
         </Show>
     }
