@@ -10,13 +10,13 @@
 
 @layer base {
   :root {
-    --brand-primary: #2563eb;
-    --brand-primary-rgb: 37, 99, 235;
-    --bg-surface: #fafaf9;
-    --radius-ui: 12px;
-    --font-heading: 'Inter', system-ui, sans-serif;
+    --brand-primary: #004289;
+    --brand-primary-rgb: 0, 66, 137;
+    --bg-surface: #f8f9fa;
+    --radius-ui: 6px;
+    --font-heading: 'Manrope', system-ui, sans-serif;
 
-    --foreground: #1c1917;
+    --foreground: #191c1d;
     --primary-foreground: #ffffff;
   }
 }

@@ -29,8 +29,11 @@ node_modules/
 /apps/*/.env
 /apps/*/.env.*
 !/apps/*/.env.example
+/apps/directory-instance/design spec
+
 
 # General
+
 
 # OS generated files
 .DS_Store

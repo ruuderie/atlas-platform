@@ -7,57 +7,89 @@ pub fn SearchGrid(
     set_selected: WriteSignal<Option<ListingModel>>,
     view_mode: ReadSignal<String>
 ) -> impl IntoView {
+    let images = vec![
+        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1523413363574-c30aa1c2a516?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1562259929-b4e1fd3aef09?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+    ];
+
+    let badges = vec![
+        "Top Rated",
+        "Licensed & Insured",
+        "Best of 2024",
+        "New Listing",
+        "Verified Pro",
+    ];
+
+    let locations = vec![
+        "Hartford, CT",
+        "Stamford, CT",
+        "New Haven, CT",
+        "Bridgeport, CT",
+        "Danbury, CT",
+    ];
+
     view! {
-        <div class=move || format!("transition-all duration-500 {}", if view_mode.get() == "grid" { "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10" } else { "space-y-8 flex flex-col" })>
-            {results.clone().into_iter().map(move |listing| {
+        <div class="space-y-0">
+            {results.clone().into_iter().enumerate().map(move |(i, listing)| {
                 let listing_clone1 = listing.clone();
                 let listing_clone2 = listing.clone();
+                let img = images[i % images.len()];
+                let badge = badges[i % badges.len()];
+                let location = locations[i % locations.len()];
+                let years_exp = match i % 5 { 0 => "15", 1 => "8", 2 => "22", 3 => "12", _ => "5" };
+                let projects = match i % 5 { 0 => "200+", 1 => "150+", 2 => "500+", 3 => "300+", _ => "75+" };
+                let is_featured = i % 3 == 0;
+
                 view! {
-                <div on:click=move |_| set_selected.set(Some(listing_clone1.clone())) class=move || format!("group cursor-pointer flex transition-all duration-300 {}", if view_mode.get() == "grid" { "flex-col" } else { "flex-col sm:flex-row gap-6 border-b border-slate-200 pb-8 hover:bg-slate-50 rounded-2xl p-2 -m-2" })>
-                    // Image Container
-                    <div class=move || format!("relative overflow-hidden rounded-2xl bg-slate-100 flex-shrink-0 transition-all duration-500 {}", if view_mode.get() == "grid" { "w-full aspect-[20/19] mb-3 group-hover:shadow-md" } else { "w-full sm:w-[320px] h-64 sm:h-auto group-hover:shadow-md" })>
-                        // Fav Icon
-                        <button class="absolute top-3 right-3 p-2 rounded-full z-20 text-white/90 hover:text-rose-500 hover:scale-110 active:scale-95 transition-all duration-200 drop-shadow-md">
-                            <span class="material-symbols-outlined text-[24px]">"favorite"</span>
-                        </button>
-                        
-                        // Guest Favorite Badge Overlay (mocked condition)
-                        <div class="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1 text-xs font-bold text-slate-800 rounded-full shadow-sm z-20 flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[14px] text-amber-500">"workspace_premium"</span>
-                            "Top Rated"
+                    <article class="group flex flex-col md:flex-row gap-8 py-10 border-b border-outline-variant/30 last:border-b-0 cursor-pointer" on:click=move |_| set_selected.set(Some(listing_clone1.clone()))>
+                        // Image
+                        <div class="relative w-full md:w-80 h-64 md:h-auto aspect-[4/3] rounded-sm overflow-hidden flex-shrink-0 bg-surface-container-low">
+                            <img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src=img alt=listing_clone2.title.clone() />
                         </div>
-                        
-                        // Hover overlay with gradient
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
-                        
-                        // Authentic image instead of placeholder
-                        <img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-                             alt="Listing Preview" 
-                             class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
-                        />
-                    </div>
-                    
-                    // Detail Text 
-                    <div class="flex-grow flex flex-col justify-start pt-1">
-                        <div class="flex justify-between items-start mb-1">
-                            <h3 class="text-base font-bold font-headline text-on-primary-fixed leading-tight truncate pr-4">{listing_clone2.title.clone()}</h3>
-                            <div class="flex items-center text-sm font-bold text-slate-700 gap-1 flex-shrink-0">
-                                <span class="material-symbols-outlined text-[16px]">"star"</span>
-                                "4.96"
+                        // Details
+                        <div class="flex-1 flex flex-col justify-between py-1">
+                            <div>
+                                <div class="flex items-center gap-3 mb-3">
+                                    {if is_featured {
+                                        view! {
+                                            <span class="text-[10px] font-bold uppercase tracking-widest text-white bg-[#004289] px-3 py-1 rounded-sm">{badge}</span>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant border border-outline-variant px-3 py-1 rounded-sm">{badge}</span>
+                                        }.into_any()
+                                    }}
+                                    <span class="flex items-center gap-1 text-sm text-on-surface-variant">
+                                        <span class="material-symbols-outlined text-[16px]">"location_on"</span>
+                                        {location}
+                                    </span>
+                                </div>
+                                <h3 class="font-headline text-2xl font-bold text-on-surface mb-3 group-hover:text-[#004289] transition-colors">{listing_clone2.title.clone()}</h3>
+                                <p class="text-on-surface-variant leading-relaxed line-clamp-2 mb-6">{listing_clone2.description.clone()}</p>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-6 text-sm text-on-surface-variant">
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[18px]">"schedule"</span>
+                                        {years_exp} " yrs exp"
+                                    </span>
+                                    <span class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[18px]">"construction"</span>
+                                        {projects} " projects"
+                                    </span>
+                                </div>
+                                <a href=format!("/{}", listing_clone2.id) class="flex items-center gap-1 text-[#004289] font-bold hover:underline underline-offset-4 transition-all">
+                                    "View Details"
+                                    <span class="material-symbols-outlined text-[18px]">"arrow_forward"</span>
+                                </a>
                             </div>
                         </div>
-                        <div class="text-sm text-slate-500 font-body mb-1">{listing_clone2.listing_type.clone()}</div>
-                        <div class=move || format!("text-sm text-slate-600 font-body leading-relaxed {}", if view_mode.get() == "grid" { "truncate" } else { "line-clamp-2 mt-2" })>
-                            {listing_clone2.description.clone()}
-                        </div>
-                        
-                        <div class="mt-auto pt-4 flex items-center font-bold text-sm text-on-primary-fixed group-hover:text-primary transition-colors duration-200">
-                            <span class="underline decoration-slate-300 group-hover:decoration-primary transition-colors">"View availability"</span>
-                            <span class="material-symbols-outlined text-[18px] ml-1 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">"chevron_right"</span>
-                        </div>
-                    </div>
-                </div>
-            }}).collect_view()}
+                    </article>
+                }
+            }).collect_view()}
         </div>
     }
 }
@@ -65,91 +97,74 @@ pub fn SearchGrid(
 #[component]
 pub fn RefinementSidebar() -> impl IntoView {
     view! {
-        <div class="w-full mt-6 sticky top-[108px] bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
-            <h4 class="font-bold font-headline text-xl mb-6 text-on-primary-fixed pb-4 border-b border-slate-200">"Filters"</h4>
-            
-            <div class="space-y-8">
-                // Price Range
-                <div>
-                    <h5 class="font-bold text-sm mb-4 text-slate-800 font-headline">"Price range"</h5>
-                    <div class="flex items-center gap-4">
-                        <div class="border border-slate-300 rounded-xl px-4 py-2 w-full">
-                            <span class="text-xs text-slate-500 block">"Minimum"</span>
-                            <div class="flex items-center"><span class="text-slate-500 mr-1">"$"</span><input type="number" class="w-full outline-none font-bold text-slate-800" placeholder="100" /></div>
-                        </div>
-                        <span class="text-slate-300">"-"</span>
-                        <div class="border border-slate-300 rounded-xl px-4 py-2 w-full">
-                            <span class="text-xs text-slate-500 block">"Maximum"</span>
-                            <div class="flex items-center"><span class="text-slate-500 mr-1">"$"</span><input type="number" class="w-full outline-none font-bold text-slate-800" placeholder="500+" /></div>
-                        </div>
-                    </div>
+        <aside class="w-full space-y-10">
+            // Category
+            <div>
+                <h4 class="flex items-center gap-2 font-headline font-bold text-sm mb-4 text-on-surface uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-[18px]">"tune"</span>
+                    "Category"
+                </h4>
+                <div class="space-y-3 font-body text-on-surface-variant">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" checked class="w-4 h-4 accent-[#004289] rounded" />
+                        <span class="font-medium text-on-surface">"Kitchen & Bath"</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" class="w-4 h-4 accent-[#004289] rounded" />
+                        <span>"General Handyman"</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" class="w-4 h-4 accent-[#004289] rounded" />
+                        <span>"Roofing & Siding"</span>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <input type="checkbox" class="w-4 h-4 accent-[#004289] rounded" />
+                        <span>"Plumbing & HVAC"</span>
+                    </label>
                 </div>
-
-                <hr class="border-slate-200" />
-
-                // Category Filter
-                <div>
-                    <h5 class="font-bold text-sm mb-4 text-slate-800 font-headline">"Service Category"</h5>
-                    <div class="space-y-3 font-body text-slate-600">
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all bg-slate-900 text-white">
-                                    <span class="material-symbols-outlined text-[14px]">"check"</span>
-                                </div>
-                                <span class="font-medium">"All Categories"</span>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all">
-                                </div>
-                                <span>"Contractors"</span>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all">
-                                </div>
-                                <span>"Plumbers"</span>
-                            </div>
-                        </label>
-                        <label class="flex items-center justify-between cursor-pointer group">
-                            <div class="flex items-center gap-3">
-                                <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all">
-                                </div>
-                                <span>"HVAC"</span>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                
-                <hr class="border-slate-200" />
-
-                // Amenities / Features
-                <div>
-                    <h5 class="font-bold text-sm mb-4 text-slate-800 font-headline">"Amenities"</h5>
-                    <div class="space-y-3 font-body text-slate-600">
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all"></div>
-                            <span>"Instant Booking"</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all text-slate-900 bg-slate-900">
-                                <span class="material-symbols-outlined text-[14px] text-white">"check"</span>
-                            </div>
-                            <span class="font-medium text-slate-900">"Verified Pro"</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="w-5 h-5 rounded border border-slate-300 group-hover:border-slate-900 flex items-center justify-center transition-all"></div>
-                            <span>"Free Estimates"</span>
-                        </label>
-                    </div>
-                </div>
-
-                <button class="w-full border-2 border-slate-900 text-slate-900 py-3 rounded-xl font-bold hover:bg-slate-900 hover:text-white transition-colors">
-                    "Show 128 results"
-                </button>
             </div>
-        </div>
+
+            // Investment Range
+            <div>
+                <h4 class="flex items-center gap-2 font-headline font-bold text-sm mb-4 text-on-surface uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-[18px]">"payments"</span>
+                    "Budget Range"
+                </h4>
+                <div class="px-1">
+                    <input type="range" min="500" max="50000" value="10000" class="w-full accent-[#004289] cursor-pointer" />
+                    <div class="flex justify-between text-xs text-on-surface-variant mt-2">
+                        <span>"$500"</span>
+                        <span>"$50K+"</span>
+                    </div>
+                </div>
+            </div>
+
+            // Customer Rating
+            <div>
+                <h4 class="flex items-center gap-2 font-headline font-bold text-sm mb-4 text-on-surface uppercase tracking-wider">
+                    <span class="material-symbols-outlined text-[18px]">"star"</span>
+                    "Customer Rating"
+                </h4>
+                <div class="flex gap-2">
+                    <button class="bg-[#004289] text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1">"4.5+ " <span class="material-symbols-outlined text-[14px]">"star"</span></button>
+                    <button class="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-full text-xs font-bold hover:border-[#004289] hover:text-[#004289] transition-colors">"4.0+"</button>
+                    <button class="border border-outline-variant text-on-surface-variant px-4 py-2 rounded-full text-xs font-bold hover:border-[#004289] hover:text-[#004289] transition-colors">"3.5+"</button>
+                </div>
+            </div>
+
+            // Map Preview
+            <div>
+                <h4 class="font-headline font-bold text-sm mb-4 text-on-surface">"Map Preview"</h4>
+                <div class="relative h-52 rounded-lg overflow-hidden bg-surface-container-low">
+                    <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600&auto=format&fit=crop" class="w-full h-full object-cover opacity-60 saturate-50" alt="Map Preview" />
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <button class="bg-[#004289] text-white px-6 py-2 rounded-lg font-bold text-sm shadow-lg hover:bg-[#00458f] transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">"map"</span>
+                            "Browse Map"
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
     }
 }

@@ -65,6 +65,8 @@ pub async fn create_category(
         parent_category_id: Set(payload.parent_category_id),
         name: Set(payload.name),
         description: Set(payload.description),
+        icon: Set(None),
+        slug: Set(None),
         is_custom: Set(payload.is_custom),
         is_active: Set(payload.is_active),
         created_at: Set(Utc::now()),

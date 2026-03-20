@@ -12,6 +12,10 @@ pub struct Model {
     pub parent_category_id: Option<Uuid>,
     pub name: String,
     pub description: String,
+    #[sea_orm(nullable)]
+    pub icon: Option<String>,
+    #[sea_orm(nullable, unique)]
+    pub slug: Option<String>,
     pub is_custom: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,

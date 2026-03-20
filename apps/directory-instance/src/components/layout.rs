@@ -13,13 +13,13 @@ pub fn GlobalHeader() -> impl IntoView {
                 </a>
                 <div class="hidden md:flex items-center space-x-8 font-headline font-bold tracking-tight text-sm">
                     <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/search">"Browse"</a>
-                    <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/expertise">"Expertise"</a>
+                    <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/services">"Services"</a>
                     <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/about">"About"</a>
                     <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/contact">"Contact"</a>
                 </div>
                 <div class="flex items-center gap-6">
                     <a href="/list-property" class="bg-primary text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 hover:opacity-80 active:scale-95 shadow-sm text-sm inline-block text-center">
-                        "List a Property"
+                        "List Your Service"
                     </a>
                 </div>
             </div>

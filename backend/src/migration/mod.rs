@@ -19,6 +19,7 @@ mod m20240923_create_feed_tables;
 mod m20240924_update_listings_nullable_category;
 mod m20240924_update_directory_multisite_fields;
 mod m20240315_add_directory_domain_fields;
+mod m20241001_add_icon_and_slug_to_categories;
 
 pub struct Migrator;
 
@@ -45,6 +46,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240924_update_listings_nullable_category::Migration),
             Box::new(m20240924_update_directory_multisite_fields::Migration),
             Box::new(m20240315_add_directory_domain_fields::Migration),
+            Box::new(m20241001_add_icon_and_slug_to_categories::Migration),
         ]
     }
 }
