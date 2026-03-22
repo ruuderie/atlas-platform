@@ -41,6 +41,23 @@ pub fn CrmGrid() -> impl IntoView {
         });
     };
 
+    let handle_impersonate = move |user_id: String| {
+        let toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::auth::impersonate_user(&user_id).await {
+                Ok(session) => {
+                    let url = format!("http://directory.localhost:3000/?impersonate_token={}", session.token);
+                    if let Some(window) = web_sys::window() {
+                        let _ = window.location().assign(&url);
+                    }
+                }
+                Err(e) => {
+                    toast.message.set(Some(format!("Impersonation failed: {}", e)));
+                }
+            }
+        });
+    };
+
     let user_headers = vec!["ID".to_string(), "Name".to_string(), "Email".to_string(), "Role".to_string(), "Status".to_string()];
     let lead_headers = vec!["Lead ID".to_string(), "Name".to_string(), "Email".to_string(), "Status".to_string(), "Converted?".to_string()];
     let account_headers = vec!["Account ID".to_string(), "Name".to_string()];
@@ -158,11 +175,22 @@ pub fn CrmGrid() -> impl IntoView {
                                                 <div class="text-sm font-semibold text-on-surface">{move || selected_user.get().and_then(|u| u.get(4).cloned()).unwrap_or_default()}</div>
                                             </div>
                                         </div>
-                                        <div class="mt-auto pt-6">
+                                        <div class="mt-auto pt-6 flex flex-col gap-3">
                                             <a href=move || format!("/crm/user/{}", selected_user.get().and_then(|u| u.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
                                                 "View Full Details"
                                                 <span class="material-symbols-outlined text-sm">"open_in_new"</span>
                                             </a>
+                                            <button 
+                                                on:click=move |_| {
+                                                    if let Some(user_id) = selected_user.get().and_then(|u| u.get(0).cloned()) {
+                                                        handle_impersonate(user_id);
+                                                    }
+                                                }
+                                                class="w-full py-3 bg-[#0d0d0d] text-white font-bold text-sm rounded-md shadow-sm border border-white/10 hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                "Login As User"
+                                                <span class="material-symbols-outlined text-sm">"login"</span>
+                                            </button>
                                         </div>
                                     </div>
                                 </Show>

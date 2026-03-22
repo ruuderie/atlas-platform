@@ -152,103 +152,6 @@ pub struct CreateLeadInput {
 // On the server, they execute directly. On the client, they make a POST request to the server.
 #[server]
 pub async fn fetch_directory_config_from_api(domain: String) -> Result<DirectoryConfig, ServerFnError> {
-    if domain.contains("localhost") || domain.contains("127.0.0.1") {
-        return Ok(DirectoryConfig {
-            id: "mock-dir-ct-build".to_string(),
-            name: "CT Build Pros".to_string(),
-            domain: domain.clone(),
-            description: "The premier directory for top-rated construction and renovation services across Connecticut.".to_string(),
-            theme_primary_color: Some("25 95% 53%".to_string()),
-            theme: ThemeConfig {
-                brand_primary: "#f97316".to_string(),
-                bg_surface: "#ffffff".to_string(),
-                radius_ui: "6px".to_string(),
-                font_heading: "Inter, sans-serif".to_string(),
-            },
-            hero_headline: "Connecticut's Most Trusted Home Renovation Pros.".to_string(),
-            hero_subtitle: "Find licensed contractors, handymen, and renovation specialists — vetted and reviewed by your neighbors.".to_string(),
-            search_placeholder_keyword: "Kitchen remodel, plumber, handyman...".to_string(),
-            search_placeholder_location: "Hartford, Stamford, New Haven...".to_string(),
-            categories: vec![
-                CategoryItem { slug: "kitchen-bath".to_string(), label: "Kitchen & Bath".to_string(), subtitle: "Remodels & Upgrades".to_string(), icon: "countertops".to_string() },
-                CategoryItem { slug: "general-handyman".to_string(), label: "General Handyman".to_string(), subtitle: "Repairs & Odd Jobs".to_string(), icon: "handyman".to_string() },
-                CategoryItem { slug: "roofing-siding".to_string(), label: "Roofing & Siding".to_string(), subtitle: "Exterior Specialists".to_string(), icon: "roofing".to_string() },
-                CategoryItem { slug: "electrical".to_string(), label: "Electrical".to_string(), subtitle: "Licensed Electricians".to_string(), icon: "electrical_services".to_string() },
-                CategoryItem { slug: "painting".to_string(), label: "Painting".to_string(), subtitle: "Professional Painter".to_string(), icon: "professional_painter".to_string() },
-            ],
-            featured_listings: vec![
-                FeaturedListingMock {
-                    slug: "ct-contractor-demo".to_string(),
-                    title: "Apex CT Renovations".to_string(),
-                    subtitle: "Full-Service Remodeling • Hartford, CT".to_string(),
-                    image_url: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80".to_string(),
-                    badge_label: "Top Rated".to_string(),
-                    badge_icon: "verified".to_string(),
-                    price_label: Some("From $5,000".to_string()),
-                    tags: vec!["Kitchen & Bath".to_string(), "Licensed".to_string()],
-                },
-                FeaturedListingMock {
-                    slug: "search".to_string(),
-                    title: "Precision Plumbing Co.".to_string(),
-                    subtitle: "Emergency & Residential • Stamford, CT".to_string(),
-                    image_url: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80".to_string(),
-                    badge_label: "Best of CT 2025".to_string(),
-                    badge_icon: "star".to_string(),
-                    price_label: None,
-                    tags: vec!["Plumbing".to_string(), "24/7 Service".to_string()],
-                },
-                FeaturedListingMock {
-                    slug: "search".to_string(),
-                    title: "GreenScape Landscaping".to_string(),
-                    subtitle: "Design & Maintenance • New Haven, CT".to_string(),
-                    image_url: "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80".to_string(),
-                    badge_label: "New Listing".to_string(),
-                    badge_icon: "new_releases".to_string(),
-                    price_label: Some("From $1,200".to_string()),
-                    tags: vec!["Landscaping".to_string(), "Eco-Friendly".to_string()],
-                },
-            ],
-            process_steps: vec![
-                ProcessStep {
-                    number: "01".to_string(),
-                    title: "Search & Compare".to_string(),
-                    description: "Browse our directory of licensed and insured Connecticut contractors. Filter by service type, location, budget, and customer rating to find the perfect match.".to_string(),
-                },
-                ProcessStep {
-                    number: "02".to_string(),
-                    title: "Read Verified Reviews".to_string(),
-                    description: "Every contractor is reviewed by real Connecticut homeowners. Check project photos, read detailed feedback, and verify licenses before making contact.".to_string(),
-                },
-                ProcessStep {
-                    number: "03".to_string(),
-                    title: "Get Your Free Estimate".to_string(),
-                    description: "Connect directly with pros through our secure platform. Request quotes, schedule consultations, and start your renovation project with confidence.".to_string(),
-                },
-            ],
-            cta_headline: "Ready to grow your renovation business?".to_string(),
-            cta_subtext: "Join hundreds of Connecticut contractors already getting new customers through our directory.".to_string(),
-            host_page: Some(HostPageContent {
-                hero_headline: "Your Expertise.\nYour Business.\nOur Platform.".to_string(),
-                hero_subtitle: "Join Connecticut's fastest-growing directory for renovation and handyman professionals. We connect skilled tradespeople with homeowners who need quality work done right.".to_string(),
-                form_category_options: vec![
-                    "Kitchen & Bath Remodeling".to_string(),
-                    "General Handyman".to_string(),
-                    "Roofing & Siding".to_string(),
-                    "Electrical".to_string(),
-                    "Plumbing".to_string(),
-                    "Painting & Drywall".to_string(),
-                    "Landscaping".to_string(),
-                ],
-                trust_heading: "Why List With Us?".to_string(),
-                trust_subtitle: "We connect trusted renovation pros with Connecticut homeowners who are ready to start their projects.".to_string(),
-                testimonial_quote: "CT Build Pros didn't just find me customers; they found me homeowners who actually valued quality craftsmanship. My kitchen remodel bookings tripled in the first quarter. It's a community that respects the trade.".to_string(),
-                testimonial_name: "Marcus Rivera".to_string(),
-                testimonial_title: "Owner, Rivera Custom Renovations (15+ years in CT)".to_string(),
-                cta_headline: "Ready to grow your business?".to_string(),
-                cta_subtitle: "List your services today. New contractor profiles are reviewed and approved within 48 hours.".to_string(),
-            }),
-        });
-    }
 
     let url = format!("http://127.0.0.1:8000/directories/lookup?domain={}", domain);
     let client = reqwest::Client::new();
@@ -263,41 +166,6 @@ pub async fn fetch_directory_config_from_api(domain: String) -> Result<Directory
 
 #[server]
 pub async fn fetch_listing_by_slug_from_api(slug: String) -> Result<ListingModel, ServerFnError> {
-    if slug == "ct-contractor-demo" {
-        return Ok(ListingModel {
-            id: "mock-ct-contractor-id-123".to_string(),
-            listing_type: "Full-Service Remodeling".to_string(),
-            title: "Apex CT Renovations & Handyman Services".to_string(),
-            description: "
-                <h3>Premium Renovation Services in Connecticut</h3>
-                <p>We deliver top-quality craftsmanship for residential homeowners across the state. From full-scale kitchen and bathroom remodels to precision handyman repairs, Apex has been Connecticut's trusted renovation partner for over 15 years.</p>
-                <br/>
-                <h4>Our Core Services</h4>
-                <ul>
-                    <li><strong>Kitchen Remodeling:</strong> Custom cabinetry, countertops, backsplashes, and complete layout redesigns.</li>
-                    <li><strong>Bathroom Renovation:</strong> Walk-in showers, tile work, vanity upgrades, and accessibility modifications.</li>
-                    <li><strong>General Handyman:</strong> Drywall repair, fixture installation, painting, and general maintenance.</li>
-                    <li><strong>Basement Finishing:</strong> Full basement conversions including framing, electrical, and flooring.</li>
-                </ul>
-            ".to_string(),
-            attributes: [
-                ("hero_headline".to_string(), "Your Dream Connecticut Renovation, Done Right.".to_string()),
-                ("hero_subtitle".to_string(), "From concept to completion, our master craftsmen deliver flawless results that redefine your living space.".to_string()),
-                ("cta_headline".to_string(), "Get Your Free Project Estimate".to_string()),
-                ("cta_text".to_string(), "Request a Free Estimate".to_string()),
-                ("years_experience".to_string(), "15+".to_string()),
-                ("projects_completed".to_string(), "1,200+".to_string()),
-                ("service_area".to_string(), "All of CT".to_string()),
-                ("license_number".to_string(), "CT-HIC #0648751".to_string()),
-            ].into_iter().collect(),
-            city: Some("Hartford".to_string()),
-            state: Some("CT".to_string()),
-            price: Some(5000.0),
-            price_type: Some("starting_at".to_string()),
-            is_featured: true,
-            has_landing_page: true,
-        });
-    }
 
     let url = format!("http://127.0.0.1:8000/api/listings/by-slug/{}", slug);
     let client = reqwest::Client::new();
@@ -1183,6 +1051,29 @@ fn InnerApp(config: DirectoryConfig) -> impl IntoView {
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+    
+    #[cfg(feature = "hydrate")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(search) = window.location().search() {
+                if let Ok(params) = web_sys::UrlSearchParams::new_with_str(&search) {
+                    if let Some(token) = params.get("impersonate_token") {
+                        crate::auth::set_auth_token(&token);
+                        
+                        // Clean the URL without reloading the page
+                        if let Some(history) = window.history().ok() {
+                            let pathname = window.location().pathname().unwrap_or_default();
+                            let _ = history.replace_state_with_url(
+                                &wasm_bindgen::JsValue::NULL,
+                                "",
+                                Some(&pathname),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     let host = get_host();
     let err_host = host.clone();

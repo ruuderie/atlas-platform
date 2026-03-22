@@ -22,6 +22,8 @@ pub struct Claims {
     pub exp: usize,            // Expiration timestamp
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jti: Option<String>,   // JWT ID for tracking
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub impersonator_id: Option<String>, // Admin ID impersonating this session
 }
 
 pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
@@ -102,6 +104,7 @@ pub fn generate_jwt(user: &user::Model) -> Result<String, jsonwebtoken::errors::
         is_admin: user.is_admin,
         exp: expiration as usize,
         jti: Some(Uuid::new_v4().to_string()),
+        impersonator_id: None,
     };
 
     tracing::debug!("[{}] JWT claims: sub={}, is_admin={}, exp={}, jti={}", 
@@ -168,6 +171,7 @@ pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::er
         exp: expiration as usize,
         is_admin: true, // Force admin flag to true
         jti: Some(Uuid::new_v4().to_string()),
+        impersonator_id: None,
     };
 
     tracing::debug!("[{}] Admin JWT claims: sub={}, is_admin={}, exp={}, jti={}", 
@@ -198,6 +202,35 @@ pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::er
     }
     
     result
+}
+
+pub fn generate_impersonation_jwt(target_user: &user::Model, admin_id: &Uuid) -> Result<String, jsonwebtoken::errors::Error> {
+    let operation_id = Uuid::new_v4();
+    tracing::info!("[{}] Generating IMPERSONATION JWT for user: {} ({}) by Admin: {}", 
+        operation_id, target_user.id, target_user.email, admin_id);
+    
+    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
+        "your-secret-key".to_string()
+    });
+    
+    let jwt_expiry_hours = 2; // Hardcode a short 2 hour span for impersonation scopes
+        
+    let expiration = Utc::now()
+        .checked_add_signed(Duration::hours(jwt_expiry_hours))
+        .expect("valid timestamp")
+        .timestamp();
+
+    let claims = Claims {
+        sub: target_user.id.to_string(),
+        is_admin: target_user.is_admin, // Carry over whatever bounds the target has naturally
+        exp: expiration as usize,
+        jti: Some(Uuid::new_v4().to_string()),
+        impersonator_id: Some(admin_id.to_string()),
+    };
+
+    let header = Header::default();
+    let encoding_key = EncodingKey::from_secret(jwt_secret.as_ref());
+    encode(&header, &claims, &encoding_key)
 }
 
 pub fn validate_jwt<T: DeserializeOwned>(token: &str) -> Result<T, jsonwebtoken::errors::Error> {

@@ -58,3 +58,24 @@ pub async fn logout() -> Result<(), String> {
         Err("Failed to logout".into())
     }
 }
+
+pub async fn impersonate_user(user_id: &str) -> Result<SessionResponse, String> {
+    let client = create_client();
+    let url = api_url(&format!("/admin/users/{}/impersonate", user_id));
+
+    let req = client.post(&url);
+    let req = with_credentials(req);
+
+    let res = req.send().await.map_err(|e| e.to_string())?;
+
+    if res.status() == StatusCode::OK {
+        let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
+        Ok(session)
+    } else {
+        let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
+            message: Some("Failed to parse error response".into()),
+            error: None,
+        });
+        Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| "Failed to impersonate user".into())))
+    }
+}

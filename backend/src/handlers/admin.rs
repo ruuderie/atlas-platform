@@ -20,6 +20,7 @@ use crate::models::directory_type::{DirectoryTypeModel, CreateDirectoryType, Upd
 use crate::models::directory::{DirectoryModel, UpdateDirectory, CreateDirectory};
 use std::collections::HashMap;
 use crate::handlers::{listings,directories,directory_types,sessions};
+use crate::models::session::{SessionResponse, UserInfo};
 
 #[derive(Deserialize)]
 pub struct UpdateUserInput {
@@ -784,4 +785,47 @@ pub async fn get_revenue_report(
     };
 
     Ok(Json(revenue_data))
+}
+
+pub async fn impersonate_user(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+    Path(target_user_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    
+    // 1. Strictly verify the caller is a global platform admin
+    if !current_user.is_admin {
+        tracing::warn!("Non-admin user {} attempted to impersonate {}", current_user.id, target_user_id);
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // 2. Load the target user
+    let target_user = user::Entity::find_by_id(target_user_id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // 3. Generate an impersonation JWT containing the impersonator_id claim
+    let token = crate::auth::generate_impersonation_jwt(&target_user, &current_user.id)
+        .map_err(|e| {
+            tracing::error!("Failed to generate impersonation token: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // 4. Return SessionResponse
+    let response = SessionResponse {
+        token,
+        refresh_token: "".to_string(), // Refresh tokens are generally not needed for impersonation
+        user: Some(UserInfo {
+            id: target_user.id,
+            email: target_user.email,
+            first_name: target_user.first_name,
+            last_name: target_user.last_name,
+            is_admin: target_user.is_admin,
+        }),
+    };
+
+    Ok(Json(response))
 }

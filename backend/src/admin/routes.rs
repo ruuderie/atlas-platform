@@ -28,6 +28,7 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/users/{user_id}", put(admin::update_user))
                 .route("/admin/users/{user_id}", delete(admin::delete_user))
                 .route("/admin/users/{user_id}/toggle-admin", post(admin::toggle_admin))
+                .route("/admin/users/{user_id}/impersonate", post(admin::impersonate_user))
                 // Customer management
                 .route("/admin/customers", get(customers::get_customers).post(customers::create_customer))
                 .route("/admin/customers/{customer_id}", get(customers::get_customer).put(customers::update_customer).delete(customers::delete_customer))
