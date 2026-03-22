@@ -62,7 +62,7 @@ pub async fn get_user_profile(
 pub async fn register_user(
     State(db): State<DatabaseConnection>,
     Json(user_data): Json<UserRegistration>,
-) -> Result<(StatusCode, Json<user::Model>), (StatusCode, String)> {
+) -> Result<(StatusCode, Json<SessionResponse>), (StatusCode, String)> {
     tracing::info!("Received registration request for email: {}", user_data.email);
 
     let directory_id = user_data.directory_id;
@@ -220,7 +220,12 @@ pub async fn register_user(
         (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
     })?;
 
-    Ok((StatusCode::CREATED, Json(inserted_user)))
+    // Create session for the new user immediately upon registration
+    let session_response = create_user_session(&db, &user_data.email, &user_data.password)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to auto-authenticate after registration".to_string()))?;
+
+    Ok((StatusCode::CREATED, Json(session_response)))
 }
 
 pub async fn login_user(

@@ -41,7 +41,8 @@ pub fn Textarea(
                 required=required
                 autofocus=autofocus
                 rows=rows
-                bind:value=signal
+                prop:value=move || signal.get()
+                on:input=move |ev| signal.set(event_target_value(&ev))
                 node_ref=node_ref
             />
         }

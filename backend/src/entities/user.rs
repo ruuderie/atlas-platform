@@ -35,6 +35,7 @@ pub enum Relation {
     Session,
     RequestLog,
     FileAssociation,
+    Passkey,
 }
 
 impl RelationTrait for Relation {
@@ -43,7 +44,8 @@ impl RelationTrait for Relation {
             Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
             Self::Session => Entity::has_many(super::session::Entity).into(),
             Self::RequestLog => Entity::has_many(super::request_log::Entity).into(), 
-            Self::FileAssociation => Entity::has_many(super::file_association::Entity).into()
+            Self::FileAssociation => Entity::has_many(super::file_association::Entity).into(),
+            Self::Passkey => Entity::has_many(super::passkey::Entity).into()
         }
     }
 }
@@ -73,6 +75,12 @@ impl Related<super::request_log::Entity> for Entity {
 impl Related<super::file_association::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::FileAssociation.def()
+    }
+}
+
+impl Related<super::passkey::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Passkey.def()
     }
 }
 

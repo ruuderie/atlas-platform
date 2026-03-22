@@ -13,7 +13,7 @@ pub fn Separator(
         separator.with_class(class.clone())
     });
 
-    view! { <div class=merged_class role="separator" /> }
+    view! { <div class=move || merged_class.get() role="separator" /> }
 }
 
 /* ========================================================== */

@@ -113,6 +113,7 @@ pub struct CreateDirectory {
     pub directory_type_id: Uuid,
     pub domain: String,
     pub description: String,
+    pub deployment_strategy: Option<String>,
 }
 
 impl From<CreateDirectory> for directory::ActiveModel {

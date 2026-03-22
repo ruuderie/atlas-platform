@@ -138,7 +138,7 @@ pub fn DashboardLayout() -> impl IntoView {
                             <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-full h-full object-cover"/>
                         </div>
                         <div class="flex-1 truncate">
-                            <div class="text-sm font-bold text-on-surface truncate">{user_name}</div>
+                            <div class="text-sm font-bold text-on-surface truncate">{move || user_name.get()}</div>
                             <div class="text-xs text-on-surface-variant truncate">"Service Provider"</div>
                         </div>
                     </div>

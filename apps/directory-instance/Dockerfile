@@ -1,5 +1,5 @@
 # Base stage with common dependencies
-FROM rust:1.88.0-bookworm AS base
+FROM rust:1.90.0-bookworm AS base
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Development stage
 FROM base AS development
-RUN cargo install cargo-leptos
+RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
 EXPOSE 8080
 CMD ["cargo", "leptos", "watch"]
 

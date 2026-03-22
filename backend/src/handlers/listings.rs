@@ -36,6 +36,7 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/listings", post(create_listing))
+        .route("/api/listings/my-listings", get(get_my_listings).post(create_my_listing))
         .route("/api/listings/{id}", get(get_listing_by_id))
         .route("/api/listings/{id}/with-attributes", get(get_listing_with_attributes))
         .route("/api/listings/{id}", put(update_listing))
@@ -424,4 +425,107 @@ pub async fn get_account_listings(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(listings))
+}
+
+pub async fn get_my_listings(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+) -> Result<Json<Vec<listing::Model>>, StatusCode> {
+    let user_accounts = UserAccount::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    if account_ids.is_empty() { return Ok(Json(vec![])); }
+    
+    let profiles = Profile::find()
+        .filter(profile::Column::AccountId.is_in(account_ids))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let profile_ids: Vec<Uuid> = profiles.into_iter().map(|p| p.id).collect();
+    if profile_ids.is_empty() { return Ok(Json(vec![])); }
+    
+    let listings = Listing::find()
+        .filter(listing::Column::ProfileId.is_in(profile_ids))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    Ok(Json(listings))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateMyListingInput {
+    pub title: String,
+    pub description: String,
+    pub listing_type: Option<String>,
+    pub price: Option<f64>,
+    pub city: Option<String>,
+    pub state: Option<String>,
+    pub directory_id: String,
+}
+
+pub async fn create_my_listing(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<CreateMyListingInput>,
+) -> Result<(StatusCode, Json<listing::Model>), StatusCode> {
+    use serde_json::Value;
+
+    let txn = db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let user_accounts = UserAccount::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&txn)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let acc_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = Profile::find()
+        .filter(profile::Column::AccountId.is_in(acc_ids))
+        .one(&txn)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::BAD_REQUEST)?;
+
+    let new_listing = listing::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        profile_id: Set(profile.id),
+        directory_id: Set(profile.directory_id),
+        title: Set(input.title),
+        description: Set(input.description),
+        listing_type: Set(input.listing_type.unwrap_or("standard".to_string())),
+        price: Set(input.price),
+        city: Set(input.city),
+        state: Set(input.state),
+        status: Set(ListingStatus::Pending),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        price_type: Set(None),
+        country: Set(None),
+        neighborhood: Set(None),
+        latitude: Set(None),
+        longitude: Set(None),
+        additional_info: Set(Some(Value::Object(serde_json::Map::new()))),
+        is_featured: Set(false),
+        is_based_on_template: Set(false),
+        based_on_template_id: Set(None),
+        is_ad_placement: Set(false),
+        category_id: Set(None),
+        slug: Set(None),
+    };
+    
+    let inserted = new_listing.insert(&txn).await.map_err(|e| {
+        tracing::error!("Error inserting listing: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::CREATED, Json(inserted)))
 }

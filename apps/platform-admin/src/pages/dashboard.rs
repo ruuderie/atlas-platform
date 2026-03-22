@@ -53,7 +53,7 @@ pub fn Dashboard() -> impl IntoView {
                         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">"Active Directories"</span>
                         <span class="material-symbols-outlined text-primary text-xl">"lan"</span>
                     </div>
-                    <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", active_dirs())}</div>
+                    <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", active_dirs.get())}</div>
                     <div class="flex items-center gap-2">
                         <span class="text-tertiary text-xs font-bold">"Dynamic"</span>
                         <div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden">
@@ -68,7 +68,7 @@ pub fn Dashboard() -> impl IntoView {
                         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">"Total Users"</span>
                         <span class="material-symbols-outlined text-primary text-xl">"group"</span>
                     </div>
-                    <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", total_users())}</div>
+                    <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", total_users.get())}</div>
                     <div class="flex items-center gap-2">
                         <span class="text-tertiary text-xs font-bold">"API"</span>
                         <div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden">
@@ -98,7 +98,7 @@ pub fn Dashboard() -> impl IntoView {
                         <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">"Deals Pipeline"</span>
                         <span class="material-symbols-outlined text-primary text-xl">"payments"</span>
                     </div>
-                    <div class="text-3xl font-bold tracking-tight mb-1">{move || deals_pipeline()}</div>
+                    <div class="text-3xl font-bold tracking-tight mb-1">{move || deals_pipeline.get()}</div>
                     <div class="flex items-center gap-2">
                         <span class="text-tertiary text-xs font-bold">"Stable"</span>
                         <div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden">

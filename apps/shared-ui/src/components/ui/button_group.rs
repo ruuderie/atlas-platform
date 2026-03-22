@@ -28,7 +28,7 @@ pub fn ButtonGroup(
     });
 
     view! {
-        <div data-name="ButtonGroup" role="group" class=merged_class>
+        <div data-name="ButtonGroup" role="group" class=move || merged_class.get()>
             {children()}
         </div>
     }

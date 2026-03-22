@@ -1,9 +1,11 @@
 use leptos::prelude::*;
 use crate::app::DirectoryConfig;
+use crate::auth::AuthContext;
 
 #[component]
 pub fn GlobalHeader() -> impl IntoView {
     let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
+    let auth = use_context::<AuthContext>();
     
     view! {
         <nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none transition-all duration-300">
@@ -18,6 +20,22 @@ pub fn GlobalHeader() -> impl IntoView {
                     <a class="text-slate-600 dark:text-slate-400 hover:text-primary transition-all duration-300" href="/contact">"Contact"</a>
                 </div>
                 <div class="flex items-center gap-6">
+                    {move || match auth.clone() {
+                        Some(ctx) if ctx.is_logged_in.get() => {
+                            view! {
+                                <a href="/dashboard" class="text-slate-600 dark:text-slate-400 hover:text-primary transition-colors font-bold text-sm">
+                                    "Dashboard"
+                                </a>
+                            }.into_any()
+                        },
+                        _ => {
+                            view! {
+                                <a href="/auth/login" class="text-slate-600 dark:text-slate-400 hover:text-primary transition-colors font-bold text-sm">
+                                    "Log In"
+                                </a>
+                            }.into_any()
+                        }
+                    }}
                     <a href="/list-property" class="bg-primary text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 hover:opacity-80 active:scale-95 shadow-sm text-sm inline-block text-center">
                         "List Your Service"
                     </a>

@@ -200,6 +200,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
                         <Route path=path!("/cms") view=CmsEditor />
+                        <Route path=path!("/settings") view=crate::pages::settings::Settings />
                     </Routes>
                 </main>
             </div>

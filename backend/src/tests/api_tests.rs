@@ -26,11 +26,18 @@ use fake::{Fake, faker::{
 }};
 use urlencoding;
 use dotenv::dotenv;
+use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
+use webauthn_rs::prelude::*;
+use std::sync::Arc;
+use moka::future::Cache;
+use std::time::Duration;
+use url::Url;
 
 
 pub async fn setup_test_app() -> (Router, DatabaseConnection) {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string());
+    let database_url = env::var("TEST_DATABASE_URL_LOCAL")
+        .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string()));
 
     let db = Database::connect(&database_url)
         .await
@@ -46,7 +53,25 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
         .await
         .expect("Failed to run migrations");
 
-    (api::create_router(db.clone()), db)
+    let rp_origin = url::Url::parse("http://localhost:5001").unwrap();
+    let webauthn = Arc::new(
+        WebauthnBuilder::new("localhost", &rp_origin)
+            .expect("Invalid WebAuthn config")
+            .rp_name("Atlas Platform Test")
+            .build()
+            .expect("Failed to build Webauthn")
+    );
+    
+    let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
+        webauthn,
+        reg_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
+        auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
+    });
+
+    let app = api::create_router(db.clone())
+        .layer(axum::Extension(webauthn_state));
+
+    (app, db)
 }
 
 #[tokio::test]
@@ -992,4 +1017,40 @@ async fn test_listing_operations() {
      .unwrap();
  
  assert_eq!(get_deleted_attribute_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_inline_passkey_registration() {
+    let (app, db) = setup_test_app().await;
+
+    // Create a valid directory directly via db handle
+    let directory_type = test_utils::create_test_directory_type(&db).await;
+    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+
+    // Call test registration which intrinsically wraps the new auto-authenticating users::register endpoint
+    let mut username = String::new();
+    let (status, json_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+
+    // Verify successful registration
+    assert_eq!(status, StatusCode::CREATED, "Registration failed: {:?}", json_body);
+
+    let token = json_body["token"]
+        .as_str()
+        .expect("Generated token should be returned cleanly directly from the register endpoints JSON struct")
+        .to_string();
+
+    // Now securely call the passkey initialization challenge endpoint mimicking the immediate frontend inline passkey view
+    let webauthn_req = app.clone()
+        .oneshot(
+            Request::builder().header("Host", "localhost")
+                .method("POST")
+                .uri("/passkeys/start-register")
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/json")
+                .body(Body::empty())
+                .unwrap()
+        ).await.unwrap();
+
+    // In a pristine WebAuthn instance, this challenge request should always yield 200 OK 
+    assert_eq!(webauthn_req.status(), StatusCode::OK, "Passkey challenge rejected with status {}", webauthn_req.status());
 }

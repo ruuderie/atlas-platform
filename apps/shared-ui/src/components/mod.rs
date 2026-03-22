@@ -7,3 +7,4 @@ pub mod file_attachments;
 pub mod hooks;
 pub mod ui;
 pub mod attribute_icon;
+pub mod auth;

@@ -2,7 +2,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: business-directory-db
+    container_name: atlas-platform-db
     env_file:
       - .env
     volumes:
@@ -28,7 +28,7 @@ services:
     build:
       context: ./backend
       target: ${DOCKER_TARGET:-development}
-    container_name: business-directory-backend
+    container_name: atlas-platform-backend
     env_file:
       - .env
     volumes:
@@ -72,11 +72,12 @@ services:
     build:
       context: ./apps/directory-instance
       target: ${DOCKER_TARGET:-development}
-    container_name: business-directory-instance
+    container_name: atlas-platform-instance
     env_file:
       - .env
     volumes:
       - ./apps/directory-instance:/app
+      - ./apps/shared-ui:/shared-ui
       - backend_cargo_cache:/usr/local/cargo/registry
       - backend_target_cache:/app/target
     ports:
@@ -106,11 +107,12 @@ services:
     build:
       context: ./apps/platform-admin
       target: ${DOCKER_TARGET:-development}
-    container_name: business-directory-platform-admin
+    container_name: atlas-platform-admin
     env_file:
       - .env
     volumes:
       - ./apps/platform-admin:/app
+      - ./apps/shared-ui:/shared-ui
       - backend_cargo_cache:/usr/local/cargo/registry
       - backend_target_cache:/app/target
     ports:
@@ -141,7 +143,7 @@ services:
 
   proxy:
     image: caddy:2-alpine
-    container_name: business-directory-proxy
+    container_name: atlas-platform-proxy
     ports:
       - "80:80"
     volumes:

@@ -31,4 +31,5 @@ pub mod listing_ab_variant;
 pub mod feed;
 pub mod feed_item;
 pub mod attachment;
+pub mod passkey;
 

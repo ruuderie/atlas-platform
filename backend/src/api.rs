@@ -28,39 +28,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let is_production = env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "production";
     tracing::info!("Environment: {}", if is_production { "production" } else { "development" });
     
-    // Configure CORS based on environment
-    let cors_layer = if is_production {
-        // In production, only allow specific origins
-        tracing::warn!("Running in PRODUCTION mode - CORS is restricted to specific origins");
-        let frontend_url = env::var("FRONTEND_URL").expect("FRONTEND_URL must be set in production");
-        let admin_url = env::var("ADMIN_URL").expect("ADMIN_URL must be set in production");
-        
-        // Allow additional origins from environment variable if specified
-        let mut allowed_origins = vec![frontend_url.parse().unwrap(), admin_url.parse().unwrap()];
-        
-        // Optional: Allow additional origins from comma-separated env var
-        if let Ok(additional_origins) = env::var("ADDITIONAL_ALLOWED_ORIGINS") {
-            for origin in additional_origins.split(',') {
-                if let Ok(origin) = origin.trim().parse() {
-                    tracing::info!("Adding additional allowed origin: {:?}", origin);
-                    allowed_origins.push(origin);
-                }
-            }
-        }
-        
-        tracing::info!("Configured allowed origins: {:?}", allowed_origins);
-        
-        CorsLayer::new()
-            .allow_origin(allowed_origins)
-            .allow_methods(Any)
-            .allow_headers(Any)
-            .allow_credentials(true)
-    } else {
-        // In development, allow all origins
-        tracing::info!("Running in DEVELOPMENT mode - CORS is permissive");
-        CorsLayer::permissive()
-    };
-
+    // Note: CORS is now solely managed at the top-level Router in main.rs
     // Auth routes with CORS headers - these should remain outside the /api prefix
     let auth_routes = Router::new()
         .route("/login", post(users::login_user))
@@ -78,6 +46,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::feeds::public_routes(db.clone()))
         .merge(auth_frontend::public_routes())
         .merge(ab_testing::public_routes())
+        .merge(crate::handlers::passkeys::public_routes())
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
@@ -100,6 +69,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(auth_frontend::authenticated_routes())
         .merge(my_accounts::authenticated_routes())
         .merge(ab_testing::authenticated_routes())
+        .merge(crate::handlers::passkeys::authenticated_routes())
         .merge(crate::handlers::feeds::authenticated_routes(db.clone()))
         .merge(directories::authenticated_routes(db.clone()));
 
@@ -130,6 +100,5 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         )
         .layer(Extension(db.clone())) // For middleware that might need it
         .layer(TraceLayer::new_for_http())
-        .layer(cors_layer)  // Add CORS at the top level with environment-specific settings
         .with_state(db) // Apply state to the entire router
 }
