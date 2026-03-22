@@ -15,35 +15,6 @@ pub fn MultiSite() -> impl IntoView {
         }
     );
 
-    let site_name = RwSignal::new("".to_string());
-    let domain = RwSignal::new("".to_string());
-    let theme = RwSignal::new("default".to_string());
-    let is_submitting = RwSignal::new(false);
-    
-    let handle_create_site = move |_: ev::MouseEvent| {
-        is_submitting.set(true);
-        let data = CreateDirectory {
-            name: site_name.get(),
-            domain: domain.get(),
-            directory_type_id: "00000000-0000-0000-0000-000000000000".to_string(),
-            description: format!("Created with theme: {}", theme.get()),
-        };
-
-        leptos::task::spawn_local(async move {
-            match create_directory(data).await {
-                Ok(_) => {
-                    set_trigger_fetch.update(|v| *v += 1);
-                    site_name.set("".to_string());
-                    domain.set("".to_string());
-                }
-                Err(e) => {
-                    leptos::logging::log!("Failed to create directory: {}", e);
-                }
-            }
-            is_submitting.set(false);
-        });
-    };
-
     view! {
         <div class="space-y-8">
             // ── Header ──

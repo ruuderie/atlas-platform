@@ -62,5 +62,5 @@ pub fn Mask(
         mask.with_class(class.clone())
     });
 
-    view! { <div class=merged_class /> }
+    view! { <div class=move || merged_class.get() /> }
 }

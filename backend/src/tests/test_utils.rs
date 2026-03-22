@@ -127,15 +127,14 @@ pub async fn register_test_user(
     let status = response.status();
     let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
+    println!("TEST LOG: Register response status: {}, body: {}", status, body);
     let json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
 
-    let login_response =
-        login_test_user(app, &email, &password).await;
-    // If registration successful, login and update the profile
+    // If registration successful, get token directly and update the profile
     if status.is_success() {
-        let token = login_response["token"]
+        let token = json_body["token"]
             .as_str()
-            .expect("No token in login response");
+            .expect("No token in register response");
 
         // First get the profiles to find the one we want to update
         let profiles_response = app
@@ -197,7 +196,7 @@ pub async fn register_test_user(
         );
     }
 
-    (status, login_response)
+    (status, json_body)
 }
 
 pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde_json::Value {

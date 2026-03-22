@@ -21,6 +21,7 @@ pub mod listing_attributes;
 pub mod profiles;
 pub mod user_accounts;
 pub mod users;
+pub mod passkeys;
 pub mod admin;
 pub mod sessions;
 pub mod request_logs;

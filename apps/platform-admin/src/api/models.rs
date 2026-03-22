@@ -45,6 +45,7 @@ pub struct CreateDirectory {
     pub directory_type_id: String,
     pub domain: String,
     pub description: String,
+    pub deployment_strategy: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

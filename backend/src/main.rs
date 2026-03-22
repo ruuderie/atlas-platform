@@ -39,8 +39,11 @@ use crate::middleware::{
     middleware::{auth_middleware, log_request_middleware}
 };
 use axum::response::{IntoResponse,Response};
-
-
+use webauthn_rs::prelude::*;
+use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
+use moka::future::Cache;
+use std::sync::Arc;
+use std::time::Duration;
 
 async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http::StatusCode, String) {
     tracing::error!("Unhandled error: {:?}", error);
@@ -48,16 +51,31 @@ async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http:
 }
 
 fn configure_cors(directory_client: &str, admin_client: &str) -> CorsLayer {
-    let origins = vec![
-        directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
-        admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
-        "http://localhost:5150".parse::<HeaderValue>().unwrap(),
-        "http://127.0.0.1:5150".parse::<HeaderValue>().unwrap(),
-        "http://localhost:8001".parse::<HeaderValue>().unwrap(),
-    ];
+    let is_dev = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string()) == "development";
+
+    let allow_origin = if is_dev {
+        // [WARNING]: DANGEROUS IN PRODUCTION
+        // This dynamically echoes ANY origin, useful only for local multi-tenant Orbstack/Docker networking.
+        tower_http::cors::AllowOrigin::predicate(|_, _| true)
+    } else {
+        let mut origins = vec![
+            directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
+            admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
+        ];
+
+        if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
+            for origin in additional_origins.split(',') {
+                if let Ok(parsed) = origin.trim().parse::<HeaderValue>() {
+                    origins.push(parsed);
+                }
+            }
+        }
+        
+        tower_http::cors::AllowOrigin::list(origins)
+    };
 
     CorsLayer::new()
-        .allow_origin(origins)
+        .allow_origin(allow_origin)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
         .allow_headers([
             header::AUTHORIZATION,
@@ -133,6 +151,31 @@ async fn main() {
 
     let rate_limiter = RateLimiter::new();
 
+    let rp_origin = url::Url::parse(&directory_client)
+        .unwrap_or_else(|_| url::Url::parse("http://localhost:5001").unwrap());
+    
+    let rp_id = std::env::var("RP_ID").unwrap_or_else(|_| {
+        rp_origin.host_str().unwrap_or("localhost").to_string()
+    });
+    
+    let webauthn = Arc::new(
+        WebauthnBuilder::new(&rp_id, &rp_origin)
+            .expect("Invalid WebAuthn config")
+            .rp_name("Atlas Platform")
+            .append_allowed_origin(
+                &url::Url::parse(&admin_client)
+                    .unwrap_or_else(|_| url::Url::parse("https://platform-admin.orb.local").unwrap())
+            )
+            .build()
+            .expect("Failed to build Webauthn")
+    );
+    
+    let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
+        webauthn,
+        reg_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
+        auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
+    });
+
     let app = Router::new()
         .merge(create_router(conn.clone()))
         .layer(cors)
@@ -156,7 +199,8 @@ async fn main() {
                 .into_inner()
         )
         .layer(Extension(conn.clone()))
-        .layer(Extension(rate_limiter));
+        .layer(Extension(rate_limiter))
+        .layer(Extension(webauthn_state));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("Listening on {}", addr);

@@ -4,6 +4,7 @@ use shared_ui::components::ui::button::Button;
 use shared_ui::components::ui::input::{Input, InputType};
 use crate::api::auth::login;
 use crate::api::models::{UserLogin, UserInfo};
+use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
 
 #[component]
 pub fn Login() -> impl IntoView {
@@ -11,15 +12,18 @@ pub fn Login() -> impl IntoView {
     let password = RwSignal::new("".to_string());
     let error_message = RwSignal::new(None::<String>);
     let is_loading = RwSignal::new(false);
+    let show_password = RwSignal::new(false);
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let navigate = use_navigate();
+    let navigate_login = navigate.clone();
     let navigate_demo = navigate.clone();
+    let navigate_pk = navigate.clone();
 
-    let handle_login = move |_| {
+    let handle_login = Callback::new(move |_| {
         crate::api::client::set_demo_mode(false);
-        let navigate = navigate.clone();
+        let navigate = navigate_login.clone();
         error_message.set(None);
         is_loading.set(true);
 
@@ -41,9 +45,30 @@ pub fn Login() -> impl IntoView {
             }
             is_loading.set(false);
         });
-    };
+    });
 
-    let handle_demo = move |_| {
+    let set_user_pk = set_user.clone();
+    let toast_pk = toast.clone();
+    
+    let handle_passkey_success = Callback::new(move |_token: String| {
+        let set_user = set_user_pk.clone();
+        let navigate = navigate_pk.clone();
+        let toast = toast_pk.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(user) = crate::api::auth::validate_session().await {
+                set_user.set(Some(user));
+                navigate("/", Default::default());
+            } else {
+                toast.message.set(Some("Validated passkey, but session handshake failed.".to_string()));
+            }
+        });
+    });
+
+    let handle_passkey_error = Callback::new(move |err: String| {
+        error_message.set(Some(err));
+    });
+
+    let handle_demo = Callback::new(move |_| {
         crate::api::client::set_demo_mode(true);
         let navigate = navigate_demo.clone();
         set_user.set(Some(UserInfo {
@@ -54,7 +79,7 @@ pub fn Login() -> impl IntoView {
             is_admin: true,
         }));
         navigate("/", Default::default());
-    };
+    });
 
     view! {
         <div class="relative flex items-center justify-center min-h-screen bg-surface font-sans overflow-hidden">
@@ -73,6 +98,12 @@ pub fn Login() -> impl IntoView {
                 </div>
 
                 <div class="p-8 rounded-2xl bg-surface-container/30 border border-outline-variant/10 shadow-2xl backdrop-blur-xl space-y-6">
+                    {move || error_message.get().map(|msg| view! {
+                        <div class="p-3 bg-error-container/30 text-error text-xs rounded border border-error/20 mb-4 animate-slide-up">
+                            {msg}
+                        </div>
+                    })}
+
                     <div class="space-y-4">
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Email / Node ID"</label>
@@ -82,39 +113,61 @@ pub fn Login() -> impl IntoView {
                                 bind_value=email 
                             />
                         </div>
-                        
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Access Token"</label>
-                            <Input 
-                                r#type=InputType::Password 
-                                placeholder="••••••••".to_string() 
-                                bind_value=password 
-                            />
-                        </div>
 
-                        {move || error_message.get().map(|msg| view! {
-                            <div class="p-3 bg-error-container/30 text-error text-xs rounded border border-error/20">
-                                {msg}
-                            </div>
-                        })}
+                        {move || if !show_password.get() {
+                            view! {
+                                <div class="animate-fade-scale space-y-4">
+                                    <PasskeyLoginButton 
+                                        api_base_url="http://api.localhost/api/auth/passkeys"
+                                        email=email
+                                        on_success=handle_passkey_success
+                                        on_error=handle_passkey_error
+                                    />
+                                    <div class="text-center pt-2">
+                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors" on:click=move |_| { show_password.set(true); error_message.set(None); }>
+                                            "Sign in with Access Token instead"
+                                        </button>
+                                    </div>
+                                </div>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="animate-fade-scale space-y-4">
+                                    <div class="space-y-1.5">
+                                        <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Access Token"</label>
+                                        <Input 
+                                            r#type=InputType::Password 
+                                            placeholder="••••••••".to_string() 
+                                            bind_value=password 
+                                        />
+                                    </div>
 
-                        <Button 
-                            class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
-                            on:click=handle_login 
-                        >
-                            {move || if is_loading.get() { "Authenticating..." } else { "Initialize Session" }}
-                        </Button>
+                                    <Button 
+                                        class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
+                                        on:click=move |ev| handle_login.run(ev) 
+                                    >
+                                        {move || if is_loading.get() { "Authenticating..." } else { "Initialize Session" }}
+                                    </Button>
+
+                                    <div class="text-center pt-4">
+                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-1 mx-auto" on:click=move |_| { show_password.set(false); error_message.set(None); }>
+                                            <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
+                                            "Use a passkey instead"
+                                        </button>
+                                    </div>
+                                </div>
+                            }.into_any()
+                        }}
                     </div>
 
-                    <div class="relative py-2">
+                    <div class="relative py-2 mt-4">
                         <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-outline-variant/20"></span></div>
-                        <div class="relative flex justify-center text-xs uppercase"><span class="bg-surface px-2 text-on-surface-variant">"Or"</span></div>
                     </div>
 
                     <Button 
                         variant=shared_ui::components::ui::button::ButtonVariant::Outline
                         class="w-full bg-transparent border-outline-variant/20 text-on-surface-variant hover:bg-surface-bright/10 hover:text-on-surface transition-all".to_string() 
-                        on:click=handle_demo 
+                        on:click=move |ev| handle_demo.run(ev) 
                     >
                         "Explore Demo Mode"
                     </Button>

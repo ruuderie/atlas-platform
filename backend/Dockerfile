@@ -1,5 +1,5 @@
 # Base stage with common dependencies
-FROM rust:1.88.0-bookworm AS base
+FROM rust:1.90.0-bookworm AS base
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \

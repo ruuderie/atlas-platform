@@ -2,7 +2,7 @@ use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
 
 // The backend runs on port 8000 by default
-pub const API_BASE_URL: &str = "http://localhost:8000";
+pub const API_BASE_URL: &str = "http://api.localhost";
 
 pub fn create_client() -> Client {
     Client::new()

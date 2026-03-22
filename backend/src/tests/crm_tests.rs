@@ -23,8 +23,9 @@ use crate::models::customer::Customer;
 use crate::models::deal::DealModel;
 use crate::models::contact::Contact;
 async fn setup_test_app() -> (Router, DatabaseConnection) {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string());
+    let database_url = env::var("TEST_DATABASE_URL_LOCAL")
+        .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string()));
 
     let db = Database::connect(&database_url)
         .await

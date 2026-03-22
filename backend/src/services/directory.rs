@@ -239,6 +239,16 @@ impl DirectoryService {
         db: &DatabaseConnection,
         input: crate::models::directory::CreateDirectory
     ) -> Result<directory::Model> {
+        let mut custom_settings = serde_json::Map::new();
+        if let Some(strategy) = &input.deployment_strategy {
+            custom_settings.insert("deployment_strategy".to_string(), serde_json::Value::String(strategy.clone()));
+            if strategy == "dedicated" {
+                tracing::info!("🚀 [ORCHESTRATION HOOK] Provisioning dedicated container for domain: {}", input.domain);
+            } else {
+                tracing::info!("♻️ [ORCHESTRATION HOOK] Using shared multi-tenant infrastructure for domain: {}", input.domain);
+            }
+        }
+
         let new_directory = directory::ActiveModel {
             id: sea_orm::Set(Uuid::new_v4()),
             name: sea_orm::Set(input.name),
@@ -248,7 +258,7 @@ impl DirectoryService {
             created_at: sea_orm::Set(chrono::Utc::now()),
             updated_at: sea_orm::Set(chrono::Utc::now()),
             custom_domain: sea_orm::NotSet,
-            custom_settings: sea_orm::NotSet,
+            custom_settings: sea_orm::Set(Some(serde_json::Value::Object(custom_settings))),
             enabled_modules: sea_orm::NotSet,
             theme: sea_orm::NotSet,
             site_status: sea_orm::NotSet,

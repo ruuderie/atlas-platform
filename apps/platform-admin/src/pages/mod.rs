@@ -3,6 +3,7 @@ pub mod multi_site;
 pub mod cms_editor;
 pub mod crm_detail;
 pub mod dashboard;
+pub mod settings;
 pub mod site_dashboard;
 pub mod login;
 pub mod site_create;

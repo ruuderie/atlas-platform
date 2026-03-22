@@ -171,7 +171,7 @@ pub fn CmsEditor() -> impl IntoView {
                                         <input
                                             type="text"
                                             class="w-full bg-surface-container-high border-none rounded p-3 text-sm focus:ring-1 focus:ring-primary-dim transition-all text-on-surface"
-                                            prop:value=title
+                                            prop:value=move || title.get()
                                             on:input=move |ev| title.set(event_target_value(&ev))
                                         />
                                     </div>
@@ -182,7 +182,7 @@ pub fn CmsEditor() -> impl IntoView {
                                             <input
                                                 type="text"
                                                 class="flex-1 bg-transparent border-none p-3 text-sm focus:ring-0 text-on-surface"
-                                                prop:value=url
+                                                prop:value=move || url.get()
                                                 on:input=move |ev| url.set(event_target_value(&ev))
                                             />
                                         </div>
@@ -192,7 +192,7 @@ pub fn CmsEditor() -> impl IntoView {
                                         <select
                                             class="w-full bg-surface-container-high border-none rounded p-3 text-sm focus:ring-1 focus:ring-primary-dim text-on-surface appearance-none"
                                             on:change=move |ev| listing_type.set(event_target_value(&ev))
-                                            prop:value=listing_type
+                                            prop:value=move || listing_type.get()
                                         >
                                             <option value="article">"Article"</option>
                                             <option value="landing_page">"Landing Page"</option>
@@ -215,7 +215,7 @@ pub fn CmsEditor() -> impl IntoView {
                                                         type="text"
                                                         class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded p-3 text-sm text-on-surface"
                                                         placeholder="Orchestrating Global Logistics"
-                                                        prop:value=hero_headline
+                                                        prop:value=move || hero_headline.get()
                                                         on:input=move |ev| hero_headline.set(event_target_value(&ev))
                                                     />
                                                 </div>
@@ -226,17 +226,17 @@ pub fn CmsEditor() -> impl IntoView {
                                                             type="text"
                                                             class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded p-3 text-sm text-on-surface"
                                                             placeholder="Explore Ecosystem"
-                                                            prop:value=cta_text
+                                                            prop:value=move || cta_text.get()
                                                             on:input=move |ev| cta_text.set(event_target_value(&ev))
                                                         />
                                                     </div>
                                                     <div class="flex flex-col justify-end gap-3 pb-2">
                                                         <label class="flex items-center gap-3 cursor-pointer group">
-                                                            <input type="checkbox" class="rounded border-outline-variant bg-surface-container text-primary focus:ring-0 focus:ring-offset-0" prop:checked=show_price on:change=move |ev| show_price.set(event_target_checked(&ev)) />
+                                                            <input type="checkbox" class="rounded border-outline-variant bg-surface-container text-primary focus:ring-0 focus:ring-offset-0" prop:checked=move || show_price.get() on:change=move |ev| show_price.set(event_target_checked(&ev)) />
                                                             <span class="text-xs text-on-surface-variant group-hover:text-on-surface">"Show Price"</span>
                                                         </label>
                                                         <label class="flex items-center gap-3 cursor-pointer group">
-                                                            <input type="checkbox" class="rounded border-outline-variant bg-surface-container text-primary focus:ring-0 focus:ring-offset-0" prop:checked=show_map on:change=move |ev| show_map.set(event_target_checked(&ev)) />
+                                                            <input type="checkbox" class="rounded border-outline-variant bg-surface-container text-primary focus:ring-0 focus:ring-offset-0" prop:checked=move || show_map.get() on:change=move |ev| show_map.set(event_target_checked(&ev)) />
                                                             <span class="text-xs text-on-surface-variant group-hover:text-on-surface">"Show Map"</span>
                                                         </label>
                                                     </div>

@@ -423,7 +423,7 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                         
                         // Honeypot Field
                         <div class="hidden" aria-hidden="true">
-                            <input type="text" name="_bot_check" prop:value=bot_check on:input=move |ev| bot_check.set(event_target_value(&ev)) tabindex="-1" />
+                            <input type="text" name="_bot_check" prop:value=move || bot_check.get() on:input=move |ev| bot_check.set(event_target_value(&ev)) tabindex="-1" />
                         </div>
 
                         {move || if step.get() == 1 {
@@ -432,11 +432,11 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                                     <div class="flex border-b border-slate-300">
                                         <div class="flex-1 p-3 border-r border-slate-300 bg-slate-50">
                                             <label class="block text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-1">"Full Name"</label>
-                                            <input type="text" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="Jane Doe" prop:value=name on:input=move |ev| name.set(event_target_value(&ev)) />
+                                            <input type="text" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="Jane Doe" prop:value=move || name.get() on:input=move |ev| name.set(event_target_value(&ev)) />
                                         </div>
                                         <div class="flex-1 p-3 bg-slate-50">
                                             <label class="block text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-1">"Email"</label>
-                                            <input type="email" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="name@domain.com" prop:value=email on:input=move |ev| email.set(event_target_value(&ev)) />
+                                            <input type="email" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="name@domain.com" prop:value=move || email.get() on:input=move |ev| email.set(event_target_value(&ev)) />
                                         </div>
                                     </div>
                                 </div>
@@ -449,11 +449,11 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                                 <div class="border border-slate-300 rounded-xl overflow-hidden mb-6 animate-slide-up">
                                     <div class="p-3 border-b border-slate-300 bg-slate-50">
                                         <label class="block text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-1">"Phone Number (Opt)"</label>
-                                        <input type="tel" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="+1 (555) 000-0000" prop:value=phone on:input=move |ev| phone.set(event_target_value(&ev)) />
+                                        <input type="tel" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="+1 (555) 000-0000" prop:value=move || phone.get() on:input=move |ev| phone.set(event_target_value(&ev)) />
                                     </div>
                                     <div class="p-3 bg-slate-50">
                                         <label class="block text-[10px] font-bold text-slate-800 uppercase tracking-widest mb-1">"Message"</label>
-                                        <textarea rows="3" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="I'm interested in..." prop:value=intent on:input=move |ev| intent.set(event_target_value(&ev))></textarea>
+                                        <textarea rows="3" class="w-full bg-transparent outline-none font-body text-slate-900 text-sm font-semibold" placeholder="I'm interested in..." prop:value=move || intent.get() on:input=move |ev| intent.set(event_target_value(&ev))></textarea>
                                     </div>
                                 </div>
                                 
@@ -461,7 +461,7 @@ fn LeadForm(listing_id: String, cta_text: String) -> impl IntoView {
                                     <button class="w-1/3 bg-slate-100 text-slate-700 py-4 rounded-xl font-bold hover:bg-slate-200 transition-opacity mb-4" on:click=move |_| { step.set(1); error.set("".to_string()); }>
                                         "Back"
                                     </button>
-                                    <button class="w-2/3 bg-primary text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity mb-4 disabled:opacity-50 flex justify-center items-center" on:click=handle_submit disabled=is_submitting>
+                                    <button class="w-2/3 bg-primary text-white py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity mb-4 disabled:opacity-50 flex justify-center items-center" on:click=handle_submit disabled=move || is_submitting.get()>
                                         {move || if is_submitting.get() { "Sending...".to_string() } else { cta_text_sig.get() }}
                                     </button>
                                 </div>
@@ -1170,6 +1170,8 @@ fn InnerApp(config: DirectoryConfig) -> impl IntoView {
                     <leptos_router::components::Route path=leptos_router::path!("/auth/register") view=crate::pages::auth::register::Register />
                     <leptos_router::components::ParentRoute path=leptos_router::path!("/dashboard") view=crate::pages::dashboard::layout::DashboardLayout>
                         <leptos_router::components::Route path=leptos_router::path!("") view=crate::pages::dashboard::layout::DashboardOverview />
+                        <leptos_router::components::Route path=leptos_router::path!("settings") view=crate::pages::dashboard::settings::DashboardSettings />
+                        <leptos_router::components::Route path=leptos_router::path!("listings") view=crate::pages::dashboard::listings::DashboardListings />
                     </leptos_router::components::ParentRoute>
                     <leptos_router::components::Route path=leptos_router::path!(":slug") view=ListingDetail />
                 </leptos_router::components::Routes>

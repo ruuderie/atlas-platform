@@ -29,7 +29,6 @@ pub struct LoginCredentials {
 
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/auth/register", post(register))
         .route("/api/auth/verify-email", get(verify_email))
         .route("/api/auth/login", post(login))
         .route("/api/auth/webauthn/register", post(webauthn_register_start))
@@ -41,49 +40,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/me", get(get_me))
 }
 
-pub async fn register(
-    State(db): State<DatabaseConnection>,
-    Json(payload): Json<UserRegistration>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Check if user already exists
-    let existing_user = user::Entity::find()
-        .filter(user::Column::Email.eq(&payload.email))
-        .one(&db)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    if existing_user.is_some() {
-        return Err((StatusCode::CONFLICT, "Email already in use".into()));
-    }
-
-    let hashed_password = hash_password(&payload.password)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    // Create User (Initially inactive until email verified, but for now we'll set active to simplify flow)
-    let new_user = user::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        username: Set(payload.username.clone()),
-        first_name: Set(payload.first_name),
-        last_name: Set(payload.last_name),
-        email: Set(payload.email.clone()),
-        phone: Set(payload.phone),
-        password_hash: Set(hashed_password),
-        is_admin: Set(false),
-        is_active: Set(true), // TODO: Set false and require email verification
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        last_login: Set(None),
-    };
-
-    let inserted_user = new_user.insert(&db).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-    })?;
-
-    // Do NOT automatically create an Account here.
-    // The specification clarifies: "Registration creates a user only. Users create an Account post-registration."
-
-    Ok((StatusCode::CREATED, Json(json!({"message": "User registered", "user_id": inserted_user.id}))))
-}
 
 pub async fn verify_email(
     State(db): State<DatabaseConnection>,

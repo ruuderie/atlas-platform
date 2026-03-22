@@ -28,7 +28,7 @@ pub fn Animate(
     };
 
     view! {
-        <div class=merged_class style=style>
+        <div class=merged_class style=move || style.get()>
             {children()}
         </div>
     }
