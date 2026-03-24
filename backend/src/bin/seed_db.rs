@@ -1,5 +1,5 @@
 use sea_orm::{ActiveModelTrait, Database, Set};
-use atlas_backend::entities::{directory, directory_type, user, account, profile, listing, user_account, category, template};
+use atlas_backend::entities::{directory, directory_type, user, account, profile, listing, user_account, category, template, customer, contact, lead, deal, case, activity, note, feed};
 use uuid::Uuid;
 use chrono::Utc;
 use dotenv::dotenv;
@@ -237,6 +237,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tpl3.insert(&db).await?;
 
     // 5. Generate 10 Users + Accounts + Profiles + Listings
+    let mut admin_user_id = Uuid::nil();
     let first_names = ["John", "Sarah", "Mike", "Emily", "David", "Jessica", "Robert", "Lisa", "James", "Anna"];
     let last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"];
     let business_names = [
@@ -263,12 +264,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             phone: Set(format!("555-010{}", i)),
             password_hash: Set(password_hash.clone()),
             last_login: Set(None),
-            is_admin: Set(false),
+            is_admin: Set(i == 0),
             is_active: Set(true),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };
         u.insert(&db).await?;
+        if i == 0 { admin_user_id = user_id; }
 
         // Account
         let acct_id = Uuid::new_v4();
@@ -364,6 +366,190 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("Created User & Listing for {}", business_names[i]);
     }
 
-    tracing::info!("Database successfully seeded!");
+    
+    // 6. CRM Entities
+    // We will generate 3 Customers, some Contacts, Leads, Deals, Cases, Activities and Notes
+    let mut cust_ids = Vec::new();
+    let statuses = ["Prospecting", "Qualification", "Closed Won", "Closed Lost"];
+    let stages = ["Initial Contact", "Meeting Scheduled", "Proposal Sent", "Contract Signed"];
+
+    for j in 0..3 {
+        let cust_id = Uuid::new_v4();
+        cust_ids.push(cust_id);
+        
+        // Customer
+        let cust = customer::ActiveModel {
+            id: Set(cust_id),
+            name: Set(format!("Mock Enterprise {}", j)),
+            primary_contact_id: Set(None),
+            customer_type: Set(customer::CustomerType::BusinessEntity),
+            attributes: Set(customer::CustomerAttributes {
+                shipper: false, carrier: false, loan_seeker: false, loan_broker: false, 
+                software_vendor: false, tenant: false, software_development_client: false, 
+                salesforce_client: false, web3_client: false, bitcoiner: false, zk: false, 
+                lender: false, advertiser: false, gp: false, construction_contractor: true, 
+                construction_client: false, landlord: false
+            }),
+            cpf: Set(None), cnpj: Set(None), tin: Set(None),
+            email: Set(Some(format!("contact@enterprise{}.com", j))),
+            phone: Set(Some(format!("555-020{}", j))),
+            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            website: Set(Some(format!("https://enterprise{}.com", j))),
+            annual_revenue: Set(Some(1000000.0 * (j as f64 + 1.0))),
+            employee_count: Set(Some(10 * (j + 1))),
+            is_active: Set(true),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            billing_address: Set(None),
+            shipping_address: Set(None),
+            directory_id: Set(Some(dir_uuid)),
+            properties: Set(None),
+        };
+        cust.insert(&db).await?;
+
+        // Contact
+        let cnt_id = Uuid::new_v4();
+        let cnt = contact::ActiveModel {
+            id: Set(cnt_id),
+            customer_id: Set(Some(cust_id)),
+            name: Set(format!("Contact Name {}", j)),
+            first_name: Set(Some("Contact".to_string())),
+            last_name: Set(Some(format!("Name {}", j))),
+            email: Set(Some(format!("contact{}@enterprise{}.com", j, j))),
+            phone: Set(Some(format!("555-030{}", j))),
+            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            billing_address: Set(None),
+            shipping_address: Set(None),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            directory_id: Set(Some(dir_uuid)),
+            properties: Set(None),
+        };
+        cnt.insert(&db).await?;
+
+        // Deal
+        let d_id = Uuid::new_v4();
+        let dl = deal::ActiveModel {
+            id: Set(d_id),
+            customer_id: Set(cust_id),
+            name: Set(format!("Renovation Deal {}", j)),
+            amount: Set(5000.0 * (j as f64 + 1.0)),
+            status: Set(statuses[(j as usize) % statuses.len()].to_string()),
+            stage: Set(stages[(j as usize) % stages.len()].to_string()),
+            close_date: Set(Some(Utc::now())),
+            is_active: Set(true),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            directory_id: Set(Some(dir_uuid)),
+            properties: Set(None),
+        };
+        dl.insert(&db).await?;
+
+        // Case
+        let cs_id = Uuid::new_v4();
+        let cs = case::ActiveModel {
+            id: Set(cs_id),
+            customer_id: Set(cust_id),
+            title: Set(format!("Support Ticket #{}", j)),
+            description: Set("Issue with the latest service.".to_string()),
+            status: Set((if j % 2 == 0 { "Open" } else { "Closed" }).to_string()),
+            priority: Set("High".to_string()),
+            assigned_to: Set(None),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            closed_at: Set(None),
+            properties: Set(None),
+        };
+        cs.insert(&db).await?;
+
+        // Activity
+        let act_id = Uuid::new_v4();
+        let act = activity::ActiveModel {
+            id: Set(act_id),
+            account_id: Set(None),
+            deal_id: Set(Some(d_id)),
+            customer_id: Set(Some(cust_id)),
+            lead_id: Set(None),
+            contact_id: Set(Some(cnt_id)),
+            case_id: Set(None),
+            activity_type: Set(activity::ActivityType::PhoneCall),
+            title: Set("Follow-up Call".to_string()),
+            description: Set(Some("Discussed the proposal specs.".to_string())),
+            status: Set(activity::ActivityStatus::Completed),
+            due_date: Set(Some(Utc::now())),
+            completed_at: Set(Some(Utc::now())),
+            associated_entities: Set(serde_json::json!([])),
+            created_by: Set(admin_user_id),
+            assigned_to: Set(Some(admin_user_id)),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+        };
+        act.insert(&db).await?;
+
+        // Note
+        let nt_id = Uuid::new_v4();
+        let nt = note::ActiveModel {
+            id: Set(nt_id),
+            content: Set("Client seemed very interested in premium options.".to_string()),
+            created_by: Set(admin_user_id),
+            entity_type: Set("Deal".to_string()),
+            entity_id: Set(d_id),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+        };
+        nt.insert(&db).await?;
+        
+        tracing::info!("Created CRM entries for enterprise {}", j);
+    }
+
+    // Leads
+    for j in 0..5 {
+        let ld_id = Uuid::new_v4();
+        let ld = lead::ActiveModel {
+            id: Set(ld_id),
+            name: Set(format!("Website Lead {}", j)),
+            listing_id: Set(None),
+            account_id: Set(None),
+            first_name: Set(Some(format!("LeadFirst{}", j))),
+            last_name: Set(Some(format!("LeadLast{}", j))),
+            email: Set(Some(format!("lead{}@example.com", j))),
+            phone: Set(Some(format!("555-040{}", j))),
+            whatsapp: Set(None), telegram: Set(None), twitter: Set(None), instagram: Set(None), facebook: Set(None),
+            billing_address: Set(None),
+            shipping_address: Set(None),
+            message: Set(Some("I would like a quote.".to_string())),
+            source: Set(Some("Website".to_string())),
+            is_converted: Set(false),
+            converted_to_contact: Set(false),
+            associated_deal_id: Set(None),
+            converted_customer_id: Set(None),
+            converted_contact_id: Set(None),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            directory_id: Set(Some(dir_uuid)),
+            properties: Set(None),
+        };
+        ld.insert(&db).await?;
+    }
+
+    // 7. CMS Feed
+    let feed_id = Uuid::new_v4();
+    let fd = feed::ActiveModel {
+        id: Set(feed_id),
+        directory_id: Set(dir_uuid),
+        title: Set("Main Directory Blog".to_string()),
+        description: Set("News and updates for contractors.".to_string()),
+        feed_url: Set("https://directory.localhost/feed".to_string()),
+        home_page_url: Set("https://directory.localhost".to_string()),
+        icon: Set(None),
+        favicon: Set(None),
+        author: Set(Some("Admin".to_string())),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    fd.insert(&db).await?;
+    tracing::info!("Created Feed: {}", feed_id);
+
+tracing::info!("Database successfully seeded!");
     Ok(())
 }
