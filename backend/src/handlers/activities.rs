@@ -16,7 +16,7 @@ use crate::entities::{activity, user};
 use crate::models::activity::{ActivityModel, CreateActivityInput, UpdateActivityInput};
 use crate::models::file::FileAssociation;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/activities", post(create_activity))
         .route("/api/activities", get(get_activities))

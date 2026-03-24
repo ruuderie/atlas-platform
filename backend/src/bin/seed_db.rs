@@ -1,9 +1,9 @@
 use sea_orm::{ActiveModelTrait, Database, Set};
-use business_directory_backend::entities::{directory, directory_type, user, account, profile, listing, user_account};
+use atlas_backend::entities::{directory, directory_type, user, account, profile, listing, user_account, category, template};
 use uuid::Uuid;
 use chrono::Utc;
 use dotenv::dotenv;
-use business_directory_backend::auth::hash_password;
+use atlas_backend::auth::hash_password;
 use std::env;
 
 #[tokio::main]
@@ -110,7 +110,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     directory.insert(&db).await?;
     tracing::info!("Created Directory: CT Build Pros ({})", dir_uuid);
 
-    // 3. Generate 10 Users + Accounts + Profiles + Listings
+    // 3. Create Categories
+    let cat_id_1 = Uuid::new_v4();
+    let cat1 = category::ActiveModel {
+        id: Set(cat_id_1),
+        directory_type_id: Set(dir_type_id),
+        parent_category_id: Set(None),
+        name: Set("Kitchen & Bath".to_string()),
+        description: Set("Remodels & Upgrades".to_string()),
+        icon: Set(Some("countertops".to_string())),
+        slug: Set(Some("kitchen-bath".to_string())),
+        is_custom: Set(false),
+        is_active: Set(true),
+        directory_id: Set(Some(dir_uuid)),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    cat1.insert(&db).await?;
+
+    let cat_id_2 = Uuid::new_v4();
+    let cat2 = category::ActiveModel {
+        id: Set(cat_id_2),
+        directory_type_id: Set(dir_type_id),
+        parent_category_id: Set(None),
+        name: Set("Roofing & Siding".to_string()),
+        description: Set("Exterior Specialists".to_string()),
+        icon: Set(Some("roofing".to_string())),
+        slug: Set(Some("roofing-siding".to_string())),
+        is_custom: Set(false),
+        is_active: Set(true),
+        directory_id: Set(Some(dir_uuid)),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    cat2.insert(&db).await?;
+
+    // 4. Create Templates
+    let tpl_id_1 = Uuid::new_v4();
+    let tpl1 = template::ActiveModel {
+        id: Set(tpl_id_1),
+        directory_id: Set(dir_uuid),
+        category_id: Set(cat_id_1),
+        name: Set("Contractor Profile Schema".to_string()),
+        description: Set("Default fields for home service pros".to_string()),
+        template_type: Set("business".to_string()),
+        is_active: Set(true),
+        attributes_schema: Set(Some(serde_json::json!({
+            "license_number": "String",
+            "insurance_provider": "String",
+            "years_in_business": "Number",
+            "emergency_services": "Boolean"
+        }))),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    tpl1.insert(&db).await?;
+
+    // 5. Generate 10 Users + Accounts + Profiles + Listings
     let first_names = ["John", "Sarah", "Mike", "Emily", "David", "Jessica", "Robert", "Lisa", "James", "Anna"];
     let last_names = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"];
     let business_names = [
@@ -185,6 +241,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "rating": 4.5 + (i as f32) * 0.05,
                 "review_count": i as i32 * 5 + 10
             }))),
+            properties: Set(Some(serde_json::json!({
+                "contractor_license_number": format!("CT-{:06}", i * 1024),
+                "insurance_provider": "Travelers",
+                "years_in_business": i + 5
+            }))),
             is_active: Set(true),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
@@ -199,8 +260,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             profile_id: Set(profile_id),
             title: Set(business_names[i].to_string()),
             description: Set(format!("Professional services by {}", business_names[i])),
-            status: Set(business_directory_backend::models::listing::ListingStatus::Approved),
-            category_id: Set(None), 
+            status: Set(atlas_backend::models::listing::ListingStatus::Approved),
+            category_id: Set(Some(if i % 2 == 0 { cat_id_1 } else { cat_id_2 })), 
             listing_type: Set("SERVICE".to_string()),
             price: Set(None),
             price_type: Set(None),
@@ -214,9 +275,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             additional_info: Set(Some(serde_json::json!({
                 "tags": ["verified", "licensed"]
             }))),
+            properties: Set(Some(serde_json::json!({
+                "service_radius_miles": 50,
+                "emergency_services": i % 2 == 0,
+                "free_estimates": true
+            }))),
             is_featured: Set(i < 3), // Make first 3 featured
-            is_based_on_template: Set(false),
-            based_on_template_id: Set(None),
+            is_based_on_template: Set(true),
+            based_on_template_id: Set(Some(tpl_id_1)),
             is_ad_placement: Set(false),
             is_active: Set(true),
             created_at: Set(Utc::now()),

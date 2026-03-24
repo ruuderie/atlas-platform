@@ -157,6 +157,7 @@ pub async fn create_profile(
         business_phone: Set(payload.business_phone),
         business_website: Set(payload.business_website),
         additional_info: Set(None),
+        properties: Set(None),
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

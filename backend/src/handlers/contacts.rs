@@ -20,7 +20,7 @@ use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
 use crate::models::contact::Contact;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/contacts", post(create_contact))
         .route("/api/contacts", get(get_contacts))
@@ -54,6 +54,7 @@ pub async fn create_contact(
         facebook: Set(payload.facebook),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        properties: Set(None),
         ..Default::default()
     };
 

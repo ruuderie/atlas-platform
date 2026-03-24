@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 
 pub async fn get_directories() -> Result<Vec<DirectoryModel>, String> {
     let client = create_client();
-    let url = api_url("/directories"); // public route
+    let url = api_url("/api/admin/directories"); // admin route
 
     let req = client.get(&url);
     let req = with_credentials(req);
@@ -28,7 +28,7 @@ pub async fn get_directories() -> Result<Vec<DirectoryModel>, String> {
 
 pub async fn create_directory(data: CreateDirectory) -> Result<DirectoryModel, String> {
     let client = create_client();
-    let url = api_url("/api/directories"); // auth route
+    let url = api_url("/api/admin/directories"); // admin route
 
     let req = client.post(&url).json(&data);
     let req = with_credentials(req);

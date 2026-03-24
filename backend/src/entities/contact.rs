@@ -2,6 +2,7 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 use crate::models::address::{  AddressJson};
 use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
@@ -33,6 +34,8 @@ pub struct Model {
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
     pub directory_id: Option<Uuid>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub properties: Option<Value>,
 }
 /*
 // Setting an address

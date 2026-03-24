@@ -1,5 +1,6 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
@@ -14,6 +15,8 @@ pub struct Model {
     pub description: String,
     pub template_type: String,
     pub is_active: bool,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub attributes_schema: Option<Value>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
@@ -25,7 +28,6 @@ pub enum Relation {
     Directory,
     Category,
     BasedListings,
-    TemplateAttributes, 
 }
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
@@ -39,7 +41,6 @@ impl RelationTrait for Relation {
                 .to(super::category::Column::Id)
                 .into(),
             Self::BasedListings => Entity::has_many(super::listing::Entity).into(),
-            Self::TemplateAttributes => Entity::has_many(super::listing_attribute::Entity).into(),
         }
     }
 }
@@ -60,11 +61,6 @@ impl Related<super::category::Entity> for Entity {
 impl Related<super::listing::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::BasedListings.def()
-    }
-}
-impl Related<super::listing_attribute::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TemplateAttributes.def()
     }
 }
 

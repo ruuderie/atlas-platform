@@ -23,6 +23,44 @@ pub struct UserLogin {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirectoryTypeModel {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryModel {
+    pub id: String,
+    pub directory_type_id: String,
+    pub parent_category_id: Option<String>,
+    pub name: String,
+    pub description: String,
+    pub icon: Option<String>,
+    pub slug: Option<String>,
+    pub is_custom: bool,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+    pub directory_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateModel {
+    pub id: String,
+    pub directory_id: String,
+    pub category_id: String,
+    pub name: String,
+    pub description: String,
+    pub template_type: String,
+    pub is_active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectoryModel {
     pub id: String,
     pub name: String,

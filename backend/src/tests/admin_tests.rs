@@ -35,7 +35,7 @@ async fn test_admin_user_management() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/admin/users")
+                .uri("/api/admin/users")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),
@@ -50,7 +50,7 @@ async fn test_admin_user_management() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/admin/users/{}", regular_user_id).as_str())
+                .uri(format!("/api/admin/users/{}", regular_user_id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),
@@ -65,7 +65,7 @@ async fn test_admin_user_management() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("POST")
-                .uri(format!("/admin/users/{}/toggle-admin", regular_user_id).as_str())
+                .uri(format!("/api/admin/users/{}/toggle-admin", regular_user_id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),
@@ -86,7 +86,7 @@ async fn test_admin_listing_approvals() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/admin/listings/pending")
+                .uri("/api/admin/listings/pending")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),
@@ -107,7 +107,7 @@ async fn test_admin_statistics() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/admin/directory-stats")
+                .uri("/api/admin/directory-stats")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),
@@ -122,7 +122,7 @@ async fn test_admin_statistics() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/admin/ad-purchases/stats")
+                .uri("/api/admin/ad-purchases/stats")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),

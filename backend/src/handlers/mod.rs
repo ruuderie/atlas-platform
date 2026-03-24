@@ -17,7 +17,6 @@ pub mod directories;
 pub mod templates;
 pub mod directory_types;
 pub mod listings;
-pub mod listing_attributes;
 pub mod profiles;
 pub mod user_accounts;
 pub mod users;

@@ -4,7 +4,7 @@ use crate::api::models::{FileModel, CreateFileInput, UpdateFileInput};
 
 pub async fn create_file(data: CreateFileInput) -> Result<FileModel, String> {
     let client = create_client();
-    let url = api_url("/api/files");
+    let url = api_url("/api/admin/files");
     let req = with_credentials(client.post(&url)).json(&data);
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -17,7 +17,7 @@ pub async fn create_file(data: CreateFileInput) -> Result<FileModel, String> {
 
 pub async fn update_file(id: &str, data: UpdateFileInput) -> Result<FileModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/{}", id));
+    let url = api_url(&format!("/api/admin/files/{}", id));
     let req = with_credentials(client.put(&url)).json(&data);
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -30,7 +30,7 @@ pub async fn update_file(id: &str, data: UpdateFileInput) -> Result<FileModel, S
 
 pub async fn get_file(id: &str) -> Result<FileModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/{}", id));
+    let url = api_url(&format!("/api/admin/files/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -43,7 +43,7 @@ pub async fn get_file(id: &str) -> Result<FileModel, String> {
 
 pub async fn delete_file(id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/{}", id));
+    let url = api_url(&format!("/api/admin/files/{}", id));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -56,7 +56,7 @@ pub async fn delete_file(id: &str) -> Result<(), String> {
 
 pub async fn get_user_files(user_id: &str) -> Result<Vec<FileModel>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/user/{}", user_id));
+    let url = api_url(&format!("/api/admin/files/user/{}", user_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -69,7 +69,7 @@ pub async fn get_user_files(user_id: &str) -> Result<Vec<FileModel>, String> {
 
 pub async fn associate_file(file_id: &str, entity_type: &str, entity_id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/{}/associate/{}/{}", file_id, entity_type, entity_id));
+    let url = api_url(&format!("/api/admin/files/{}/associate/{}/{}", file_id, entity_type, entity_id));
     let req = with_credentials(client.post(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -82,7 +82,7 @@ pub async fn associate_file(file_id: &str, entity_type: &str, entity_id: &str) -
 
 pub async fn disassociate_file(file_id: &str, entity_type: &str, entity_id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/{}/associate/{}/{}", file_id, entity_type, entity_id));
+    let url = api_url(&format!("/api/admin/files/{}/associate/{}/{}", file_id, entity_type, entity_id));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -95,7 +95,7 @@ pub async fn disassociate_file(file_id: &str, entity_type: &str, entity_id: &str
 
 pub async fn get_associated_files(entity_type: &str, entity_id: &str) -> Result<Vec<FileModel>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/files/associated/{}/{}", entity_type, entity_id));
+    let url = api_url(&format!("/api/admin/files/associated/{}/{}", entity_type, entity_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     

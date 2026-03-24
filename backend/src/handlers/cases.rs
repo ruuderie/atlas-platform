@@ -26,7 +26,7 @@ use crate::models::note::NoteModel;
 use crate::models::file::FileAssociation;
 use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
 
-pub fn routes(db_connection: DatabaseConnection) -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/cases", post(create_case))
         .route("/api/cases", get(get_cases))
@@ -39,7 +39,6 @@ pub fn routes(db_connection: DatabaseConnection) -> Router {
         .route("/api/cases/{id}/notes", post(create_case_note))
         .route("/api/cases/{id}/files", get(get_case_files))
         .route("/api/cases/{id}/files/{file_id}", post(add_file_to_case))
-        .with_state(db_connection)
 }
 
 pub async fn create_case(
@@ -65,6 +64,7 @@ pub async fn create_case(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         closed_at: Set(None),
+        properties: Set(None),
     };
 
     let inserted_case = new_case.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

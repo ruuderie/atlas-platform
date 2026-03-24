@@ -35,13 +35,18 @@ use url::Url;
 
 
 pub async fn setup_test_app() -> (Router, DatabaseConnection) {
-    let database_url = env::var("TEST_DATABASE_URL_LOCAL")
-        .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string()));
+    let database_url = env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://postgres:postgres@postgres:5432/oplydbtest".to_string());
+    
+    let local_database_url = env::var("TEST_DATABASE_URL_LOCAL")
+        .unwrap_or_else(|_| "postgres://localhost:5433/oplydbtest".to_string());
 
-    let db = Database::connect(&database_url)
-        .await
-        .expect("Failed to connect to test database");
+    let db = match Database::connect(&database_url).await {
+        Ok(db) => db,
+        Err(_) => Database::connect(&local_database_url)
+            .await
+            .expect("Failed to connect to test database (both connections failed)"),
+    };
 
     // Reset database state before each test
     migration::Migrator::fresh(&db)
@@ -137,7 +142,7 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/directory-types")
+                .uri("/api/admin/directory-types")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -167,7 +172,7 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/admin/directory-types/{}", directory_type_id.clone()).as_str())
+                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone()).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -181,7 +186,7 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
+                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -205,7 +210,7 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/directories/")
+                .uri("/api/admin/directories")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -235,7 +240,7 @@ async fn test_directory_operations() {
     .oneshot(
         Request::builder().header("Host", "localhost")
             .method("PUT")
-            .uri(format!("/admin/directories/{}", directory.id))
+            .uri(format!("/api/admin/directories/{}", directory.id))
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", admin_token))
             .body(Body::from(json!({
@@ -255,7 +260,7 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/admin/directories/{}", directory.id).as_str())
+                .uri(format!("/api/admin/directories/{}", directory.id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -271,7 +276,7 @@ assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/admin/directory-types/{}", directory_type_id).as_str())
+                .uri(format!("/api/admin/directory-types/{}", directory_type_id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -384,7 +389,7 @@ async fn test_category_management() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/categories")
+                .uri("/api/admin/categories")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -410,7 +415,7 @@ async fn test_category_management() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/admin/categories/{}", category.id))
+                .uri(format!("/api/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -424,7 +429,7 @@ async fn test_category_management() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/admin/categories/{}", category.id))
+                .uri(format!("/api/admin/categories/{}", category.id))
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -446,7 +451,7 @@ async fn test_category_management() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/admin/categories/{}", category.id))
+                .uri(format!("/api/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -463,7 +468,7 @@ async fn test_category_management() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/admin/categories/{}", category.id))
+                .uri(format!("/api/admin/categories/{}", category.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -960,29 +965,6 @@ async fn test_listing_operations() {
     let listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
     assert!(!listings.is_empty(), "No listings returned");
 
-    // Test getting a listing with all its attributes
-    let get_listing_with_attributes_response = app.clone()
-        .oneshot(
-            Request::builder().header("Host", "localhost")
-                .method("GET")
-                .uri(format!("/api/listings/{}/with-attributes", created_listing.id))
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap()
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(get_listing_with_attributes_response.status(), StatusCode::OK);
-
-    // Parse the response
-    let body_bytes = axum::body::to_bytes(get_listing_with_attributes_response.into_body(), usize::MAX).await.unwrap();
-    let listing_with_attributes: crate::models::listing::ListingWithAttributes = 
-        serde_json::from_slice(&body_bytes).unwrap();
-
-    // Verify the listing data is correct
-    assert_eq!(listing_with_attributes.listing.id, created_listing.id);
-    assert_eq!(listing_with_attributes.listing.title, created_listing.title);
 
     // Verify the attributes are included
     assert!(!listing_with_attributes.attributes.is_empty(), "No attributes included in the response");
@@ -1044,7 +1026,7 @@ async fn test_inline_passkey_registration() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/passkeys/start-register")
+                .uri("/api/passkeys/start-register")
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Content-Type", "application/json")
                 .body(Body::empty())

@@ -15,7 +15,6 @@ use std::result::Result;
 use std::str::FromStr;
 use crate::entities::{
     listing,
-    listing_attribute,
     profile,
     template,
     template::Entity as Template, // Add this line
@@ -26,8 +25,6 @@ use crate::entities::{
 use crate::models::{
     template::{TemplateModel, CreateTemplate, UpdateTemplate},
     listing::{ListingModel, ListingCreate, ListingStatus}, 
-    listing_attribute::{ListingAttributeModel, CreateListingAttribute, UpdateListingAttribute}
-    
 };
 
 pub async fn get_templates(
@@ -87,6 +84,7 @@ pub async fn create_template(
         is_active: Set(payload.is_active),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        attributes_schema: Set(None),
     };
 
     let template = new_template
@@ -212,6 +210,7 @@ impl From<template::Model> for TemplateModel {
             description: model.description,
             template_type: model.template_type,
             is_active: model.is_active,
+            attributes_schema: model.attributes_schema,
             category_id: model.category_id,
             created_at: model.created_at,
             updated_at: model.updated_at,
@@ -250,6 +249,7 @@ impl ListingModel {
             latitude: model.latitude,
             longitude: model.longitude,
             additional_info: model.additional_info.unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new())),
+            properties: model.properties,
             status: model.status,
             is_featured: model.is_featured,
             is_based_on_template: model.is_based_on_template,

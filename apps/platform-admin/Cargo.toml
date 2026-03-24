@@ -1,5 +1,5 @@
 [package]
-name = "frontend"
+name = "atlas_platform_admin"
 version = "0.1.0"
 edition = "2024"
 

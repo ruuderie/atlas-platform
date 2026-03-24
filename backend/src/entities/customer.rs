@@ -3,7 +3,7 @@ use sea_orm::FromJsonQueryResult;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use serde_json;
+use serde_json::Value;
 use crate::models::address::AddressJson;
 use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
@@ -43,6 +43,8 @@ pub struct Model {
     #[sea_orm(column_type = "Json")]
     pub shipping_address: Option<AddressJson>,
     pub directory_id: Option<Uuid>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub properties: Option<Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, FromJsonQueryResult)]

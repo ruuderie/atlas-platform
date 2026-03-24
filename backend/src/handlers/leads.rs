@@ -135,6 +135,7 @@ pub async fn create_lead(
         converted_contact_id: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        properties: Set(None),
         ..Default::default()
     };
 

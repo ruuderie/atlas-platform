@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use serde_json::Value;
 use sea_orm::{IntoActiveModel, Set, ActiveModelTrait};
-use crate::entities::{listing, listing_attribute};
+use crate::entities::listing;
 use std::str::FromStr;
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +41,7 @@ pub struct ListingModel {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub additional_info: Value,
+    pub properties: Option<Value>,
     pub status: ListingStatus,
     pub is_featured: bool,
     pub is_based_on_template: bool,
@@ -96,6 +97,7 @@ pub struct ListingCreate {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub additional_info: Option<Value>,
+    pub properties: Option<Value>,
     pub is_featured: Option<bool>,
     pub is_based_on_template: Option<bool>,
     pub based_on_template_id: Option<Uuid>,
@@ -123,6 +125,7 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
             latitude: Set(self.latitude),
             longitude: Set(self.longitude),
             additional_info: Set(Some(self.additional_info.unwrap_or(Value::Object(Default::default())))),
+            properties: Set(self.properties),
             status: Set(ListingStatus::Pending),
             is_featured: Set(self.is_featured.unwrap_or(false)),
             is_based_on_template: Set(self.is_based_on_template.unwrap_or(false)),
@@ -152,6 +155,7 @@ pub struct ListingUpdate {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub additional_info: Option<Value>,
+    pub properties: Option<Value>,
     #[serde(deserialize_with = "deserialize_listing_status_option")]
     pub status: Option<ListingStatus>,
     pub is_featured: Option<bool>,
@@ -192,44 +196,3 @@ where
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ListingWithAttributes {
-    pub listing: ListingModel,
-    pub attributes: Vec<crate::models::listing_attribute::ListingAttributeModel>,
-}
-
-impl From<(listing::Model, Vec<listing_attribute::Model>)> for ListingWithAttributes {
-    fn from((listing, attributes): (listing::Model, Vec<listing_attribute::Model>)) -> Self {
-        ListingWithAttributes {
-            listing: ListingModel {
-                id: listing.id,
-                profile_id: listing.profile_id,
-                directory_id: listing.directory_id,
-                category_id: listing.category_id,
-                title: listing.title,
-                description: listing.description,
-                listing_type: listing.listing_type,
-                price: listing.price,
-                price_type: listing.price_type,
-                country: listing.country,
-                state: listing.state,
-                city: listing.city,
-                neighborhood: listing.neighborhood,
-                latitude: listing.latitude,
-                longitude: listing.longitude,
-                additional_info: listing.additional_info.unwrap_or(Value::Object(Default::default())),
-                status: listing.status,
-                is_featured: listing.is_featured,
-                is_based_on_template: listing.is_based_on_template,
-                based_on_template_id: listing.based_on_template_id,
-                is_ad_placement: listing.is_ad_placement,
-                is_active: listing.is_active,
-                created_at: listing.created_at,
-                updated_at: listing.updated_at,
-            },
-            attributes: attributes.into_iter()
-                .map(crate::models::listing_attribute::ListingAttributeModel::from)
-                .collect(),
-        }
-    }
-}

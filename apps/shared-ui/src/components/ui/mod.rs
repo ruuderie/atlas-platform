@@ -81,3 +81,4 @@ pub mod header;
 pub mod sonner;
 pub mod dialog;
 pub mod input;
+pub mod related_list;

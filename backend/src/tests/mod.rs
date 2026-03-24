@@ -7,3 +7,4 @@ pub mod admin_tests;
 pub mod account_tests;
 pub mod crm_extended_tests;
 pub mod feed_tests;
+pub mod relational_dependencies_tests;

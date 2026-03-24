@@ -77,6 +77,7 @@ pub async fn create_profile(
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        properties: Set(None),
     };
 
     if let Some(business_details) = input.business_details {

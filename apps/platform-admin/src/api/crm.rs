@@ -4,7 +4,7 @@ use reqwest::StatusCode;
 
 pub async fn get_users() -> Result<Vec<UserInfo>, String> {
     let client = create_client();
-    let url = api_url("/api/users");
+    let url = api_url("/api/admin/users");
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -19,7 +19,7 @@ pub async fn get_users() -> Result<Vec<UserInfo>, String> {
 
 pub async fn get_accounts() -> Result<Vec<AccountModel>, String> {
     let client = create_client();
-    let url = api_url("/api/accounts");
+    let url = api_url("/api/admin/accounts");
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -34,7 +34,7 @@ pub async fn get_accounts() -> Result<Vec<AccountModel>, String> {
 
 pub async fn create_account(data: CreateAccount) -> Result<AccountModel, String> {
     let client = create_client();
-    let url = api_url("/api/accounts");
+    let url = api_url("/api/admin/accounts");
     let req = with_credentials(client.post(&url).json(&data));
     let res = req.send().await.map_err(|e| e.to_string())?;
 
@@ -47,7 +47,7 @@ pub async fn create_account(data: CreateAccount) -> Result<AccountModel, String>
 
 pub async fn get_leads() -> Result<Vec<LeadModel>, String> {
     let client = create_client();
-    let url = api_url("/api/leads");
+    let url = api_url("/api/admin/leads");
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -62,7 +62,7 @@ pub async fn get_leads() -> Result<Vec<LeadModel>, String> {
 
 pub async fn create_lead(data: CreateLead) -> Result<LeadModel, String> {
     let client = create_client();
-    let url = api_url("/api/leads");
+    let url = api_url("/api/admin/leads");
     let req = with_credentials(client.post(&url).json(&data));
     let res = req.send().await.map_err(|e| e.to_string())?;
 
@@ -75,7 +75,7 @@ pub async fn create_lead(data: CreateLead) -> Result<LeadModel, String> {
 
 pub async fn get_deals() -> Result<Vec<DealModel>, String> {
     let client = create_client();
-    let url = api_url("/api/deals");
+    let url = api_url("/api/admin/deals");
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -90,7 +90,7 @@ pub async fn get_deals() -> Result<Vec<DealModel>, String> {
 
 pub async fn get_user_by_id(id: &str) -> Result<UserInfo, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/users/{}", id));
+    let url = api_url(&format!("/api/admin/users/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -104,7 +104,7 @@ pub async fn get_user_by_id(id: &str) -> Result<UserInfo, String> {
 
 pub async fn get_account_by_id(id: &str) -> Result<AccountModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/accounts/{}", id));
+    let url = api_url(&format!("/api/admin/accounts/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -118,7 +118,7 @@ pub async fn get_account_by_id(id: &str) -> Result<AccountModel, String> {
 
 pub async fn get_lead_by_id(id: &str) -> Result<LeadModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/leads/{}", id));
+    let url = api_url(&format!("/api/admin/leads/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -132,7 +132,7 @@ pub async fn get_lead_by_id(id: &str) -> Result<LeadModel, String> {
 
 pub async fn get_deal_by_id(id: &str) -> Result<DealModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/deals/{}", id));
+    let url = api_url(&format!("/api/admin/deals/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {

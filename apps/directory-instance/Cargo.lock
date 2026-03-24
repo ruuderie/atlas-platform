@@ -58,6 +58,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas_directory_instance"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "console_error_panic_hook",
+ "leptos",
+ "leptos_axum",
+ "leptos_meta",
+ "leptos_router",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "shared-ui",
+ "tokio",
+ "tower",
+ "tower-http",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web-sys",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -505,28 +527,6 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
-]
-
-[[package]]
-name = "directory-instance"
-version = "0.1.0"
-dependencies = [
- "axum",
- "console_error_panic_hook",
- "leptos",
- "leptos_axum",
- "leptos_meta",
- "leptos_router",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "shared-ui",
- "tokio",
- "tower",
- "tower-http",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]

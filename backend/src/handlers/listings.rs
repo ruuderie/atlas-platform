@@ -4,8 +4,6 @@ use crate::entities::{
     profile::{self, Entity as Profile},
     user::{self, Entity as User},
     user_account::{self, Entity as UserAccount},
-    template::{self, Entity as Template},
-    listing_attribute::{self, Entity as ListingAttribute},
 };
 use crate::models::listing::{ListingCreate, ListingUpdate, ListingStatus, PaginatedListings};
 use sea_orm::{
@@ -38,7 +36,6 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/listings", post(create_listing))
         .route("/api/listings/my-listings", get(get_my_listings).post(create_my_listing))
         .route("/api/listings/{id}", get(get_listing_by_id))
-        .route("/api/listings/{id}/with-attributes", get(get_listing_with_attributes))
         .route("/api/listings/{id}", put(update_listing))
         .route("/api/listings/{id}", delete(delete_listing))
         .route("/api/me/accounts/{account_id}/listings", get(get_account_listings))
@@ -129,7 +126,7 @@ pub async fn create_listing(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .is_some();
     println!("TEST LOG: from create_listing and user_account_exists: {:?}", user_account_exists);
-    if !user_account_exists {
+    if !current_user.is_admin && !user_account_exists {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -141,46 +138,12 @@ pub async fn create_listing(
         tracing::error!("Failed to insert listing: {:?}", err);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    println!("TEST LOG: from create_listing and inserted_listing: {:?}", inserted_listing);
-    // Handle template attributes if applicable
-    if let Some(template_id) = inserted_listing.based_on_template_id {
-        copy_template_attributes(&txn, inserted_listing.id, template_id).await?;
-    }
-    
+
     txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     // send 201 created status code
     Ok((StatusCode::CREATED, Json(inserted_listing)))
 }
 
-// Separate function for template attribute copying
-async fn copy_template_attributes(
-    txn: &DatabaseTransaction,
-    listing_id: Uuid,
-    template_id: Uuid,
-) -> Result<(), StatusCode> {
-    let template_attributes = ListingAttribute::find()
-        .filter(listing_attribute::Column::TemplateId.eq(template_id))
-        .all(txn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    for attr in template_attributes {
-        listing_attribute::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            listing_id: Set(Some(listing_id)),
-            template_id: Set(None),
-            attribute_type: Set(attr.attribute_type),
-            attribute_key: Set(attr.attribute_key),
-            value: Set(attr.value),
-            created_at: Set(Utc::now()),
-            updated_at: Set(Utc::now()),
-        }
-        .insert(txn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    }
-    Ok(())
-}
 
 pub async fn update_listing(
     Extension(db): Extension<DatabaseConnection>,
@@ -221,7 +184,7 @@ pub async fn update_listing(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if user_account_exists.is_none() {
+    if !current_user.is_admin && user_account_exists.is_none() {
         println!("TEST LOG: from update_listing and user_account_exists: {:?}", user_account_exists);
         return Err(StatusCode::FORBIDDEN);
     }
@@ -293,7 +256,7 @@ pub async fn delete_listing(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if user_account_exists.is_none() {
+    if !current_user.is_admin && user_account_exists.is_none() {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -355,37 +318,7 @@ pub async fn search_listings(
     }))
 }
 
-pub async fn get_listing_with_attributes(
-    Extension(db): Extension<DatabaseConnection>,
-    Path(id): Path<Uuid>,
-) -> Result<Json<crate::models::listing::ListingWithAttributes>, StatusCode> {
-    tracing::info!("Fetching listing with attributes for ID: {}", id);
-    
-    // Get the listing
-    let listing = Listing::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Error fetching listing: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?;
-    
-    // Get the attributes
-    let attributes = ListingAttribute::find()
-        .filter(listing_attribute::Column::ListingId.eq(Some(id)))
-        .all(&db)
-        .await
-        .map_err(|err| {
-            tracing::error!("Error fetching listing attributes: {:?}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    
-    // Combine them
-    let listing_with_attributes = crate::models::listing::ListingWithAttributes::from((listing, attributes));
-    
-    Ok(Json(listing_with_attributes))
-}
+
 
 pub async fn get_account_listings(
     Extension(db): Extension<DatabaseConnection>,
@@ -504,6 +437,7 @@ pub async fn create_my_listing(
         city: Set(input.city),
         state: Set(input.state),
         status: Set(ListingStatus::Pending),
+        properties: Set(None),
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

@@ -2,6 +2,7 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 use crate::models::file::{FileAssociation, FileModel};
 use crate::entities::{file_association,file};
 use crate::traits::file::FileAssociable; 
@@ -24,6 +25,8 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub closed_at: Option<DateTime<Utc>>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub properties: Option<Value>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

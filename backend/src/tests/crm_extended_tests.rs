@@ -51,7 +51,7 @@ async fn test_crm_leads_lifecycle() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/leads")
+                .uri("/api/leads")
                 .header("Authorization", format!("Bearer {}", user_a_token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
@@ -105,7 +105,7 @@ async fn test_crm_cases_and_notes() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/customers")
+                .uri("/api/customers")
                 .header("Authorization", format!("Bearer {}", user_a_token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
@@ -149,7 +149,7 @@ async fn test_crm_cases_and_notes() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/cases")
+                .uri("/api/cases")
                 .header("Authorization", format!("Bearer {}", user_a_token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({

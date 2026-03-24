@@ -13,7 +13,7 @@ pub fn Login() -> impl IntoView {
     let is_submitting = RwSignal::new(false);
     let show_password = RwSignal::new(false);
     
-    let navigate = use_navigate();
+    let _navigate = use_navigate();
 
     let handle_passkey_success = move |token: String| {
         set_auth_token(&token);

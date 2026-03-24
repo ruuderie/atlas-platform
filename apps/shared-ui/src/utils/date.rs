@@ -16,6 +16,6 @@ impl DateUtils {
     }
 
     pub fn days_in_month(month: Month, year: i32) -> u8 {
-        time::util::days_in_year_month(year, month)
+        time::util::days_in_month(month, year)
     }
 }

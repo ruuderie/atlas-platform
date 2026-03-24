@@ -25,7 +25,7 @@ use crate::models::customer::Customer as CustomerModel;
 use crate::models::contact::Contact as ContactModel;
 use crate::models::note::NoteModel;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/customers", post(create_customer))
         .route("/api/customers", get(get_customers))
@@ -80,6 +80,7 @@ pub async fn create_customer(
         billing_address: Set(None),
         shipping_address: Set(None),
         directory_id: Set(None),
+        properties: Set(None),
     };
 
     let mut customer = new_customer.insert(&db).await.map_err(|e| {

@@ -30,9 +30,9 @@ pub async fn site_context_middleware(
     tracing::info!("Processing site context for domain: {}", domain);
     tracing::debug!("Original hostname with potential port: {}", hostname);
     
-    // Skip site context for admin routes and authentication routes
-    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) {
-        tracing::debug!("Skipping site context for admin/auth route: {}", req.uri().path());
+    // Skip site context for admin routes, authentication routes, and setup routes
+    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) || is_setup_route(req.uri().path()) {
+        tracing::debug!("Skipping site context for admin/auth/setup route: {}", req.uri().path());
         return Ok(next.run(req).await);
     }
     
@@ -139,8 +139,13 @@ fn is_admin_route(path: &str) -> bool {
     path.starts_with("/api/admin") || path.starts_with("/admin")
 }
 
-// Helper function to determine if a route is an authentication route
 fn is_auth_route(path: &str) -> bool {
     matches!(path, "/login" | "/register" | "/validate-session" | "/refresh-token" | "/logout" |
-                  "/api/login" | "/api/register" | "/api/validate-session" | "/api/refresh-token" | "/api/logout")
+                  "/api/login" | "/api/register" | "/api/validate-session" | "/api/refresh-token" | "/api/logout") ||
+    path.starts_with("/api/passkeys")
+}
+
+// Helper function to determine if a route is a setup route
+fn is_setup_route(path: &str) -> bool {
+    path.starts_with("/api/setup") || path.starts_with("/setup")
 }

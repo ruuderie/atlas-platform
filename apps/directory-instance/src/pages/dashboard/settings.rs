@@ -4,7 +4,7 @@ use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
 #[component]
 pub fn DashboardSettings() -> impl IntoView {
-    let auth = use_context::<AuthContext>().expect("AuthContext missing");
+    let _auth = use_context::<AuthContext>().expect("AuthContext missing");
 
     view! {
         <div class="px-8 py-10 max-w-4xl mx-auto">

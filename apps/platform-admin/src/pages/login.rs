@@ -4,6 +4,7 @@ use shared_ui::components::ui::button::Button;
 use shared_ui::components::ui::input::{Input, InputType};
 use crate::api::auth::login;
 use crate::api::models::{UserLogin, UserInfo};
+use crate::api::setup::{get_setup_status, purge_admin};
 use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
 
 #[component]
@@ -20,6 +21,16 @@ pub fn Login() -> impl IntoView {
     let navigate_login = navigate.clone();
     let navigate_demo = navigate.clone();
     let navigate_pk = navigate.clone();
+    let navigate_setup = navigate.clone();
+
+    // Check if system needs setup
+    leptos::task::spawn_local(async move {
+        if let Ok(status) = get_setup_status().await {
+            if status.needs_setup {
+                navigate_setup("/setup", Default::default());
+            }
+        }
+    });
 
     let handle_login = Callback::new(move |_| {
         crate::api::client::set_demo_mode(false);
@@ -79,6 +90,25 @@ pub fn Login() -> impl IntoView {
             is_admin: true,
         }));
         navigate("/", Default::default());
+    });
+
+    let navigate_purge = navigate.clone();
+    let toast_purge = toast.clone();
+    let handle_purge_admin = Callback::new(move |_| {
+        is_loading.set(true);
+        let navigate = navigate_purge.clone();
+        let toast = toast_purge.clone();
+        leptos::task::spawn_local(async move {
+            match purge_admin().await {
+                Ok(_) => {
+                    navigate("/setup", Default::default());
+                }
+                Err(e) => {
+                    toast.message.set(Some(e.clone()));
+                    is_loading.set(false);
+                }
+            }
+        });
     });
 
     view! {
@@ -171,6 +201,16 @@ pub fn Login() -> impl IntoView {
                     >
                         "Explore Demo Mode"
                     </Button>
+
+                    <div class=if cfg!(debug_assertions) { "mt-4" } else { "hidden" }>
+                        <Button 
+                            variant=shared_ui::components::ui::button::ButtonVariant::Outline
+                            class="w-full bg-error-container/10 border-error/30 text-error hover:bg-error-container/30 hover:text-error transition-all".to_string() 
+                            on:click=move |ev| handle_purge_admin.run(ev) 
+                        >
+                            "Purge Admin (Dev)"
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

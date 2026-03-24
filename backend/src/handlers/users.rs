@@ -190,6 +190,7 @@ pub async fn register_user(
             business_address: Set(None),
             business_phone: Set(None),
             business_website: Set(None),
+            properties: Set(None),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };

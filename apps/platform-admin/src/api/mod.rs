@@ -5,3 +5,8 @@ pub mod directories;
 pub mod crm;
 pub mod listings;
 pub mod files;
+pub mod setup;
+pub mod directory_types;
+pub mod categories;
+pub mod templates;
+pub mod listing_attributes;

@@ -23,14 +23,14 @@ pub type WebauthnState = Arc<WebauthnStateRaw>;
 
 pub fn public_routes() -> Router<sea_orm::DatabaseConnection> {
     Router::new()
-        .route("/passkeys/start-login", post(login_start))
-        .route("/passkeys/finish-login", post(login_finish))
+        .route("/api/passkeys/start-login", post(login_start))
+        .route("/api/passkeys/finish-login", post(login_finish))
 }
 
 pub fn authenticated_routes() -> Router<sea_orm::DatabaseConnection> {
     Router::new()
-        .route("/passkeys/start-register", post(register_start))
-        .route("/passkeys/finish-register", post(register_finish))
+        .route("/api/passkeys/start-register", post(register_start))
+        .route("/api/passkeys/finish-register", post(register_finish))
 }
 
 pub async fn register_start(

@@ -24,6 +24,8 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub properties: Option<Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]

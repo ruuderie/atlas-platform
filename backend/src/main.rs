@@ -31,7 +31,7 @@ use tower_http::trace::{TraceLayer, DefaultMakeSpan, DefaultOnResponse};
 use tracing::Level;
 use tokio::net::TcpListener;
 use crate::api::create_router;
-use crate::admin::setup::create_admin_user_if_not_exists;
+
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
     request_logger::RequestLogger,
@@ -130,15 +130,7 @@ async fn main() {
     tracing::info!("Migrations completed");
     let table_exists = &conn.execute_unprepared("SELECT 1 FROM request_log LIMIT 1").await.is_ok();
     tracing::info!("request_log table exists: {}", table_exists);
-    // Create admin user if flag is set
-    if create_admin {
-        tracing::info!("Verifying Admin");
-        println!("Verifying Admin");
-        match create_admin_user_if_not_exists(&conn, &admin_email, &admin_password).await {
-            Ok(_) => tracing::info!("Admin user setup completed"),
-            Err(e) => tracing::error!("Failed to set up admin user: {:?}", e),
-        }
-    }
+
 
     tracing::info!("Successfully connected to the database and ran migrations");
 

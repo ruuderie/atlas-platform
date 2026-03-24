@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use serde_json::Value;
 use sea_orm::{IntoActiveModel, Set};
+use sea_orm::sea_query::StringLen;
 use crate::entities::listing;
 use std::str::FromStr;
 use axum::http::request::Parts;

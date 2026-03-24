@@ -61,7 +61,7 @@ async fn test_crm_customers() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/customers")
+                .uri("/api/customers")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -114,7 +114,7 @@ async fn test_crm_customers() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/admin/customers/{}", customer.id))
+                .uri(format!("/api/customers/{}", customer.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -130,7 +130,7 @@ async fn test_crm_customers() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/admin/customers/{}", customer.id))
+                .uri(format!("/api/customers/{}", customer.id))
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -148,7 +148,7 @@ async fn test_crm_customers() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/admin/customers/{}", customer.id))
+                .uri(format!("/api/customers/{}", customer.id))
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -173,7 +173,7 @@ async fn test_crm_deals() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/customers")
+                .uri("/api/customers")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -194,7 +194,7 @@ async fn test_crm_deals() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/deals")
+                .uri("/api/deals")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -227,7 +227,7 @@ async fn test_crm_contacts() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/customers")
+                .uri("/api/customers")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -246,7 +246,7 @@ async fn test_crm_contacts() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/admin/contacts")
+                .uri("/api/contacts")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({

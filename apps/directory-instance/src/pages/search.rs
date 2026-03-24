@@ -84,8 +84,7 @@ pub fn Search() -> impl IntoView {
     let category_term = move || query.with(|q| q.get("category").map(|s| s.clone()));
     let page_str = move || query.with(|q| q.get("page").unwrap_or_else(|| "1".to_string()));
 
-    let (view_mode, set_view_mode) = signal("list".to_string());
-    let (selected_listing, set_selected_listing) = signal::<Option<ListingModel>>(None);
+    let (_selected_listing, set_selected_listing) = signal::<Option<ListingModel>>(None);
 
     let search_resource = Resource::new(
         move || (search_term(), category_term(), page_str()),
@@ -160,7 +159,7 @@ pub fn Search() -> impl IntoView {
                                 
                                 view! {
                                     <div class="animate-slide-up">
-                                        <SearchGrid results=results set_selected=set_selected_listing view_mode=view_mode />
+                                        <SearchGrid results=results set_selected=set_selected_listing />
                                         
                                         // Pagination
                                         <div class="mt-16 flex justify-center pb-12">

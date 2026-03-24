@@ -17,7 +17,7 @@ pub async fn get_listings(directory_id: &str) -> Result<Vec<ListingModel>, Strin
 
 pub async fn get_listing_by_id(id: &str) -> Result<ListingModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/listings/{}", id));
+    let url = api_url(&format!("/api/admin/listings/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -30,7 +30,7 @@ pub async fn get_listing_by_id(id: &str) -> Result<ListingModel, String> {
 
 pub async fn get_listing_with_attributes(id: &str) -> Result<ListingWithAttributes, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/listings/{}/with-attributes", id));
+    let url = api_url(&format!("/api/admin/listings/{}/with-attributes", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -43,7 +43,7 @@ pub async fn get_listing_with_attributes(id: &str) -> Result<ListingWithAttribut
 
 pub async fn create_listing(data: ListingCreate) -> Result<ListingModel, String> {
     let client = create_client();
-    let url = api_url("/api/listings");
+    let url = api_url("/api/admin/listings");
     let req = with_credentials(client.post(&url)).json(&data);
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -56,7 +56,7 @@ pub async fn create_listing(data: ListingCreate) -> Result<ListingModel, String>
 
 pub async fn update_listing(id: &str, data: ListingUpdate) -> Result<ListingModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/listings/{}", id));
+    let url = api_url(&format!("/api/admin/listings/{}", id));
     let req = with_credentials(client.put(&url)).json(&data);
     let res = req.send().await.map_err(|e| e.to_string())?;
     
@@ -69,7 +69,7 @@ pub async fn update_listing(id: &str, data: ListingUpdate) -> Result<ListingMode
 
 pub async fn delete_listing(id: &str) -> Result<(), String> {
     let client = create_client();
-    let url = api_url(&format!("/api/listings/{}", id));
+    let url = api_url(&format!("/api/admin/listings/{}", id));
     let req = with_credentials(client.delete(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     

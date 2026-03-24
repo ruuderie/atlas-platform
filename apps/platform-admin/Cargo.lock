@@ -57,6 +57,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas_platform_admin"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "heck",
+ "icons",
+ "js-sys",
+ "leptos",
+ "leptos_router",
+ "leptos_ui",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "shared-ui",
+ "strum 0.28.0",
+ "time",
+ "tw_merge",
+ "validator",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web-sys",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -550,30 +574,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "frontend"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "heck",
- "icons",
- "js-sys",
- "leptos",
- "leptos_router",
- "leptos_ui",
- "reqwest",
- "serde",
- "serde_json",
- "shared-ui",
- "strum 0.28.0",
- "time",
- "tw_merge",
- "validator",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]

@@ -68,7 +68,7 @@ async fn test_user_account_invitations() {
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/api/accounts")
+                .uri("/api/admin/accounts")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),

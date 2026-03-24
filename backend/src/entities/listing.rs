@@ -25,6 +25,8 @@ pub struct Model {
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
     pub additional_info: Option<Value>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub properties: Option<Value>,
     #[sea_orm(column_type = "String(StringLen::N(32))")]
     pub status: ListingStatus,
     pub is_featured: bool,
@@ -46,7 +48,6 @@ pub enum Relation {
     Directory,
     Category,
     BasedOnTemplate,
-    ListingAttribute,
     AdPurchase,
 }
 
@@ -69,7 +70,6 @@ impl RelationTrait for Relation {
                 .from(Column::BasedOnTemplateId)
                 .to(super::template::Column::Id)
                 .into(),
-            Self::ListingAttribute => Entity::has_many(super::listing_attribute::Entity).into(),
             Self::AdPurchase => Entity::has_many(super::ad_purchase::Entity).into(),
         }
     }
@@ -99,11 +99,6 @@ impl Related<super::template::Entity> for Entity {
     }
 }
 
-impl Related<super::listing_attribute::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::ListingAttribute.def()
-    }
-}
 
 impl Related<super::ad_purchase::Entity> for Entity {
     fn to() -> RelationDef {

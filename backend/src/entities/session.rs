@@ -33,7 +33,7 @@ impl Model {
         hasher.update(self.id.to_string());
         hasher.update(&self.user_id.to_string());
         hasher.update(&self.bearer_token);
-        hasher.update(&self.token_expiration.to_rfc3339());
+        hasher.update(&self.token_expiration.timestamp().to_string());
         hasher.update(&self.is_admin.to_string());
         format!("{:x}", hasher.finalize())
     }

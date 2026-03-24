@@ -81,6 +81,7 @@ async fn test_ad_purchase_crud() {
         display_name: sea_orm::Set("Admin".to_string()),
         contact_info: sea_orm::Set("admin@example.com".to_string()),
         is_active: sea_orm::Set(true),
+        properties: sea_orm::Set(None),
         created_at: sea_orm::Set(Utc::now()),
         updated_at: sea_orm::Set(Utc::now()),
         ..Default::default()
@@ -101,6 +102,7 @@ async fn test_ad_purchase_crud() {
         is_based_on_template: sea_orm::Set(false),
         is_ad_placement: sea_orm::Set(false),
         is_active: sea_orm::Set(true),
+        properties: sea_orm::Set(None),
         country: sea_orm::Set(Some("United States".to_string())),
         state: sea_orm::Set(Some("CA".to_string())),
         city: sea_orm::Set(Some("San Francisco".to_string())),
@@ -148,7 +150,7 @@ async fn test_ad_purchase_crud() {
     let get_all_req = Request::builder()
         .header("Host", directory.domain.clone())
         .method("GET")
-        .uri("/admin/ad-purchases")
+        .uri("/api/admin/ad-purchases")
         .header("Authorization", format!("Bearer {}", admin_token))
         .body(Body::empty())
         .unwrap();
@@ -160,7 +162,7 @@ async fn test_ad_purchase_crud() {
     let cancel_req = Request::builder()
         .header("Host", directory.domain.clone())
         .method("POST")
-        .uri(format!("/admin/ad-purchases/{}/cancel", ad_purchase.id))
+        .uri(format!("/api/admin/ad-purchases/{}/cancel", ad_purchase.id))
         .header("Authorization", format!("Bearer {}", admin_token))
         .body(Body::empty())
         .unwrap();

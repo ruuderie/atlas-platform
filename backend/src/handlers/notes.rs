@@ -16,7 +16,7 @@ use crate::entities::{note, user};
 use crate::models::note::{NoteModel, CreateNoteInput, UpdateNoteInput};
 use crate::models::file::FileAssociation;
 
-pub fn routes() -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/notes", post(create_note))
         .route("/notes", get(get_notes))

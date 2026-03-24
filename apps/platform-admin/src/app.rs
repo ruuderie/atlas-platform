@@ -7,7 +7,15 @@ use crate::pages::multi_site::MultiSite;
 use crate::pages::crm_grid::CrmGrid;
 use crate::pages::cms_editor::CmsEditor;
 use crate::pages::login::Login;
-
+use crate::pages::setup::Setup;
+use crate::pages::directory_types::DirectoryTypes;
+use crate::pages::directory_type_detail::DirectoryTypeDetail;
+use crate::pages::categories::Categories;
+use crate::pages::category_detail::CategoryDetail;
+use crate::pages::templates::Templates;
+use crate::pages::template_detail::TemplateDetail;
+use crate::pages::listings::Listings;
+use crate::pages::listing_detail::ListingDetail;
 use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, DirectoryModel};
 use crate::api::directories::get_directories;
@@ -48,6 +56,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />
+                <Route path=path!("/setup") view=Setup />
                 <Route path=path!("/*any") view=AuthenticatedLayout />
             </Routes>
         </Router>
@@ -57,6 +66,7 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn AuthenticatedLayout() -> impl IntoView {
     let user = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
+    let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>().expect("set user context");
     let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
     let navigate = leptos_router::hooks::use_navigate();
     let location = leptos_router::hooks::use_location();
@@ -135,7 +145,15 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                             <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                         </div>
                                         <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-bright/20 transition-colors" on:click=move |e| e.stop_propagation()>"Account Settings"</a>
-                                        <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { e.stop_propagation(); set_show_profile_menu.set(false); }>"Sign out"</button>
+                                        <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
+                                            e.stop_propagation(); 
+                                            set_show_profile_menu.set(false); 
+                                            leptos::task::spawn_local(async move {
+                                                let _ = crate::api::auth::logout().await;
+                                                set_user.set(None);
+                                                let _ = web_sys::window().unwrap().location().assign("/login");
+                                            });
+                                        }>"Sign out"</button>
                                     </div>
                                 </Show>
                             </div>
@@ -162,6 +180,22 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <a href="/sites" class=move || side_active_class("/sites")>
                             <span class="material-symbols-outlined">"lan"</span>
                             <span>"Directories"</span>
+                        </a>
+                        <a href="/directory-types" class=move || side_active_class("/directory-types")>
+                            <span class="material-symbols-outlined">"schema"</span>
+                            <span>"Directory Types"</span>
+                        </a>
+                        <a href="/categories" class=move || side_active_class("/categories")>
+                            <span class="material-symbols-outlined">"category"</span>
+                            <span>"Categories"</span>
+                        </a>
+                        <a href="/templates" class=move || side_active_class("/templates")>
+                            <span class="material-symbols-outlined">"draw"</span>
+                            <span>"Templates"</span>
+                        </a>
+                        <a href="/listings" class=move || side_active_class("/listings")>
+                            <span class="material-symbols-outlined">"store"</span>
+                            <span>"Listings DB"</span>
                         </a>
                         <a href="/crm" class=move || side_active_class("/crm")>
                             <span class="material-symbols-outlined">"handshake"</span>
@@ -196,6 +230,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/sites") view=MultiSite />
                         <Route path=path!("/sites/new") view=crate::pages::site_create::SiteCreate />
                         <Route path=path!("/sites/:id") view=crate::pages::site_dashboard::SiteDashboard />
+                        <Route path=path!("/directory-types") view=DirectoryTypes />
+                        <Route path=path!("/directory-types/:id") view=DirectoryTypeDetail />
+                        <Route path=path!("/categories") view=Categories />
+                        <Route path=path!("/categories/:id") view=CategoryDetail />
+                        <Route path=path!("/templates") view=Templates />
+                        <Route path=path!("/templates/:id") view=TemplateDetail />
+                        <Route path=path!("/listings") view=Listings />
+                        <Route path=path!("/listings/:id") view=ListingDetail />
                         <Route path=path!("/crm") view=CrmGrid />
                         <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />

@@ -331,7 +331,7 @@ async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Res
     
     tracing::debug!("Querying database for session with token");
     let session = match session::Entity::find()
-        .filter(session::Column::BearerToken.eq(token))
+        .filter(session::Column::BearerToken.eq(&token))
         .filter(session::Column::IsActive.eq(true))
         .one(db)
         .await {

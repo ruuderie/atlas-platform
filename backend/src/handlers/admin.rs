@@ -1,7 +1,7 @@
 use crate::entities::{
     user,user_account, directory, listing, ad_purchase, 
     profile, account, session,request_log,
-    template, category, directory_type, listing_attribute
+    template, category, directory_type
 };
 use axum::{
     Router,

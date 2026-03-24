@@ -19,7 +19,7 @@ use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
 use crate::models::contact::{Contact as ContactModel};
 
-pub fn routes(db_connection: DatabaseConnection) -> Router {
+pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/deals", post(create_deal))
         .route("/api/deals", get(get_deals))
@@ -35,7 +35,6 @@ pub fn routes(db_connection: DatabaseConnection) -> Router {
         .route("/api/deals/{id}/notes", get(get_deal_notes))
         .route("/api/deals/{id}/activities", post(create_deal_activity))
         .route("/api/deals/{id}/activities", get(get_deal_activities))
-        .with_state(db_connection)
 }
 
 pub async fn create_deal(
@@ -61,6 +60,7 @@ pub async fn create_deal(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         directory_id: Set(None),
+        properties: Set(None),
     };
 
     let deal = new_deal.insert(&db).await.map_err(|e| {

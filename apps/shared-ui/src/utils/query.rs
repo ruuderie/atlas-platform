@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
+#[allow(non_snake_case)]
 pub mod QUERY {
     pub const PAGE: &str = "page";
     pub const START_DATE: &str = "start_date";

@@ -10,7 +10,6 @@ pub mod directory_type;
 pub mod ad_purchase;
 pub mod directory;
 pub mod listing;
-pub mod listing_attribute;
 pub mod session;
 pub mod request_log;
 //CRM
@@ -23,6 +22,7 @@ pub mod case;
 pub mod activity;
 pub mod note;
 pub mod file;
+pub mod property;
 pub mod attachment;
 pub mod feed;
 pub mod feed_item;

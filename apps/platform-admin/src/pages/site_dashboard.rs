@@ -10,6 +10,7 @@ use shared_ui::components::ui::table::{
 use shared_ui::components::badge::{Badge, BadgeIntent};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
+use shared_ui::components::ui::related_list::RelatedList;
 
 #[component]
 pub fn SiteDashboard() -> impl IntoView {
@@ -20,6 +21,8 @@ pub fn SiteDashboard() -> impl IntoView {
     
     let (show_add_listing, set_show_add_listing) = signal(false);
     let (show_invite, set_show_invite) = signal(false);
+    let (show_add_category, set_show_add_category) = signal(false);
+    let (show_add_template, set_show_add_template) = signal(false);
     
     let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
@@ -56,6 +59,17 @@ pub fn SiteDashboard() -> impl IntoView {
         ("usr_5561", "Charlie Dispatch", "charlie@example.com", "Editor"),
     ];
 
+    let mock_categories = vec![
+        ("C-10", "Auto & Transport", "Active"),
+        ("C-11", "Home Services", "Active"),
+        ("C-12", "Professional Services", "Active"),
+    ];
+    
+    let mock_templates = vec![
+        ("T-01", "Standard Business", "v1.2", "Active"),
+        ("T-02", "Premium Listing", "v2.0", "Active"),
+    ];
+
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
             <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
@@ -83,101 +97,177 @@ pub fn SiteDashboard() -> impl IntoView {
                 <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md">
                     <TabsTrigger value="listings".to_string()>"Listings"</TabsTrigger>
                     <TabsTrigger value="profiles".to_string()>"User Profiles"</TabsTrigger>
+                    <TabsTrigger value="categories".to_string()>"Categories"</TabsTrigger>
+                    <TabsTrigger value="templates".to_string()>"Templates"</TabsTrigger>
                     <TabsTrigger value="settings".to_string()>"Settings"</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="listings".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <Card class="bg-card border-border shadow-sm p-0 overflow-hidden relative z-0".to_string()>
-                        <div class="p-6 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div>
-                                <h3 class="text-lg font-semibold leading-none tracking-tight">"Business Listings"</h3>
-                                <p class="text-sm text-muted-foreground mt-1">"Businesses registered in this specific directory network."</p>
-                            </div>
-                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_add_listing.set(true)>"Add Listing"</Button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <DataTable class="w-full text-sm">
-                                <DataTableHeader class="bg-muted/50 border-b border-border">
-                                    <DataTableRow class="hover:bg-transparent">
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Listing ID"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Business Name"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Category"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Status"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
-                                    </DataTableRow>
-                                </DataTableHeader>
-                                <DataTableBody class="divide-y divide-border">
-                                    {mock_listings.into_iter().map(|(id, name, cat, status)| {
-                                        let badge_intent = match status {
-                                            "Active" => BadgeIntent::Success,
-                                            "Pending" => BadgeIntent::Warning,
-                                            _ => BadgeIntent::Default,
-                                        };
-                                        view! {
-                                            <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                                <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{cat.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">
-                                                    <Badge intent=badge_intent>{status.to_string()}</Badge>
-                                                </DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-right">
-                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_editing_listing_name.set(Some(name.to_string()))>"Edit"</Button>
-                                                </DataTableCell>
-                                            </DataTableRow>
-                                        }
-                                    }).collect::<Vec<_>>()}
-                                </DataTableBody>
-                            </DataTable>
-                        </div>
-                    </Card>
+                    <RelatedList
+                        title="Business Listings".to_string()
+                        description="Businesses registered in this specific directory network.".to_string()
+                        icon="store".to_string()
+                        action_label="Add Listing".to_string()
+                        on_action=Callback::new(move |_| set_show_add_listing.set(true))
+                        count=4
+                    >
+                        <DataTable class="w-full text-sm">
+                            <DataTableHeader class="bg-muted/50 border-b border-border">
+                                <DataTableRow class="hover:bg-transparent">
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Listing ID"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Business Name"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Category"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Status"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
+                                </DataTableRow>
+                            </DataTableHeader>
+                            <DataTableBody class="divide-y divide-border">
+                                {mock_listings.into_iter().map(|(id, name, cat, status)| {
+                                    let badge_intent = match status {
+                                        "Active" => BadgeIntent::Success,
+                                        "Pending" => BadgeIntent::Warning,
+                                        _ => BadgeIntent::Default,
+                                    };
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{cat.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">
+                                                <Badge intent=badge_intent>{status.to_string()}</Badge>
+                                            </DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_editing_listing_name.set(Some(name.to_string()))>"Edit"</Button>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }).collect::<Vec<_>>()}
+                            </DataTableBody>
+                        </DataTable>
+                    </RelatedList>
                 </TabsContent>
 
                 <TabsContent value="profiles".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <Card class="bg-card border-border shadow-sm p-0 overflow-hidden relative z-0".to_string()>
-                        <div class="p-6 border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div>
-                                <h3 class="text-lg font-semibold leading-none tracking-tight">"Directory Profiles"</h3>
-                                <p class="text-sm text-muted-foreground mt-1">"Users who have registered accounts specifically within this site."</p>
-                            </div>
-                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_invite.set(true)>"Invite User"</Button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <DataTable class="w-full text-sm">
-                                <DataTableHeader class="bg-muted/50 border-b border-border">
-                                    <DataTableRow class="hover:bg-transparent">
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"User ID"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Name"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Email"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Role"</DataTableHead>
-                                        <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
-                                    </DataTableRow>
-                                </DataTableHeader>
-                                <DataTableBody class="divide-y divide-border">
-                                    {mock_profiles.into_iter().map(|(id, name, email, role)| {
-                                        let role_badge = match role {
-                                            "Site Admin" => BadgeIntent::Error,
-                                            "Editor" => BadgeIntent::Primary,
-                                            _ => BadgeIntent::Default,
-                                        };
-                                        view! {
-                                            <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                                <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-muted-foreground">{email.to_string()}</DataTableCell>
-                                                <DataTableCell class="p-4 align-middle">
-                                                    <Badge intent=role_badge>{role.to_string()}</Badge>
-                                                </DataTableCell>
-                                                <DataTableCell class="p-4 align-middle text-right">
-                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_managing_user_name.set(Some(name.to_string()))>"Manage"</Button>
-                                                </DataTableCell>
-                                            </DataTableRow>
-                                        }
-                                    }).collect::<Vec<_>>()}
-                                </DataTableBody>
-                            </DataTable>
-                        </div>
-                    </Card>
+                    <RelatedList
+                        title="Directory Profiles".to_string()
+                        description="Users who have registered accounts specifically within this site.".to_string()
+                        icon="group".to_string()
+                        action_label="Invite User".to_string()
+                        on_action=Callback::new(move |_| set_show_invite.set(true))
+                        count=3
+                    >
+                        <DataTable class="w-full text-sm">
+                            <DataTableHeader class="bg-muted/50 border-b border-border">
+                                <DataTableRow class="hover:bg-transparent">
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"User ID"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Name"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Email"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Role"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
+                                </DataTableRow>
+                            </DataTableHeader>
+                            <DataTableBody class="divide-y divide-border">
+                                {mock_profiles.into_iter().map(|(id, name, email, role)| {
+                                    let role_badge = match role {
+                                        "Site Admin" => BadgeIntent::Error,
+                                        "Editor" => BadgeIntent::Primary,
+                                        _ => BadgeIntent::Default,
+                                    };
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{email.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">
+                                                <Badge intent=role_badge>{role.to_string()}</Badge>
+                                            </DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_managing_user_name.set(Some(name.to_string()))>"Manage"</Button>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }).collect::<Vec<_>>()}
+                            </DataTableBody>
+                        </DataTable>
+                    </RelatedList>
+                </TabsContent>
+                
+                <TabsContent value="categories".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <RelatedList
+                        title="Directory Categories".to_string()
+                        description="Categories mapped specifically to structure this directory's listings.".to_string()
+                        icon="category".to_string()
+                        action_label="Add Category".to_string()
+                        on_action=Callback::new(move |_| set_show_add_category.set(true))
+                        count=3
+                    >
+                        <DataTable class="w-full text-sm">
+                            <DataTableHeader class="bg-muted/50 border-b border-border">
+                                <DataTableRow class="hover:bg-transparent">
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Category ID"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Name"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Status"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
+                                </DataTableRow>
+                            </DataTableHeader>
+                            <DataTableBody class="divide-y divide-border">
+                                {mock_categories.into_iter().map(|(id, name, status)| {
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">
+                                                <Badge intent=BadgeIntent::Success>{status.to_string()}</Badge>
+                                            </DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Edit"</Button>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }).collect::<Vec<_>>()}
+                            </DataTableBody>
+                        </DataTable>
+                    </RelatedList>
+                </TabsContent>
+                
+                <TabsContent value="templates".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <RelatedList
+                        title="Assigned Templates".to_string()
+                        description="Templates orchestrating the data structure for listings in this network.".to_string()
+                        icon="draw".to_string()
+                        action_label="Assign Template".to_string()
+                        on_action=Callback::new(move |_| set_show_add_template.set(true))
+                        count=2
+                    >
+                        <DataTable class="w-full text-sm">
+                            <DataTableHeader class="bg-muted/50 border-b border-border">
+                                <DataTableRow class="hover:bg-transparent">
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Template ID"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Name"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Version"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-left align-middle font-medium text-muted-foreground">"Status"</DataTableHead>
+                                    <DataTableHead class="h-10 px-4 text-right align-middle font-medium text-muted-foreground">"Actions"</DataTableHead>
+                                </DataTableRow>
+                            </DataTableHeader>
+                            <DataTableBody class="divide-y divide-border">
+                                {mock_templates.into_iter().map(|(id, name, version, status)| {
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{version.to_string()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle">
+                                                <Badge intent=BadgeIntent::Success>{status.to_string()}</Badge>
+                                            </DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage"</Button>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }).collect::<Vec<_>>()}
+                            </DataTableBody>
+                        </DataTable>
+                    </RelatedList>
                 </TabsContent>
 
                 <TabsContent value="settings".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -279,6 +369,40 @@ pub fn SiteDashboard() -> impl IntoView {
                                 toast.message.set(Some("User access rescinded.".to_string()));
                                 set_managing_user_name.set(None);
                             }>"Revoke Access"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+            
+            <Show when=move || show_add_category.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_add_category.set(false)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Add Category"</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Define a new taxonomy level for listings."</p>
+                        <div class="flex justify-end gap-3 mt-8">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_category.set(false)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                toast.message.set(Some("Category configured.".to_string()));
+                                set_show_add_category.set(false);
+                            }>"Save"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+            
+            <Show when=move || show_add_template.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_add_template.set(false)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Assign Template"</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Link a structural template to format listings here."</p>
+                        <div class="flex justify-end gap-3 mt-8">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_template.set(false)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                toast.message.set(Some("Template assigned.".to_string()));
+                                set_show_add_template.set(false);
+                            }>"Save"</Button>
                         </div>
                     </div>
                 </div>

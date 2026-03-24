@@ -1,6 +1,6 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, admin, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, directories, sessions, listing_attributes, health, auth_frontend};
+use crate::handlers::{users, admin, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, directories, sessions, health, auth_frontend};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -47,6 +47,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(auth_frontend::public_routes())
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
+
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
@@ -59,11 +60,16 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/logout", post(users::logout_user))
         .merge(profiles::routes(db.clone()))
         .merge(listings::authenticated_routes())
-        .merge(listing_attributes::routes())
         .merge(accounts::routes())
         .merge(user_accounts::routes())
         .merge(ad_purchases::routes())
         .merge(crate::handlers::leads::authenticated_routes())
+        .merge(crate::handlers::customers::routes())
+        .merge(crate::handlers::contacts::routes())
+        .merge(crate::handlers::deals::routes())
+        .merge(crate::handlers::activities::routes())
+        .merge(crate::handlers::cases::routes())
+        .merge(crate::handlers::notes::routes())
         .merge(admin_routes(db.clone()))
         .merge(users::authenticated_routes(db.clone()))
         .merge(auth_frontend::authenticated_routes())
