@@ -1,0 +1,54 @@
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use super::client::{api_url, get_auth_token};
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct UserModel {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub is_active: bool,
+    pub is_admin: bool,
+}
+
+pub async fn get_users(directory_id: Option<Uuid>) -> Result<Vec<UserModel>, String> {
+    let client = Client::new();
+    let url = if let Some(dir_id) = directory_id {
+        format!("{}?directory_id={}", api_url("api/admin/users"), dir_id)
+    } else {
+        api_url("api/admin/users")
+    };
+    
+    let token = get_auth_token().unwrap_or_default();
+    
+    let res = client.get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    if res.status().is_success() {
+        res.json::<Vec<UserModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn toggle_admin(id: Uuid) -> Result<UserModel, String> {
+    let client = Client::new();
+    let url = api_url(&format!("api/admin/users/{}/toggle-admin", id));
+    let token = get_auth_token().unwrap_or_default();
+    
+    let res = client.post(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    if res.status().is_success() {
+        res.json::<UserModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}

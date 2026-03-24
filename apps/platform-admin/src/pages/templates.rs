@@ -28,7 +28,9 @@ pub fn Templates() -> impl IntoView {
                     <p class="text-muted-foreground mt-1">"Manage dynamic data schemas for listings based on categories."</p>
                 </div>
                 <div class="flex space-x-2">
-                    <Button variant=ButtonVariant::Default>"Create Template"</Button>
+                    <a href="/templates/new">
+                        <Button variant=ButtonVariant::Default>"Create Template"</Button>
+                    </a>
                 </div>
             </header>
 

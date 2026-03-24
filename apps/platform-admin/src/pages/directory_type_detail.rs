@@ -12,11 +12,9 @@ pub fn DirectoryTypeDetail() -> impl IntoView {
     let params = use_params_map();
     let type_id = move || params.with(|p| p.get("id").unwrap_or_default());
     
-    // Mock directories using this type
-    let mock_directories = vec![
-        ("ABC-123", "National Contractors", "Active"),
-        ("XYZ-987", "Local Restaurants", "Active"),
-    ];
+    let dirs_res = LocalResource::new(move || async move { 
+        crate::api::directories::get_directories().await.unwrap_or_default() 
+    });
     
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 pt-8 pb-12 px-6">
@@ -57,21 +55,26 @@ pub fn DirectoryTypeDetail() -> impl IntoView {
                         </DataTableRow>
                     </DataTableHeader>
                     <DataTableBody class="divide-y divide-border">
-                        {mock_directories.into_iter().map(|(id, name, status)| {
-                            let site_url = format!("/sites/{}", id);
-                            view! {
-                                <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                    <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.to_string()}</DataTableCell>
-                                    <DataTableCell class="p-4 align-middle text-foreground font-semibold">{name.to_string()}</DataTableCell>
-                                    <DataTableCell class="p-4 align-middle">{status.to_string()}</DataTableCell>
-                                    <DataTableCell class="p-4 align-middle text-right">
-                                        <a href=site_url>
-                                            <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Site"</Button>
-                                        </a>
-                                    </DataTableCell>
-                                </DataTableRow>
-                            }
-                        }).collect::<Vec<_>>()}
+                        <Suspense fallback=move || view! { <div class="p-4">"Loading..."</div> }>
+                        {move || dirs_res.get().map(|dirs| view! {
+                            <For each=move || dirs.clone() key=|d| d.id.clone() children=move |d| {
+                                let id = d.id.clone();
+                                let site_url = format!("/sites/{}", id);
+                                view! {
+                                    <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                        <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.clone()}</DataTableCell>
+                                        <DataTableCell class="p-4 align-middle text-foreground font-semibold">{d.name.clone()}</DataTableCell>
+                                        <DataTableCell class="p-4 align-middle">{d.site_status.clone()}</DataTableCell>
+                                        <DataTableCell class="p-4 align-middle text-right">
+                                            <a href=site_url>
+                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Site"</Button>
+                                            </a>
+                                        </DataTableCell>
+                                    </DataTableRow>
+                                }
+                            }/>
+                        })}
+                    </Suspense>
                     </DataTableBody>
                 </DataTable>
             </RelatedList>

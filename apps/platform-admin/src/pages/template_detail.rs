@@ -14,10 +14,10 @@ pub fn TemplateDetail() -> impl IntoView {
     let params = use_params_map();
     let template_id = move || params.with(|p| p.get("id").unwrap_or_default());
     
-    let mock_listings = vec![
-        ("LST-88", "Elite Plumbers"),
-        ("LST-99", "Rapid Rooter"),
-    ];
+    let listings_res = LocalResource::new(move || async move { 
+        // We fetch a specific directory's listings or just a mock fallback for MVP since we don't have get_listings_by_template
+        vec![] as Vec<crate::api::models::ListingModel>
+    });
     let template_schema = RwSignal::new(Some(serde_json::json!({
         "License Number": "Text",
         "Emergency Phone": "String",
@@ -67,19 +67,25 @@ pub fn TemplateDetail() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            {mock_listings.into_iter().map(|(id, name)| {
-                                view! {
-                                    <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-foreground font-semibold">{name.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-right">
-                                            <a href=format!("/listings/{}", id)>
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Listing"</Button>
-                                            </a>
-                                        </DataTableCell>
-                                    </DataTableRow>
-                                }
-                            }).collect::<Vec<_>>()}
+                            <Suspense fallback=move || view! { <div class="p-4">"Loading..."</div> }>
+                            {move || listings_res.get().map(|listings| view! {
+                                <For each=move || listings.clone() key=|l| l.id.clone() children=move |l| {
+                                    let id1 = l.id.clone();
+                                    let id2 = l.id.clone();
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id1}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-foreground font-semibold">{l.title.clone()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <a href=format!("/listings/{}", id2)>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Listing"</Button>
+                                                </a>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }/>
+                            })}
+                        </Suspense>
                         </DataTableBody>
                     </DataTable>
                 </RelatedList>

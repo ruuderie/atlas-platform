@@ -28,7 +28,9 @@ pub fn DirectoryTypes() -> impl IntoView {
                     <p class="text-muted-foreground mt-1">"Manage standardized directory frameworks and schemas."</p>
                 </div>
                 <div class="flex space-x-2">
-                    <Button variant=ButtonVariant::Default>"Create Type"</Button>
+                    <a href="/directory-types/new">
+                        <Button variant=ButtonVariant::Default>"Create Type"</Button>
+                    </a>
                 </div>
             </header>
 

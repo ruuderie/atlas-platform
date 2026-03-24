@@ -8,7 +8,7 @@ use crate::entities::{
     directory::Entity,
 };
 use axum::{
-    body::Body, extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post}, Router
+    body::Body, extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router
 };
 use headers::{UserAgent, Host, HeaderMap};
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,8 @@ pub fn auth_routes() -> Router<DatabaseConnection> {
 pub fn authenticated_routes(db_connection: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/profile", get(get_user_profile))
+        .route("/api/profile/email", put(update_user_email))
+        .route("/api/profile/password", put(update_user_password))
         .route("/api/refresh-token", post(refresh_token))
         .route("/api/validate-session", get(validate_session))
         .with_state(db_connection)
@@ -300,4 +302,69 @@ pub async fn logout_user(
     })?;
 
     Ok((StatusCode::OK, Json(json!({"message": "Successfully logged out"}))))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UpdateEmailRequest {
+    pub new_email: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct UpdatePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+pub async fn update_user_email(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(payload): Json<UpdateEmailRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Check if new email already exists
+    let existing_user = User::find()
+        .filter(user::Column::Email.eq(&payload.new_email))
+        .one(&db)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string()))?;
+
+    if existing_user.is_some() {
+        return Err((StatusCode::CONFLICT, "Email already in use".to_string()));
+    }
+
+    let mut user_active: user::ActiveModel = current_user.into();
+    user_active.email = Set(payload.new_email);
+    user_active.updated_at = Set(Utc::now());
+
+    user_active.update(&db).await.map_err(|_| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update email".to_string())
+    })?;
+
+    Ok((StatusCode::OK, Json(json!({"message": "Email updated successfully"}))))
+}
+
+pub async fn update_user_password(
+    State(db): State<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(payload): Json<UpdatePasswordRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Verify current password
+    match verify_password(&payload.current_password, &current_user.password_hash) {
+        Ok(true) => {},
+        Ok(false) => return Err((StatusCode::UNAUTHORIZED, "Invalid current password".to_string())),
+        Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Error verifying password".to_string())),
+    }
+
+    // Hash new password
+    let hashed_password = hash_password(&payload.new_password)
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error hashing new password".to_string()))?;
+
+    let mut user_active: user::ActiveModel = current_user.into();
+    user_active.password_hash = Set(hashed_password);
+    user_active.updated_at = Set(Utc::now());
+
+    user_active.update(&db).await.map_err(|_| {
+        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update password".to_string())
+    })?;
+
+    Ok((StatusCode::OK, Json(json!({"message": "Password updated successfully"}))))
 }

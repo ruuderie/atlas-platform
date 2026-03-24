@@ -12,10 +12,9 @@ pub fn CategoryDetail() -> impl IntoView {
     let params = use_params_map();
     let cat_id = move || params.with(|p| p.get("id").unwrap_or_default());
     
-    // Mock child entities
-    let mock_templates = vec![
-        ("TPL-1", "Standard Plumber Form"),
-    ];
+    let cats_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::CategoryModel> });
+    let tpls_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::TemplateModel> });
+    let lsts_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::ListingModel> });
     let mock_subcategories = vec![
         ("CAT-SUB-1", "Emergency Plumbing"),
         ("CAT-SUB-2", "Commercial Pipemakers"),
@@ -63,20 +62,25 @@ pub fn CategoryDetail() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            {mock_subcategories.into_iter().map(|(id, name)| {
-                                let target_url = format!("/categories/{}", id);
-                                view! {
-                                    <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-foreground font-semibold">{name.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-right">
-                                            <a href=target_url>
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Drill down"</Button>
-                                            </a>
-                                        </DataTableCell>
-                                    </DataTableRow>
-                                }
-                            }).collect::<Vec<_>>()}
+                            <Suspense fallback=move || view! { <div class="p-4">"Loading..."</div> }>
+                            {move || cats_res.get().map(|items| view! {
+                                <For each=move || items.clone() key=|c| c.id.clone() children=move |c| {
+                                    let id = c.id.clone();
+                                    let target_url = format!("/categories/{}", id);
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.clone()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-foreground font-semibold">{c.name.clone()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <a href=target_url>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Drill down"</Button>
+                                                </a>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }/>
+                            })}
+                        </Suspense>
                         </DataTableBody>
                     </DataTable>
                 </RelatedList>
@@ -98,19 +102,25 @@ pub fn CategoryDetail() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            {mock_templates.into_iter().map(|(id, name)| {
-                                view! {
-                                    <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-foreground font-semibold">{name.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-right">
-                                            <a href=format!("/templates/{}", id)>
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Inspect"</Button>
-                                            </a>
-                                        </DataTableCell>
-                                    </DataTableRow>
-                                }
-                            }).collect::<Vec<_>>()}
+                            <Suspense fallback=move || view! { <div class="p-4">"Loading..."</div> }>
+                            {move || tpls_res.get().map(|items| view! {
+                                <For each=move || items.clone() key=|t| t.id.clone() children=move |t| {
+                                    let id1 = t.id.clone();
+                                    let id2 = t.id.clone();
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id1}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-foreground font-semibold">{t.name.clone()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <a href=format!("/templates/{}", id2)>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Inspect"</Button>
+                                                </a>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }/>
+                            })}
+                        </Suspense>
                         </DataTableBody>
                     </DataTable>
                 </RelatedList>
@@ -132,19 +142,25 @@ pub fn CategoryDetail() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            {mock_listings.into_iter().map(|(id, name)| {
-                                view! {
-                                    <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                        <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-foreground font-semibold">{name.to_string()}</DataTableCell>
-                                        <DataTableCell class="p-4 align-middle text-right">
-                                            <a href=format!("/listings/{}", id)>
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Listing"</Button>
-                                            </a>
-                                        </DataTableCell>
-                                    </DataTableRow>
-                                }
-                            }).collect::<Vec<_>>()}
+                            <Suspense fallback=move || view! { <div class="p-4">"Loading..."</div> }>
+                            {move || lsts_res.get().map(|items| view! {
+                                <For each=move || items.clone() key=|l| l.id.clone() children=move |l| {
+                                    let id1 = l.id.clone();
+                                    let id2 = l.id.clone();
+                                    view! {
+                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <DataTableCell class="p-4 align-middle font-medium text-muted-foreground">{id1}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-foreground font-semibold">{l.title.clone()}</DataTableCell>
+                                            <DataTableCell class="p-4 align-middle text-right">
+                                                <a href=format!("/listings/{}", id2)>
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage Listing"</Button>
+                                                </a>
+                                            </DataTableCell>
+                                        </DataTableRow>
+                                    }
+                                }/>
+                            })}
+                        </Suspense>
                         </DataTableBody>
                     </DataTable>
                 </RelatedList>

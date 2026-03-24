@@ -75,9 +75,9 @@ pub fn MultiSite() -> impl IntoView {
                                         </div>
                                         // Stats
                                         <div class="grid grid-cols-2 gap-4 mb-8">
-                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3">
+                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3 min-w-0 inline-block w-full">
                                                 <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Theme"</span>
-                                                <span class="text-sm font-medium text-on-surface">{dir.theme.clone().unwrap_or_else(|| "Default".to_string())}</span>
+                                                <span class="block text-sm font-medium text-on-surface truncate" title=dir.theme.clone().unwrap_or_else(|| "Default".to_string())>{dir.theme.clone().unwrap_or_else(|| "Default".to_string())}</span>
                                             </div>
                                             <div class="bg-surface-container-lowest/50 rounded-lg p-3">
                                                 <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Modules"</span>

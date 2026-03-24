@@ -9,22 +9,11 @@ pub async fn get_directory_types() -> Result<Vec<DirectoryTypeModel>, String> {
     let req = client.get(&url);
     let req = with_credentials(req);
 
-    if let Ok(res) = req.send().await {
-        if res.status() == StatusCode::OK {
-            if let Ok(types) = res.json::<Vec<DirectoryTypeModel>>().await { 
-                return Ok(types); 
-            }
-        }
-    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
     
-    // Fallback/Demo Mock
-    Ok(vec![
-        DirectoryTypeModel { 
-            id: "fake-id-1".into(),
-            name: "Professional Network".into(),
-            description: "Standard business listings network".into(),
-            created_at: "2026-03-23".into(),
-            updated_at: "2026-03-23".into(),
-        }
-    ])
+    if res.status() == StatusCode::OK {
+        res.json::<Vec<DirectoryTypeModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to fetch directory types: {}", res.status()))
+    }
 }

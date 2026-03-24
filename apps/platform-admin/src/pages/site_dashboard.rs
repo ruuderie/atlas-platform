@@ -27,10 +27,18 @@ pub fn SiteDashboard() -> impl IntoView {
     let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
 
-    let domain_bind = RwSignal::new("".to_string());
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::DirectoryModel>>>().expect("dirs context");
+    let domain_bind = RwSignal::new(String::new());
     
     Effect::new(move |_| {
-        domain_bind.set(format!("{}.example.com", site_id()));
+        let current_id = site_id();
+        if let Some(d) = dirs.get() {
+            if let Some(dir) = d.into_iter().find(|dir| dir.id.to_string() == current_id) {
+                domain_bind.set(dir.domain.clone());
+            } else {
+                domain_bind.set(format!("{}.example.com", current_id));
+            }
+        }
     });
     
     let invite_email = RwSignal::new("".to_string());
@@ -46,12 +54,34 @@ pub fn SiteDashboard() -> impl IntoView {
         }
     };
 
-    let mock_listings = vec![
-        ("L-101", "Acme Movers", "Transportation", "Active"),
-        ("L-102", "Globe Freight", "Logistics", "Pending"),
-        ("L-103", "QuickShip Plus", "Courier", "Active"),
-        ("L-104", "City Transit Co", "Public Transit", "Inactive"),
-    ];
+    let site_id_str = site_id().to_string();
+    let listings_res = LocalResource::new({
+        let sid = site_id_str.clone();
+        move || {
+            let sid = sid.clone();
+            async move { crate::api::listings::get_listings(&sid).await.unwrap_or_default() }
+        }
+    });
+
+    let profiles_res = LocalResource::new({
+        let sid = site_id_str.clone();
+        move || {
+            let sid = sid.clone();
+            async move { crate::api::admin::get_users(uuid::Uuid::parse_str(&sid).ok()).await.unwrap_or_default() }
+        }
+    });
+
+    let categories_res = LocalResource::new({
+        let sid = site_id_str.clone();
+        move || {
+            let sid = sid.clone();
+            async move { crate::api::categories::get_categories(Some(sid)).await.unwrap_or_default() }
+        }
+    });
+
+    let templates_res = LocalResource::new(move || async move {
+        crate::api::templates::get_templates().await.unwrap_or_default()
+    });
 
     let mock_profiles = vec![
         ("usr_8821", "Alice Admin", "alice@example.com", "Site Admin"),
@@ -88,7 +118,12 @@ pub fn SiteDashboard() -> impl IntoView {
                     <p class="text-muted-foreground mt-1">"Manage directory-specific listings, users, and configuration."</p>
                 </div>
                 <div class="flex space-x-2">
-                    <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live Site"</Button>
+                    <a href=move || {
+                        let d = domain_bind.get();
+                        if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
+                    } target="_blank" rel="noopener noreferrer">
+                        <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live Site"</Button>
+                    </a>
                     <Button variant=ButtonVariant::Default>"Directory Settings"</Button>
                 </div>
             </header>
@@ -122,26 +157,32 @@ pub fn SiteDashboard() -> impl IntoView {
                                 </DataTableRow>
                             </DataTableHeader>
                             <DataTableBody class="divide-y divide-border">
-                                {mock_listings.into_iter().map(|(id, name, cat, status)| {
-                                    let badge_intent = match status {
-                                        "Active" => BadgeIntent::Success,
-                                        "Pending" => BadgeIntent::Warning,
-                                        _ => BadgeIntent::Default,
-                                    };
-                                    view! {
-                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{cat.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">
-                                                <Badge intent=badge_intent>{status.to_string()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-right">
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_editing_listing_name.set(Some(name.to_string()))>"Edit"</Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }).collect::<Vec<_>>()}
+                                <Suspense fallback=move || view! { <div class="p-4 text-sm text-muted-foreground">"Loading listings..."</div> }>
+                                    {move || listings_res.get().map(|listings| view! {
+                                        <For each=move || listings.clone() key=|l| l.id.clone() children=move |l| {
+                                            let badge_intent = match l.status {
+                                                crate::api::models::ListingStatus::Active => BadgeIntent::Success,
+                                                crate::api::models::ListingStatus::Pending => BadgeIntent::Warning,
+                                                _ => BadgeIntent::Default,
+                                            };
+                                            let title1 = l.title.clone();
+                                            let title2 = l.title.clone();
+                                            view! {
+                                                <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                                    <DataTableCell class="p-4 align-middle font-medium">{l.id.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">{title1}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-muted-foreground">{l.category_id.clone().unwrap_or_else(|| "Uncategorized".into())}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">
+                                                        <Badge intent=badge_intent>{format!("{:?}", l.status)}</Badge>
+                                                    </DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-right">
+                                                        <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_editing_listing_name.set(Some(title2.clone()))>"Edit"</Button>
+                                                    </DataTableCell>
+                                                </DataTableRow>
+                                            }
+                                        }/>
+                                    })}
+                                </Suspense>
                             </DataTableBody>
                         </DataTable>
                     </RelatedList>
@@ -167,26 +208,29 @@ pub fn SiteDashboard() -> impl IntoView {
                                 </DataTableRow>
                             </DataTableHeader>
                             <DataTableBody class="divide-y divide-border">
-                                {mock_profiles.into_iter().map(|(id, name, email, role)| {
-                                    let role_badge = match role {
-                                        "Site Admin" => BadgeIntent::Error,
-                                        "Editor" => BadgeIntent::Primary,
-                                        _ => BadgeIntent::Default,
-                                    };
-                                    view! {
-                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{email.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">
-                                                <Badge intent=role_badge>{role.to_string()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-right">
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_managing_user_name.set(Some(name.to_string()))>"Manage"</Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }).collect::<Vec<_>>()}
+                                <Suspense fallback=move || view! { <div class="p-4 text-sm text-muted-foreground">"Loading profiles..."</div> }>
+                                    {move || profiles_res.get().map(|profiles| view! {
+                                        <For each=move || profiles.clone() key=|p| p.id.clone() children=move |p| {
+                                            let role_badge = if p.is_admin { BadgeIntent::Error } else { BadgeIntent::Default };
+                                            let role_str = if p.is_admin { "Admin" } else { "User" };
+                                            let p_name1 = p.username.clone();
+                                            let p_name2 = p.username.clone();
+                                            view! {
+                                                <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                                    <DataTableCell class="p-4 align-middle font-medium">{p.id.to_string()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">{p_name1}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-muted-foreground">{p.email.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">
+                                                        <Badge intent=role_badge>{role_str.to_string()}</Badge>
+                                                    </DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-right">
+                                                        <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string() on:click=move |_| set_managing_user_name.set(Some(p_name2.clone()))>"Manage"</Button>
+                                                    </DataTableCell>
+                                                </DataTableRow>
+                                            }
+                                        }/>
+                                    })}
+                                </Suspense>
                             </DataTableBody>
                         </DataTable>
                     </RelatedList>
@@ -211,20 +255,24 @@ pub fn SiteDashboard() -> impl IntoView {
                                 </DataTableRow>
                             </DataTableHeader>
                             <DataTableBody class="divide-y divide-border">
-                                {mock_categories.into_iter().map(|(id, name, status)| {
-                                    view! {
-                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">
-                                                <Badge intent=BadgeIntent::Success>{status.to_string()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-right">
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Edit"</Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }).collect::<Vec<_>>()}
+                                <Suspense fallback=move || view! { <div class="p-4 text-sm text-muted-foreground">"Loading categories..."</div> }>
+                                    {move || categories_res.get().map(|categories| view! {
+                                        <For each=move || categories.clone() key=|c| c.id.clone() children=move |c| {
+                                            view! {
+                                                <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                                    <DataTableCell class="p-4 align-middle font-medium">{c.id.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">{c.name.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">
+                                                        <Badge intent=if c.is_active { BadgeIntent::Success } else { BadgeIntent::Warning }>{if c.is_active { "Active" } else { "Inactive" }.to_string()}</Badge>
+                                                    </DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-right">
+                                                        <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Edit"</Button>
+                                                    </DataTableCell>
+                                                </DataTableRow>
+                                            }
+                                        }/>
+                                    })}
+                                </Suspense>
                             </DataTableBody>
                         </DataTable>
                     </RelatedList>
@@ -250,21 +298,25 @@ pub fn SiteDashboard() -> impl IntoView {
                                 </DataTableRow>
                             </DataTableHeader>
                             <DataTableBody class="divide-y divide-border">
-                                {mock_templates.into_iter().map(|(id, name, version, status)| {
-                                    view! {
-                                        <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                                            <DataTableCell class="p-4 align-middle font-medium">{id.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">{name.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-muted-foreground">{version.to_string()}</DataTableCell>
-                                            <DataTableCell class="p-4 align-middle">
-                                                <Badge intent=BadgeIntent::Success>{status.to_string()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-4 align-middle text-right">
-                                                <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage"</Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }).collect::<Vec<_>>()}
+                                <Suspense fallback=move || view! { <div class="p-4 text-sm text-muted-foreground">"Loading templates..."</div> }>
+                                    {move || templates_res.get().map(|templates| view! {
+                                        <For each=move || templates.clone() key=|t| t.id.clone() children=move |t| {
+                                            view! {
+                                                <DataTableRow class="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                                    <DataTableCell class="p-4 align-middle font-medium">{t.id.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">{t.name.clone()}</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-muted-foreground">"v1.0"</DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle">
+                                                        <Badge intent=if t.is_active { BadgeIntent::Success } else { BadgeIntent::Warning }>{if t.is_active { "Active" } else { "Inactive" }.to_string()}</Badge>
+                                                    </DataTableCell>
+                                                    <DataTableCell class="p-4 align-middle text-right">
+                                                        <Button variant=ButtonVariant::Ghost class="h-8 px-2 text-primary".to_string()>"Manage"</Button>
+                                                    </DataTableCell>
+                                                </DataTableRow>
+                                            }
+                                        }/>
+                                    })}
+                                </Suspense>
                             </DataTableBody>
                         </DataTable>
                     </RelatedList>

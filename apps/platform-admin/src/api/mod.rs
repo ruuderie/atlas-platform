@@ -10,3 +10,5 @@ pub mod directory_types;
 pub mod categories;
 pub mod templates;
 pub mod listing_attributes;
+pub mod profile;
+pub mod admin;

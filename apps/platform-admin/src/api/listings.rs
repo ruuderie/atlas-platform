@@ -84,17 +84,12 @@ pub async fn search_listings(query: &str) -> Result<Vec<ListingModel>, String> {
     let client = create_client();
     let url = api_url(&format!("/listings/search?q={}", query));
     let req = with_credentials(client.get(&url));
-    if let Ok(res) = req.send().await {
-        if res.status() == StatusCode::OK {
-            if let Ok(data) = res.json::<Vec<ListingModel>>().await { return Ok(data); }
-        }
+    
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    
+    if res.status() == StatusCode::OK {
+        res.json::<Vec<ListingModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to search listings: {}", res.status()))
     }
-    if crate::api::client::is_demo_mode() { Ok(vec![
-        ListingModel { 
-            id: "l1".into(), profile_id: "p1".into(), directory_id: "d1".into(), category_id: None, title: "Palantir Foundry Setup".into(), description: "Initialization guide".into(), listing_type: "Guide".into(), price: None, price_type: None, country: None, state: None, city: None, neighborhood: None, latitude: None, longitude: None, additional_info: serde_json::json!({}), status: crate::api::models::ListingStatus::Active, is_featured: false, is_based_on_template: false, based_on_template_id: None, is_ad_placement: false, is_active: true, created_at: "2026-03-18".into(), updated_at: "2026-03-18".into() 
-        },
-        ListingModel { 
-            id: "l2".into(), profile_id: "p1".into(), directory_id: "d1".into(), category_id: None, title: "AWS Lambda Integrations".into(), description: "Connection details".into(), listing_type: "Guide".into(), price: None, price_type: None, country: None, state: None, city: None, neighborhood: None, latitude: None, longitude: None, additional_info: serde_json::json!({}), status: crate::api::models::ListingStatus::Active, is_featured: false, is_based_on_template: false, based_on_template_id: None, is_ad_placement: false, is_active: true, created_at: "2026-03-18".into(), updated_at: "2026-03-18".into() 
-        },
-    ]) } else { Err("Network Error: Backend unreachable".into()) }
 }

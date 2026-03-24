@@ -111,10 +111,10 @@ pub fn SiteCreate() -> impl IntoView {
                                         class=("border-primary", move || selected_type.get() == Some(t_id.clone()))
                                         class=("bg-primary/5", move || selected_type.get() == Some(t_id_2.clone()))
                                         class=("border-border", move || selected_type.get() != Some(t_id_3.clone()))
+                                        on:click=move |_| set_selected_type.set(Some(change_val.clone()))
                                     >
                                         <input type="radio" name="directory_type" value=input_val 
                                             prop:checked=move || selected_type.get() == Some(check_val.clone())
-                                            on:change=move |_| set_selected_type.set(Some(change_val.clone()))
                                             class="hidden"
                                         />
                                         <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -137,10 +137,10 @@ pub fn SiteCreate() -> impl IntoView {
                                 class=("border-primary", move || strategy.get() == "multi_tenant")
                                 class=("bg-primary/5", move || strategy.get() == "multi_tenant")
                                 class=("border-border", move || strategy.get() != "multi_tenant")
+                                on:click=move |_| strategy.set("multi_tenant".to_string())
                             >
                                 <input type="radio" name="strategy" value="multi_tenant" 
                                     prop:checked=move || strategy.get() == "multi_tenant"
-                                    on:change=move |_| strategy.set("multi_tenant".to_string())
                                     class="hidden"
                                 />
                                 <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -156,10 +156,10 @@ pub fn SiteCreate() -> impl IntoView {
                                 class=("border-primary", move || strategy.get() == "dedicated")
                                 class=("bg-primary/5", move || strategy.get() == "dedicated")
                                 class=("border-border", move || strategy.get() != "dedicated")
+                                on:click=move |_| strategy.set("dedicated".to_string())
                             >
                                 <input type="radio" name="strategy" value="dedicated" 
                                     prop:checked=move || strategy.get() == "dedicated"
-                                    on:change=move |_| strategy.set("dedicated".to_string())
                                     class="hidden"
                                 />
                                 <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

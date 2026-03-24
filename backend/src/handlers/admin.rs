@@ -240,9 +240,45 @@ pub async fn list_users(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Listing users via admin route");
-    let users = user::Entity::find()
+
+    let mut user_ids_to_filter: Option<Vec<Uuid>> = None;
+
+    if let Some(dir_id_str) = query.get("directory_id") {
+        if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
+                let profiles = profile::Entity::find()
+                    .filter(profile::Column::DirectoryId.eq(dir_id))
+                    .all(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                
+                let account_ids: Vec<Uuid> = profiles.into_iter().map(|p| p.account_id).collect();
+                
+                let user_accounts = user_account::Entity::find()
+                    .filter(user_account::Column::AccountId.is_in(account_ids))
+                    .all(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    
+                let user_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.user_id).collect();
+                user_ids_to_filter = Some(user_ids);
+            }
+        }
+
+    let mut find_query = user::Entity::find();
+    if let Some(ids) = user_ids_to_filter {
+        // If there are no users in that directory, early return an empty list 
+        // because `is_in([])` might fetch all or fail depending on the SQL builder, 
+        // though `sea-orm` usually handles it safely. We can just be explicit:
+        if ids.is_empty() {
+            return Ok(Json(Vec::<user::Model>::new()));
+        }
+        find_query = find_query.filter(user::Column::Id.is_in(ids));
+    }
+
+    let users = find_query
         .all(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

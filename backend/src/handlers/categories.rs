@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, Set,  ActiveModelTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryFilter, ColumnTrait};
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;
@@ -12,10 +12,16 @@ use crate::models::category::{CategoryModel, CreateCategory, UpdateCategory};
 
 
 pub async fn get_categories(
-    // Potentially add query parameters for filtering or pagination here
+    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<Vec<CategoryModel>>, (StatusCode, Json<serde_json::Value>)> {
-    let categories = category::Entity::find()
+    let mut find_query = category::Entity::find();
+    if let Some(dir_id_str) = query.get("directory_id") {
+        if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
+            find_query = find_query.filter(category::Column::DirectoryId.eq(dir_id));
+        }
+    }
+    let categories = find_query
         .all(&db)
         .await
         .map_err(|err| {

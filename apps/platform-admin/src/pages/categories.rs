@@ -7,17 +7,24 @@ use shared_ui::components::ui::table::{
 };
 use crate::api::models::CategoryModel;
 use crate::api::categories::get_categories;
+use crate::api::models::DirectoryModel;
 
 #[component]
 pub fn Categories() -> impl IntoView {
+    let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
     let (categories, set_categories) = signal(Vec::<CategoryModel>::new());
     
-    Effect::new(move |_| {
-        leptos::task::spawn_local(async move {
-            if let Ok(data) = get_categories().await {
-                set_categories.set(data);
-            }
-        });
+    // Create query tracking signals similar to platform_admins.rs
+    let active_directory = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
+    let (selected_directory, set_selected_directory) = signal(active_directory.get().map(|u| u.to_string()).unwrap_or_default());
+    
+    // Use Resource for reactive network fetching
+    let cats_res = LocalResource::new(move || {
+        let current_dir = selected_directory.get();
+        async move {
+            let filter = if current_dir.is_empty() { None } else { Some(current_dir) };
+            get_categories(filter).await.unwrap_or_default()
+        }
     });
 
     view! {
@@ -27,8 +34,40 @@ pub fn Categories() -> impl IntoView {
                     <h2 class="text-3xl font-bold tracking-tight text-foreground">"Categories"</h2>
                     <p class="text-muted-foreground mt-1">"Manage standardized industry and listing categories natively."</p>
                 </div>
-                <div class="flex space-x-2">
-                    <Button variant=ButtonVariant::Default>"Create Category"</Button>
+                <div class="flex items-center gap-4">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">"Directory Filter"</label>
+                        <select
+                            class="h-10 bg-surface-container-high px-3 rounded-md text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 focus:ring-primary focus:border-primary text-on-surface min-w-[200px]"
+                            on:change=move |ev| {
+                                let val = event_target_value(&ev);
+                                set_selected_directory.set(val);
+                            }
+                        >
+                            <option value="" selected=move || selected_directory.get().is_empty()>"All Directories"</option>
+                            <Suspense fallback=move || view! { <option>"Loading..."</option> }>
+                                {move || dirs_res.get().map(|directories| view! {
+                                    <For
+                                        each=move || directories.clone()
+                                        key=|dir| dir.id.clone()
+                                        children=move |dir| {
+                                            view! {
+                                                <option 
+                                                    value=dir.id.to_string()
+                                                    selected=move || selected_directory.get() == dir.id.to_string()
+                                                >
+                                                    {dir.name.clone()}
+                                                </option>
+                                            }
+                                        }
+                                    />
+                                })}
+                            </Suspense>
+                        </select>
+                    </div>
+                    <a href="/categories/new" class="mt-5">
+                        <Button variant=ButtonVariant::Default>"Create Category"</Button>
+                    </a>
                 </div>
             </header>
 
@@ -45,7 +84,8 @@ pub fn Categories() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            {move || categories.get().into_iter().map(|item| {
+                            <Suspense fallback=move || view! { <DataTableRow><DataTableCell attr:colspan="5" class="text-center p-8 text-muted-foreground">"Loading categories..."</DataTableCell></DataTableRow> }>
+                            {move || cats_res.get().unwrap_or_default().into_iter().map(|item| {
                                 let id = item.id.clone();
                                 let detail_url = format!("/categories/{}", id);
                                 let icon = item.icon.clone().unwrap_or_else(|| "category".to_string());
@@ -76,6 +116,7 @@ pub fn Categories() -> impl IntoView {
                                     </DataTableRow>
                                 }
                             }).collect::<Vec<_>>()}
+                            </Suspense>
                         </DataTableBody>
                     </DataTable>
                 </div>

@@ -66,6 +66,7 @@ pub fn Login() -> impl IntoView {
         let navigate = navigate_pk.clone();
         let toast = toast_pk.clone();
         leptos::task::spawn_local(async move {
+            crate::api::client::set_auth_token(&_token);
             if let Ok(user) = crate::api::auth::validate_session().await {
                 set_user.set(Some(user));
                 navigate("/", Default::default());
@@ -148,7 +149,7 @@ pub fn Login() -> impl IntoView {
                             view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <PasskeyLoginButton 
-                                        api_base_url="http://api.localhost/api/auth/passkeys"
+                                        api_base_url="http://api.localhost/api/passkeys".to_string()
                                         email=email
                                         on_success=handle_passkey_success
                                         on_error=handle_passkey_error

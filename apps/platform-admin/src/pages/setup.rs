@@ -47,6 +47,7 @@ pub fn Setup() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match initialize_system(req_data).await {
                 Ok(res) => {
+                    crate::api::client::set_auth_token(&res.token);
                     set_user.set(res.user);
                     auth_token.set(res.token);
                     step.set(2);

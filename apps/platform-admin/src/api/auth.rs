@@ -14,6 +14,7 @@ pub async fn login(credentials: UserLogin) -> Result<SessionResponse, String> {
 
     if res.status() == StatusCode::OK {
         let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
+        crate::api::client::set_auth_token(&session.token);
         Ok(session)
     } else {
         let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
@@ -53,6 +54,7 @@ pub async fn logout() -> Result<(), String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status().is_success() {
+        crate::api::client::clear_auth_token();
         Ok(())
     } else {
         Err("Failed to logout".into())
@@ -70,6 +72,7 @@ pub async fn impersonate_user(user_id: &str) -> Result<SessionResponse, String> 
 
     if res.status() == StatusCode::OK {
         let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
+        crate::api::client::set_auth_token(&session.token);
         Ok(session)
     } else {
         let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {

@@ -94,14 +94,14 @@ pub fn ManagePasskeys(
     };
 
     view! {
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-outline-variant/30 mt-6">
+        <div class="bg-surface-container-high p-6 rounded-2xl shadow-sm border border-outline-variant/30 mt-6">
             <h3 class="text-xl font-bold text-on-surface mb-2">"Passkeys"</h3>
             <p class="text-sm text-on-surface-variant mb-6">
                 "Use a passkey (Face ID, Touch ID, or a hardware key) to sign in securely without a password."
             </p>
             
             {move || if !message.get().is_empty() {
-                let color_class = if is_error.get() { "bg-error/10 text-error border-error/20" } else { "bg-green-500/10 text-green-700 border-green-500/20" };
+                let color_class = if is_error.get() { "bg-error-container/30 text-error border-error/20" } else { "bg-tertiary/10 text-tertiary border-tertiary/20" };
                 view! {
                     <div class=format!("px-4 py-3 rounded-xl text-sm font-medium mb-4 border {}", color_class)>
                         {message.get()}
@@ -113,7 +113,7 @@ pub fn ManagePasskeys(
                 type="button" 
                 on:click=handle_register
                 disabled=move || is_submitting.get()
-                class="inline-flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-[#004289] hover:bg-[#00336b] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#004289] transition-all disabled:opacity-70 shadow-sm"
+                class="inline-flex justify-center items-center py-2.5 px-4 font-bold rounded-xl bg-primary text-on-primary hover:bg-primary-dim focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 shadow-[0_0_15px_rgba(123,208,255,0.15)] hover:shadow-[0_0_20px_rgba(123,208,255,0.3)]"
             >
                 <span class="material-symbols-outlined mr-2">"add_circle"</span>
                 {move || if is_submitting.get() { "Registering..." } else { "Add a Passkey" }}

@@ -99,9 +99,9 @@ pub fn PasskeyLoginButton(
             type="button" 
             on:click=handle_passkey_login
             disabled=move || is_submitting.get()
-            class="group relative w-full flex justify-center items-center py-3.5 px-4 mb-4 border border-outline-variant/60 text-sm font-bold rounded-xl text-on-surface bg-surface-container-lowest hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#004289] transition-all disabled:opacity-70 shadow-sm"
+            class="group relative w-full flex justify-center items-center py-3.5 px-4 mb-4 border border-outline-variant/60 text-sm font-bold rounded-xl text-on-surface bg-surface-container-lowest hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 shadow-sm"
         >
-            <span class="material-symbols-outlined mr-3 text-[#004289]">"fingerprint"</span>
+            <span class="material-symbols-outlined mr-3 text-primary">"fingerprint"</span>
             {move || if is_submitting.get() { "Authenticating..." } else { "Sign in with Passkey" }}
         </button>
     }

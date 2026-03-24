@@ -145,6 +145,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     cat2.insert(&db).await?;
 
+    let cat_id_3 = Uuid::new_v4();
+    let cat3 = category::ActiveModel {
+        id: Set(cat_id_3),
+        directory_type_id: Set(dir_type_id),
+        parent_category_id: Set(None),
+        name: Set("Home Services".to_string()),
+        description: Set("Plumbers, electricians, and more".to_string()),
+        icon: Set(Some("home_repair_service".to_string())),
+        slug: Set(Some("home-services".to_string())),
+        is_custom: Set(false),
+        is_active: Set(true),
+        directory_id: Set(Some(dir_uuid)),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    cat3.insert(&db).await?;
+
+    let cat_id_4 = Uuid::new_v4();
+    let cat4 = category::ActiveModel {
+        id: Set(cat_id_4),
+        directory_type_id: Set(dir_type_id),
+        parent_category_id: Set(None),
+        name: Set("Professional Services".to_string()),
+        description: Set("Accountants, Lawyers, Consulting".to_string()),
+        icon: Set(Some("work".to_string())),
+        slug: Set(Some("professional-services".to_string())),
+        is_custom: Set(false),
+        is_active: Set(true),
+        directory_id: Set(Some(dir_uuid)),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    cat4.insert(&db).await?;
+
     // 4. Create Templates
     let tpl_id_1 = Uuid::new_v4();
     let tpl1 = template::ActiveModel {
@@ -165,6 +199,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         updated_at: Set(Utc::now()),
     };
     tpl1.insert(&db).await?;
+
+    let tpl_id_2 = Uuid::new_v4();
+    let tpl2 = template::ActiveModel {
+        id: Set(tpl_id_2),
+        directory_id: Set(dir_uuid),
+        category_id: Set(cat_id_3),
+        name: Set("Standard Business".to_string()),
+        description: Set("Standard fields for a business".to_string()),
+        template_type: Set("business".to_string()),
+        is_active: Set(true),
+        attributes_schema: Set(Some(serde_json::json!({
+            "website": "String",
+            "operating_hours": "String"
+        }))),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    tpl2.insert(&db).await?;
+
+    let tpl_id_3 = Uuid::new_v4();
+    let tpl3 = template::ActiveModel {
+        id: Set(tpl_id_3),
+        directory_id: Set(dir_uuid),
+        category_id: Set(cat_id_4),
+        name: Set("Premium Listing".to_string()),
+        description: Set("Extended fields for premium users".to_string()),
+        template_type: Set("business".to_string()),
+        is_active: Set(true),
+        attributes_schema: Set(Some(serde_json::json!({
+            "featured_video": "String",
+            "certifications": "Array"
+        }))),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    tpl3.insert(&db).await?;
 
     // 5. Generate 10 Users + Accounts + Profiles + Listings
     let first_names = ["John", "Sarah", "Mike", "Emily", "David", "Jessica", "Robert", "Lisa", "James", "Anna"];

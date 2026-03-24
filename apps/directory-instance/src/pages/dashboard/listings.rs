@@ -63,6 +63,7 @@ pub async fn create_listing_api(token: Option<String>, payload: CreateListingInp
 pub fn DashboardListings() -> impl IntoView {
     let (show_form, set_show_form) = signal(false);
     let (trigger, set_trigger) = signal(0);
+    let dir_config = use_context::<crate::app::DirectoryConfig>().expect("DirectoryConfig context");
     
     let token = get_auth_token();
     let token2 = token.clone();
@@ -99,7 +100,7 @@ pub fn DashboardListings() -> impl IntoView {
             city: city.get(),
             state: state.get(),
             price: p_val,
-            directory_id: "".to_string(), // Can be dummy since the backend uses profile's directory ID as source of truth now
+            directory_id: dir_config.id.clone(),
         };
         
         is_submitting.set(true);

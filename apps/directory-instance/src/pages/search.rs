@@ -21,58 +21,11 @@ pub async fn search_listings_from_api(query: String, category: Option<String>, p
         Ok(r) if r.status().is_success() => {
             Ok(r.json::<PaginatedListings<ListingModel>>().await?)
         },
-        _ => {
-            let mock_filter = query.to_lowercase();
-            let cat_filter = category.unwrap_or_default().to_lowercase();
-            
-            let mut mocks = Vec::with_capacity(55);
-            let categories = ["Contractors", "Plumbers", "HVAC", "Electricians", "Cleaning", "Landscaping"];
-            
-            for i in 1..=55 {
-                let cat = categories[i % categories.len()];
-                mocks.push(ListingModel {
-                    id: format!("mock-listing-{}", i),
-                    listing_type: cat.to_string(),
-                    title: format!("{} Premium Service Pro #{}", cat, i),
-                    description: format!("We deliver top-quality craftsmanship and reliable services for residential homeowners and commercial businesses. Decades of experience in {} spanning across Connecticut.", cat),
-                    attributes: std::collections::HashMap::from([
-                        ("hero_headline".to_string(), format!("Top-Rated {} Experts in Your Area", cat)),
-                        ("hero_subtitle".to_string(), "Trusted craftsmanship, reliable service, and guaranteed satisfaction on every project.".to_string()),
-                        ("cta_headline".to_string(), "Get Your Free Estimate Today".to_string()),
-                        ("cta_text".to_string(), "Request a Quote".to_string()),
-                        ("years_experience".to_string(), "10+".to_string()),
-                        ("projects_completed".to_string(), "500+".to_string()),
-                        ("service_area".to_string(), "Connecticut".to_string())
-                    ]),
-                    city: Some("Hartford".to_string()),
-                    state: Some("CT".to_string()),
-                    price: Some(1500.0),
-                    price_type: Some("starting_at".to_string()),
-                    is_featured: i % 4 == 0,
-                    has_landing_page: i % 2 == 0,
-                });
-            }
-            
-            if !mock_filter.is_empty() {
-                mocks.retain(|m| m.title.to_lowercase().contains(&mock_filter) || m.description.to_lowercase().contains(&mock_filter));
-            }
-            if !cat_filter.is_empty() {
-                mocks.retain(|m| m.listing_type.to_lowercase() == cat_filter || m.description.to_lowercase().contains(&cat_filter));
-            }
-            
-            let total = mocks.len() as u64;
-            let total_pages = (total as f64 / limit as f64).ceil() as u64;
-            let start = ((page - 1) * limit) as usize;
-            let end = (start + limit as usize).min(mocks.len());
-            let items = if start < mocks.len() { mocks[start..end].to_vec() } else { vec![] };
-            
-            Ok(PaginatedListings {
-                items,
-                total,
-                page,
-                limit,
-                total_pages: if total_pages > 0 { total_pages } else { 1 },
-            })
+        Ok(r) => {
+            Err(ServerFnError::ServerError(format!("API Error: Status {}", r.status())))
+        },
+        Err(e) => {
+            Err(ServerFnError::ServerError(format!("Request Error: {}", e)))
         }
     }
 }

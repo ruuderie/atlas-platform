@@ -10,12 +10,17 @@ use crate::pages::login::Login;
 use crate::pages::setup::Setup;
 use crate::pages::directory_types::DirectoryTypes;
 use crate::pages::directory_type_detail::DirectoryTypeDetail;
+use crate::pages::directory_type_create::DirectoryTypeCreate;
 use crate::pages::categories::Categories;
 use crate::pages::category_detail::CategoryDetail;
+use crate::pages::category_create::CategoryCreate;
 use crate::pages::templates::Templates;
 use crate::pages::template_detail::TemplateDetail;
+use crate::pages::template_create::TemplateCreate;
 use crate::pages::listings::Listings;
+use crate::pages::listing_create::ListingCreate;
 use crate::pages::listing_detail::ListingDetail;
+use crate::pages::platform_admins::PlatformAdmins;
 use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, DirectoryModel};
 use crate::api::directories::get_directories;
@@ -25,14 +30,26 @@ pub struct GlobalToast {
     pub message: RwSignal<Option<String>>,
 }
 
+impl GlobalToast {
+    pub fn show_toast(&self, _title: &str, msg: &str, _type: &str) {
+        self.message.set(Some(msg.to_string()));
+    }
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     let (user, set_user) = signal(None::<UserInfo>);
+    let (auth_checked, set_auth_checked) = signal(false);
     provide_context(set_user);
     provide_context(user);
+    provide_context(auth_checked);
 
     let dirs_res = LocalResource::new(|| async move { get_directories().await.unwrap_or_default() });
     provide_context(dirs_res);
+
+    let (active_directory, set_active_directory) = signal(None::<uuid::Uuid>);
+    provide_context(active_directory);
+    provide_context(set_active_directory);
 
     let toast = GlobalToast { message: RwSignal::new(None) };
     provide_context(toast);
@@ -42,6 +59,7 @@ pub fn App() -> impl IntoView {
         if let Ok(valid_user) = validate_session().await {
             set_user.set(Some(valid_user));
         }
+        set_auth_checked.set(true);
     });
 
     view! {
@@ -67,14 +85,17 @@ pub fn App() -> impl IntoView {
 pub fn AuthenticatedLayout() -> impl IntoView {
     let user = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
     let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>().expect("set user context");
+    let auth_checked = use_context::<ReadSignal<bool>>().expect("auth checked context");
     let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
+    let active_directory = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
+    let set_active_directory = use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active dir");
     let navigate = leptos_router::hooks::use_navigate();
     let location = leptos_router::hooks::use_location();
     let (show_profile_menu, set_show_profile_menu) = signal(false);
 
     Effect::new(move |_| {
-        if user.get().is_none() {
-            // navigate("/login", Default::default());
+        if user.get().is_none() && auth_checked.get() {
+            navigate("/login", Default::default());
         }
     });
 
@@ -103,10 +124,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
         <Show when=move || user.get().is_some() fallback=move || view! {
             <div class="h-screen w-full flex items-center justify-center bg-surface text-on-surface-variant font-sans antialiased">
                 <div>"Checking session..."</div>
-                {
-                   navigate("/login", Default::default());
-                   ""
-                }
             </div>
         }>
             <div class="h-screen w-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
@@ -122,11 +139,32 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         </nav>
                     </div>
                     <div class="flex items-center gap-4">
-                        <button class="bg-surface-container-high px-3 py-1.5 rounded-md flex items-center gap-2 text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 transition-all">
-                            <span class="text-on-surface-variant uppercase tracking-widest text-[10px]">"Site Selector"</span>
-                            <span class="text-primary font-bold">"All"</span>
-                            <span class="material-symbols-outlined text-sm">"expand_more"</span>
-                        </button>
+                        <select
+                            class="bg-surface-container-high px-3 py-1.5 rounded-md text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 focus:ring-primary focus:border-primary text-on-surface min-w-[150px]"
+                            on:change=move |ev| {
+                                let val = event_target_value(&ev);
+                                if val.is_empty() {
+                                    set_active_directory.set(None);
+                                } else if let Ok(parsed) = uuid::Uuid::parse_str(&val) {
+                                    set_active_directory.set(Some(parsed));
+                                }
+                            }
+                        >
+                            <option value="">"All Sites"</option>
+                            <Suspense fallback=move || view! { <option>"Loading..."</option> }>
+                                {move || dirs_res.get().map(|directories| view! {
+                                    <For
+                                        each=move || directories.clone()
+                                        key=|dir| dir.id.clone()
+                                        children=move |dir| {
+                                            view! {
+                                                <option value=dir.id.to_string()>{dir.name.clone()}</option>
+                                            }
+                                        }
+                                    />
+                                })}
+                            </Suspense>
+                        </select>
                         <div class="flex items-center gap-2 ml-2">
                             <button class="p-2 text-[#91aaeb] hover:bg-[#002867]/20 transition-colors rounded-full">
                                 <span class="material-symbols-outlined">"notifications"</span>
@@ -144,7 +182,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                             <p class="font-medium text-on-surface">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin".to_string())}</p>
                                             <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                         </div>
-                                        <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-bright/20 transition-colors" on:click=move |e| e.stop_propagation()>"Account Settings"</a>
+                                        <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-bright/20 transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
                                         <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
                                             e.stop_propagation(); 
                                             set_show_profile_menu.set(false); 
@@ -195,7 +233,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         </a>
                         <a href="/listings" class=move || side_active_class("/listings")>
                             <span class="material-symbols-outlined">"store"</span>
-                            <span>"Listings DB"</span>
+                            <span>"Listings"</span>
                         </a>
                         <a href="/crm" class=move || side_active_class("/crm")>
                             <span class="material-symbols-outlined">"handshake"</span>
@@ -205,13 +243,17 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"article"</span>
                             <span>"Content"</span>
                         </a>
+                        <a href="/admins" class=move || side_active_class("/admins")>
+                            <span class="material-symbols-outlined">"group"</span>
+                            <span>"Users"</span>
+                        </a>
                     </nav>
                     <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
-                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
+                        <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
                             <span class="material-symbols-outlined text-sm">"help"</span>
                             <span>"Support"</span>
                         </a>
-                        <a href="#" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
+                        <a href="/logs" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
                             <span class="material-symbols-outlined text-sm">"terminal"</span>
                             <span>"Logs"</span>
                         </a>
@@ -231,17 +273,22 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/sites/new") view=crate::pages::site_create::SiteCreate />
                         <Route path=path!("/sites/:id") view=crate::pages::site_dashboard::SiteDashboard />
                         <Route path=path!("/directory-types") view=DirectoryTypes />
+                        <Route path=path!("/directory-types/new") view=DirectoryTypeCreate />
                         <Route path=path!("/directory-types/:id") view=DirectoryTypeDetail />
                         <Route path=path!("/categories") view=Categories />
+                        <Route path=path!("/categories/new") view=CategoryCreate />
                         <Route path=path!("/categories/:id") view=CategoryDetail />
                         <Route path=path!("/templates") view=Templates />
+                        <Route path=path!("/templates/new") view=TemplateCreate />
                         <Route path=path!("/templates/:id") view=TemplateDetail />
                         <Route path=path!("/listings") view=Listings />
+                        <Route path=path!("/listings/new") view=ListingCreate />
                         <Route path=path!("/listings/:id") view=ListingDetail />
                         <Route path=path!("/crm") view=CrmGrid />
                         <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
                         <Route path=path!("/cms") view=CmsEditor />
+                        <Route path=path!("/admins") view=PlatformAdmins />
                         <Route path=path!("/settings") view=crate::pages::settings::Settings />
                     </Routes>
                 </main>

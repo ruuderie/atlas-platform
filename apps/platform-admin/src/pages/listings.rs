@@ -28,8 +28,8 @@ pub fn Listings() -> impl IntoView {
                     <p class="text-muted-foreground mt-1">"Manage and moderate all active network listings globally."</p>
                 </div>
                 <div class="flex space-x-2">
-                    <a href="/cms">
-                        <Button variant=ButtonVariant::Default>"Compose Listing"</Button>
+                    <a href="/listings/new">
+                        <Button variant=ButtonVariant::Default>"Create Listing"</Button>
                     </a>
                 </div>
             </header>

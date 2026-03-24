@@ -143,24 +143,27 @@ async fn main() {
 
     let rate_limiter = RateLimiter::new();
 
-    let rp_origin = url::Url::parse(&directory_client)
-        .unwrap_or_else(|_| url::Url::parse("http://localhost:5001").unwrap());
+    let rp_origin_str = std::env::var("WEBAUTHN_ORIGIN").unwrap_or_else(|_| admin_client.clone());
+    let rp_origin = url::Url::parse(&rp_origin_str)
+        .unwrap_or_else(|_| url::Url::parse("https://platform-admin.atlas-platform.orb.local").unwrap());
     
     let rp_id = std::env::var("RP_ID").unwrap_or_else(|_| {
         rp_origin.host_str().unwrap_or("localhost").to_string()
     });
     
-    let webauthn = Arc::new(
-        WebauthnBuilder::new(&rp_id, &rp_origin)
-            .expect("Invalid WebAuthn config")
-            .rp_name("Atlas Platform")
-            .append_allowed_origin(
-                &url::Url::parse(&admin_client)
-                    .unwrap_or_else(|_| url::Url::parse("https://platform-admin.orb.local").unwrap())
-            )
-            .build()
-            .expect("Failed to build Webauthn")
-    );
+    let mut builder = WebauthnBuilder::new(&rp_id, &rp_origin)
+        .expect("Invalid WebAuthn config")
+        .rp_name("Atlas Platform");
+
+    if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
+        for origin in additional_origins.split(',') {
+            if let Ok(parsed) = url::Url::parse(origin.trim()) {
+                builder = builder.append_allowed_origin(&parsed);
+            }
+        }
+    }
+    
+    let webauthn = Arc::new(builder.build().expect("Failed to build Webauthn"));
     
     let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
         webauthn,

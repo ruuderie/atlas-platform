@@ -13,11 +13,50 @@ pub fn create_client() -> Client {
 pub fn with_credentials(builder: RequestBuilder) -> RequestBuilder {
     #[cfg(target_arch = "wasm32")]
     {
-        builder.fetch_credentials_include()
+        let builder = builder.fetch_credentials_include();
+        if let Some(token) = get_auth_token() {
+            builder.header("Authorization", format!("Bearer {}", token))
+        } else {
+            builder
+        }
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
         builder
+    }
+}
+
+pub fn get_auth_token() -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                return storage.get_item("auth_token").unwrap_or(None);
+            }
+        }
+    }
+    None
+}
+
+pub fn set_auth_token(token: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.set_item("auth_token", token);
+            }
+        }
+    }
+}
+
+pub fn clear_auth_token() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(storage)) = window.local_storage() {
+                let _ = storage.remove_item("auth_token");
+            }
+        }
     }
 }
 
