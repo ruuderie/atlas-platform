@@ -1076,34 +1076,32 @@ pub fn App() -> impl IntoView {
     }
     
     let host = get_host();
-    let err_host = host.clone();
-    
-    let directory_resource = Resource::new(
-        move || host.clone(),
-        |h| async move { fetch_directory_config_from_api(h).await }
-    );
     
     view! {
         <Stylesheet id="leptos" href="/pkg/directory-instance.css"/>
         
         <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div> }>
-            {move || match directory_resource.get() {
-                None => view! { <div/> }.into_any(),
-                Some(Ok(config)) => view! { <InnerApp config=config /> }.into_any(),
-                Some(Err(e)) => view! {
-                    <Title text="Directory Offline" />
-                    <div class="min-h-screen flex items-center justify-center p-4 bg-background">
-                        <div class="text-center space-y-6 max-w-lg glass-panel border-destructive/30 p-12 rounded-3xl animate-in zoom-in-95 duration-500 shadow-2xl shadow-destructive/10">
-                            <div class="w-24 h-24 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            {
+                let host_str = host.clone();
+                Suspend::new(async move {
+                    match fetch_directory_config_from_api(host_str.clone()).await {
+                        Ok(config) => view! { <InnerApp config=config /> }.into_any(),
+                        Err(e) => view! {
+                            <Title text="Directory Offline" />
+                            <div class="min-h-screen flex items-center justify-center p-4 bg-background">
+                                <div class="text-center space-y-6 max-w-lg glass-panel border-destructive/30 p-12 rounded-3xl animate-in zoom-in-95 duration-500 shadow-2xl shadow-destructive/10">
+                                    <div class="w-24 h-24 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    </div>
+                                    <h1 class="text-4xl font-extrabold text-foreground">"Connection Dropped"</h1>
+                                    <p class="text-xl text-muted-foreground font-light">"We couldn't connect a dedicated database record to [" <span class="text-foreground font-mono bg-white/5 px-2 py-1 rounded">{host_str}</span> "]."</p>
+                                    <p class="text-sm bg-black/40 p-4 rounded-lg font-mono text-destructive/80 mt-8 break-all shadow-inner">{e.to_string()}</p>
+                                </div>
                             </div>
-                            <h1 class="text-4xl font-extrabold text-foreground">"Connection Dropped"</h1>
-                            <p class="text-xl text-muted-foreground font-light">"We couldn't connect a dedicated database record to [" <span class="text-foreground font-mono bg-white/5 px-2 py-1 rounded">{err_host.clone()}</span> "]."</p>
-                            <p class="text-sm bg-black/40 p-4 rounded-lg font-mono text-destructive/80 mt-8 break-all shadow-inner">{e.to_string()}</p>
-                        </div>
-                    </div>
-                }.into_any()
-            }}
+                        }.into_any()
+                    }
+                })
+            }
         </Suspense>
     }
 }
