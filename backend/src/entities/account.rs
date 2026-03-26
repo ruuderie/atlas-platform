@@ -15,6 +15,8 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
+    pub stripe_customer_id: Option<String>,
+    pub stripe_payment_method_id: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

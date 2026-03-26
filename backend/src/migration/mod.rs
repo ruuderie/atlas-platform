@@ -24,8 +24,10 @@ mod m20241002_add_directory_id_to_crm_and_categories;
 mod m20241003_add_slug_to_listings;
 mod m20250101_create_ab_testing_tables;
 mod m20260320_create_passkeys_table;
-
 pub mod m20260324_000001_collapse_eav_to_jsonb;
+pub mod m20260326_add_service_area_to_profile;
+pub mod m20260326_add_stripe_fields_to_account;
+pub mod m20260326_create_lead_charges_table;
 
 pub struct Migrator;
 
@@ -58,6 +60,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20250101_create_ab_testing_tables::Migration),
             Box::new(m20260320_create_passkeys_table::Migration),
             Box::new(m20260324_000001_collapse_eav_to_jsonb::Migration),
+            Box::new(m20260326_add_service_area_to_profile::Migration),
+            Box::new(m20260326_add_stripe_fields_to_account::Migration),
+            Box::new(m20260326_create_lead_charges_table::Migration),
         ]
     }
 }

@@ -9,6 +9,7 @@ pub mod case;
 pub mod file;
 pub mod file_association;
 pub mod note;
+pub mod lead_charge;
 
 //DIRECTORIES
 pub mod user;

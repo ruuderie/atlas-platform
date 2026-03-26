@@ -5,6 +5,8 @@ use shared_ui::components::tabs::{Tabs, TabButton};
 use shared_ui::components::ui::tabs::{TabsContent, TabsList};
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
+use crate::components::milestone_modal::MilestoneModal;
+
 use crate::api::crm::{get_users, get_leads, get_accounts, get_deals, create_lead, create_account};
 use crate::api::models::{UserInfo, LeadModel, AccountModel, DealModel, CreateLead, CreateAccount};
 
@@ -112,6 +114,8 @@ pub fn CrmGrid() -> impl IntoView {
     let selected_user = RwSignal::new(None::<Vec<String>>);
     let selected_lead = RwSignal::new(None::<Vec<String>>);
     let selected_account = RwSignal::new(None::<Vec<String>>);
+
+    let (show_milestone_modal, set_show_milestone_modal) = signal(false);
 
     view! {
         <div class="flex flex-col min-h-[calc(100vh-128px)]">
@@ -310,12 +314,34 @@ pub fn CrmGrid() -> impl IntoView {
                         // ── Deals Tab ──
                         <TabsContent value="deals".to_string()>
                             <div class="overflow-x-auto bg-surface-container -mx-8">
-                                <DataTable headers=deal_headers.clone() data=deal_data />
+                                <DataTable 
+                                    headers=deal_headers.clone() 
+                                    data=deal_data 
+                                    on_row_click=Callback::new(move |row: Vec<String>| {
+                                        let stage = row.get(5).cloned().unwrap_or_default();
+                                        if stage.contains("Negotiation") || stage.contains("Won") {
+                                            set_show_milestone_modal.set(true);
+                                        }
+                                    })
+                                />
                             </div>
                         </TabsContent>
                     </div>
                 </Tabs>
             </Suspense>
+            
+            <MilestoneModal 
+                is_open=show_milestone_modal
+                on_close=Callback::new(move |_| set_show_milestone_modal.set(false))
+                on_activate=Callback::new(move |_| {
+                    leptos::tracing::info!("Upsell Event: Proposal Auto-Gen Activated");
+                    set_show_milestone_modal.set(false);
+                })
+                title="Deal is heating up!".to_string()
+                description="This deal is nearing the finish line. Do you want to automatically generate a tailored proposal?".to_string()
+                feature_name="Atlas Proposal Auto-Gen".to_string()
+                price_text="$49 / month".to_string()
+            />
         </div>
     }
 }

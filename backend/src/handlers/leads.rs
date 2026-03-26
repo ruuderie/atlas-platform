@@ -28,6 +28,7 @@ static RATE_LIMITER: Lazy<Arc<DashMap<String, (u32, Instant)>>> = Lazy::new(|| A
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/leads", post(create_lead))
+        .route("/api/v1/leads/ingest", post(ingest_lead))
 }
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
@@ -148,6 +149,179 @@ pub async fn create_lead(
     }
 
     let lead = new_lead.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok((StatusCode::CREATED, JsonResponse(LeadModel::from(lead))))
+}
+
+pub async fn ingest_lead(
+    Extension(db): Extension<DatabaseConnection>,
+    site_config_opt: Option<Extension<crate::config::site_config::SiteConfig>>,
+    headers: HeaderMap,
+    Json(input): Json<CreateLeadInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    // 1. Honeypot/Spam check
+    if let Some(bot_val) = &input._bot_check {
+        if !bot_val.is_empty() {
+            tracing::warn!("Honeypot triggered on lead ingestion");
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    // 2. IP Rate Limiting (same pattern as create_lead)
+    if let Some(ip) = headers.get("x-forwarded-for").and_then(|h| h.to_str().ok()).or_else(|| headers.get("x-real-ip").and_then(|h| h.to_str().ok())) {
+        let ip = ip.split(',').next().unwrap_or("").trim().to_string();
+        if !ip.is_empty() {
+            let mut entry = RATE_LIMITER.entry(ip).or_insert((0, Instant::now()));
+            if entry.value().1.elapsed() > Duration::from_secs(60) {
+                entry.value_mut().0 = 1;
+                entry.value_mut().1 = Instant::now();
+            } else {
+                entry.value_mut().0 += 1;
+                if entry.value().0 > 3 {
+                    tracing::warn!("Rate limit exceeded for lead ingestions from IP");
+                    return Err(StatusCode::TOO_MANY_REQUESTS);
+                }
+            }
+        }
+    }
+
+    // 3. Deduplication & Exclusivity (30 days)
+    let mut cond = sea_orm::Condition::any();
+    let mut has_contact_info = false;
+    
+    if let Some(ref email) = input.email {
+        if !email.is_empty() {
+            cond = cond.add(lead::Column::Email.eq(email.clone()));
+            has_contact_info = true;
+        }
+    }
+    if let Some(ref phone) = input.phone {
+        if !phone.is_empty() {
+            cond = cond.add(lead::Column::Phone.eq(phone.clone()));
+            has_contact_info = true;
+        }
+    }
+
+    if has_contact_info {
+        let thirty_days_ago = Utc::now() - chrono::Duration::days(30);
+        let existing = lead::Entity::find()
+            .filter(cond)
+            .filter(lead::Column::CreatedAt.gte(thirty_days_ago))
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        if existing.is_some() {
+            tracing::warn!("Lead exclusivity check failed: Duplicate found within 30 days.");
+            return Err(StatusCode::CONFLICT);
+        }
+    }
+
+    // 4. Matchmaking & Geographic Routing
+    let mut resolved_account_id = None;
+    if let Some(listing_id) = input.listing_id {
+        if let Ok(Some(lst)) = listing::Entity::find_by_id(listing_id).one(&db).await {
+            if let Ok(Some(profile)) = crate::entities::profile::Entity::find_by_id(lst.profile_id).one(&db).await {
+                resolved_account_id = Some(profile.account_id);
+            }
+        }
+    }
+
+    if resolved_account_id.is_none() {
+        // Try dynamic matchmaking based on zip code
+        let target_zip = input.shipping_address.as_ref().and_then(|a| a.0.postal_code.clone())
+            .or_else(|| input.billing_address.as_ref().and_then(|a| a.0.postal_code.clone()));
+            
+        if let Some(zip) = target_zip {
+            // Find a profile that covers this zip code
+            let profiles = crate::entities::profile::Entity::find()
+                .filter(crate::entities::profile::Column::IsActive.eq(true))
+                .all(&db)
+                .await
+                .unwrap_or_default();
+            
+            // In-memory filter for now (ideally this is a Postgres ArrayContains query)
+            let matched_profile = profiles.into_iter().find(|p| {
+                if let Some(ref zips) = p.service_area_zips {
+                    zips.contains(&zip)
+                } else {
+                    false
+                }
+            });
+            
+            if let Some(p) = matched_profile {
+                resolved_account_id = Some(p.account_id);
+            }
+        }
+    }
+    
+    if resolved_account_id.is_none() {
+        if let Some(Extension(site_config)) = site_config_opt {
+            if let Ok(Some(primary_account)) = account::Entity::find()
+                .filter(account::Column::DirectoryId.eq(site_config.directory_id))
+                .one(&db)
+                .await 
+            {
+                resolved_account_id = Some(primary_account.id);
+            } else {
+                resolved_account_id = input.account_id;
+            }
+        } else {
+            resolved_account_id = input.account_id;
+        }
+    }
+
+    let mut new_lead = lead::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        name: Set(input.name.clone()),
+        listing_id: Set(input.listing_id),
+        account_id: Set(resolved_account_id),
+        first_name: Set(input.first_name.clone()),
+        last_name: Set(input.last_name.clone()),
+        email: Set(input.email.clone()),
+        phone: Set(input.phone.clone()),
+        whatsapp: Set(input.whatsapp.clone()),
+        telegram: Set(input.telegram.clone()),
+        twitter: Set(input.twitter.clone()),
+        instagram: Set(input.instagram.clone()),
+        facebook: Set(input.facebook.clone()),
+        message: Set(input.message.clone()),
+        source: Set(input.source.clone().or_else(|| Some("API Ingestion".to_string()))),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    };
+
+    if let Some(ref billing_address) = input.billing_address {
+        new_lead.billing_address = Set(Some(billing_address.clone()));
+    }
+    if let Some(ref shipping_address) = input.shipping_address {
+        new_lead.shipping_address = Set(Some(shipping_address.clone()));
+    }
+
+    let lead = new_lead.insert(&db).await.map_err(|e| {
+        tracing::error!("Failed to save ingested lead: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    
+    // 5. Trigger usage-based billing asynchronously
+    if let Some(acct_id) = lead.account_id {
+        let db_clone = db.clone();
+        let l_id = lead.id;
+        
+        tokio::spawn(async move {
+            let account_res = crate::entities::account::Entity::find_by_id(acct_id)
+                .one(&db_clone)
+                .await;
+                
+            match account_res {
+                Ok(Some(acct)) => {
+                    let _ = crate::services::billing::charge_for_lead(&db_clone, acct_id, l_id, acct.stripe_customer_id).await;
+                }
+                _ => tracing::warn!("Account not found for billing for lead {}", l_id),
+            }
+        });
+    }
     
     Ok((StatusCode::CREATED, JsonResponse(LeadModel::from(lead))))
 }

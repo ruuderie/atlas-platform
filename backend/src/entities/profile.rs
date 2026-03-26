@@ -26,6 +26,8 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub properties: Option<Value>,
+    #[sea_orm(column_type = "Array(String)", nullable)]
+    pub service_area_zips: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]

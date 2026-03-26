@@ -12,6 +12,8 @@ use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
 use shared_ui::components::ui::related_list::RelatedList;
 
+use crate::components::upsell_banner::UpsellBanner;
+
 #[component]
 pub fn SiteDashboard() -> impl IntoView {
     let params = use_params_map();
@@ -127,6 +129,17 @@ pub fn SiteDashboard() -> impl IntoView {
                     <Button variant=ButtonVariant::Default>"Directory Settings"</Button>
                 </div>
             </header>
+            
+            <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
+                <UpsellBanner 
+                    title="Supercharge your new directory!".to_string()
+                    description="Jumpstart your marketplace with pre-populated leads and premium business listings.".to_string()
+                    cta_text="Get 100 Premium Listings - $49".to_string()
+                    on_click=Callback::new(move |_| {
+                        leptos::tracing::info!("Upsell Clicked: Directory Injection on Dashboard");
+                    })
+                />
+            </Show>
 
             <Tabs default_value="listings".to_string() class="w-full relative z-0 mt-6">
                 <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md">

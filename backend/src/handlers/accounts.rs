@@ -10,7 +10,7 @@ use sea_orm::{
     InsertResult, ActiveModelTrait, ModelTrait,
 };
 use crate::entities::{
-    account, user_account, user, 
+    account, user_account, user, lead_charge,
 };
 use crate::models::user_account::*;
 use uuid::Uuid;
@@ -55,6 +55,7 @@ pub fn routes() -> Router<DatabaseConnection> {
         .route("/api/accounts/{id}", delete(delete_account))
         .route("/api/accounts/{id}/users", post(add_user_to_account))
         .route("/api/accounts/{id}/users", get(get_account_users))
+        .route("/api/accounts/{id}/ledger", get(get_account_ledger))
         .route("/api/accounts/{account_id}/users/{user_id}", delete(remove_user_from_account))
         .route("/api/accounts/{account_id}/users/{user_id}/role", put(update_user_role_in_account))
 }
@@ -238,6 +239,25 @@ pub async fn get_account_users(
         Err(err) => {
             tracing::error!("Error fetching user accounts: {:?}", err);
             (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(Vec::new()))
+        }
+    }
+}
+
+pub async fn get_account_ledger(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(account_id): Path<Uuid>,
+) -> impl IntoResponse {
+    tracing::info!("Fetching ledger for account: {}", account_id);
+
+    match lead_charge::Entity::find()
+        .filter(lead_charge::Column::AccountId.eq(account_id))
+        .all(&db)
+        .await
+    {
+        Ok(charges) => (StatusCode::OK, JsonResponse(charges)),
+        Err(err) => {
+            tracing::error!("Error fetching account ledger: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(Vec::<lead_charge::Model>::new()))
         }
     }
 }

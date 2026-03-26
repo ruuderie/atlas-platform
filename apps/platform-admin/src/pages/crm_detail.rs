@@ -6,6 +6,9 @@ use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
 
+use crate::components::upsell_banner::UpsellBanner;
+use crate::components::recommended_partners::RecommendedPartners;
+
 use serde::{Serialize, Deserialize};
 use crate::api::crm::{get_user_by_id, get_lead_by_id, get_account_by_id, get_deal_by_id};
 use crate::api::models::{UserInfo, LeadModel, AccountModel, DealModel};
@@ -57,6 +60,17 @@ pub fn CrmDetail() -> impl IntoView {
                     <Button variant=ButtonVariant::Destructive>"Delete"</Button>
                 </div>
             </header>
+            
+            <Show when=move || entity_type() == "lead">
+                <UpsellBanner 
+                    title="Having trouble reaching this lead?".to_string()
+                    description="Our dedicated intake team can automatically chase unresponsive leads via phone and SMS.".to_string()
+                    cta_text="Enable Intake Pros - $99/mo".to_string()
+                    on_click=Callback::new(move |_| {
+                        leptos::tracing::info!("Upsell Clicked: Intake Pros on Lead {}", record_id());
+                    })
+                />
+            </Show>
 
             <Suspense fallback=move || view! { <div class="text-muted-foreground p-8">"Loading details..."</div> }>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -117,6 +131,8 @@ pub fn CrmDetail() -> impl IntoView {
                                 </div>
                             </div>
                         </Card>
+                        
+                        <RecommendedPartners />
                     </div>
                 </div>
             </Suspense>

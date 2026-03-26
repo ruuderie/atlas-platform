@@ -1,0 +1,34 @@
+--- apps/directory-instance/src/app.rs
++++ apps/directory-instance/src/app.rs
+@@ -1078,16 +1078,13 @@
+     let host = get_host();
+-    let err_host = host.clone();
+     
+-    let directory_resource = Resource::new(
+-        move || host.clone(),
+-        |h| async move { fetch_directory_config_from_api(h).await }
+-    );
+     
+     view! {
+         <Stylesheet id="leptos" href="/pkg/directory-instance.css"/>
+         
+         <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div> }>
+-            {move || match directory_resource.get() {
+-                None => view! { <div/> }.into_any(),
+-                Some(Ok(config)) => view! { <InnerApp config=config /> }.into_any(),
+-                Some(Err(e)) => view! {
++            {
++               let err_host = host.clone();
++               Suspend::new(async move {
++                 match fetch_directory_config_from_api(err_host.clone()).await {
++                   Ok(config) => view! { <InnerApp config=config /> }.into_any(),
++                   Err(e) => view! {
+@@ -1102,5 +1099,6 @@
+                         </div>
+                     </div>
+                 }.into_any()
+-            }}
++                 }
++               })
++            }
+         </Suspense>
