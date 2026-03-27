@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlas-ingress
+  namespace: uat
+  annotations:
+    # Since OrbStack comes with an automatic ingress controller,
+    # we don't need highly specific annotations by default, 
+    # but standard nginx/traefik works if specified.
+    # kubernetes.io/ingress.class: "nginx" or "traefik" might be needed
+    # depending on what the default is, but OrbStack usually picks it up automatically.
+spec:
+  rules:
+  - host: directory.atlas.orb.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: directory-instance
+            port:
+              number: 80
+  - host: admin.atlas.orb.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-admin
+            port:
+              number: 80
+  - host: api.atlas.orb.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000

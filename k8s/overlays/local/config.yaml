@@ -17,12 +17,9 @@ metadata:
   name: app-config
   namespace: uat
 data:
-  ENVIRONMENT: "uat"
+  ENVIRONMENT: "local"
   HOST: "0.0.0.0"
   PORT: "8000"
-  # Connect to the host machine's Postgres
-  # 172.17.0.1 is often the docker bridge, but for K3s use the node IP
-  # defined in your local-config.nix (serverIP) or the CNI gateway.
-  DATABASE_HOST: "10.42.0.1" # Check 'ip route' inside a pod to confirm gateway
+  DATABASE_HOST: "postgres"
   DATABASE_PORT: "5432"
   DATABASE_NAME: "ruud"

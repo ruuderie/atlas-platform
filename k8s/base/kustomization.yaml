@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - namespaces.yaml
-  - config.yaml
   - backend.yaml
   - platform-admin.yaml
   - directory-instance.yaml
