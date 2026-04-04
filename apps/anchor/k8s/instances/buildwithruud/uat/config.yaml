@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: buildwithruud-uat
+data:
+  # The DATABASE_URL has been removed from git.
+  # Please ensure the 'app-secrets' Secret is manually created in the cluster.
+  RP_ORIGIN: "https://uat.buildwithruud.com"
+  RP_ID: "uat.buildwithruud.com"
+  LEPTOS_SITE_ADDR: "0.0.0.0:3000"
+  LEPTOS_ENV: "production"

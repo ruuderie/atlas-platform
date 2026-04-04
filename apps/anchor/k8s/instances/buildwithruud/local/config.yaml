@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: buildwithruud-local
+type: Opaque
+stringData:
+  DATABASE_URL: "postgres://ruud_admin:R3sUm3_S3cUr3@db:5432/anchor"
+  RP_ORIGIN: "http://localhost:3000"
+  RP_ID: "localhost"
+  LEPTOS_SITE_ADDR: "0.0.0.0:3000"
+  LEPTOS_ENV: "PROD"
+  SETUP_TOKEN: "R3g1st3r_M3"

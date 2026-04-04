@@ -1,0 +1,12 @@
+creation_rules:
+  # UAT Environment Secret Mapping
+  - path_regex: k8s/instances/.*/uat/.*\.enc\.yaml$
+    key_groups:
+    - age:
+      - age1sm0da8e769n8nvjh9f44a90qk984f7axzzs56l9l2ncmac47qacszcvppe
+  
+  # Future PROD Environment Mapping Placeholder
+  #- path_regex: k8s/instances/.*/prod/.*\.enc\.yaml$
+  #  key_groups:
+  #  - age:
+  #    - another_prod_only_public_key_here

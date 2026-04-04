@@ -1,0 +1,39 @@
+services:
+  app:
+    container_name: "anchor_app"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://ruud_admin:R3sUm3_S3cUr3@db:5432/anchor
+      - RP_ORIGIN=${RP_ORIGIN:-http://localhost:3000}
+      - RP_ID=${RP_ID:-localhost}
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - anchor_net
+
+  db:
+    container_name: "anchor_db"
+    image: postgres:14-alpine
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=ruud_admin
+      - POSTGRES_PASSWORD=R3sUm3_S3cUr3
+      - POSTGRES_DB=anchor
+    ports:
+      - "5432:5432"
+    networks:
+      - anchor_net
+
+volumes:
+  postgres-data:
+
+
+networks:
+  anchor_net:

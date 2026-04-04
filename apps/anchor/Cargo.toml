@@ -1,0 +1,145 @@
+[package]
+name = "anchor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+leptos = { version = "0.6.14" }
+leptos_router = { version = "0.6.14" }
+axum = { version = "0.7", optional = true, features = ["macros"] }
+console_error_panic_hook = { version = "0.1", optional = true }
+leptos_axum = { version = "0.6.14", optional = true }
+leptos_meta = { version = "0.6.14" }
+tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
+tower-http = { version = "0.5", features = ["fs"], optional = true }
+axum-extra = { version = "0.9", features = ["cookie"], optional = true }
+wasm-bindgen = { version = "0.2.114", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+
+# Project specific dependencies
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "tls-rustls", "macros", "chrono", "uuid"], optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.1", features = ["v4", "serde", "js"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"], optional = true }
+webauthn-rs = { version = "0.4", optional = true, features = ["danger-allow-state-serialisation"] }
+base64 = { version = "0.22" }
+pulldown-cmark = "0.12"
+dotenvy = { version = "0.15", optional = true }
+url = "2.5.8"
+web-sys = { version = "0.3.91", features = ["HtmlElement", "Document", "Window", "HtmlAnchorElement", "Blob", "Url", "BlobPropertyBag"] }
+moka = { version = "0.12", optional = true, features = ["future"] }
+js-sys = "0.3.92"
+lettre = { version = "0.11", optional = true, features = ["tokio1", "tokio1-native-tls", "builder"] }
+axum-otel-metrics = { version = "0.9.0", optional = true }
+opentelemetry = { version = "0.31.0", optional = true }
+opentelemetry_sdk = { version = "0.31.0", optional = true }
+opentelemetry-otlp = { version = "0.31.1", optional = true }
+axum-prometheus = { version = "0.10.0", optional = true }
+
+
+[features]
+hydrate = [
+    "leptos/hydrate",
+    "leptos_meta/hydrate",
+    "leptos_router/hydrate",
+    "dep:console_error_panic_hook",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+]
+ssr = [
+    "dep:axum",
+    "dep:tokio",
+    "dep:leptos_axum",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:sqlx",
+    "dep:reqwest",
+    "dep:webauthn-rs",
+    "dep:dotenvy",
+    "dep:tower-http",
+    "dep:axum-extra",
+    "dep:moka",
+    "dep:lettre",
+    "dep:axum-otel-metrics",
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
+    "dep:axum-prometheus",
+]
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "anchor"
+
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+
+# [Optional] The source CSS file.
+tailwind-input-file = "style/main.css"
+tailwind-config-file = "tailwind.config.js"
+# Assets source dir. All files found here will be copied and synchronized to site-root.
+# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+#
+# Optional. Env: LEPTOS_ASSETS_DIR.
+assets-dir = "public"
+
+# The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:3000"
+
+# The port to use for automatic reload monitoring
+reload-port = 3001
+
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+#   [Windows] for non-WSL use "npx.cmd playwright test"
+#   This binary name can be checked in Powershell with Get-Command npx
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+# The profile to use for the lib target when compiling for release
+#
+# Optional. Defaults to "release".
+lib-profile-release = "wasm-release"

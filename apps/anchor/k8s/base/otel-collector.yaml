@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+data:
+  config.yaml: |
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'anchor-app'
+              scrape_interval: 10s
+              static_configs:
+                - targets: ['anchor-app:80']
+    
+    exporters:
+      # Exposes converted OTLP metrics in Prometheus format for Grafana to use today
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+      # For debugging
+      debug:
+        verbosity: basic
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          # Future: just change 'prometheus' to 'datadog' or 'otlp'
+          exporters: [prometheus, debug]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8889"
+    spec:
+      containers:
+        - name: otel-collector
+          # Official OpenTelemetry Collector
+          image: otel/opentelemetry-collector:0.96.0
+          command: ["/otelcol", "--config=/conf/config.yaml"]
+          ports:
+            - containerPort: 8889
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - protocol: TCP
+      port: 8889
+      targetPort: 8889

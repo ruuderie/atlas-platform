@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: buildwithruud-prod
+type: Opaque
+stringData:
+  # 10.42.0.1 routes from K3s pods back to the Nix server's host network 
+  DATABASE_URL: "postgres://ruud_admin:R3sUm3_S3cUr3@10.42.0.1:5432/anchor"
+  RP_ORIGIN: "https://buildwithruud.com"
+  RP_ID: "buildwithruud.com"
+  LEPTOS_SITE_ADDR: "0.0.0.0:3000"
+  LEPTOS_ENV: "PROD"
+  SETUP_TOKEN: "YOUR_SECURE_RANDOMLY_GENERATED_TOKEN"

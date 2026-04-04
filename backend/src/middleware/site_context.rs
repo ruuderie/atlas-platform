@@ -121,7 +121,22 @@ pub async fn site_context_middleware(
     
     // Add site config to request extensions
     tracing::debug!("Adding site config to request extensions for domain: {}", domain);
-    req.extensions_mut().insert(site_config);
+    req.extensions_mut().insert(site_config.clone());
+    
+    // Inject X-Tenant-Id header for downstream apps like Anchor
+    if let Ok(header_val) = axum::http::HeaderValue::from_str(&site_config.directory_id.to_string()) {
+        req.headers_mut().insert("X-Tenant-Id", header_val);
+    }
+    
+    // [HYBRID MULTI-TENANCY]: Inject dynamic database connection if Enterprise Client
+    // If the site config possesses a specific `enterprise_database_url`, we will swap out the 
+    // default shared DatabaseConnection with a dedicated SeaORM pool for this Request Context.
+    /*
+    if let Some(db_url) = &site_config.enterprise_database_url {
+        let isolated_db = get_or_create_connection_pool(db_url).await?;
+        req.extensions_mut().insert(isolated_db);
+    }
+    */
     
     tracing::info!("Site context middleware completed for domain: {}", domain);
     Ok(next.run(req).await)

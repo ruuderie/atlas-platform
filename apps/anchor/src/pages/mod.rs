@@ -1,0 +1,11 @@
+pub mod admin;
+pub mod bitcoin;
+pub mod blog;
+pub mod book;
+pub mod certifications;
+pub mod dynamic_landing;
+pub mod landing;
+pub mod legal;
+pub mod projects;
+pub mod resume;
+pub mod services;

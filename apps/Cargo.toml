@@ -2,6 +2,7 @@
 members = [
     "platform-admin",
     "directory-instance",
-    "shared-ui"
+    "shared-ui",
+    "anchor"
 ]
 resolver = "2"

@@ -1,0 +1,111 @@
+steps:
+  test_workspace:
+    image: rust:1.76-slim
+    commands:
+      - apt-get update && apt-get install -y pkg-config libssl-dev
+      - cargo test --workspace
+
+  # Build apps in parallel
+  build_platform_admin:
+    image: rust:1.76-slim
+    commands:
+      - apt-get update && apt-get install -y pkg-config libssl-dev
+      - cd apps/platform-admin && cargo build --release
+    depends_on: [test_workspace]
+
+  build_directory_instance:
+    image: rust:1.76-slim
+    commands:
+      - apt-get update && apt-get install -y pkg-config libssl-dev
+      - cd apps/directory-instance && cargo build --release
+    depends_on: [test_workspace]
+
+  build_anchor:
+    image: rust:1.76-slim
+    commands:
+      - apt-get update && apt-get install -y pkg-config libssl-dev
+      - cd apps/anchor && cargo build --release
+    depends_on: [test_workspace]
+
+  # Parallel Docker Build & Push
+  publish_platform_admin:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      repo: ghcr.io/ruuderie/platform-admin
+      tags: latest
+      registry: ghcr.io
+      context: apps/platform-admin
+      dockerfile: apps/platform-admin/Dockerfile
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    depends_on: [build_platform_admin]
+
+  publish_directory_instance:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      repo: ghcr.io/ruuderie/directory-instance
+      tags: latest
+      registry: ghcr.io
+      context: apps/directory-instance
+      dockerfile: apps/directory-instance/Dockerfile
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    depends_on: [build_directory_instance]
+
+  publish_anchor:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      repo: ghcr.io/ruuderie/anchor-app
+      tags: latest
+      registry: ghcr.io
+      context: apps/anchor
+      dockerfile: apps/anchor/Dockerfile
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    depends_on: [build_anchor]
+
+  # Unified CD Deployment Step
+  deploy_platform_k8s:
+    image: bitnami/kubectl:latest
+    volumes:
+      - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
+    environment:
+      KUBECONFIG: /kubeconfig.yaml
+    commands:
+      # We restart the deployments inside the shared Atlas namespace
+      - kubectl patch deployment platform-admin -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
+      - kubectl patch deployment directory-instance -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
+      - kubectl patch deployment anchor-app -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
+      - kubectl rollout restart deployment/platform-admin -n atlas-platform
+      - kubectl rollout restart deployment/directory-instance -n atlas-platform
+      - kubectl rollout restart deployment/anchor-app -n atlas-platform
+    depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor]
+
+  # Core Notification
+  notify_discord:
+    image: appleboy/drone-discord
+    settings:
+      webhook_id:
+        from_secret: discord_webhook_id
+      webhook_token:
+        from_secret: discord_webhook_token
+      message: >
+        **Atlas Platform Deployment**
+        {{#success build.status}}
+          ✅ Pipeline #{{build.number}} successfully compiled and deployed all unified monorepo applications!
+        {{else}}
+          ❌ Pipeline #{{build.number}} failed during phase `{{build.failed_steps}}`.
+        {{/success}}
+        *Pipeline Logs:* {{build.link}}
+    when:
+      status: [success, failure]
+    depends_on: [deploy_platform_k8s]
