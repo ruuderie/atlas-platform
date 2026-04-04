@@ -16,7 +16,7 @@ strum = { version = "0.28.0", features = ["derive"] }
 time = "0.3.47"
 tw_merge = { version = "0.1.20", features = ["variant"] }
 validator = "0.20.0"
-wasm-bindgen = "0.2.114"
+wasm-bindgen = "0.2.117"
 js-sys = "0.3.77"
 web-sys = { version = "0.3.77", features = ["Window", "Document", "HtmlElement", "HtmlDivElement", "Storage", "MediaQueryList", "Navigator", "NodeList", "Element", "Clipboard"] }
 wasm-bindgen-futures = "0.4.64"

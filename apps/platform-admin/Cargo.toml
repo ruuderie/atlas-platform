@@ -17,7 +17,7 @@ shared-ui = { path = "../shared-ui" }
 time = "0.3.47"
 tw_merge = { version = "0.1.20", features = ["variant"] }
 validator = "0.20.0"
-wasm-bindgen = "0.2.114"
+wasm-bindgen = "0.2.117"
 js-sys = "0.3.77"
 web-sys = { version = "0.3.77", features = ["Window", "Document", "HtmlElement", "HtmlDivElement", "Storage", "MediaQueryList", "Navigator", "NodeList", "Element", "Clipboard"] }
 reqwest = { version = "0.13.2", features = ["json"] }

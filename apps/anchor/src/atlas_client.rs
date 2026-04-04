@@ -1,4 +1,4 @@
-use reqwest::{Client, Error};
+use reqwest::Client;
 use serde::de::DeserializeOwned;
 use std::env;
 use uuid::Uuid;
