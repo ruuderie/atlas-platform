@@ -36,6 +36,7 @@ pub enum Relation {
     RequestLog,
     FileAssociation,
     Passkey,
+    MagicLinkToken,
 }
 
 impl RelationTrait for Relation {
@@ -45,7 +46,8 @@ impl RelationTrait for Relation {
             Self::Session => Entity::has_many(super::session::Entity).into(),
             Self::RequestLog => Entity::has_many(super::request_log::Entity).into(), 
             Self::FileAssociation => Entity::has_many(super::file_association::Entity).into(),
-            Self::Passkey => Entity::has_many(super::passkey::Entity).into()
+            Self::Passkey => Entity::has_many(super::passkey::Entity).into(),
+            Self::MagicLinkToken => Entity::has_many(super::magic_link_token::Entity).into(),
         }
     }
 }
@@ -81,6 +83,12 @@ impl Related<super::file_association::Entity> for Entity {
 impl Related<super::passkey::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Passkey.def()
+    }
+}
+
+impl Related<super::magic_link_token::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MagicLinkToken.def()
     }
 }
 

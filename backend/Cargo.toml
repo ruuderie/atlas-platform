@@ -46,6 +46,8 @@ moka = {version = "0.12.14", features = ["sync", "future"]}
 base64 = "0.22.1"
 url = "2.5.8"
 async-trait = "0.1.89"
+lettre = { version = "0.11.21", features = ["tokio1", "tokio1-native-tls", "builder"] }
+rand = "0.8.5"
 
 [dev-dependencies]
 axum-test = "20.0.0"

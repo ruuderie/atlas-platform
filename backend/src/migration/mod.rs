@@ -31,6 +31,8 @@ pub mod m20260326_create_lead_charges_table;
 pub mod m20260404_000000_core_tenant_shift;
 pub mod m20260404_000001_create_cms_tables;
 pub mod m20260404_000002_anchor_seed;
+pub mod m20260404_000005_create_magic_links;
+pub mod m20260404_000006_create_tenant_settings;
 
 pub struct Migrator;
 
@@ -70,6 +72,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260404_000000_core_tenant_shift::Migration),
             Box::new(m20260404_000001_create_cms_tables::Migration),
             Box::new(m20260404_000002_anchor_seed::Migration),
+            Box::new(m20260404_000005_create_magic_links::Migration),
+            Box::new(m20260404_000006_create_tenant_settings::Migration),
         ]
     }
 }

@@ -8,6 +8,7 @@ use axum::{
 };
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, NotSet};
 use crate::entities::tenant::{self, Entity as Tenant};
+use crate::entities::tenant_setting::{self, Entity as TenantSetting};
 use crate::models::tenant::{TenantModel, CreateTenant, UpdateTenant};
 use chrono::{Utc, DateTime};
 use uuid::Uuid;
@@ -30,6 +31,8 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
         .route("/api/tenants", post(create_tenant))
         .route("/api/tenants/{id}", put(update_tenant))
         .route("/api/tenants/{id}", delete(delete_tenant))
+        .route("/api/tenants/{id}/settings", get(get_tenant_settings))
+        .route("/api/tenants/{id}/settings", post(upsert_tenant_setting))
         .with_state(db)
 }
 
@@ -122,4 +125,66 @@ pub async fn delete_tenant(
         })?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpsertTenantSettingPayload {
+    pub key: String,
+    pub value: String,
+    pub is_encrypted: Option<bool>,
+}
+
+pub async fn get_tenant_settings(
+    Path(tenant_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+) -> Result<(StatusCode, Json<Vec<tenant_setting::Model>>), StatusCode> {
+    let settings = TenantSetting::find()
+        .filter(tenant_setting::Column::TenantId.eq(tenant_id))
+        .all(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Failed to fetch settings: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok((StatusCode::OK, Json(settings)))
+}
+
+pub async fn upsert_tenant_setting(
+    Path(tenant_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<UpsertTenantSettingPayload>,
+) -> Result<(StatusCode, Json<tenant_setting::Model>), StatusCode> {
+    let existing = TenantSetting::find()
+        .filter(tenant_setting::Column::TenantId.eq(tenant_id))
+        .filter(tenant_setting::Column::Key.eq(&payload.key))
+        .one(&db)
+        .await
+        .map_err(|err| {
+            tracing::error!("Database error checking setting: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if let Some(setting) = existing {
+        let mut active: tenant_setting::ActiveModel = setting.into();
+        active.value = Set(payload.value);
+        if let Some(enc) = payload.is_encrypted {
+            active.is_encrypted = Set(enc);
+        }
+        active.updated_at = Set(Utc::now());
+        let updated = active.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok((StatusCode::OK, Json(updated)))
+    } else {
+        let new_setting = tenant_setting::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            tenant_id: Set(tenant_id),
+            key: Set(payload.key),
+            value: Set(payload.value),
+            is_encrypted: Set(payload.is_encrypted.unwrap_or(false)),
+            updated_at: Set(Utc::now()),
+            created_at: Set(Utc::now()),
+        };
+        let inserted = new_setting.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        Ok((StatusCode::CREATED, Json(inserted)))
+    }
 }

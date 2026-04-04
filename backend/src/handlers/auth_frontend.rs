@@ -9,9 +9,10 @@ use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, Ac
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
+use chrono::{Utc, Duration};
+use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{user, account, profile, user_account};
+use crate::entities::{user, account, profile, user_account, magic_link_token};
 use crate::auth::{hash_password, verify_password};
 use crate::handlers::sessions::create_user_session;
 use crate::models::user::UserRegistration;
@@ -31,6 +32,8 @@ pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/auth/verify-email", get(verify_email))
         .route("/api/auth/login", post(login))
+        .route("/api/auth/magic-link/request", post(request_magic_link))
+        .route("/api/auth/magic-link/verify", post(verify_magic_link))
         .route("/api/auth/webauthn/register", post(webauthn_register_start))
         .route("/api/auth/webauthn/authenticate", post(webauthn_auth_start))
 }
@@ -102,4 +105,94 @@ pub async fn webauthn_register_start() -> Result<impl IntoResponse, StatusCode> 
 pub async fn webauthn_auth_start() -> Result<impl IntoResponse, StatusCode> {
     // Stub for WebAuthn authentication
     Ok((StatusCode::NOT_IMPLEMENTED, "WebAuthn not fully implemented yet"))
+}
+
+#[derive(Deserialize)]
+pub struct RequestMagicLinkPayload {
+    pub email: String,
+}
+
+pub async fn request_magic_link(
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<RequestMagicLinkPayload>,
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    let user_model = user::Entity::find()
+        .filter(user::Column::Email.eq(&payload.email))
+        .one(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error finding user: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if let Some(user_mod) = user_model {
+        let token_str: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(32)
+            .map(char::from)
+            .collect();
+            
+        let token_entity = magic_link_token::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            user_id: Set(user_mod.id),
+            token: Set(token_str.clone()),
+            expires_at: Set(Utc::now() + Duration::minutes(15)),
+            is_used: Set(false),
+            created_at: Set(Utc::now()),
+        };
+        
+        token_entity.insert(&db).await.map_err(|e| {
+            tracing::error!("Error saving magic link: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        tracing::info!("Mock Email logic: Send Token [{}] to User Email [{}]", token_str, user_mod.email);
+        // Will hook into communications.rs later
+    }
+
+    Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))
+}
+
+#[derive(Deserialize)]
+pub struct VerifyMagicLinkPayload {
+    pub token: String,
+}
+
+pub async fn verify_magic_link(
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<VerifyMagicLinkPayload>,
+) -> Result<(StatusCode, Json<crate::models::session::SessionResponse>), (StatusCode, String)> {
+    let magic_link_opt = magic_link_token::Entity::find()
+        .filter(magic_link_token::Column::Token.eq(&payload.token))
+        .filter(magic_link_token::Column::IsUsed.eq(false))
+        .one(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+
+    let magic_link = match magic_link_opt {
+        Some(m) => m,
+        None => return Err((StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string())),
+    };
+
+    if magic_link.expires_at < Utc::now() {
+        return Err((StatusCode::UNAUTHORIZED, "Token has expired".to_string()));
+    }
+
+    let user_mod = user::Entity::find_by_id(magic_link.user_id)
+        .one(&db)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?
+        .ok_or((StatusCode::UNAUTHORIZED, "User not found".to_string()))?;
+
+    // Mark as used
+    let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
+    ml_active.is_used = Set(true);
+    let _ = ml_active.update(&db).await;
+
+    // We can use `create_session_for_user`
+    let session_response = crate::handlers::sessions::create_session_for_user(&db, &user_mod)
+        .await
+        .map_err(|e| (e, "Failed to create session".to_string()))?;
+    
+    Ok((StatusCode::OK, Json(session_response)))
 }

@@ -45,19 +45,26 @@ pub async fn create_user_session(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
+    create_session_for_user(db, &user).await
+}
+
+pub async fn create_session_for_user(
+    db: &DatabaseConnection,
+    user: &user::Model,
+) -> Result<SessionResponse, StatusCode> {
     // Generate tokens
     let bearer_token = if user.is_admin {
-        generate_jwt_admin(&user)
+        generate_jwt_admin(user)
     } else {
-        generate_jwt(&user)
+        generate_jwt(user)
     }.map_err(|e| {
-        println!("TEST LOG: from create_user_session and token generation failed: {:?}", e);
+        println!("TEST LOG: from create_session_for_user and token generation failed: {:?}", e);
         tracing::error!("Token generation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    let refresh_token = generate_jwt(&user).map_err(|e| {
-        println!("TEST LOG: from create_user_session and refresh token generation failed: {:?}", e);
+    let refresh_token = generate_jwt(user).map_err(|e| {
+        println!("TEST LOG: from create_session_for_user and refresh token generation failed: {:?}", e);
         tracing::error!("Refresh token generation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -104,7 +111,7 @@ pub async fn create_user_session(
 
     // Insert session
     new_session.insert(db).await.map_err(|e| {
-        println!("TEST LOG: from create_user_session and session creation failed: {:?}", e);
+        println!("TEST LOG: from create_session_for_user and session creation failed: {:?}", e);
         tracing::error!("Session creation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -112,9 +119,9 @@ pub async fn create_user_session(
     Ok(SessionResponse {
         user: Some(UserInfo {
             id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
+            email: user.email.clone(),
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
             is_admin: user.is_admin,
         }),
         token: bearer_token,

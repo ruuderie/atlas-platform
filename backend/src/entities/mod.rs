@@ -31,7 +31,8 @@ pub mod feed;
 pub mod feed_item;
 pub mod attachment;
 pub mod passkey;
-
+pub mod magic_link_token;
+pub mod tenant_setting;
 // MULTI-TENANT ARCHITECTURE
 pub mod app_instance;
 pub mod app_domain;
