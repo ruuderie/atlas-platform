@@ -2,7 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: platform-admin
-  namespace: uat
+  # Aligned to what Woodpecker targets:
+  namespace: atlas-platform 
 spec:
   replicas: 2
   selector:
@@ -15,23 +16,24 @@ spec:
     spec:
       containers:
       - name: platform-admin
-        image: ghcr.io/yourusername/business-directory-platform-admin:latest
+        image: ghcr.io/ruuderie/platform-admin:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 8081 # Matches Trunk/Leptos
+        # Nginx uses port 80 natively, not Trunk's 8081
+        - containerPort: 80 
         env:
-        - name: ORIGIN
-          value: "https://uat.yourdomain.com"
-        - name: PORT
-          value: "8081"
+        # The runtime string Nginx entrypoint replaces in index.html!
+        - name: API_BASE_URL
+          value: "https://uat.atlas.oply.co"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: platform-admin
-  namespace: uat
+  namespace: atlas-platform
 spec:
   selector:
     app: platform-admin
   ports:
   - port: 80
-    targetPort: 8081
+    targetPort: 80
