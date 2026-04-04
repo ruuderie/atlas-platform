@@ -6,6 +6,7 @@ resources:
   - backend.yaml
   - platform-admin.yaml
   - directory-instance.yaml
+  - anchor-app.yaml
 
 images:
   - name: ghcr.io/yourusername/business-directory-backend

@@ -83,13 +83,20 @@ steps:
     commands:
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
-      # We restart the deployments inside the shared Atlas namespace
-      - kubectl patch deployment platform-admin -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
-      - kubectl patch deployment directory-instance -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
-      - kubectl patch deployment anchor-app -n atlas-platform -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"3000"}}}}}'
-      - kubectl rollout restart deployment/platform-admin -n atlas-platform
-      - kubectl rollout restart deployment/directory-instance -n atlas-platform
-      - kubectl rollout restart deployment/anchor-app -n atlas-platform
+      - |
+        echo "Push branch is: $CI_COMMIT_BRANCH"
+        if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
+          echo "Deploying to PROD environment..."
+          kubectl apply -k k8s/overlays/prod || echo "[Warn] Prod overlay not yet scaffolded"
+        else
+          echo "Deploying to UAT environment..."
+          kubectl apply -k k8s/overlays/uat
+        fi
+        
+        # Ensure pods are force-restarted to pull the latest image layer regardless of tag changes
+        kubectl rollout restart deployment/platform-admin -n atlas-platform
+        kubectl rollout restart deployment/directory-instance -n atlas-platform
+        kubectl rollout restart deployment/anchor-app -n atlas-platform
     depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor]
 
   # Workspace Cleanup

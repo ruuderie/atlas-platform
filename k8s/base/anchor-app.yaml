@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anchor-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: anchor-app
+  template:
+    metadata:
+      labels:
+        app: anchor-app
+    spec:
+      containers:
+      - name: anchor-app
+        image: ghcr.io/ruuderie/anchor-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anchor-app
+spec:
+  selector:
+    app: anchor-app
+  ports:
+  - port: 80
+    targetPort: 3000
