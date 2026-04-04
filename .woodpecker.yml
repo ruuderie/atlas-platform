@@ -11,7 +11,7 @@ services:
 
 steps:
   test_workspace:
-    image: rust:1.76-slim
+    image: rust:slim
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
     commands:
@@ -25,21 +25,21 @@ steps:
 
   # Build apps in parallel
   build_platform_admin:
-    image: rust:1.76-slim
+    image: rust:slim
     commands:
       - apt-get update && apt-get install -y pkg-config libssl-dev
       - cd apps/platform-admin && cargo build --release
     depends_on: [test_workspace]
 
   build_directory_instance:
-    image: rust:1.76-slim
+    image: rust:slim
     commands:
       - apt-get update && apt-get install -y pkg-config libssl-dev
       - cd apps/directory-instance && cargo build --release
     depends_on: [test_workspace]
 
   build_anchor:
-    image: rust:1.76-slim
+    image: rust:slim
     commands:
       - apt-get update && apt-get install -y pkg-config libssl-dev
       - cd apps/anchor && cargo build --release
