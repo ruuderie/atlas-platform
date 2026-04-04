@@ -17,6 +17,7 @@ async fn test_account_creation_and_listing() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let mut username_a = format!("accountuser{}", Uuid::new_v4());
     let (status, login_res_a) = test_utils::register_test_user(&app, tenant.id, &mut username_a).await;
+
     assert_eq!(status, StatusCode::CREATED);
     
     let user_a_token = login_res_a["token"].as_str().unwrap().to_string();

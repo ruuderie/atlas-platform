@@ -18,8 +18,8 @@ impl MigrationTrait for Migration {
                 v_app_instance_id UUID := gen_random_uuid();
             BEGIN
                 -- 1. Create a Primary Tenant for Anchor if needed
-                INSERT INTO tenant (id, name, created_at, updated_at) 
-                VALUES (v_tenant_id, 'Oply Anchor Base', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                INSERT INTO tenant (id, name, description, created_at, updated_at) 
+                VALUES (v_tenant_id, 'Oply Anchor Base', 'Base tenant for Anchor application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
                 
                 -- 2. Create the Anchor App Instance
                 INSERT INTO app_instances (id, tenant_id, app_type, settings)
@@ -32,14 +32,14 @@ impl MigrationTrait for Migration {
                 
                 -- 3. Create Default Site Settings (Anchor menus and pages)
                 -- Add some initial app menus
-                INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible)
+                INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible, created_at, updated_at)
                 VALUES 
-                    (gen_random_uuid(), v_tenant_id, 'header', 'Blog', '/blog', 10, true),
-                    (gen_random_uuid(), v_tenant_id, 'header', 'About', '/about', 20, true),
-                    (gen_random_uuid(), v_tenant_id, 'header', 'Contact', '/contact', 30, true);
+                    (gen_random_uuid(), v_tenant_id, 'header', 'Blog', '/blog', 10, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                    (gen_random_uuid(), v_tenant_id, 'header', 'About', '/about', 20, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                    (gen_random_uuid(), v_tenant_id, 'header', 'Contact', '/contact', 30, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
                 
                 -- Add default landing page (like the old landing_pages) for "home" slug
-                INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published)
+                INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published, created_at, updated_at)
                 VALUES (
                     gen_random_uuid(), 
                     v_tenant_id, 
@@ -49,7 +49,7 @@ impl MigrationTrait for Migration {
                     'landing',
                     '{"hero_title": "Welcome to Anchor", "hero_subtitle": "This is a dynamic CMS powered page."}'::jsonb,
                     '{"lead_capture_title": "Join Us", "lead_capture_desc": "Sign up for our newsletter", "lead_capture_btn": "Subscribe", "options_json": "{}"}'::jsonb,
-                    true
+                    true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 );
             END $$;
         "##;

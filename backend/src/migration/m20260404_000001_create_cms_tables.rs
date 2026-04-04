@@ -46,7 +46,7 @@ impl MigrationTrait for Migration {
                 ForeignKey::create()
                     .name("fk-app_pages-tenant_id")
                     .from(AppPages::Table, AppPages::TenantId)
-                    .to(Tenants::Table, Tenants::Id)
+                    .to(Tenant::Table, Tenant::Id)
                     .on_delete(ForeignKeyAction::Cascade)
                     .on_update(ForeignKeyAction::NoAction)
                     .to_owned(),
@@ -92,7 +92,7 @@ impl MigrationTrait for Migration {
                 ForeignKey::create()
                     .name("fk-app_menus-tenant_id")
                     .from(AppMenus::Table, AppMenus::TenantId)
-                    .to(Tenants::Table, Tenants::Id)
+                    .to(Tenant::Table, Tenant::Id)
                     .on_delete(ForeignKeyAction::Cascade)
                     .on_update(ForeignKeyAction::NoAction)
                     .to_owned(),
@@ -160,7 +160,7 @@ pub enum AppMenus {
 }
 
 #[derive(Iden)]
-pub enum Tenants {
+pub enum Tenant {
     Table,
     Id,
 }

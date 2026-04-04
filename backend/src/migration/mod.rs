@@ -50,7 +50,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20230918_create_listings_table::Migration),
             Box::new(m20230919_create_listing_attributes_table::Migration),
             Box::new(m20230920_create_ad_purchases_table::Migration),
-            Box::new(m20240001_update_timestamp_migration::Migration),
+
             Box::new(m20240315_add_directory_domain_fields::Migration),
             Box::new(m20240922_create_request_log_table::Migration),
             Box::new(m20240922_create_crm_tables::Migration),
@@ -60,6 +60,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20241001_add_icon_and_slug_to_categories::Migration),
             Box::new(m20241002_add_directory_id_to_crm_and_categories::Migration),
             Box::new(m20241003_add_slug_to_listings::Migration),
+            Box::new(m20240001_update_timestamp_migration::Migration),
             Box::new(m20250101_create_ab_testing_tables::Migration),
             Box::new(m20260320_create_passkeys_table::Migration),
             Box::new(m20260324_000001_collapse_eav_to_jsonb::Migration),

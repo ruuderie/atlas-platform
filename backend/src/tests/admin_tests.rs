@@ -24,6 +24,8 @@ async fn test_admin_user_management() {
     let tenant = test_utils::create_test_tenant(&db).await;
     let mut username = format!("regularuser{}", Uuid::new_v4());
     let (status, login_res) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
+
+    
     assert_eq!(status, StatusCode::CREATED);
     
     let regular_user_id = login_res["user"]["id"].as_str().unwrap().to_string();

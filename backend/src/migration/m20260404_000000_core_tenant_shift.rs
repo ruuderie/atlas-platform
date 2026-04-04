@@ -11,17 +11,18 @@ impl MigrationTrait for Migration {
         let sql = r#"
             ALTER TABLE IF EXISTS directory RENAME TO tenant;
             
-            ALTER TABLE IF EXISTS template RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS lead RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS account RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS deal RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS contact RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS customer RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS category RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS feed RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS profile RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS listing RENAME COLUMN tenant_id TO tenant_id;
+            ALTER TABLE IF EXISTS template RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS lead RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS account RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS deal RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS contact RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS customer RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS category RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS feed RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS profile RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS listing RENAME COLUMN directory_id TO tenant_id;
             
+            ALTER TABLE IF EXISTS category DROP COLUMN directory_type_id;
             DROP TABLE IF EXISTS directory_type CASCADE;
             
             CREATE TABLE IF NOT EXISTS app_instances (
@@ -88,16 +89,16 @@ impl MigrationTrait for Migration {
             -- Reverse operations for down migration (lossy)
             ALTER TABLE IF EXISTS tenant RENAME TO directory;
             
-            ALTER TABLE IF EXISTS template RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS lead RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS account RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS deal RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS contact RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS customer RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS category RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS feed RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS profile RENAME COLUMN tenant_id TO tenant_id;
-            ALTER TABLE IF EXISTS listing RENAME COLUMN tenant_id TO tenant_id;
+            ALTER TABLE IF EXISTS template RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS lead RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS account RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS deal RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS contact RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS customer RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS category RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS feed RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS profile RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS listing RENAME COLUMN tenant_id TO directory_id;
             
             DROP TABLE IF EXISTS app_domains CASCADE;
             DROP TABLE IF EXISTS app_instances CASCADE;

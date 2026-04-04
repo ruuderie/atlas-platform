@@ -1,0 +1,19 @@
+platform-admin/src/components/upsell_banner.rs:3:28: error[E0432]: unresolved import `shared_ui::components::button`: could not find `button` in `components`
+platform-admin/src/components/upsell_banner.rs:4:28: error[E0432]: unresolved import `shared_ui::components::icon`: could not find `icon` in `components`
+platform-admin/src/components/recommended_partners.rs:2:28: error[E0432]: unresolved import `shared_ui::components::icon`: could not find `icon` in `components`
+platform-admin/src/components/milestone_modal.rs:3:28: error[E0432]: unresolved import `shared_ui::components::button`: could not find `button` in `components`
+platform-admin/src/components/milestone_modal.rs:4:28: error[E0432]: unresolved import `shared_ui::components::icon`: could not find `icon` in `components`
+platform-admin/src/pages/crm_grid.rs:337:29: error[E0433]: failed to resolve: could not find `tracing` in `leptos`: could not find `tracing` in `leptos`
+platform-admin/src/pages/crm_detail.rs:70:33: error[E0433]: failed to resolve: could not find `tracing` in `leptos`: could not find `tracing` in `leptos`
+platform-admin/src/pages/site_dashboard.rs:139:33: error[E0433]: failed to resolve: could not find `tracing` in `leptos`: could not find `tracing` in `leptos`
+platform-admin/src/components/upsell_banner.rs:30:52: error[E0433]: failed to resolve: could not find `button` in `components`: could not find `button` in `components`
+platform-admin/src/components/milestone_modal.rs:42:56: error[E0433]: failed to resolve: could not find `button` in `components`: could not find `button` in `components`
+platform-admin/src/components/milestone_modal.rs:49:56: error[E0433]: failed to resolve: could not find `button` in `components`: could not find `button` in `components`
+platform-admin/src/components/upsell_banner.rs:13:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/upsell_banner.rs:28:34: error[E0599]: no method named `invoke` found for struct `leptos::prelude::Callback<In, Out>` in the current scope
+platform-admin/src/components/recommended_partners.rs:42:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/recommended_partners.rs:55:25: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/milestone_modal.rs:17:16: error[E0599]: no method named `is_open` found for struct `ModalPropsBuilder<TypedBuilderFields>` in the current scope
+platform-admin/src/components/milestone_modal.rs:16:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/milestone_modal.rs:41:52: error[E0599]: no method named `invoke` found for struct `leptos::prelude::Callback<In, Out>` in the current scope
+platform-admin/src/components/milestone_modal.rs:48:55: error[E0599]: no method named `invoke` found for struct `leptos::prelude::Callback<In, Out>` in the current scope

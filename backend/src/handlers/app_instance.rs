@@ -27,8 +27,8 @@ pub struct CreateAppInstancePayload {
 pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/app-instances", post(create_app_instance))
-        .route("/api/app-instances/seeds/:app_type", get(list_data_seeds))
-        .route("/api/app-instances/:tenant_id/:app_type", get(get_app_instance))
+        .route("/api/app-instances/seeds/{app_type}", get(list_data_seeds))
+        .route("/api/app-instances/{tenant_id}/{app_type}", get(get_app_instance))
         .with_state(db)
 }
 

@@ -9,3 +9,4 @@ pub mod ui;
 pub mod attribute_icon;
 pub mod auth;
 pub mod properties_editor;
+pub mod icon;

@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/public/pages/:tenant_id", get(list_pages))
-        .route("/api/public/pages/:tenant_id/:slug", get(get_page_by_slug))
+        .route("/api/public/pages/{tenant_id}", get(list_pages))
+        .route("/api/public/pages/{tenant_id}/{slug}", get(get_page_by_slug))
         .with_state(db)
 }
 

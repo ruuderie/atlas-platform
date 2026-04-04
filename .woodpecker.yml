@@ -1,9 +1,19 @@
+services:
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=oplydbtest
+
 steps:
   test_workspace:
     image: rust:1.76-slim
+    environment:
+      - TEST_DATABASE_URL=postgres://postgres:postgres@database:5432/oplydbtest
     commands:
       - apt-get update && apt-get install -y pkg-config libssl-dev
-      - cargo test --workspace
+      - cargo test --workspace -- --test-threads=1
 
   # Build apps in parallel
   build_platform_admin:

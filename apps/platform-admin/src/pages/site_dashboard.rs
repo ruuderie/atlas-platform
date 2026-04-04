@@ -136,7 +136,7 @@ pub fn SiteDashboard() -> impl IntoView {
                     description="Jumpstart your marketplace with pre-populated leads and premium business listings.".to_string()
                     cta_text="Get 100 Premium Listings - $49".to_string()
                     on_click=Callback::new(move |_| {
-                        leptos::tracing::info!("Upsell Clicked: Directory Injection on Dashboard");
+                        leptos::logging::log!("Upsell Clicked: Directory Injection on Dashboard");
                     })
                 />
             </Show>

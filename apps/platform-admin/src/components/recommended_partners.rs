@@ -50,8 +50,8 @@ pub fn RecommendedPartners(
             <div class="space-y-4">
                 <For
                     each=move || display_partners.clone()
-                    key=|partner| partner.name.clone()
-                    children=move |partner| {
+                    key=|partner: &Partner| partner.name.clone()
+                    children=move |partner: Partner| {
                         view! {
                             <a 
                                 href=partner.url.clone() 

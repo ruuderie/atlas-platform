@@ -61,10 +61,10 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/files/{file_id}/associate/{entity_type}/{entity_id}", post(files::associate_file).delete(files::disassociate_file))
                 .route("/api/admin/files/associated/{entity_type}/{entity_id}", get(files::get_associated_files))
                 // Directory management
-                .route("/api/admin/directory-stats", get(admin::get_all_directory_stats))
-                .route("/api/admin/directory-stats/{directory_id}", get(admin::get_directory_stats))
-                .route("/api/admin/directory/{directory_id}/listings", get(admin::get_directory_listings))
-                .route("/api/admin/directory/{directory_id}/listings/{listing_id}", get(admin::get_listing))
+                .route("/api/admin/tenant-stats", get(admin::get_all_directory_stats))
+                .route("/api/admin/tenant-stats/{tenant_id}", get(admin::get_directory_stats))
+                .route("/api/admin/tenant/{tenant_id}/listings", get(admin::get_directory_listings))
+                .route("/api/admin/tenant/{tenant_id}/listings/{listing_id}", get(admin::get_listing))
                 // Tenant management API is handled via tenant::authenticated_routes
                 // Tenant management API is handled via tenant::authenticated_routes
 

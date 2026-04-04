@@ -1,0 +1,16 @@
+platform-admin/src/components/upsell_banner.rs:4:5: error[E0432]: unresolved import `icons::Icon`: no `Icon` in the root
+platform-admin/src/components/recommended_partners.rs:2:28: error[E0432]: unresolved import `shared_ui::components::icon`: could not find `icon` in `components`
+platform-admin/src/components/milestone_modal.rs:4:5: error[E0432]: unresolved import `icons::Icon`: no `Icon` in the root
+platform-admin/src/pages/site_dashboard.rs:139:33: error[E0433]: failed to resolve: could not find `tracing` in `leptos`: could not find `tracing` in `leptos`
+platform-admin/src/components/upsell_banner.rs:17:32: error[E0433]: failed to resolve: use of unresolved module or unlinked crate `icondata`: use of unresolved module or unlinked crate `icondata`
+platform-admin/src/components/milestone_modal.rs:20:32: error[E0433]: failed to resolve: use of unresolved module or unlinked crate `icondata`: use of unresolved module or unlinked crate `icondata`
+platform-admin/src/components/milestone_modal.rs:28:36: error[E0433]: failed to resolve: use of unresolved module or unlinked crate `icondata`: use of unresolved module or unlinked crate `icondata`
+platform-admin/src/components/milestone_modal.rs:16:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/milestone_modal.rs:41:43: error[E0618]: expected function, found `leptos::prelude::Callback<()>`
+platform-admin/src/components/milestone_modal.rs:49:83: error[E0599]: no variant or associated item named `Primary` found for enum `ButtonVariant` in the current scope: variant or associated item not found in `ButtonVariant`
+platform-admin/src/components/milestone_modal.rs:48:43: error[E0618]: expected function, found `leptos::prelude::Callback<()>`
+platform-admin/src/components/upsell_banner.rs:13:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/upsell_banner.rs:30:79: error[E0599]: no variant or associated item named `Primary` found for enum `ButtonVariant` in the current scope: variant or associated item not found in `ButtonVariant`
+platform-admin/src/components/upsell_banner.rs:28:25: error[E0618]: expected function, found `leptos::prelude::Callback<MouseEvent>`
+platform-admin/src/components/recommended_partners.rs:42:5: error[E0282]: type annotations needed: cannot infer type
+platform-admin/src/components/recommended_partners.rs:55:25: error[E0282]: type annotations needed: cannot infer type

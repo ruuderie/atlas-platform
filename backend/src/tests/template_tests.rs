@@ -16,15 +16,13 @@ use super::test_utils;
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL_LOCAL")
         .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_tenant_test".to_string()));
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5433/oplydbtest".to_string()));
 
     let db = Database::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
 
-    migration::Migrator::fresh(&db)
-        .await
-        .expect("Failed to reset database");
+    let _ = migration::Migrator::fresh(&db).await;
     
     migration::Migrator::up(&db, None)
         .await

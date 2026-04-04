@@ -331,10 +331,10 @@ pub fn CrmGrid() -> impl IntoView {
             </Suspense>
             
             <MilestoneModal 
-                is_open=show_milestone_modal
+                open=show_milestone_modal
                 on_close=Callback::new(move |_| set_show_milestone_modal.set(false))
                 on_activate=Callback::new(move |_| {
-                    leptos::tracing::info!("Upsell Event: Proposal Auto-Gen Activated");
+                    leptos::logging::log!("Upsell Event: Proposal Auto-Gen Activated");
                     set_show_milestone_modal.set(false);
                 })
                 title="Deal is heating up!".to_string()

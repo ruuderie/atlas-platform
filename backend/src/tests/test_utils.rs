@@ -33,6 +33,7 @@ pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
     let new_tenant = tenant::ActiveModel {
         id: Set(tenant_id),
         name: Set(CompanyName().fake()),
+        description: Set(Sentence(1..3).fake()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()

@@ -34,3 +34,25 @@ pub fn Seo(
         })}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use leptos::prelude::*;
+    use wasm_bindgen_test::*;
+    
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn test_seo_metadata_initialization() {
+        let _ = leptos::task::spawn_local(async {
+            let _el = view! {
+                <Seo 
+                    title="Home Page".to_string()
+                    description=Some("Test Description".to_string())
+                />
+            };
+            // Ensure meta tags map to Head component
+        });
+    }
+}

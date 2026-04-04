@@ -67,7 +67,7 @@ pub fn CrmDetail() -> impl IntoView {
                     description="Our dedicated intake team can automatically chase unresponsive leads via phone and SMS.".to_string()
                     cta_text="Enable Intake Pros - $99/mo".to_string()
                     on_click=Callback::new(move |_| {
-                        leptos::tracing::info!("Upsell Clicked: Intake Pros on Lead {}", record_id());
+                        leptos::logging::log!("Upsell Clicked: Intake Pros on Lead {}", record_id());
                     })
                 />
             </Show>
