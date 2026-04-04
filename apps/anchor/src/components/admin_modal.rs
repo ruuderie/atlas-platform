@@ -1391,7 +1391,7 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(0);
+    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or_default();
 
     let (label, set_label) = create_signal(
         initial_item
@@ -1437,7 +1437,7 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
         let pid_opt = if pid_str.is_empty() {
             None
         } else {
-            pid_str.parse::<i32>().ok()
+            pid_str.parse::<uuid::Uuid>().ok()
         };
         let ord = ord_str.parse::<i32>().unwrap_or(0);
 

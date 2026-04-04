@@ -19,7 +19,7 @@ use crate::models::ad_purchase::AdStatus;
 use crate::models::directory_type::{DirectoryTypeModel, CreateDirectoryType, UpdateDirectoryType};
 use crate::models::directory::{DirectoryModel, UpdateDirectory, CreateDirectory};
 use std::collections::HashMap;
-use crate::handlers::{listings,directories,directory_types,sessions};
+use crate::handlers::{listings,directory_types,sessions};
 use crate::models::session::{SessionResponse, UserInfo};
 
 #[derive(Deserialize)]
@@ -71,78 +71,7 @@ pub struct ActivityReport {
     recent_accounts: Vec<account::Model>,
 }
 
-pub async fn get_directories(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-) -> Result<(StatusCode, Json<Vec<DirectoryModel>>), StatusCode> {
-    tracing::info!("Getting directories via admin route");
 
-    let state_db = State(db);
-    let directories = directories::get_directories(state_db).await?;
-    Ok(directories)
-   
-}
-
-pub async fn get_directories_by_type(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_type_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Vec<DirectoryModel>>), StatusCode> {
-    tracing::info!("Getting directories by type via admin route");
-
-    let state_db = State(db);
-    let directories = directories::get_directories_by_type(Path(directory_type_id), state_db).await?;
-    Ok(directories)
-}
-
-pub async fn get_directory(
-    State(db): State<DatabaseConnection>,
-    Extension(user): Extension<user::Model>,
-    Extension(session): Extension<session::Model>,
-    Path(directory_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
-    let state_db = State(db);
-    let directory = directories::get_directory_by_id(Path(directory_id), state_db).await?;
-    Ok(directory)
-}
-
-pub async fn update_directory(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_id): Path<Uuid>,
-    Json(input): Json<UpdateDirectory>,
-) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
-    println!("TEST LOG: from admin_update_directory and input: {:?}", input);
-    let state_db = State(db);
-    let directory = directories::update_directory(Path(directory_id), state_db, Json(input)).await?;
-    Ok(directory)
-}
-
-pub async fn delete_directory(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_id): Path<Uuid>,
-) -> Result<StatusCode, StatusCode> {
-    let state_db = State(db);
-    let status = directories::delete_directory(Path(directory_id), state_db).await?;
-    Ok(status)
-}
-
-pub async fn create_directory(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Json(input): Json<CreateDirectory>,
-) -> Result<(StatusCode, Json<DirectoryModel>), StatusCode> {
-    let state_db = State(db);
-    println!("TEST LOG: from create_directory and input: {:?}", input);
-    let directory = directories::create_directory(state_db, Json(input)).await?;
-    Ok( directory)
-}
 
 pub async fn create_directory_type(
     State(db): State<DatabaseConnection>,

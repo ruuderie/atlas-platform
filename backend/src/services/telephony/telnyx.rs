@@ -12,6 +12,7 @@ impl TelnyxAdapter {
     }
 }
 
+#[async_trait::async_trait]
 impl TelephonyProvider for TelnyxAdapter {
     async fn provision_number(&self, area_code: &str) -> Result<PhoneNumber> {
         // Implement Telnyx API call to provision a number

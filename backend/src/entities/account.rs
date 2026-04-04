@@ -23,6 +23,7 @@ pub struct Model {
 pub enum Relation {
     UserAccount,
     Profile,
+    Tenant,
     Directory,
 }
 
@@ -31,6 +32,10 @@ impl RelationTrait for Relation {
         match self {
             Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
             Self::Profile => Entity::has_many(super::profile::Entity).into(),
+            Self::Tenant => Entity::belongs_to(super::tenant::Entity)
+                .from(Column::DirectoryId)
+                .to(super::tenant::Column::Id)
+                .into(),
             Self::Directory => Entity::belongs_to(super::directory::Entity)
                 .from(Column::DirectoryId)
                 .to(super::directory::Column::Id)
@@ -51,6 +56,11 @@ impl Related<super::profile::Entity> for Entity {
     }
 }
 
+impl Related<super::tenant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenant.def()
+    }
+}
 impl Related<super::directory::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Directory.def()

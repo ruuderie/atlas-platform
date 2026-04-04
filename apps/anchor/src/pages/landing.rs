@@ -69,97 +69,27 @@ impl Default for SiteSettings {
 pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
+    use crate::atlas_client::fetch_atlas_data;
+    use serde_json::Value;
 
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
     let mut settings = SiteSettings::default();
 
-    let rows = sqlx::query("SELECT key, value FROM site_settings WHERE tenant_id IS NOT DISTINCT FROM $1")
-        .bind(tenant.0)
-        .fetch_all(&state.pool)
-        .await?;
-    for row in rows {
-        let key: String = row.get("key");
-        let value: String = row.get("value");
-        if key == "current_focus" {
-            settings.current_focus = value.clone();
+    if let Some(tenant_id) = tenant.0 {
+        let endpoint = format!("/api/app-instances/{}/anchor", tenant_id);
+        
+        #[derive(serde::Deserialize)]
+        struct AppInstanceResponse {
+            settings: Option<Value>,
         }
-        if key == "status" {
-            settings.status = value.clone();
-        }
-        if key == "hero_quote" {
-            settings.hero_quote = value.clone();
-        }
-        if key == "hero_subtitle" {
-            settings.hero_subtitle = value.clone();
-        }
-        if key == "site_title" {
-            settings.site_title = value.clone();
-        }
-        if key == "lead_capture_title" {
-            settings.lc_title = value.clone();
-        }
-        if key == "lead_capture_desc" {
-            settings.lc_desc = value.clone();
-        }
-        if key == "lead_capture_label" {
-            settings.lc_label = value.clone();
-        }
-        if key == "lead_capture_placeholder" {
-            settings.lc_placeholder = value.clone();
-        }
-        if key == "lead_capture_btn" {
-            settings.lc_btn = value.clone();
-        }
-        if key == "lead_capture_footer" {
-            settings.lc_footer = value.clone();
-        }
-        if key == "lead_capture_endpoint" {
-            settings.lc_endpoint = value.clone();
-        }
-        if key == "status_color" {
-            settings.status_color = value.clone();
-        }
-        if key == "webhook_url" {
-            settings.webhook_url = value.clone();
-        }
-        if key == "admin_email" {
-            settings.admin_email = value.clone();
-        }
-        if key == "google_analytics_id" {
-            settings.google_analytics_id = value.clone();
-        }
-        if key == "booking_url" {
-            settings.booking_url = value.clone();
-        }
-        if key == "terms_html" {
-            settings.terms_html = value.clone();
-        }
-        if key == "privacy_html" {
-            settings.privacy_html = value.clone();
-        }
-        if key == "github_url" {
-            settings.github_url = value.clone();
-        }
-        if key == "x_url" {
-            settings.x_url = value.clone();
-        }
-        if key == "linkedin_url" {
-            settings.linkedin_url = value.clone();
-        }
-        if key == "b2b_enabled" {
-            settings.b2b_enabled = value == "true";
-        }
-        if key == "meta_title" {
-            settings.meta_title = value.clone();
-        }
-        if key == "meta_description" {
-            settings.meta_description = value.clone();
-        }
-        if key == "og_image" {
-            settings.og_image = value.clone();
+        
+        if let Ok(res) = fetch_atlas_data::<AppInstanceResponse>(&endpoint, Some(tenant_id)).await {
+            if let Some(json_settings) = res.settings {
+                if let Ok(parsed) = serde_json::from_value::<SiteSettings>(json_settings) {
+                    settings = parsed;
+                }
+            }
         }
     }
 

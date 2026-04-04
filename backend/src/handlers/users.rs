@@ -153,6 +153,8 @@ pub async fn register_user(
                     directory_id: Set(directory_id),
                     name: Set(username.clone()),
                     is_active: Set(true),
+                    stripe_customer_id: sea_orm::NotSet,
+                    stripe_payment_method_id: sea_orm::NotSet,
                     created_at: Set(Utc::now()),
                     updated_at: Set(Utc::now()),
                 };
@@ -186,6 +188,7 @@ pub async fn register_user(
             is_active: Set(true),
             directory_id: Set(directory_id),
             profile_type: Set(profile::ProfileType::Business), // Assuming it's a business profile
+            service_area_zips: sea_orm::NotSet,
             display_name: Set(username),
             contact_info: Set(email),
             business_name: Set(None),

@@ -26,7 +26,7 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub properties: Option<Value>,
-    #[sea_orm(column_type = "Array(String)", nullable)]
+    #[sea_orm(column_type = "custom(\"text[]\")", nullable)]
     pub service_area_zips: Option<Vec<String>>,
 }
 
@@ -50,6 +50,7 @@ pub struct BusinessDetails {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Account,
+    Tenant,
     Directory,
     Listing,
     AdPurchase,
@@ -61,6 +62,10 @@ impl RelationTrait for Relation {
             Self::Account => Entity::belongs_to(super::account::Entity)
                 .from(Column::AccountId)
                 .to(super::account::Column::Id)
+                .into(),
+            Self::Tenant => Entity::belongs_to(super::tenant::Entity)
+                .from(Column::DirectoryId)
+                .to(super::tenant::Column::Id)
                 .into(),
             Self::Directory => Entity::belongs_to(super::directory::Entity)
                 .from(Column::DirectoryId)
@@ -78,6 +83,11 @@ impl Related<super::account::Entity> for Entity {
     }
 }
 
+impl Related<super::tenant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenant.def()
+    }
+}
 impl Related<super::directory::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Directory.def()

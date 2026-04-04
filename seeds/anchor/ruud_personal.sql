@@ -138,3 +138,32 @@ ON CONFLICT (route_path) DO UPDATE SET
     badge_text = EXCLUDED.badge_text,
     title = EXCLUDED.title,
     subtitle = EXCLUDED.subtitle;
+
+INSERT INTO services (title, description, deliverables, price_range, is_visible, display_order) VALUES
+('Strategic Architecture & Process Engineering', 'Reimplementing critical business processes using long-term thinking, elegant architectural design, and scalable infrastructure patterns. We dive deep into your Salesforce and distributed environments to establish sustainable technical foundations.', '["Scalable Business Process Re-engineering", "System Landscape Diagrams", "Technical Debt Refactoring Roadmaps"]'::jsonb, 'Custom per project', true, 1),
+('Salesforce Security & Threat Modeling', 'Hardening enterprise perimeters with specialized focus on Salesforce native security. Protect critical data flows and prevent automated exploitation through comprehensive system audits and strict access control regimes.', '["Salesforce Shield Implementations", "Identity & Access Management (IAM)", "System and User Access Reviews"]'::jsonb, 'Retainer available', true, 2),
+('Rust Systems Engineering', 'Purpose-built, memory-safe microservices designed for maximum throughput and minimal operational cost. We port your slowest, most expensive legacy endpoints into native Rust binaries to accelerate your architecture.', '["API Contract Definitions", "WebAssembly (Wasm) Porting", "Zero-Cost Abstraction Implementations"]'::jsonb, 'Starting at $5,000', true, 3);
+
+UPDATE services 
+SET 
+    title = 'High-Performance Rust, Data, & AI Systems',
+    description = 'Purpose-built, memory-safe microservices designed for maximum throughput and predictable P99 latency. Leveraging my deep experience building critical infrastructure, I use Rust''s strict compiler guarantees to forge the performance engines behind modern AI architectures and high-volume data engineering pipelines. I specialize in replacing unscalable legacy endpoints with native Rust data streams and WebAssembly (Wasm) runtimes, giving your platform an unmatched competitive edge in speed, security, and operational cost savings.',
+    deliverables = '["High-Volume Data Engineering Pipelines", "AI Inference Engine Optimization", "API and backend system development using Rust"]'::jsonb
+WHERE id = 3;
+
+INSERT INTO services (title, description, deliverables, price_range, is_visible, display_order) VALUES
+('Autonomous AI Agents & Data Orchestration', 'Build end-to-end intelligent agent ecosystems that reason, act, and interface natively with your core business platforms. Drawing on my background architecting complex enterprise data flows, I integrate structured and unstructured data streams—from advanced document OCR extraction to continuous CRM ingestion—to power your autonomous AI deployments. I equip your systems with cutting-edge reasoning tools that operate safely and securely across your unified data graph.', '["Multi-Agent Workflow Automation", "Unified Data Strategies", "Complex Salesforce Integrations"]'::jsonb, 'Engagement based', true, 4),
+('Cloud-Native Infrastructure & DevOps', 'Accelerate your delivery capabilities with robust, scalable deployment architectures. Having engineered operations across highly distributed environments, I design and implement strictly governed Kubernetes configurations, sophisticated continuous integration pipelines, and immutable infrastructure protocols. I ensure your platform maintains high availability, scales effortlessly under load, and achieves rock-solid deployment reliability.', '["Kubernetes Cluster Architecture", "Zero-Downtime CI/CD Pipelines", "Infrastructure as Code (IaC) Audits"]'::jsonb, 'Tiered Retainers', true, 5);
+
+UPDATE services 
+SET 
+    price_range = 'Starting at $25,000',
+    description = 'Purpose-built, memory-safe microservices designed for maximum throughput and predictable P99 latency. Leveraging my deep experience building critical infrastructure, I use Rust''s strict compiler guarantees to forge the performance engines behind modern AI architectures and high-volume data engineering pipelines. I specialize in replacing unscalable legacy endpoints with native Rust data streams, giving your platform an unmatched competitive edge in speed, security, and operational cost savings.'
+WHERE id = 3;
+
+UPDATE site_settings SET value = 'ANCHOR' WHERE key = 'site_title';
+UPDATE page_headers SET badge_text = 'ANCHOR // ADVISORY SERVICES' WHERE route_path = '/services';
+
+UPDATE site_settings SET value = 'https://x.com/ruud_awakening' WHERE key = 'x_url';
+UPDATE site_settings SET value = 'https://linkedin.com/in/ruudsalymerie' WHERE key = 'linkedin_url';
+

@@ -8,7 +8,7 @@ use axum::{
 use sea_orm::DatabaseConnection;
 use crate::handlers::{admin, categories, 
     profiles, templates, contacts, customers,
-    leads, deals, cases, files, directories, listings, accounts};
+    leads, deals, cases, files, listings, accounts};
 use crate::auth::*;
 use crate::middleware::*;
 use axum::middleware::from_fn;
@@ -65,18 +65,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/directory-stats/{directory_id}", get(admin::get_directory_stats))
                 .route("/api/admin/directory/{directory_id}/listings", get(admin::get_directory_listings))
                 .route("/api/admin/directory/{directory_id}/listings/{listing_id}", get(admin::get_listing))
-                //ALL DIRECTORIES
-                .route("/api/admin/directories", get(admin::get_directories))
-                .route("/api/admin/directories/{directory_id}", get(admin::get_directory))
-                .route("/api/admin/directories", post(admin::create_directory))
-                .route("/api/admin/directories/{directory_id}", put(admin::update_directory))
-                .route("/api/admin/directories/{directory_id}", delete(admin::delete_directory))
-                .route("/api/admin/directories/type/{type_id}", get(admin::get_directories_by_type))
-                .route("/api/admin/directories/{directory_id}/config", get(directories::get_site_config).put(directories::update_site_config))
-                .route("/api/admin/directories/{directory_id}/modules", get(directories::get_enabled_modules).put(directories::update_enabled_modules))
-                .route("/api/admin/directories/{directory_id}/theme", get(directories::get_site_theme).put(directories::update_site_theme))
-                .route("/api/admin/directories/{directory_id}/custom-settings", get(directories::get_custom_settings).put(directories::update_custom_settings))
-                //DIRETORY TYPE
+                // Tenant management API is handled via tenant::authenticated_routes
+                // DIRETORY TYPE
                 .route("/api/admin/directory-types", get(admin::get_directory_types))
                 .route("/api/admin/directory-types/{directory_type_id}", get(admin::get_directory_type))
                 //create directory type

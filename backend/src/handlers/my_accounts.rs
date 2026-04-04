@@ -80,6 +80,8 @@ pub async fn create_account(
         directory_id: Set(payload.directory_id),
         name: Set(payload.name),
         is_active: Set(true),
+        stripe_customer_id: sea_orm::NotSet,
+        stripe_payment_method_id: sea_orm::NotSet,
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -150,6 +152,7 @@ pub async fn create_profile(
         account_id: Set(account_id),
         directory_id: Set(payload.directory_id),
         profile_type: Set(profile::ProfileType::Business),
+        service_area_zips: sea_orm::NotSet,
         display_name: Set(payload.display_name),
         contact_info: Set(payload.contact_info),
         business_name: Set(payload.business_name),

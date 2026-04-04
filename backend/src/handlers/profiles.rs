@@ -51,6 +51,8 @@ pub async fn create_profile(
                     directory_id: Set(input.directory_id),
                     name: Set(input.display_name.clone()),
                     is_active: Set(true),
+                    stripe_customer_id: sea_orm::NotSet,
+                    stripe_payment_method_id: sea_orm::NotSet,
                     created_at: Set(Utc::now()),
                     updated_at: Set(Utc::now()),
                 };
@@ -67,6 +69,7 @@ pub async fn create_profile(
         directory_id: Set(input.directory_id),
         account_id: Set(account.id),
         profile_type: Set(input.profile_type),
+        service_area_zips: sea_orm::NotSet,
         display_name: Set(input.display_name),
         contact_info: Set(input.contact_info),
         business_name: Set(None),

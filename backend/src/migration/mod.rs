@@ -28,6 +28,9 @@ pub mod m20260324_000001_collapse_eav_to_jsonb;
 pub mod m20260326_add_service_area_to_profile;
 pub mod m20260326_add_stripe_fields_to_account;
 pub mod m20260326_create_lead_charges_table;
+pub mod m20260404_000000_core_tenant_shift;
+pub mod m20260404_000001_create_cms_tables;
+pub mod m20260404_000002_anchor_seed;
 
 pub struct Migrator;
 
@@ -63,6 +66,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260326_add_service_area_to_profile::Migration),
             Box::new(m20260326_add_stripe_fields_to_account::Migration),
             Box::new(m20260326_create_lead_charges_table::Migration),
+            Box::new(m20260404_000000_core_tenant_shift::Migration),
+            Box::new(m20260404_000001_create_cms_tables::Migration),
+            Box::new(m20260404_000002_anchor_seed::Migration),
         ]
     }
 }

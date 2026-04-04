@@ -1146,7 +1146,7 @@ pub fn NavTable() -> impl IntoView {
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{n.display_order}</td>
-                                <td class="py-4 px-4 text-outline font-medium">"#" {n.id}</td>
+                                <td class="py-4 px-4 text-outline font-medium">"#" {n.id.to_string()}</td>
                                 <td class="py-4 px-4 font-bold text-primary">
                                     {if let Some(_pid) = n.parent_id { format!("↳ {}", n.label) } else { n.label.clone() }}
                                 </td>

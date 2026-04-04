@@ -25,6 +25,7 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
+    Tenant,
     Directory,
     Category,
     BasedListings,
@@ -32,6 +33,10 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
+            Self::Tenant => Entity::belongs_to(super::tenant::Entity)
+                .from(Column::DirectoryId)
+                .to(super::tenant::Column::Id)
+                .into(),
             Self::Directory => Entity::belongs_to(super::directory::Entity)
                 .from(Column::DirectoryId)
                 .to(super::directory::Column::Id)
@@ -46,6 +51,11 @@ impl RelationTrait for Relation {
 }
 
 
+impl Related<super::tenant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenant.def()
+    }
+}
 impl Related<super::directory::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Directory.def()

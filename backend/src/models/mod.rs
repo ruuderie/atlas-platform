@@ -12,6 +12,8 @@ pub mod directory;
 pub mod listing;
 pub mod session;
 pub mod request_log;
+
+pub mod tenant;
 //CRM
 pub mod address;
 pub mod lead;

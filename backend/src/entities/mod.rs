@@ -33,3 +33,10 @@ pub mod feed_item;
 pub mod attachment;
 pub mod passkey;
 
+// MULTI-TENANT ARCHITECTURE
+pub mod tenant;
+pub mod app_instance;
+pub mod app_domain;
+pub mod app_page;
+pub mod app_menu;
+

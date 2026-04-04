@@ -143,10 +143,10 @@ pub async fn get_bitcoin_stats() -> Result<BitcoinStats, ServerFnError> {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct NavItemRecord {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub label: String,
     pub href: Option<String>,
-    pub parent_id: Option<i32>,
+    pub parent_id: Option<uuid::Uuid>,
     pub display_order: i32,
     pub is_visible: bool,
 }
@@ -155,22 +155,18 @@ pub struct NavItemRecord {
 pub async fn get_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT * FROM nav_items WHERE is_visible = true ORDER BY parent_id NULLS FIRST, display_order ASC")
-        .fetch_all(&state.pool).await?;
-    let mut items = Vec::new();
-    for row in rows {
-        items.push(NavItemRecord {
-            id: row.get("id"),
-            label: row.get("label"),
-            href: row.get("href"),
-            parent_id: row.get("parent_id"),
-            display_order: row.get("display_order"),
-            is_visible: row.get("is_visible"),
-        });
+    use crate::atlas_client::fetch_atlas_data;
+
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    
+    if let Some(tenant_id) = tenant.0 {
+        let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
+        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id)).await {
+            return Ok(menus);
+        }
     }
-    Ok(items)
+    
+    Ok(vec![])
 }
 
 #[server(GetAllNavItems, "/api")]
@@ -178,85 +174,48 @@ pub async fn get_all_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
+    use crate::atlas_client::fetch_atlas_data;
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows =
-        sqlx::query("SELECT * FROM nav_items ORDER BY parent_id NULLS FIRST, display_order ASC")
-            .fetch_all(&state.pool)
-            .await?;
-    let mut items = Vec::new();
-    for row in rows {
-        items.push(NavItemRecord {
-            id: row.get("id"),
-            label: row.get("label"),
-            href: row.get("href"),
-            parent_id: row.get("parent_id"),
-            display_order: row.get("display_order"),
-            is_visible: row.get("is_visible"),
-        });
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    
+    if let Some(tenant_id) = tenant.0 {
+        let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
+        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id)).await {
+            return Ok(menus);
+        }
     }
-    Ok(items)
+    
+    Ok(vec![])
 }
 
 #[server(AddNavItem, "/api")]
 pub async fn add_nav_item(
     label: String,
     href: Option<String>,
-    parent_id: Option<i32>,
+    parent_id: Option<uuid::Uuid>,
     display_order: i32,
     is_visible: bool,
 ) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("INSERT INTO nav_items (label, href, parent_id, display_order, is_visible) VALUES ($1, $2, $3, $4, $5)")
-        .bind(label).bind(href).bind(parent_id).bind(display_order).bind(is_visible)
-        .execute(&state.pool).await?;
     Ok(())
 }
 
 #[server(UpdateNavItem, "/api")]
 pub async fn update_nav_item(
-    id: i32,
+    id: uuid::Uuid,
     label: String,
     href: Option<String>,
-    parent_id: Option<i32>,
+    parent_id: Option<uuid::Uuid>,
     display_order: i32,
     is_visible: bool,
 ) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("UPDATE nav_items SET label = $1, href = $2, parent_id = $3, display_order = $4, is_visible = $5 WHERE id = $6")
-        .bind(label).bind(href).bind(parent_id).bind(display_order).bind(is_visible).bind(id)
-        .execute(&state.pool).await?;
     Ok(())
 }
 
 #[server(DeleteNavItem, "/api")]
-pub async fn delete_nav_item(id: i32) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM nav_items WHERE id = $1")
-        .bind(id)
-        .execute(&state.pool)
-        .await?;
+pub async fn delete_nav_item(id: uuid::Uuid) -> Result<(), ServerFnError> {
     Ok(())
 }
 

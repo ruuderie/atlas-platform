@@ -29,6 +29,7 @@ pub struct CallEvent {
     pub raw_payload: serde_json::Value,
 }
 
+#[async_trait::async_trait]
 pub trait TelephonyProvider: Send + Sync {
     /// Provision a new phone number based on a specific area code
     async fn provision_number(&self, area_code: &str) -> Result<PhoneNumber>;

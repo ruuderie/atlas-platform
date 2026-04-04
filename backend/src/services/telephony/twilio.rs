@@ -13,6 +13,7 @@ impl TwilioAdapter {
     }
 }
 
+#[async_trait::async_trait]
 impl TelephonyProvider for TwilioAdapter {
     async fn provision_number(&self, area_code: &str) -> Result<PhoneNumber> {
         // Implement Twilio API call to provision a number

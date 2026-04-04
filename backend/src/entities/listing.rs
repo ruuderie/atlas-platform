@@ -45,6 +45,7 @@ pub struct Model {
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
     Profile,
+    Tenant,
     Directory,
     Category,
     BasedOnTemplate,
@@ -57,6 +58,10 @@ impl RelationTrait for Relation {
             Self::Profile => Entity::belongs_to(super::profile::Entity)
                 .from(Column::ProfileId)
                 .to(super::profile::Column::Id)
+                .into(),
+            Self::Tenant => Entity::belongs_to(super::tenant::Entity)
+                .from(Column::DirectoryId)
+                .to(super::tenant::Column::Id)
                 .into(),
             Self::Directory => Entity::belongs_to(super::directory::Entity)
                 .from(Column::DirectoryId)
@@ -81,6 +86,11 @@ impl Related<super::profile::Entity> for Entity {
     }
 }
 
+impl Related<super::tenant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenant.def()
+    }
+}
 impl Related<super::directory::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Directory.def()

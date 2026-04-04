@@ -7,7 +7,8 @@ pub mod pages;
 pub mod resume_engine;
 #[cfg(feature = "ssr")]
 pub mod state;
-
+#[cfg(feature = "ssr")]
+pub mod atlas_client;
 #[cfg(feature = "ssr")]
 pub use state::AppState;
 

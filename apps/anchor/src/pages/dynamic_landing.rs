@@ -20,60 +20,86 @@ pub struct LandingPageRecord {
 pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    use crate::atlas_client::fetch_atlas_data;
 
-    let row_opt = sqlx::query("SELECT * FROM landing_pages WHERE slug = $1")
-        .bind(&slug)
-        .fetch_optional(&state.pool)
-        .await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
-    if let Some(row) = row_opt {
-        Ok(Some(LandingPageRecord {
-            id: row.get("id"),
-            slug: row.get("slug"),
-            title: row.get("title"),
-            description: row.get("description"),
-            hero_title: row.get("hero_title"),
-            hero_subtitle: row.get("hero_subtitle"),
-            lead_capture_title: row.get("lead_capture_title"),
-            lead_capture_desc: row.get("lead_capture_desc"),
-            lead_capture_btn: row.get("lead_capture_btn"),
-            options_json: row.get("options_json"),
-        }))
-    } else {
-        Ok(None)
+    if let Some(tenant_id) = tenant.0 {
+        let endpoint = format!("/api/public/pages/{}/{}", tenant_id, slug);
+        
+        #[derive(serde::Deserialize)]
+        struct AppPageResp {
+            title: String,
+            description: String,
+            hero_payload: Option<serde_json::Value>,
+            blocks_payload: Option<serde_json::Value>,
+        }
+        
+        if let Ok(page) = fetch_atlas_data::<AppPageResp>(&endpoint, Some(tenant_id)).await {
+            let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
+            let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
+            
+            return Ok(Some(LandingPageRecord {
+                id: 0,
+                slug,
+                title: page.title,
+                description: page.description,
+                hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
+                hero_subtitle: hero["hero_subtitle"].as_str().unwrap_or_default().to_string(),
+                lead_capture_title: blocks["lead_capture_title"].as_str().unwrap_or_default().to_string(),
+                lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
+                lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
+                options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
+            }));
+        }
     }
+
+    Ok(None)
 }
 
 #[server(GetAllLandingPages, "/api")]
 pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    use crate::atlas_client::fetch_atlas_data;
 
-    let rows = sqlx::query("SELECT * FROM landing_pages ORDER BY id DESC")
-        .fetch_all(&state.pool)
-        .await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
-    let pages = rows
-        .into_iter()
-        .map(|row| LandingPageRecord {
-            id: row.get("id"),
-            slug: row.get("slug"),
-            title: row.get("title"),
-            description: row.get("description"),
-            hero_title: row.get("hero_title"),
-            hero_subtitle: row.get("hero_subtitle"),
-            lead_capture_title: row.get("lead_capture_title"),
-            lead_capture_desc: row.get("lead_capture_desc"),
-            lead_capture_btn: row.get("lead_capture_btn"),
-            options_json: row.get("options_json"),
-        })
-        .collect();
+    if let Some(tenant_id) = tenant.0 {
+        let endpoint = format!("/api/public/pages/{}", tenant_id);
+        
+        #[derive(serde::Deserialize)]
+        struct AppPageResp {
+            slug: String,
+            title: String,
+            description: String,
+            hero_payload: Option<serde_json::Value>,
+            blocks_payload: Option<serde_json::Value>,
+        }
+        
+        if let Ok(pages) = fetch_atlas_data::<Vec<AppPageResp>>(&endpoint, Some(tenant_id)).await {
+            let mapped = pages.into_iter().map(|page| {
+                let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
+                let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
+                
+                LandingPageRecord {
+                    id: 0,
+                    slug: page.slug,
+                    title: page.title,
+                    description: page.description,
+                    hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
+                    hero_subtitle: hero["hero_subtitle"].as_str().unwrap_or_default().to_string(),
+                    lead_capture_title: blocks["lead_capture_title"].as_str().unwrap_or_default().to_string(),
+                    lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
+                    lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
+                    options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
+                }
+            }).collect();
+            return Ok(mapped);
+        }
+    }
 
-    Ok(pages)
+    Ok(vec![])
 }
 
 #[server(AddLandingPage, "/api")]

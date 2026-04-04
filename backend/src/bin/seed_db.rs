@@ -279,6 +279,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             directory_id: Set(dir_uuid),
             name: Set(business_names[i].to_string()),
             is_active: Set(true),
+            stripe_customer_id: sea_orm::NotSet,
+            stripe_payment_method_id: sea_orm::NotSet,
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };
@@ -303,6 +305,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             account_id: Set(acct_id),
             directory_id: Set(dir_uuid),
             profile_type: Set(profile::ProfileType::Business),
+            service_area_zips: sea_orm::NotSet,
             display_name: Set(format!("{} {}", first_name, last_name)),
             contact_info: Set(email.clone()),
             business_name: Set(Some(business_names[i].to_string())),
