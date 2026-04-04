@@ -53,7 +53,7 @@ steps:
       repo: ghcr.io/ruuderie/platform-admin
       tags: latest
       registry: ghcr.io
-      context: apps/platform-admin
+      context: .
       dockerfile: apps/platform-admin/Dockerfile
       username:
         from_secret: docker_username
@@ -68,7 +68,7 @@ steps:
       repo: ghcr.io/ruuderie/directory-instance
       tags: latest
       registry: ghcr.io
-      context: apps/directory-instance
+      context: .
       dockerfile: apps/directory-instance/Dockerfile
       username:
         from_secret: docker_username
@@ -83,7 +83,7 @@ steps:
       repo: ghcr.io/ruuderie/anchor-app
       tags: latest
       registry: ghcr.io
-      context: apps/anchor
+      context: .
       dockerfile: apps/anchor/Dockerfile
       username:
         from_secret: docker_username

@@ -1,6 +1,6 @@
-# Ruuderie AI
+# Services Template Application
 
-Welcome to the Ruuderie AI monorepo! This application is a high-performance, full-stack WebAssembly application powered by [Rust](https://www.rust-lang.org/) and [Leptos](https://github.com/leptos-rs/leptos). It features an [Axum](https://github.com/tokio-rs/axum) backend, a Tailwind frontend, Postgres integrations via `sqlx`, and hardware-backed Passkey (WebAuthn) security.
+Welcome to the Services template application! This application is a high-performance, full-stack WebAssembly application geared for personal branding, resumes, technology services, and blogging. It is powered by [Rust](https://www.rust-lang.org/) and [Leptos](https://github.com/leptos-rs/leptos). It features an [Axum](https://github.com/tokio-rs/axum) backend, a Tailwind frontend, Postgres integrations via `sqlx`, and hardware-backed Passkey (WebAuthn) security.
 
 ## Development Checklist (Cargo)
 

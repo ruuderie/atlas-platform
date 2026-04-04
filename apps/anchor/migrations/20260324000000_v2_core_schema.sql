@@ -43,13 +43,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
     value TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS mailing_list (
-    id SERIAL PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    list_type TEXT NOT NULL,
-    preferences JSONB NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
+
 
 CREATE TABLE IF NOT EXISTS page_views (
     id SERIAL PRIMARY KEY,
@@ -204,7 +198,6 @@ DELETE FROM site_settings WHERE key = 'landing_options_json';
 ALTER TABLE users ADD COLUMN tenant_id UUID;
 ALTER TABLE auth_challenges ADD COLUMN tenant_id UUID;
 ALTER TABLE blog_posts ADD COLUMN tenant_id UUID;
-ALTER TABLE mailing_list ADD COLUMN tenant_id UUID;
 ALTER TABLE page_views ADD COLUMN tenant_id UUID;
 ALTER TABLE api_requests_log ADD COLUMN tenant_id UUID;
 ALTER TABLE resume_profiles ADD COLUMN tenant_id UUID;
@@ -230,9 +223,7 @@ ALTER TABLE users ADD CONSTRAINT users_tenant_username_key UNIQUE (tenant_id, us
 ALTER TABLE blog_posts DROP CONSTRAINT IF EXISTS blog_posts_slug_key;
 ALTER TABLE blog_posts ADD CONSTRAINT blog_posts_tenant_slug_key UNIQUE (tenant_id, slug);
 
--- Mailing List emails can be duplicated across different tenants
-ALTER TABLE mailing_list DROP CONSTRAINT IF EXISTS mailing_list_email_key;
-ALTER TABLE mailing_list ADD CONSTRAINT mailing_list_tenant_email_key UNIQUE (tenant_id, email);
+
 
 -- Lead Capture Options value_keys can be duplicated across different tenants
 ALTER TABLE lead_capture_options DROP CONSTRAINT IF EXISTS lead_capture_options_value_key_key;

@@ -33,6 +33,7 @@ COPY . .
 
 # Pre-compile Tailwind using NodeJS
 RUN npm install -D tailwindcss@3.4
+WORKDIR /app/apps/anchor
 RUN npx tailwindcss -i style/main.css -o target/tmp/tailwind.css
 
 # Rewrite Cargo.toml to use the pre-compiled stylesheet instead of triggering cargo-leptos' faulty downloader
@@ -61,8 +62,8 @@ RUN apt-get update -y \
 
 COPY --from=builder /app/target/release/anchor /app/
 COPY --from=builder /app/target/site /app/site
-COPY --from=builder /app/Cargo.toml /app/
-COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/apps/anchor/Cargo.toml /app/
+COPY --from=builder /app/apps/anchor/migrations /app/migrations
 
 WORKDIR /app
 

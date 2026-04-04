@@ -17,6 +17,7 @@ CMD ["cargo", "leptos", "watch"]
 FROM base AS builder
 RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
 COPY . .
+WORKDIR /app/apps/directory-instance
 RUN cargo leptos build --release
 
 # Production stage

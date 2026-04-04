@@ -18,12 +18,13 @@ FROM base AS builder
 # Install Trunk
 RUN cargo install trunk && rustup target add wasm32-unknown-unknown
 COPY . .
+WORKDIR /app/apps/platform-admin
 # Build the application with Trunk
 RUN trunk build --release
 
 # Production stage
 FROM nginx:alpine AS production
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/platform-admin/dist /usr/share/nginx/html
 # Custom Nginx configuration to support client-side routing
 RUN echo 'server { \
     listen 80; \

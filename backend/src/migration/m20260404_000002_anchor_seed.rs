@@ -21,12 +21,12 @@ impl MigrationTrait for Migration {
                 INSERT INTO tenant (id, name, description, created_at, updated_at) 
                 VALUES (v_tenant_id, 'Oply Anchor Base', 'Base tenant for Anchor application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
                 
-                -- 2. Create the Anchor App Instance
+                -- 2. Create the Services App Instance for personal/agency tools
                 INSERT INTO app_instances (id, tenant_id, app_type, settings)
                 VALUES (
                     v_app_instance_id, 
                     v_tenant_id, 
-                    'Anchor', 
+                    'Services', 
                     '{"site_title": "Ruud Salym Erie", "booking_url": "https://cal.com/ruuderie/15min", "terms_html": "# Terms of Service\n\nPlease review our terms.", "privacy_html": "# Privacy Policy\n\nWe respect your digital privacy.", "github_url": "https://github.com/ruuderie", "x_url": "https://x.com/ruuderie", "linkedin_url": "https://linkedin.com/in/ruuderie"}'::jsonb
                 );
                 
