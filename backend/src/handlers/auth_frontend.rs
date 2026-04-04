@@ -156,6 +156,7 @@ pub async fn request_magic_link(
 #[derive(Deserialize)]
 pub struct VerifyMagicLinkPayload {
     pub token: String,
+    pub tenant_id: Option<Uuid>,
 }
 
 pub async fn verify_magic_link(
@@ -184,6 +185,33 @@ pub async fn verify_magic_link(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?
         .ok_or((StatusCode::UNAUTHORIZED, "User not found".to_string()))?;
 
+    // Validate tenant access if tenant_id is provided
+    if let Some(target_tenant_id) = payload.tenant_id {
+        let user_accounts = user_account::Entity::find()
+            .filter(user_account::Column::UserId.eq(user_mod.id))
+            .all(&db)
+            .await
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+            
+        let mut has_access = false;
+        for ua in user_accounts {
+            let acc = account::Entity::find_by_id(ua.account_id)
+                .one(&db)
+                .await
+                .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+            if let Some(acc) = acc {
+                if acc.tenant_id == target_tenant_id {
+                    has_access = true;
+                    break;
+                }
+            }
+        }
+        
+        if !has_access {
+            return Err((StatusCode::UNAUTHORIZED, "User does not have access to this tenant".to_string()));
+        }
+    }
+
     // Mark as used
     let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
     ml_active.is_used = Set(true);
@@ -196,3 +224,4 @@ pub async fn verify_magic_link(
     
     Ok((StatusCode::OK, Json(session_response)))
 }
+

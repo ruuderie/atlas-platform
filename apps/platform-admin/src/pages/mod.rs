@@ -1,12 +1,12 @@
 pub mod crm_grid;
-pub mod multi_site;
+pub mod apps;
 pub mod cms_editor;
 pub mod crm_detail;
 pub mod dashboard;
 pub mod settings;
-pub mod site_dashboard;
+pub mod app_dashboard;
 pub mod login;
-pub mod site_create;
+pub mod app_create;
 pub mod crm_create;
 pub mod setup;
 pub mod directory_types;

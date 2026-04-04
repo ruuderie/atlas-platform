@@ -5,7 +5,7 @@ use crate::api::models::{DirectoryModel, CreateDirectory};
 use crate::api::directories::{get_directories, create_directory};
 
 #[component]
-pub fn MultiSite() -> impl IntoView {
+pub fn Apps() -> impl IntoView {
     let (trigger_fetch, set_trigger_fetch) = signal(0);
     
     let directories = LocalResource::new(
@@ -23,25 +23,25 @@ pub fn MultiSite() -> impl IntoView {
                     <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
                         <span>"Network"</span>
                         <span class="material-symbols-outlined text-xs">"chevron_right"</span>
-                        <span class="text-primary/70">"Registry"</span>
+                        <span class="text-primary/70">"Application Registry"</span>
                     </nav>
-                    <h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">"Network Directories"</h1>
-                    <p class="text-on-surface-variant text-sm max-w-2xl">"Manage multi-site orchestration, domain routing, and feature modules across the global intelligence infrastructure."</p>
+                    <h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">"Platform Applications"</h1>
+                    <p class="text-on-surface-variant text-sm max-w-2xl">"Manage application instances, boundaries, and integrations across the multi-tenant infrastructure."</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <div class="flex bg-surface-container-high rounded-lg p-1">
                         <button class="px-3 py-1.5 rounded-md bg-surface-bright text-primary text-xs font-bold transition-all">"GRID"</button>
                         <button class="px-3 py-1.5 rounded-md text-on-surface-variant text-xs font-bold hover:text-on-surface transition-all">"LIST"</button>
                     </div>
-                    <a href="/sites/new" class="flex items-center gap-2 btn-primary-gradient text-on-primary px-5 py-2.5 rounded-md font-bold text-sm shadow-xl shadow-primary/10 hover:opacity-90 active:scale-95 transition-all">
+                    <a href="/apps/new" class="flex items-center gap-2 btn-primary-gradient text-on-primary px-5 py-2.5 rounded-md font-bold text-sm shadow-xl shadow-primary/10 hover:opacity-90 active:scale-95 transition-all">
                         <span class="material-symbols-outlined text-lg">"add_circle"</span>
-                        "New Site"
+                        "New Application"
                     </a>
                 </div>
             </div>
 
-            // ── Directory Grid ──
-            <Suspense fallback=move || view! { <div class="text-on-surface-variant">"Loading directories..."</div> }>
+            // ── Application Grid ──
+            <Suspense fallback=move || view! { <div class="text-on-surface-variant">"Loading applications..."</div> }>
                 <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {move || directories.get().map(|dirs| view! {
                         <For
@@ -114,7 +114,7 @@ pub fn MultiSite() -> impl IntoView {
                                         </div>
                                         // Actions
                                         <div class="flex items-center gap-2 pt-4 border-t border-outline-variant/10">
-                                            <a href=format!("/sites/{}", dir_id_manage) class="flex-1 bg-surface-bright text-on-surface text-xs font-bold py-2 rounded-md hover:bg-surface-bright/80 transition-all uppercase tracking-wider text-center">"Manage"</a>
+                                            <a href=format!("/apps/{}", dir_id_manage) class="flex-1 bg-surface-bright text-on-surface text-xs font-bold py-2 rounded-md hover:bg-surface-bright/80 transition-all uppercase tracking-wider text-center">"Manage App"</a>
                                             <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-primary rounded-md border border-outline-variant/20 transition-all">
                                                 <span class="material-symbols-outlined text-sm">"edit"</span>
                                             </button>
@@ -128,12 +128,12 @@ pub fn MultiSite() -> impl IntoView {
                         />
                     })}
                     // Empty State / Add Placeholder
-                    <a href="/sites/new" class="bg-surface-container-low border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center p-8 group hover:border-primary/40 transition-all cursor-pointer">
+                    <a href="/apps/new" class="bg-surface-container-low border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center p-8 group hover:border-primary/40 transition-all cursor-pointer">
                         <div class="h-16 w-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                             <span class="material-symbols-outlined text-3xl text-on-surface-variant group-hover:text-primary transition-colors">"add"</span>
                         </div>
                         <h3 class="text-on-surface font-bold text-lg mb-1">"Scale Network"</h3>
-                        <p class="text-on-surface-variant text-sm text-center">"Provision a new directory instance within this environment."</p>
+                        <p class="text-on-surface-variant text-sm text-center">"Provision a new application instance within this environment."</p>
                     </a>
                 </div>
             </Suspense>

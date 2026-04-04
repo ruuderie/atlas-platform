@@ -3,21 +3,12 @@ use leptos::*;
 use crate::auth::*;
 use crate::components::admin_modal::*;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/public/webauthn.js")]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn registerDevice(optionsJson: &str) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(catch)]
-    async fn authenticateDevice(optionsJson: &str) -> Result<JsValue, JsValue>;
-}
+// WebAuthn JS imports removed
 
 #[component]
 pub fn Admin() -> impl IntoView {
+    let query = leptos_router::use_query_map();
+    
     let (is_authenticated, set_authenticated) = create_signal(false);
     let (active_tab, set_active_tab) = create_signal("DASHBOARD");
     let (username, set_username) = create_signal(String::new());
@@ -37,6 +28,13 @@ pub fn Admin() -> impl IntoView {
 
     create_effect(move |_| {
         spawn_local(async move {
+            let q = query.get();
+            if let Some(token) = q.get("token") {
+                if verify_magic_link(token.clone()).await.is_ok() {
+                    set_authenticated.set(true);
+                    return;
+                }
+            }
             if let Ok(true) = check_session().await {
                 set_authenticated.set(true);
             }
@@ -46,104 +44,32 @@ pub fn Admin() -> impl IntoView {
     let login_action = create_action(move |_: &()| async move {
         let uname = username.get_untracked();
         if uname.is_empty() {
-            set_auth_error.set("Identity Hash (Username) is required.".to_string());
+            set_auth_error.set("Email is required.".to_string());
             return;
         }
         set_is_loading.set(true);
         set_auth_error.set(String::new());
 
-        match login_start(uname.clone()).await {
-            Ok(_payload) => {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&_payload) {
-                        if let (Some(c_str), Some(o_str)) =
-                            (val["challenge_id"].as_str(), val["options"].as_str())
-                        {
-                            if let Ok(challenge_id) = uuid::Uuid::parse_str(c_str) {
-                                match authenticateDevice(o_str).await {
-                                    Ok(cred_js) => {
-                                        if let Some(cred_str) = cred_js.as_string() {
-                                            match login_finish(uname, challenge_id, cred_str).await {
-                                                Ok(_) => set_authenticated.set(true),
-                                                Err(e) => set_auth_error.set(format!("Validation failed: {:?}", e)),
-                                            }
-                                        } else {
-                                            set_auth_error.set("Invalid credential format from browser.".to_string());
-                                        }
-                                    },
-                                    Err(_) => set_auth_error.set("Device challenge rejected. Cancelled or no matching passkey found.".to_string()),
-                                }
-                            } else {
-                                set_auth_error.set("Internal error: Bad challenge ID".to_string());
-                            }
-                        } else {
-                            set_auth_error
-                                .set("Internal error: Malformed server payload".to_string());
-                        }
-                    } else {
-                        set_auth_error.set("Internal error: JSON parse failed".to_string());
-                    }
-                }
-            }
-            Err(e) => set_auth_error.set(format!("Identity not recognized: {:?}", e)),
+        match request_magic_link(uname.clone()).await {
+            Ok(_) => set_auth_error.set("Magic link sent! Check your email.".to_string()),
+            Err(e) => set_auth_error.set(format!("Login failed: {:?}", e)),
         }
         set_is_loading.set(false);
     });
 
     let register_action = create_action(move |_: &()| async move {
+        // Registration is identical to login in a Magic Link system (creates user if new and allowed)
         let uname = username.get_untracked();
         if uname.is_empty() {
-            set_auth_error.set("Identity Hash (Username) is required.".to_string());
+            set_auth_error.set("Email is required.".to_string());
             return;
         }
         set_is_loading.set(true);
         set_auth_error.set(String::new());
 
-        let token = setup_token.get_untracked();
-        let token_opt = if token.is_empty() { None } else { Some(token) };
-        match register_start(uname.clone(), token_opt).await {
-            Ok(_payload) => {
-                #[cfg(target_arch = "wasm32")]
-                {
-                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&_payload) {
-                        if let (Some(c_str), Some(o_str)) =
-                            (val["challenge_id"].as_str(), val["options"].as_str())
-                        {
-                            if let Ok(challenge_id) = uuid::Uuid::parse_str(c_str) {
-                                match registerDevice(o_str).await {
-                                    Ok(cred_js) => {
-                                        if let Some(cred_str) = cred_js.as_string() {
-                                            match register_finish(uname, challenge_id, cred_str)
-                                                .await
-                                            {
-                                                Ok(_) => set_authenticated.set(true),
-                                                Err(e) => set_auth_error
-                                                    .set(format!("Validation failed: {:?}", e)),
-                                            }
-                                        } else {
-                                            set_auth_error.set(
-                                                "Invalid credential format from browser."
-                                                    .to_string(),
-                                            );
-                                        }
-                                    }
-                                    Err(_) => set_auth_error
-                                        .set("Device setup rejected or cancelled.".to_string()),
-                                }
-                            } else {
-                                set_auth_error.set("Internal error: Bad challenge ID".to_string());
-                            }
-                        } else {
-                            set_auth_error
-                                .set("Internal error: Malformed server payload".to_string());
-                        }
-                    } else {
-                        set_auth_error.set("Internal error: JSON parse failed".to_string());
-                    }
-                }
-            }
-            Err(e) => set_auth_error.set(format!("Server refused registration: {:?}", e)),
+        match request_magic_link(uname.clone()).await {
+            Ok(_) => set_auth_error.set("Magic link sent to your email.".to_string()),
+            Err(e) => set_auth_error.set(format!("Registration failed: {:?}", e)),
         }
         set_is_loading.set(false);
     });
@@ -206,7 +132,7 @@ pub fn Admin() -> impl IntoView {
                                             <Show when=move || is_loading.get()>
                                                 <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
                                             </Show>
-                                            <span class="inline-block translate-y-[1px]">"Authenticate // Passkey"</span>
+                                            <span class="inline-block translate-y-[1px]">"Send Magic Link"</span>
                                         </button>
 
                                         <Suspense fallback=move || view! { <div class="hidden"></div> }>
@@ -218,7 +144,7 @@ pub fn Admin() -> impl IntoView {
                                                             disabled=is_loading
                                                             class="w-full border border-primary/20 text-primary py-4 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                                         >
-                                                            "Register Device"
+                                                            "Register with Magic Link"
                                                         </button>
                                                     }.into_view()
                                                 } else {

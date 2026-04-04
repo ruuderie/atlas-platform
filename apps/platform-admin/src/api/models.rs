@@ -285,3 +285,18 @@ pub struct CreateDeal {
     pub status: String,
     pub stage: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpsertSettingRequest {
+    pub key: String,
+    pub value: String,
+    pub is_encrypted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TenantSettingResponse {
+    pub id: String,
+    pub tenant_id: String,
+    pub key: String,
+    pub value: String,
+}

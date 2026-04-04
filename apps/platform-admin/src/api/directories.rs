@@ -46,3 +46,33 @@ pub async fn create_directory(data: CreateDirectory) -> Result<DirectoryModel, S
         Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| "Unknown error".into())))
     }
 }
+
+pub async fn get_tenant_setting(tenant_id: &str, key: &str) -> Result<super::models::TenantSettingResponse, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/tenants/{}/settings?key={}", tenant_id, key));
+    let req = client.get(&url);
+    let req = with_credentials(req);
+
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::OK {
+        let setting = res.json::<super::models::TenantSettingResponse>().await.map_err(|e| e.to_string())?;
+        Ok(setting)
+    } else {
+        Err("Failed to fetch tenant setting".into())
+    }
+}
+
+pub async fn upsert_tenant_setting(tenant_id: &str, req_data: super::models::UpsertSettingRequest) -> Result<super::models::TenantSettingResponse, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/tenants/{}/settings", tenant_id));
+    let req = client.post(&url).json(&req_data);
+    let req = with_credentials(req);
+
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::OK || res.status() == StatusCode::CREATED {
+        let setting = res.json::<super::models::TenantSettingResponse>().await.map_err(|e| e.to_string())?;
+        Ok(setting)
+    } else {
+        Err("Failed to upsert tenant setting".into())
+    }
+}

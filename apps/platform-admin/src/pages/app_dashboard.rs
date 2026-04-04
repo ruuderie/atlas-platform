@@ -15,7 +15,7 @@ use shared_ui::components::ui::related_list::RelatedList;
 use crate::components::upsell_banner::UpsellBanner;
 
 #[component]
-pub fn SiteDashboard() -> impl IntoView {
+pub fn AppDashboard() -> impl IntoView {
     let params = use_params_map();
     let site_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
@@ -44,6 +44,7 @@ pub fn SiteDashboard() -> impl IntoView {
     });
     
     let invite_email = RwSignal::new("".to_string());
+    let setup_token_bind = RwSignal::new("".to_string());
 
     let handle_save_domain = move |_| {
         toast.message.set(Some("Domain configuration updated dynamically.".to_string()));
@@ -64,6 +65,48 @@ pub fn SiteDashboard() -> impl IntoView {
             async move { crate::api::listings::get_listings(&sid).await.unwrap_or_default() }
         }
     });
+
+    let setup_token_res = LocalResource::new({
+        let sid = site_id_str.clone();
+        move || {
+            let sid = sid.clone();
+            async move {
+                if let Ok(setting) = crate::api::directories::get_tenant_setting(&sid, "setup_token").await {
+                    Some(setting.value)
+                } else {
+                    None
+                }
+            }
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(Some(token)) = setup_token_res.get() {
+            setup_token_bind.set(token);
+        }
+    });
+
+    let handle_generate_token = {
+        let toast = toast.clone();
+        move |_| {
+            let token_str = uuid::Uuid::new_v4().to_string().replace("-", "")[..12].to_uppercase();
+            let sid = site_id().to_string();
+            let toast = toast.clone();
+            leptos::task::spawn_local(async move {
+                let req = crate::api::models::UpsertSettingRequest {
+                    key: "setup_token".to_string(),
+                    value: token_str.clone(),
+                    is_encrypted: false,
+                };
+                if crate::api::directories::upsert_tenant_setting(&sid, req).await.is_ok() {
+                    setup_token_bind.set(token_str);
+                    toast.message.set(Some("Setup token strategically regenerated.".to_string()));
+                } else {
+                    toast.message.set(Some("Failed to generate token.".to_string()));
+                }
+            });
+        }
+    };
 
     let profiles_res = LocalResource::new({
         let sid = site_id_str.clone();
@@ -102,6 +145,20 @@ pub fn SiteDashboard() -> impl IntoView {
         ("T-02", "Premium Listing", "v2.0", "Active"),
     ];
 
+    let app_manifest = Signal::derive(move || {
+        let current_id = site_id();
+        let app_type_str = if let Some(d) = dirs.get() {
+            if let Some(dir) = d.into_iter().find(|dir| dir.id.to_string() == current_id) {
+                dir.directory_type_id.clone()
+            } else {
+                "directory".to_string()
+            }
+        } else {
+            "directory".to_string()
+        };
+        crate::components::app_manifest::get_manifest_for_app_type(&app_type_str)
+    });
+
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
             <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
@@ -116,38 +173,39 @@ pub fn SiteDashboard() -> impl IntoView {
                         </Button>
                         <Badge intent=BadgeIntent::Success>"Active"</Badge>
                     </div>
-                    <h2 class="text-3xl font-bold tracking-tight">"Directory: " {site_id}</h2>
-                    <p class="text-muted-foreground mt-1">"Manage directory-specific listings, users, and configuration."</p>
+                    <h2 class="text-3xl font-bold tracking-tight">"Application: " {site_id}</h2>
+                    <p class="text-muted-foreground mt-1">"Manage application resources, users, and configuration."</p>
                 </div>
                 <div class="flex space-x-2">
                     <a href=move || {
                         let d = domain_bind.get();
                         if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
                     } target="_blank" rel="noopener noreferrer">
-                        <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live Site"</Button>
+                        <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live App"</Button>
                     </a>
-                    <Button variant=ButtonVariant::Default>"Directory Settings"</Button>
+                    <Button variant=ButtonVariant::Default>"App Settings"</Button>
                 </div>
             </header>
             
             <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
                 <UpsellBanner 
-                    title="Supercharge your new directory!".to_string()
-                    description="Jumpstart your marketplace with pre-populated leads and premium business listings.".to_string()
+                    title="Supercharge your new application!".to_string()
+                    description="Jumpstart your marketplace with pre-populated leads and premium business listings."
+                        .to_string()
                     cta_text="Get 100 Premium Listings - $49".to_string()
                     on_click=Callback::new(move |_| {
-                        leptos::logging::log!("Upsell Clicked: Directory Injection on Dashboard");
+                        leptos::logging::log!("Upsell Clicked: Application Injection on Dashboard");
                     })
                 />
             </Show>
 
-            <Tabs default_value="listings".to_string() class="w-full relative z-0 mt-6">
-                <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md">
-                    <TabsTrigger value="listings".to_string()>"Listings"</TabsTrigger>
-                    <TabsTrigger value="profiles".to_string()>"User Profiles"</TabsTrigger>
-                    <TabsTrigger value="categories".to_string()>"Categories"</TabsTrigger>
-                    <TabsTrigger value="templates".to_string()>"Templates"</TabsTrigger>
-                    <TabsTrigger value="settings".to_string()>"Settings"</TabsTrigger>
+            <Tabs default_value="settings".to_string() class="w-full relative z-0 mt-6">
+                <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md overflow-x-auto">
+                    {move || app_manifest.get().panels.into_iter().map(|panel| {
+                        view! {
+                            <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
+                        }
+                    }).collect_view()}
                 </TabsList>
 
                 <TabsContent value="listings".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
@@ -337,7 +395,7 @@ pub fn SiteDashboard() -> impl IntoView {
 
                 <TabsContent value="settings".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     <Card class="bg-card border-border shadow-sm p-6".to_string()>
-                        <h3 class="text-lg font-semibold mb-4">"Directory Configuration"</h3>
+                        <h3 class="text-lg font-semibold mb-4">"Application Configuration"</h3>
                         <div class="space-y-4 max-w-lg">
                             <div class="space-y-2">
                                 <label class="text-sm font-medium leading-none">"Custom Domain"</label>
@@ -347,9 +405,23 @@ pub fn SiteDashboard() -> impl IntoView {
                                 </div>
                                 <p class="text-xs text-muted-foreground">"Configure DNS CNAME record pointing to proxy.foundry.local"</p>
                             </div>
-                            <Button variant=ButtonVariant::Destructive>"Deactivate Directory"</Button>
+                            
+                            <div class="space-y-2 mt-6">
+                                <label class="text-sm font-medium leading-none">"Tenant Setup Token"</label>
+                                <div class="flex items-center space-x-2">
+                                    <Input r#type=InputType::Text class="w-full text-mono font-bold".to_string() bind_value=setup_token_bind disabled=true />
+                                    <Button variant=ButtonVariant::Outline on:click=handle_generate_token>"Regenerate"</Button>
+                                </div>
+                                <p class="text-xs text-muted-foreground">"One-time setup token required by the application administrator during initial initialization."</p>
+                            </div>
+                            <div class="pt-4 border-t border-border mt-6">
+                                <Button variant=ButtonVariant::Destructive>"Deactivate Application"</Button>
+                            </div>
                         </div>
                     </Card>
+                    <Show when=move || app_manifest.get().app_type_id == "anchor_app">
+                        <crate::components::anchor_settings::AnchorSettingsPanel />
+                    </Show>
                 </TabsContent>
             </Tabs>
 

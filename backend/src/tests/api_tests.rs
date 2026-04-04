@@ -34,17 +34,26 @@ use url::Url;
 
 
 pub async fn setup_test_app() -> (Router, DatabaseConnection) {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@postgres:5432/oplydbtest".to_string());
-    
-    let local_database_url = env::var("TEST_DATABASE_URL_LOCAL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5433/oplydbtest".to_string());
+    let opt_local_machine = sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5432/oplydbtest")
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .to_owned();
 
-    let db = match Database::connect(&database_url).await {
+    let opt_docker_compose = sea_orm::ConnectOptions::new("postgres://postgres:postgres@localhost:5433/oplydbtest")
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .to_owned();
+
+    let opt_woodpecker = sea_orm::ConnectOptions::new("postgresql://postgres:postgres@postgres:5432/oplydbtest")
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .to_owned();
+
+    let db = match Database::connect(opt_local_machine).await {
         Ok(db) => db,
-        Err(_) => Database::connect(&local_database_url)
-            .await
-            .expect("Failed to connect to test database (both connections failed)"),
+        Err(_) => match Database::connect(opt_docker_compose).await {
+            Ok(db) => db,
+            Err(_) => Database::connect(opt_woodpecker)
+                .await
+                .expect("Failed to connect to test database globally (localhost:5432, :5433, and CI postgres:5432 all failed). Make sure PostgreSQL is running."),
+        },
     };
 
     // Reset database state before each test

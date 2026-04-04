@@ -22,26 +22,7 @@ use fake::{Fake, faker::{
 use crate::models::customer::Customer;
 use crate::models::deal::DealModel;
 use crate::models::contact::Contact;
-async fn setup_test_app() -> (Router, DatabaseConnection) {
-    let database_url = env::var("TEST_DATABASE_URL_LOCAL")
-        .unwrap_or_else(|_| env::var("TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5433/oplydbtest".to_string()));
-
-    let db = Database::connect(&database_url)
-        .await
-        .expect("Failed to connect to test database");
-
-    let _ = migration::Migrator::fresh(&db).await;
-    
-    migration::Migrator::up(&db, None)
-        .await
-        .expect("Failed to run migrations");
-
-    let rate_limiter = crate::middleware::rate_limiter::RateLimiter::new();
-    let app = api::create_router(db.clone())
-        .layer(axum::Extension(db.clone()))
-        .layer(axum::Extension(rate_limiter));
-    (app, db)
-}
+use crate::tests::api_tests::setup_test_app;
 
 #[tokio::test]
 async fn test_crm_customers() {

@@ -48,6 +48,8 @@ pub struct UserAdmin {
     pub is_admin: bool,
     pub is_active: bool,
 }
+
+
 #[derive(Clone, Debug, PartialEq,Serialize, Deserialize)]
 pub struct UserAdminView {
     pub user: user::Model,

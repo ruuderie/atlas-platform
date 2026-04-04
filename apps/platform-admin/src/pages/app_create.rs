@@ -8,7 +8,7 @@ use crate::api::models::{CreateDirectory, DirectoryTypeModel};
 use crate::api::directory_types::get_directory_types;
 
 #[component]
-pub fn SiteCreate() -> impl IntoView {
+pub fn AppCreate() -> impl IntoView {
     let site_name = RwSignal::new("".to_string());
     let domain = RwSignal::new("".to_string());
     let strategy = RwSignal::new("multi_tenant".to_string());
@@ -62,8 +62,8 @@ pub fn SiteCreate() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match create_directory(data).await {
                 Ok(_) => {
-                    toast.message.set(Some("Tenant successfully provisioned!".to_string()));
-                    nav("/sites", Default::default());
+                    toast.message.set(Some("Application successfully provisioned!".to_string()));
+                    nav("/apps", Default::default());
                 }
                 Err(e) => {
                     toast.message.set(Some(format!("Error: {}", e)));
@@ -76,26 +76,26 @@ pub fn SiteCreate() -> impl IntoView {
     view! {
         <div class="max-w-3xl mx-auto space-y-6 pt-8">
             <header class="mb-8">
-                <a href="/sites" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
-                <h2 class="text-3xl font-bold tracking-tight">"Register New Tenant"</h2>
-                <p class="text-muted-foreground mt-2">"Configure a brand new directory site within your platform network."</p>
+                <a href="/apps" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
+                <h2 class="text-3xl font-bold tracking-tight">"Register New Application"</h2>
+                <p class="text-muted-foreground mt-2">"Configure a brand new application instance within your platform network."</p>
             </header>
             
             <Card class="p-8 bg-card border border-border shadow-sm".to_string()>
                 <div class="space-y-6">
                     <div class="space-y-2">
-                        <Label>"Site Name"</Label>
-                        <Input r#type=InputType::Text placeholder="e.g. Acme Corp Directory".to_string() bind_value=site_name />
-                        <p class="text-xs text-muted-foreground">"This will be the primary identifier for your tenant platform."</p>
+                        <Label>"Application Name"</Label>
+                        <Input r#type=InputType::Text placeholder="e.g. Acme Corp internal apps".to_string() bind_value=site_name />
+                        <p class="text-xs text-muted-foreground">"This will be the primary identifier for your application sandbox."</p>
                     </div>
                     <div class="space-y-2">
                         <Label>"Domain"</Label>
-                        <Input r#type=InputType::Text placeholder="e.g. acme.directory.localhost".to_string() bind_value=domain />
-                        <p class="text-xs text-muted-foreground">"The hostname users will use to access this directory."</p>
+                        <Input r#type=InputType::Text placeholder="e.g. acme.platform.localhost".to_string() bind_value=domain />
+                        <p class="text-xs text-muted-foreground">"The hostname users will use to access this application."</p>
                     </div>
                     
                     <div class="space-y-2 mt-6">
-                        <Label>"Directory Network Type"</Label>
+                        <Label>"Application Template Type"</Label>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                             {move || types.get().into_iter().map(|t| {
                                 let t_id = t.id.clone();
@@ -174,11 +174,11 @@ pub fn SiteCreate() -> impl IntoView {
                     </div>
                 </div>
                 <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-border">
-                    <a href="/sites">
+                    <a href="/apps">
                         <Button variant=ButtonVariant::Outline>"Cancel"</Button>
                     </a>
                     <Button variant=ButtonVariant::Default on:click=handle_submit>
-                        {move || if is_submitting.get() { "Provisioning..." } else { "Register Site" }}
+                        {move || if is_submitting.get() { "Provisioning..." } else { "Deploy Application" }}
                     </Button>
                 </div>
             </Card>

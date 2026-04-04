@@ -35,7 +35,6 @@ url = "2.5.8"
 web-sys = { version = "0.3.91", features = ["HtmlElement", "Document", "Window", "HtmlAnchorElement", "Blob", "Url", "BlobPropertyBag"] }
 moka = { version = "0.12", optional = true, features = ["future"] }
 js-sys = "0.3.92"
-lettre = { version = "0.11", optional = true, features = ["tokio1", "tokio1-native-tls", "builder"] }
 axum-otel-metrics = { version = "0.9.0", optional = true }
 opentelemetry = { version = "0.31.0", optional = true }
 opentelemetry_sdk = { version = "0.31.0", optional = true }
@@ -66,7 +65,6 @@ ssr = [
     "dep:tower-http",
     "dep:axum-extra",
     "dep:moka",
-    "dep:lettre",
     "dep:axum-otel-metrics",
     "dep:opentelemetry",
     "dep:opentelemetry_sdk",

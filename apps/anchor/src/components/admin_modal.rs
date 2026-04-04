@@ -214,15 +214,6 @@ pub fn PostForm(
 // -----------------------------------------
 // Passkey Form (New Device Binding)
 // -----------------------------------------
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(module = "/public/webauthn.js")]
-extern "C" {
-    #[wasm_bindgen(catch)]
-    async fn registerDevice(optionsJson: &str) -> Result<JsValue, JsValue>;
-}
 
 #[component]
 pub fn PasskeyForm() -> impl IntoView {
@@ -248,63 +239,23 @@ pub fn PasskeyForm() -> impl IntoView {
         set_auth_error.set(String::new());
 
         spawn_local(async move {
-            match crate::auth::register_start(uname.clone(), None).await {
-                Ok(_payload) => {
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&_payload) {
-                            if let (Some(c_str), Some(o_str)) =
-                                (val["challenge_id"].as_str(), val["options"].as_str())
-                            {
-                                if let Ok(challenge_id) = uuid::Uuid::parse_str(c_str) {
-                                    match registerDevice(o_str).await {
-                                        Ok(cred_js) => {
-                                            if let Some(cred_str) = cred_js.as_string() {
-                                                match crate::auth::register_finish(
-                                                    uname,
-                                                    challenge_id,
-                                                    cred_str,
-                                                )
-                                                .await
-                                                {
-                                                    Ok(_) => {
-                                                        set_refresh
-                                                            .set(refresh.get_untracked() + 1);
-                                                        set_modal_state.set(ModalState::None);
-                                                    }
-                                                    Err(e) => set_auth_error
-                                                        .set(format!("Validation failed: {:?}", e)),
-                                                }
-                                            } else {
-                                                set_auth_error
-                                                    .set("Invalid browser credential.".to_string());
-                                            }
-                                        }
-                                        Err(_) => set_auth_error
-                                            .set("Device rejected or cancelled.".to_string()),
-                                    }
-                                } else {
-                                    set_auth_error.set("Bad challenge ID".to_string());
-                                }
-                            } else {
-                                set_auth_error.set("Malformed payload".to_string());
-                            }
-                        } else {
-                            set_auth_error.set("JSON parse error".to_string());
-                        }
-                    }
+            match crate::auth::request_magic_link(uname.clone()).await {
+                Ok(_) => {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                    set_modal_state.set(ModalState::None);
                 }
                 Err(e) => set_auth_error.set(format!("Server error: {:?}", e)),
             }
             set_is_loading.set(false);
         });
+// End of spawn_local
     };
 
     view! {
         <div class="space-y-6">
             <div class="bg-secondary-container/10 p-4 border border-secondary mb-6">
                 <p class="jetbrains text-[0.65rem] uppercase text-secondary tracking-wider leading-relaxed">
-                    "WebAuthn Passkeys register Native Device Keys (Secure Enclave, YubiKey) against a unique Identity Hash. Enter a new identity name below to trigger the system challenge."
+                    "Send a magic link to add a new admin identity."
                 </p>
             </div>
 
@@ -315,8 +266,8 @@ pub fn PasskeyForm() -> impl IntoView {
             </Show>
 
             <div class="flex flex-col gap-2">
-                <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Identity Hash / Target Username"</label>
-                <input type="text" prop:value=username on:input=move |ev| set_username.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="ex. admin_ipad" />
+                <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Email Address"</label>
+                <input type="text" prop:value=username on:input=move |ev| set_username.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="new-admin@example.com" />
             </div>
             <button
                 on:click=save
@@ -326,7 +277,7 @@ pub fn PasskeyForm() -> impl IntoView {
                 <Show when=move || is_loading.get()>
                     <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
                 </Show>
-                <span class="inline-block translate-y-[1px]">"TRIGGER HARDWARE CHALLENGE"</span>
+                <span class="inline-block translate-y-[1px]">"SEND MAGIC LINK"</span>
             </button>
         </div>
     }

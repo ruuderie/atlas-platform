@@ -14,9 +14,6 @@ pub mod ssr_imports {
     pub use crate::auth::check_session;
     pub use axum::Extension;
     pub use leptos_axum::extract;
-    pub use lettre::message::{header, MultiPart, SinglePart};
-    pub use lettre::transport::smtp::authentication::Credentials;
-    pub use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
     pub use sqlx::Row;
 }
 
@@ -101,83 +98,34 @@ pub async fn send_email(
 ) -> Result<(), ServerFnError> {
     use self::ssr_imports::*;
 
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let tenant_id = std::env::var("TENANT_ID").ok().and_then(|t| uuid::Uuid::parse_str(&t).ok());
 
-    let mut host = String::new();
-    let mut port = 587;
-    let mut username = String::new();
-    let mut token = String::new();
-    let mut from = String::new();
+    let payload = serde_json::json!({
+        "tenant_id": tenant_id,
+        "to_email": to_email,
+        "subject": subject,
+        "body_html": body_html,
+    });
 
-    if let Ok(rows) = sqlx::query("SELECT key, value FROM system_secrets WHERE key LIKE 'smtp_%'")
-        .fetch_all(&state.pool)
-        .await
-    {
-        for row in rows {
-            let key: String = row.get("key");
-            let value: String = row.get("value");
-            match key.as_str() {
-                "smtp_host" => host = value,
-                "smtp_port" => port = value.parse().unwrap_or(587),
-                "smtp_username" => username = value,
-                "smtp_token" => token = value,
-                "smtp_from" => from = value,
-                _ => {}
-            }
-        }
-    }
+    let url = format!("{}/api/communications/email", crate::atlas_client::get_atlas_api_url());
+    let client = reqwest::Client::new();
+    let res = client.post(&url).json(&payload).send().await;
 
-    if host.is_empty() || token.is_empty() {
-        println!(
-            "SMTP is not fully configured in system_secrets. Email to {} aborted.",
-            to_email
-        );
-        return Ok(());
-    }
-
-    let email = Message::builder()
-        .from(
-            from.parse()
-                .unwrap_or_else(|_| "admin@ruuderie.com".parse().unwrap()),
-        )
-        .to(to_email
-            .parse()
-            .unwrap_or_else(|_| "admin@ruuderie.com".parse().unwrap()))
-        .subject(&subject)
-        .multipart(
-            MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_HTML)
-                    .body(body_html),
-            ),
-        )
-        .unwrap();
-
-    let creds = Credentials::new(username, token);
-
-    let mailer: AsyncSmtpTransport<Tokio1Executor> = if port == 465 {
-        AsyncSmtpTransport::<Tokio1Executor>::relay(&host)
-            .unwrap()
-            .port(port)
-            .credentials(creds)
-            .build()
-    } else {
-        AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&host)
-            .unwrap()
-            .port(port)
-            .credentials(creds)
-            .build()
-    };
-
-    match mailer.send(email).await {
-        Ok(_) => {
-            println!("Email successfully sent to {}", to_email);
+    match res {
+        Ok(r) if r.status().is_success() => {
+            println!("Email successfully proxied to platform for {}", to_email);
             Ok(())
         }
-        Err(e) => {
-            println!("Failed to send email to {}: {:?}", to_email, e);
+        Ok(r) => {
+            println!("Failed to proxy email to {}: status {}", to_email, r.status());
             Err(ServerFnError::ServerError(
-                "Failed to send email over SMTP.".into(),
+                "Platform failed to send email.".into(),
+            ))
+        }
+        Err(e) => {
+            println!("Failed to proxy email to {}: {:?}", to_email, e);
+            Err(ServerFnError::ServerError(
+                "Failed to communicate with Platform email API.".into(),
             ))
         }
     }

@@ -3,7 +3,7 @@ use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;
 
 use crate::pages::dashboard::Dashboard;
-use crate::pages::multi_site::MultiSite;
+use crate::pages::apps::Apps;
 use crate::pages::crm_grid::CrmGrid;
 use crate::pages::cms_editor::CmsEditor;
 use crate::pages::login::Login;
@@ -133,7 +133,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <a href="/" class="text-xl font-bold text-[#dee5ff] tracking-[-0.02em] whitespace-nowrap">"The Intelligence Layer"</a>
                         <nav class="hidden md:flex gap-6">
                             <a href="/" class=move || nav_active_class("/")>"Platform Overview"</a>
-                            <a href="/sites" class=move || nav_active_class("/sites")>"Network Directories"</a>
+                            <a href="/apps" class=move || nav_active_class("/apps")>"Platform Applications"</a>
                             <a href="/crm" class=move || nav_active_class("/crm")>"Sales & Relationships"</a>
                             <a href="/cms" class=move || nav_active_class("/cms")>"Content Management"</a>
                         </nav>
@@ -215,9 +215,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"dashboard"</span>
                             <span>"Overview"</span>
                         </a>
-                        <a href="/sites" class=move || side_active_class("/sites")>
-                            <span class="material-symbols-outlined">"lan"</span>
-                            <span>"Directories"</span>
+                        <a href="/apps" class=move || side_active_class("/apps")>
+                            <span class="material-symbols-outlined">"dns"</span>
+                            <span>"Applications"</span>
                         </a>
                         <a href="/directory-types" class=move || side_active_class("/directory-types")>
                             <span class="material-symbols-outlined">"schema"</span>
@@ -257,9 +257,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined text-sm">"terminal"</span>
                             <span>"Logs"</span>
                         </a>
-                        <a href="/sites/new" class="block w-full mt-4">
+                        <a href="/apps/new" class="block w-full mt-4">
                             <button class="w-full btn-primary-gradient text-on-primary-container py-2.5 rounded-md text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/10 hover:opacity-90 transition-opacity">
-                                "New Site"
+                                "New Application"
                             </button>
                         </a>
                     </div>
@@ -269,9 +269,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 <main class="ml-64 mt-16 p-8 min-h-screen bg-surface-container">
                     <Routes fallback=|| "Not found.">
                         <Route path=path!("/") view=Dashboard />
-                        <Route path=path!("/sites") view=MultiSite />
-                        <Route path=path!("/sites/new") view=crate::pages::site_create::SiteCreate />
-                        <Route path=path!("/sites/:id") view=crate::pages::site_dashboard::SiteDashboard />
+                        <Route path=path!("/apps") view=Apps />
+                        <Route path=path!("/apps/new") view=crate::pages::app_create::AppCreate />
+                        <Route path=path!("/apps/:id") view=crate::pages::app_dashboard::AppDashboard />
                         <Route path=path!("/directory-types") view=DirectoryTypes />
                         <Route path=path!("/directory-types/new") view=DirectoryTypeCreate />
                         <Route path=path!("/directory-types/:id") view=DirectoryTypeDetail />
