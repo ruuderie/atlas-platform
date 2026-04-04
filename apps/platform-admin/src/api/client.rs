@@ -1,8 +1,6 @@
 use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
 
-// The backend runs on port 8000 by default
-pub const API_BASE_URL: &str = "http://api.localhost";
 
 pub fn create_client() -> Client {
     Client::new()
@@ -61,8 +59,25 @@ pub fn clear_auth_token() {
 }
 
 pub fn api_url(path: &str) -> String {
+    let mut base_url = "http://api.localhost".to_string();
+    
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = web_sys::window() {
+        if let Ok(env_val) = js_sys::Reflect::get(&window, &wasm_bindgen::JsValue::from_str("__ENV__")) {
+            if !env_val.is_undefined() {
+                if let Ok(api_val) = js_sys::Reflect::get(&env_val, &wasm_bindgen::JsValue::from_str("API_BASE_URL")) {
+                    if let Some(s) = api_val.as_string() {
+                        if s != "__API_BASE_URL__" && !s.is_empty() {
+                            base_url = s;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     let path = path.trim_start_matches('/');
-    format!("{}/{}", API_BASE_URL, path)
+    format!("{}/{}", base_url, path)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
