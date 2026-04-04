@@ -23,29 +23,9 @@ steps:
         done
       - cd backend && cargo test --workspace -- --test-threads=1
 
-  # Build apps in parallel
-  build_platform_admin:
-    image: rust:slim
-    commands:
-      - apt-get update && apt-get install -y pkg-config libssl-dev
-      - cd apps/platform-admin && cargo build --release
-    depends_on: [test_workspace]
+  # Sequential Docker Build & Push
 
-  build_directory_instance:
-    image: rust:slim
-    commands:
-      - apt-get update && apt-get install -y pkg-config libssl-dev
-      - cd apps/directory-instance && cargo build --release
-    depends_on: [test_workspace]
 
-  build_anchor:
-    image: rust:slim
-    commands:
-      - apt-get update && apt-get install -y pkg-config libssl-dev
-      - cd apps/anchor && cargo build --release
-    depends_on: [test_workspace]
-
-  # Parallel Docker Build & Push
   publish_platform_admin:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -59,7 +39,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [build_platform_admin]
+    depends_on: [test_workspace]
 
   publish_directory_instance:
     image: woodpeckerci/plugin-docker-buildx
@@ -74,7 +54,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [build_directory_instance]
+    depends_on: [publish_platform_admin]
 
   publish_anchor:
     image: woodpeckerci/plugin-docker-buildx
@@ -89,7 +69,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [build_anchor]
+    depends_on: [publish_directory_instance]
 
   # Unified CD Deployment Step
   deploy_platform_k8s:
