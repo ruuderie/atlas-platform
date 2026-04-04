@@ -108,10 +108,8 @@ steps:
     image: appleboy/drone-discord
     failure: ignore
     settings:
-      webhook_id:
-        from_secret: discord_webhook_id
-      webhook_token:
-        from_secret: discord_webhook_token
+      webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
+      webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
       message: >
         **Atlas Platform Deployment**
         {{#success build.status}}
@@ -124,9 +122,3 @@ steps:
       - status: [success, failure]
         event: [push]
     depends_on: [deploy_platform_k8s]
-
-secrets:
-  - discord_webhook_id
-  - discord_webhook_token
-  - docker_username
-  - docker_password
