@@ -99,7 +99,7 @@ pub async fn create_lead(
     if resolved_account_id.is_none() {
         if let Some(Extension(site_config)) = site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
-                .filter(account::Column::DirectoryId.eq(site_config.directory_id))
+                .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
                 .await 
             {
@@ -258,7 +258,7 @@ pub async fn ingest_lead(
     if resolved_account_id.is_none() {
         if let Some(Extension(site_config)) = site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
-                .filter(account::Column::DirectoryId.eq(site_config.directory_id))
+                .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
                 .await 
             {

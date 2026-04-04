@@ -1,7 +1,7 @@
 use crate::entities::{
-    user,user_account, directory, listing, ad_purchase, 
+    user,user_account, tenant, listing, ad_purchase, 
     profile, account, session,request_log,
-    template, category, directory_type
+    template, category
 };
 use axum::{
     Router,
@@ -16,10 +16,9 @@ use uuid::Uuid;
 use crate::models::listing::ListingStatus;
 use crate::models::user::UserAdminView;
 use crate::models::ad_purchase::AdStatus;
-use crate::models::directory_type::{DirectoryTypeModel, CreateDirectoryType, UpdateDirectoryType};
-use crate::models::directory::{DirectoryModel, UpdateDirectory, CreateDirectory};
+
 use std::collections::HashMap;
-use crate::handlers::{listings,directory_types,sessions};
+use crate::handlers::{listings,sessions};
 use crate::models::session::{SessionResponse, UserInfo};
 
 #[derive(Deserialize)]
@@ -29,7 +28,7 @@ pub struct UpdateUserInput {
 }
 #[derive(Serialize)]
 pub struct DirectoryStats {
-    directory_id: Uuid,
+    tenant_id: Uuid,
     name: String,
     profile_count: u64,
     listing_count: u64,
@@ -73,76 +72,13 @@ pub struct ActivityReport {
 
 
 
-pub async fn create_directory_type(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Json(input): Json<CreateDirectoryType>,
-) -> Result<(StatusCode, Json<DirectoryTypeModel>), StatusCode> {
-    let state_db = State(db);
-    let input = Json(input);
-    let directory_type = directory_types::create_directory_type(state_db, input).await?;
-    
-    Ok((StatusCode::CREATED, directory_type))
-}
 
-pub async fn update_directory_type(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_type_id): Path<Uuid>,
-    Json(input): Json<UpdateDirectoryType>,
-) -> Result<(StatusCode, Json<DirectoryTypeModel>), StatusCode> {
-    let state_db = State(db);
-    let path = Path(directory_type_id);
-    let input = Json(input);
-    let directory_type = directory_types::update_directory_type(path, state_db, input).await?;
-    
-    Ok((StatusCode::OK, directory_type))
-}
-
-pub async fn delete_directory_type(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_type_id): Path<Uuid>,
-) -> Result<StatusCode, StatusCode> {
-    tracing::info!("Deleting directory type via admin route");
-    let path = Path(directory_type_id);
-    let state_db = State(db);
-
-    let status = directory_types::delete_directory_type(path, state_db).await.map_err(|e| e.0)?;
-    Ok(status)
-}
-
-pub async fn get_directory_types(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-) -> Result<impl IntoResponse, StatusCode> {
-
-    let state_db = State(db);
-    let directory_types = directory_types::get_directory_types(state_db).await?;
-    Ok(directory_types)
-}
-
-pub async fn get_directory_type(
-    State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(directory_type_id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let state_db = State(db);
-    let path = Path(directory_type_id);
-    let directory_type = directory_types::get_directory_type(path, state_db).await.map_err(|e| e.0)?;
-    Ok(directory_type)
-}
 
 pub async fn get_directory_listings(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
-    Path(directory_id): Path<Uuid>,
+    Path(tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // extension database connection and query params
     let extension_db = Extension(db);
@@ -175,10 +111,10 @@ pub async fn list_users(
 
     let mut user_ids_to_filter: Option<Vec<Uuid>> = None;
 
-    if let Some(dir_id_str) = query.get("directory_id") {
+    if let Some(dir_id_str) = query.get("tenant_id") {
         if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
                 let profiles = profile::Entity::find()
-                    .filter(profile::Column::DirectoryId.eq(dir_id))
+                    .filter(profile::Column::TenantId.eq(dir_id))
                     .all(&db)
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -250,8 +186,8 @@ pub async fn get_user(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     user_admin_view.profiles = profiles.clone();
-    let directories = directory::Entity::find()
-        .filter(directory::Column::Id.is_in(profiles.into_iter().map(|profile| profile.directory_id)))
+    let directories = tenant::Entity::find()
+        .filter(tenant::Column::Id.is_in(profiles.into_iter().map(|profile| profile.tenant_id)))
         .all(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -336,31 +272,31 @@ pub async fn get_all_directory_stats(
     Extension(current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-    let directories = directory::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let directories = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut stats = Vec::new();
     for dir in directories {
         let profile_count = profile::Entity::find()
-            .filter(profile::Column::DirectoryId.eq(dir.id))
+            .filter(profile::Column::TenantId.eq(dir.id))
             .count(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let listing_count = listing::Entity::find()
-            .filter(listing::Column::DirectoryId.eq(dir.id))
+            .filter(listing::Column::TenantId.eq(dir.id))
             .count(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let ad_purchase_count = ad_purchase::Entity::find()
             .inner_join(profile::Entity)
-            .filter(profile::Column::DirectoryId.eq(dir.id))
+            .filter(profile::Column::TenantId.eq(dir.id))
             .count(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         stats.push(DirectoryStats {
-            directory_id: dir.id,
+            tenant_id: dir.id,
             name: dir.name,
             profile_count,
             listing_count,
@@ -375,23 +311,23 @@ pub async fn get_directory_stats(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Extension(current_session): Extension<session::Model>,
-    Path(directory_id): Path<Uuid>,
+    Path(tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-    let directory = directory::Entity::find_by_id(directory_id)
+    let directory = tenant::Entity::find_by_id(tenant_id)
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
     let profile_count = profile::Entity::find()
-        .filter(profile::Column::DirectoryId.eq(directory_id))
+        .filter(profile::Column::TenantId.eq(tenant_id))
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let listing_count = listing::Entity::find()
-        .filter(listing::Column::DirectoryId.eq(directory_id))
+        .filter(listing::Column::TenantId.eq(tenant_id))
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -400,13 +336,13 @@ pub async fn get_directory_stats(
     // filter by profile.directory id
     let ad_purchase_count = ad_purchase::Entity::find()
         .inner_join(profile::Entity)
-        .filter(profile::Column::DirectoryId.eq(directory_id))
+        .filter(profile::Column::TenantId.eq(tenant_id))
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let stats = DirectoryStats {
-        directory_id: directory.id,
+        tenant_id: directory.id,
         name: directory.name,
         profile_count,
         listing_count,

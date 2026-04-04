@@ -79,7 +79,7 @@ pub async fn create_customer(
         updated_at: Set(Utc::now()),
         billing_address: Set(None),
         shipping_address: Set(None),
-        directory_id: Set(None),
+        tenant_id: Set(None),
         properties: Set(None),
     };
 

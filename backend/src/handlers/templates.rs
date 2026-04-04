@@ -76,7 +76,7 @@ pub async fn create_template(
 ) -> Result<Json<TemplateModel>, (StatusCode, Json<serde_json::Value>)> {
     let new_template = template::ActiveModel {
         id: Set(Uuid::new_v4()),
-        directory_id: Set(payload.directory_id),
+        tenant_id: Set(payload.tenant_id),
         category_id: Set(payload.category_id),
         name: Set(payload.name),
         description: Set(payload.description),
@@ -173,7 +173,7 @@ pub async fn delete_template(
 }
 
 
-pub async fn get_user_directory_id(
+pub async fn get_user_tenant_id(
     txn: &sea_orm::DatabaseTransaction,
     current_user: &user::Model
 ) -> Result<Uuid, (StatusCode, Json<serde_json::Value>)> {
@@ -191,7 +191,7 @@ pub async fn get_user_directory_id(
         .map_err(internal_error)?
         .ok_or_else(|| (StatusCode::NOT_FOUND, Json(json!({"error": "Profile not found"}))))?;
 
-    Ok(profile.directory_id)
+    Ok(profile.tenant_id)
 }
 
 fn internal_error(err: impl std::error::Error) -> (StatusCode, Json<serde_json::Value>) {
@@ -205,7 +205,7 @@ impl From<template::Model> for TemplateModel {
     fn from(model: template::Model) -> Self {
         TemplateModel {
             id: model.id,
-            directory_id: model.directory_id,
+            tenant_id: model.tenant_id,
             name: model.name,
             description: model.description,
             template_type: model.template_type,
@@ -235,7 +235,7 @@ impl ListingModel {
         ListingModel {
             id: model.id,
             profile_id: model.profile_id,
-            directory_id: model.directory_id,
+            tenant_id: model.tenant_id,
             category_id: model.category_id,
             title: model.title,
             description: model.description,

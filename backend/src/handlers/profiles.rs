@@ -37,7 +37,7 @@ pub async fn create_profile(
 
     // create or find the account
     let account = match Account::find()
-        .filter(account::Column::DirectoryId.eq(input.directory_id))
+        .filter(account::Column::TenantId.eq(input.tenant_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -48,7 +48,7 @@ pub async fn create_profile(
             None => {
                 let new_account = account::ActiveModel {
                     id: Set(Uuid::new_v4()),
-                    directory_id: Set(input.directory_id),
+                    tenant_id: Set(input.tenant_id),
                     name: Set(input.display_name.clone()),
                     is_active: Set(true),
                     stripe_customer_id: sea_orm::NotSet,
@@ -66,7 +66,7 @@ pub async fn create_profile(
     // Create the profile
     let mut new_profile = profile::ActiveModel {
         id: Set(Uuid::new_v4()),
-        directory_id: Set(input.directory_id),
+        tenant_id: Set(input.tenant_id),
         account_id: Set(account.id),
         profile_type: Set(input.profile_type),
         service_area_zips: sea_orm::NotSet,

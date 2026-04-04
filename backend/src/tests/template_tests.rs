@@ -16,7 +16,7 @@ use super::test_utils;
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL_LOCAL")
         .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string()));
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_tenant_test".to_string()));
 
     let db = Database::connect(&database_url)
         .await
@@ -42,14 +42,13 @@ async fn test_template_crud() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
 
-    // Create a directory and category first to satisfy foreign keys
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    let category = test_utils::create_default_category(&db, directory_type.id).await;
+    // Create a tenant and category first to satisfy foreign keys
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let category = test_utils::create_default_category(&db, tenant.id).await;
 
     let payload = json!({
         "name": "Standard Template",
-        "directory_id": directory.id,
+        "tenant_id": tenant.id,
         "category_id": category.id,
         "description": "A standard template for listings",
         "template_type": "Listing",
@@ -92,7 +91,7 @@ async fn test_template_crud() {
     let update_payload = json!({
         "id": template.id,
         "name": "Updated Template",
-        "directory_id": directory.id,
+        "tenant_id": tenant.id,
         "description": "Updated description",
         "template_type": "Premium",
         "is_active": false,

@@ -11,7 +11,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
     pub profile_id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub category_id: Option<Uuid>,
     pub title: String,
     pub description: String,
@@ -46,7 +46,6 @@ pub struct Model {
 pub enum Relation {
     Profile,
     Tenant,
-    Directory,
     Category,
     BasedOnTemplate,
     AdPurchase,
@@ -60,12 +59,8 @@ impl RelationTrait for Relation {
                 .to(super::profile::Column::Id)
                 .into(),
             Self::Tenant => Entity::belongs_to(super::tenant::Entity)
-                .from(Column::DirectoryId)
+                .from(Column::TenantId)
                 .to(super::tenant::Column::Id)
-                .into(),
-            Self::Directory => Entity::belongs_to(super::directory::Entity)
-                .from(Column::DirectoryId)
-                .to(super::directory::Column::Id)
                 .into(),
             Self::Category => Entity::belongs_to(super::category::Entity)
                 .from(Column::CategoryId)
@@ -91,12 +86,6 @@ impl Related<super::tenant::Entity> for Entity {
         Relation::Tenant.def()
     }
 }
-impl Related<super::directory::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Directory.def()
-    }
-}
-
 impl Related<super::category::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Category.def()

@@ -48,7 +48,7 @@ bitflags! {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SiteConfig {
     // Unique identifier for the directory/site
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
 
     // Display name of the site shown in UI elements
     pub name: String,

@@ -48,7 +48,6 @@ impl Related<super::tenant::Entity> for Entity {
         Relation::Tenant.def()
     }
 }
-
 // Self-referencing relationship for hierarchical menus
 impl Related<Entity> for Entity {
     fn to() -> RelationDef {

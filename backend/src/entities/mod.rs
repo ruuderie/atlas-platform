@@ -18,9 +18,8 @@ pub mod user_account;
 pub mod template;
 pub mod category;
 pub mod account;
-pub mod directory_type;
 pub mod ad_purchase;
-pub mod directory;
+pub mod tenant;
 pub mod listing;
 pub mod session;
 pub mod request_log;
@@ -34,7 +33,6 @@ pub mod attachment;
 pub mod passkey;
 
 // MULTI-TENANT ARCHITECTURE
-pub mod tenant;
 pub mod app_instance;
 pub mod app_domain;
 pub mod app_page;

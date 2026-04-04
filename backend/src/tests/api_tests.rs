@@ -13,8 +13,7 @@ use crate::{api, migration};
 use hyper::body::Bytes;
 use http_body_util::BodyExt;
 use super::test_utils;
-use crate::models::directory_type::DirectoryTypeModel;
-use crate::models::directory::DirectoryModel;
+use crate::models::tenant::TenantModel;
 use crate::entities::user_account::UserRole;
 use fake::{Fake, faker::{
     company::en::{CompanyName, CatchPhrase},
@@ -104,12 +103,11 @@ async fn test_logout_with_invalid_token() {
 async fn test_session_validation_and_expiry() {
     dotenv().ok();
     let (app, db) = setup_test_app().await;
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
     
     // Register and login
     let mut username = format!("testuser{}", Uuid::new_v4());
-    let (_, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (_, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     let password = std::env::var("TEST_PASSWORD").unwrap_or_default();
     let token = login_response["token"].as_str().unwrap();
     
@@ -129,20 +127,20 @@ async fn test_session_validation_and_expiry() {
 }
 
 #[tokio::test]
-async fn test_directory_operations() {
+async fn test_tenant_operations() {
     let (app, db) = setup_test_app().await;
     let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
-    let directory_type_id = Uuid::new_v4();
+    let tenant_id = Uuid::new_v4();
     let test_name = CompanyName().fake::<String>();
     let test_desc = CatchPhrase().fake::<String>();
     
-    // Test creating directory type
+    // Test creating tenant type
     let response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/admin/directory-types")
+                .uri("/api/admin/tenant-types")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
@@ -153,54 +151,54 @@ async fn test_directory_operations() {
         )
         .await
         .unwrap();
-    println!("TEST LOG: from create directory type test_directory_operations and response: {:?}", response);
+    println!("TEST LOG: from create tenant type test_tenant_operations and response: {:?}", response);
     let status = response.status();
     let body_bytes = response.into_body()
         .collect()
         .await
         .unwrap()
         .to_bytes();
-    println!("TEST LOG: from create directory type test_directory_operations and body_bytes: {:?}", body_bytes);
+    println!("TEST LOG: from create tenant type test_tenant_operations and body_bytes: {:?}", body_bytes);
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    let directory_type: DirectoryTypeModel = serde_json::from_slice(body.as_bytes()).unwrap();
-    let directory_type_id = directory_type.id;
-    println!("TEST LOG: from create directory type test_directory_operations and directory_type: {:?}", directory_type);
+    let tenant: TenantModel = serde_json::from_slice(body.as_bytes()).unwrap();
+    let tenant_id = tenant.id;
+    println!("TEST LOG: from create tenant type test_tenant_operations and tenant: {:?}", tenant);
     assert_eq!(status, StatusCode::CREATED);
 
-    // Test fetching directory types
+    // Test fetching tenant types
     let response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone()).as_str())
+                .uri(format!("/api/admin/tenant-types/{}", tenant_id.clone()).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
         )
         .await
         .unwrap();
-    println!("TEST LOG: from get directory type test_directory_operations and response: {:?}", response);
+    println!("TEST LOG: from get tenant type test_tenant_operations and response: {:?}", response);
     assert_eq!(response.status(), StatusCode::OK);
-    // Test updating directory type
+    // Test updating tenant type
     let response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("PUT")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id.clone().to_string()).as_str())
+                .uri(format!("/api/admin/tenant-types/{}", tenant_id.clone().to_string()).as_str())
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
-                    "name": format!("Updated Directory Type {}", directory_type_id.to_string()),
-                    "description": format!("Updated Description {}", directory_type_id.to_string()),
+                    "name": format!("Updated Tenant Type {}", tenant_id.to_string()),
+                    "description": format!("Updated Description {}", tenant_id.to_string()),
                 }).to_string()))
                 .unwrap()
         )
         .await
         .unwrap();
-    println!("TEST LOG: from PUT directory type test_directory_operations and response: {:?}", response);
+    println!("TEST LOG: from PUT tenant type test_tenant_operations and response: {:?}", response);
     assert_eq!(response.status(), StatusCode::OK);
     
-    // Test creating directory
+    // Test creating tenant
     let domain = format!("{}.{}", 
         CompanyName().fake::<String>().to_lowercase().replace(" ", "-"), 
         DomainSuffix().fake::<String>()
@@ -210,13 +208,13 @@ async fn test_directory_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("POST")
-                .uri("/api/admin/directories")
+                .uri("/api/admin/tenants")
                 .header("Content-Type", "application/json")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::from(json!({
                     "name": CompanyName().fake::<String>(),
                     "description": CatchPhrase().fake::<String>(),
-                    "directory_type_id": directory_type_id,
+                    "tenant_id": tenant_id,
                     "domain": domain
                 }).to_string()))
                 .unwrap()
@@ -231,22 +229,22 @@ async fn test_directory_operations() {
         .unwrap()
         .to_bytes();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
-    let directory: DirectoryModel = serde_json::from_slice(body.as_bytes()).unwrap();
-    println!("TEST LOG: from POST CREATE directory test_directory_operations and status: {:?}", status);
+    let tenant: TenantModel = serde_json::from_slice(body.as_bytes()).unwrap();
+    println!("TEST LOG: from POST CREATE tenant test_tenant_operations and status: {:?}", status);
     assert_eq!(status, StatusCode::CREATED);
-    println!("TEST LOG: from ABOUT TO UPDATE directory test_directory_operations and directory: {:?}", directory.id);
-    // update directory
+    println!("TEST LOG: from ABOUT TO UPDATE tenant test_tenant_operations and tenant: {:?}", tenant.id);
+    // update tenant
     let response = app.clone()
     .oneshot(
         Request::builder().header("Host", "localhost")
             .method("PUT")
-            .uri(format!("/api/admin/directories/{}", directory.id))
+            .uri(format!("/api/admin/tenants/{}", tenant.id))
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", admin_token))
             .body(Body::from(json!({
-                "name": "Updated Directory",
+                "name": "Updated Tenant",
                 "description": "Updated Description",
-                "directory_type_id": directory_type_id, // Include this
+                "tenant_id": tenant_id, // Include this
                 "domain": "updated.com"                 // Include this
             }).to_string()))
             .unwrap()
@@ -255,28 +253,28 @@ async fn test_directory_operations() {
     .unwrap();
 assert_eq!(response.status(), StatusCode::OK); // Updates return 200, not 201
 
-    // delete directory
+    // delete tenant
     let response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/directories/{}", directory.id).as_str())
+                .uri(format!("/api/admin/tenants/{}", tenant.id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
         )
         .await
         .unwrap();  
-    println!("TEST LOG: from DELETE directory test_directory_operations and response: {:?}", response);
+    println!("TEST LOG: from DELETE tenant test_tenant_operations and response: {:?}", response);
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     
     
-    // Test deleting directory type
+    // Test deleting tenant type
     let response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("DELETE")
-                .uri(format!("/api/admin/directory-types/{}", directory_type_id).as_str())
+                .uri(format!("/api/admin/tenant-types/{}", tenant_id).as_str())
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap()
@@ -292,15 +290,14 @@ async fn test_profile_management() {
     println!("TEST LOG: from test_profile_management");
     let (app, db) = setup_test_app().await;
 
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    println!("TEST LOG: from test_profile_management and directory: {:?}", directory);
-    println!("TEST LOG: from test_profile_management and directory_type: {:?}", directory_type);
+    let tenant = test_utils::create_test_tenant(&db).await;
+    println!("TEST LOG: from test_profile_management and tenant: {:?}", tenant);
+    println!("TEST LOG: from test_profile_management and tenant: {:?}", tenant);
     let first_name = FirstName().fake::<String>();
     let last_name = LastName().fake::<String>();
     // Test profile creation
     let mut username = format!("{}_{}", first_name, last_name).to_lowercase();
-    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, registration_body) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     
     let token = registration_body["token"].as_str().unwrap();
@@ -381,8 +378,8 @@ async fn test_category_management() {
     let (app, db) = setup_test_app().await;
     let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
-    // Create a directory type first (needed for category)
-    let directory_type = test_utils::create_test_directory_type(&db).await;
+    // Create a tenant type first (needed for category)
+    let tenant = test_utils::create_test_tenant(&db).await;
     
     // Test category creation
     let response = app.clone()
@@ -395,7 +392,7 @@ async fn test_category_management() {
                 .body(Body::from(json!({
                     "name": "Test Category",
                     "description": "Test Category Description",
-                    "directory_type_id": directory_type.id,
+                    "tenant_id": tenant.id,
                     "parent_category_id": null,
                     "is_custom": false,
                     "is_active": true
@@ -435,7 +432,7 @@ async fn test_category_management() {
                 .body(Body::from(json!({
                     "name": "Updated Category",
                     "description": "Updated Description",
-                    "directory_type_id": directory_type.id,
+                    "tenant_id": tenant.id,
                     "parent_category_id": null,
                     "is_custom": true,
                     "is_active": true
@@ -481,12 +478,11 @@ async fn test_category_management() {
 #[tokio::test]
 async fn test_profile_operations() {
     let (app, db) = setup_test_app().await;
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
     
     // Register a user and get their profile
     let mut username = format!("testuser{}", Uuid::new_v4());
-    let (status, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     
     let token = login_response["token"].as_str().unwrap();
@@ -529,11 +525,10 @@ async fn test_concurrent_logout_requests() {
 
     // Create a test user and get their token
     let mut username = format!("concurrentuser{}", Uuid::new_v4());
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
     
     // Register and login the user
-    let (status, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     
     // Get the login token
@@ -594,16 +589,15 @@ async fn test_concurrent_logout_requests() {
 async fn test_listing_crud_operations() {
     let (app, db) = setup_test_app().await;
     
-    // Create test directory type and directory
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    // Create test tenant type and tenant
+    let tenant = test_utils::create_test_tenant(&db).await;
     
     // Create a default category for listings
-    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
+    let default_category = test_utils::create_default_category(&db, tenant.id).await;
     
     // Register a user and get their profile
     let mut username = format!("testuser{}", Uuid::new_v4());
-    let (status, login_response) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     
     let token = login_response["token"].as_str().unwrap();
@@ -641,7 +635,7 @@ async fn test_listing_crud_operations() {
                 .body(Body::from(json!({
                     "title": listing_title.clone(),
                     "description": listing_description.clone(),
-                    "directory_id": directory.id,
+                    "tenant_id": tenant.id,
                     "profile_id": profile.id,
                     "category_id": default_category.id,
                     "status": "active"
@@ -684,7 +678,7 @@ async fn test_listing_crud_operations() {
                 .body(Body::from(json!({
                     "title": updated_title.clone(),
                     "description": listing_description,
-                    "directory_id": directory.id,
+                    "tenant_id": tenant.id,
                     "profile_id": profile.id,
                     "category_id": default_category.id,
                     "status": "active"
@@ -701,24 +695,24 @@ async fn test_listing_crud_operations() {
     let updated_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
     assert_eq!(updated_listing.title, updated_title);
     
-    // Test getting all listings for a directory
-    let directory_listings_response = app.clone()
+    // Test getting all listings for a tenant
+    let tenant_listings_response = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/directories/{}/listings", directory.id))
+                .uri(format!("/tenants/{}/listings", tenant.id))
                 .body(Body::empty())
                 .unwrap()
         )
         .await
         .unwrap();
     
-    assert_eq!(directory_listings_response.status(), StatusCode::OK);
+    assert_eq!(tenant_listings_response.status(), StatusCode::OK);
     
     // Verify response contains listings
-    let body_bytes = axum::body::to_bytes(directory_listings_response.into_body(), usize::MAX).await.unwrap();
-    let directory_listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
-    assert!(!directory_listings.is_empty(), "No listings returned for directory");
+    let body_bytes = axum::body::to_bytes(tenant_listings_response.into_body(), usize::MAX).await.unwrap();
+    let tenant_listings: Vec<crate::entities::listing::Model> = serde_json::from_slice(&body_bytes).unwrap();
+    assert!(!tenant_listings.is_empty(), "No listings returned for tenant");
     
     // Test deleting the listing
     let delete_listing_response = app.clone()
@@ -754,12 +748,12 @@ async fn test_listing_crud_operations() {
 #[tokio::test]
 async fn test_listing_operations() {
     let (app, db) = setup_test_app().await;
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
 
     let mut username = format!("testuser{}", Uuid::new_v4());
     println!("TEST LOG: from test_listing_operations and username: {:?}", username);
-    let (status, registration_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, registration_body) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     println!("TEST LOG: from test_listing_operations and registration_body: {:?}", registration_body);
     
@@ -784,7 +778,7 @@ async fn test_listing_operations() {
     let profile = profiles.first().expect("No profile found");
 
     // In your test setup:
-    let default_category = test_utils::create_default_category(&db, directory_type.id).await;
+    let default_category = test_utils::create_default_category(&db, tenant.id).await;
 
     // Test creating a listing with full business context
     let create_listing_response = app.clone()
@@ -797,7 +791,7 @@ async fn test_listing_operations() {
                 .body(Body::from(json!({
                     "title": CompanyName().fake::<String>(),
                     "description": CatchPhrase().fake::<String>(),
-                    "directory_id": directory.id,
+                    "tenant_id": tenant.id,
                     "profile_id": profile.id,
                     "category_id": default_category.id,
                     "business_details": {
@@ -826,103 +820,7 @@ async fn test_listing_operations() {
     let created_listing: crate::entities::listing::Model = serde_json::from_slice(&body_bytes).unwrap();
     println!("TEST LOG: Created listing: {:?}", created_listing);
     
-    // ===== LISTING ATTRIBUTES TESTING =====
-    
-    // 1. Create a listing attribute
-    let create_attribute_response = app.clone()
-        .oneshot(
-            Request::builder().header("Host", "localhost")
-                .method("POST")
-                .uri(format!("/api/listings/{}/attributes", created_listing.id))
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Content-Type", "application/json")
-                .body(Body::from(json!({
-                    "attribute_type": "ServiceDetail",
-                    "attribute_key": "Experience",
-                    "value": "10+ years in the industry"
-                }).to_string()))
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    
-    assert_eq!(create_attribute_response.status(), StatusCode::OK);
-    
-    // Parse the created attribute
-    let body_bytes = axum::body::to_bytes(create_attribute_response.into_body(), usize::MAX).await.unwrap();
-    let created_attribute: crate::models::listing_attribute::ListingAttributeModel = 
-        serde_json::from_slice(&body_bytes).unwrap();
-    println!("TEST LOG: Created attribute: {:?}", created_attribute);
-    
-    // 2. Get all attributes for the listing
-    let get_attributes_response = app.clone()
-        .oneshot(
-            Request::builder().header("Host", "localhost")
-                .method("GET")
-                .uri(format!("/api/listings/{}/attributes", created_listing.id))
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    
-    assert_eq!(get_attributes_response.status(), StatusCode::OK);
-    
-    // Parse the attributes
-    let body_bytes = axum::body::to_bytes(get_attributes_response.into_body(), usize::MAX).await.unwrap();
-    let attributes: Vec<crate::models::listing_attribute::ListingAttributeModel> = 
-        serde_json::from_slice(&body_bytes).unwrap();
-    
-    assert!(!attributes.is_empty(), "No attributes returned for listing");
-    println!("TEST LOG: Retrieved attributes: {:?}", attributes);
-    
-    // 3. Get a specific attribute
-    let get_attribute_response = app.clone()
-        .oneshot(
-            Request::builder().header("Host", "localhost")
-                .method("GET")
-                .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
-                .header("Authorization", format!("Bearer {}", token))
-                .body(Body::empty())
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    
-    assert_eq!(get_attribute_response.status(), StatusCode::OK);
-    
-    // 4. Update an attribute
-    let update_attribute_response = app.clone()
-        .oneshot(
-            Request::builder().header("Host", "localhost")
-                .method("PUT")
-                .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Content-Type", "application/json")
-                .body(Body::from(json!({
-                    "value": "15+ years of specialized experience"
-                }).to_string()))
-                .unwrap()
-        )
-        .await
-        .unwrap();
-    
-    assert_eq!(update_attribute_response.status(), StatusCode::OK);
-    
-    // Parse the updated attribute
-    let body_bytes = axum::body::to_bytes(update_attribute_response.into_body(), usize::MAX).await.unwrap();
-    let updated_attribute: crate::models::listing_attribute::ListingAttributeModel = 
-        serde_json::from_slice(&body_bytes).unwrap();
-    
-    // Verify the attribute was updated
-    assert_eq!(
-        updated_attribute.value.as_str().unwrap(),
-        "15+ years of specialized experience",
-        "Attribute value was not updated correctly"
-    );
-    
-   
+
     
     // Continue with staff user access testing
     let staff_user = test_utils::create_staff_user_account(
@@ -951,7 +849,7 @@ async fn test_listing_operations() {
         .oneshot(
             Request::builder().header("Host", "localhost")
                 .method("GET")
-                .uri(format!("/listings?directory_id={}", directory.id).as_str())
+                .uri(format!("/listings?tenant_id={}", tenant.id).as_str())
                 .header("Authorization", format!("Bearer {}", staff_token))
                 .body(Body::empty())
                 .unwrap()
@@ -966,52 +864,20 @@ async fn test_listing_operations() {
     assert!(!listings.is_empty(), "No listings returned");
 
 
-    // Verify the attributes are included
-    assert!(!listing_with_attributes.attributes.is_empty(), "No attributes included in the response");
-    println!("TEST LOG: Listing with attributes: {:?}", listing_with_attributes);
 
-     // 5. Delete an attribute
-     let delete_attribute_response = app.clone()
-     .oneshot(
-         Request::builder().header("Host", "localhost")
-             .method("DELETE")
-             .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
-             .header("Authorization", format!("Bearer {}", token))
-             .body(Body::empty())
-             .unwrap()
-     )
-     .await
-     .unwrap();
- 
- assert_eq!(delete_attribute_response.status(), StatusCode::NO_CONTENT);
- 
- // 6. Verify the attribute was deleted
- let get_deleted_attribute_response = app.clone()
-     .oneshot(
-         Request::builder().header("Host", "localhost")
-             .method("GET")
-             .uri(format!("/api/listings/{}/attributes/{}", created_listing.id, created_attribute.id))
-             .header("Authorization", format!("Bearer {}", token))
-             .body(Body::empty())
-             .unwrap()
-     )
-     .await
-     .unwrap();
- 
- assert_eq!(get_deleted_attribute_response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
 async fn test_inline_passkey_registration() {
     let (app, db) = setup_test_app().await;
 
-    // Create a valid directory directly via db handle
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    // Create a valid tenant directly via db handle
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
 
     // Call test registration which intrinsically wraps the new auto-authenticating users::register endpoint
     let mut username = String::new();
-    let (status, json_body) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, json_body) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
 
     // Verify successful registration
     assert_eq!(status, StatusCode::CREATED, "Registration failed: {:?}", json_body);

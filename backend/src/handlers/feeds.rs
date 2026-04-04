@@ -30,7 +30,7 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
         .route("/feeds", get(feeds::get_feeds))
         .route("/feeds/{feed_id}", get(feeds::get_feed_by_id))
         .route("/feeds/{feed_id}/items", get(feeds::get_feed_with_items))
-        .route("/feeds/directory/{directory_id}", get(feeds::get_feeds_by_directory))
+        .route("/feeds/directory/{tenant_id}", get(feeds::get_feeds_by_directory))
         .route("/feeds/{feed_id}/json", get(feeds::get_json_feed))
         
         // Feed item routes
@@ -138,7 +138,7 @@ pub async fn get_feed_with_items(
 
     let feed_with_items = FeedWithItems {
         id: feed.id,
-        directory_id: feed.directory_id,
+        tenant_id: feed.tenant_id,
         title: feed.title,
         description: feed.description,
         feed_url: feed.feed_url,
@@ -155,11 +155,11 @@ pub async fn get_feed_with_items(
 }
 
 pub async fn get_feeds_by_directory(
-    Path(directory_id): Path<Uuid>,
+    Path(tenant_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let feeds = Feed::find()
-        .filter(feed::Column::DirectoryId.eq(directory_id))
+        .filter(feed::Column::TenantId.eq(tenant_id))
         .all(&db)
         .await
         .map_err(|err| {
@@ -194,7 +194,7 @@ pub async fn create_feed(
 
     let new_feed = feed::ActiveModel {
         id: Set(feed_id),
-        directory_id: Set(payload.directory_id),
+        tenant_id: Set(payload.tenant_id),
         title: Set(payload.title),
         description: Set(payload.description),
         feed_url: Set(feed_url),

@@ -11,10 +11,10 @@ pub struct DirectoryService;
 impl DirectoryService {
     pub async fn get_directory_config(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<SiteConfig> {
         // Find the directory first to ensure it exists
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -23,7 +23,7 @@ impl DirectoryService {
         // Now fetch the site configuration
         // This is a simplified example - adjust based on your actual data model
         let config = SiteConfig {
-            directory_id,
+            tenant_id,
             name: directory.name,
             domain: directory.domain,
             subdomain: directory.subdomain,
@@ -41,11 +41,11 @@ impl DirectoryService {
     
     pub async fn update_directory_config(
         db: &DatabaseConnection,
-        directory_id: Uuid,
+        tenant_id: Uuid,
         config: SiteConfig
     ) -> Result<SiteConfig> {
         // Find the directory to update
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -72,7 +72,7 @@ impl DirectoryService {
             .context("Failed to update directory")?;
         
         // Return the updated config
-        Self::get_directory_config(db, directory_id).await
+        Self::get_directory_config(db, tenant_id).await
     }
     
     pub async fn list_directories(
@@ -100,16 +100,16 @@ impl DirectoryService {
     
     pub async fn get_site_config(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<SiteConfig> {
-        Self::get_directory_config(db, directory_id).await
+        Self::get_directory_config(db, tenant_id).await
     }
     
     pub async fn get_enabled_modules(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<(u32, Vec<String>)> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -123,10 +123,10 @@ impl DirectoryService {
     
     pub async fn update_enabled_modules(
         db: &DatabaseConnection,
-        directory_id: Uuid,
+        tenant_id: Uuid,
         enabled_modules: u32
     ) -> Result<(u32, Vec<String>)> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -149,9 +149,9 @@ impl DirectoryService {
     
     pub async fn get_site_theme(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<Option<String>> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -162,10 +162,10 @@ impl DirectoryService {
     
     pub async fn update_site_theme(
         db: &DatabaseConnection,
-        directory_id: Uuid,
+        tenant_id: Uuid,
         theme: Option<String>
     ) -> Result<Option<String>> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -185,9 +185,9 @@ impl DirectoryService {
     
     pub async fn get_custom_settings(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<Value> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -198,10 +198,10 @@ impl DirectoryService {
     
     pub async fn update_custom_settings(
         db: &DatabaseConnection,
-        directory_id: Uuid,
+        tenant_id: Uuid,
         settings: Value
     ) -> Result<Value> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -253,7 +253,7 @@ impl DirectoryService {
             id: sea_orm::Set(Uuid::new_v4()),
             name: sea_orm::Set(input.name),
             description: sea_orm::Set(input.description),
-            directory_type_id: sea_orm::Set(input.directory_type_id),
+            tenant_id: sea_orm::Set(input.tenant_id),
             domain: sea_orm::Set(input.domain),
             created_at: sea_orm::Set(chrono::Utc::now()),
             updated_at: sea_orm::Set(chrono::Utc::now()),
@@ -288,10 +288,10 @@ impl DirectoryService {
     
     pub async fn update_directory(
         db: &DatabaseConnection,
-        directory_id: Uuid,
+        tenant_id: Uuid,
         input: crate::models::directory::UpdateDirectory
     ) -> Result<directory::Model> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -302,8 +302,8 @@ impl DirectoryService {
         if let Some(name) = input.name {
             active_directory.name = sea_orm::Set(name);
         }
-        if let Some(directory_type_id) = input.directory_type_id {
-            active_directory.directory_type_id = sea_orm::Set(directory_type_id);
+        if let Some(tenant_id) = input.tenant_id {
+            active_directory.tenant_id = sea_orm::Set(tenant_id);
         }
         if let Some(domain) = input.domain {
             active_directory.domain = sea_orm::Set(domain);
@@ -323,9 +323,9 @@ impl DirectoryService {
     
     pub async fn delete_directory(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<()> {
-        directory::Entity::delete_by_id(directory_id)
+        directory::Entity::delete_by_id(tenant_id)
             .exec(db)
             .await
             .context("Failed to delete directory")?;
@@ -335,9 +335,9 @@ impl DirectoryService {
     
     pub async fn get_directory_by_id(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<directory::Model> {
-        let directory = directory::Entity::find_by_id(directory_id)
+        let directory = directory::Entity::find_by_id(tenant_id)
             .one(db)
             .await
             .context("Failed to query directory")?
@@ -367,10 +367,10 @@ impl DirectoryService {
     
     pub async fn get_directories_by_type(
         db: &DatabaseConnection,
-        directory_type_id: Uuid
+        tenant_id: Uuid
     ) -> Result<Vec<directory::Model>> {
         let directories = directory::Entity::find()
-            .filter(directory::Column::DirectoryTypeId.eq(directory_type_id))
+            .filter(directory::Column::DirectoryTypeId.eq(tenant_id))
             .all(db)
             .await
             .context("Failed to query directories by type")?;
@@ -380,13 +380,13 @@ impl DirectoryService {
     
     pub async fn get_directory_listings(
         db: &DatabaseConnection,
-        directory_id: Uuid
+        tenant_id: Uuid
     ) -> Result<Vec<crate::entities::listing::Model>> {
         // First check if directory exists
-        let _directory = Self::get_directory_by_id(db, directory_id).await?;
+        let _directory = Self::get_directory_by_id(db, tenant_id).await?;
         
         let listings = crate::entities::listing::Entity::find()
-            .filter(crate::entities::listing::Column::DirectoryId.eq(directory_id))
+            .filter(crate::entities::listing::Column::TenantId.eq(tenant_id))
             .all(db)
             .await
             .context("Failed to fetch listings")?;

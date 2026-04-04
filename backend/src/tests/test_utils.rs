@@ -23,57 +23,30 @@ use tower::ServiceExt;
 use uuid::Uuid;
 
 use dotenv::dotenv;
-use crate::entities::{category, directory, directory_type, profile, user, user_account};
+use crate::entities::{category, tenant, profile, user, user_account};
 
-pub async fn create_test_directory_type<C: ConnectionTrait>(db: &C) -> directory_type::Model {
-    let directory_type_id = Uuid::new_v4();
-    let new_directory_type = directory_type::ActiveModel {
-        id: Set(directory_type_id),
-        name: Set(format!(
-            "Directory Type {}",
-            Sentence(1..2).fake::<String>()
-        )),
-        description: Set(Sentence(2..4).fake::<String>()),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    };
-
-    new_directory_type
-        .insert(db)
-        .await
-        .expect("Failed to create test directory type")
-}
-
-pub async fn create_test_directory<C: ConnectionTrait>(
-    db: &C,
-    directory_type_id: Uuid,
-) -> directory::Model {
-    let directory_id = Uuid::new_v4();
+pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
+    let tenant_id = Uuid::new_v4();
 
     let company_domain = format!("{:?}.com", CompanyName().fake::<String>());
-    //remove spaces and special characters from company_domain
     let company_domain = company_domain.replace(" ", "").replace("\"", "").to_lowercase();
-    let new_directory = directory::ActiveModel {
-        id: Set(directory_id),
-        directory_type_id: Set(directory_type_id),
+    let new_tenant = tenant::ActiveModel {
+        id: Set(tenant_id),
         name: Set(CompanyName().fake()),
-        domain: Set(company_domain),
-        description: Set(CatchPhrase().fake()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
     };
 
-    new_directory
+    new_tenant
         .insert(db)
         .await
-        .expect("Failed to create test directory")
+        .expect("Failed to create test tenant")
 }
 
 pub async fn register_test_user(
     app: &Router,
-    directory_id: Uuid,
+    tenant_id: Uuid,
     username: &mut String,
 ) -> (StatusCode, serde_json::Value) {
     dotenv().ok();
@@ -85,22 +58,14 @@ pub async fn register_test_user(
         *username = username.replace(" ", "_").to_lowercase();
     }
 
-    //domain suffix
     let domain_suffix = DomainSuffix().fake::<String>();
-    // password from .env file
     let password: String = std::env::var("TEST_PASSWORD").unwrap_or_default();
-    println!("TEST LOG: from register_test_user and password: {:?}", password);
     let phone: String = PhoneNumber().fake();
     let company_name = CompanyName().fake::<String>();
-    let company_domain = format!("{:?}.{:?}", company_name, domain_suffix);
-    let company_domain = company_domain.replace(" ", "").replace("\"", "").to_lowercase();
+    let company_domain = format!("{:?}.{:?}", company_name, domain_suffix).replace(" ", "").replace("\"", "").to_lowercase();
     let email = format!("{:?}@{:?}", username, company_domain).replace("\"", "").to_lowercase();
-    println!("TEST LOG: from register_test_user and domain_suffix: {:?}", domain_suffix);
-    println!("TEST LOG: from register_test_user and company_domain: {:?}", company_domain);
-    println!("TEST LOG: from register_test_user and username: {:?}", username);
-    println!("TEST LOG: from register_test_user and email: {:?}", email);
-    // Initial registration
-    let response = app
+
+    let response: axum::http::Response<axum::body::Body> = app
         .clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
@@ -109,7 +74,7 @@ pub async fn register_test_user(
                 .header("Content-Type", "application/json")
                 .body(Body::from(
                     json!({
-                        "directory_id": directory_id,
+                        "tenant_id": tenant_id,
                         "username": username,
                         "first_name": first_name,
                         "last_name": last_name,
@@ -137,7 +102,7 @@ pub async fn register_test_user(
             .expect("No token in register response");
 
         // First get the profiles to find the one we want to update
-        let profiles_response = app
+        let profiles_response: axum::http::Response<axum::body::Body> = app
             .clone()
             .oneshot(
                 Request::builder().header("Host", "localhost")
@@ -162,7 +127,7 @@ pub async fn register_test_user(
         let profile_id = profile["id"].as_str().expect("No profile ID found");
         let company_name = CompanyName().fake::<String>();
         // Update the profile with business details
-        let update_response = app
+        let update_response: axum::http::Response<axum::body::Body> = app
             .clone()
             .oneshot(
                 Request::builder().header("Host", "localhost")
@@ -200,7 +165,7 @@ pub async fn register_test_user(
 }
 
 pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde_json::Value {
-    let response = app
+    let response: axum::http::Response<axum::body::Body> = app
         .clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
@@ -266,7 +231,7 @@ pub async fn create_and_login_admin_user(
     .await
     .expect("Failed to create admin user");
     // Login the admin user
-    let login_response = login_test_user(app, &admin_user.email, &password).await;
+    let login_response: serde_json::Value = login_test_user(app, &admin_user.email, &password).await;
 
     let token = login_response["token"].as_str().unwrap().to_string();
 
@@ -322,13 +287,13 @@ pub async fn create_staff_user_account(
 
 pub async fn create_default_category(
     db: &DatabaseConnection,
-    directory_type_id: Uuid,
+    tenant_id: Uuid,
 ) -> category::Model {
     category::ActiveModel {
         id: Set(Uuid::new_v4()),
         name: Set("Default Category".to_string()),
         description: Set("Default category for listings".to_string()),
-        directory_type_id: Set(directory_type_id),
+        tenant_id: Set(Some(tenant_id)),
         parent_category_id: Set(None),
         is_custom: Set(false),
         is_active: Set(true),

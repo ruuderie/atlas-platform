@@ -16,9 +16,9 @@ pub async fn get_categories(
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<Vec<CategoryModel>>, (StatusCode, Json<serde_json::Value>)> {
     let mut find_query = category::Entity::find();
-    if let Some(dir_id_str) = query.get("directory_id") {
+    if let Some(dir_id_str) = query.get("tenant_id") {
         if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
-            find_query = find_query.filter(category::Column::DirectoryId.eq(dir_id));
+            find_query = find_query.filter(category::Column::TenantId.eq(dir_id));
         }
     }
     let categories = find_query
@@ -67,7 +67,8 @@ pub async fn create_category(
     println!("TEST LOG: from create_category and payload: {:?}", payload);
     let new_category = category::ActiveModel {
         id: Set(Uuid::new_v4()),
-        directory_type_id: Set(payload.directory_type_id),
+
+        tenant_id: Set(payload.tenant_id),
         parent_category_id: Set(payload.parent_category_id),
         name: Set(payload.name),
         description: Set(payload.description),
@@ -77,7 +78,7 @@ pub async fn create_category(
         is_active: Set(payload.is_active),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        directory_id: Set(None),
+
     };
     println!("TEST LOG: from create_category and new_category: {:?}", new_category);
     let insert_result = category::Entity::insert(new_category)
@@ -134,8 +135,9 @@ pub async fn update_category(
     if let Some(description) = payload.description {
         category_active.description = Set(description);
     }
-    if let Some(directory_type_id) = payload.directory_type_id {
-        category_active.directory_type_id = Set(directory_type_id);
+
+    if let Some(tenant_id) = payload.tenant_id {
+        category_active.tenant_id = Set(Some(tenant_id));
     }
     if let Some(parent_category_id) = payload.parent_category_id {
         category_active.parent_category_id = Set(Some(parent_category_id));

@@ -46,14 +46,14 @@ pub async fn get_listings(
     Extension(db): Extension<DatabaseConnection>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let directory_id = params.get("directory_id")
+    let tenant_id = params.get("tenant_id")
         .and_then(|id| Uuid::parse_str(id).ok())
         .ok_or(StatusCode::BAD_REQUEST)?;
-    println!("TEST LOG: from get_listings and directory_id: {:?}", directory_id);
-    tracing::info!("Fetching listings for Directory ID: {}", directory_id);
+    println!("TEST LOG: from get_listings and tenant_id: {:?}", tenant_id);
+    tracing::info!("Fetching listings for Directory ID: {}", tenant_id);
 
     let listings = Listing::find()
-        .filter(listing::Column::DirectoryId.eq(directory_id))
+        .filter(listing::Column::TenantId.eq(tenant_id))
         .all(&db)
         .await
         .map_err(|err| {
@@ -399,7 +399,7 @@ pub struct CreateMyListingInput {
     pub price: Option<f64>,
     pub city: Option<String>,
     pub state: Option<String>,
-    pub directory_id: String,
+    pub tenant_id: String,
 }
 
 pub async fn create_my_listing(
@@ -429,7 +429,7 @@ pub async fn create_my_listing(
     let new_listing = listing::ActiveModel {
         id: Set(Uuid::new_v4()),
         profile_id: Set(profile.id),
-        directory_id: Set(profile.directory_id),
+        tenant_id: Set(profile.tenant_id),
         title: Set(input.title),
         description: Set(input.description),
         listing_type: Set(input.listing_type.unwrap_or("standard".to_string())),

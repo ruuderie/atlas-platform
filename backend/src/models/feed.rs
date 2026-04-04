@@ -7,7 +7,7 @@ use crate::models::feed_item::FeedItemModel;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FeedModel {
     pub id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub title: String,
     pub description: String,
     pub feed_url: String,
@@ -21,7 +21,7 @@ pub struct FeedModel {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateFeed {
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub title: String,
     pub description: String,
     pub feed_url: Option<String>,
@@ -45,7 +45,7 @@ pub struct UpdateFeed {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FeedWithItems {
     pub id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub title: String,
     pub description: String,
     pub feed_url: String,
@@ -62,7 +62,7 @@ impl From<feed::Model> for FeedModel {
     fn from(feed: feed::Model) -> Self {
         Self {
             id: feed.id,
-            directory_id: feed.directory_id,
+            tenant_id: feed.tenant_id,
             title: feed.title,
             description: feed.description,
             feed_url: feed.feed_url,

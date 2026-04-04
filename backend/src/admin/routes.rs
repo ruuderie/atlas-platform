@@ -66,15 +66,7 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/directory/{directory_id}/listings", get(admin::get_directory_listings))
                 .route("/api/admin/directory/{directory_id}/listings/{listing_id}", get(admin::get_listing))
                 // Tenant management API is handled via tenant::authenticated_routes
-                // DIRETORY TYPE
-                .route("/api/admin/directory-types", get(admin::get_directory_types))
-                .route("/api/admin/directory-types/{directory_type_id}", get(admin::get_directory_type))
-                //create directory type
-                .route("/api/admin/directory-types", post(admin::create_directory_type))
-                //update directory type
-                .route("/api/admin/directory-types/{directory_type_id}", put(admin::update_directory_type))
-                //delete directory type
-                .route("/api/admin/directory-types/{directory_type_id}", delete(admin::delete_directory_type))
+                // Tenant management API is handled via tenant::authenticated_routes
 
                 // Listing management
                 .route("/api/admin/listings", get(admin::get_directory_listings).post(listings::create_listing))

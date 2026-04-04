@@ -27,7 +27,7 @@ pub struct PaginatedListings<T> {
 pub struct ListingModel {
     pub id: Uuid,
     pub profile_id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub category_id: Option<Uuid>,
     pub title: String,
     pub description: String,
@@ -82,7 +82,7 @@ pub struct ListingCreate {
     // Required fields
     pub title: String,
     pub description: String,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub profile_id: Uuid,
 
     // Optional fields
@@ -111,7 +111,7 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
         listing::ActiveModel {
             id: Set(Uuid::new_v4()),
             profile_id: Set(self.profile_id),
-            directory_id: Set(self.directory_id),
+            tenant_id: Set(self.tenant_id),
             category_id: Set(self.category_id),
             title: Set(self.title),
             description: Set(self.description),
@@ -142,7 +142,7 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
 pub struct ListingUpdate {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub directory_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
     pub profile_id: Option<Uuid>,
     pub category_id: Option<Uuid>,
     pub listing_type: Option<String>,

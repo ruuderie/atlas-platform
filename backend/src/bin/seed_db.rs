@@ -1,5 +1,5 @@
 use sea_orm::{ActiveModelTrait, Database, Set};
-use atlas_backend::entities::{directory, directory_type, user, account, profile, listing, user_account, category, template, customer, contact, lead, deal, case, activity, note, feed};
+use atlas_backend::entities::{tenant, user, account, profile, listing, user_account, category, template, customer, contact, lead, deal, case, activity, note, feed};
 use uuid::Uuid;
 use chrono::Utc;
 use dotenv::dotenv;
@@ -21,19 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected to the database. Beginning Seed Process.");
 
-    // 1. Create Directory Type
-    let dir_type_id = Uuid::new_v4();
-    let dir_type = directory_type::ActiveModel {
-        id: Set(dir_type_id),
-        name: Set("Contractor Directory".to_string()),
-        description: Set("Directory for state-level contractors".to_string()),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-    };
-    dir_type.insert(&db).await?;
-    tracing::info!("Created DirectoryType: {}", dir_type_id);
-
-    // 2. Create Directory
+    // 2. Create Tenant
     // Attempt to clear old mock string if valid UUID, otherwise generate new
     // Our DB ID column is UUID, so the frontend's 'mock-dir...'' strings must become a valid uuid in production.
     let dir_uuid = Uuid::new_v4();
@@ -78,20 +66,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "featured_listings": []
     });
 
-    let directory = directory::ActiveModel {
+    let tenant_model = tenant::ActiveModel {
         id: Set(dir_uuid),
-        directory_type_id: Set(dir_type_id),
         name: Set("CT Build Pros".to_string()),
-        domain: Set("directory.localhost".to_string()),
         description: Set("The premier directory for top-rated construction and renovation services across Connecticut.".to_string()),
-        enabled_modules: Set(1),
-        theme: Set(Some(theme_json.to_string())),
-        custom_settings: Set(Some(custom_settings)),
         site_status: Set("ACTIVE".to_string()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        subdomain: Set(Some("ct-build-pros".to_string())),
-        custom_domain: Set(None),
         logo: Set(None),
         favicon: Set(None),
         header_scripts: Set(None),
@@ -107,14 +88,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         canonical_url: Set(None),
     };
 
-    directory.insert(&db).await?;
-    tracing::info!("Created Directory: CT Build Pros ({})", dir_uuid);
+    tenant_model.insert(&db).await?;
+    tracing::info!("Created Tenant: CT Build Pros ({})", dir_uuid);
 
     // 3. Create Categories
     let cat_id_1 = Uuid::new_v4();
     let cat1 = category::ActiveModel {
         id: Set(cat_id_1),
-        directory_type_id: Set(dir_type_id),
+        
         parent_category_id: Set(None),
         name: Set("Kitchen & Bath".to_string()),
         description: Set("Remodels & Upgrades".to_string()),
@@ -122,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slug: Set(Some("kitchen-bath".to_string())),
         is_custom: Set(false),
         is_active: Set(true),
-        directory_id: Set(Some(dir_uuid)),
+        tenant_id: Set(Some(dir_uuid)),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -131,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_2 = Uuid::new_v4();
     let cat2 = category::ActiveModel {
         id: Set(cat_id_2),
-        directory_type_id: Set(dir_type_id),
+        
         parent_category_id: Set(None),
         name: Set("Roofing & Siding".to_string()),
         description: Set("Exterior Specialists".to_string()),
@@ -139,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slug: Set(Some("roofing-siding".to_string())),
         is_custom: Set(false),
         is_active: Set(true),
-        directory_id: Set(Some(dir_uuid)),
+        tenant_id: Set(Some(dir_uuid)),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -148,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_3 = Uuid::new_v4();
     let cat3 = category::ActiveModel {
         id: Set(cat_id_3),
-        directory_type_id: Set(dir_type_id),
+        
         parent_category_id: Set(None),
         name: Set("Home Services".to_string()),
         description: Set("Plumbers, electricians, and more".to_string()),
@@ -156,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slug: Set(Some("home-services".to_string())),
         is_custom: Set(false),
         is_active: Set(true),
-        directory_id: Set(Some(dir_uuid)),
+        tenant_id: Set(Some(dir_uuid)),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -165,7 +146,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cat_id_4 = Uuid::new_v4();
     let cat4 = category::ActiveModel {
         id: Set(cat_id_4),
-        directory_type_id: Set(dir_type_id),
+        
         parent_category_id: Set(None),
         name: Set("Professional Services".to_string()),
         description: Set("Accountants, Lawyers, Consulting".to_string()),
@@ -173,7 +154,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         slug: Set(Some("professional-services".to_string())),
         is_custom: Set(false),
         is_active: Set(true),
-        directory_id: Set(Some(dir_uuid)),
+        tenant_id: Set(Some(dir_uuid)),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -183,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tpl_id_1 = Uuid::new_v4();
     let tpl1 = template::ActiveModel {
         id: Set(tpl_id_1),
-        directory_id: Set(dir_uuid),
+        tenant_id: Set(dir_uuid),
         category_id: Set(cat_id_1),
         name: Set("Contractor Profile Schema".to_string()),
         description: Set("Default fields for home service pros".to_string()),
@@ -203,7 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tpl_id_2 = Uuid::new_v4();
     let tpl2 = template::ActiveModel {
         id: Set(tpl_id_2),
-        directory_id: Set(dir_uuid),
+        tenant_id: Set(dir_uuid),
         category_id: Set(cat_id_3),
         name: Set("Standard Business".to_string()),
         description: Set("Standard fields for a business".to_string()),
@@ -221,7 +202,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tpl_id_3 = Uuid::new_v4();
     let tpl3 = template::ActiveModel {
         id: Set(tpl_id_3),
-        directory_id: Set(dir_uuid),
+        tenant_id: Set(dir_uuid),
         category_id: Set(cat_id_4),
         name: Set("Premium Listing".to_string()),
         description: Set("Extended fields for premium users".to_string()),
@@ -276,7 +257,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let acct_id = Uuid::new_v4();
         let acct = account::ActiveModel {
             id: Set(acct_id),
-            directory_id: Set(dir_uuid),
+            tenant_id: Set(dir_uuid),
             name: Set(business_names[i].to_string()),
             is_active: Set(true),
             stripe_customer_id: sea_orm::NotSet,
@@ -303,7 +284,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let prof = profile::ActiveModel {
             id: Set(profile_id),
             account_id: Set(acct_id),
-            directory_id: Set(dir_uuid),
+            tenant_id: Set(dir_uuid),
             profile_type: Set(profile::ProfileType::Business),
             service_area_zips: sea_orm::NotSet,
             display_name: Set(format!("{} {}", first_name, last_name)),
@@ -331,7 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let listing_id = Uuid::new_v4();
         let lst = listing::ActiveModel {
             id: Set(listing_id),
-            directory_id: Set(dir_uuid),
+            tenant_id: Set(dir_uuid),
             profile_id: Set(profile_id),
             title: Set(business_names[i].to_string()),
             description: Set(format!("Professional services by {}", business_names[i])),
@@ -405,7 +386,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             updated_at: Set(Utc::now()),
             billing_address: Set(None),
             shipping_address: Set(None),
-            directory_id: Set(Some(dir_uuid)),
+            tenant_id: Set(Some(dir_uuid)),
             properties: Set(None),
         };
         cust.insert(&db).await?;
@@ -425,7 +406,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             shipping_address: Set(None),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
-            directory_id: Set(Some(dir_uuid)),
+            tenant_id: Set(Some(dir_uuid)),
             properties: Set(None),
         };
         cnt.insert(&db).await?;
@@ -443,7 +424,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             is_active: Set(true),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
-            directory_id: Set(Some(dir_uuid)),
+            tenant_id: Set(Some(dir_uuid)),
             properties: Set(None),
         };
         dl.insert(&db).await?;
@@ -529,7 +510,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             converted_contact_id: Set(None),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
-            directory_id: Set(Some(dir_uuid)),
+            tenant_id: Set(Some(dir_uuid)),
             properties: Set(None),
         };
         ld.insert(&db).await?;
@@ -539,7 +520,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let feed_id = Uuid::new_v4();
     let fd = feed::ActiveModel {
         id: Set(feed_id),
-        directory_id: Set(dir_uuid),
+        tenant_id: Set(dir_uuid),
         title: Set("Main Directory Blog".to_string()),
         description: Set("News and updates for contractors.".to_string()),
         feed_url: Set("https://directory.localhost/feed".to_string()),

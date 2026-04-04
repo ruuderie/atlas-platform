@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub directory_id: Uuid,  // New field to associate with Directory
+    pub tenant_id: Uuid,  // New field to associate with Tenant
     pub name: String,
     pub is_active: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
@@ -24,7 +24,6 @@ pub enum Relation {
     UserAccount,
     Profile,
     Tenant,
-    Directory,
 }
 
 impl RelationTrait for Relation {
@@ -33,14 +32,10 @@ impl RelationTrait for Relation {
             Self::UserAccount => Entity::has_many(super::user_account::Entity).into(),
             Self::Profile => Entity::has_many(super::profile::Entity).into(),
             Self::Tenant => Entity::belongs_to(super::tenant::Entity)
-                .from(Column::DirectoryId)
+                .from(Column::TenantId)
                 .to(super::tenant::Column::Id)
                 .into(),
-            Self::Directory => Entity::belongs_to(super::directory::Entity)
-                .from(Column::DirectoryId)
-                .to(super::directory::Column::Id)
-                .into(),
-        }
+            }
     }
 }
 
@@ -61,10 +56,4 @@ impl Related<super::tenant::Entity> for Entity {
         Relation::Tenant.def()
     }
 }
-impl Related<super::directory::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Directory.def()
-    }
-}
-
 impl ActiveModelBehavior for ActiveModel {}

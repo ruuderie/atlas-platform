@@ -3,7 +3,7 @@ use uuid::Uuid;
 use sea_orm::DeriveActiveEnum;
 use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
-use crate::entities::{user, user_account, profile, directory, request_log};
+use crate::entities::{user, user_account, profile, tenant, request_log};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct User {
@@ -21,7 +21,7 @@ pub struct User {
 
 #[derive(Deserialize)]
 pub struct UserRegistration {
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub username: String,
     pub first_name: String,
     pub last_name: String,
@@ -53,6 +53,6 @@ pub struct UserAdminView {
     pub user: user::Model,
     pub user_accounts: Vec<user_account::Model>,
     pub profiles: Vec<profile::Model>,
-    pub directories: Vec<directory::Model>,
+    pub directories: Vec<tenant::Model>,
     pub login_history: Vec<request_log::Model>,
 }

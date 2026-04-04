@@ -14,7 +14,7 @@ pub struct ProfileSearch {
 #[derive(Deserialize)]
 pub struct CreateProfileInput {
     pub id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub profile_type: profile::ProfileType,
     pub display_name: String,
     pub contact_info: String,
@@ -24,7 +24,7 @@ pub struct CreateProfileInput {
 #[derive(Serialize)]
 pub struct ProfileModel {
     pub id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub profile_type: profile::ProfileType,
     pub display_name: String,
     pub contact_info: String,

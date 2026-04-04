@@ -41,7 +41,7 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
-    pub directory_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub properties: Option<Value>,
 }

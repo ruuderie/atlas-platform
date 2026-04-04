@@ -5,7 +5,7 @@ use crate::entities::{
     user_account::{self, Entity as UserAccount},
     session::{self, Entity as Session},
     account::{self, Entity as Account},
-    directory::Entity,
+    tenant::Entity as TenantEntity,
 };
 use axum::{
     body::Body, extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router
@@ -67,10 +67,10 @@ pub async fn register_user(
 ) -> Result<(StatusCode, Json<SessionResponse>), (StatusCode, String)> {
     tracing::info!("Received registration request for email: {}", user_data.email);
 
-    let directory_id = user_data.directory_id;
+    let tenant_id = user_data.tenant_id;
 
     // Verify that the directory exists
-    let directory = Entity::find_by_id(directory_id)
+    let directory = TenantEntity::find_by_id(tenant_id)
         .one(&db)
         .await
         .map_err(|err| {
@@ -79,7 +79,7 @@ pub async fn register_user(
             (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
         })?
         .ok_or_else(|| {
-            let error_msg = format!("Directory not found: {}", directory_id);
+            let error_msg = format!("Directory not found: {}", tenant_id);
             tracing::error!("{}", error_msg);
             (StatusCode::NOT_FOUND, error_msg)
         })?;
@@ -137,7 +137,7 @@ pub async fn register_user(
 
     // Step 4: Find or create the Account for the directory
     let account = match account::Entity::find()
-        .filter(account::Column::DirectoryId.eq(directory_id))
+        .filter(account::Column::TenantId.eq(tenant_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -150,7 +150,7 @@ pub async fn register_user(
                 // Create a new Account if not found
                 let new_account = account::ActiveModel {
                     id: Set(Uuid::new_v4()),
-                    directory_id: Set(directory_id),
+                    tenant_id: Set(tenant_id),
                     name: Set(username.clone()),
                     is_active: Set(true),
                     stripe_customer_id: sea_orm::NotSet,
@@ -168,7 +168,7 @@ pub async fn register_user(
 
     // Step 5: Find or create the Profile for the directory
     let profile = profile::Entity::find()
-        .filter(profile::Column::DirectoryId.eq(directory_id))
+        .filter(profile::Column::TenantId.eq(tenant_id))
         .one(&db)
         .await
         .map_err(|err| {
@@ -186,7 +186,7 @@ pub async fn register_user(
             account_id: Set(account.id),
             additional_info: Set(None),
             is_active: Set(true),
-            directory_id: Set(directory_id),
+            tenant_id: Set(tenant_id),
             profile_type: Set(profile::ProfileType::Business), // Assuming it's a business profile
             service_area_zips: sea_orm::NotSet,
             display_name: Set(username),

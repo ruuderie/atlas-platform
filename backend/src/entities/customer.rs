@@ -42,7 +42,7 @@ pub struct Model {
     pub billing_address: Option<AddressJson>,
     #[sea_orm(column_type = "Json")]
     pub shipping_address: Option<AddressJson>,
-    pub directory_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub properties: Option<Value>,
 }

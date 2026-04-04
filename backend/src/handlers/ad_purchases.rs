@@ -27,7 +27,7 @@ pub fn routes() -> Router<DatabaseConnection> {
 pub async fn create_ad_purchase(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(directory_ids): Extension<Vec<Uuid>>,
+    Extension(tenant_ids): Extension<Vec<Uuid>>,
     Json(input): Json<AdPurchaseCreate>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Creating new ad purchase for profile: {}", input.profile_id);
@@ -35,7 +35,7 @@ pub async fn create_ad_purchase(
     // Fetch the profile
     let profile = profile::Entity::find()
         .filter(profile::Column::Id.eq(input.profile_id))
-        .filter(profile::Column::DirectoryId.is_in(directory_ids.clone()))
+        .filter(profile::Column::TenantId.is_in(tenant_ids.clone()))
         .one(&db)
         .await
         .map_err(|err| {
@@ -89,13 +89,13 @@ pub async fn create_ad_purchase(
 pub async fn get_ad_purchases(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(directory_ids): Extension<Vec<Uuid>>,
+    Extension(tenant_ids): Extension<Vec<Uuid>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Fetching ad purchases for user: {}", current_user.id);
 
     // Fetch profiles associated with the user's directories
     let profiles = profile::Entity::find()
-        .filter(profile::Column::DirectoryId.is_in(directory_ids))
+        .filter(profile::Column::TenantId.is_in(tenant_ids))
         .all(&db)
         .await
         .map_err(|err| {
@@ -121,7 +121,7 @@ pub async fn get_ad_purchases(
 pub async fn update_ad_purchase(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(directory_ids): Extension<Vec<Uuid>>,
+    Extension(tenant_ids): Extension<Vec<Uuid>>,
     Path(id): Path<Uuid>,
     Json(input): Json<AdPurchaseUpdate>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -155,7 +155,7 @@ pub async fn update_ad_purchase(
         })?;
 
     // Check directory isolation
-    if !directory_ids.contains(&profile.directory_id) {
+    if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to update ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);
     }
@@ -180,7 +180,7 @@ pub async fn update_ad_purchase(
 pub async fn delete_ad_purchase(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(directory_ids): Extension<Vec<Uuid>>,
+    Extension(tenant_ids): Extension<Vec<Uuid>>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Deleting ad purchase: {}", id);
@@ -213,7 +213,7 @@ pub async fn delete_ad_purchase(
         })?;
 
     // Check directory isolation
-    if !directory_ids.contains(&profile.directory_id) {
+    if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to delete ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);
     }
@@ -233,7 +233,7 @@ pub async fn delete_ad_purchase(
 pub async fn get_ad_purchase_by_id(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(directory_ids): Extension<Vec<Uuid>>,
+    Extension(tenant_ids): Extension<Vec<Uuid>>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Fetching ad purchase: {}", id);
@@ -266,7 +266,7 @@ pub async fn get_ad_purchase_by_id(
         })?;
 
     // Check directory isolation
-    if !directory_ids.contains(&profile.directory_id) {
+    if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to view ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);
     }

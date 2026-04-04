@@ -9,7 +9,7 @@ use sea_orm::prelude::*;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TemplateModel {
     pub id: Uuid,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub category_id: Uuid,
     pub name: String,
     pub description: String,
@@ -23,7 +23,7 @@ pub struct TemplateModel {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateTemplate {
     pub name: String,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub category_id: Uuid,
     pub description: String,
     pub template_type: String,
@@ -35,7 +35,7 @@ pub struct CreateTemplate {
 pub struct UpdateTemplate {
     pub id: Uuid,
     pub name: String,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub description: String,
     pub template_type: String,
     pub is_active: bool,

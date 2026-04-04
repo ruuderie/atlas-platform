@@ -8,7 +8,7 @@ use axum::http::{Method, Uri};
 use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrait, QueryFilter};
 use uuid::Uuid;
 use chrono::{Utc, Duration};
-use crate::entities::{directory, session, user};
+use crate::entities::{session, user};
 use crate::auth::{generate_jwt, hash_password, verify_password, generate_jwt_admin};
 use crate::handlers::users::LoginResponse;
 use crate::models::session::{UserInfo, SessionResponse};

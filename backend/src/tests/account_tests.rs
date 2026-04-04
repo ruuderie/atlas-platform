@@ -14,10 +14,9 @@ async fn test_account_creation_and_listing() {
     let (app, db) = setup_test_app().await;
     
     // Register User A
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
     let mut username_a = format!("accountuser{}", Uuid::new_v4());
-    let (status, login_res_a) = test_utils::register_test_user(&app, directory.id, &mut username_a).await;
+    let (status, login_res_a) = test_utils::register_test_user(&app, tenant.id, &mut username_a).await;
     assert_eq!(status, StatusCode::CREATED);
     
     let user_a_token = login_res_a["token"].as_str().unwrap().to_string();
@@ -48,7 +47,7 @@ async fn test_account_creation_and_listing() {
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
                     "name": format!("Org {}", Uuid::new_v4()),
-                    "directory_id": directory.id,
+                    "tenant_id": tenant.id,
                 }).to_string()))
                 .unwrap(),
         )

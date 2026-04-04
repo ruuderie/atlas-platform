@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
-    pub directory_type_id: Uuid,
+
     pub parent_category_id: Option<Uuid>,
     pub name: String,
     pub description: String,
@@ -20,12 +20,12 @@ pub struct Model {
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub directory_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    DirectoryType,
+
     ParentCategory,
     SubCategories,
     Templates,
@@ -35,10 +35,7 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::DirectoryType => Entity::belongs_to(super::directory_type::Entity)
-                .from(Column::DirectoryTypeId)
-                .to(super::directory_type::Column::Id)
-                .into(),
+
             Self::ParentCategory => Entity::belongs_to(super::category::Entity)
                 .from(Column::ParentCategoryId)
                 .to(super::category::Column::Id)
@@ -50,11 +47,6 @@ impl RelationTrait for Relation {
     }
 }
 
-impl Related<super::directory_type::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::DirectoryType.def()
-    }
-}
 
 impl Related<super::template::Entity> for Entity {
     fn to() -> RelationDef {

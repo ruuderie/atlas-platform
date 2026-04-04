@@ -42,7 +42,6 @@ impl Related<super::tenant::Entity> for Entity {
         Relation::Tenant.def()
     }
 }
-
 impl Related<super::app_domain::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AppDomain.def()

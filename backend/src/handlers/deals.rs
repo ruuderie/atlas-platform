@@ -59,7 +59,7 @@ pub async fn create_deal(
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        directory_id: Set(None),
+        tenant_id: Set(None),
         properties: Set(None),
     };
 

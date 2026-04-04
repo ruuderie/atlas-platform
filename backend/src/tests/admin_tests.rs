@@ -21,10 +21,9 @@ async fn test_admin_user_management() {
     let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // Create a regular user
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
     let mut username = format!("regularuser{}", Uuid::new_v4());
-    let (status, login_res) = test_utils::register_test_user(&app, directory.id, &mut username).await;
+    let (status, login_res) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
     assert_eq!(status, StatusCode::CREATED);
     
     let regular_user_id = login_res["user"]["id"].as_str().unwrap().to_string();
@@ -101,13 +100,13 @@ async fn test_admin_statistics() {
     let (app, db) = setup_test_app().await;
     let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
-    // 1. Directory Stats
+    // 1. Tenant Stats
     let response = app.clone()
         .oneshot(
             Request::builder()
                 .header("Host", "localhost")
                 .method("GET")
-                .uri("/api/admin/directory-stats")
+                .uri("/api/admin/tenant-stats")
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .body(Body::empty())
                 .unwrap(),

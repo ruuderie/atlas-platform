@@ -1,11 +1,11 @@
 ```mermaid
 graph TD
     A[Admin User] -->|Logs in| B[Admin Portal]
-    B -->|Manages| C[Site Registry]
-    C -->|Contains| D[Directory 1: Transportation]
-    C -->|Contains| E[Directory 2: Healthcare]
-    C -->|Contains| F[Directory 3: Construction]
-    C -->|Contains| G[Directory N: ...]
+    B -->|Manages| C[Tenant Registry]
+    C -->|Contains| D[Tenant 1: Transportation]
+    C -->|Contains| E[Tenant 2: Healthcare]
+    C -->|Contains| F[Tenant 3: Construction]
+    C -->|Contains| G[Tenant N: ...]
     
     D -->|Has| D1[Configuration]
     D -->|Has| D2[Modules]
@@ -40,8 +40,8 @@ graph TD
 ```rust
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SiteConfig {
-    // Unique identifier for the directory/site
-    pub directory_id: Uuid,
+    // Unique identifier for the tenant
+    pub tenant_id: Uuid,
     
     // Display name of the site
     pub name: String,
@@ -179,7 +179,7 @@ bitflags! {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SiteConfig {
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub name: String,
     pub domain: String,
     pub enabled_modules: ModuleFlags,
@@ -211,7 +211,7 @@ use std::sync::Arc;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use crate::entities::directory;
+use crate::entities::tenant;
 use crate::config::site_config::{SiteConfig, ModuleFlags};
 
 // Cache for site configurations to avoid frequent DB lookups
@@ -237,19 +237,19 @@ pub async fn site_context_middleware<B>(
         Some(config) => config,
         None => {
             // Not in cache, fetch from database
-            let directory = directory::Entity::find()
-                .filter(directory::Column::Domain.eq(&domain))
+            let database_tenant = tenant::Entity::find()
+                .filter(tenant::Column::Domain.eq(&domain))
                 .one(&db)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
             
-            let directory = match directory {
+            let tenant_record = match database_tenant {
                 Some(dir) => dir,
                 None => return Err(StatusCode::NOT_FOUND),
             };
             
             // Convert to SiteConfig
-            let enabled_modules_value = directory.additional_info
+            let enabled_modules_value = tenant_record.additional_info
                 .get("enabled_modules")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u32;
@@ -268,8 +268,8 @@ pub async fn site_context_middleware<B>(
                 .unwrap_or_default();
             
             let config = SiteConfig {
-                directory_id: directory.id,
-                name: directory.name,
+                tenant_id: tenant_record.id,
+                name: tenant_record.name,
                 domain,
                 enabled_modules,
                 theme,
@@ -316,8 +316,8 @@ pub async fn create_listing(
 
 // backend/src/admin/routes.rs
 // Add to your existing admin_routes function
-.route("/admin/directories/:directory_id/config", get(get_site_config).put(update_site_config))
-.route("/admin/directories/:directory_id/custom-settings", get(get_custom_settings).put(update_custom_settings))
+.route("/admin/tenants/:tenant_id/config", get(get_site_config).put(update_site_config))
+.route("/admin/tenants/:tenant_id/custom-settings", get(get_custom_settings).put(update_custom_settings))
 
 ## Infrastructure & Dynamic Routing
 

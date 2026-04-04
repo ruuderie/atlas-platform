@@ -18,7 +18,7 @@ use crate::models::ad_purchase::{AdStatus, AdPurchase};
 async fn setup_test_app() -> (Router, DatabaseConnection) {
     let database_url = env::var("TEST_DATABASE_URL_LOCAL")
         .unwrap_or_else(|_| env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_directory_test".to_string()));
+        .unwrap_or_else(|_| "postgres://postgres:postgres@127.0.0.1:5432/business_tenant_test".to_string()));
 
     let db = Database::connect(&database_url)
         .await
@@ -46,14 +46,13 @@ async fn test_ad_purchase_crud() {
 
     // To create an AdPurchase, we might need a Profile and a Listing
     // creating a simple profile manually
-    let directory_type = test_utils::create_test_directory_type(&db).await;
-    let directory = test_utils::create_test_directory(&db, directory_type.id).await;
-    let directory_type_id = directory.directory_type_id;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let tenant_id = tenant.id;
 
     // Create an account
     let account = crate::entities::account::ActiveModel {
         id: sea_orm::Set(Uuid::new_v4()),
-        directory_id: sea_orm::Set(directory.id),
+        tenant_id: sea_orm::Set(tenant.id),
         name: sea_orm::Set("Test Account".to_string()),
         is_active: sea_orm::Set(true),
         created_at: sea_orm::Set(Utc::now()),
@@ -76,7 +75,7 @@ async fn test_ad_purchase_crud() {
     let profile = crate::entities::profile::ActiveModel {
         id: sea_orm::Set(Uuid::new_v4()),
         account_id: sea_orm::Set(account.id),
-        directory_id: sea_orm::Set(directory.id),
+        tenant_id: sea_orm::Set(tenant.id),
         profile_type: sea_orm::Set(crate::entities::profile::ProfileType::Individual),
         display_name: sea_orm::Set("Admin".to_string()),
         contact_info: sea_orm::Set("admin@example.com".to_string()),
@@ -93,7 +92,7 @@ async fn test_ad_purchase_crud() {
     let listing = crate::entities::listing::ActiveModel {
         id: sea_orm::Set(Uuid::new_v4()),
         profile_id: sea_orm::Set(profile_id),
-        directory_id: sea_orm::Set(directory.id),
+        tenant_id: sea_orm::Set(tenant.id),
         title: sea_orm::Set("Test Listing".to_string()),
         description: sea_orm::Set("A test listing for an ad.".to_string()),
         listing_type: sea_orm::Set("Business".to_string()),
@@ -126,7 +125,7 @@ async fn test_ad_purchase_crud() {
     });
 
     let create_req = Request::builder()
-        .header("Host", directory.domain.clone())
+        .header("Host", "localhost")
         .method("POST")
         .uri("/api/ad-purchases")
         .header("Content-Type", "application/json")
@@ -148,7 +147,7 @@ async fn test_ad_purchase_crud() {
 
     // GET AdPurchases List
     let get_all_req = Request::builder()
-        .header("Host", directory.domain.clone())
+        .header("Host", "localhost")
         .method("GET")
         .uri("/api/admin/ad-purchases")
         .header("Authorization", format!("Bearer {}", admin_token))
@@ -160,7 +159,7 @@ async fn test_ad_purchase_crud() {
 
     // Cancel AdPurchase
     let cancel_req = Request::builder()
-        .header("Host", directory.domain.clone())
+        .header("Host", "localhost")
         .method("POST")
         .uri(format!("/api/admin/ad-purchases/{}/cancel", ad_purchase.id))
         .header("Authorization", format!("Bearer {}", admin_token))

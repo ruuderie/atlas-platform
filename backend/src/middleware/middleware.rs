@@ -6,7 +6,7 @@ use axum::{
     http::{StatusCode, Request, Method},
     Extension,
 };
-use crate::entities::{user, session, user_account, profile, directory};
+use crate::entities::{user, session, user_account, profile, tenant};
 use sea_orm::{EntityTrait, DatabaseConnection, QueryFilter, ColumnTrait, Set};
 use uuid::Uuid;
 use chrono::Utc;
@@ -232,10 +232,10 @@ pub async fn auth_middleware(
     req.extensions_mut().insert(session.clone());
 
     // Retrieve and insert user's directory IDs into request extensions
-    tracing::debug!("[{}] Retrieving user directory IDs", request_id);
-    let directory_ids = match get_user_directory_ids(&db, &user).await {
+    tracing::debug!("[{}] Retrieving user tenant IDs", request_id);
+    let directory_ids = match get_user_tenant_ids(&db, &user).await {
         Ok(ids) => {
-            tracing::debug!("[{}] Retrieved {} directory IDs for user", request_id, ids.len());
+            tracing::debug!("[{}] Retrieved {} tenant IDs for user", request_id, ids.len());
             ids
         },
         Err(e) => {
@@ -408,9 +408,9 @@ async fn update_session(db: &DatabaseConnection, session: &session::Model) -> Re
     }
 }
 
-// Retrieve the directory IDs associated with the user
-async fn get_user_directory_ids(db: &DatabaseConnection, user: &user::Model) -> Result<Vec<Uuid>, StatusCode> {
-    tracing::debug!("Retrieving directory IDs for user: {}", user.id);
+// Retrieve the tenant IDs associated with the user
+async fn get_user_tenant_ids(db: &DatabaseConnection, user: &user::Model) -> Result<Vec<Uuid>, StatusCode> {
+    tracing::debug!("Retrieving tenant IDs for user: {}", user.id);
     
     // Fetch user accounts associated with the user
     let user_accounts = match user_account::Entity::find()
@@ -456,29 +456,29 @@ async fn get_user_directory_ids(db: &DatabaseConnection, user: &user::Model) -> 
         return Ok(Vec::new());
     }
     
-    let profile_directory_ids: Vec<Uuid> = profiles.into_iter()
-        .map(|profile| profile.directory_id)
+    let profile_tenant_ids: Vec<Uuid> = profiles.into_iter()
+        .map(|profile| profile.tenant_id)
         .collect();
         
-    // Get directories from profiles
-    let directories = match directory::Entity::find()
-        .filter(directory::Column::Id.is_in(profile_directory_ids))
+    // Get tenants from profiles
+    let tenants = match tenant::Entity::find()
+        .filter(tenant::Column::Id.is_in(profile_tenant_ids))
         .all(db)
         .await {
-            Ok(directories) => {
-                tracing::debug!("Found {} directories", directories.len());
-                directories
+            Ok(tenants) => {
+                tracing::debug!("Found {} tenants", tenants.len());
+                tenants
             },
             Err(e) => {
-                tracing::error!("Failed to retrieve directories: {:?}", e);
+                tracing::error!("Failed to retrieve tenants: {:?}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         };
         
-    let directory_ids: Vec<Uuid> = directories.into_iter()
-        .map(|directory| directory.id)
+    let tenant_ids: Vec<Uuid> = tenants.into_iter()
+        .map(|tenant| tenant.id)
         .collect();
         
-    tracing::debug!("Retrieved {} directory IDs for user", directory_ids.len());
-    Ok(directory_ids)
+    tracing::debug!("Retrieved {} tenant IDs for user", tenant_ids.len());
+    Ok(tenant_ids)
 }

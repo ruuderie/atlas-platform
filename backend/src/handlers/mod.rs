@@ -18,7 +18,6 @@ pub mod app_instance;
 pub mod app_pages;
 pub mod app_menus;
 pub mod templates;
-pub mod directory_types;
 pub mod listings;
 pub mod profiles;
 pub mod user_accounts;

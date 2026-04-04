@@ -16,12 +16,12 @@ use crate::entities::{user, account, profile, user_account};
 #[derive(Deserialize)]
 pub struct CreateAccountPayload {
     pub name: String,
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
 }
 
 #[derive(Deserialize)]
 pub struct CreateProfilePayload {
-    pub directory_id: Uuid,
+    pub tenant_id: Uuid,
     pub display_name: String,
     pub contact_info: String,
     pub business_name: Option<String>,
@@ -77,7 +77,7 @@ pub async fn create_account(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let new_account = account::ActiveModel {
         id: Set(Uuid::new_v4()),
-        directory_id: Set(payload.directory_id),
+        tenant_id: Set(payload.tenant_id),
         name: Set(payload.name),
         is_active: Set(true),
         stripe_customer_id: sea_orm::NotSet,
@@ -150,7 +150,7 @@ pub async fn create_profile(
     let new_profile = profile::ActiveModel {
         id: Set(Uuid::new_v4()),
         account_id: Set(account_id),
-        directory_id: Set(payload.directory_id),
+        tenant_id: Set(payload.tenant_id),
         profile_type: Set(profile::ProfileType::Business),
         service_area_zips: sea_orm::NotSet,
         display_name: Set(payload.display_name),

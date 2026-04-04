@@ -43,5 +43,4 @@ impl Related<super::tenant::Entity> for Entity {
         Relation::Tenant.def()
     }
 }
-
 impl ActiveModelBehavior for ActiveModel {}

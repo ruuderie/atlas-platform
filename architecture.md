@@ -6,20 +6,19 @@ erDiagram
     User ||--o{ RequestLog : has
     Account ||--o{ UserAccount : has
     Account ||--o{ Profile : has
-    Account }|--|| Directory : belongs_to
-    Directory ||--|{ Profile : has
-    Directory ||--|{ Listing : has
-    Directory ||--|{ Template : has
-    Directory }|--|| DirectoryType : has
+    Account }|--|| Tenant : belongs_to
+    Tenant ||--|{ Profile : has
+    Tenant ||--|{ Listing : has
+    Tenant ||--|{ Template : has
     Profile ||--o{ Listing : creates
     Profile ||--o{ AdPurchase : makes
     Listing }|--|| Category : belongs_to
     Listing ||--o{ ListingAttribute : has
     Listing ||--o{ AdPurchase : has
     Template }|--|| Category : belongs_to
-    Template }|--|| Directory : belongs_to
+    Template }|--|| Category : belongs_to
+    Template }|--|| Tenant : belongs_to
     Template ||--o{ ListingAttribute : has
-    Category }|--|| DirectoryType : belongs_to
     Category ||--o{ Category : has_subcategories
 
     %% New CRM Relationships
@@ -63,7 +62,7 @@ erDiagram
 
     Account {
         UUID id PK
-        UUID directory_id FK
+        UUID tenant_id FK
         string name
         boolean is_active
         datetime created_at
@@ -83,7 +82,7 @@ erDiagram
     Profile {
         UUID id PK
         UUID account_id FK
-        UUID directory_id FK
+        UUID tenant_id FK
         string profile_type
         string display_name
         string contact_info
@@ -97,20 +96,14 @@ erDiagram
         datetime updated_at
     }
 
-    Directory {
-        UUID id PK
-        UUID directory_type_id FK
-        string name
-        string domain
-        string description
-        datetime created_at
-        datetime updated_at
-    }
-
-    DirectoryType {
+    Tenant {
         UUID id PK
         string name
         string description
+        string site_status
+        json theme
+        json custom_settings
+        boolean enabled_modules
         datetime created_at
         datetime updated_at
     }
@@ -118,7 +111,7 @@ erDiagram
     Listing {
         UUID id PK
         UUID profile_id FK
-        UUID directory_id FK
+        UUID tenant_id FK
         UUID category_id FK
         UUID based_on_template_id FK
         string title
@@ -153,7 +146,6 @@ erDiagram
 
     Category {
         UUID id PK
-        UUID directory_type_id FK
         UUID parent_category_id FK
         string name
         string description
@@ -165,7 +157,7 @@ erDiagram
 
     Template {
         UUID id PK
-        UUID directory_id FK
+        UUID tenant_id FK
         UUID category_id FK
         string name
         string description
