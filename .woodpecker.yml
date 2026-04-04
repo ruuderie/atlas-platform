@@ -1,3 +1,6 @@
+when:
+  - event: [push, pull_request]
+
 services:
   database:
     image: postgres:15
@@ -103,6 +106,7 @@ steps:
   # Core Notification
   notify_discord:
     image: appleboy/drone-discord
+    failure: ignore
     settings:
       webhook_id:
         from_secret: discord_webhook_id
@@ -117,5 +121,6 @@ steps:
         {{/success}}
         *Pipeline Logs:* {{build.link}}
     when:
-      status: [success, failure]
+      - status: [success, failure]
+        event: [push, pull_request]
     depends_on: [deploy_platform_k8s]
