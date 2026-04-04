@@ -39,7 +39,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [test_workspace]
+    depends_on: [publish_anchor]
 
   publish_directory_instance:
     image: woodpeckerci/plugin-docker-buildx
@@ -54,7 +54,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_platform_admin]
+    depends_on: [publish_anchor]
 
   publish_anchor:
     image: woodpeckerci/plugin-docker-buildx
@@ -69,7 +69,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_directory_instance]
+    depends_on: [test_workspace]
 
   # Unified CD Deployment Step
   deploy_platform_k8s:
