@@ -21,7 +21,7 @@ steps:
         until pg_isready -h database -p 5432 -U postgres; do
           sleep 2
         done
-      - cargo test --workspace -- --test-threads=1
+      - cd backend && cargo test --workspace -- --test-threads=1
 
   # Build apps in parallel
   build_platform_admin:
