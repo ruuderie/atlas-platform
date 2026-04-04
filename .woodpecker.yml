@@ -1,5 +1,5 @@
 when:
-  - event: [push, pull_request]
+  - event: [push]
 
 services:
   database:
@@ -122,5 +122,11 @@ steps:
         *Pipeline Logs:* {{build.link}}
     when:
       - status: [success, failure]
-        event: [push, pull_request]
+        event: [push]
     depends_on: [deploy_platform_k8s]
+
+secrets:
+  - discord_webhook_id
+  - discord_webhook_token
+  - docker_username
+  - docker_password
