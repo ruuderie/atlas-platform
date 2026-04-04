@@ -1,20 +1,17 @@
 use crate::entities::{
     account::{self, Entity as Account},
-    ad_purchase::{self, Entity as AdPurchase},
     profile::{self, Entity as Profile},
-    user::{self, Entity as User},
+    user::{self},
     user_account::{self, Entity as UserAccount}
 };
 use crate::models::profile::{ProfileSearch, CreateProfileInput, UpdateProfileInput};
-use crate::models::account::{AccountModel, CreateAccountInput, UpdateAccountInput};
 use axum::{
     extract::{Extension, Json, Path, Query,State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
 };
-use sea_orm::Database;
 use sea_orm::{DatabaseConnection, EntityTrait, Set, Condition, ColumnTrait, QueryFilter, ActiveModelTrait, IntoActiveModel};
 use uuid::Uuid;
 use chrono::Utc;

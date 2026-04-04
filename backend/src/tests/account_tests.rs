@@ -60,7 +60,7 @@ async fn test_account_creation_and_listing() {
 #[tokio::test]
 async fn test_user_account_invitations() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // 1. Admin gets all accounts
     let response = app.clone()

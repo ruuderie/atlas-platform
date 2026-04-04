@@ -1,14 +1,11 @@
 use crate::entities::{
     user,user_account, tenant, listing, ad_purchase, 
-    profile, account, session,request_log,
-    template, category
+    profile, account, session,request_log
 };
 use axum::{
-    Router,
     extract::{Extension, Json, Path, State, Query},
-    routing::get,
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::IntoResponse,
 };
 use sea_orm::{DatabaseConnection, EntityTrait,QuerySelect, QueryFilter,Order, ColumnTrait,QueryOrder, Set, ActiveModelTrait, PaginatorTrait};
 use serde::{Deserialize, Serialize};
@@ -18,7 +15,7 @@ use crate::models::user::UserAdminView;
 use crate::models::ad_purchase::AdStatus;
 
 use std::collections::HashMap;
-use crate::handlers::{listings,sessions};
+use crate::handlers::listings;
 use crate::models::session::{SessionResponse, UserInfo};
 
 #[derive(Deserialize)]
@@ -76,9 +73,9 @@ pub struct ActivityReport {
 
 pub async fn get_directory_listings(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path(tenant_id): Path<Uuid>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+    Path(_tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // extension database connection and query params
     let extension_db = Extension(db);
@@ -90,12 +87,12 @@ pub async fn get_directory_listings(
 
 pub async fn get_listing(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
-    Path((listing_id)): Path<(Uuid)>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+    Path(listing_id ): Path<Uuid >,
 ) -> Result<impl IntoResponse, StatusCode> {
     let extension_db = Extension(db);
-    let path = Path((listing_id));
+    let path = Path(listing_id );
 
     let listing = listings::get_listing_by_id(extension_db, path).await?;
     Ok(listing)
@@ -103,8 +100,8 @@ pub async fn get_listing(
 
 pub async fn list_users(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Listing users via admin route");
@@ -153,8 +150,8 @@ pub async fn list_users(
 
 pub async fn get_user(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Getting user via admin route");
@@ -206,8 +203,8 @@ pub async fn get_user(
 
 pub async fn update_user(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
     Json(input): Json<UpdateUserInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -232,8 +229,8 @@ pub async fn update_user(
 
 pub async fn delete_user(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -247,8 +244,8 @@ pub async fn delete_user(
 
 pub async fn toggle_admin(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -268,8 +265,8 @@ pub async fn toggle_admin(
 
 pub async fn get_all_directory_stats(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let directories = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -309,8 +306,8 @@ pub async fn get_all_directory_stats(
 
 pub async fn get_directory_stats(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -354,8 +351,8 @@ pub async fn get_directory_stats(
 
 pub async fn list_pending_listings(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let pending_listings = listing::Entity::find()
@@ -369,8 +366,8 @@ pub async fn list_pending_listings(
 
 pub async fn approve_listing(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(listing_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -390,8 +387,8 @@ pub async fn approve_listing(
 
 pub async fn reject_listing(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(listing_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let mut listing: listing::ActiveModel = listing::Entity::find_by_id(listing_id)
@@ -410,8 +407,8 @@ pub async fn reject_listing(
 
 pub async fn get_ad_purchase_stats(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let total_purchases = ad_purchase::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -441,8 +438,8 @@ pub async fn get_ad_purchase_stats(
 
 pub async fn list_active_ad_purchases(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let active_purchases = ad_purchase::Entity::find()
@@ -456,8 +453,8 @@ pub async fn list_active_ad_purchases(
 
 pub async fn get_ad_purchase(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(purchase_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -473,7 +470,7 @@ pub async fn get_ad_purchase(
 pub async fn list_ad_purchases(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Attempting to list ad purchases for user: {:?}", current_user.id);
 
@@ -490,8 +487,8 @@ pub async fn list_ad_purchases(
 }
 pub async fn cancel_ad_purchase(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
     Path(purchase_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
@@ -511,8 +508,8 @@ pub async fn cancel_ad_purchase(
 
 pub async fn get_user_statistics(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let total_users = user::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -539,8 +536,8 @@ pub async fn get_user_statistics(
 
 pub async fn get_account_statistics(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let total_accounts = account::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -560,8 +557,8 @@ pub async fn get_account_statistics(
 
 pub async fn get_listing_statistics(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let total_listings = listing::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -581,8 +578,8 @@ pub async fn get_listing_statistics(
 
 pub async fn get_ad_purchase_statistics(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     let total_purchases = ad_purchase::Entity::find().count(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -611,12 +608,12 @@ pub async fn get_ad_purchase_statistics(
 
 pub async fn get_activity_report(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let report;
     // Fetch recent activity data
-    let recent_activities = {
+    let _recent_activities = {
         let recent_listings = listing::Entity::find()
             .order_by(listing::Column::CreatedAt, Order::Desc)
             .limit(5)
@@ -667,18 +664,18 @@ pub async fn get_activity_report(
 
 pub async fn get_revenue_report(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Extension(current_session): Extension<session::Model>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
     // Fetch revenue data total ad purchases by month
     let revenue_data = {
-        let ad_purchases = ad_purchase::Entity::find()
+        let _ad_purchases = ad_purchase::Entity::find()
             .all(&db)
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let mut revenue_data: HashMap<String, f64> = HashMap::new();
+        let revenue_data: HashMap<String, f64> = HashMap::new();
         
         // ... populate revenue_data ...
 

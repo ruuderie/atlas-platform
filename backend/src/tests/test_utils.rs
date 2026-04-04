@@ -8,15 +8,14 @@ use chrono::Utc;
 use fake::{
     faker::{
         address::en::StreetName,
-        company::en::{CatchPhrase, CompanyName},
-        internet::en::{DomainSuffix, Password, SafeEmail, Username},
+        company::en::CompanyName,
+        internet::en::{DomainSuffix, SafeEmail, Username},
         lorem::en::Sentence,
         name::en::{FirstName, LastName},
         phone_number::en::PhoneNumber,
     },
     Fake,
 };
-use hyper::body::Bytes;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseConnection, Set};
 use serde_json::json;
 use tower::ServiceExt;
@@ -29,7 +28,7 @@ pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
     let tenant_id = Uuid::new_v4();
 
     let company_domain = format!("{:?}.com", CompanyName().fake::<String>());
-    let company_domain = company_domain.replace(" ", "").replace("\"", "").to_lowercase();
+    let _company_domain = company_domain.replace(" ", "").replace("\"", "").to_lowercase();
     let new_tenant = tenant::ActiveModel {
         id: Set(tenant_id),
         name: Set(CompanyName().fake()),
@@ -242,7 +241,7 @@ pub async fn create_and_login_admin_user(
 // New function to create staff user accounts
 pub async fn create_staff_user_account(
     db: &DatabaseConnection,
-    admin_user: &user::Model,
+    _admin_user: &user::Model,
     profile: &profile::Model,
     role: user_account::UserRole,
 ) -> user_account::Model {

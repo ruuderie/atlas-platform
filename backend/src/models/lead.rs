@@ -3,8 +3,6 @@ use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use crate::entities::lead;
 use crate::models::address::AddressJson;
-use super::file::FileAssociation;
-use sea_orm::{DatabaseConnection, EntityTrait, ModelTrait, RelationTrait};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeadModel {

@@ -1,13 +1,12 @@
 use crate::entities::{
-    ad_purchase::{self, Entity as AdPurchase},
     listing::{self, Entity as Listing},
     profile::{self, Entity as Profile},
-    user::{self, Entity as User},
+    user::{self},
     user_account::{self, Entity as UserAccount},
 };
 use crate::models::listing::{ListingCreate, ListingUpdate, ListingStatus, PaginatedListings};
 use sea_orm::{
-    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait, DatabaseTransaction, IntoActiveModel, PaginatorTrait
+    DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait, ActiveModelTrait, TransactionTrait, IntoActiveModel, PaginatorTrait
 };
 use axum::{
     extract::{Path, Json, Extension, Query},

@@ -27,14 +27,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let dir_uuid = Uuid::new_v4();
     
     // Provide the theme and custom settings that mirror app.rs payload
-    let theme_json = serde_json::json!({
+    let _theme_json = serde_json::json!({
         "brand_primary": "#f97316",
         "bg_surface": "#ffffff",
         "radius_ui": "6px",
         "font_heading": "Inter, sans-serif"
     });
 
-    let custom_settings = serde_json::json!({
+    let _custom_settings = serde_json::json!({
         "hero_headline": "Connecticut's Most Trusted Home Renovation Pros.",
         "hero_subtitle": "Find licensed contractors, handymen, and renovation specialists — vetted and reviewed by your neighbors.",
         "search_placeholder_keyword": "Kitchen remodel, plumber, handyman...",

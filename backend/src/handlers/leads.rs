@@ -7,13 +7,12 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait,IntoActiveModel, ActiveValue, Value
+    ActiveModelTrait, ModelTrait
 };
 use uuid::Uuid;
 use chrono::Utc;
 use crate::entities::{lead, listing, account, note,user, activity};
 use crate::models::lead::{LeadModel, CreateLeadInput, UpdateLeadInput};
-use crate::models::address::AddressJson;
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};

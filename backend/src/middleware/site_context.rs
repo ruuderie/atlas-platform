@@ -13,7 +13,6 @@ use std::collections::HashMap;
 use tokio::sync::RwLock;
 use crate::entities::{tenant, app_domain, app_instance};
 use crate::config::{SiteConfig, ModuleFlags};
-use serde_json::Value;
 
 // Cache for site configurations to avoid frequent DB lookups
 static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> = 

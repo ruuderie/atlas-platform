@@ -2,20 +2,15 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     Json,
-    response::IntoResponse,
     routing::{get, post, put, delete},
     Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, NotSet};
-use crate::entities::tenant::{self, Entity as Tenant};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
 use crate::entities::tenant_setting::{self, Entity as TenantSetting};
 use crate::models::tenant::{TenantModel, CreateTenant, UpdateTenant};
-use chrono::{Utc, DateTime};
+use chrono::Utc;
 use uuid::Uuid;
-use crate::config::site_config::{SiteConfig, ModuleFlags};
-use serde_json::Value;
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 use crate::services::tenant::TenantService;
 
 pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
@@ -74,9 +69,9 @@ pub async fn get_tenant_by_id(
 
 pub async fn lookup_tenant_by_domain(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
-    State(db): State<DatabaseConnection>,
+    State(_db): State<DatabaseConnection>,
 ) -> Result<(StatusCode, Json<TenantModel>), StatusCode> {
-    let domain = params.get("domain").ok_or(StatusCode::BAD_REQUEST)?;
+    let _domain = params.get("domain").ok_or(StatusCode::BAD_REQUEST)?;
     
     // In multi-tenant architecture, AppDomain identifies the tenant.
     // For now, simulated by getting the first tenant (Will replace when lookup logic finishes)

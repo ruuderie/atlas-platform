@@ -1,12 +1,12 @@
 use axum::{
-    extract::{State, Path, Json, Query},
+    extract::{State, Path, Json},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;

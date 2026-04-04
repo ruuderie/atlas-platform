@@ -1,12 +1,8 @@
-use chrono::{Utc, DateTime, Duration};
+use chrono::{Utc, DateTime};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
-use serde_json::Value;
-use sea_orm::{IntoActiveModel, Set};
 use sea_orm::sea_query::StringLen;
-use crate::entities::listing;
-use std::str::FromStr;
 use axum::http::request::Parts;
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(32))")]

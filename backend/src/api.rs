@@ -1,12 +1,11 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, admin, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications};
+use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
-use tower_http::cors::{CorsLayer, Any};
-use axum::{extract::Request, middleware::Next, response::IntoResponse, http::{StatusCode, Response}};
+use axum::{extract::Request, middleware::Next};
 use std::env;
 
 // async fn auth_middleware_wrapper(

@@ -1,5 +1,5 @@
 use sea_orm::entity::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 

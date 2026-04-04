@@ -5,17 +5,15 @@ use axum::{
     response::IntoResponse,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, 
-    RelationTrait, QuerySelect, Condition, DbErr, QueryOrder, Order, TransactionTrait, PaginatorTrait
+    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, QueryOrder, Order, TransactionTrait, PaginatorTrait
 };
-use crate::entities::feed::{self, Entity as Feed};
+use crate::entities::feed::Entity as Feed;
 use crate::entities::feed_item::{self, Entity as FeedItem};
 use crate::entities::attachment::{self, Entity as Attachment};
-use crate::models::feed_item::{FeedItemModel, CreateFeedItem, UpdateFeedItem, CreateAttachment};
+use crate::models::feed_item::{FeedItemModel, CreateFeedItem, UpdateFeedItem};
 use crate::models::attachment::AttachmentModel;
 use chrono::Utc;
 use uuid::Uuid;
-use serde_json::json;
 
 pub async fn get_feed_items(
     State(db): State<DatabaseConnection>,

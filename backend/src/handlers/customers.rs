@@ -7,7 +7,7 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait, PaginatorTrait,ActiveValue, Value
+    ActiveModelTrait, ModelTrait, PaginatorTrait
 };
 use crate::handlers::Validate;
 use uuid::Uuid;
@@ -20,7 +20,6 @@ use crate::models::contact::{ CreateContactInput};
 use crate::models::note::{CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
 use crate::models::file::FileAssociation;
-use crate::models::address::AddressJson;
 use crate::models::customer::Customer as CustomerModel;
 use crate::models::contact::Contact as ContactModel;
 use crate::models::note::NoteModel;
@@ -44,7 +43,7 @@ pub fn routes() -> Router<DatabaseConnection> {
 
 pub async fn create_customer(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Json(payload): Json<CreateCustomerInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Parse the customer type string into the enum
@@ -120,7 +119,7 @@ pub async fn create_customer(
 
 pub async fn get_customers(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let page: u64 = params.get("page").and_then(|v| v.parse().ok()).unwrap_or(1);
@@ -152,7 +151,7 @@ pub async fn get_customers(
 
 pub async fn get_customer(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let customer = customer::Entity::find_by_id(id)
@@ -170,7 +169,7 @@ pub async fn get_customer(
 
 pub async fn update_customer(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(payload): Json<UpdateCustomerInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -275,7 +274,7 @@ pub async fn update_customer(
 
 pub async fn delete_customer(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let result = customer::Entity::delete_by_id(id)
@@ -295,7 +294,7 @@ pub async fn delete_customer(
 
 pub async fn add_file_to_customer(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path((customer_id, file_id)): Path<(Uuid, Uuid)>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let customer = customer::Entity::find_by_id(customer_id)
@@ -319,7 +318,7 @@ pub async fn add_file_to_customer(
 
 pub async fn get_customer_files(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(customer_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let customer = customer::Entity::find_by_id(customer_id)

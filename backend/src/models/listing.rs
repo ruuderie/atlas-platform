@@ -1,4 +1,4 @@
-use chrono::{Utc, DateTime, Duration};
+use chrono::{Utc, DateTime};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;

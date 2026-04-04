@@ -10,20 +10,16 @@ mod models;
 mod traits;
 mod config;
 mod services;
-use axum::http::{self,HeaderName, HeaderValue, Method,Request, StatusCode, header};
+use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
-use headers::{Server};
-use axum::middleware::{from_fn_with_state, from_fn, Next};
+use axum::middleware::from_fn_with_state;
 use axum::{
-    routing::get,
-    extract::State,
     Router,
     Extension,
 };
 use tower_http::cors::CorsLayer;
 use tower::ServiceBuilder;
-use crate::sea_orm::{Database, DatabaseConnection, ConnectionTrait};
-use crate::models::request_log::RequestStatus;
+use crate::sea_orm::{Database, ConnectionTrait};
 use sea_orm_migration::prelude::*;
 use migration::{Migrator};
 use std::net::SocketAddr;
@@ -36,9 +32,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
     request_logger::RequestLogger,
     rate_limiter::RateLimiter,
-    middleware::{auth_middleware, log_request_middleware}
+    middleware::log_request_middleware
 };
-use axum::response::{IntoResponse,Response};
 use webauthn_rs::prelude::*;
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
 use moka::future::Cache;
@@ -108,8 +103,8 @@ async fn main() {
         std::env::var("DATABASE_URL").expect("DATABASE_URL must be set")
     };
     
-    let admin_email = std::env::var("ADMIN_USER").expect("ADMIN_USER must be set");
-    let admin_password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
+    let _admin_email = std::env::var("ADMIN_USER").expect("ADMIN_USER must be set");
+    let _admin_password = std::env::var("ADMIN_PASSWORD").expect("ADMIN_PASSWORD must be set");
     let create_admin = std::env::var("CREATE_ADMIN_ON_STARTUP")
         .unwrap_or_else(|_| "true".to_string())
         .parse::<bool>()
@@ -122,7 +117,7 @@ async fn main() {
         .await
         .expect("Failed to connect to the database");
 
-    let request_logger = RequestLogger::new(conn.clone());
+    let _request_logger = RequestLogger::new(conn.clone());
 
     // Run migrations
     Migrator::up(&conn, None).await.unwrap();

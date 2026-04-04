@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
+    DatabaseConnection, EntityTrait, Set,
     ActiveModelTrait, ModelTrait,
 };
 use uuid::Uuid;

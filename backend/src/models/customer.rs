@@ -1,11 +1,9 @@
-use crate::entities::customer::{Model as CustomerEntity, CustomerType, CustomerAttributes};
+use crate::entities::customer::{Model as CustomerEntity, CustomerAttributes};
 use crate::models::address::AddressJson;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use crate::models::Validate;
-use sea_orm::{DatabaseConnection, EntityTrait, ModelTrait, RelationTrait};
-use crate::entities::{customer, file};
 
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct Customer {

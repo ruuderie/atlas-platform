@@ -6,13 +6,13 @@ use axum::{
     Router,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
+    DatabaseConnection, EntityTrait, Set,
     ActiveModelTrait, ModelTrait,
 };
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::entities::{deal, customer, contact, file, user, note, activity};
+use crate::entities::{deal, customer, contact, user, note, activity};
 use crate::models::deal::{DealModel, CreateDealInput, UpdateDealInput};
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};

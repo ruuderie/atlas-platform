@@ -6,16 +6,15 @@ use axum::{
     Router,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 use chrono::{Utc, Duration};
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{user, account, profile, user_account, magic_link_token};
-use crate::auth::{hash_password, verify_password};
+use crate::entities::{user, account, user_account, magic_link_token};
+use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
-use crate::models::user::UserRegistration;
 
 #[derive(Deserialize)]
 pub struct VerifyEmailQuery {
@@ -46,8 +45,8 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
 
 
 pub async fn verify_email(
-    State(db): State<DatabaseConnection>,
-    Query(query): Query<VerifyEmailQuery>,
+    State(_db): State<DatabaseConnection>,
+    Query(_query): Query<VerifyEmailQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Stub for email verification logic
     // We would look up the user by the verification token and set is_active = true
@@ -168,7 +167,7 @@ pub async fn verify_magic_link(
         .filter(magic_link_token::Column::IsUsed.eq(false))
         .one(&db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+        .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
 
     let magic_link = match magic_link_opt {
         Some(m) => m,

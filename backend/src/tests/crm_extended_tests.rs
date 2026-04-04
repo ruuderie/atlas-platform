@@ -72,7 +72,7 @@ async fn test_crm_cases_and_notes() {
     let (app, db) = setup_test_app().await;
     let tenant = test_utils::create_test_tenant(&db).await;
     let mut username_a = format!("caseuser{}", Uuid::new_v4());
-    let (status, login_res_a) = test_utils::register_test_user(&app, tenant.id, &mut username_a).await;
+    let (_status, login_res_a) = test_utils::register_test_user(&app, tenant.id, &mut username_a).await;
     
     let user_a_token = login_res_a["token"].as_str().unwrap().to_string();
     

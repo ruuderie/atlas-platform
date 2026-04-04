@@ -3,15 +3,7 @@ use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use chrono::{Utc, Duration};
 use bcrypt::{hash, verify, DEFAULT_COST};
-use crate::entities::{profile, user};
-use axum::{
-    extract::{FromRequest, Extension},
-    http::{StatusCode, Request},
-    response::IntoResponse,
-};
-use serde_json::json;
-use crate::entities::user::Model as UserModel;
-use tracing::debug;
+use crate::entities::user;
 use std::env;
 use uuid::Uuid;
 
@@ -239,7 +231,7 @@ pub fn validate_jwt<T: DeserializeOwned>(token: &str) -> Result<T, jsonwebtoken:
     let token_preview = if token.len() > 20 {
         format!("{}...{}", &token[0..10], &token[token.len()-10..])
     } else {
-        token.clone().to_string()
+        token.to_string()
     };
     
     tracing::debug!("[{}] Validating JWT: {}", operation_id, token_preview);
@@ -264,7 +256,7 @@ pub fn validate_jwt<T: DeserializeOwned>(token: &str) -> Result<T, jsonwebtoken:
     let duration = start.elapsed();
     
     match &result {
-        Ok(token_data) => {
+        Ok(_token_data) => {
             tracing::info!("[{}] JWT validated successfully (type: {}, took {:.2}ms)", 
                 operation_id, std::any::type_name::<T>(), duration.as_millis());
                 

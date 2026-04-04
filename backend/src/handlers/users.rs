@@ -1,27 +1,24 @@
 use crate::entities::{
-    ad_purchase::{self, Entity as AdPurchase},
-    profile::{self, Entity as Profile},
+    profile::{self},
     user::{self, Entity as User},
-    user_account::{self, Entity as UserAccount},
-    session::{self, Entity as Session},
-    account::{self, Entity as Account},
+    user_account::{self},
+    session::{self},
+    account::{self},
     tenant::Entity as TenantEntity,
 };
 use axum::{
-    body::Body, extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router
+    extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router
 };
-use headers::{UserAgent, Host, HeaderMap};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use crate::auth::{hash_password, verify_password, generate_jwt};
-use crate::models::session::{UserInfo, SessionResponse};
+use crate::auth::{hash_password, verify_password};
+use crate::models::session::SessionResponse;
 use crate::models::user::UserRegistration;
 use crate::handlers::sessions::{refresh_token, validate_session, create_user_session};
 use crate::handlers::profiles::get_profile_by_id;
 use sea_orm::{DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter, ActiveModelTrait};
 use uuid::Uuid;
 use chrono::{Utc};
-use crate::handlers::request_logs::log_request;
 
 #[derive(Deserialize, Debug)]
 pub struct LoginCredentials {
@@ -70,7 +67,7 @@ pub async fn register_user(
     let tenant_id = user_data.tenant_id;
 
     // Verify that the directory exists
-    let directory = TenantEntity::find_by_id(tenant_id)
+    let _directory = TenantEntity::find_by_id(tenant_id)
         .one(&db)
         .await
         .map_err(|err| {
@@ -177,7 +174,7 @@ pub async fn register_user(
             (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
         })?;
 
-    let profile_id = if let Some(profile) = profile {
+    let _profile_id = if let Some(profile) = profile {
         profile.id
     } else {
         // Create a new Profile if not found

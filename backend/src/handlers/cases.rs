@@ -19,7 +19,7 @@ use sea_orm::{
     ColumnTrait,
 };
 use serde::Deserialize;
-use crate::entities::{case, activity, note, customer, user, file};
+use crate::entities::{case, activity, note, customer, user};
 use crate::models::case::{CaseModel, CreateCaseInput, UpdateCaseInput};
 use crate::models::activity::ActivityModel;
 use crate::models::note::NoteModel;
@@ -43,7 +43,7 @@ pub fn routes() -> Router<DatabaseConnection> {
 
 pub async fn create_case(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Json(input): Json<CreateCaseInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Check if the customer exists
@@ -74,7 +74,7 @@ pub async fn create_case(
 
 pub async fn get_cases(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let cases = case::Entity::find()
         .all(&db)
@@ -87,7 +87,7 @@ pub async fn get_cases(
 
 pub async fn get_case(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let case = case::Entity::find_by_id(id)
@@ -101,7 +101,7 @@ pub async fn get_case(
 
 pub async fn update_case(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateCaseInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
@@ -126,7 +126,7 @@ pub async fn update_case(
 
 pub async fn delete_case(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let result = case::Entity::delete_by_id(id)
@@ -143,7 +143,7 @@ pub async fn delete_case(
 
 pub async fn get_case_activities(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let activities = activity::Entity::find()
@@ -204,7 +204,7 @@ pub async fn create_case_activity(
 
 pub async fn add_file_to_case(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path((case_id, file_id)): Path<(Uuid, Uuid)>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let case = case::Entity::find_by_id(case_id)
@@ -222,7 +222,7 @@ pub async fn add_file_to_case(
 
 pub async fn get_case_files(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(case_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let case = case::Entity::find_by_id(case_id)
@@ -240,7 +240,7 @@ pub async fn get_case_files(
 
 pub async fn get_case_notes(
     State(db): State<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
+    Extension(_current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let case = case::Entity::find_by_id(id)

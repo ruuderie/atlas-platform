@@ -3,8 +3,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use crate::entities::contact;
 use crate::models::address::{AddressJson};
-use super::file::FileAssociation;
-use sea_orm::{DatabaseConnection, EntityTrait, ModelTrait, RelationTrait};
 use crate::models::Validate;
 
 #[derive(Debug, Serialize, Deserialize, Validate)]

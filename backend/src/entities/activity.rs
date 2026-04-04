@@ -1,9 +1,7 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
-use sea_orm::FromJsonQueryResult;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use serde_json::Value as JsonValue;
 use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
 use crate::entities::{file_association,file}; 

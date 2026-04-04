@@ -146,8 +146,8 @@ pub async fn auth_middleware(
             Ok(_) => {
                 tracing::debug!("[{}] Rate limit check passed", request_id);
                 let (parts, body) = req.into_parts();
-                let req_info = RequestInfo::from_parts(&parts);
-                let mut req = Request::from_parts(parts, body);
+                let _req_info = RequestInfo::from_parts(&parts);
+                let req = Request::from_parts(parts, body);
 
                 // Log the request
                 match request_logs::log_request(

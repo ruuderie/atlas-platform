@@ -6,8 +6,7 @@ use axum::{
     Router,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    InsertResult, ActiveModelTrait, ModelTrait,
+    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait, ActiveModelTrait, ModelTrait,
 };
 use crate::entities::{
     account, user_account, user, lead_charge,
@@ -155,7 +154,7 @@ pub async fn update_account(
 
     match account.update(&db).await {
         Ok(updated) => {
-            let account_response = AccountResponse {
+            let _account_response = AccountResponse {
                 id: updated.id,
                 name: updated.name,
                 created_at: updated.created_at,

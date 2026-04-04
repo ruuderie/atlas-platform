@@ -1,6 +1,6 @@
-use sea_orm::{DatabaseConnection, EntityTrait, QuerySelect, QueryFilter, ColumnTrait, DbErr, ActiveModelTrait, Set, NotSet};
+use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set};
 use uuid::Uuid;
-use anyhow::{Result, Context};
+use anyhow::Result;
 use crate::entities::tenant;
 use crate::models::tenant::{CreateTenant, UpdateTenant};
 

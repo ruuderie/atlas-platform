@@ -5,8 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, 
-    RelationTrait, QuerySelect, Condition, DbErr, QueryOrder, Order
+    DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, QueryOrder, Order
 };
 use crate::entities::feed::{self, Entity as Feed};
 use crate::entities::feed_item::{self, Entity as FeedItem};

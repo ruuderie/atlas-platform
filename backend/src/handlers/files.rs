@@ -6,7 +6,7 @@ use axum::{
 };
 use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
-use crate::entities::{file::{self, Entity as File}, file_association, user};
+use crate::entities::{file::{self, Entity as File}, file_association};
 use crate::models::file::{FileModel, CreateFileInput, UpdateFileInput};
 
 pub async fn create_file(
@@ -99,7 +99,7 @@ pub async fn get_file_info(
 pub async fn get_file_thumbnail(
     State(db): State<DatabaseConnection>,
     Path(id): Path<Uuid>,
-    Query(params): Query<std::collections::HashMap<String, String>>,
+    Query(_params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
     // Implement thumbnail generation logic here
     // For now, we'll just return the file info

@@ -4,7 +4,7 @@ use axum::{
     extract::{Extension, Path, Json},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
 };
 use sea_orm::{

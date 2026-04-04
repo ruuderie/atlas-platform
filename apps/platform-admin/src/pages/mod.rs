@@ -5,6 +5,7 @@ pub mod crm_detail;
 pub mod dashboard;
 pub mod settings;
 pub mod app_dashboard;
+pub mod dynamic_panel;
 pub mod login;
 pub mod app_create;
 pub mod crm_create;

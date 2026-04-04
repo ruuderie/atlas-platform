@@ -7,7 +7,7 @@ use crate::tests::test_utils;
 #[tokio::test]
 async fn test_tenant_settings_and_communications() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // Create Tenant
     let tenant = test_utils::create_test_tenant(&db).await;

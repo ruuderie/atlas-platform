@@ -7,19 +7,16 @@ use sea_orm::{Database, DatabaseConnection, EntityTrait};
 use sea_orm_migration::MigratorTrait;
 use tower::ServiceExt;
 use serde_json::json;
-use std::env;
 use uuid::Uuid;
 use crate::{api, migration};
-use hyper::body::Bytes;
 use http_body_util::BodyExt;
 use super::test_utils;
 use crate::models::tenant::TenantModel;
 use crate::entities::user_account::UserRole;
 use fake::{Fake, faker::{
     company::en::{CompanyName, CatchPhrase},
-    internet::en::{DomainSuffix, SafeEmail},
+    internet::en::SafeEmail,
     address::en::{StreetName,CityName, StateAbbr, ZipCode},
-    lorem::en::Sentence,
     phone_number::en::PhoneNumber,
     name::en::{FirstName, LastName},
 }};
@@ -30,7 +27,6 @@ use webauthn_rs::prelude::*;
 use std::sync::Arc;
 use moka::future::Cache;
 use std::time::Duration;
-use url::Url;
 
 
 pub async fn setup_test_app() -> (Router, DatabaseConnection) {
@@ -42,7 +38,7 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
         .connect_timeout(std::time::Duration::from_secs(2))
         .to_owned();
 
-    let opt_woodpecker = sea_orm::ConnectOptions::new("postgresql://postgres:postgres@postgres:5432/oplydbtest")
+    let opt_woodpecker = sea_orm::ConnectOptions::new("postgresql://postgres:postgres@database:5432/oplydbtest")
         .connect_timeout(std::time::Duration::from_secs(2))
         .to_owned();
 
@@ -52,7 +48,7 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
             Ok(db) => db,
             Err(_) => Database::connect(opt_woodpecker)
                 .await
-                .expect("Failed to connect to test database globally (localhost:5432, :5433, and CI postgres:5432 all failed). Make sure PostgreSQL is running."),
+                .expect("Failed to connect to test database globally (localhost:5432, :5433, and CI database:5432 all failed). Make sure PostgreSQL is running."),
         },
     };
 
@@ -116,7 +112,7 @@ async fn test_session_validation_and_expiry() {
     // Register and login
     let mut username = format!("testuser{}", Uuid::new_v4());
     let (_, login_response) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
-    let password = std::env::var("TEST_PASSWORD").unwrap_or_default();
+    let _password = std::env::var("TEST_PASSWORD").unwrap_or_default();
     let token = login_response["token"].as_str().unwrap();
     
     // Test valid session - update the URI to include the /api prefix
@@ -137,7 +133,7 @@ async fn test_session_validation_and_expiry() {
 #[tokio::test]
 async fn test_tenant_operations() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     let test_name = CompanyName().fake::<String>();
     let test_desc = CatchPhrase().fake::<String>();
@@ -317,7 +313,7 @@ async fn test_profile_management() {
 #[tokio::test]
 async fn test_category_management() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // Create a tenant type first (needed for category)
     let tenant = test_utils::create_test_tenant(&db).await;
@@ -689,7 +685,7 @@ async fn test_listing_crud_operations() {
 #[tokio::test]
 async fn test_listing_operations() {
     let (app, db) = setup_test_app().await;
-    let tenant = test_utils::create_test_tenant(&db).await;
+    let _tenant = test_utils::create_test_tenant(&db).await;
     let tenant = test_utils::create_test_tenant(&db).await;
 
     let mut username = format!("testuser{}", Uuid::new_v4());
@@ -813,7 +809,7 @@ async fn test_inline_passkey_registration() {
     let (app, db) = setup_test_app().await;
 
     // Create a valid tenant directly via db handle
-    let tenant = test_utils::create_test_tenant(&db).await;
+    let _tenant = test_utils::create_test_tenant(&db).await;
     let tenant = test_utils::create_test_tenant(&db).await;
 
     // Call test registration which intrinsically wraps the new auto-authenticating users::register endpoint

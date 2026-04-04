@@ -3,18 +3,14 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
-use headers::{Authorization, authorization::Bearer, Host}; 
-use axum::http::{Method, Uri};
+ 
 use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrait, QueryFilter};
 use uuid::Uuid;
 use chrono::{Utc, Duration};
 use crate::entities::{session, user};
-use crate::auth::{generate_jwt, hash_password, verify_password, generate_jwt_admin};
-use crate::handlers::users::LoginResponse;
+use crate::auth::{generate_jwt, verify_password, generate_jwt_admin};
 use crate::models::session::{UserInfo, SessionResponse};
 use crate::models::user::UserLogin;
-use crate::models::request_log::{RequestStatus, RequestType};
-use crate::handlers::request_logs::log_request;
 use axum::extract::State;
 use serde::Deserialize;
 

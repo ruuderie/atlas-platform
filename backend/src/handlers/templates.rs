@@ -1,30 +1,25 @@
 use axum::{
-    extract::{Extension, Json, Path, State},
+    extract::{Json, Path, State},
     http::StatusCode,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, 
-    QueryFilter, Set, TransactionTrait,IntoActiveModel, DatabaseTransaction
+    QueryFilter, Set,IntoActiveModel
 };
-use axum::response::{ Response, IntoResponse};
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;
 use futures::TryFutureExt;
 use std::result::Result;
-use std::str::FromStr;
 use crate::entities::{
     listing,
-    profile,
-    template,
-    template::Entity as Template, // Add this line
+    template, // Add this line
     user,
-    user_account,
     listing::Entity as Listing,
 };
 use crate::models::{
     template::{TemplateModel, CreateTemplate, UpdateTemplate},
-    listing::{ListingModel, ListingCreate, ListingStatus}, 
+    listing::ListingModel, 
 };
 
 pub async fn get_templates(

@@ -1,8 +1,7 @@
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::entities::{case, file};
-use super::file::FileAssociation;
+use crate::entities::case;
 use crate::models::note::NoteModel;
 use crate::models::activity::ActivityModel;
 use crate::models::file::FileModel;

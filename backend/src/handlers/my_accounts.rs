@@ -5,8 +5,8 @@ use axum::{
     routing::{get, post, delete},
     Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, ModelTrait, RelationTrait, JoinType};
-use serde::{Deserialize, Serialize};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, ModelTrait};
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;

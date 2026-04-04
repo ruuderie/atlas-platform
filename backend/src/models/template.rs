@@ -1,7 +1,5 @@
-use chrono::{Utc, DateTime, Duration};
+use chrono::{Utc, DateTime};
 use uuid::Uuid;
-use crate::entities::user_account::UserRole;
-use sea_orm::DeriveActiveEnum;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use sea_orm::prelude::*;

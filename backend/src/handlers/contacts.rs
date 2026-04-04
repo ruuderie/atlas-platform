@@ -7,7 +7,7 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait,
+    ActiveModelTrait,
 };
 use uuid::Uuid;
 use chrono::Utc;

@@ -1,19 +1,12 @@
 use axum::{
     routing::{get, post, put, delete},
     Router,
-    extract::{Extension, Path, Json},
-    http::StatusCode,
-    response::{IntoResponse, Json as JsonResponse},
 };
 use sea_orm::DatabaseConnection;
 use crate::handlers::{admin, categories, 
     profiles, templates, contacts, customers,
     leads, deals, cases, files, listings, accounts};
-use crate::auth::*;
-use crate::middleware::*;
-use axum::middleware::from_fn;
 
-use uuid::Uuid;
 
 pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     tracing::debug!("Setting up admin routes");

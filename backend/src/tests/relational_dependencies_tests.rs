@@ -1,16 +1,12 @@
 use axum::{
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
-use sea_orm::{Database, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait};
+use sea_orm::{EntityTrait, ActiveModelTrait};
 use sea_orm_migration::MigratorTrait;
 use tower::ServiceExt;
 use serde_json::json;
-use std::env;
-use uuid::Uuid;
-use crate::{api, migration, entities::tenant};
-use http_body_util::BodyExt;
+use crate::entities::tenant;
 use super::test_utils;
 
 use crate::tests::api_tests::setup_test_app;
@@ -78,7 +74,7 @@ async fn test_creating_template_retains_attributes() {
     let body_bytes = axum::body::to_bytes(create_res.into_body(), usize::MAX).await.unwrap();
     assert!(status == StatusCode::OK || status == StatusCode::CREATED);
     
-    let template: crate::models::template::TemplateModel = serde_json::from_slice(&body_bytes).unwrap();
+    let _template: crate::models::template::TemplateModel = serde_json::from_slice(&body_bytes).unwrap();
 
 }
 

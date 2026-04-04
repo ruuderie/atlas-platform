@@ -1,10 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use axum::http::{Request, StatusCode};
-use axum::response::Response;
+use axum::http::StatusCode;
 use dashmap::DashMap;
-use axum::extract::FromRequest;
-use axum::body::{Body};
 use uuid::Uuid;
 
 const MAX_REQUESTS: u32 = 100;

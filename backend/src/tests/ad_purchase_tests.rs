@@ -1,19 +1,15 @@
 use axum::{
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
-use sea_orm::{Database, DatabaseConnection, ActiveModelTrait};
+use sea_orm::ActiveModelTrait;
 use sea_orm_migration::MigratorTrait;
 use tower::ServiceExt;
 use serde_json::json;
-use std::env;
 use uuid::Uuid;
 use chrono::Utc;
-use crate::{api, migration};
-use http_body_util::BodyExt;
 use super::test_utils;
-use crate::models::ad_purchase::{AdStatus, AdPurchase};
+use crate::models::ad_purchase::AdPurchase;
 
 use crate::tests::api_tests::setup_test_app;
 
@@ -25,7 +21,7 @@ async fn test_ad_purchase_crud() {
     // To create an AdPurchase, we might need a Profile and a Listing
     // creating a simple profile manually
     let tenant = test_utils::create_test_tenant(&db).await;
-    let tenant_id = tenant.id;
+    let _tenant_id = tenant.id;
 
     // Create an account
     let account = crate::entities::account::ActiveModel {

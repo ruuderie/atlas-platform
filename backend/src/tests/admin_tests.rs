@@ -2,23 +2,18 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use serde_json::json;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::tests::api_tests::setup_test_app;
 use crate::tests::test_utils;
-use crate::models::user::{UserAdminView, UserLogin};
-use crate::models::listing::ListingStatus;
-use crate::entities::listing;
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
 
 #[tokio::test]
 async fn test_admin_user_management() {
     let (app, db) = setup_test_app().await;
     
     // Create admin user
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // Create a regular user
     let tenant = test_utils::create_test_tenant(&db).await;
@@ -79,7 +74,7 @@ async fn test_admin_user_management() {
 #[tokio::test]
 async fn test_admin_listing_approvals() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // 1. Fetch pending listings
     let response = app.clone()
@@ -100,7 +95,7 @@ async fn test_admin_listing_approvals() {
 #[tokio::test]
 async fn test_admin_statistics() {
     let (app, db) = setup_test_app().await;
-    let (admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
+    let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
     
     // 1. Tenant Stats
     let response = app.clone()

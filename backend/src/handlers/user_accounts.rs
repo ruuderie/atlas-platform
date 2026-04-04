@@ -8,8 +8,8 @@ use axum::{
     Router,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait,
+    DatabaseConnection, EntityTrait, Set,
+    ActiveModelTrait,
 };
 use crate::entities::{
     user_account, user, account,

@@ -1,9 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use super::file::FileAssociation;
-use sea_orm::{DatabaseConnection, EntityTrait, ModelTrait, RelationTrait, ActiveModelTrait, Set};
-use crate::entities::{deal,file};
+use crate::entities::deal;
 use crate::models::file::FileModel;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DealModel {
