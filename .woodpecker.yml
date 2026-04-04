@@ -74,8 +74,6 @@ steps:
   # Unified CD Deployment Step
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
     environment:
