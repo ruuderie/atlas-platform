@@ -15,7 +15,12 @@ steps:
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
     commands:
-      - apt-get update && apt-get install -y pkg-config libssl-dev
+      - apt-get update && apt-get install -y pkg-config libssl-dev postgresql-client
+      - |
+        echo "Waiting for database to initialize..."
+        until pg_isready -h database -p 5432 -U postgres; do
+          sleep 2
+        done
       - cargo test --workspace -- --test-threads=1
 
   # Build apps in parallel
