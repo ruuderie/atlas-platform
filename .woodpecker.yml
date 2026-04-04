@@ -108,6 +108,16 @@ steps:
       - kubectl rollout restart deployment/anchor-app -n atlas-platform
     depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor]
 
+  # Workspace Cleanup
+  cleanup_workspace:
+    image: alpine
+    commands:
+      - rm -rf target/ || true
+    when:
+      - status: [success, failure]
+        event: [push]
+    depends_on: [deploy_platform_k8s]
+
   # Core Notification
   notify_discord:
     image: appleboy/drone-discord
@@ -126,4 +136,4 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
-    depends_on: [deploy_platform_k8s]
+    depends_on: [cleanup_workspace]
