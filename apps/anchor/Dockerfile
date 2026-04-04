@@ -60,8 +60,8 @@ RUN apt-get update -y \
   && apt-get clean \
   && rm -f /var/lib/apt/lists/*_*
 
-COPY --from=builder /app/target/release/anchor /app/
-COPY --from=builder /app/target/site /app/site
+COPY --from=builder /app/apps/target/release/anchor /app/
+COPY --from=builder /app/apps/target/site /app/site
 COPY --from=builder /app/apps/anchor/Cargo.toml /app/
 COPY --from=builder /app/apps/anchor/migrations /app/migrations
 

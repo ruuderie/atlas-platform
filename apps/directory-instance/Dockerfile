@@ -29,9 +29,9 @@ RUN apt-get update && apt-get install -y \
     useradd -m appuser
 WORKDIR /app
 # Copy the compiled binary
-COPY --from=builder /app/target/release/directory-instance /app/
+COPY --from=builder /app/apps/target/release/atlas_directory_instance /app/directory-instance
 # Copy the built site
-COPY --from=builder /app/target/site /app/site
+COPY --from=builder /app/apps/target/site /app/site
 # Set env var so leptos knows where to find the site root
 ENV LEPTOS_SITE_ROOT="/app/site"
 ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
