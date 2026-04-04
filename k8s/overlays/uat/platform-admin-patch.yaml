@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-admin
+spec:
+  template:
+    spec:
+      containers:
+      - name: platform-admin
+        env:
+        - name: API_BASE_URL
+          value: "https://uat.atlas.oply.co"
