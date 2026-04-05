@@ -30,6 +30,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/platform-admin
       tags: latest
       registry: ghcr.io
@@ -45,6 +46,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/atlas-backend
       tags: latest
       registry: ghcr.io
@@ -60,6 +62,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/directory-instance
       tags: latest
       registry: ghcr.io
@@ -75,6 +78,7 @@ steps:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
+      mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/anchor-app
       tags: latest
       registry: ghcr.io
