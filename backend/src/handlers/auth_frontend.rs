@@ -31,6 +31,7 @@ pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/auth/verify-email", get(verify_email))
         .route("/api/auth/login", post(login))
+        .route("/api/auth/flow/:email", get(get_auth_flow))
         .route("/api/auth/magic-link/request", post(request_magic_link))
         .route("/api/auth/magic-link/verify", post(verify_magic_link))
         .route("/api/auth/webauthn/register", post(webauthn_register_start))
@@ -42,7 +43,34 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/me", get(get_me))
 }
 
+#[derive(serde::Serialize)]
+pub struct AuthFlowResponse {
+    pub has_passkey: bool,
+}
 
+pub async fn get_auth_flow(
+    State(db): State<DatabaseConnection>,
+    axum::extract::Path(email): axum::extract::Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let user_model = user::Entity::find()
+        .filter(user::Column::Email.eq(&email))
+        .one(&db)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
+
+    let has_passkey = if let Some(user_mod) = user_model {
+        let passkeys = crate::entities::passkey::Entity::find()
+            .filter(crate::entities::passkey::Column::UserId.eq(user_mod.id))
+            .all(&db)
+            .await
+            .unwrap_or_default();
+        passkeys.len() > 0
+    } else {
+        false
+    };
+
+    Ok((StatusCode::OK, Json(AuthFlowResponse { has_passkey })))
+}
 
 pub async fn verify_email(
     State(_db): State<DatabaseConnection>,
@@ -146,7 +174,22 @@ pub async fn request_magic_link(
         })?;
 
         tracing::info!("Mock Email logic: Send Token [{}] to User Email [{}]", token_str, user_mod.email);
-        // Will hook into communications.rs later
+        
+        let frontend_url = std::env::var("ADMIN_URL").unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
+        let setup_link = format!("{}/verify-token/{}", frontend_url, token_str);
+        
+        let email_payload = crate::handlers::communications::SendEmailPayload {
+            tenant_id: Uuid::nil(),
+            to_email: user_mod.email.clone(),
+            subject: "Your Atlas Platform Setup Token".to_string(),
+            body_html: format!("<h2>Atlas Platform Access</h2><p>Click the link below to securely log in to your account and configure your device passkey:</p><br><a href=\"{0}\">{0}</a>", setup_link),
+        };
+
+        if let Err((status, msg)) = crate::handlers::communications::send_email_handler(State(db.clone()), Json(email_payload)).await {
+            tracing::error!("Failed to dispatch setup token email natively: {}", msg);
+        } else {
+            tracing::info!("Successfully dispatched Setup Token routing to {}", user_mod.email);
+        }
     }
 
     Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))
@@ -212,6 +255,12 @@ pub async fn verify_magic_link(
     }
 
     // Mark as used
+    // Invalidate all existing passkeys for this user because they used a setup token
+    let _ = crate::entities::passkey::Entity::delete_many()
+        .filter(crate::entities::passkey::Column::UserId.eq(user_mod.id))
+        .exec(&db)
+        .await;
+
     let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
     ml_active.is_used = Set(true);
     let _ = ml_active.update(&db).await;

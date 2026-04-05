@@ -2,23 +2,28 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 use shared_ui::components::ui::button::Button;
 use shared_ui::components::ui::input::{Input, InputType};
-use crate::api::auth::login;
-use crate::api::models::{UserLogin, UserInfo};
+use crate::api::models::UserInfo;
 use crate::api::setup::{get_setup_status, purge_admin};
 use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
+
+#[derive(Clone, PartialEq)]
+enum LoginState {
+    EmailEntry,
+    PasskeyPrompt,
+    SendingToken,
+    SetupTokenSent,
+}
 
 #[component]
 pub fn Login() -> impl IntoView {
     let email = RwSignal::new("".to_string());
-    let password = RwSignal::new("".to_string());
+    let login_state = RwSignal::new(LoginState::EmailEntry);
     let error_message = RwSignal::new(None::<String>);
     let is_loading = RwSignal::new(false);
-    let show_password = RwSignal::new(false);
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let navigate = use_navigate();
-    let navigate_login = navigate.clone();
     let navigate_demo = navigate.clone();
     let navigate_pk = navigate.clone();
     let navigate_setup = navigate.clone();
@@ -32,30 +37,52 @@ pub fn Login() -> impl IntoView {
         }
     });
 
-    let handle_login = Callback::new(move |_| {
-        crate::api::client::set_demo_mode(false);
-        let navigate = navigate_login.clone();
+    let handle_check_flow = Callback::new(move |_| {
         error_message.set(None);
         is_loading.set(true);
-
-        let credentials = UserLogin {
-            email: email.get(),
-            password: password.get(),
-        };
+        let current_email = email.get();
 
         leptos::task::spawn_local(async move {
-            match login(credentials).await {
+            let flow_url = format!("{}/api/auth/flow/{}", crate::api::client::api_url(""), urlencoding::encode(&current_email));
+            match crate::api::client::api_request::<serde_json::Value>(reqwest::Client::new().get(&flow_url)).await {
                 Ok(res) => {
-                    set_user.set(res.user);
-                    navigate("/", Default::default());
+                    if let Some(true) = res.get("has_passkey").and_then(|v| v.as_bool()) {
+                        login_state.set(LoginState::PasskeyPrompt);
+                    } else {
+                        // Force a setup token bypass
+                        login_state.set(LoginState::SendingToken);
+                    }
                 }
-                Err(err) => {
-                    toast.message.set(Some(err.clone()));
-                    error_message.set(Some(err));
+                Err(_) => {
+                    error_message.set(Some("User lookup failed. Try again.".to_string()));
                 }
             }
             is_loading.set(false);
         });
+    });
+
+    let handle_send_recovery = Callback::new(move |_| {
+        error_message.set(None);
+        is_loading.set(true);
+        login_state.set(LoginState::SendingToken);
+    });
+
+    Effect::new(move |_| {
+        if login_state.get() == LoginState::SendingToken {
+            let current_email = email.get();
+            leptos::task::spawn_local(async move {
+                let req_url = crate::api::client::api_url("/api/auth/magic-link/request");
+                if let Err(_) = crate::api::client::api_request::<serde_json::Value>(
+                    reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "email": current_email }))
+                ).await {
+                    error_message.set(Some("Failed to dispatch Setup Token. Check infrastructure routing.".to_string()));
+                    login_state.set(LoginState::EmailEntry);
+                } else {
+                    login_state.set(LoginState::SetupTokenSent);
+                }
+                is_loading.set(false);
+            });
+        }
     });
 
     let set_user_pk = set_user.clone();
@@ -135,59 +162,74 @@ pub fn Login() -> impl IntoView {
                         </div>
                     })}
 
-                    <div class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Email / Node ID"</label>
-                            <Input 
-                                r#type=InputType::Email 
-                                placeholder="operator@foundry.local".to_string() 
-                                bind_value=email 
-                            />
-                        </div>
-
-                        {move || if !show_password.get() {
-                            view! {
-                                <div class="animate-fade-scale space-y-4">
-                                    <PasskeyLoginButton 
-                                        api_base_url=crate::api::client::api_url("/api/passkeys")
-                                        email=email
-                                        on_success=handle_passkey_success
-                                        on_error=handle_passkey_error
-                                    />
-                                    <div class="text-center pt-2">
-                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors" on:click=move |_| { show_password.set(true); error_message.set(None); }>
-                                            "Sign in with Access Token instead"
-                                        </button>
-                                    </div>
-                                </div>
-                            }.into_any()
-                        } else {
-                            view! {
+                    <div class="space-y-4 min-h-[140px]">
+                        {move || match login_state.get() {
+                            LoginState::EmailEntry => view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <div class="space-y-1.5">
-                                        <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Access Token"</label>
+                                        <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Email / Node ID"</label>
                                         <Input 
-                                            r#type=InputType::Password 
-                                            placeholder="••••••••".to_string() 
-                                            bind_value=password 
+                                            r#type=InputType::Email 
+                                            placeholder="operator@foundry.local".to_string() 
+                                            bind_value=email 
                                         />
                                     </div>
-
                                     <Button 
                                         class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
-                                        on:click=move |ev| handle_login.run(ev) 
+                                        on:click=move |ev| handle_check_flow.run(ev) 
+                                        disabled=email.get().is_empty()
                                     >
-                                        {move || if is_loading.get() { "Authenticating..." } else { "Initialize Session" }}
+                                        {move || if is_loading.get() { "Evaluating Node..." } else { "Continue" }}
                                     </Button>
+                                </div>
+                            }.into_any(),
 
-                                    <div class="text-center pt-4">
-                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors flex items-center justify-center gap-1 mx-auto" on:click=move |_| { show_password.set(false); error_message.set(None); }>
-                                            <span class="material-symbols-outlined text-[14px]">"arrow_back"</span>
-                                            "Use a passkey instead"
+                            LoginState::PasskeyPrompt => view! {
+                                <div class="animate-fade-scale space-y-4">
+                                    <div class="text-center pb-2">
+                                        <p class="text-sm font-medium text-on-surface-variant">
+                                            "Biometrics found for "
+                                            <span class="text-on-surface font-bold">{email.get()}</span>
+                                        </p>
+                                    </div>
+                                    <div class="py-2">
+                                        <PasskeyLoginButton 
+                                            api_base_url=crate::api::client::api_url("/api/auth/webauthn")
+                                            email=email
+                                            on_success=handle_passkey_success
+                                            on_error=handle_passkey_error
+                                        />
+                                    </div>
+                                    <div class="text-center pt-2">
+                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors underline" on:click=move |ev| handle_send_recovery.run(ev)>
+                                            "Device lost? Send a Session Recovery Token"
                                         </button>
                                     </div>
                                 </div>
-                            }.into_any()
+                            }.into_any(),
+
+                            LoginState::SendingToken => view! {
+                                <div class="animate-fade-scale space-y-4 flex flex-col items-center justify-center py-6">
+                                    <span class="material-symbols-outlined text-4xl text-primary animate-spin">"sync"</span>
+                                    <p class="text-sm text-on-surface-variant mt-4 font-medium animate-pulse">"Establishing secure email relay..."</p>
+                                </div>
+                            }.into_any(),
+
+                            LoginState::SetupTokenSent => view! {
+                                <div class="animate-fade-scale space-y-4 flex flex-col items-center justify-center text-center py-4">
+                                    <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-2">
+                                        <span class="material-symbols-outlined text-3xl text-primary block">"mail"</span>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-on-surface">"Transmission Sent"</h3>
+                                    <p class="text-sm text-on-surface-variant">"A single-use Setup Token has been dispatched to "</p>
+                                    <p class="text-sm text-primary font-bold">{email.get()}</p>
+                                    <p class="text-xs text-on-surface-variant mt-4 opacity-75">"Check your inbox to authenticate and strictly configure a new physical passkey."</p>
+                                    
+                                    <button class="mt-6 text-xs text-on-surface-variant underline hover:text-primary" on:click=move |_| { error_message.set(None); login_state.set(LoginState::EmailEntry); }>
+                                        "Return to Email Input"
+                                    </button>
+                                </div>
+                            }.into_any(),
                         }}
                     </div>
 

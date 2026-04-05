@@ -117,11 +117,20 @@ steps:
         from_secret: db_password
       ADMIN_PASSWORD:
         from_secret: admin_password
+      SMTP_TOKEN:
+        from_secret: SMTP_TOKEN
+      SMTP_HOST:
+        from_secret: SMTP_HOST
+      SMTP_USERNAME:
+        from_secret: SMTP_USERNAME
+      SMTP_FROM:
+        from_secret: SMTP_FROM
     commands:
+      - kubectl cluster-info
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
+      - echo "Push branch is: $CI_COMMIT_BRANCH"
       - |
-        echo "Push branch is: $CI_COMMIT_BRANCH"
         if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
           echo "Deploying to PROD environment..."
           kubectl apply -k k8s/overlays/prod || echo "[Warn] Prod overlay not yet scaffolded"
@@ -138,6 +147,18 @@ steps:
           fi
           if [ -n "$ADMIN_PASSWORD" ]; then
             sed -i "s/REPLACE_WITH_ADMIN_PASSWORD/$ADMIN_PASSWORD/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$SMTP_TOKEN" ]; then
+            sed -i "s/REPLACE_WITH_SMTP_TOKEN/$SMTP_TOKEN/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$SMTP_HOST" ]; then
+            sed -i "s/REPLACE_WITH_SMTP_HOST/$SMTP_HOST/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$SMTP_USERNAME" ]; then
+            sed -i "s/REPLACE_WITH_SMTP_USERNAME/$SMTP_USERNAME/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$SMTP_FROM" ]; then
+            sed -i "s/REPLACE_WITH_SMTP_FROM/$SMTP_FROM/g" k8s/overlays/uat/config.yaml
           fi
           
           echo "Deploying to UAT environment..."

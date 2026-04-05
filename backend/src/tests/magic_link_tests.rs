@@ -38,7 +38,7 @@ async fn test_magic_link_flow() {
 
     // Read the token straight from DB
     use crate::entities::magic_link_token;
-    use sea_orm::{EntityTrait, QueryOrder, ActiveModelTrait, Set};
+    use sea_orm::{EntityTrait, QueryOrder, ActiveModelTrait, Set, ColumnTrait, QueryFilter, PaginatorTrait};
     use chrono::{Utc, Duration};
     
     let token_model = magic_link_token::Entity::find()
@@ -47,6 +47,28 @@ async fn test_magic_link_flow() {
         .await
         .unwrap()
         .expect("No token created");
+
+    // Before verifying, mint a fake Passkey to test the purging mechanism!
+    use crate::entities::passkey;
+    passkey::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(token_model.user_id),
+        credential_id: Set(vec![1, 2, 3]),
+        public_key: Set(vec![4, 5, 6]),
+        sign_count: Set(0),
+        name: Set("Mock iPhone Passkey".to_string()),
+        last_used_at: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }.insert(&db).await.unwrap();
+
+    // Verify Passkey actually exists before the fetch
+    let count_before = passkey::Entity::find()
+        .filter(passkey::Column::UserId.eq(token_model.user_id))
+        .count(&db)
+        .await
+        .unwrap();
+    assert_eq!(count_before, 1, "The mock passkey was not generated correctly");
 
     // 2. Verify Magic Link successfully
     let ver_res = app.clone()
@@ -64,6 +86,14 @@ async fn test_magic_link_flow() {
         .await
         .unwrap();
     assert_eq!(ver_res.status(), StatusCode::OK);
+
+    // Validate that consuming a Magic Link natively ERADICATED the mock passkey
+    let count_after = passkey::Entity::find()
+        .filter(passkey::Column::UserId.eq(token_model.user_id))
+        .count(&db)
+        .await
+        .unwrap();
+    assert_eq!(count_after, 0, "The passkey was NOT safely purged after Magic Link verification");
 
     // 3. Test Expiration logic
     // Create an expired token manually

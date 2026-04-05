@@ -7,6 +7,7 @@ use crate::pages::apps::Apps;
 use crate::pages::crm_grid::CrmGrid;
 use crate::pages::cms_editor::CmsEditor;
 use crate::pages::login::Login;
+use crate::pages::verify_token::VerifyToken;
 use crate::pages::setup::Setup;
 use crate::pages::directory_types::DirectoryTypes;
 use crate::pages::directory_type_detail::DirectoryTypeDetail;
@@ -74,6 +75,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />
+                <Route path=path!("/verify-token/:token") view=VerifyToken />
                 <Route path=path!("/setup") view=Setup />
                 <Route path=path!("/*any") view=AuthenticatedLayout />
             </Routes>
