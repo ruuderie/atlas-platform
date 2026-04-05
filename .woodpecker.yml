@@ -95,6 +95,12 @@ steps:
       KUBECONFIG: /tmp/kubeconfig.yaml
       ATLAS_INIT_TOKEN:
         from_secret: ATLAS_INIT_TOKEN
+      DB_USER:
+        from_secret: db_user
+      DB_PASSWORD:
+        from_secret: db_password
+      ADMIN_PASSWORD:
+        from_secret: admin_password
     commands:
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
@@ -107,6 +113,15 @@ steps:
           echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
           if [ -n "$ATLAS_INIT_TOKEN" ]; then
             sed -i "s/REPLACE_WITH_CI_TOKEN/$ATLAS_INIT_TOKEN/g" k8s/overlays/uat/backend-patch.yaml
+          fi
+          if [ -n "$DB_USER" ]; then
+            sed -i "s/REPLACE_WITH_DB_USER/$DB_USER/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$DB_PASSWORD" ]; then
+            sed -i "s/REPLACE_WITH_DB_PASSWORD/$DB_PASSWORD/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$ADMIN_PASSWORD" ]; then
+            sed -i "s/REPLACE_WITH_ADMIN_PASSWORD/$ADMIN_PASSWORD/g" k8s/overlays/uat/config.yaml
           fi
           
           echo "Deploying to UAT environment..."
