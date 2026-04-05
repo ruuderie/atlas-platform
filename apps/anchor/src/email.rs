@@ -2,7 +2,7 @@ use leptos::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SmtpConfig {
-    pub smtp_host: String,
+    pub smtp_server: String,
     pub smtp_port: String,
     pub smtp_username: String,
     pub smtp_token: String,
@@ -28,7 +28,7 @@ pub async fn get_smtp_config() -> Result<SmtpConfig, ServerFnError> {
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
     let mut config = SmtpConfig {
-        smtp_host: "".into(),
+        smtp_server: "".into(),
         smtp_port: "587".into(),
         smtp_username: "".into(),
         smtp_token: "".into(),
@@ -43,7 +43,7 @@ pub async fn get_smtp_config() -> Result<SmtpConfig, ServerFnError> {
             let key: String = row.get("key");
             let value: String = row.get("value");
             match key.as_str() {
-                "smtp_host" => config.smtp_host = value,
+                "smtp_server" => config.smtp_server = value,
                 "smtp_port" => config.smtp_port = value,
                 "smtp_username" => config.smtp_username = value,
                 "smtp_token" => config.smtp_token = value,
@@ -77,7 +77,7 @@ pub async fn update_smtp_config(
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query("INSERT INTO system_secrets (key, value) VALUES ('smtp_host', $1) ON CONFLICT (key) DO UPDATE SET value = $1").bind(host).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO system_secrets (key, value) VALUES ('smtp_server', $1) ON CONFLICT (key) DO UPDATE SET value = $1").bind(host).execute(&state.pool).await?;
     sqlx::query("INSERT INTO system_secrets (key, value) VALUES ('smtp_port', $1) ON CONFLICT (key) DO UPDATE SET value = $1").bind(port).execute(&state.pool).await?;
     sqlx::query("INSERT INTO system_secrets (key, value) VALUES ('smtp_username', $1) ON CONFLICT (key) DO UPDATE SET value = $1").bind(username).execute(&state.pool).await?;
 

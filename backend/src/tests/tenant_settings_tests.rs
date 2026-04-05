@@ -35,7 +35,7 @@ async fn test_tenant_settings_and_communications() {
                 .header("Authorization", format!("Bearer {}", admin_token))
                 .header("Content-Type", "application/json")
                 .body(Body::from(json!({
-                    "key": "smtp_host",
+                    "key": "smtp_server",
                     "value": "smtp.test.mail",
                     "is_encrypted": false
                 }).to_string()))

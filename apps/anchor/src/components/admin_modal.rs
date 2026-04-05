@@ -321,7 +321,7 @@ pub fn SettingsForm() -> impl IntoView {
     let (og_image, set_og_image) = create_signal(String::new());
 
     let smtp_res = create_resource(|| (), |_| crate::email::get_smtp_config());
-    let (smtp_host, set_smtp_host) = create_signal(String::new());
+    let (smtp_server, set_smtp_server) = create_signal(String::new());
     let (smtp_port, set_smtp_port) = create_signal(String::new());
     let (smtp_username, set_smtp_username) = create_signal(String::new());
     let (smtp_token, set_smtp_token) = create_signal(String::new());
@@ -357,7 +357,7 @@ pub fn SettingsForm() -> impl IntoView {
             set_og_image.set(s.og_image);
         }
         if let Some(Ok(c)) = smtp_res.get() {
-            set_smtp_host.set(c.smtp_host);
+            set_smtp_server.set(c.smtp_server);
             set_smtp_port.set(c.smtp_port);
             set_smtp_username.set(c.smtp_username);
             set_smtp_token.set(c.smtp_token);
@@ -393,7 +393,7 @@ pub fn SettingsForm() -> impl IntoView {
         let md = meta_description.get_untracked();
         let og = og_image.get_untracked();
 
-        let shost = smtp_host.get_untracked();
+        let shost = smtp_server.get_untracked();
         let sport = smtp_port.get_untracked();
         let suser = smtp_username.get_untracked();
         let stoken = smtp_token.get_untracked();
@@ -581,7 +581,7 @@ pub fn SettingsForm() -> impl IntoView {
                 <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-2">
                         <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"SMTP Protocol // Host"</label>
-                        <input type="text" prop:value=smtp_host on:input=move |ev| set_smtp_host.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="smtp.protonmail.ch" />
+                        <input type="text" prop:value=smtp_server on:input=move |ev| set_smtp_server.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="smtp.protonmail.ch" />
                     </div>
                     <div class="flex flex-col gap-2">
                         <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"SMTP Protocol // Port"</label>
@@ -601,6 +601,7 @@ pub fn SettingsForm() -> impl IntoView {
                 <div class="flex flex-col gap-2">
                     <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"System Default // From Address"</label>
                     <input type="text" prop:value=smtp_from on:input=move |ev| set_smtp_from.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="admin@domain.com" />
+                    <span class="text-[0.65rem] text-on-surface-variant/70">"The email address your messages are sent 'from'. For most providers (like Proton, Gmail), this must match your Username."</span>
                 </div>
 
                 <button on:click=save class="mt-8 bg-primary text-on-primary font-bold jetbrains uppercase w-full py-4 tracking-widest hover:bg-primary-container transition-colors">

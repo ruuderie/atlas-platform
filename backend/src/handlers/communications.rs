@@ -54,7 +54,7 @@ pub async fn send_email_handler(
 
     for setting in settings {
         match setting.key.as_str() {
-            "smtp_host" => custom_host = Some(setting.value),
+            "smtp_server" => custom_host = Some(setting.value),
             "smtp_port" => custom_port = setting.value.parse().unwrap_or(587),
             "smtp_username" => custom_username = Some(setting.value),
             "smtp_token" => custom_token = Some(setting.value),
@@ -64,7 +64,7 @@ pub async fn send_email_handler(
     }
 
     // 2. Fallback to System environment variables if no Custom settings
-    let host = custom_host.unwrap_or_else(|| std::env::var("SMTP_HOST").unwrap_or_else(|_| "localhost".to_string()));
+    let host = custom_host.unwrap_or_else(|| std::env::var("SMTP_SERVER").unwrap_or_else(|_| "localhost".to_string()));
     let port = custom_port;
     let username = custom_username.unwrap_or_else(|| std::env::var("SMTP_USERNAME").unwrap_or_default());
     let token = custom_token.unwrap_or_else(|| std::env::var("SMTP_TOKEN").unwrap_or_default());
