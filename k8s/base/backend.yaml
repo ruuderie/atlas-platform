@@ -28,8 +28,7 @@ spec:
         - name: DATABASE_URL
           value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
         readinessProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
