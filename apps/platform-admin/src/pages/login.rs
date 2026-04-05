@@ -149,7 +149,7 @@ pub fn Login() -> impl IntoView {
                             view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <PasskeyLoginButton 
-                                        api_base_url=crate::api::client::get_api_url("/api/passkeys")
+                                        api_base_url=crate::api::client::api_url("/api/passkeys")
                                         email=email
                                         on_success=handle_passkey_success
                                         on_error=handle_passkey_error

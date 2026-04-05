@@ -169,7 +169,7 @@ pub fn Settings() -> impl IntoView {
                             
                             <div class="bg-surface-container-highest rounded-xl border border-outline/10 p-4">
                                 <ManagePasskeys 
-                                    api_base_url=crate::api::client::get_api_url("/api/passkeys") 
+                                    api_base_url=crate::api::client::api_url("/api/passkeys") 
                                     auth_token=crate::api::client::get_auth_token().unwrap_or_default()
                                 />
                             </div>
