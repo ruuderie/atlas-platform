@@ -129,7 +129,7 @@ steps:
     commands:
       - set -euo pipefail
       - export KUBECONFIG=/tmp/kubeconfig.yaml
-      - cp /etc/rancher/k3s/k3s.yaml /tmp/kubeconfig.yaml
+      - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
       - kubectl cluster-info
       - echo "Push branch is $CI_COMMIT_BRANCH"
