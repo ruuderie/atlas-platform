@@ -40,7 +40,6 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_backend]
     when:
       path:
         - 'apps/platform-admin/**'
@@ -60,7 +59,6 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [test_workspace]
     when:
       path:
         - 'backend/**'
@@ -80,7 +78,6 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_platform_admin]
     when:
       path:
         - 'apps/directory-instance/**'
@@ -100,7 +97,6 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_platform_admin]
     when:
       path:
         - 'apps/anchor/**'
@@ -153,7 +149,6 @@ steps:
         kubectl rollout restart deployment/directory-instance -n atlas-platform
         kubectl rollout restart deployment/anchor-app -n atlas-platform
         kubectl rollout restart deployment/backend -n atlas-platform
-    depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor, publish_backend]
 
   # Workspace Cleanup
   cleanup_workspace:
@@ -163,7 +158,6 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
-    depends_on: [deploy_platform_k8s]
 
   # Core Notification
   notify_discord:
@@ -183,4 +177,3 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
-    depends_on: [cleanup_workspace]
