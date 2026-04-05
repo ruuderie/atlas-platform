@@ -109,24 +109,24 @@ steps:
       - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
     environment:
       KUBECONFIG: /tmp/kubeconfig.yaml
-      ATLAS_INIT_TOKEN:
-        from_secret: ATLAS_INIT_TOKEN
-      DB_USER:
-        from_secret: db_user
-      DB_PASSWORD:
-        from_secret: db_password
-      ADMIN_PASSWORD:
-        from_secret: admin_password
-      SMTP_TOKEN:
-        from_secret: SMTP_TOKEN
-      SMTP_SERVER:
-        from_secret: SMTP_SERVER
-      SMTP_PORT:
-        from_secret: SMTP_PORT
-      SMTP_USERNAME:
-        from_secret: SMTP_USERNAME
-      SMTP_FROM:
-        from_secret: SMTP_FROM
+    secrets:
+      - ATLAS_INIT_TOKEN
+      - source: db_user
+        target: DB_USER
+      - source: db_password
+        target: DB_PASSWORD
+      - source: admin_password
+        target: ADMIN_PASSWORD
+      - source: SMTP_TOKEN
+        target: SMTP_TOKEN
+      - source: SMTP_SERVER
+        target: SMTP_SERVER
+      - source: SMTP_PORT
+        target: SMTP_PORT
+      - source: SMTP_USERNAME
+        target: SMTP_USERNAME
+      - source: SMTP_FROM
+        target: SMTP_FROM
     commands:
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
