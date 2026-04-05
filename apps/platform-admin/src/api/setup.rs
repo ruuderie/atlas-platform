@@ -14,6 +14,8 @@ pub struct SetupInitializeRequest {
     pub password: String,
     pub first_name: String,
     pub last_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub init_token: Option<String>,
 }
 
 pub async fn get_setup_status() -> Result<SetupStatusResponse, String> {

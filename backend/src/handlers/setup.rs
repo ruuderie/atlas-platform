@@ -26,6 +26,7 @@ pub struct SetupRequest {
     pub password: String,
     pub first_name: String,
     pub last_name: String,
+    pub init_token: Option<String>,
 }
 
 pub fn public_routes() -> Router<DatabaseConnection> {
@@ -79,6 +80,17 @@ pub async fn initialize_system(
     State(db): State<DatabaseConnection>,
     Json(req): Json<SetupRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // 0. Enforce INIT_TOKEN if the server requires it
+    if let Ok(expected_token) = std::env::var("ATLAS_INIT_TOKEN") {
+        if expected_token.trim().is_empty() == false {
+            let provided = req.init_token.unwrap_or_default();
+            if provided != expected_token {
+                tracing::warn!("Unauthorized initialization attempt: token mismatch.");
+                return Err((StatusCode::UNAUTHORIZED, Json(json!({ "message": "Invalid initialization token" }))));
+            }
+        }
+    }
+
     // 1. Double check that NO admin exists yet
     let admin_count = User::find()
         .filter(user::Column::IsAdmin.eq(true))

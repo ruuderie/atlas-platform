@@ -23,6 +23,9 @@ pub fn Setup() -> impl IntoView {
     let navigate = use_navigate();
     let navigate_ok = navigate.clone();
     let navigate_setup_check = navigate.clone();
+    
+    let query = leptos_router::hooks::use_query_map();
+    let url_token = move || query.with(|q| q.get("token").unwrap_or_default());
 
     // Check if system needs setup
     leptos::task::spawn_local(async move {
@@ -42,6 +45,7 @@ pub fn Setup() -> impl IntoView {
             password: password.get(),
             first_name: first_name.get(),
             last_name: last_name.get(),
+            init_token: Some(url_token()),
         };
 
         leptos::task::spawn_local(async move {
