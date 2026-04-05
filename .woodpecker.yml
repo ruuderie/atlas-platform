@@ -107,26 +107,9 @@ steps:
     image: bitnami/kubectl:latest
     volumes:
       - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
+    secrets: [ ATLAS_INIT_TOKEN, db_user, db_password, admin_password, SMTP_TOKEN, SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_FROM ]
     environment:
       KUBECONFIG: /tmp/kubeconfig.yaml
-      ATLAS_INIT_TOKEN:
-        from_secret: ATLAS_INIT_TOKEN
-      DB_USER:
-        from_secret: db_user
-      DB_PASSWORD:
-        from_secret: db_password
-      ADMIN_PASSWORD:
-        from_secret: admin_password
-      SMTP_TOKEN:
-        from_secret: SMTP_TOKEN
-      SMTP_SERVER:
-        from_secret: SMTP_SERVER
-      SMTP_PORT:
-        from_secret: SMTP_PORT
-      SMTP_USERNAME:
-        from_secret: SMTP_USERNAME
-      SMTP_FROM:
-        from_secret: SMTP_FROM
     commands:
       - kubectl cluster-info
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
