@@ -43,7 +43,7 @@ pub fn Login() -> impl IntoView {
         let current_email = email.get();
 
         leptos::task::spawn_local(async move {
-            let flow_url = format!("{}/api/auth/flow/{}", crate::api::client::api_url(""), urlencoding::encode(&current_email));
+            let flow_url = crate::api::client::api_url(&format!("/api/auth/flow/{}", urlencoding::encode(&current_email)));
             match crate::api::client::api_request::<serde_json::Value>(reqwest::Client::new().get(&flow_url)).await {
                 Ok(res) => {
                     if let Some(true) = res.get("has_passkey").and_then(|v| v.as_bool()) {
