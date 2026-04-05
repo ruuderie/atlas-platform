@@ -213,4 +213,35 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
-# trigger full ci pipeline
+
+  # Global Email Notification
+  notify_email:
+    image: drillster/drone-email
+    failure: ignore
+    settings:
+      host:
+        from_secret: SMTP_SERVER
+      port:
+        from_secret: SMTP_PORT
+      username:
+        from_secret: SMTP_USERNAME
+      password:
+        from_secret: SMTP_TOKEN
+      from:
+        from_secret: SMTP_FROM
+      recipients:
+        from_secret: NOTIFICATION_EMAIL
+      recipients_only: true
+      subject: "[Atlas CI] Pipeline #{{build.number}} results: {{build.status}}"
+      body: |
+        Atlas Platform Deployment Status
+        ------------------------------------
+        Status: {{build.status}}
+        Requested By: {{build.author}}
+        Branch: {{build.branch}}
+        Commit: {{build.commit}}
+        
+        Logs Available At: {{build.link}}
+    when:
+      - status: [success, failure]
+        event: [push]
