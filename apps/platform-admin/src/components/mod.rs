@@ -1,5 +1,6 @@
 pub mod app_manifest;
 pub mod anchor_settings;
+pub mod profiles_panel;
 pub mod dynamic_form;
 pub mod upsell_banner;
 pub mod recommended_partners;
