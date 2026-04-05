@@ -8,6 +8,7 @@ namespace: atlas-platform
 
 patchesStrategicMerge:
   - platform-admin-patch.yaml
+  - backend-patch.yaml
 
 resources:
   - ingress.yaml

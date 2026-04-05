@@ -74,6 +74,7 @@ steps:
   # Unified CD Deployment Step
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
+    secrets: [ ATLAS_INIT_TOKEN ]
     volumes:
       - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
     environment:
@@ -87,6 +88,11 @@ steps:
           echo "Deploying to PROD environment..."
           kubectl apply -k k8s/overlays/prod || echo "[Warn] Prod overlay not yet scaffolded"
         else
+          echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
+          if [ -n "$ATLAS_INIT_TOKEN" ]; then
+            sed -i "s/REPLACE_WITH_CI_TOKEN/$ATLAS_INIT_TOKEN/g" k8s/overlays/uat/backend-patch.yaml
+          fi
+          
           echo "Deploying to UAT environment..."
           kubectl apply -k k8s/overlays/uat
         fi
