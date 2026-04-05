@@ -48,7 +48,7 @@ steps:
       repo: ghcr.io/ruuderie/atlas-backend
       tags: latest
       registry: ghcr.io
-      context: .
+      context: backend
       dockerfile: backend/Dockerfile
       username:
         from_secret: docker_username
