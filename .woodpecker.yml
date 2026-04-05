@@ -141,9 +141,10 @@ steps:
           echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
           
           # Strictly validate existence of required secrets so CI fails loudly instead of deploying a broken state
-          for var in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
-            if [ -z "${!var:-}" ]; then
-              echo "FATAL ERROR: CI Secret '$var' is empty or missing! Deployment aborted to prevent cluster misconfiguration."
+          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+            secret_value=$(printenv "$secret_name" || echo "")
+            if [ -z "$secret_value" ]; then
+              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Deployment aborted to prevent cluster misconfiguration."
               exit 1
             fi
           done
