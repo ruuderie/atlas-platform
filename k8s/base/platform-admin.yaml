@@ -12,6 +12,8 @@ spec:
       labels:
         app: platform-admin
     spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: platform-admin
         image: ghcr.io/ruuderie/platform-admin:latest

@@ -12,6 +12,8 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: backend
         image: ghcr.io/ruuderie/atlas-backend:latest

@@ -12,6 +12,8 @@ spec:
       labels:
         app: directory-instance
     spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: directory-instance
         image: ghcr.io/ruuderie/directory-instance:latest

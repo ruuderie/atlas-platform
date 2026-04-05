@@ -12,6 +12,8 @@ spec:
       labels:
         app: anchor-app
     spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: anchor-app
         image: ghcr.io/ruuderie/anchor-app:latest
