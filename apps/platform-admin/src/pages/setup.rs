@@ -85,6 +85,23 @@ pub fn Setup() -> impl IntoView {
                 </div>
 
                 <div class="p-8 rounded-2xl bg-surface-container/30 border border-outline-variant/10 shadow-2xl backdrop-blur-xl">
+                    <Show 
+                        when=move || !url_token().is_empty() 
+                        fallback=|| view! {
+                            <div class="text-center animate-fade-in py-4">
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container/20 border border-error/30 mb-6">
+                                    <span class="material-symbols-outlined text-3xl text-error">"lock"</span>
+                                </div>
+                                <h2 class="text-xl font-bold text-on-surface mb-3">"Security Token Required"</h2>
+                                <p class="text-on-surface-variant text-sm mb-6 leading-relaxed">
+                                    "Platform initialization is firmly locked. Please launch the setup flow using the exact secure URL provided by your CI/CD deployment environment."
+                                </p>
+                                <div class="p-4 bg-surface-container/50 rounded-xl border border-outline-variant/30 text-xs text-left font-mono text-on-surface-variant break-all">
+                                    "Format: https://<your-domain>/setup?token=YOUR_CI_TOKEN"
+                                </div>
+                            </div>
+                        }
+                    >
                     <div class="mb-8 flex justify-between items-center px-8 relative">
                         <div class="absolute top-1/2 left-12 right-12 h-[2px] bg-outline-variant/20 -z-10 translate-y-[-50%]"></div>
                         <div class=move || { if step.get() >= 1 { "w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-[0_0_10px_rgba(123,208,255,0.5)] transition-all" } else { "w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold text-sm border border-outline-variant/30 transition-all" } }>
@@ -160,6 +177,7 @@ pub fn Setup() -> impl IntoView {
                             </div>
                         }.into_any()
                     }}
+                    </Show>
                 </div>
             </div>
         </div>

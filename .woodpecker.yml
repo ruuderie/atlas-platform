@@ -127,6 +127,7 @@ steps:
       SMTP_FROM:
         from_secret: SMTP_FROM
     commands:
+      - set -euo pipefail
       - export KUBECONFIG=/tmp/kubeconfig.yaml
       - cp /etc/rancher/k3s/k3s.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
@@ -138,33 +139,24 @@ steps:
           kubectl apply -k k8s/overlays/prod || echo "[Warn] Prod overlay not yet scaffolded"
         else
           echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
-          if [ -n "$ATLAS_INIT_TOKEN" ]; then
-            sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
-          fi
-          if [ -n "$DB_USER" ]; then
-            sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$DB_PASSWORD" ]; then
-            sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$ADMIN_PASSWORD" ]; then
-            sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$SMTP_TOKEN" ]; then
-            sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$SMTP_SERVER" ]; then
-            sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$SMTP_PORT" ]; then
-            sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$SMTP_USERNAME" ]; then
-            sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
-          fi
-          if [ -n "$SMTP_FROM" ]; then
-            sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
-          fi
+          
+          # Strictly validate existence of required secrets so CI fails loudly instead of deploying a broken state
+          for var in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+            if [ -z "${!var:-}" ]; then
+              echo "FATAL ERROR: CI Secret '$var' is empty or missing! Deployment aborted to prevent cluster misconfiguration."
+              exit 1
+            fi
+          done
+
+          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
+          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
           
           echo "Deploying to UAT environment..."
           kubectl apply -k k8s/overlays/uat

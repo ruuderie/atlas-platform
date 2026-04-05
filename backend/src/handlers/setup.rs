@@ -82,11 +82,21 @@ pub async fn initialize_system(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // 0. Enforce INIT_TOKEN if the server requires it
     if let Ok(expected_token) = std::env::var("ATLAS_INIT_TOKEN") {
-        if expected_token.trim().is_empty() == false {
+        if !expected_token.trim().is_empty() {
             let provided = req.init_token.unwrap_or_default();
-            if provided != expected_token {
-                tracing::warn!("Unauthorized initialization attempt: token mismatch.");
-                return Err((StatusCode::UNAUTHORIZED, Json(json!({ "message": "Invalid initialization token" }))));
+            if provided.is_empty() {
+                tracing::warn!("Unauthorized initialization attempt: Client did not provide an init token in the payload.");
+                return Err((StatusCode::UNAUTHORIZED, Json(json!({ 
+                    "message": "Missing initialization token. Please use the secure setup link provided in your CI logs." 
+                }))));
+            } else if provided != expected_token {
+                tracing::warn!(
+                    "Unauthorized initialization attempt: Token mismatch. Client provided a token of length {}, but it does not match the server's expected token.",
+                    provided.len()
+                );
+                return Err((StatusCode::UNAUTHORIZED, Json(json!({ 
+                    "message": "Invalid initialization token provided. Security token does not match the server environment." 
+                }))));
             }
         }
     }
