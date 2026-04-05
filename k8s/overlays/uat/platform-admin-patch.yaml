@@ -9,4 +9,4 @@ spec:
       - name: platform-admin
         env:
         - name: API_BASE_URL
-          value: "https://uat.atlas.oply.co"
+          value: "https://api.uat.atlas.oply.co"
