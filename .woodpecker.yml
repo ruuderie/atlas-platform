@@ -74,11 +74,12 @@ steps:
   # Unified CD Deployment Step
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
-    secrets: [ ATLAS_INIT_TOKEN ]
     volumes:
       - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
     environment:
       KUBECONFIG: /tmp/kubeconfig.yaml
+      ATLAS_INIT_TOKEN:
+        from_secret: ATLAS_INIT_TOKEN
     commands:
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
