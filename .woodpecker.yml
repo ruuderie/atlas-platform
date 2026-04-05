@@ -175,6 +175,16 @@ steps:
         kubectl rollout restart deployment/directory-instance -n atlas-platform
         kubectl rollout restart deployment/anchor-app -n atlas-platform
         kubectl rollout restart deployment/backend -n atlas-platform
+        
+        # Block pipeline success until all new replica sets are verified as healthy and running
+        echo "Verifying backend rollout..."
+        kubectl rollout status deployment/backend -n atlas-platform --timeout=180s || exit 1
+        echo "Verifying platform-admin rollout..."
+        kubectl rollout status deployment/platform-admin -n atlas-platform --timeout=180s || exit 1
+        echo "Verifying directory-instance rollout..."
+        kubectl rollout status deployment/directory-instance -n atlas-platform --timeout=180s || exit 1
+        echo "Verifying anchor-app rollout..."
+        kubectl rollout status deployment/anchor-app -n atlas-platform --timeout=180s || exit 1
 
   # Workspace Cleanup
   cleanup_workspace:
