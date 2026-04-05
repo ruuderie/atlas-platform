@@ -7,9 +7,17 @@ data:
   ENVIRONMENT: "uat"
   HOST: "0.0.0.0"
   PORT: "8000"
-  DATABASE_HOST: "host.docker.internal"
+  DATABASE_HOST: "10.42.0.1"
   DATABASE_PORT: "5432"
-  DATABASE_NAME: "oplydbtest"
+  DATABASE_NAME: "ruud"
+  ADMIN_FIRST_NAME: "Ruud"
+  ADMIN_LAST_NAME: "Erie"
+  ADMIN_PHONE: "+18608882536"
+  ADMIN_USER: "admin@oply.co"
+  CREATE_ADMIN_ON_STARTUP: "true"
+  API_URL: "https://api.uat.atlas.oply.co"
+  FRONTEND_URL: "https://directory.uat.atlas.oply.co"
+  ADMIN_URL: "https://uat.atlas.oply.co"
 ---
 apiVersion: v1
 kind: Secret
