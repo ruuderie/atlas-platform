@@ -13,7 +13,7 @@ use chrono::Utc;
 
 use crate::entities::user::{self, Entity as User};
 use crate::auth::hash_password;
-use crate::handlers::sessions::create_user_session;
+use crate::handlers::sessions::create_passwordless_session;
 
 #[derive(Serialize)]
 pub struct SetupStatusResponse {
@@ -23,7 +23,6 @@ pub struct SetupStatusResponse {
 #[derive(Deserialize, Debug)]
 pub struct SetupRequest {
     pub email: String,
-    pub password: String,
     pub first_name: String,
     pub last_name: String,
     pub init_token: Option<String>,
@@ -116,10 +115,11 @@ pub async fn initialize_system(
         return Err((StatusCode::FORBIDDEN, Json(json!({ "message": "System is already initialized" }))));
     }
 
-    // 2. Hash the password
-    let hashed_password = hash_password(&req.password)
+    // 2. Hash a secure randomized string to act as the legacy B2C password schema filler
+    let random_filler = Uuid::new_v4().to_string();
+    let hashed_password = hash_password(&random_filler)
         .map_err(|e| {
-            let msg = format!("Error hashing password: {:?}", e);
+            let msg = format!("Error hashing filler password: {:?}", e);
             tracing::error!("{}", msg);
             (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": msg })))
         })?;
@@ -148,8 +148,8 @@ pub async fn initialize_system(
 
     tracing::info!("Created first system admin user: {}", inserted_user.id);
 
-    // 4. Create and return session
-    let session_response = create_user_session(&db, &req.email, &req.password)
+    // 4. Create and return passwordless session securely generated from init success
+    let session_response = create_passwordless_session(&db, &req.email)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Failed to auto-authenticate after initialization" }))))?;
 

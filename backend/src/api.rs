@@ -1,6 +1,6 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup};
+use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -49,6 +49,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
+        .merge(magic_links::public_routes())
 
         .route("/health", get(health::health_check))
         .layer(Extension(db.clone()))

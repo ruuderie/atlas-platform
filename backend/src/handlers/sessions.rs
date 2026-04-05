@@ -44,6 +44,23 @@ pub async fn create_user_session(
     create_session_for_user(db, &user).await
 }
 
+pub async fn create_passwordless_session(
+    db: &DatabaseConnection,
+    email: &str,
+) -> Result<SessionResponse, StatusCode> {
+    let user = user::Entity::find()
+        .filter(user::Column::Email.eq(email))
+        .one(db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error in passwordless session creation: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    create_session_for_user(db, &user).await
+}
+
 pub async fn create_session_for_user(
     db: &DatabaseConnection,
     user: &user::Model,

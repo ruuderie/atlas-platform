@@ -12,7 +12,6 @@ pub fn Setup() -> impl IntoView {
     let first_name = RwSignal::new("Platform".to_string());
     let last_name = RwSignal::new("Admin".to_string());
     let email = RwSignal::new("".to_string());
-    let password = RwSignal::new("".to_string());
     
     let error_message = RwSignal::new(None::<String>);
     let is_loading = RwSignal::new(false);
@@ -42,7 +41,6 @@ pub fn Setup() -> impl IntoView {
 
         let req_data = SetupInitializeRequest {
             email: email.get(),
-            password: password.get(),
             first_name: first_name.get(),
             last_name: last_name.get(),
             init_token: Some(url_token()),
@@ -138,10 +136,6 @@ pub fn Setup() -> impl IntoView {
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Admin Email"</label>
                                     <Input r#type=InputType::Email placeholder="admin@foundry.local".to_string() bind_value=email />
-                                </div>
-                                <div class="space-y-1.5">
-                                    <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Fallback Password"</label>
-                                    <Input r#type=InputType::Password placeholder="••••••••".to_string() bind_value=password />
                                 </div>
 
                                 <Button 

@@ -11,7 +11,6 @@ pub struct SetupStatusResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetupInitializeRequest {
     pub email: String,
-    pub password: String,
     pub first_name: String,
     pub last_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]

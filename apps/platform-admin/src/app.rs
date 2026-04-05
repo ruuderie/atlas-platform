@@ -76,6 +76,7 @@ pub fn App() -> impl IntoView {
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />
                 <Route path=path!("/verify-token/:token") view=VerifyToken />
+                <Route path=path!("/magic-login") view=crate::pages::magic_login::MagicLogin />
                 <Route path=path!("/setup") view=Setup />
                 <Route path=path!("/*any") view=AuthenticatedLayout />
             </Routes>

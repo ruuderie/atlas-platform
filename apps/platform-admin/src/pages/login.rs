@@ -71,7 +71,7 @@ pub fn Login() -> impl IntoView {
         if login_state.get() == LoginState::SendingToken {
             let current_email = email.get();
             leptos::task::spawn_local(async move {
-                let req_url = crate::api::client::api_url("/api/auth/magic-link/request");
+                let req_url = crate::api::client::api_url("/magic-links/request");
                 if let Err(_) = crate::api::client::api_request::<serde_json::Value>(
                     reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "email": current_email }))
                 ).await {

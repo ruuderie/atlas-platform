@@ -34,3 +34,4 @@ pub mod feeds;
 pub mod feed_items;
 pub mod communications;
 pub mod setup;
+pub mod magic_links;
