@@ -22,7 +22,6 @@ pub fn AppDashboard() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     
     let (show_add_listing, set_show_add_listing) = signal(false);
-    let (show_invite, set_show_invite) = signal(false);
     let (show_add_category, set_show_add_category) = signal(false);
     let (show_add_template, set_show_add_template) = signal(false);
     
@@ -42,8 +41,6 @@ pub fn AppDashboard() -> impl IntoView {
             }
         }
     });
-    
-    let invite_email = RwSignal::new("".to_string());
     
     let site_id_str = site_id().to_string();
     let listings_res = LocalResource::new({
@@ -204,29 +201,6 @@ pub fn AppDashboard() -> impl IntoView {
                                 toast.message.set(Some("Metadata updated successfully.".to_string()));
                                 set_editing_listing_name.set(None);
                             }>"Apply Changes"</Button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
-
-            <Show when=move || show_invite.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_invite.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Invite Team Member"</h3>
-                        <p class="text-muted-foreground text-sm mb-6">"Send an invitation email to grant access."</p>
-                        <div class="space-y-4 mb-6">
-                            <div class="grid gap-2 text-left">
-                                <Label>"Email Address"</Label>
-                                <Input r#type=InputType::Email placeholder="user@example.com".to_string() bind_value=invite_email />
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_invite.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| {
-                                handle_invite(());
-                                set_show_invite.set(false);
-                            }>"Send Invite"</Button>
                         </div>
                     </div>
                 </div>
