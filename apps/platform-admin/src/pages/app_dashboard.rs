@@ -44,19 +44,7 @@ pub fn AppDashboard() -> impl IntoView {
     });
     
     let invite_email = RwSignal::new("".to_string());
-    let setup_token_bind = RwSignal::new("".to_string());
-
-    let handle_save_domain = move |_| {
-        toast.message.set(Some("Domain configuration updated dynamically.".to_string()));
-    };
-
-    let handle_invite = move |_| {
-        if !invite_email.get().is_empty() {
-            toast.message.set(Some(format!("Invited {} to collaborate.", invite_email.get())));
-            invite_email.set("".to_string());
-        }
-    };
-
+    
     let site_id_str = site_id().to_string();
     let listings_res = LocalResource::new({
         let sid = site_id_str.clone();
@@ -65,48 +53,6 @@ pub fn AppDashboard() -> impl IntoView {
             async move { crate::api::listings::get_listings(&sid).await.unwrap_or_default() }
         }
     });
-
-    let setup_token_res = LocalResource::new({
-        let sid = site_id_str.clone();
-        move || {
-            let sid = sid.clone();
-            async move {
-                if let Ok(setting) = crate::api::directories::get_tenant_setting(&sid, "setup_token").await {
-                    Some(setting.value)
-                } else {
-                    None
-                }
-            }
-        }
-    });
-
-    Effect::new(move |_| {
-        if let Some(Some(token)) = setup_token_res.get() {
-            setup_token_bind.set(token);
-        }
-    });
-
-    let handle_generate_token = {
-        let toast = toast.clone();
-        move |_| {
-            let token_str = uuid::Uuid::new_v4().to_string().replace("-", "")[..12].to_uppercase();
-            let sid = site_id().to_string();
-            let toast = toast.clone();
-            leptos::task::spawn_local(async move {
-                let req = crate::api::models::UpsertSettingRequest {
-                    key: "setup_token".to_string(),
-                    value: token_str.clone(),
-                    is_encrypted: false,
-                };
-                if crate::api::directories::upsert_tenant_setting(&sid, req).await.is_ok() {
-                    setup_token_bind.set(token_str);
-                    toast.message.set(Some("Setup token strategically regenerated.".to_string()));
-                } else {
-                    toast.message.set(Some("Failed to generate token.".to_string()));
-                }
-            });
-        }
-    };
 
     let profiles_res = LocalResource::new({
         let sid = site_id_str.clone();
