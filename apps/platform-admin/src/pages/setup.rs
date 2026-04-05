@@ -155,7 +155,7 @@ pub fn Setup() -> impl IntoView {
                                 </div>
                                 
                                 <ManagePasskeys 
-                                    api_base_url=crate::api::client::api_url("/api/passkeys") 
+                                    api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys")) 
                                     auth_token=auth_token.get() 
                                 />
 

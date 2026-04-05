@@ -5,7 +5,7 @@ use crate::auth::passkey::start_registration;
 
 #[component]
 pub fn ManagePasskeys(
-    #[prop(into)] api_base_url: String,
+    #[prop(into)] api_base_url: Signal<String>,
     #[prop(into)] auth_token: String,
 ) -> impl IntoView {
     let is_submitting = RwSignal::new(false);
@@ -19,7 +19,7 @@ pub fn ManagePasskeys(
         message.set("Initiating registration...".to_string());
         is_error.set(false);
         
-        let api_url = api_base_url.clone();
+        let api_url = api_base_url.get();
         let token = auth_token.clone();
         
         leptos::task::spawn_local(async move {

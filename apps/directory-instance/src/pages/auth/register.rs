@@ -88,7 +88,7 @@ pub fn Register() -> impl IntoView {
                             <h2 class="text-2xl font-extrabold font-headline text-on-surface">"Account Created!"</h2>
                             
                             <shared_ui::components::auth::passkey_manager::ManagePasskeys 
-                                api_base_url="http://127.0.0.1:8000/api/auth/passkeys"
+                                api_base_url=Signal::derive(|| "http://127.0.0.1:8000/api/auth/passkeys".to_string())
                                 auth_token=auth_token.get()
                             />
 

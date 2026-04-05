@@ -24,7 +24,7 @@ pub fn DashboardSettings() -> impl IntoView {
                 } else {
                     view! {
                         <ManagePasskeys 
-                            api_base_url="http://127.0.0.1:8000/api/auth/passkeys"
+                            api_base_url=Signal::derive(|| "http://127.0.0.1:8000/api/auth/passkeys".to_string())
                             auth_token=token
                         />
                     }.into_any()
