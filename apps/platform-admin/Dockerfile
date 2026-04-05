@@ -36,9 +36,8 @@ RUN echo 'server { \
 }' > /etc/nginx/conf.d/default.conf
 
 # Entrypoint script to inject runtime environment variables into the static index.html
-RUN echo '#!/bin/sh\n\
-sed -i "s|__API_BASE_URL__|${API_BASE_URL:-http://api.localhost}|g" /usr/share/nginx/html/index.html\n\
-exec nginx -g "daemon off;"' > /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
+COPY apps/platform-admin/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \

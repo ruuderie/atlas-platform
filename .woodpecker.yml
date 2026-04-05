@@ -39,7 +39,22 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_anchor]
+    depends_on: [test_workspace]
+
+  publish_backend:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      repo: ghcr.io/ruuderie/atlas-backend
+      tags: latest
+      registry: ghcr.io
+      context: .
+      dockerfile: backend/Dockerfile
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    depends_on: [test_workspace]
 
   publish_directory_instance:
     image: woodpeckerci/plugin-docker-buildx
@@ -102,7 +117,8 @@ steps:
         kubectl rollout restart deployment/platform-admin -n atlas-platform
         kubectl rollout restart deployment/directory-instance -n atlas-platform
         kubectl rollout restart deployment/anchor-app -n atlas-platform
-    depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor]
+        kubectl rollout restart deployment/backend -n atlas-platform
+    depends_on: [publish_platform_admin, publish_directory_instance, publish_anchor, publish_backend]
 
   # Workspace Cleanup
   cleanup_workspace:
