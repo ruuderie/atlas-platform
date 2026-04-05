@@ -24,6 +24,21 @@ pub fn with_credentials(builder: RequestBuilder) -> RequestBuilder {
     }
 }
 
+pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) -> Result<T, String> {
+    let req = with_credentials(req);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    
+    if res.status().is_success() {
+        res.json::<T>().await.map_err(|e| e.to_string())
+    } else {
+        let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
+            message: Some("Failed to parse API error response".into()),
+            error: None,
+        });
+        Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| "API Error".into())))
+    }
+}
+
 pub fn get_auth_token() -> Option<String> {
     #[cfg(target_arch = "wasm32")]
     {

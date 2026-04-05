@@ -177,7 +177,7 @@ pub fn Login() -> impl IntoView {
                                     <Button 
                                         class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
                                         on:click=move |ev| handle_check_flow.run(ev) 
-                                        disabled=email.get().is_empty()
+                                        attr:disabled=move || email.get().is_empty()
                                     >
                                         {move || if is_loading.get() { "Evaluating Node..." } else { "Continue" }}
                                     </Button>
