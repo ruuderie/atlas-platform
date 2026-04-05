@@ -6,6 +6,7 @@ namespace: atlas-platform
 resources:
   - ../../base
   - ingress.yaml
+  - config.yaml
 
 patches:
   - path: platform-admin-patch.yaml

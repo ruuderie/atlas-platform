@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: atlas-platform
+data:
+  ENVIRONMENT: "uat"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  DATABASE_HOST: "host.docker.internal"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "oplydbtest"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: atlas-platform
+type: Opaque
+stringData:
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "YOUR_SECURE_PASSWORD"
+  ADMIN_PASSWORD: "YOUR_ADMIN_PASSWORD"
