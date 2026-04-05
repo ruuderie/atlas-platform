@@ -91,6 +91,7 @@ pub fn api_url(path: &str) -> String {
         }
     }
     
+    let base_url = base_url.trim_end_matches('/');
     let path = path.trim_start_matches('/');
     format!("{}/{}", base_url, path)
 }
