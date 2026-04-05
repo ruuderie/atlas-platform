@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: atlas-ingress-uat
   annotations:
-    kubernetes.io/ingress.class: "traefik"
+    kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
   - host: uat.atlas.oply.co
