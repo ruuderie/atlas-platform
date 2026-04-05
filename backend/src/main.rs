@@ -126,6 +126,14 @@ async fn main() {
     let table_exists = &conn.execute_unprepared("SELECT 1 FROM request_log LIMIT 1").await.is_ok();
     tracing::info!("request_log table exists: {}", table_exists);
 
+    if create_admin {
+        let admin_email = std::env::var("ADMIN_USER").unwrap_or_else(|_| "admin@oply.co".to_string());
+        if let Err(e) = crate::admin::setup::create_admin_user_if_not_exists(&conn, &admin_email, &_admin_password).await {
+            tracing::error!("Failed to create admin user: {}", e);
+        } else {
+            tracing::info!("Successfully verified root administrative account for {}", admin_email);
+        }
+    }
 
     tracing::info!("Successfully connected to the database and ran migrations");
 
