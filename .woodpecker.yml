@@ -40,7 +40,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [test_workspace]
+    depends_on: [publish_backend]
     when:
       path:
         - 'apps/platform-admin/**'
@@ -80,7 +80,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [publish_anchor]
+    depends_on: [publish_platform_admin]
     when:
       path:
         - 'apps/directory-instance/**'
@@ -100,7 +100,7 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-    depends_on: [test_workspace]
+    depends_on: [publish_platform_admin]
     when:
       path:
         - 'apps/anchor/**'
