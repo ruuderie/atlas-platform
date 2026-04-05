@@ -31,7 +31,7 @@ pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/auth/verify-email", get(verify_email))
         .route("/api/auth/login", post(login))
-        .route("/api/auth/flow/:email", get(get_auth_flow))
+        .route("/api/auth/flow/{email}", get(get_auth_flow))
         .route("/api/auth/magic-link/request", post(request_magic_link))
         .route("/api/auth/magic-link/verify", post(verify_magic_link))
         .route("/api/auth/webauthn/register", post(webauthn_register_start))
