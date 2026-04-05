@@ -161,7 +161,7 @@ pub fn Setup() -> impl IntoView {
                                 </div>
                                 
                                 <ManagePasskeys 
-                                    api_base_url="http://api.localhost/api/passkeys".to_string() 
+                                    api_base_url=crate::api::client::api_url("/api/passkeys") 
                                     auth_token=auth_token.get() 
                                 />
 
