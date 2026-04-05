@@ -203,3 +203,4 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
+# trigger full ci pipeline
