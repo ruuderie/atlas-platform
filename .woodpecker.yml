@@ -121,6 +121,8 @@ steps:
         from_secret: SMTP_TOKEN
       SMTP_SERVER:
         from_secret: SMTP_SERVER
+      SMTP_PORT:
+        from_secret: SMTP_PORT
       SMTP_USERNAME:
         from_secret: SMTP_USERNAME
       SMTP_FROM:
@@ -153,6 +155,9 @@ steps:
           fi
           if [ -n "$SMTP_SERVER" ]; then
             sed -i "s/REPLACE_WITH_SMTP_SERVER/$SMTP_SERVER/g" k8s/overlays/uat/config.yaml
+          fi
+          if [ -n "$SMTP_PORT" ]; then
+            sed -i "s/REPLACE_WITH_SMTP_PORT/$SMTP_PORT/g" k8s/overlays/uat/config.yaml
           fi
           if [ -n "$SMTP_USERNAME" ]; then
             sed -i "s/REPLACE_WITH_SMTP_USERNAME/$SMTP_USERNAME/g" k8s/overlays/uat/config.yaml
