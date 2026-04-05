@@ -211,7 +211,8 @@ ALTER TABLE lead_capture_options ADD COLUMN tenant_id UUID;
 
 -- 1. Update site_settings composite Primary Key
 ALTER TABLE site_settings DROP CONSTRAINT IF EXISTS site_settings_pkey;
-ALTER TABLE site_settings ADD COLUMN tenant_id UUID;
+ALTER TABLE site_settings ADD COLUMN tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+ALTER TABLE site_settings ALTER COLUMN tenant_id DROP DEFAULT;
 ALTER TABLE site_settings ADD PRIMARY KEY (tenant_id, key);
 
 -- 2. Refactor UNIQUE constraints for Multi-Tenancy
