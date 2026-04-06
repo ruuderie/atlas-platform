@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
 use crate::entities::{file_association,file}; 
+use crate::services::search_sync;
+use serde_json::json;
 
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
@@ -92,7 +94,50 @@ impl Related<super::magic_link_token::Entity> for Entity {
     }
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    async fn after_save<C>(
+        model: Model,
+        db: &C,
+        _insert: bool,
+    ) -> Result<Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let text_payload = format!("{} {} {}", model.username, model.first_name, model.last_name);
+        let metadata = json!({
+            "title": format!("{} {}", model.first_name, model.last_name),
+            "subtitle": model.email.clone(),
+        });
+
+        search_sync::upsert_search_index(
+            db,
+            "User",
+            model.id,
+            None,
+            &text_payload,
+            metadata,
+        )
+        .await?;
+
+        Ok(model)
+    }
+
+    async fn after_delete<C>(
+        self,
+        db: &C,
+    ) -> Result<Self, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if let sea_orm::ActiveValue::Set(id) = self.id {
+            search_sync::remove_from_search_index(db, "User", id).await?;
+        } else if let sea_orm::ActiveValue::Unchanged(id) = self.id {
+            search_sync::remove_from_search_index(db, "User", id).await?;
+        }
+        Ok(self)
+    }
+}
 
 
 impl FileAssociable for Entity {

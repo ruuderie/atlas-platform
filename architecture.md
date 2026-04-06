@@ -7,9 +7,11 @@ erDiagram
     Account ||--o{ UserAccount : has
     Account ||--o{ Profile : has
     Account }|--|| Tenant : belongs_to
+    Tenant ||--o{ AppInstance : installs
     Tenant ||--|{ Profile : has
     Tenant ||--|{ Listing : has
     Tenant ||--|{ Template : has
+    AppInstance ||--|{ AppDomain : routes
     Profile ||--o{ Listing : creates
     Profile ||--o{ AdPurchase : makes
     Listing }|--|| Category : belongs_to
@@ -101,11 +103,26 @@ erDiagram
         string name
         string description
         string site_status
-        json theme
         json custom_settings
-        boolean enabled_modules
         datetime created_at
         datetime updated_at
+    }
+
+    AppInstance {
+        UUID id PK
+        UUID tenant_id FK
+        string app_type
+        string database_url
+        json settings
+        datetime created_at
+        datetime updated_at
+    }
+
+    AppDomain {
+        UUID id PK
+        UUID app_instance_id FK
+        string domain
+        boolean is_primary
     }
 
     Listing {
@@ -329,16 +346,16 @@ erDiagram
 
 ```mermaid
 graph TD
-    User[End User / Tenant] -->|Visits tenant1.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress]
-    Proxy -->|Preserves Host Header| DirInst[Network Instance SSR App]
-    DirInst -->|API Lookup with Host| Backend[Rust Axum Backend API]
-    Backend -->|Queries configurations| DB[(PostgreSQL Database)]
+    User[End User] -->|Visits app.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress]
+    Proxy -->|Preserves Host Header| AppInst[App Server SSR/CSR e.g. Network, Anchor]
+    AppInst -->|API Lookup with Host| Backend[Rust Axum Backend API]
+    Backend -->|Resolves Tenant via AppDomain| DB[(PostgreSQL Database)]
     Admin[Platform Admin] -->|Visits admin.domain.com| Proxy
     Proxy --> AdminApp[Platform Admin CSR App]
     AdminApp --> Backend
 ```
 
-The system uses a highly scalable Docker multi-stage environment natively supporting dynamic multi-tenancy. GitHub Actions automates CI/CD, pushing `ghcr.io` containers into Kubernetes using Kustomize overlays.
+The system uses a highly scalable Docker multi-stage environment natively supporting dynamic multi-tenancy. A single `Tenant` (Organization) can run multiple `AppInstances` (e.g. Network, Anchor) which share the underlying CRM and Data APIs, isolated securely via `tenant_id`. GitHub Actions automates CI/CD, pushing `ghcr.io` containers into Kubernetes using Kustomize overlays.
 
 ---
 

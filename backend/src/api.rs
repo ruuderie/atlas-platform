@@ -1,6 +1,6 @@
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links};
+use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -82,7 +82,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::feeds::authenticated_routes(db.clone()))
         .merge(tenant::authenticated_routes(db.clone()))
         .merge(app_instance::authenticated_routes(db.clone()))
-        .merge(communications::authenticated_routes(db.clone()));
+        .merge(communications::authenticated_routes(db.clone()))
+        .merge(search::authenticated_routes());
 
     // Combine all routes and apply state at the top level
     Router::new()

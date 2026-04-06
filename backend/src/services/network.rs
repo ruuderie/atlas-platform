@@ -4,7 +4,7 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use serde_json::Value;
 use anyhow::{Result, Context};
-use crate::entities::{self, network};
+use crate::entities::{self, tenant as network};
 
 pub struct NetworkService;
 
@@ -237,7 +237,7 @@ impl NetworkService {
     
     pub async fn create_network(
         db: &DatabaseConnection,
-        input: crate::models::network::CreateNetwork
+        input: crate::models::tenant::CreateTenant
     ) -> Result<network::Model> {
         let mut custom_settings = serde_json::Map::new();
         if let Some(strategy) = &input.deployment_strategy {
@@ -289,7 +289,7 @@ impl NetworkService {
     pub async fn update_network(
         db: &DatabaseConnection,
         tenant_id: Uuid,
-        input: crate::models::network::UpdateNetwork
+        input: crate::models::tenant::UpdateTenant
     ) -> Result<network::Model> {
         let network = network::Entity::find_by_id(tenant_id)
             .one(db)

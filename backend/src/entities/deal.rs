@@ -7,6 +7,8 @@ use crate::traits::file::FileAssociable;
 use crate::models::file::{FileAssociation, FileModel};
 use crate::entities::{file_association,file, deal_contact, contact}; 
 use sea_orm::Set;
+use crate::services::search_sync;
+use serde_json::json;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "deal")]
@@ -68,7 +70,50 @@ impl Related<super::note::Entity> for Entity {
     }
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    async fn after_save<C>(
+        model: Model,
+        db: &C,
+        _insert: bool,
+    ) -> Result<Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let text_payload = format!("{} {} {}", model.name, model.status, model.stage);
+        let metadata = json!({
+            "title": model.name.clone(),
+            "subtitle": format!("Deal - {}", model.status),
+        });
+
+        search_sync::upsert_search_index(
+            db,
+            "Deal",
+            model.id,
+            model.tenant_id,
+            &text_payload,
+            metadata,
+        )
+        .await?;
+
+        Ok(model)
+    }
+
+    async fn after_delete<C>(
+        self,
+        db: &C,
+    ) -> Result<Self, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if let sea_orm::ActiveValue::Set(id) = self.id {
+            search_sync::remove_from_search_index(db, "Deal", id).await?;
+        } else if let sea_orm::ActiveValue::Unchanged(id) = self.id {
+            search_sync::remove_from_search_index(db, "Deal", id).await?;
+        }
+        Ok(self)
+    }
+}
 
 impl FileAssociable for Entity {
     fn entity_type() -> &'static str {

@@ -72,6 +72,7 @@ pub fn App() -> impl IntoView {
                 </div>
             })}
         </div>
+        <crate::components::omnibar::Omnibar />
         <Router>
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />

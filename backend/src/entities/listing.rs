@@ -4,6 +4,8 @@ use serde_json::Value;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use crate::models::listing::ListingStatus;
+use crate::services::search_sync;
+use serde_json::json;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "listing")]
@@ -105,4 +107,47 @@ impl Related<super::ad_purchase::Entity> for Entity {
     }
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    async fn after_save<C>(
+        model: Model,
+        db: &C,
+        _insert: bool,
+    ) -> Result<Model, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        let text_payload = format!("{} {}", model.title, model.description);
+        let metadata = json!({
+            "title": model.title.clone(),
+            "subtitle": "Listing",
+        });
+
+        search_sync::upsert_search_index(
+            db,
+            "Listing",
+            model.id,
+            Some(model.tenant_id),
+            &text_payload,
+            metadata,
+        )
+        .await?;
+
+        Ok(model)
+    }
+
+    async fn after_delete<C>(
+        self,
+        db: &C,
+    ) -> Result<Self, DbErr>
+    where
+        C: ConnectionTrait,
+    {
+        if let sea_orm::ActiveValue::Set(id) = self.id {
+            search_sync::remove_from_search_index(db, "Listing", id).await?;
+        } else if let sea_orm::ActiveValue::Unchanged(id) = self.id {
+            search_sync::remove_from_search_index(db, "Listing", id).await?;
+        }
+        Ok(self)
+    }
+}

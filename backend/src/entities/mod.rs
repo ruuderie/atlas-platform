@@ -38,4 +38,4 @@ pub mod app_instance;
 pub mod app_domain;
 pub mod app_page;
 pub mod app_menu;
-
+pub mod global_search_index;

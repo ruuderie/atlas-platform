@@ -2,4 +2,6 @@
 pub mod tenant;
 pub mod telephony;
 pub mod billing;
-// Add other services as needed 
+pub mod network;
+pub mod search_sync;
+// Add other services as needed
