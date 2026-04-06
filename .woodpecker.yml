@@ -179,10 +179,8 @@ steps:
         echo "Verifying anchor-app rollout..."
         kubectl rollout status deployment/anchor-app -n atlas-platform --timeout=180s || exit 1
         
-        if [ "${PURGE_ADMIN_ON_DEPLOY:-}" = "true" ]; then
-          echo "Pipeline variable PURGE_ADMIN_ON_DEPLOY=true detected! Purging UAT Admin database records..."
-          kubectl run purge-job-tmp --rm -i --restart='Never' --image=curlimages/curl -- curl -k -s -X POST https://api.uat.atlas.oply.co/setup/purge_admin || echo "Purge job complete."
-        fi
+        # Allow purge of old admin dynamically via script or direct DB logic if ever manually needed.
+        # Cleaned up application-level API vulnerabilities.
 
   # Workspace Cleanup
   cleanup_workspace:

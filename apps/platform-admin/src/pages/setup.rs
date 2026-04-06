@@ -2,13 +2,12 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 use shared_ui::components::ui::button::Button;
 use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::auth::passkey_manager::ManagePasskeys;
-use crate::api::setup::{initialize_system, get_setup_status, SetupInitializeRequest};
+use crate::api::setup::{get_setup_status, SetupInitializeRequest};
 use crate::api::models::UserInfo;
 
 #[component]
 pub fn Setup() -> impl IntoView {
-    let step = RwSignal::new(1); // 1 = Admin Info, 2 = Passkey
+    let step = RwSignal::new(1); // 1 = Admin Info, 2 = Passkey Challenge
     let first_name = RwSignal::new("Platform".to_string());
     let last_name = RwSignal::new("Admin".to_string());
     let email = RwSignal::new("".to_string());
@@ -16,7 +15,8 @@ pub fn Setup() -> impl IntoView {
     let error_message = RwSignal::new(None::<String>);
     let is_loading = RwSignal::new(false);
     
-    let auth_token = RwSignal::new("".to_string());
+    let session_id = RwSignal::new(String::new());
+    let webauthn_options = RwSignal::new(None::<serde_json::Value>);
     
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let navigate = use_navigate();
@@ -35,8 +35,13 @@ pub fn Setup() -> impl IntoView {
         }
     });
 
-    let handle_initialize = Callback::new(move |_| {
+    let handle_webauthn_start = Callback::new(move |_| {
         error_message.set(None);
+        if email.get().is_empty() {
+            error_message.set(Some("Email is required".into()));
+            return;
+        }
+
         is_loading.set(true);
 
         let req_data = SetupInitializeRequest {
@@ -47,23 +52,84 @@ pub fn Setup() -> impl IntoView {
         };
 
         leptos::task::spawn_local(async move {
-            match initialize_system(req_data).await {
+            let client = reqwest::Client::new();
+            let start_url = crate::api::client::api_url("/setup/webauthn-start");
+
+            match client.post(&start_url).json(&req_data).send().await {
+                Ok(res) if res.status().is_success() => {
+                    let text = res.text().await.unwrap_or_default();
+                    if let Ok((sid, opts)) = serde_json::from_str::<(String, serde_json::Value)>(&text) {
+                        session_id.set(sid);
+                        webauthn_options.set(Some(opts));
+                        step.set(2);
+                    } else {
+                        error_message.set(Some("Invalid response from server".into()));
+                    }
+                }
                 Ok(res) => {
-                    crate::api::client::set_auth_token(&res.token);
-                    set_user.set(res.user);
-                    auth_token.set(res.token);
-                    step.set(2);
+                    let err_text = res.text().await.unwrap_or_default();
+                    error_message.set(Some(err_text));
                 }
-                Err(err) => {
-                    error_message.set(Some(err));
-                }
+                Err(_) => error_message.set(Some("Network error".into())),
             }
             is_loading.set(false);
         });
     });
 
-    let handle_finish = Callback::new(move |_| {
-        navigate_ok("/", Default::default());
+    let handle_initialize_finish = Callback::new(move |_| {
+        if is_loading.get() { return; }
+        is_loading.set(true);
+        error_message.set(None);
+        let nav = navigate_ok.clone();
+        
+        leptos::task::spawn_local(async move {
+            let options = match webauthn_options.get() {
+                Some(opt) => opt,
+                None => {
+                    error_message.set(Some("Session expired. Please restart setup.".into()));
+                    is_loading.set(false);
+                    return;
+                }
+            };
+            
+            // 1. Browser WebAuthn API
+            let credential = match shared_ui::auth::passkey::start_registration(&options).await {
+                Ok(cred) => cred,
+                Err(e) => {
+                    error_message.set(Some(e));
+                    is_loading.set(false);
+                    return;
+                }
+            };
+            
+            // 2. Finish Registration Atomically
+            let client = reqwest::Client::new();
+            let finish_url = crate::api::client::api_url("/setup/initialize-finish");
+            
+            let finish_payload = serde_json::json!({
+                "session_id": session_id.get(),
+                "webauthn_response": credential
+            });
+            
+            match client.post(&finish_url).json(&finish_payload).send().await {
+                Ok(res) if res.status().is_success() => {
+                    let text = res.text().await.unwrap_or_default();
+                    if let Ok(session) = serde_json::from_str::<crate::api::models::SessionResponse>(&text) {
+                        crate::api::client::set_auth_token(&session.token);
+                        set_user.set(session.user);
+                        nav("/", Default::default());
+                    } else {
+                        error_message.set(Some("Failed to parse final session".into()));
+                    }
+                }
+                Ok(res) => {
+                    error_message.set(Some(res.text().await.unwrap_or_default()));
+                }
+                Err(_) => error_message.set(Some("Finalize network error".into())),
+            }
+            
+            is_loading.set(false);
+        });
     });
 
     view! {
@@ -140,34 +206,32 @@ pub fn Setup() -> impl IntoView {
 
                                 <Button 
                                     class="w-full mt-6 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
-                                    on:click=move |ev| handle_initialize.run(ev) 
+                                    on:click=move |ev| handle_webauthn_start.run(ev) 
                                 >
-                                    {move || if is_loading.get() { "Initializing..." } else { "Create Admin & Continue" }}
+                                    {move || if is_loading.get() { "Preparing Passkey..." } else { "Create Admin & Continue" }}
                                 </Button>
                             </div>
                         }.into_any()
                     } else {
                         view! {
                             <div class="space-y-6 animate-fade-scale">
-                                <div class="text-center mb-2">
+                                <div class="text-center mb-6">
                                     <h2 class="text-xl font-bold text-on-surface">"Secure Your Account"</h2>
                                     <p class="text-sm text-on-surface-variant mt-1">"Create a passkey (Face ID/Touch ID) to log in securely without needing your password in the future."</p>
                                 </div>
                                 
-                                <ManagePasskeys 
-                                    api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys")) 
-                                    auth_token=auth_token.get() 
-                                />
-
-                                <div class="pt-6 border-t border-outline-variant/10 mt-6 flex justify-between items-center">
-                                    <span class="text-xs text-on-surface-variant">"You can manage passkeys later in Settings."</span>
-                                    <Button 
-                                        class="bg-surface/50 border-outline-variant/30 text-on-surface hover:bg-surface-bright/50 transition-all".to_string() 
-                                        on:click=move |ev| handle_finish.run(ev) 
-                                    >
-                                        "Finish Setup"
-                                    </Button>
+                                <div class="bg-surface-container-high p-6 rounded-xl border border-outline-variant/30 text-center">
+                                    <span class="material-symbols-outlined text-4xl text-primary mb-3">"fingerprint"</span>
+                                    <h3 class="font-bold text-on-surface mb-2">"Passkey Ready"</h3>
+                                    <p class="text-sm text-on-surface-variant">"Click below to generate your passkey natively via your browser."</p>
                                 </div>
+
+                                <Button 
+                                    class="w-full mt-6 bg-primary text-on-primary border-none shadow-[0_0_15px_rgba(123,208,255,0.15)] hover:shadow-[0_0_20px_rgba(123,208,255,0.3)] transition-all font-bold".to_string() 
+                                    on:click=move |ev| handle_initialize_finish.run(ev) 
+                                >
+                                    {move || if is_loading.get() { "Awaiting Challenge..." } else { "Generate Passkey & Finalize" }}
+                                </Button>
                             </div>
                         }.into_any()
                     }}
