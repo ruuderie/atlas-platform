@@ -4,7 +4,7 @@ members = [
     "network-instance",
     "shared-ui",
     "anchor"
-]
+, "replacer"]
 resolver = "2"
 
 # Defines a size-optimized profile for the WASM bundle in release mode

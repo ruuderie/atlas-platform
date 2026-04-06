@@ -52,7 +52,7 @@ pub fn Apps() -> impl IntoView {
                                 let is_active = status.to_lowercase() == "active";
                                 let status_display = status.clone();
                                 let dir_id_manage = dir.tenant_id.clone();
-                                let label_app_type = if dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor" { "Services / Anchor" } else { "Directory" };
+                                let label_app_type = if dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor" { "Services / Anchor" } else { "Network" };
                                 
                                 view! {
                                     <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">

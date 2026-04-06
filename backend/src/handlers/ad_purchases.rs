@@ -93,7 +93,7 @@ pub async fn get_ad_purchases(
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Fetching ad purchases for user: {}", current_user.id);
 
-    // Fetch profiles associated with the user's directories
+    // Fetch profiles associated with the user's networks
     let profiles = profile::Entity::find()
         .filter(profile::Column::TenantId.is_in(tenant_ids))
         .all(&db)
@@ -154,7 +154,7 @@ pub async fn update_ad_purchase(
             StatusCode::NOT_FOUND
         })?;
 
-    // Check directory isolation
+    // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to update ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);
@@ -212,7 +212,7 @@ pub async fn delete_ad_purchase(
             StatusCode::NOT_FOUND
         })?;
 
-    // Check directory isolation
+    // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to delete ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);
@@ -265,7 +265,7 @@ pub async fn get_ad_purchase_by_id(
             StatusCode::NOT_FOUND
         })?;
 
-    // Check directory isolation
+    // Check network isolation
     if !tenant_ids.contains(&profile.tenant_id) {
         tracing::warn!("User {} not authorized to view ad purchase {}", current_user.id, id);
         return Err(StatusCode::FORBIDDEN);

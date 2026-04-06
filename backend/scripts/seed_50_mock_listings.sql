@@ -19,7 +19,7 @@ END $$;
 
 DO $$
 DECLARE
-    ct_directory_id UUID;
+    ct_network_id UUID;
     admin_user_id UUID;
     admin_account_id UUID;
     cat_construction UUID;
@@ -44,22 +44,22 @@ DECLARE
     categories TEXT[] := ARRAY['Contractors', 'Plumbing', 'HVAC', 'Electricians', 'Cleaning', 'Landscaping'];
     categories_uuids UUID[];
 BEGIN
-    -- 1. Get or Create Directory
-    SELECT id INTO ct_directory_id FROM directory WHERE name = 'CT Build Pros' OR domain = 'localhost';
-    IF ct_directory_id IS NULL THEN
-        -- Need a directory type first
-        SELECT id INTO dir_type_id FROM directory_type LIMIT 1;
+    -- 1. Get or Create Network
+    SELECT id INTO ct_network_id FROM network WHERE name = 'CT Build Pros' OR domain = 'localhost';
+    IF ct_network_id IS NULL THEN
+        -- Need a network type first
+        SELECT id INTO dir_type_id FROM network_type LIMIT 1;
         IF dir_type_id IS NULL THEN
             dir_type_id := gen_random_uuid();
-            INSERT INTO directory_type (id, name, description, is_active, created_at, updated_at)
-            VALUES (dir_type_id, 'Service Professionals', 'Directory of local service professionals', true, NOW(), NOW());
+            INSERT INTO network_type (id, name, description, is_active, created_at, updated_at)
+            VALUES (dir_type_id, 'Service Professionals', 'Network of local service professionals', true, NOW(), NOW());
         END IF;
 
-        ct_directory_id := gen_random_uuid();
-        INSERT INTO directory (id, directory_type_id, name, description, is_active, requires_approval, allow_reviews, created_at, updated_at, domain)
-        VALUES (ct_directory_id, dir_type_id, 'CT Build Pros', 'The premier directory for top-rated construction and renovation services across Connecticut.', true, false, true, NOW(), NOW(), 'localhost');
+        ct_network_id := gen_random_uuid();
+        INSERT INTO network (id, network_type_id, name, description, is_active, requires_approval, allow_reviews, created_at, updated_at, domain)
+        VALUES (ct_network_id, dir_type_id, 'CT Build Pros', 'The premier network for top-rated construction and renovation services across Connecticut.', true, false, true, NOW(), NOW(), 'localhost');
     ELSE
-        SELECT directory_type_id INTO dir_type_id FROM directory WHERE id = ct_directory_id;
+        SELECT network_type_id INTO dir_type_id FROM network WHERE id = ct_network_id;
     END IF;
 
     -- 2. Ensure Categories Exist
@@ -68,10 +68,10 @@ BEGIN
         DECLARE
             cat_id UUID;
         BEGIN
-            SELECT id INTO cat_id FROM category WHERE directory_type_id = dir_type_id AND name = categories[i];
+            SELECT id INTO cat_id FROM category WHERE network_type_id = dir_type_id AND name = categories[i];
             IF cat_id IS NULL THEN
                 cat_id := gen_random_uuid();
-                INSERT INTO category (id, directory_type_id, name, description, icon, is_active, created_at, updated_at)
+                INSERT INTO category (id, network_type_id, name, description, icon, is_active, created_at, updated_at)
                 VALUES (cat_id, dir_type_id, categories[i], 'Category for ' || categories[i], 'tool', true, NOW(), NOW());
             END IF;
             categories_uuids := array_append(categories_uuids, cat_id);
@@ -104,11 +104,11 @@ BEGIN
         
         -- Create Profile
         INSERT INTO profile (
-            id, account_id, directory_id, business_name, description, contact_email, 
+            id, account_id, network_id, business_name, description, contact_email, 
             phone_number, website, address, city, state, country, zip_code, 
             profile_type, status, created_at, updated_at
         ) VALUES (
-            new_profile_id, admin_account_id, ct_directory_id, 
+            new_profile_id, admin_account_id, ct_network_id, 
             business_names[floor(random() * array_length(business_names, 1) + 1)] || ' ' || i,
             'Premium Connecticut-based service provider delivering exceptional results.',
             'contact' || i || '@example.com', '203-555-' || lpad(i::text, 4, '0'),
@@ -122,12 +122,12 @@ BEGIN
 
         -- Create Listing
         INSERT INTO listing (
-            id, profile_id, directory_id, category_id, title, description, listing_type,
+            id, profile_id, network_id, category_id, title, description, listing_type,
             price, price_type, country, state, city, neighborhood, latitude, longitude,
             additional_info, status, is_featured, is_based_on_template, is_ad_placement, is_active,
             created_at, updated_at
         ) VALUES (
-            new_listing_id, new_profile_id, ct_directory_id,
+            new_listing_id, new_profile_id, ct_network_id,
             categories_uuids[floor(random() * array_length(categories_uuids, 1) + 1)],
             (ARRAY['Premium Renovation', '24/7 HVAC Service', 'Trusted Plumber', 'Commercial Cleaning', 'Luxury Landscaping', 'Electrical Systems', 'Roofing Pros', 'Paving & Masonry'])[floor(random() * 8 + 1)] || ' - Top Rated ' || i,
             'We provide industry-leading services directly to residential and commercial clients across our service area. Reliable, insured, and verified professionals.',
@@ -165,5 +165,5 @@ BEGIN
              to_jsonb((ARRAY['Licensed Pro', 'Fully Insured', 'OSHA Certified', 'A+ BBB Rated'])[floor(random() * 4 + 1)]::text), NOW(), NOW());
     END LOOP;
 
-    RAISE NOTICE 'Successfully seeded 55 directory listings into CT Build Pros.';
+    RAISE NOTICE 'Successfully seeded 55 network listings into CT Build Pros.';
 END $$;

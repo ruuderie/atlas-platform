@@ -36,7 +36,7 @@ pub fn TemplateCreate() -> impl IntoView {
                 "template_type": tt,
                 "is_active": a,
                 "category_id": "00000000-0000-0000-0000-000000000000", // MVP hardcoded
-                "directory_id": "00000000-0000-0000-0000-000000000000"
+                "network_id": "00000000-0000-0000-0000-000000000000"
             });
 
             let client = create_client();

@@ -1,22 +1,22 @@
 DO $$
 DECLARE
     last_listing_id UUID;
-    profile_directory_id UUID;
+    profile_network_id UUID;
     profile_category_id UUID;
 BEGIN
 
 -- Listing 1: Michael Lopez, Real Estate Loan Finder
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'e7506381-dade-4a95-869a-5c08a2b048a5';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   'e7506381-dade-4a95-869a-5c08a2b048a5',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Competitive Home Loan Rates for First-Time Buyers',
   'Lopez Real Estate Loan Finder offers exclusive rates for first-time homebuyers. Get pre-approved quickly and easily.',
@@ -48,17 +48,17 @@ VALUES
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'CreditScoreRequirement', '"620+"', NOW(), NOW());
 
 -- Listing 2: Lisa Rodriguez, Real Estate Loan Finder
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '2b249afd-592e-427a-9cd7-d137d261b8c3';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   '2b249afd-592e-427a-9cd7-d137d261b8c3',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Industrial Property Financing Solutions',
   'Specialized loan packages for industrial real estate investments. Competitive rates and flexible terms available.',
@@ -90,17 +90,17 @@ VALUES
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'PropertyTypes', '"Warehouses, Manufacturing facilities, Distribution centers"', NOW(), NOW());
 
 -- Listing 3: John Lopez, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '8f531dfb-7537-485a-99bd-d603457af209';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   '8f531dfb-7537-485a-99bd-d603457af209',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Fast Business Loans for Equipment Financing',
   'Get quick approval for equipment financing. Loans up to $500,000 with competitive rates.',
@@ -132,17 +132,17 @@ VALUES
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'RequiredDocuments', '"Business plan, Financial statements, Equipment quotes"', NOW(), NOW());
 
 -- Listing 4: Thomas Taylor, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'b6d8912b-d65b-4127-90ee-1291da46dbb1';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   'b6d8912b-d65b-4127-90ee-1291da46dbb1',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'SBA Loans for Small Business Growth',
   'Offering SBA-backed loans to help small businesses expand. Low down payments and long repayment terms available.',
@@ -174,17 +174,17 @@ VALUES
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'EligibleBusinesses', '"For-profit businesses operating in the US"', NOW(), NOW());
 
 -- Listing 5: William Thomas, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'c6175986-aa61-4d80-a860-d04ebb4d4bb5';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   'c6175986-aa61-4d80-a860-d04ebb4d4bb5',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Merchant Cash Advances for Retail Businesses',
   'Quick access to working capital for retail businesses. Flexible repayment based on daily credit card sales.',
@@ -215,37 +215,37 @@ VALUES
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'RepaymentMethod', '"Percentage of daily credit card sales"', NOW(), NOW()),
   (gen_random_uuid(), last_listing_id, 'ServiceDetail', 'ApprovalTime', '"24-48 hours"', NOW(), NOW());
 
--- Listing 6: John Garcia, Acquisition Finance Directory
-SELECT directory_id INTO profile_directory_id 
+-- Listing 6: John Garcia, Acquisition Finance Network
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '324e8591-9e84-4022-b189-ace2bc36c523';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active)
 VALUES (
   gen_random_uuid(),
   '324e8591-9e84-4022-b189-ace2bc36c523',
-  profile_directory_id,
+  profile_network_id,
 DO $$
 DECLARE
     last_listing_id UUID;
-    profile_directory_id UUID;
+    profile_network_id UUID;
     profile_category_id UUID;
 BEGIN
 
 -- Listing 1: Michael Lopez, Real Estate Loan Finder
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'e7506381-dade-4a95-869a-5c08a2b048a5';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   'e7506381-dade-4a95-869a-5c08a2b048a5',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Competitive Home Loan Rates for First-Time Buyers',
   'Lopez Real Estate Loan Finder offers exclusive rates for first-time homebuyers. Get pre-approved quickly and easily.',
@@ -264,17 +264,17 @@ VALUES
   (last_listing_id, 'Text', 'CreditScoreRequirement', '620+');
 
 -- Listing 2: Lisa Rodriguez, Real Estate Loan Finder
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '2b249afd-592e-427a-9cd7-d137d261b8c3';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '2b249afd-592e-427a-9cd7-d137d261b8c3',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Industrial Property Financing Solutions',
   'Specialized loan packages for industrial real estate investments. Competitive rates and flexible terms available.',
@@ -293,17 +293,17 @@ VALUES
   (last_listing_id, 'Text', 'PropertyTypes', 'Warehouses, Manufacturing facilities, Distribution centers');
 
 -- Listing 3: John Lopez, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '8f531dfb-7537-485a-99bd-d603457af209';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '8f531dfb-7537-485a-99bd-d603457af209',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Fast Business Loans for Equipment Financing',
   'Get quick approval for equipment financing. Loans up to $500,000 with competitive rates.',
@@ -322,17 +322,17 @@ VALUES
   (last_listing_id, 'Text', 'RequiredDocuments', 'Business plan, Financial statements, Equipment quotes');
 
 -- Listing 4: Thomas Taylor, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'b6d8912b-d65b-4127-90ee-1291da46dbb1';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   'b6d8912b-d65b-4127-90ee-1291da46dbb1',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'SBA Loans for Small Business Growth',
   'Offering SBA-backed loans to help small businesses expand. Low down payments and long repayment terms available.',
@@ -351,17 +351,17 @@ VALUES
   (last_listing_id, 'Text', 'EligibleBusinesses', 'For-profit businesses operating in the US');
 
 -- Listing 5: William Thomas, Business Loan Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'c6175986-aa61-4d80-a860-d04ebb4d4bb5';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   'c6175986-aa61-4d80-a860-d04ebb4d4bb5',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Merchant Cash Advances for Retail Businesses',
   'Quick access to working capital for retail businesses. Flexible repayment based on daily credit card sales.',
@@ -379,18 +379,18 @@ VALUES
   (last_listing_id, 'Text', 'RepaymentMethod', 'Percentage of daily credit card sales'),
   (last_listing_id, 'Text', 'ApprovalTime', '24-48 hours');
 
--- Listing 6: John Garcia, Acquisition Finance Directory
-SELECT directory_id INTO profile_directory_id 
+-- Listing 6: John Garcia, Acquisition Finance Network
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '324e8591-9e84-4022-b189-ace2bc36c523';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '324e8591-9e84-4022-b189-ace2bc36c523',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Acquisition Financing for Tech Startups',
   'Specialized financing solutions for tech startups looking to acquire other companies. Flexible terms and quick approval process.',
@@ -408,18 +408,18 @@ VALUES
   (last_listing_id, 'Text', 'FinancingType', 'Debt and Equity'),
   (last_listing_id, 'Text', 'ApprovalTimeframe', '2-4 weeks');
 
--- Listing 7: Michael Smith, Acquisition Finance Directory
-SELECT directory_id INTO profile_directory_id 
+-- Listing 7: Michael Smith, Acquisition Finance Network
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '1f1f6014-fdf9-4d36-8669-a9c61e7cbd4c';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '1f1f6014-fdf9-4d36-8669-a9c61e7cbd4c',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Mezzanine Financing for Middle Market Acquisitions',
   'Offering mezzanine financing solutions for middle market companies looking to fund acquisitions or recapitalizations.',
@@ -437,18 +437,18 @@ VALUES
   (last_listing_id, 'Text', 'TargetCompanies', 'Middle market firms with EBITDA $5M-$50M'),
   (last_listing_id, 'Text', 'UseOfFunds', 'Acquisitions, Recapitalizations, Growth capital');
 
--- Listing 8: Elizabeth Johnson, Salon & Spa Directory
-SELECT directory_id INTO profile_directory_id 
+-- Listing 8: Elizabeth Johnson, Salon & Spa Network
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '5726dbf0-bfdc-41e9-ad7f-d3735764a992';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '5726dbf0-bfdc-41e9-ad7f-d3735764a992',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Luxury Spa Day Package',
   'Indulge in a full day of pampering with our luxury spa package. Includes massage, facial, manicure, and pedicure.',
@@ -466,18 +466,18 @@ VALUES
   (last_listing_id, 'Text', 'Availability', 'Monday-Saturday'),
   (last_listing_id, 'Text', 'BookingRequired', 'Yes, 24 hours in advance');
 
--- Listing 9: Margaret Miller, Salon & Spa Directory
-SELECT directory_id INTO profile_directory_id 
+-- Listing 9: Margaret Miller, Salon & Spa Network
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = '448d426d-1c03-4732-8c8e-8f6dffc83bb5';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   '448d426d-1c03-4732-8c8e-8f6dffc83bb5',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Bridal Hair and Makeup Package',
   'Look your best on your special day with our bridal hair and makeup package. Includes trial session and day-of services.',
@@ -496,17 +496,17 @@ VALUES
   (last_listing_id, 'Text', 'AdditionalServices', 'Bridal party services available');
 
 -- Listing 10: Linda Johnson, Beauty Pro Network
-SELECT directory_id INTO profile_directory_id 
+SELECT network_id INTO profile_network_id 
 FROM profile WHERE id = 'c4cfe651-2e7d-4e2e-95b5-e1e9c76d8e30';
 SELECT id INTO profile_category_id 
 FROM category 
 LIMIT 1;
 
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, price, status, created_at, updated_at, listing_type)
 VALUES (
   gen_random_uuid(),
   'c4cfe651-2e7d-4e2e-95b5-e1e9c76d8e30',
-  profile_directory_id,
+  profile_network_id,
   profile_category_id,
   'Professional Makeup Artistry Course',
   'Comprehensive 8-week course covering all aspects of professional makeup artistry. Perfect for beginners and intermediate artists.',

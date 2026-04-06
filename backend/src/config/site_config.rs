@@ -9,7 +9,7 @@ use serde_json::Value;
 bitflags! {
     #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct ModuleFlags: u32 {
-        // Core listing functionality - enables basic directory features
+        // Core listing functionality - enables basic network features
         // Required for creating, viewing, and managing listings
         const LISTINGS = 0b00000001;
 
@@ -43,11 +43,11 @@ bitflags! {
     }
 }
 
-// SiteConfig holds all configuration data for a specific directory site
+// SiteConfig holds all configuration data for a specific network site
 // This structure is used throughout the application to determine site behavior
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SiteConfig {
-    // Unique identifier for the directory/site
+    // Unique identifier for the network/site
     pub tenant_id: Uuid,
 
     // Display name of the site shown in UI elements

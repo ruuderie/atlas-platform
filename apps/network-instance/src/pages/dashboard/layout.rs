@@ -1,12 +1,12 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
 use crate::auth::AuthContext;
-use crate::app::DirectoryConfig;
+use crate::app::NetworkConfig;
 
 #[component]
 pub fn DashboardLayout() -> impl IntoView {
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
-    let directory = use_context::<DirectoryConfig>().expect("DirectoryConfig missing");
+    let network = use_context::<NetworkConfig>().expect("NetworkConfig missing");
     
     // Derived states
     let user_name = Signal::derive(move || {
@@ -58,7 +58,7 @@ pub fn DashboardLayout() -> impl IntoView {
             // Sidebar Navigation
             <aside class="w-64 bg-white border-r border-outline-variant/30 hidden md:flex flex-col h-screen sticky top-0">
                 <div class="p-6 border-b border-outline-variant/30 flex items-center justify-between">
-                    <a href="/" class="font-headline font-extrabold text-xl tracking-tight text-[#004289]">{directory.name.clone()}</a>
+                    <a href="/" class="font-headline font-extrabold text-xl tracking-tight text-[#004289]">{network.name.clone()}</a>
                 </div>
                 
                 // Active Account Switcher
@@ -151,7 +151,7 @@ pub fn DashboardLayout() -> impl IntoView {
             
             // Mobile Header
             <div class="md:hidden fixed top-0 w-full bg-white border-b border-outline-variant/30 p-4 flex items-center justify-between z-30">
-                <a href="/" class="font-headline font-extrabold text-lg text-[#004289]">{directory.name.clone()}</a>
+                <a href="/" class="font-headline font-extrabold text-lg text-[#004289]">{network.name.clone()}</a>
                 <button class="material-symbols-outlined text-on-surface">"menu"</button>
             </div>
             

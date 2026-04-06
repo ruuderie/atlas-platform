@@ -18,7 +18,7 @@ use std::path::PathBuf;
 #[derive(Serialize, Deserialize)]
 pub struct CreateAppInstancePayload {
     pub tenant_id: Uuid,
-    pub app_type: String, // e.g., "anchor", "directory"
+    pub app_type: String, // e.g., "anchor", "network"
     pub database_url: Option<String>,
     pub data_seed_name: Option<String>,
     pub settings: Option<Value>,
@@ -84,7 +84,7 @@ pub async fn create_app_instance(
 pub async fn list_data_seeds(
     Path(app_type): Path<String>,
 ) -> Result<Json<Vec<String>>, (StatusCode, String)> {
-    // Navigate relative to the backend running directory, usually workspace root is one up.
+    // Navigate relative to the backend running network, usually workspace root is one up.
     let root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()

@@ -14,7 +14,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
-        value: "http://directory.atlas.orb.local"
+        value: "http://network.atlas.orb.local"
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
         value: "http://api.atlas.orb.local"
@@ -26,7 +26,7 @@ patches:
     patch: |-
       - op: replace
         path: /spec/rules/1/host
-        value: directory.localhost
+        value: network.localhost
   - target:
       kind: Deployment
       name: platform-admin

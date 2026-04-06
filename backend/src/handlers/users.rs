@@ -66,22 +66,22 @@ pub async fn register_user(
 
     let tenant_id = user_data.tenant_id;
 
-    // Verify that the directory exists
-    let _directory = TenantEntity::find_by_id(tenant_id)
+    // Verify that the network exists
+    let _network = TenantEntity::find_by_id(tenant_id)
         .one(&db)
         .await
         .map_err(|err| {
-            let error_msg = format!("Database error when checking directory: {:?}", err);
+            let error_msg = format!("Database error when checking network: {:?}", err);
             tracing::error!("{}", error_msg);
             (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
         })?
         .ok_or_else(|| {
-            let error_msg = format!("Directory not found: {}", tenant_id);
+            let error_msg = format!("Network not found: {}", tenant_id);
             tracing::error!("{}", error_msg);
             (StatusCode::NOT_FOUND, error_msg)
         })?;
 
-    // Step 1: Check if a user already exists with the same email in the directory
+    // Step 1: Check if a user already exists with the same email in the network
     let existing_user = User::find()
         .filter(user::Column::Email.eq(&user_data.email))
         .one(&db)
@@ -132,7 +132,7 @@ pub async fn register_user(
         (StatusCode::INTERNAL_SERVER_ERROR, error_msg)
     })?;
 
-    // Step 4: Find or create the Account for the directory
+    // Step 4: Find or create the Account for the network
     let account = match account::Entity::find()
         .filter(account::Column::TenantId.eq(tenant_id))
         .one(&db)
@@ -163,7 +163,7 @@ pub async fn register_user(
             }
         };
 
-    // Step 5: Find or create the Profile for the directory
+    // Step 5: Find or create the Profile for the network
     let profile = profile::Entity::find()
         .filter(profile::Column::TenantId.eq(tenant_id))
         .one(&db)

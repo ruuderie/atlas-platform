@@ -64,9 +64,9 @@ pub fn PlatformAdmins() -> impl IntoView {
                     >
                         <option value="">"All Networks"</option>
                         <Suspense fallback=move || view! { <option>"Loading..."</option> }>
-                            {move || dirs.get().map(|directories| view! {
+                            {move || dirs.get().map(|networks| view! {
                                 <For
-                                    each=move || directories.clone()
+                                    each=move || networks.clone()
                                     key=|dir| dir.tenant_id.clone()
                                     children=move |dir| {
                                         view! {

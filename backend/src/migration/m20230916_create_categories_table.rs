@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                     .table(Category::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Category::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Category::DirectoryTypeId).uuid().not_null())
+                    .col(ColumnDef::new(Category::NetworkTypeId).uuid().not_null())
                     .col(ColumnDef::new(Category::ParentCategoryId).uuid())
                     .col(ColumnDef::new(Category::Name).string().not_null())
                     .col(ColumnDef::new(Category::Description).string().not_null())
@@ -21,9 +21,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Category::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Category::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(ForeignKey::create()
-                        .name("fk-category-directory_type_id")
-                        .from(Category::Table, Category::DirectoryTypeId)
-                        .to(DirectoryType::Table, DirectoryType::Id))
+                        .name("fk-category-network_type_id")
+                        .from(Category::Table, Category::NetworkTypeId)
+                        .to(NetworkType::Table, NetworkType::Id))
                     .foreign_key(ForeignKey::create()
                         .name("fk-category-parent_category_id")
                         .from(Category::Table, Category::ParentCategoryId)
@@ -44,7 +44,7 @@ impl MigrationTrait for Migration {
 enum Category {
     Table,
     Id,
-    DirectoryTypeId,
+    NetworkTypeId,
     ParentCategoryId,
     Name,
     Description,
@@ -55,7 +55,7 @@ enum Category {
 }
 
 #[derive(Iden)]
-enum DirectoryType {
+enum NetworkType {
     Table,
     Id,
 }

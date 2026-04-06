@@ -47,10 +47,10 @@ pub fn Dashboard() -> impl IntoView {
 
             // ── KPI Grid ──
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                // Active Directories
+                // Active Networks
                 <div class="bg-surface-container-high rounded-xl p-5 border border-outline-variant/10 group hover:border-primary/30 transition-all duration-300">
                     <div class="flex justify-between items-start mb-4">
-                        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">"Active Directories"</span>
+                        <span class="text-[10px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">"Active Networks"</span>
                         <span class="material-symbols-outlined text-primary text-xl">"lan"</span>
                     </div>
                     <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", active_dirs.get())}</div>

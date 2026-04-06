@@ -1,6 +1,6 @@
 DO $$
 DECLARE
-    directory_record RECORD;
+    network_record RECORD;
     account_id UUID;
     user_id UUID;
     profile_id UUID;
@@ -14,10 +14,10 @@ DECLARE
     last_name TEXT;
     domain TEXT;
 BEGIN
-    -- Loop through all existing directories
-    FOR directory_record IN SELECT id, name FROM directory
+    -- Loop through all existing networks
+    FOR network_record IN SELECT id, name FROM network
     LOOP
-        -- Create 3 users for each directory
+        -- Create 3 users for each network
         FOR i IN 1..3 LOOP
             -- Generate user data
             first_name := (ARRAY['James', 'John', 'Robert', 'Michael', 'William', 'David', 'Richard', 'Joseph', 'Thomas', 'Charles', 'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth', 'Barbara', 'Margaret', 'Susan', 'Dorothy', 'Lisa'])[floor(random() * 20 + 1)];
@@ -36,7 +36,7 @@ BEGIN
                             LPAD(CAST(floor(random() * 9000 + 1000) AS TEXT), 4, '0');
 
             -- Generate website
-            website := 'www.' || lower(regexp_replace(directory_record.name, '\s+', '', 'g')) || '.com';
+            website := 'www.' || lower(regexp_replace(network_record.name, '\s+', '', 'g')) || '.com';
 
             -- Insert user
             INSERT INTO "user" (id, username, email, password_hash, is_admin, is_active, created_at, updated_at)
@@ -44,8 +44,8 @@ BEGIN
             RETURNING id INTO user_id;
 
             -- Insert account
-            INSERT INTO account (id, directory_id, name, is_active, created_at, updated_at)
-            VALUES (gen_random_uuid(), directory_record.id, last_name || ' ' || directory_record.name || ' Account', true, NOW(), NOW())
+            INSERT INTO account (id, network_id, name, is_active, created_at, updated_at)
+            VALUES (gen_random_uuid(), network_record.id, last_name || ' ' || network_record.name || ' Account', true, NOW(), NOW())
             RETURNING id INTO account_id;
 
             -- Insert user_account
@@ -60,15 +60,15 @@ BEGIN
 
             -- Insert profile
             INSERT INTO profile (
-                id, account_id, directory_id, profile_type, display_name, contact_info, 
+                id, account_id, network_id, profile_type, display_name, contact_info, 
                 business_name, business_address, business_phone, business_website, 
                 additional_info, is_active, created_at, updated_at
             )
             VALUES (
-                gen_random_uuid(), account_id, directory_record.id, 
+                gen_random_uuid(), account_id, network_record.id, 
                 CASE WHEN random() < 0.7 THEN 'Business' ELSE 'Individual' END,
                 display_name, email, 
-                CASE WHEN random() < 0.7 THEN last_name || ' ' || directory_record.name ELSE NULL END,
+                CASE WHEN random() < 0.7 THEN last_name || ' ' || network_record.name ELSE NULL END,
                 CASE WHEN random() < 0.7 THEN 
                     floor(random() * 9999 + 1)::text || ' ' || 
                     (ARRAY['Main', 'Oak', 'Pine', 'Maple', 'Cedar'])[floor(random() * 5 + 1)] || ' ' ||

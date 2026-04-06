@@ -11,7 +11,7 @@ metadata:
     # depending on what the default is, but OrbStack usually picks it up automatically.
 spec:
   rules:
-  - host: directory.atlas.orb.local
+  - host: network.atlas.orb.local
     http:
       paths:
       - path: /

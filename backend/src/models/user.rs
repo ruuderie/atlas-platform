@@ -53,6 +53,6 @@ pub struct UserAdminView {
     pub user: user::Model,
     pub user_accounts: Vec<user_account::Model>,
     pub profiles: Vec<profile::Model>,
-    pub directories: Vec<tenant::Model>,
+    pub networks: Vec<tenant::Model>,
     pub login_history: Vec<request_log::Model>,
 }

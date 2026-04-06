@@ -26,9 +26,9 @@ pub fn get_manifest_for_app_type(type_name: &str) -> AppManifest {
                 PanelConfig { id: "settings".to_string(), title: "System Configuration".to_string(), icon: Some("settings".to_string()) },
             ]
         },
-        _ => AppManifest { // Default Directory Manifest
+        _ => AppManifest { // Default Network Manifest
             app_type_id: "network".to_string(),
-            name: "Network Directory".to_string(),
+            name: "Network Network".to_string(),
             panels: vec![
                 PanelConfig { id: "listings".to_string(), title: "Listings".to_string(), icon: Some("list_alt".to_string()) },
                 PanelConfig { id: "profiles".to_string(), title: "User Profiles".to_string(), icon: Some("group".to_string()) },
@@ -61,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn test_manifest_for_default_directory() {
+    fn test_manifest_for_default_network() {
         let manifest = get_manifest_for_app_type("network");
         assert_eq!(manifest.app_type_id, "network");
         assert_eq!(manifest.panels.len(), 5);
@@ -71,6 +71,6 @@ mod tests {
     #[test]
     fn test_manifest_for_unknown_fallback() {
         let manifest = get_manifest_for_app_type("something_unknown");
-        assert_eq!(manifest.app_type_id, "network"); // Defaults to directory
+        assert_eq!(manifest.app_type_id, "network"); // Defaults to network
     }
 }

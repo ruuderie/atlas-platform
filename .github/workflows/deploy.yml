@@ -10,7 +10,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
   IMAGE_NAME_PLATFORM_ADMIN: ${{ github.repository }}-platform-admin
-  IMAGE_NAME_DIRECTORY_INSTANCE: ${{ github.repository }}-directory-instance
+  IMAGE_NAME_DIRECTORY_INSTANCE: ${{ github.repository }}-network-instance
 
 jobs:
   build-and-push-images:
@@ -46,10 +46,10 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:latest
           target: production
 
-      - name: Build and push Directory Instance Docker image
+      - name: Build and push Network Instance Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/directory-instance
+          context: ./apps/network-instance
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:latest
           target: production
@@ -71,9 +71,9 @@ jobs:
       - name: Update Kubernetes manifests
         run: |
           cd k8s
-          kustomize edit set image ghcr.io/yourusername/business-directory-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
-          kustomize edit set image ghcr.io/yourusername/business-directory-platform-admin=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }}
-          kustomize edit set image ghcr.io/yourusername/business-directory-directory-instance=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }}
+          kustomize edit set image ghcr.io/yourusername/business-network-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
+          kustomize edit set image ghcr.io/yourusername/business-network-platform-admin=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }}
+          kustomize edit set image ghcr.io/yourusername/business-network-network-instance=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }}
           
       # In a real environment, you would configure kubectl access here using secrets
       # - name: Deploy to Kubernetes

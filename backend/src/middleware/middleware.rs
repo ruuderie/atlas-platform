@@ -231,19 +231,19 @@ pub async fn auth_middleware(
     req.extensions_mut().insert(user.clone());
     req.extensions_mut().insert(session.clone());
 
-    // Retrieve and insert user's directory IDs into request extensions
+    // Retrieve and insert user's network IDs into request extensions
     tracing::debug!("[{}] Retrieving user tenant IDs", request_id);
-    let directory_ids = match get_user_tenant_ids(&db, &user).await {
+    let network_ids = match get_user_tenant_ids(&db, &user).await {
         Ok(ids) => {
             tracing::debug!("[{}] Retrieved {} tenant IDs for user", request_id, ids.len());
             ids
         },
         Err(e) => {
-            tracing::error!("[{}] Failed to get user directory IDs: {:?}", request_id, e);
+            tracing::error!("[{}] Failed to get user network IDs: {:?}", request_id, e);
             return Err(e);
         }
     };
-    req.extensions_mut().insert(directory_ids);
+    req.extensions_mut().insert(network_ids);
 
     // Log the request
     tracing::debug!("[{}] Logging authenticated request", request_id);

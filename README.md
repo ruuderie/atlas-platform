@@ -1,6 +1,6 @@
-# Business Directory
+# Business Network
 
-This project is a high-performance business directory website using Svelte/Leptos for the frontend and Rust for the backend API. It allows users to view and search for business listings, register, and login. The architecture natively supports multi-tenant directories driven by a single codebase.
+This project is a high-performance business network website using Svelte/Leptos for the frontend and Rust for the backend API. It allows users to view and search for business listings, register, and login. The architecture natively supports multi-tenant networks driven by a single codebase.
 
 ## Project Structure
 
@@ -8,7 +8,7 @@ The project has been migrated to a monorepo workspace containing:
 
 1. **`apps/` (Frontend)**
    - `platform-admin`: A Svelte/Leptos CSR app for platform administration.
-   - `directory-instance`: A Leptos SSR app that powers the user-facing directories.
+   - `network-instance`: A Leptos SSR app that powers the user-facing networks.
    - `shared-ui`: Shared UI components for a consistent design language.
 2. **`backend/` (Backend API)**
    - Built using Rust, Axum, and SeaORM.
@@ -17,17 +17,17 @@ The project has been migrated to a monorepo workspace containing:
 
 ## Local Development (Docker & Caddy)
 
-The easiest way to develop locally is using the included Docker Compose configuration, which automatically sets up the database, backend, frontends, and a local reverse proxy for simulating multi-tenant directories:
+The easiest way to develop locally is using the included Docker Compose configuration, which automatically sets up the database, backend, frontends, and a local reverse proxy for simulating multi-tenant networks:
 
 1. Ensure ports 80, 8080, 8081, and 8000 are free.
-2. Run standard Docker Compose in the root directory:
+2. Run standard Docker Compose in the root network:
    ```bash
    docker compose up --build
    ```
 3. **Accessing the applications:**
    - **Backend API:** `http://api.localhost`
    - **Platform Admin:** `http://admin.localhost`
-   - **Directory Instances:** You can simulate any multi-tenant directory by navigating to a `.directory.localhost` subdomain (e.g., `http://my-first-dir.directory.localhost`). The Caddy proxy will automatically route it to the instance, and the app will dynamically fetch the correct configurations!
+   - **Network Instances:** You can simulate any multi-tenant network by navigating to a `.network.localhost` subdomain (e.g., `http://my-first-dir.network.localhost`). The Caddy proxy will automatically route it to the instance, and the app will dynamically fetch the correct configurations!
 
 ## Deployment & CI/CD
 
@@ -39,7 +39,7 @@ The project includes an enterprise-grade CI/CD pipeline using GitHub Actions (`.
 ## API & Features
 
 - Dynamic Multi-Tenant Domain Routing
-- Business Directory listings, searching, and Profiles
+- Business Network listings, searching, and Profiles
 - CRM, CMS, and Site Settings management for Admins
 
 ---

@@ -1,5 +1,5 @@
 -- Commercial Property Management Services
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '61fc549b-0d31-4551-b3d7-1507f211844e',
@@ -28,7 +28,7 @@ VALUES (
 );
 
 -- Eco-Friendly Home Renovation
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '448d426d-1c03-4732-8c8e-8f6dffc83bb5',
@@ -57,7 +57,7 @@ VALUES (
 );
 
 -- Mobile Auto Detailing Service
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '340d0ec8-998d-4cfd-8e90-272f6ff13697',
@@ -86,7 +86,7 @@ VALUES (
 );
 
 -- 2021 Airstream Globetrotter 27FB
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '12547edf-3b4a-4cad-87dc-ecceeb9800c1',
@@ -115,7 +115,7 @@ VALUES (
 );
 
 -- Business Startup Consulting
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   'b6d8912b-d65b-4127-90ee-1291da46dbb1',
@@ -144,7 +144,7 @@ VALUES (
 );
 
 -- Advanced CNC Machining Services
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '5706e747-8a16-472c-b4b5-667ff0ca4c11',
@@ -173,7 +173,7 @@ VALUES (
 );
 
 -- Luxury Yacht Charter
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '830622b2-2be8-4d4f-a916-1557c8d8e497',
@@ -202,7 +202,7 @@ VALUES (
 );
 
 -- AI-Powered Marketing Analytics Platform
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '17319eb2-6430-4679-8c4c-d2337e6217ac',
@@ -231,7 +231,7 @@ VALUES (
 );
 
 -- Gourmet Food Truck for Sale
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 VALUES (
   gen_random_uuid(),
   '324e8591-9e84-4022-b189-ace2bc36c523',

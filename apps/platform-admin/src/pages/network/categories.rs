@@ -36,7 +36,7 @@ pub fn Categories() -> impl IntoView {
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="flex flex-col">
-                        <label class="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">"Directory Filter"</label>
+                        <label class="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">"Network Filter"</label>
                         <select
                             class="h-10 bg-surface-container-high px-3 rounded-md text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 focus:ring-primary focus:border-primary text-on-surface min-w-[200px]"
                             on:change=move |ev| {
@@ -46,9 +46,9 @@ pub fn Categories() -> impl IntoView {
                         >
                             <option value="" selected=move || selected_network.get().is_empty()>"All Networks"</option>
                             <Suspense fallback=move || view! { <option>"Loading..."</option> }>
-                                {move || dirs_res.get().map(|directories| view! {
+                                {move || dirs_res.get().map(|networks| view! {
                                     <For
-                                        each=move || directories.clone()
+                                        each=move || networks.clone()
                                         key=|dir| dir.tenant_id.clone()
                                         children=move |dir| {
                                             view! {

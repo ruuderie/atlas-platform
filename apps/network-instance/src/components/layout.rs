@@ -1,10 +1,10 @@
 use leptos::prelude::*;
-use crate::app::DirectoryConfig;
+use crate::app::NetworkConfig;
 use crate::auth::AuthContext;
 
 #[component]
 pub fn GlobalHeader() -> impl IntoView {
-    let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
+    let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
     let auth = use_context::<AuthContext>();
     
     view! {
@@ -48,7 +48,7 @@ pub fn GlobalHeader() -> impl IntoView {
 
 #[component]
 pub fn Footer() -> impl IntoView {
-    let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
+    let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
     
     view! {
         <footer class="w-full border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 mt-auto">
@@ -62,9 +62,9 @@ pub fn Footer() -> impl IntoView {
                     </p>
                 </div>
                 <div>
-                    <h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6 uppercase tracking-wider text-xs">"Directory"</h5>
+                    <h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6 uppercase tracking-wider text-xs">"Network"</h5>
                     <ul class="space-y-4 font-body text-sm text-slate-500 dark:text-slate-400">
-                        <li><a class="hover:text-primary dark:hover:text-primary hover:underline underline-offset-4 transition-colors" href="/search">"Directory Index"</a></li>
+                        <li><a class="hover:text-primary dark:hover:text-primary hover:underline underline-offset-4 transition-colors" href="/search">"Network Index"</a></li>
                         <li><a class="hover:text-primary dark:hover:text-primary hover:underline underline-offset-4 transition-colors" href="#">"Partner Program"</a></li>
                         <li><a class="hover:text-primary dark:hover:text-primary hover:underline underline-offset-4 transition-colors" href="#">"Support Center"</a></li>
                     </ul>

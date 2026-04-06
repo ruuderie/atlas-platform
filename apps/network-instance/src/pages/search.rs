@@ -46,7 +46,7 @@ pub fn Search() -> impl IntoView {
         }
     );
 
-    let config = use_context::<crate::app::DirectoryConfig>().expect("DirectoryConfig context must be available");
+    let config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context must be available");
 
     view! {
         <Seo title=format!("{} - Search Results", config.name) />

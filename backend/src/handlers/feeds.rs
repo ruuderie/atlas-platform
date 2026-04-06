@@ -29,7 +29,7 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
         .route("/feeds", get(feeds::get_feeds))
         .route("/feeds/{feed_id}", get(feeds::get_feed_by_id))
         .route("/feeds/{feed_id}/items", get(feeds::get_feed_with_items))
-        .route("/feeds/directory/{tenant_id}", get(feeds::get_feeds_by_directory))
+        .route("/feeds/network/{tenant_id}", get(feeds::get_feeds_by_network))
         .route("/feeds/{feed_id}/json", get(feeds::get_json_feed))
         
         // Feed item routes
@@ -153,7 +153,7 @@ pub async fn get_feed_with_items(
     Ok((StatusCode::OK, Json(feed_with_items)))
 }
 
-pub async fn get_feeds_by_directory(
+pub async fn get_feeds_by_network(
     Path(tenant_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
 ) -> Result<impl IntoResponse, StatusCode> {

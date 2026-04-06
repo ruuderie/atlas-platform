@@ -1,7 +1,7 @@
 # Caddyfile for local multi-tenant development
 
-# Route any subdomain of directory.localhost to the directory instances
-http://*.directory.localhost, http://directory.localhost {
+# Route any subdomain of network.localhost to the network instances
+http://*.network.localhost, http://network.localhost {
     reverse_proxy network-instance:8080
 }
 

@@ -53,17 +53,17 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/files/user/{user_id}", get(files::get_user_files))
                 .route("/api/admin/files/{file_id}/associate/{entity_type}/{entity_id}", post(files::associate_file).delete(files::disassociate_file))
                 .route("/api/admin/files/associated/{entity_type}/{entity_id}", get(files::get_associated_files))
-                // Directory management
-                .route("/api/admin/tenant-stats", get(admin::get_all_directory_stats))
-                .route("/api/admin/tenant-stats/{tenant_id}", get(admin::get_directory_stats))
-                .route("/api/admin/tenant/{tenant_id}/listings", get(admin::get_directory_listings))
+                // Network management
+                .route("/api/admin/tenant-stats", get(admin::get_all_network_stats))
+                .route("/api/admin/tenant-stats/{tenant_id}", get(admin::get_network_stats))
+                .route("/api/admin/tenant/{tenant_id}/listings", get(admin::get_network_listings))
                 .route("/api/admin/tenant/{tenant_id}/listings/{listing_id}", get(admin::get_listing))
                 .route("/api/admin/platform/apps", get(admin::get_platform_apps))
                 // Tenant management API is handled via tenant::authenticated_routes
                 // Tenant management API is handled via tenant::authenticated_routes
 
                 // Listing management
-                .route("/api/admin/listings", get(admin::get_directory_listings).post(listings::create_listing))
+                .route("/api/admin/listings", get(admin::get_network_listings).post(listings::create_listing))
                 .route("/api/admin/listings/{id}", get(listings::get_listing_by_id).put(listings::update_listing).delete(listings::delete_listing))
 
                 .route("/api/admin/listings/pending", get(admin::list_pending_listings))

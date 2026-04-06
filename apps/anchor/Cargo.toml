@@ -92,7 +92,7 @@ site-pkg-dir = "pkg"
 tailwind-input-file = "style/main.css"
 tailwind-config-file = "tailwind.config.js"
 # Assets source dir. All files found here will be copied and synchronized to site-root.
-# The assets-dir cannot have a sub directory with the same name/path as site-pkg-dir.
+# The assets-dir cannot have a sub network with the same name/path as site-pkg-dir.
 #
 # Optional. Env: LEPTOS_ASSETS_DIR.
 assets-dir = "public"

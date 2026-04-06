@@ -83,7 +83,7 @@ pub async fn request_magic_link(
     let smtp_from = env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas.oply.co".to_string());
     
     // Determine frontend route securely
-    let frontend_url = env::var("FRONTEND_URL").unwrap_or_else(|_| "https://directory.uat.atlas.oply.co".to_string());
+    let frontend_url = env::var("FRONTEND_URL").unwrap_or_else(|_| "https://network.uat.atlas.oply.co".to_string());
     let magic_link_url = format!("{}/magic-login?token={}", frontend_url, token);
 
     let email = Message::builder()

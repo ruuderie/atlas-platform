@@ -24,7 +24,7 @@ pub fn Listings() -> impl IntoView {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 pt-8 pb-12 px-6">
             <header class="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-4">
                 <div>
-                    <h2 class="text-3xl font-bold tracking-tight text-foreground">"Listings Directory"</h2>
+                    <h2 class="text-3xl font-bold tracking-tight text-foreground">"Listings Network"</h2>
                     <p class="text-muted-foreground mt-1">"Manage and moderate all active network listings globally."</p>
                 </div>
                 <div class="flex space-x-2">

@@ -4,7 +4,7 @@
 
 The Creative North Star for this design system is **"The Architectural Curator."**
 
-Standard directory designs often feel cluttered, transactional, and "cheap" due to heavy borders and dense grids. This system rejects those tropes. We are building a high-end editorial experience that conveys trust through **intentional breathing room, asymmetric balance, and tonal depth.**
+Standard network designs often feel cluttered, transactional, and "cheap" due to heavy borders and dense grids. This system rejects those tropes. We are building a high-end editorial experience that conveys trust through **intentional breathing room, asymmetric balance, and tonal depth.**
 
 By moving away from the "box-within-a-box" layout, we position the platform as a premium authority. We use a sophisticated interplay of `manrope` for authoritative displays and `inter` for functional clarity, creating a modular framework that feels like a bespoke digital magazine rather than a spreadsheet.
 
@@ -42,7 +42,7 @@ To escape the "flat" look, apply a subtle linear gradient to Hero sections trans
 Our typography scale leverages two sans-serifs to distinguish between _brand authority_ and _functional utility_.
 
 - **Display & Headlines (Manrope):** Use `display-lg` (3.5rem) and `headline-md` (1.75rem) with tight letter-spacing (-0.02em). This typeface provides the "Architectural" feel—stable, modern, and high-end.
-- **Body & Labels (Inter):** All functional data (directories, descriptions, metadata) uses `inter`. It is optimized for legibility at small scales (`body-sm`: 0.75rem).
+- **Body & Labels (Inter):** All functional data (networks, descriptions, metadata) uses `inter`. It is optimized for legibility at small scales (`body-sm`: 0.75rem).
 - **Visual Rhythm:** Maintain a 4:1 scale ratio between your largest display type and your primary body copy to create a dramatic, high-contrast hierarchy that guides the eye instantly to the "curated" content.
 
 ---
@@ -98,7 +98,7 @@ In this system, elevation is a matter of light and shadow, not lines.
 
 - **Don’t** use pure black (#000000) for text. Use `on-surface` (#191c1d) to maintain a soft, premium contrast.
 - **Don’t** use standard 1px dividers. If separation is needed, use a 1px height `surface-variant` line that only spans 80% of the container width, centered.
-- **Don’t** cram information. If a directory listing has 10 data points, hide 6 of them behind a "Details" progressive disclosure to maintain a clean aesthetic.
+- **Don’t** cram information. If a network listing has 10 data points, hide 6 of them behind a "Details" progressive disclosure to maintain a clean aesthetic.
 
 ---
 

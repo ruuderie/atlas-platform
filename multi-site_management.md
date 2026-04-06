@@ -70,7 +70,7 @@ pub struct SiteConfig {
 bitflags! {
     #[derive(Serialize, Deserialize)]
     pub struct ModuleFlags: u32 {
-        // Core listing functionality (required for directory features)
+        // Core listing functionality (required for network features)
         const LISTINGS = 0b00000001;
         
         // User profiles and account management
@@ -101,10 +101,10 @@ bitflags! {
 
 ### Enabling Modules
 ```rust
-// Enable listings and profiles for a basic directory
+// Enable listings and profiles for a basic network
 site_config.enabled_modules = ModuleFlags::LISTINGS | ModuleFlags::PROFILES;
 
-// Full-featured directory with all modules
+// Full-featured network with all modules
 site_config.enabled_modules = ModuleFlags::LISTINGS 
     | ModuleFlags::PROFILES 
     | ModuleFlags::MESSAGING 
@@ -193,8 +193,8 @@ impl SiteConfig {
     }
 }
 
--- backend/scripts/update_directory_schema.sql
-ALTER TABLE directory 
+-- backend/scripts/update_network_schema.sql
+ALTER TABLE network 
 ADD COLUMN enabled_modules INTEGER NOT NULL DEFAULT 0,
 ADD COLUMN theme VARCHAR(255) DEFAULT 'default',
 ADD COLUMN custom_settings JSONB DEFAULT '{}'::jsonb;
@@ -256,13 +256,13 @@ pub async fn site_context_middleware<B>(
             
             let enabled_modules = ModuleFlags::from_bits_truncate(enabled_modules_value);
             
-            let theme = directory.additional_info
+            let theme = network.additional_info
                 .get("theme")
                 .and_then(|v| v.as_str())
                 .unwrap_or("default")
                 .to_string();
             
-            let custom_settings = directory.additional_info
+            let custom_settings = network.additional_info
                 .get("custom_settings")
                 .and_then(|v| v.as_object().cloned())
                 .unwrap_or_default();
@@ -323,9 +323,9 @@ pub async fn create_listing(
 
 To truly support a scalable multi-site environment, the backend logic works hand-in-hand with our proxy layers. 
 
-1. **Proxy Layer:** The system uses Caddy (locally) or Kubernetes Ingress (in production) to capture all wildcard subdomains or mapped domains (e.g. `*.directory.localhost` or `client1.com`).
-2. **Container Passthrough:** The proxy forwards the requests to the **same** static `directory-instance` container natively retaining the original `Host` HTTP Header.
-3. **Instance Lookup:** The frontend Rust app reads the `Host` header and immediately calls the Backend Lookup API (e.g., `http://127.0.0.1:8000/directories/lookup?domain={domain}`).
+1. **Proxy Layer:** The system uses Caddy (locally) or Kubernetes Ingress (in production) to capture all wildcard subdomains or mapped domains (e.g. `*.network.localhost` or `client1.com`).
+2. **Container Passthrough:** The proxy forwards the requests to the **same** static `network-instance` container natively retaining the original `Host` HTTP Header.
+3. **Instance Lookup:** The frontend Rust app reads the `Host` header and immediately calls the Backend Lookup API (e.g., `http://127.0.0.1:8000/networks/lookup?domain={domain}`).
 4. **Content Serving:** If the database contains matching configurations based on the origin, the specific theme and settings are generated securely, achieving thousands of multi-tenant sites from a single deployment instance.
 
 ---

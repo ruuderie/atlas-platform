@@ -40,7 +40,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
             
             match req.send().await {
                 Ok(res) if res.status().is_success() => {
-                    t.show_toast("Success", "Directory Type created.", "success");
+                    t.show_toast("Success", "Network Type created.", "success");
                     nav("/network/network-types", leptos_router::NavigateOptions::default());
                 }
                 Ok(res) => {
@@ -59,7 +59,7 @@ pub fn NetworkTypeCreate() -> impl IntoView {
         <div class="max-w-3xl mx-auto space-y-6 pt-8">
             <header class="mb-8">
                 <a href="/network/network-types" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
-                <h2 class="text-3xl font-bold tracking-tight">"Create Directory Type"</h2>
+                <h2 class="text-3xl font-bold tracking-tight">"Create Network Type"</h2>
                 <p class="text-muted-foreground mt-2">"Define a new top-level schema classification."</p>
             </header>
 

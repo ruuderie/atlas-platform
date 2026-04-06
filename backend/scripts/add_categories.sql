@@ -1,18 +1,18 @@
 -- Transportation & Logistics Categories
 WITH tl_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'), 'Freight Services', 'Services related to freight transportation', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'), 'Warehousing', 'Storage and warehousing services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'), 'Supply Chain Management', 'End-to-end supply chain solutions', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'), 'Courier Services', 'Package and document delivery services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'), 'Fleet Management', 'Vehicle fleet management services', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'), 'Freight Services', 'Services related to freight transportation', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'), 'Warehousing', 'Storage and warehousing services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'), 'Supply Chain Management', 'End-to-end supply chain solutions', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'), 'Courier Services', 'Package and document delivery services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'), 'Fleet Management', 'Vehicle fleet management services', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Transportation & Logistics'),
+    (SELECT id FROM network_type WHERE name = 'Transportation & Logistics'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,
@@ -49,19 +49,19 @@ WHERE pc.name = sub.parent_name;
 
 -- Automotive Sales Categories
 WITH as_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Automotive Sales'), 'New Vehicles', 'Sales of new automobiles', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Automotive Sales'), 'Used Vehicles', 'Sales of pre-owned automobiles', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Automotive Sales'), 'Auto Parts', 'Automotive parts and accessories', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Automotive Sales'), 'Specialty Vehicles', 'Sales of specialized automobiles', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Automotive Sales'), 'Vehicle Services', 'Automotive-related services', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Automotive Sales'), 'New Vehicles', 'Sales of new automobiles', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Automotive Sales'), 'Used Vehicles', 'Sales of pre-owned automobiles', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Automotive Sales'), 'Auto Parts', 'Automotive parts and accessories', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Automotive Sales'), 'Specialty Vehicles', 'Sales of specialized automobiles', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Automotive Sales'), 'Vehicle Services', 'Automotive-related services', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Automotive Sales'),
+    (SELECT id FROM network_type WHERE name = 'Automotive Sales'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,
@@ -98,19 +98,19 @@ WHERE pc.name = sub.parent_name;
 
 -- Construction & Contracting Categories
 WITH cc_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'), 'Residential Construction', 'Home building and renovation services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'), 'Commercial Construction', 'Business and industrial construction services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'), 'Specialized Contracting', 'Specialized construction services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'), 'Construction Equipment', 'Construction machinery and tools', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'), 'Construction Management', 'Project management and consulting services', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Construction & Contracting'), 'Residential Construction', 'Home building and renovation services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Construction & Contracting'), 'Commercial Construction', 'Business and industrial construction services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Construction & Contracting'), 'Specialized Contracting', 'Specialized construction services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Construction & Contracting'), 'Construction Equipment', 'Construction machinery and tools', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Construction & Contracting'), 'Construction Management', 'Project management and consulting services', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Construction & Contracting'),
+    (SELECT id FROM network_type WHERE name = 'Construction & Contracting'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,
@@ -148,19 +148,19 @@ WHERE pc.name = sub.parent_name;
 
 -- Beauty & Personal Care Categories
 WITH bp_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'), 'Hair Care', 'Hair styling and treatment services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'), 'Skin Care', 'Skin treatment and maintenance services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'), 'Nail Care', 'Nail styling and treatment services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'), 'Makeup Services', 'Makeup application and consultation', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'), 'Spa & Wellness', 'Relaxation and wellness services', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'), 'Hair Care', 'Hair styling and treatment services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'), 'Skin Care', 'Skin treatment and maintenance services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'), 'Nail Care', 'Nail styling and treatment services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'), 'Makeup Services', 'Makeup application and consultation', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'), 'Spa & Wellness', 'Relaxation and wellness services', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Beauty & Personal Care'),
+    (SELECT id FROM network_type WHERE name = 'Beauty & Personal Care'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,
@@ -200,17 +200,17 @@ WHERE pc.name = sub.parent_name;
 
 -- Financial Services Categories
 WITH fs_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Financial Services'), 'Business Banking', 'Banking services for businesses', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Financial Services'), 'Loans & Lending', 'Various loan and lending services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Financial Services'), 'Insurance Services', 'Various insurance products', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Financial Services'), 'Business Banking', 'Banking services for businesses', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Financial Services'), 'Loans & Lending', 'Various loan and lending services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Financial Services'), 'Insurance Services', 'Various insurance products', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Financial Services'),
+    (SELECT id FROM network_type WHERE name = 'Financial Services'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,
@@ -241,19 +241,19 @@ WHERE pc.name = sub.parent_name;
 
 -- Healthcare Categories
 WITH hc_parent_categories AS (
-    INSERT INTO category (id, directory_type_id, name, description, is_custom, is_active, created_at, updated_at)
+    INSERT INTO category (id, network_type_id, name, description, is_custom, is_active, created_at, updated_at)
     VALUES
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Healthcare'), 'Medical Services', 'Healthcare services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Healthcare'), 'Pharmaceuticals', 'Pharmaceutical products and services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Healthcare'), 'Medical Equipment', 'Medical equipment and supplies', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Healthcare'), 'Health Insurance', 'Health insurance products and services', false, true, NOW(), NOW()),
-    (gen_random_uuid(), (SELECT id FROM directory_type WHERE name = 'Healthcare'), 'Healthcare Consulting', 'Healthcare consulting services', false, true, NOW(), NOW())
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Healthcare'), 'Medical Services', 'Healthcare services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Healthcare'), 'Pharmaceuticals', 'Pharmaceutical products and services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Healthcare'), 'Medical Equipment', 'Medical equipment and supplies', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Healthcare'), 'Health Insurance', 'Health insurance products and services', false, true, NOW(), NOW()),
+    (gen_random_uuid(), (SELECT id FROM network_type WHERE name = 'Healthcare'), 'Healthcare Consulting', 'Healthcare consulting services', false, true, NOW(), NOW())
     RETURNING id, name
 )
-INSERT INTO category (id, directory_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
+INSERT INTO category (id, network_type_id, parent_category_id, name, description, is_custom, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type WHERE name = 'Healthcare'),
+    (SELECT id FROM network_type WHERE name = 'Healthcare'),
     pc.id,
     sub.name,
     'Subcategory of ' || pc.name,

@@ -3,31 +3,31 @@ use sea_orm_migration::prelude::*;
 #[derive(DeriveIden)]
 enum Category {
     Table,
-    DirectoryId,
+    NetworkId,
 }
 
 #[derive(DeriveIden)]
 enum Lead {
     Table,
-    DirectoryId,
+    NetworkId,
 }
 
 #[derive(DeriveIden)]
 enum Contact {
     Table,
-    DirectoryId,
+    NetworkId,
 }
 
 #[derive(DeriveIden)]
 enum Customer {
     Table,
-    DirectoryId,
+    NetworkId,
 }
 
 #[derive(DeriveIden)]
 enum Deal {
     Table,
-    DirectoryId,
+    NetworkId,
 }
 
 #[derive(DeriveMigrationName)]
@@ -36,52 +36,52 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Add directory_id to Category
+        // Add network_id to Category
         manager
             .alter_table(
                 Table::alter()
                     .table(Category::Table)
-                    .add_column(ColumnDef::new(Category::DirectoryId).uuid().null())
+                    .add_column(ColumnDef::new(Category::NetworkId).uuid().null())
                     .to_owned(),
             )
             .await?;
 
-        // Add directory_id to Lead
+        // Add network_id to Lead
         manager
             .alter_table(
                 Table::alter()
                     .table(Lead::Table)
-                    .add_column(ColumnDef::new(Lead::DirectoryId).uuid().null())
+                    .add_column(ColumnDef::new(Lead::NetworkId).uuid().null())
                     .to_owned(),
             )
             .await?;
 
-        // Add directory_id to Contact
+        // Add network_id to Contact
         manager
             .alter_table(
                 Table::alter()
                     .table(Contact::Table)
-                    .add_column(ColumnDef::new(Contact::DirectoryId).uuid().null())
+                    .add_column(ColumnDef::new(Contact::NetworkId).uuid().null())
                     .to_owned(),
             )
             .await?;
 
-        // Add directory_id to Customer
+        // Add network_id to Customer
         manager
             .alter_table(
                 Table::alter()
                     .table(Customer::Table)
-                    .add_column(ColumnDef::new(Customer::DirectoryId).uuid().null())
+                    .add_column(ColumnDef::new(Customer::NetworkId).uuid().null())
                     .to_owned(),
             )
             .await?;
 
-        // Add directory_id to Deal
+        // Add network_id to Deal
         manager
             .alter_table(
                 Table::alter()
                     .table(Deal::Table)
-                    .add_column(ColumnDef::new(Deal::DirectoryId).uuid().null())
+                    .add_column(ColumnDef::new(Deal::NetworkId).uuid().null())
                     .to_owned(),
             )
             .await?;
@@ -94,7 +94,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Category::Table)
-                    .drop_column(Category::DirectoryId)
+                    .drop_column(Category::NetworkId)
                     .to_owned(),
             )
             .await?;
@@ -103,7 +103,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Lead::Table)
-                    .drop_column(Lead::DirectoryId)
+                    .drop_column(Lead::NetworkId)
                     .to_owned(),
             )
             .await?;
@@ -112,7 +112,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Contact::Table)
-                    .drop_column(Contact::DirectoryId)
+                    .drop_column(Contact::NetworkId)
                     .to_owned(),
             )
             .await?;
@@ -121,7 +121,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Customer::Table)
-                    .drop_column(Customer::DirectoryId)
+                    .drop_column(Customer::NetworkId)
                     .to_owned(),
             )
             .await?;
@@ -130,7 +130,7 @@ impl MigrationTrait for Migration {
             .alter_table(
                 Table::alter()
                     .table(Deal::Table)
-                    .drop_column(Deal::DirectoryId)
+                    .drop_column(Deal::NetworkId)
                     .to_owned(),
             )
             .await?;

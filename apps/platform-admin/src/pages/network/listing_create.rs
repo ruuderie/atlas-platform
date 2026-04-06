@@ -16,7 +16,7 @@ pub fn ListingCreate() -> impl IntoView {
     let (title, set_title) = signal(String::new());
     let (description, set_description) = signal(String::new());
     let (listing_type, set_listing_type) = signal(String::new());
-    let (directory_id, set_directory_id) = signal(String::new());
+    let (network_id, set_network_id) = signal(String::new());
     let (is_submitting, set_is_submitting) = signal(false);
 
     let handle_submit = move |ev: leptos::ev::SubmitEvent| {
@@ -26,7 +26,7 @@ pub fn ListingCreate() -> impl IntoView {
         let payload = ListingCreate {
             title: title.get(),
             description: description.get(),
-            network_id: directory_id.get(),
+            network_id: network_id.get(),
             profile_id: user_ctx.get().map(|u| u.id).unwrap_or_default(),
             category_id: None,
             listing_type: Some(listing_type.get()),
@@ -67,7 +67,7 @@ pub fn ListingCreate() -> impl IntoView {
             <header class="mb-8">
                 <a href="/network/listings" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
                 <h2 class="text-3xl font-bold tracking-tight text-foreground">"Create Listing"</h2>
-                <p class="text-muted-foreground mt-2">"Publish a new listing and assign it to a network directory."</p>
+                <p class="text-muted-foreground mt-2">"Publish a new listing and assign it to a network network."</p>
             </header>
             
             <Card class="p-8 bg-card border border-border shadow-sm".to_string()>
@@ -113,17 +113,17 @@ pub fn ListingCreate() -> impl IntoView {
                         </div>
                         
                         <div class="space-y-2 flex flex-col">
-                            <label class="text-sm font-medium text-foreground">"Assign to Directory"</label>
+                            <label class="text-sm font-medium text-foreground">"Assign to Network"</label>
                             <select
                                 required
                                 class="flex h-10 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                on:change=move |ev| set_directory_id.set(event_target_value(&ev))
+                                on:change=move |ev| set_network_id.set(event_target_value(&ev))
                             >
-                                <option value="" disabled selected=move || directory_id.get().is_empty()>"Select Network"</option>
-                                <Suspense fallback=move || view! { <option>"Loading directories..."</option> }>
-                                    {move || dirs_res.get().map(|directories| view! {
+                                <option value="" disabled selected=move || network_id.get().is_empty()>"Select Network"</option>
+                                <Suspense fallback=move || view! { <option>"Loading networks..."</option> }>
+                                    {move || dirs_res.get().map(|networks| view! {
                                         <For
-                                            each=move || directories.clone()
+                                            each=move || networks.clone()
                                             key=|dir| dir.tenant_id.clone()
                                             children=move |dir| {
                                                 view! {

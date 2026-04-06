@@ -24,27 +24,27 @@ DECLARE
     profile_record RECORD;
     listing_record RECORD;
 BEGIN
-    -- Get the Builder Connect directory ID
-    SELECT id INTO builder_connect_id FROM directory WHERE name = 'Builder Connect';
+    -- Get the Builder Connect network ID
+    SELECT id INTO builder_connect_id FROM network WHERE name = 'Builder Connect';
 
     IF builder_connect_id IS NULL THEN
-        RAISE EXCEPTION 'Builder Connect directory not found';
+        RAISE EXCEPTION 'Builder Connect network not found';
     END IF;
 
     -- First, create all listings
-    FOR profile_record IN (SELECT id, COALESCE(business_name, 'Construction Company') AS business_name FROM profile WHERE directory_id = builder_connect_id)
+    FOR profile_record IN (SELECT id, COALESCE(business_name, 'Construction Company') AS business_name FROM profile WHERE network_id = builder_connect_id)
     LOOP
         -- Create 2 listings for each profile
         FOR i IN 1..2 LOOP
             INSERT INTO listing (
-                id, profile_id, directory_id, category_id, title, description, listing_type,
+                id, profile_id, network_id, category_id, title, description, listing_type,
                 price, price_type, country, state, city, neighborhood, latitude, longitude,
                 additional_info, status, is_featured, is_based_on_template, is_ad_placement, is_active,
                 created_at, updated_at
             )
             VALUES (
                 gen_random_uuid(), profile_record.id, builder_connect_id,
-                (SELECT id FROM category WHERE directory_type_id = (SELECT directory_type_id FROM directory WHERE id = builder_connect_id) ORDER BY RANDOM() LIMIT 1),
+                (SELECT id FROM category WHERE network_type_id = (SELECT network_type_id FROM network WHERE id = builder_connect_id) ORDER BY RANDOM() LIMIT 1),
                 (ARRAY['Home Renovation Project', 'Commercial Building Construction', 'Kitchen Remodeling', 'Bathroom Renovation', 'Roofing Services', 'Landscaping Design', 'Basement Finishing', 'Home Addition', 'Deck Construction', 'Flooring Installation'])[floor(random() * 10 + 1)],
                 'Professional ' || profile_record.business_name || ' offering high-quality construction services. We specialize in delivering exceptional results for your building needs.',
                 'service',
@@ -73,7 +73,7 @@ BEGIN
     END LOOP;
 
     -- Then, create attributes for all listings
-    FOR listing_record IN (SELECT id FROM listing WHERE directory_id = builder_connect_id)
+    FOR listing_record IN (SELECT id FROM listing WHERE network_id = builder_connect_id)
     LOOP
         -- Create 5 listing attributes for each listing
         INSERT INTO listing_attribute (id, listing_id, attribute_type, attribute_key, value, created_at, updated_at)

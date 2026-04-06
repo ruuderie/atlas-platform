@@ -15,7 +15,7 @@ pub struct UserProfile {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AccountModel {
     pub id: String,
-    pub directory_id: String,
+    pub network_id: String,
     pub name: String,
     pub is_active: bool,
 }

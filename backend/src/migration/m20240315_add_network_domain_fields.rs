@@ -6,85 +6,85 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Add subdomain and custom_domain fields to the directory table
+        // Add subdomain and custom_domain fields to the network table
         manager
             .alter_table(
                 Table::alter()
-                    .table(Directory::Table)
+                    .table(Network::Table)
                     .add_column(
-                        ColumnDef::new(Directory::Subdomain)
+                        ColumnDef::new(Network::Subdomain)
                             .string()
                             .null()
                             .unique_key()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::CustomDomain)
+                        ColumnDef::new(Network::CustomDomain)
                             .string()
                             .null()
                             .unique_key()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::Logo)
+                        ColumnDef::new(Network::Logo)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::Favicon)
+                        ColumnDef::new(Network::Favicon)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::HeaderScripts)
+                        ColumnDef::new(Network::HeaderScripts)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::FooterScripts)
+                        ColumnDef::new(Network::FooterScripts)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::GoogleAnalyticsId)
+                        ColumnDef::new(Network::GoogleAnalyticsId)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::GoogleSiteVerification)
+                        ColumnDef::new(Network::GoogleSiteVerification)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::MetaDescription)
+                        ColumnDef::new(Network::MetaDescription)
                             .text()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::MetaKeywords)
+                        ColumnDef::new(Network::MetaKeywords)
                             .text()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::MetaTitle)
+                        ColumnDef::new(Network::MetaTitle)
                             .text()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::PageTitle)
+                        ColumnDef::new(Network::PageTitle)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::PageDescription)
+                        ColumnDef::new(Network::PageDescription)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::PageKeywords)
+                        ColumnDef::new(Network::PageKeywords)
                             .string()
                             .null()
                     )
                     .add_column(
-                        ColumnDef::new(Directory::CanonicalUrl)
+                        ColumnDef::new(Network::CanonicalUrl)
                             .text()
                             .null()
                     )
@@ -98,22 +98,22 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(Directory::Table)
-                    .drop_column(Directory::Subdomain)
-                    .drop_column(Directory::CustomDomain)
-                    .drop_column(Directory::Logo)
-                    .drop_column(Directory::Favicon)
-                    .drop_column(Directory::HeaderScripts)
-                    .drop_column(Directory::FooterScripts)
-                    .drop_column(Directory::GoogleAnalyticsId)
-                    .drop_column(Directory::GoogleSiteVerification)
-                    .drop_column(Directory::MetaDescription)
-                    .drop_column(Directory::MetaKeywords)
-                    .drop_column(Directory::MetaTitle)
-                    .drop_column(Directory::PageTitle)
-                    .drop_column(Directory::PageDescription)
-                    .drop_column(Directory::PageKeywords)
-                    .drop_column(Directory::CanonicalUrl)
+                    .table(Network::Table)
+                    .drop_column(Network::Subdomain)
+                    .drop_column(Network::CustomDomain)
+                    .drop_column(Network::Logo)
+                    .drop_column(Network::Favicon)
+                    .drop_column(Network::HeaderScripts)
+                    .drop_column(Network::FooterScripts)
+                    .drop_column(Network::GoogleAnalyticsId)
+                    .drop_column(Network::GoogleSiteVerification)
+                    .drop_column(Network::MetaDescription)
+                    .drop_column(Network::MetaKeywords)
+                    .drop_column(Network::MetaTitle)
+                    .drop_column(Network::PageTitle)
+                    .drop_column(Network::PageDescription)
+                    .drop_column(Network::PageKeywords)
+                    .drop_column(Network::CanonicalUrl)
                     .to_owned(),
             )
             .await
@@ -121,7 +121,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(Iden)]
-enum Directory {
+enum Network {
     Table,
     Subdomain,
     CustomDomain,

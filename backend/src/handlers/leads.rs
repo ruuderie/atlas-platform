@@ -94,7 +94,7 @@ pub async fn create_lead(
         }
     }
     
-    // If no listing provided or listing not found, fallback to the primary account of the active directory
+    // If no listing provided or listing not found, fallback to the primary account of the active network
     if resolved_account_id.is_none() {
         if let Some(Extension(site_config)) = site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
@@ -104,7 +104,7 @@ pub async fn create_lead(
             {
                 resolved_account_id = Some(primary_account.id);
             } else {
-                // If the directory has no accounts at all, fallback
+                // If the network has no accounts at all, fallback
                 resolved_account_id = input.account_id;
             }
         } else {

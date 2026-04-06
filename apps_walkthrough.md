@@ -53,18 +53,18 @@ Reactive two-way bindings across `RwSignal` fields still work as highlighted in 
     * A headless browser journey navigated `http://127.0.0.1:8081` to collect the interactive feedback seen above. The layout didn't break during state changes, highlighting a very successful drop-in replacement job!
 
 ### Platform Dashboard & Navigation Update
-We recognized the need for an enterprise-level entry point into the application. We refactored the global sidebar to use business-oriented taxonomy ("Network Directories", "Sales & Relationships") and replaced the empty index route with a comprehensive `<Dashboard />`.
+We recognized the need for an enterprise-level entry point into the application. We refactored the global sidebar to use business-oriented taxonomy ("Network Networks", "Sales & Relationships") and replaced the empty index route with a comprehensive `<Dashboard />`.
 
-This new view features key data aggregations (Active Directories, Deals Pipeline) and a Recent Activity feed simulating platform-wide events. 
+This new view features key data aggregations (Active Networks, Deals Pipeline) and a Recent Activity feed simulating platform-wide events. 
 
 ![Dashboard Overview](./screenshots/dashboard_overview_verification_1773767974125.png)
 
 ### Site Dashboard Drill-Down
-A robust drill-down feature has been implemented, routing administrators from the global **Network Directories** space into a parameterized domain dashboard (`/sites/:id`). 
+A robust drill-down feature has been implemented, routing administrators from the global **Network Networks** space into a parameterized domain dashboard (`/sites/:id`). 
 
-This interface utilizes the complex `Tabs` layout combined with the `DataTable` to cleanly present segmented Directory configurations, such as the specific isolated Businesses (Listings) mapped to that directory domain and their constituent user profiles.
+This interface utilizes the complex `Tabs` layout combined with the `DataTable` to cleanly present segmented Network configurations, such as the specific isolated Businesses (Listings) mapped to that network domain and their constituent user profiles.
 
-![Specific Directory Dashboard](./screenshots/site_dashboard_build_failure_1773768461579.png)
+![Specific Network Dashboard](./screenshots/site_dashboard_build_failure_1773768461579.png)
 
 ## Verification
 - Verified Leptos routing and Tailwind styling dynamically adjust for desktop and mobile viewport breakpoints.
@@ -147,11 +147,11 @@ We engineered a generic Leptos-router component ([crm_detail.rs](./apps/platform
 ````
 
 ## 5. Frontend Monorepo Architecture
-To support the long-term vision of operating both an internal Platform Admin tool and an external tenant-facing Directory application, the frontend has been reorganized into a **Cargo Workspace**.
+To support the long-term vision of operating both an internal Platform Admin tool and an external tenant-facing Network application, the frontend has been reorganized into a **Cargo Workspace**.
 
 ### Workspace Structure
 ```text
-RustSvelteBusinessDirectory/
+RustSvelteBusinessNetwork/
 └── apps/                       (Frontend Monorepo)
     ├── Cargo.toml              (Workspace Root)
     │
@@ -159,7 +159,7 @@ RustSvelteBusinessDirectory/
     │   ├── Cargo.toml
     │   └── src/pages/          (Dashboard, CRM, MultiSite)
     │
-    ├── directory-instance/     (Public Tenant App)
+    ├── network-instance/     (Public Tenant App)
     │   ├── Cargo.toml
     │   └── src/main.rs         (Public Listings, Search)
     │
@@ -172,14 +172,14 @@ RustSvelteBusinessDirectory/
 ```
 
 **Benefits**:
-- **Code Reusability**: Both `platform-admin` and `directory-instance` depend directly on the local `shared-ui` package, allowing them to use the exact same aesthetic and UX components seamlessly without duplicating Leptos boilerplate.
-- **Independent Lifecycles**: The platform administration and public directories can be built, tested, and deployed independently as separate binaries.
+- **Code Reusability**: Both `platform-admin` and `network-instance` depend directly on the local `shared-ui` package, allowing them to use the exact same aesthetic and UX components seamlessly without duplicating Leptos boilerplate.
+- **Independent Lifecycles**: The platform administration and public networks can be built, tested, and deployed independently as separate binaries.
 
 ## 6. Monorepo Deployment Pipeline (Phase 6)
 
 The project leverages a robust DevSecOps pipeline natively tailored for Rust-based frontend frameworks:
-- **Docker Multi-Stage Builds:** `directory-instance` utilizes `cargo-leptos` to compile a hyper-optimized SSR Debian container. `platform-admin` utilizes `trunk build` and packages the static assets directly into an `nginx:alpine` HTTP web server.
-- **Local Multi-Tenancy Simulation:** A localized `Caddyfile` reverse proxy resolves wildcard domains (`*.directory.localhost`) transparently into the single Docker `directory-instance`, proving stateless multidirectory loadability locally.
+- **Docker Multi-Stage Builds:** `network-instance` utilizes `cargo-leptos` to compile a hyper-optimized SSR Debian container. `platform-admin` utilizes `trunk build` and packages the static assets directly into an `nginx:alpine` HTTP web server.
+- **Local Multi-Tenancy Simulation:** A localized `Caddyfile` reverse proxy resolves wildcard domains (`*.network.localhost`) transparently into the single Docker `network-instance`, proving stateless multinetwork loadability locally.
 - **GitHub Actions & Kubernetes:** The CI/CD automates image building via GitHub Container Registry (`ghcr.io`) and dynamically injects commit SHA metadata into `k8s/kustomization.yaml` for instantaneous Kubernetes cluster synchronization.
 
 ---

@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 use serde_json::json;
-use crate::app::DirectoryConfig;
+use crate::app::NetworkConfig;
 
 #[component]
 pub fn Register() -> impl IntoView {
@@ -16,8 +16,8 @@ pub fn Register() -> impl IntoView {
     let success = RwSignal::new(false);
     let auth_token = RwSignal::new("".to_string());
     
-    let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
-    let directory_id = RwSignal::new(config.id.clone());
+    let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
+    let network_id = RwSignal::new(config.id.clone());
 
     let handle_submit = Callback::new(move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
@@ -35,13 +35,13 @@ pub fn Register() -> impl IntoView {
         let fname_val = first_name.get();
         let lname_val = last_name.get();
         let phone_val = phone_num.get();
-        let dir_id = directory_id.get();
+        let dir_id = network_id.get();
 
         leptos::task::spawn_local(async move {
             let client = reqwest::Client::new();
             let url = "http://127.0.0.1:8000/api/auth/register";
             let payload = json!({
-                "directory_id": dir_id,
+                "network_id": dir_id,
                 "first_name": fname_val,
                 "last_name": lname_val,
                 "email": email_val,

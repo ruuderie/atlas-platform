@@ -24,7 +24,7 @@ pub struct UpdateUserInput {
     email: Option<String>,
 }
 #[derive(Serialize)]
-pub struct DirectoryStats {
+pub struct NetworkStats {
     tenant_id: Uuid,
     name: String,
     profile_count: u64,
@@ -125,7 +125,7 @@ pub async fn get_platform_apps(
     Ok(Json(result))
 }
 
-pub async fn get_directory_listings(
+pub async fn get_network_listings(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
@@ -185,7 +185,7 @@ pub async fn list_users(
 
     let mut find_query = user::Entity::find();
     if let Some(ids) = user_ids_to_filter {
-        // If there are no users in that directory, early return an empty list 
+        // If there are no users in that network, early return an empty list 
         // because `is_in([])` might fetch all or fail depending on the SQL builder, 
         // though `sea-orm` usually handles it safely. We can just be explicit:
         if ids.is_empty() {
@@ -219,7 +219,7 @@ pub async fn get_user(
         user: user.clone(),
         user_accounts: Vec::new(),
         profiles: Vec::new(),
-        directories: Vec::new(),
+        networks: Vec::new(),
         login_history: Vec::new(),
     };
     
@@ -237,7 +237,7 @@ pub async fn get_user(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     user_admin_view.profiles = profiles.clone();
-    let directories = tenant::Entity::find()
+    let networks = tenant::Entity::find()
         .filter(tenant::Column::Id.is_in(profiles.into_iter().map(|profile| profile.tenant_id)))
         .all(&db)
         .await
@@ -249,7 +249,7 @@ pub async fn get_user(
         .all(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    user_admin_view.directories = directories;
+    user_admin_view.networks = networks;
     user_admin_view.login_history = login_history;
 
     Ok(Json(user_admin_view))
@@ -317,16 +317,16 @@ pub async fn toggle_admin(
     Ok(Json(updated_user))
 }
 
-pub async fn get_all_directory_stats(
+pub async fn get_all_network_stats(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-    let directories = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let networks = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut stats = Vec::new();
-    for dir in directories {
+    for dir in networks {
         let profile_count = profile::Entity::find()
             .filter(profile::Column::TenantId.eq(dir.id))
             .count(&db)
@@ -346,7 +346,7 @@ pub async fn get_all_directory_stats(
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        stats.push(DirectoryStats {
+        stats.push(NetworkStats {
             tenant_id: dir.id,
             name: dir.name,
             profile_count,
@@ -358,14 +358,14 @@ pub async fn get_all_directory_stats(
     Ok(Json(stats))
 }
 
-pub async fn get_directory_stats(
+pub async fn get_network_stats(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
     Path(tenant_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
 
-    let directory = tenant::Entity::find_by_id(tenant_id)
+    let network = tenant::Entity::find_by_id(tenant_id)
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -384,7 +384,7 @@ pub async fn get_directory_stats(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
 
-    // filter by profile.directory id
+    // filter by profile.network id
     let ad_purchase_count = ad_purchase::Entity::find()
         .inner_join(profile::Entity)
         .filter(profile::Column::TenantId.eq(tenant_id))
@@ -392,9 +392,9 @@ pub async fn get_directory_stats(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let stats = DirectoryStats {
-        tenant_id: directory.id,
-        name: directory.name,
+    let stats = NetworkStats {
+        tenant_id: network.id,
+        name: network.name,
         profile_count,
         listing_count,
         ad_purchase_count,

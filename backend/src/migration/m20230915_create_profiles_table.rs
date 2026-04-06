@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Profile::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Profile::AccountId).uuid().not_null())
-                    .col(ColumnDef::new(Profile::DirectoryId).uuid().not_null())
+                    .col(ColumnDef::new(Profile::NetworkId).uuid().not_null())
                     .col(ColumnDef::new(Profile::ProfileType).string().not_null())
                     .col(ColumnDef::new(Profile::DisplayName).string().not_null())
                     .col(ColumnDef::new(Profile::ContactInfo).string().not_null())
@@ -30,9 +30,9 @@ impl MigrationTrait for Migration {
                         .from(Profile::Table, Profile::AccountId)
                         .to(Account::Table, Account::Id))
                     .foreign_key(ForeignKey::create()
-                        .name("fk-profile-directory_id")
-                        .from(Profile::Table, Profile::DirectoryId)
-                        .to(Directory::Table, Directory::Id))
+                        .name("fk-profile-network_id")
+                        .from(Profile::Table, Profile::NetworkId)
+                        .to(Network::Table, Network::Id))
                     .to_owned(),
             )
             .await
@@ -50,7 +50,7 @@ enum Profile {
     Table,
     Id,
     AccountId,
-    DirectoryId,
+    NetworkId,
     ProfileType,
     DisplayName,
     ContactInfo,
@@ -71,7 +71,7 @@ enum Account {
 }
 
 #[derive(Iden)]
-enum Directory {
+enum Network {
     Table,
     Id,
 }

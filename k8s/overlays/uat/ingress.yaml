@@ -42,7 +42,7 @@ spec:
             name: anchor-app
             port:
               number: 80
-  - host: directory.uat.atlas.oply.co
+  - host: network.uat.atlas.oply.co
     http:
       paths:
       - path: /

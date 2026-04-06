@@ -1,8 +1,8 @@
-INSERT INTO profile (id, account_id, directory_id, profile_type, display_name, contact_info, business_name, business_address, business_phone, business_website, additional_info, is_active, created_at, updated_at)
+INSERT INTO profile (id, account_id, network_id, profile_type, display_name, contact_info, business_name, business_address, business_phone, business_website, additional_info, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
     (SELECT id FROM account ORDER BY RANDOM() LIMIT 1),
-    (SELECT id FROM directory ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM network ORDER BY RANDOM() LIMIT 1),
     CASE WHEN random() < 0.5 THEN 'Individual' ELSE 'Business' END,
     'Profile ' || generate_series(1, 100),
     'contact' || generate_series(1, 100) || '@example.com',

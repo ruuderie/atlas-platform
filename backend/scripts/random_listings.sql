@@ -1,8 +1,8 @@
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
     (SELECT id FROM profile ORDER BY RANDOM() LIMIT 1),
-    (SELECT id FROM directory ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM network ORDER BY RANDOM() LIMIT 1),
     (SELECT id FROM category ORDER BY RANDOM() LIMIT 1),
     'Listing ' || generate_series(1, 500),
     'Description for Listing ' || generate_series(1, 500),

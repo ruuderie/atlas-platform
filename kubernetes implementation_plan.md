@@ -2,15 +2,15 @@
 
 Since you'd like to test the entire stack locally in OrbStack Kubernetes before committing to the Nix server approach, we will restructure your `k8s/` manifests to support a **Base + Overlay** model. This is standard Kubernetes practice and allows you to test identically sized components locally, while overriding only environment-specific details (like database URLs or hostnames).
 
-## 1. Directory Restructuring
+## 1. Network Restructuring
 
-We will restructure your existing `k8s/` directory as follows:
+We will restructure your existing `k8s/` network as follows:
 
 ```
 k8s/
 ├── base/                       # Shared component configurations
 │   ├── backend.yaml
-│   ├── directory-instance.yaml
+│   ├── network-instance.yaml
 │   ├── platform-admin.yaml
 │   └── kustomization.yaml
 └── overlays/
@@ -29,7 +29,7 @@ Instead of connecting to your Mac's host or the remote Nix server, we'll deploy 
 ### Add Kubernetes Ingress (`overlays/local/ingress.yaml`)
 Your `docker-compose.yml` uses Caddy as a reverse proxy. In Kubernetes, we use an **Ingress**. OrbStack automatically installs an Ingress Controller, which maps to your Mac's port 80/443. We will expose:
 - `admin.atlas.orb.local` -> routes to `platform-admin`
-- `directory.atlas.orb.local` -> routes to `directory-instance`
+- `network.atlas.orb.local` -> routes to `network-instance`
 - `api.atlas.orb.local` -> routes to `backend`
 
 ### Update Configurations (`overlays/local/config.yaml`)
@@ -41,7 +41,7 @@ Once implemented, your local workflow will be:
 
 1. **Start OrbStack**: Ensure OrbStack Kubernetes is running (`kubectl config use-context orbstack`).
 2. **Deploy**: Run `kubectl apply -k k8s/overlays/local`
-3. **Test**: Open `http://directory.atlas.orb.local` in your browser.
+3. **Test**: Open `http://network.atlas.orb.local` in your browser.
 
 When you're happy with the local setup and ready to move to the Nix server, we would simply create `k8s/overlays/prod/`, point the database config to your Nix server's host Postgres (`10.42.0.1`), and apply it to the server.
 

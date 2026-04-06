@@ -1,21 +1,21 @@
--- Create random directories
-INSERT INTO directory (id, directory_type_id, name, domain, description, created_at, updated_at)
+-- Create random networks
+INSERT INTO network (id, network_type_id, name, domain, description, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
-    (SELECT id FROM directory_type ORDER BY RANDOM() LIMIT 1),
-    'Directory ' || generate_series(1, 10),
-    lower('directory' || generate_series(1, 10) || '.com'),
-    'Description for Directory ' || generate_series(1, 10),
+    (SELECT id FROM network_type ORDER BY RANDOM() LIMIT 1),
+    'Network ' || generate_series(1, 10),
+    lower('network' || generate_series(1, 10) || '.com'),
+    'Description for Network ' || generate_series(1, 10),
     NOW() - (random() * interval '365 days'),
     NOW()
 FROM generate_series(1, 10);
 
 -- Create random profiles
-INSERT INTO profile (id, account_id, directory_id, profile_type, display_name, contact_info, business_name, business_address, business_phone, business_website, additional_info, is_active, created_at, updated_at)
+INSERT INTO profile (id, account_id, network_id, profile_type, display_name, contact_info, business_name, business_address, business_phone, business_website, additional_info, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
     (SELECT id FROM account ORDER BY RANDOM() LIMIT 1),
-    (SELECT id FROM directory ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM network ORDER BY RANDOM() LIMIT 1),
     CASE WHEN random() < 0.5 THEN 'Individual' ELSE 'Business' END,
     'Profile ' || generate_series(1, 100),
     'contact' || generate_series(1, 100) || '@example.com',
@@ -30,11 +30,11 @@ SELECT
 FROM generate_series(1, 100);
 
 -- Create random listings
-INSERT INTO listing (id, profile_id, directory_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
 SELECT 
     gen_random_uuid(),
     (SELECT id FROM profile ORDER BY RANDOM() LIMIT 1),
-    (SELECT id FROM directory ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM network ORDER BY RANDOM() LIMIT 1),
     (SELECT id FROM category ORDER BY RANDOM() LIMIT 1),
     'Listing ' || generate_series(1, 500),
     'Description for Listing ' || generate_series(1, 500),

@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tenant_model = tenant::ActiveModel {
         id: Set(dir_uuid),
         name: Set("CT Build Pros".to_string()),
-        description: Set("The premier directory for top-rated construction and renovation services across Connecticut.".to_string()),
+        description: Set("The premier network for top-rated construction and renovation services across Connecticut.".to_string()),
         site_status: Set("ACTIVE".to_string()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -521,10 +521,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fd = feed::ActiveModel {
         id: Set(feed_id),
         tenant_id: Set(dir_uuid),
-        title: Set("Main Directory Blog".to_string()),
+        title: Set("Main Network Blog".to_string()),
         description: Set("News and updates for contractors.".to_string()),
-        feed_url: Set("https://directory.localhost/feed".to_string()),
-        home_page_url: Set("https://directory.localhost".to_string()),
+        feed_url: Set("https://network.localhost/feed".to_string()),
+        home_page_url: Set("https://network.localhost".to_string()),
         icon: Set(None),
         favicon: Set(None),
         author: Set(Some("Admin".to_string())),

@@ -1,9 +1,9 @@
 # PRD: Atlas Platform Lead Generation Engine
 
 ## 1. Executive Summary
-**Objective:** Evolve the Atlas Platform from a passive business directory into an active, monetized lead distribution and client management engine targeting high-ticket local service businesses (e.g., Lawyers, Surgeons). 
+**Objective:** Evolve the Atlas Platform from a passive business network into an active, monetized lead distribution and client management engine targeting high-ticket local service businesses (e.g., Lawyers, Surgeons). 
 **Key Goals:**
-- Capture high CPC/CPA budgets by providing exclusive, verified leads or premium directory positioning.
+- Capture high CPC/CPA budgets by providing exclusive, verified leads or premium network positioning.
 - Prevent vendor lock-in for critical infrastructure (telephony/communications).
 - Maximize Customer Lifetime Value (LTV) through native, subtle cross-selling of additional B2B services inside the client portal.
 

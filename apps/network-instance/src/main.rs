@@ -4,7 +4,7 @@ async fn main() {
     use axum::Router;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use atlas_directory_instance::app::*;
+    use atlas_network_instance::app::*;
 
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -52,7 +52,7 @@ async fn sitemap_handler(headers: axum::http::HeaderMap) -> impl axum::response:
 pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
     use leptos::prelude::*;
     use leptos_meta::MetaTags;
-    use atlas_directory_instance::app::App;
+    use atlas_network_instance::app::App;
 
     view! {
         <!DOCTYPE html>

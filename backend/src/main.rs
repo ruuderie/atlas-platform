@@ -45,7 +45,7 @@ async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http:
     (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
 }
 
-fn configure_cors(directory_client: &str, admin_client: &str) -> CorsLayer {
+fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
     let is_dev = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string()) == "development";
 
     let allow_origin = if is_dev {
@@ -54,7 +54,7 @@ fn configure_cors(directory_client: &str, admin_client: &str) -> CorsLayer {
         tower_http::cors::AllowOrigin::predicate(|_, _| true)
     } else {
         let mut origins = vec![
-            directory_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
+            network_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://frontend:5001".parse().unwrap()),
             admin_client.parse::<HeaderValue>().unwrap_or_else(|_| "http://admin:5150".parse().unwrap()),
         ];
 
@@ -137,12 +137,12 @@ async fn main() {
 
     tracing::info!("Successfully connected to the database and ran migrations");
 
-    let directory_client = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
+    let network_client = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
     let admin_client = std::env::var("ADMIN_URL").unwrap_or_else(|_| "http://localhost:5002".to_string());
-    tracing::info!("Directory URL: {}", directory_client);
+    tracing::info!("Network URL: {}", network_client);
     tracing::info!("Admin URL: {}", admin_client);
 
-    let cors = configure_cors(&directory_client, &admin_client);
+    let cors = configure_cors(&network_client, &admin_client);
 
     let rate_limiter = RateLimiter::new();
 

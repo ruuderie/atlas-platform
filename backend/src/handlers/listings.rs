@@ -49,7 +49,7 @@ pub async fn get_listings(
         .and_then(|id| Uuid::parse_str(id).ok())
         .ok_or(StatusCode::BAD_REQUEST)?;
     println!("TEST LOG: from get_listings and tenant_id: {:?}", tenant_id);
-    tracing::info!("Fetching listings for Directory ID: {}", tenant_id);
+    tracing::info!("Fetching listings for Network ID: {}", tenant_id);
 
     let listings = Listing::find()
         .filter(listing::Column::TenantId.eq(tenant_id))

@@ -32,7 +32,7 @@ impl Default for ThemeConfig {
     }
 }
 
-// --- Sub-structs for DirectoryConfig page content ---
+// --- Sub-structs for NetworkConfig page content ---
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CategoryItem {
@@ -76,7 +76,7 @@ pub struct HostPageContent {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DirectoryConfig {
+pub struct NetworkConfig {
     pub id: String,
     pub name: String,
     pub domain: String,
@@ -151,14 +151,14 @@ pub struct CreateLeadInput {
 // Server functions automatically handle the isomorphic divide.
 // On the server, they execute directly. On the client, they make a POST request to the server.
 #[server]
-pub async fn fetch_directory_config_from_api(domain: String) -> Result<DirectoryConfig, ServerFnError> {
+pub async fn fetch_network_config_from_api(domain: String) -> Result<NetworkConfig, ServerFnError> {
 
-    let url = format!("http://127.0.0.1:8000/directories/lookup?domain={}", domain);
+    let url = format!("http://127.0.0.1:8000/networks/lookup?domain={}", domain);
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await?;
     
     if res.status().is_success() {
-        Ok(res.json::<DirectoryConfig>().await?)
+        Ok(res.json::<NetworkConfig>().await?)
     } else {
         Err(ServerFnError::ServerError(format!("Error: {}", res.status())))
     }
@@ -633,10 +633,10 @@ fn ListingDetail() -> impl IntoView {
 
 #[component]
 fn HostLanding() -> impl IntoView {
-    let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
+    let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
     let hp = config.host_page.clone().unwrap_or_else(|| HostPageContent {
         hero_headline: "List Your Service".to_string(),
-        hero_subtitle: "Join our growing directory.".to_string(),
+        hero_subtitle: "Join our growing network.".to_string(),
         form_category_options: vec!["General".to_string()],
         trust_heading: "Why List With Us?".to_string(),
         trust_subtitle: "Grow your business.".to_string(),
@@ -656,7 +656,7 @@ fn HostLanding() -> impl IntoView {
                 </div>
                 <div class="relative max-w-7xl mx-auto w-full py-24 z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div>
-                        <span class="bg-tertiary text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-sm inline-block mb-8">"Join Our Directory"</span>
+                        <span class="bg-tertiary text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-sm inline-block mb-8">"Join Our Network"</span>
                         <h1 class="font-headline text-white text-5xl md:text-6xl font-extrabold tracking-tighter leading-tight mb-8">
                             "Your Expertise." <br/> "Your Business." <br/> "Our Platform."
                         </h1>
@@ -810,7 +810,7 @@ fn HostLanding() -> impl IntoView {
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                             </div>
-                            <p class="text-sm text-on-surface-variant italic leading-relaxed">"Finally, a directory that values quality work over just listing volume."</p>
+                            <p class="text-sm text-on-surface-variant italic leading-relaxed">"Finally, a network that values quality work over just listing volume."</p>
                         </div>
                     </div>
                 </div>
@@ -823,7 +823,7 @@ fn HostLanding() -> impl IntoView {
                     <p class="text-on-surface-variant max-w-2xl mx-auto mb-12">{hp.cta_subtitle.clone()}</p>
                     <div class="flex flex-col md:flex-row gap-4 justify-center">
                         <a href="#" class="bg-[#004289] text-white px-10 py-4 rounded-lg font-bold hover:bg-[#00458f] transition-colors inline-block text-center">"Apply Now"</a>
-                        <a href="/search" class="border border-outline-variant text-on-surface px-10 py-4 rounded-lg font-bold hover:bg-surface-container transition-colors inline-block text-center">"Browse Directory"</a>
+                        <a href="/search" class="border border-outline-variant text-on-surface px-10 py-4 rounded-lg font-bold hover:bg-surface-container transition-colors inline-block text-center">"Browse Network"</a>
                     </div>
                 </div>
             </section>
@@ -851,7 +851,7 @@ pub fn get_host() -> String {
 
 #[component]
 fn Home() -> impl IntoView {
-    let config = use_context::<DirectoryConfig>().expect("DirectoryConfig must be provided");
+    let config = use_context::<NetworkConfig>().expect("NetworkConfig must be provided");
 
     view! {
         <crate::components::layout::MainLayout>
@@ -887,7 +887,7 @@ fn Home() -> impl IntoView {
                                 </select>
                             </div>
                             <a href="/search" class="bg-[#004289] text-white px-10 py-4 rounded-lg font-bold hover:bg-[#00458f] transition-colors text-center">
-                                "Search Directory"
+                                "Search Network"
                             </a>
                         </div>
                     </div>
@@ -903,7 +903,7 @@ fn Home() -> impl IntoView {
                         <p class="text-on-surface-variant leading-relaxed">"Vetted, reviewed, and trusted by Connecticut homeowners for quality renovations and repairs."</p>
                     </div>
                     <a href="/search" class="hidden md:flex items-center gap-2 text-[#004289] font-bold hover:underline underline-offset-8">
-                        "View All Directory " <span class="material-symbols-outlined">"arrow_forward"</span>
+                        "View All Network " <span class="material-symbols-outlined">"arrow_forward"</span>
                     </a>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -997,7 +997,7 @@ fn Home() -> impl IntoView {
                     <h2 class="font-headline text-white text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">{config.cta_headline.clone()}</h2>
                     <div class="flex flex-col md:flex-row gap-4 justify-center">
                         <a href="/list-property" class="bg-white text-[#004289] px-10 py-4 rounded-lg font-bold hover:bg-slate-100 transition-colors inline-block text-center">"List Your Service"</a>
-                        <a href="/search" class="border border-on-primary-container text-white px-10 py-4 rounded-lg font-bold hover:bg-white/10 transition-colors inline-block text-center">"Browse Directory"</a>
+                        <a href="/search" class="border border-on-primary-container text-white px-10 py-4 rounded-lg font-bold hover:bg-white/10 transition-colors inline-block text-center">"Browse Network"</a>
                     </div>
                 </div>
             </section>
@@ -1006,7 +1006,7 @@ fn Home() -> impl IntoView {
 }
 
 #[component]
-fn InnerApp(config: DirectoryConfig) -> impl IntoView {
+fn InnerApp(config: NetworkConfig) -> impl IntoView {
     // 1. Provide Context Globally
     provide_context(config.clone());
     
@@ -1084,10 +1084,10 @@ pub fn App() -> impl IntoView {
             {
                 let host_str = host.clone();
                 Suspend::new(async move {
-                    match fetch_directory_config_from_api(host_str.clone()).await {
+                    match fetch_network_config_from_api(host_str.clone()).await {
                         Ok(config) => view! { <InnerApp config=config /> }.into_any(),
                         Err(e) => view! {
-                            <Title text="Directory Offline" />
+                            <Title text="Network Offline" />
                             <div class="min-h-screen flex items-center justify-center p-4 bg-background">
                                 <div class="text-center space-y-6 max-w-lg glass-panel border-destructive/30 p-12 rounded-3xl animate-in zoom-in-95 duration-500 shadow-2xl shadow-destructive/10">
                                     <div class="w-24 h-24 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-6">
