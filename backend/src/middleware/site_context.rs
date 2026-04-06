@@ -20,15 +20,16 @@ static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> =
 
 // We'll hardcode the admin routing check as well
 fn is_admin_route(path: &str) -> bool {
-    path.starts_with("/api/admin")
+    path.starts_with("/api/admin") || path.starts_with("/admin")
 }
 
 fn is_auth_route(path: &str) -> bool {
-    path.starts_with("/login") || path.starts_with("/register") || path.starts_with("/auth")
+    path.starts_with("/login") || path.starts_with("/register") || path.starts_with("/auth") ||
+    path.starts_with("/api/login") || path.starts_with("/api/register") || path.starts_with("/api/auth") || path.starts_with("/api/passkeys")
 }
 
 fn is_setup_route(path: &str) -> bool {
-    path.starts_with("/setup")
+    path.starts_with("/setup") || path.starts_with("/api/health") || path == "/health"
 }
 
 pub async fn site_context_middleware(
