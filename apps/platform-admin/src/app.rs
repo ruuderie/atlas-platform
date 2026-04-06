@@ -132,14 +132,19 @@ pub fn AuthenticatedLayout() -> impl IntoView {
             <div class="h-screen w-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
                 // ── Top Nav Bar ──
                 <header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#060e20]">
-                    <div class="flex items-center gap-8">
+                    <div class="flex items-center gap-8 w-full max-w-2xl">
                         <a href="/" class="text-xl font-bold text-[#dee5ff] tracking-[-0.02em] whitespace-nowrap">"The Intelligence Layer"</a>
-                        <nav class="hidden md:flex gap-6">
-                            <a href="/" class=move || nav_active_class("/")>"Platform Overview"</a>
-                            <a href="/apps" class=move || nav_active_class("/apps")>"Platform Applications"</a>
-                            <a href="/crm" class=move || nav_active_class("/crm")>"Sales & Relationships"</a>
-                            <a href="/cms" class=move || nav_active_class("/cms")>"Content Management"</a>
-                        </nav>
+                        <div class="hidden md:flex flex-1 relative items-center max-w-lg w-full ml-4">
+                            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">"search"</span>
+                            <input 
+                                type="text"
+                                placeholder="Search across networks, users, and listings (Cmd+K)..."
+                                class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg pl-10 pr-4 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-[#91aaeb]/60"
+                            />
+                            <div class="absolute right-3 px-1.5 py-0.5 rounded bg-surface-container-highest border border-outline-variant/20 text-[#91aaeb] text-[10px] font-mono font-bold tracking-widest hidden lg:block hover:text-primary transition-colors cursor-pointer">
+                                "⌘K"
+                            </div>
+                        </div>
                     </div>
                     <div class="flex items-center gap-4">
                         <select

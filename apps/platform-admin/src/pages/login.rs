@@ -24,7 +24,6 @@ pub fn Login() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     let navigate = use_navigate();
-    let navigate_demo = navigate.clone();
     let navigate_pk = navigate.clone();
     let navigate_setup = navigate.clone();
 
@@ -105,19 +104,6 @@ pub fn Login() -> impl IntoView {
 
     let handle_passkey_error = Callback::new(move |err: String| {
         error_message.set(Some(err));
-    });
-
-    let handle_demo = Callback::new(move |_| {
-        crate::api::client::set_demo_mode(true);
-        let navigate = navigate_demo.clone();
-        set_user.set(Some(UserInfo {
-            id: "demo-user-1".to_string(),
-            first_name: "Demo".to_string(),
-            last_name: "Admin".to_string(),
-            email: "operator@foundry.local".to_string(),
-            is_admin: true,
-        }));
-        navigate("/", Default::default());
     });
 
     let navigate_purge = navigate.clone();
@@ -232,18 +218,6 @@ pub fn Login() -> impl IntoView {
                             }.into_any(),
                         }}
                     </div>
-
-                    <div class="relative py-2 mt-4">
-                        <div class="absolute inset-0 flex items-center"><span class="w-full border-t border-outline-variant/20"></span></div>
-                    </div>
-
-                    <Button 
-                        variant=shared_ui::components::ui::button::ButtonVariant::Outline
-                        class="w-full bg-transparent border-outline-variant/20 text-on-surface-variant hover:bg-surface-bright/10 hover:text-on-surface transition-all".to_string() 
-                        on:click=move |ev| handle_demo.run(ev) 
-                    >
-                        "Explore Demo Mode"
-                    </Button>
 
                     <div class=if cfg!(debug_assertions) { "mt-4" } else { "hidden" }>
                         <Button 

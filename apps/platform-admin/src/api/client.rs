@@ -102,26 +102,3 @@ pub struct ApiErrorResponse {
     pub error: Option<String>,
 }
 
-pub fn is_demo_mode() -> bool {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                return storage.get_item("demo_mode").unwrap_or(None).unwrap_or("false".into()) == "true";
-            }
-        }
-    }
-    false
-}
-
-pub fn set_demo_mode(enabled: bool) {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                let val = if enabled { "true" } else { "false" };
-                let _ = storage.set_item("demo_mode", val);
-            }
-        }
-    }
-}

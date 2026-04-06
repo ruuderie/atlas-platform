@@ -8,17 +8,10 @@ use leptos_router::hooks::use_params_map;
 use crate::pages::anchor::settings::AnchorSettingsPanel;
 use crate::pages::shared::profiles::ProfilesPanel;
 use crate::pages::anchor::services::ServicesPanel;
-
-// Placeholder explicit components that will be fleshed out progressively
-#[component]
-pub fn ListingsPanel() -> impl IntoView {
-    view! {
-        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-xl font-semibold mb-4 dark:text-white">"Listings Management"</h2>
-            <p class="text-gray-500 dark:text-gray-400">"Network items and approval queues will appear here."</p>
-        </div>
-    }
-}
+use crate::pages::network::settings::NetworkSettingsPanel;
+use crate::pages::network::categories::Categories;
+use crate::pages::network::templates::Templates;
+use crate::pages::network::listings::Listings;
 
 #[component]
 pub fn PlaceholderPanel(panel_id: String) -> impl IntoView {
@@ -42,8 +35,11 @@ pub fn DynamicPanel(#[prop(into)] panel_id: Signal<String>) -> impl IntoView {
     view! {
         <div class="w-full animation-fade-in">
             {move || match panel_id.get().as_str() {
-                "settings" => view! { <AnchorSettingsPanel /> }.into_any(),
-                "listings" => view! { <ListingsPanel /> }.into_any(),
+                "anchor_settings" => view! { <AnchorSettingsPanel /> }.into_any(),
+                "network_settings" => view! { <NetworkSettingsPanel /> }.into_any(),
+                "listings" => view! { <Listings /> }.into_any(),
+                "categories" => view! { <Categories /> }.into_any(),
+                "templates" => view! { <Templates /> }.into_any(),
                 "profiles" => view! { <ProfilesPanel /> }.into_any(),
                 "services" => view! { <ServicesPanel /> }.into_any(),
                 other => view! { <PlaceholderPanel panel_id=other.to_string() /> }.into_any(),

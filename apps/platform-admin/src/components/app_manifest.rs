@@ -23,7 +23,7 @@ pub fn get_manifest_for_app_type(type_name: &str) -> AppManifest {
             panels: vec![
                 PanelConfig { id: "profiles".to_string(), title: "Identities".to_string(), icon: Some("group".to_string()) },
                 PanelConfig { id: "services".to_string(), title: "Service Offerings".to_string(), icon: Some("sell".to_string()) },
-                PanelConfig { id: "settings".to_string(), title: "System Configuration".to_string(), icon: Some("settings".to_string()) },
+                PanelConfig { id: "anchor_settings".to_string(), title: "System Configuration".to_string(), icon: Some("settings".to_string()) },
             ]
         },
         _ => AppManifest { // Default Network Manifest
@@ -34,7 +34,7 @@ pub fn get_manifest_for_app_type(type_name: &str) -> AppManifest {
                 PanelConfig { id: "profiles".to_string(), title: "User Profiles".to_string(), icon: Some("group".to_string()) },
                 PanelConfig { id: "categories".to_string(), title: "Categories".to_string(), icon: Some("category".to_string()) },
                 PanelConfig { id: "templates".to_string(), title: "Templates".to_string(), icon: Some("draw".to_string()) },
-                PanelConfig { id: "settings".to_string(), title: "Settings".to_string(), icon: Some("settings".to_string()) },
+                PanelConfig { id: "network_settings".to_string(), title: "Settings".to_string(), icon: Some("settings".to_string()) },
             ]
         }
     }
@@ -51,7 +51,7 @@ mod tests {
         assert_eq!(manifest.panels.len(), 3);
         assert_eq!(manifest.panels[0].id, "profiles");
         assert_eq!(manifest.panels[1].id, "services");
-        assert_eq!(manifest.panels[2].id, "settings");
+        assert_eq!(manifest.panels[2].id, "anchor_settings");
     }
 
     #[test]
@@ -66,6 +66,7 @@ mod tests {
         assert_eq!(manifest.app_type_id, "network");
         assert_eq!(manifest.panels.len(), 5);
         assert_eq!(manifest.panels[0].id, "listings");
+        assert_eq!(manifest.panels[4].id, "network_settings");
     }
 
     #[test]

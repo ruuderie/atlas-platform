@@ -10,3 +10,4 @@ pub mod listing_detail;
 pub mod templates;
 pub mod template_create;
 pub mod template_detail;
+pub mod settings;
