@@ -5,8 +5,9 @@ use leptos_router::hooks::use_params_map;
 // In the future, this static mapping can be replaced with a dynamic Remote Schema JSON parser
 // that builds data-driven forms and tables based entirely on server-sent UI schematics.
 // For V1, we maintain explicit Leptos components for performance and type safety.
-use crate::components::anchor_settings::AnchorSettingsPanel;
-use crate::components::profiles_panel::ProfilesPanel;
+use crate::pages::anchor::settings::AnchorSettingsPanel;
+use crate::pages::shared::profiles::ProfilesPanel;
+use crate::pages::anchor::services::ServicesPanel;
 
 // Placeholder explicit components that will be fleshed out progressively
 #[component]
@@ -14,17 +15,7 @@ pub fn ListingsPanel() -> impl IntoView {
     view! {
         <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
             <h2 class="text-xl font-semibold mb-4 dark:text-white">"Listings Management"</h2>
-            <p class="text-gray-500 dark:text-gray-400">"Directory items and approval queues will appear here."</p>
-        </div>
-    }
-}
-
-#[component]
-pub fn ServicesPanel() -> impl IntoView {
-    view! {
-        <div class="p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-xl font-semibold mb-4 dark:text-white">"Service Offerings"</h2>
-            <p class="text-gray-500 dark:text-gray-400">"Manage billable services and one-off products."</p>
+            <p class="text-gray-500 dark:text-gray-400">"Network items and approval queues will appear here."</p>
         </div>
     }
 }

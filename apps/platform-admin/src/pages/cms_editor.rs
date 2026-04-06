@@ -63,7 +63,7 @@ pub fn CmsEditor() -> impl IntoView {
             let data = ListingCreate {
                 title: title.get(),
                 description: summary.get(),
-                directory_id: dir,
+                network_id: dir,
                 profile_id: profile,
                 category_id: None,
                 listing_type: Some(listing_type.get()),

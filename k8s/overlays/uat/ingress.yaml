@@ -49,6 +49,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: directory-instance
+            name: network-instance
             port:
               number: 80

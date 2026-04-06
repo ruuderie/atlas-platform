@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-on-surface": "#f0f1f2",
+              "outline-variant": "#c3c6d6",
+              "surface-container-highest": "#e1e3e4",
+              "tertiary": "#7b2600",
+              "primary-fixed-dim": "#abc7ff",
+              "secondary-fixed": "#cfe6f2",
+              "on-background": "#191c1d",
+              "on-error-container": "#93000a",
+              "on-primary": "#ffffff",
+              "surface-tint": "#255dad",
+              "surface-dim": "#d9dadb",
+              "surface": "#f8f9fa",
+              "on-secondary-fixed-variant": "#354a53",
+              "primary-fixed": "#d7e2ff",
+              "tertiary-container": "#a33500",
+              "background": "#f8f9fa",
+              "on-tertiary-container": "#ffc6b2",
+              "secondary-fixed-dim": "#b4cad6",
+              "inverse-primary": "#abc7ff",
+              "tertiary-fixed-dim": "#ffb59b",
+              "on-tertiary-fixed-variant": "#812800",
+              "on-secondary": "#ffffff",
+              "primary": "#004289",
+              "on-primary-fixed": "#001b3f",
+              "error": "#ba1a1a",
+              "on-primary-fixed-variant": "#00458f",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#191c1d",
+              "inverse-surface": "#2e3132",
+              "surface-container-high": "#e7e8e9",
+              "surface-variant": "#e1e3e4",
+              "primary-container": "#2059a9",
+              "secondary-container": "#cfe6f2",
+              "on-surface-variant": "#434654",
+              "tertiary-fixed": "#ffdbcf",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed": "#380d00",
+              "on-secondary-container": "#526772",
+              "outline": "#737685",
+              "on-primary-container": "#bfd3ff",
+              "on-secondary-fixed": "#071e27",
+              "on-tertiary": "#ffffff",
+              "surface-bright": "#f8f9fa",
+              "on-error": "#ffffff",
+              "secondary": "#4c616c",
+              "surface-container-low": "#f3f4f5",
+              "surface-container": "#edeeef"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-nav {
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed">
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
+<div class="text-2xl font-extrabold text-[#004289] dark:text-blue-500 font-headline tracking-tight">ArchitecturalCurator</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="font-['Manrope'] font-bold tracking-tight text-[#004289] dark:text-blue-400 border-b-2 border-[#004289] pb-1 transition-all duration-300 hover:opacity-80" href="#">Browse</a>
+<a class="font-['Manrope'] font-bold tracking-tight text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300 hover:opacity-80" href="#">Expertise</a>
+<a class="font-['Manrope'] font-bold tracking-tight text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300 hover:opacity-80" href="#">About</a>
+<a class="font-['Manrope'] font-bold tracking-tight text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300 hover:opacity-80" href="#">Contact</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded shadow-sm font-bold transition-all duration-300 hover:opacity-90 active:scale-95">List a Property</button>
+</div>
+</div>
+<div class="bg-slate-100 dark:bg-slate-800 h-[1px] w-4/5 mx-auto opacity-50"></div>
+</nav>
+<main class="pt-20">
+<section class="relative min-h-[870px] flex items-center bg-gradient-to-br from-primary via-primary-container to-primary px-8 overflow-hidden">
+<div class="absolute inset-0 opacity-20 pointer-events-none">
+<img class="w-full h-full object-cover grayscale" data-alt="Abstract architectural lines and glass skyscraper facade" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9u7c0xgQIJtdXEalhvhMEhWqwce5s_8GwwqOcXFGy8IdKLbvdpSR1CVBjie8J60YuvUQ_Peq9Df7TOE75M20cqU2btq5TSfcMTOP8ODCdwkenqoWKeb4DdwAWeCHbaH6qdGbzumS59F1364BnvhTwCMDARMZhCCQQwoXkfkkg_Z7AsMHkU6Uz5HhpxNQCNXjxFu8Kgz1i_grXn6Xq3Q-8kwc7MOAAckK-PsVye-HEIUFE-lipqw3rwCstRD5gYZQnac7lwc0Ow1Y"/>
+</div>
+<div class="relative max-w-7xl mx-auto w-full py-24 z-10">
+<div class="max-w-3xl">
+<h1 class="font-headline text-white text-6xl md:text-7xl font-extrabold tracking-tighter leading-tight mb-8">
+                        The Authority in <br/><span class="text-on-primary-container">Architectural Heritage.</span>
+</h1>
+<p class="text-on-primary-container text-xl md:text-2xl font-light mb-12 max-w-2xl leading-relaxed">
+                        Curating the world's most distinguished properties and architectural firms through a lens of editorial excellence.
+                    </p>
+<div class="bg-surface-container-lowest p-2 rounded-xl shadow-xl flex flex-col md:flex-row gap-2">
+<div class="flex-1 flex items-center px-4 py-3 gap-3 border-b md:border-b-0 md:border-r border-outline-variant/20">
+<span class="material-symbols-outlined text-outline">search</span>
+<input class="w-full border-none focus:ring-0 bg-transparent text-on-surface placeholder:text-outline font-medium" placeholder="Keywords, Firm, Style..." type="text"/>
+</div>
+<div class="flex-1 flex items-center px-4 py-3 gap-3 border-b md:border-b-0 md:border-r border-outline-variant/20">
+<span class="material-symbols-outlined text-outline">location_on</span>
+<input class="w-full border-none focus:ring-0 bg-transparent text-on-surface placeholder:text-outline font-medium" placeholder="Global Locations" type="text"/>
+</div>
+<div class="flex-1 flex items-center px-4 py-3 gap-3">
+<span class="material-symbols-outlined text-outline">category</span>
+<select class="w-full border-none focus:ring-0 bg-transparent text-on-surface font-medium appearance-none">
+<option>All Specializations</option>
+<option>Mid-Century Modern</option>
+<option>Brutalist</option>
+<option>Sustainable</option>
+</select>
+</div>
+<button class="bg-primary text-on-primary px-10 py-4 rounded-lg font-bold hover:bg-on-primary-fixed-variant transition-colors">
+                            Search Directory
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<section class="py-24 px-8 max-w-7xl mx-auto">
+<div class="flex justify-between items-end mb-16">
+<div class="max-w-xl">
+<span class="text-tertiary font-bold tracking-widest text-xs uppercase mb-3 block">Market Leaders</span>
+<h2 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface mb-4">Featured Architectural Portfolios</h2>
+<p class="text-on-surface-variant leading-relaxed">Hand-selected firms and properties that redefine the boundaries of modern living and spatial design.</p>
+</div>
+<button class="hidden md:flex items-center gap-2 text-primary font-bold hover:underline underline-offset-8">
+                    View All Directory <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/5] overflow-hidden mb-6 rounded-sm bg-surface-container-low">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Modern minimalist villa with large glass windows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlQNcxWzllGFWnQqioeEuaKHi1j88m5tLyB2DO5Z6MLyaK9V01w_JbdT0AOshPasqXsmKSGncG88Y9DJgpTRGq6Z80A_2-TlJ1P1PM_NdU0EVlDw9hg_iY0sZEmSlBcGo3TAL_UQsD1GtvR3GI5Ajud9K9QEletvzoU1cwKkpUOtkeFCT4ERgXC2kLpwwV9-i4Dy4nY3lI6ObmS7q5ZImiHGFR_pUrZ1tvuGC7DLFlMVrelclCnefXMcpNytSS0Ywp2J8tRVwA9E4"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="text-[10px] font-bold text-on-surface uppercase tracking-wider">Verified Expertise</span>
+</div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline text-xl font-bold text-on-surface group-hover:text-primary transition-colors">The Obsidian Pavilion</h3>
+<span class="text-tertiary font-bold">$12.5M</span>
+</div>
+<p class="text-sm text-on-surface-variant font-medium mb-4">Miesian Aesthetics • Zurich, Switzerland</p>
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Residential</span>
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Sustainable</span>
+</div>
+</div>
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/5] overflow-hidden mb-6 rounded-sm bg-surface-container-low">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Elegant corporate office interior with wood accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA62Cjs6KoaTrD82F71aNLFN1wXygGfCz3ZTwXBsSgKjqurXZ0ELM60BZhGnMoawjF9oXfOEmGlqxtARWNYvs7h_QYUDTBf_wbur3zijr1qFU2gBMsYfCZB_SYNklM9r1fwVBmF77XFgZyjSyR4soKVGMUIjFC5ydUYBwbjWXUctADl1XGdqTVvLhg6ZxF9Yx_qMKnQ6x98UjB__4pqRLXKyFLi870_u5QJ09A3VKwX14Z8yX1HlN6LXZsIQJo1qkgs2SC9kWVk6Ic"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="text-[10px] font-bold text-on-surface uppercase tracking-wider">Platinum Partner</span>
+</div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline text-xl font-bold text-on-surface group-hover:text-primary transition-colors">Vanguard Design Collective</h3>
+<span class="material-symbols-outlined text-outline hover:text-primary transition-colors">favorite</span>
+</div>
+<p class="text-sm text-on-surface-variant font-medium mb-4">Interior Architecture • London, UK</p>
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Commercial</span>
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Heritage</span>
+</div>
+</div>
+<div class="group cursor-pointer">
+<div class="relative aspect-[4/5] overflow-hidden mb-6 rounded-sm bg-surface-container-low">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Luxury coastal estate at dusk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKKiXC0Vbzg6YYXNm_Y5b9SEJPeskJqrqO3rPaz3FYiXFp0-Gu4zSfIGP_eQ1-bTD2yvoY7NIp6VBVpZEsxdIkG37mfqKNQXl74LK0SC2K88fo3ui5ZKBK6_MYG4bg6bMMk_TCMOjHRzIZT1SwwAofBzg3koaz5KgD-67AWir5OZM5timNtzQ7kUN8NoAj9_uI2Bzm0QK48MP_mP5qcJQRelpDW6HVuMJnriy5E9guIeHlRMrTlL0xOsooC211ZfizIVTs6rD_MYY"/>
+<div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-tertiary text-sm" style="font-variation-settings: 'FILL' 1;">new_releases</span>
+<span class="text-[10px] font-bold text-on-surface uppercase tracking-wider">New Listing</span>
+</div>
+</div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-headline text-xl font-bold text-on-surface group-hover:text-primary transition-colors">Azure Cliff Residence</h3>
+<span class="text-tertiary font-bold">$8.2M</span>
+</div>
+<p class="text-sm text-on-surface-variant font-medium mb-4">Modern Coastal • Santorini, Greece</p>
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Boutique</span>
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">Exclusive</span>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-surface-container-low py-24">
+<div class="max-w-7xl mx-auto px-8">
+<div class="text-center mb-20">
+<h2 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface mb-4">Explore by Specialization</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto">Narrow your search through our curated taxonomies of architectural expertise.</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-primary/10">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-secondary-container text-3xl">home_work</span>
+</div>
+<h4 class="font-headline font-bold text-lg mb-2">Residential</h4>
+<p class="text-xs text-on-surface-variant">Private Estates &amp; Villas</p>
+</div>
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-primary/10">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-secondary-container text-3xl">apartment</span>
+</div>
+<h4 class="font-headline font-bold text-lg mb-2">Commercial</h4>
+<p class="text-xs text-on-surface-variant">Office &amp; Retail Spaces</p>
+</div>
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-primary/10">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-secondary-container text-3xl">eco</span>
+</div>
+<h4 class="font-headline font-bold text-lg mb-2">Sustainable</h4>
+<p class="text-xs text-on-surface-variant">Eco-Conscious Design</p>
+</div>
+<div class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-primary/10">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-secondary-container text-3xl">museum</span>
+</div>
+<h4 class="font-headline font-bold text-lg mb-2">Heritage</h4>
+<p class="text-xs text-on-surface-variant">Renovation &amp; Preservation</p>
+</div>
+</div>
+</div>
+</section>
+<section class="py-24 px-8 max-w-7xl mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
+<div class="relative">
+<div class="aspect-square bg-surface-container rounded-sm overflow-hidden shadow-2xl">
+<img class="w-full h-full object-cover" data-alt="Architect drawing on large scale blue prints" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNFFzHbLa_4YJLqlfIxxTyH3GN2kX2sYVrpw5Mv_37Ifwl_xHnzD7TGO-7khjvhPD5nr5gb9kr206VTb8RsDKqcMIOM2vls4O6jVSSjd_xGgxFGcxOvrDiQoslk8k_MqAebkSj_HcjRL8vf-NCy6eR0dUX9nRXjkwGxce4543XSERAu-y24iMJ1ikM5jlquYwhQ3uC-JQeQoxfrgwrU6NRC5AR0yyScOsC_g2VSN7ArNoPxsQZDUAJ8yRLcxSppXxbkfJLzu7EiRc"/>
+</div>
+<div class="absolute -bottom-10 -right-10 bg-primary p-12 text-on-primary hidden md:block rounded-sm shadow-xl">
+<div class="text-5xl font-extrabold mb-2">15k+</div>
+<div class="text-on-primary-container font-headline tracking-widest text-xs uppercase">Curated Listings</div>
+</div>
+</div>
+<div>
+<span class="text-tertiary font-bold tracking-widest text-xs uppercase mb-3 block">Process</span>
+<h2 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface mb-12">How we curate excellence</h2>
+<div class="space-y-10">
+<div class="flex gap-6">
+<div class="flex-shrink-0 w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center font-headline font-bold text-primary">01</div>
+<div>
+<h4 class="font-headline font-bold text-xl mb-2">Discover &amp; Filter</h4>
+<p class="text-on-surface-variant leading-relaxed">Use our sophisticated taxonomies to find architects and properties that match your specific design philosophy and project scope.</p>
+</div>
+</div>
+<div class="flex gap-6">
+<div class="flex-shrink-0 w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center font-headline font-bold text-primary">02</div>
+<div>
+<h4 class="font-headline font-bold text-xl mb-2">Verify Credentials</h4>
+<p class="text-on-surface-variant leading-relaxed">Review our deep-dive analysis of firm portfolios, awards, and historical project performance to ensure unparalleled quality.</p>
+</div>
+</div>
+<div class="flex gap-6">
+<div class="flex-shrink-0 w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center font-headline font-bold text-primary">03</div>
+<div>
+<h4 class="font-headline font-bold text-xl mb-2">Collaborate Securely</h4>
+<p class="text-on-surface-variant leading-relaxed">Connect directly with decision-makers through our encrypted platform to start your architectural journey with total peace of mind.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-primary py-24">
+<div class="max-w-4xl mx-auto px-8 text-center">
+<h2 class="font-headline text-white text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">Showcase your portfolio to the world's most discerning clients.</h2>
+<div class="flex flex-col md:flex-row gap-4 justify-center">
+<button class="bg-white text-primary px-10 py-4 rounded-lg font-bold hover:bg-slate-100 transition-colors">Start Listing</button>
+<button class="border border-on-primary-container text-white px-10 py-4 rounded-lg font-bold hover:bg-white/10 transition-colors">Partner Program</button>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-slate-50 dark:bg-slate-950 w-full border-t border-slate-200 dark:border-slate-800">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-8 py-16 max-w-7xl mx-auto">
+<div class="col-span-1 md:col-span-1">
+<div class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-6 font-headline tracking-tight">Architectural Curator</div>
+<p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">The global standard for high-end architectural discovery and professional networking.</p>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6 text-sm uppercase tracking-widest">Platform</h5>
+<ul class="space-y-4 font-['Inter'] text-sm text-slate-500 dark:text-slate-400">
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Browse Directory</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Featured Firms</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Partner Program</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Directory Index</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6 text-sm uppercase tracking-widest">Company</h5>
+<ul class="space-y-4 font-['Inter'] text-sm text-slate-500 dark:text-slate-400">
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">About Us</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Terms of Service</a></li>
+<li><a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Support</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6 text-sm uppercase tracking-widest">Newsletter</h5>
+<p class="text-slate-500 dark:text-slate-400 text-sm mb-4">Curated architectural inspiration delivered to your inbox.</p>
+<div class="flex">
+<input class="bg-white border border-slate-200 px-4 py-2 w-full text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none" placeholder="Email Address" type="email"/>
+<button class="bg-primary text-white px-4 py-2 hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-sm">send</span>
+</button>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-8 py-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="font-['Inter'] text-sm text-slate-500 dark:text-slate-400">© 2024 Architectural Curator. All rights reserved.</p>
+<div class="flex gap-6">
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">alternate_email</span></a>
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">share</span></a>
+</div>
+</div>
+</footer>
+</body></html>

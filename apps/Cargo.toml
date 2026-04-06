@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "platform-admin",
-    "directory-instance",
+    "network-instance",
     "shared-ui",
     "anchor"
 ]

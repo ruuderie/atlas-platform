@@ -23,7 +23,7 @@ pub struct UserLogin {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirectoryTypeModel {
+pub struct NetworkTypeModel {
     pub id: String,
     pub name: String,
     pub description: String,
@@ -34,7 +34,7 @@ pub struct DirectoryTypeModel {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CategoryModel {
     pub id: String,
-    pub directory_type_id: String,
+    pub network_type_id: String,
     pub parent_category_id: Option<String>,
     pub name: String,
     pub description: String,
@@ -44,13 +44,13 @@ pub struct CategoryModel {
     pub is_active: bool,
     pub created_at: String,
     pub updated_at: String,
-    pub directory_id: Option<String>,
+    pub network_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateModel {
     pub id: String,
-    pub directory_id: String,
+    pub network_id: String,
     pub category_id: String,
     pub name: String,
     pub description: String,
@@ -61,26 +61,20 @@ pub struct TemplateModel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirectoryModel {
-    pub id: String,
+pub struct PlatformAppModel {
+    pub tenant_id: String,
+    pub instance_id: String,
     pub name: String,
-    pub directory_type_id: String,
+    pub app_type: String,
     pub domain: String,
-    pub description: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub enabled_modules: u32,
-    pub theme: Option<String>,
     pub site_status: String,
-    pub subdomain: Option<String>,
-    pub custom_domain: Option<String>,
-    // omit custom_settings and SEO fields for now to simplify MVP
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CreateDirectory {
+pub struct CreateNetwork {
     pub name: String,
-    pub directory_type_id: String,
+    pub network_type_id: String,
     pub domain: String,
     pub description: String,
     pub deployment_strategy: Option<String>,
@@ -126,7 +120,7 @@ pub enum ListingStatus {
 pub struct ListingModel {
     pub id: String,
     pub profile_id: String,
-    pub directory_id: String,
+    pub network_id: String,
     pub category_id: Option<String>,
     pub title: String,
     pub description: String,
@@ -154,7 +148,7 @@ pub struct ListingModel {
 pub struct ListingCreate {
     pub title: String,
     pub description: String,
-    pub directory_id: String,
+    pub network_id: String,
     pub profile_id: String,
     pub category_id: Option<String>,
     pub listing_type: Option<String>,
@@ -179,7 +173,7 @@ pub struct ListingCreate {
 pub struct ListingUpdate {
     pub title: Option<String>,
     pub description: Option<String>,
-    pub directory_id: Option<String>,
+    pub network_id: Option<String>,
     pub profile_id: Option<String>,
     pub category_id: Option<String>,
     pub listing_type: Option<String>,

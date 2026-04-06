@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ArchitecturalCurator | Host Your Masterpiece</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-on-surface": "#f0f1f2",
+              "outline-variant": "#c3c6d6",
+              "surface-container-highest": "#e1e3e4",
+              "tertiary": "#7b2600",
+              "primary-fixed-dim": "#abc7ff",
+              "secondary-fixed": "#cfe6f2",
+              "on-background": "#191c1d",
+              "on-error-container": "#93000a",
+              "on-primary": "#ffffff",
+              "surface-tint": "#255dad",
+              "surface-dim": "#d9dadb",
+              "surface": "#f8f9fa",
+              "on-secondary-fixed-variant": "#354a53",
+              "primary-fixed": "#d7e2ff",
+              "tertiary-container": "#a33500",
+              "background": "#f8f9fa",
+              "on-tertiary-container": "#ffc6b2",
+              "secondary-fixed-dim": "#b4cad6",
+              "inverse-primary": "#abc7ff",
+              "tertiary-fixed-dim": "#ffb59b",
+              "on-tertiary-fixed-variant": "#812800",
+              "on-secondary": "#ffffff",
+              "primary": "#004289",
+              "on-primary-fixed": "#001b3f",
+              "error": "#ba1a1a",
+              "on-primary-fixed-variant": "#00458f",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#191c1d",
+              "inverse-surface": "#2e3132",
+              "surface-container-high": "#e7e8e9",
+              "surface-variant": "#e1e3e4",
+              "primary-container": "#2059a9",
+              "secondary-container": "#cfe6f2",
+              "on-surface-variant": "#434654",
+              "tertiary-fixed": "#ffdbcf",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed": "#380d00",
+              "on-secondary-container": "#526772",
+              "outline": "#737685",
+              "on-primary-container": "#bfd3ff",
+              "on-secondary-fixed": "#071e27",
+              "on-tertiary": "#ffffff",
+              "surface-bright": "#f8f9fa",
+              "on-error": "#ffffff",
+              "secondary": "#4c616c",
+              "surface-container-low": "#f3f4f5",
+              "surface-container": "#edeeef"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-nav {
+        backdrop-filter: blur(12px);
+      }
+      .hero-gradient {
+        background: linear-gradient(135deg, #004289 0%, #2059a9 100%);
+      }
+      .inner-glow {
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+      }
+      .ambient-shadow {
+        box-shadow: 0 10px 30px rgba(25, 28, 29, 0.04), 0 4px 8px rgba(25, 28, 29, 0.02);
+      }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
+<div class="text-2xl font-extrabold text-[#004289] dark:text-blue-500 font-headline tracking-tight">ArchitecturalCurator</div>
+<div class="hidden md:flex items-center space-x-8 font-['Manrope'] font-bold tracking-tight">
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300" href="#">Browse</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300" href="#">Expertise</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300" href="#">About</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] transition-all duration-300" href="#">Contact</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="bg-[#004289] text-white px-6 py-2.5 rounded-lg font-bold transition-all duration-300 hover:opacity-80 active:scale-95">List a Property</button>
+</div>
+</div>
+<div class="bg-slate-100 dark:bg-slate-800 h-[1px] w-4/5 mx-auto"></div>
+</nav>
+<main class="pt-20">
+<!-- Hero Section / USP -->
+<section class="hero-gradient min-h-[870px] flex items-center relative overflow-hidden px-8 py-24">
+<div class="max-w-7xl mx-auto w-full grid md:grid-cols-2 gap-16 items-center relative z-10">
+<div class="text-on-primary">
+<span class="inline-block py-1 px-3 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold tracking-widest uppercase mb-6 border border-white/20">Exclusive Host Program</span>
+<h1 class="font-headline text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] mb-8">
+                        Your Design.<br/>Your Legacy.<br/>Our Audience.
+                    </h1>
+<p class="text-lg md:text-xl text-on-primary-container font-light max-w-lg mb-12 opacity-90 leading-relaxed">
+                        Join the world's most prestigious directory for architectural marvels. We don't just list properties; we curate experiences for discerning guests who value structural poetry.
+                    </p>
+<div class="flex flex-wrap gap-8 items-center">
+<div class="flex -space-x-3">
+<img class="w-12 h-12 rounded-full border-2 border-primary" data-alt="Portrait of a professional architect" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBM4yXI86wbgfmCcS_S4twBwcXwFZbznFPf8okxloQpnHiyfVN-P7SHNZj7ZL2WeUpqPJBoiw7YPWVyBVLz7JYYgwhGwaESgSGGCmH8mNr6ifqHX4dIcl7RjlsuSe9ElnKmivmbvDT5g--bOUAGW-mefvQCdaS77AKYlcHF0ccdWDSpEa118y37IOxxVl3nLlj_xpQzZQwy5UyS6aI_kvJO1UQN1fRiDvJHyZoQAu6KpXjt9ANhK98yowmp8dgQK0RVhWVijXb2dQI"/>
+<img class="w-12 h-12 rounded-full border-2 border-primary" data-alt="Portrait of a luxury property owner" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh3SElO8QVmio7Og5KLisq_OPnGWVDkkn884ShYaNUySVU6NBZdCvRUEztpZEl6u36AKFVLygsfBacN22wYrvakQq1OKgUZfOxPZiDuohkQ3J6MXcgFINxvtqM8qticy4W0P9YdhRcqc5s6Dkz4Sr32guNpU_jRW1sJGu0sCIYkQmTfzTczAYmG9Of_dYXyp3gr0ZfUpYtvJpkGF2A9Mv3U01v2EdF9mm8IoipBPQnw2COEnmVsGNd905njeEJfa-PVgZoiEl0yGM"/>
+<img class="w-12 h-12 rounded-full border-2 border-primary" data-alt="Portrait of a design curator" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5Jo3SjnC3iiIoNDLiasSprLTW6TI-TtaaNabK59DZaiwfStJQ0_5ie8Jj2Qn9Ik4QUSFhz8yEEe6aOELIysW7Xalz1clDQevP2LC_3ilrT0R5Wi4Hm4mPABLNlZTd0H98iEWWEo6Hz5SI56o4PDViXdFPW3dHgBZoQZTcYaxJR1Zxh52nbyXuZPOP_-DMRmsNgNsg6d4HJBBeselhlp3YUzOojrSZYfhhMq3IBjlG-md0yU-O0_dGnr3mPHdbqLh4S4v_ImqR-1s"/>
+</div>
+<p class="text-sm font-medium"><span class="block text-xl font-bold">500+</span> Elite Hosts Worldwide</p>
+</div>
+</div>
+<!-- Simplified Lead Capture -->
+<div class="bg-surface-container-lowest p-10 rounded-xl shadow-2xl relative">
+<div class="absolute -top-6 -right-6 bg-tertiary text-white p-4 rounded-xl rotate-12 shadow-lg">
+<span class="material-symbols-outlined block text-3xl" data-icon="verified">verified</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-2">Request an Invitation</h3>
+<p class="text-on-surface-variant text-sm mb-8">Our curation team reviews every submission for architectural significance.</p>
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-outline">Full Name</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary text-on-surface" placeholder="Julianne Moore" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-outline">Property Address / URL</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary text-on-surface" placeholder="https://yourportfolio.com" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-outline">Year Built</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary text-on-surface" placeholder="2024" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-outline">Category</label>
+<select class="w-full bg-surface-container-low border-none rounded-lg p-4 focus:ring-2 focus:ring-primary text-on-surface">
+<option>Modernist</option>
+<option>Brutalist</option>
+<option>Sustainable</option>
+<option>Classical</option>
+</select>
+</div>
+</div>
+<button class="w-full bg-primary text-white font-bold py-5 rounded-lg inner-glow transition-all hover:opacity-90 active:scale-[0.98]" type="submit">
+                            Submit for Curation
+                        </button>
+</form>
+</div>
+</div>
+<!-- Background Elements -->
+<div class="absolute top-0 right-0 w-1/2 h-full opacity-20 pointer-events-none">
+<svg class="w-full h-full scale-150 translate-x-1/4" viewbox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+<path d="M47.7,-62.4C61.4,-51.8,71.7,-37.4,75.4,-21.8C79.1,-6.1,76.2,10.8,69.5,25.9C62.8,40.9,52.3,54.1,38.5,62.8C24.7,71.5,7.6,75.6,-10.1,73.8C-27.8,72,-46,64.2,-57.8,51.1C-69.6,38,-75,19,-73.9,1C-72.8,-17,-65.2,-34.1,-52.4,-44.6C-39.6,-55.1,-21.6,-59,-3.3,-54.3C15,-49.6,34,-51.8,47.7,-62.4Z" fill="#ffffff" transform="translate(200 200)"></path>
+</svg>
+</div>
+</section>
+<!-- Trust Signals / Bento Grid -->
+<section class="py-24 px-8 bg-surface">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-headline text-3xl md:text-5xl font-bold tracking-tight mb-4">Why Curate With Us?</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto">We connect architectural masterpieces with an audience that speaks the language of design.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
+<div class="md:col-span-8 bg-surface-container-lowest rounded-xl p-10 flex flex-col justify-end relative overflow-hidden ambient-shadow">
+<img class="absolute inset-0 w-full h-full object-cover opacity-10" data-alt="Modern minimal villa with glass walls" src="https://lh3.googleusercontent.com/aida-public/AB6AXuApIdyfy2FYrVsBie3ArHhDIb7l64PUguE1mLZFUJ3yWvaqMn9dWBJ2UQXjLUbjWM4iaVvAHxV74LHQz8bnZwvGTh_3XYwwm_936Li4mXu3RvfvHTF_YA3G4eBVJ1goaonIe5NRtST6skN1_NjtAtlCr3ZbS1ZKbFfmuU1csYDzPyXPEUTW5L70GJCD2da3RRcQpZG-niM4lFezJHbfREzNaqZGNMeULnjg_YlaJ_1z1WcN8IMWviLFk4_oCkl5zSY49biGu5fGwNk"/>
+<div class="relative z-10">
+<div class="w-16 h-16 bg-primary-fixed rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<h4 class="font-headline text-2xl font-bold mb-4">Unrivaled Exposure</h4>
+<p class="text-on-surface-variant max-w-md">Our listings are featured in leading design publications including ArchDigest and Dezeen. Your property isn't just a stay; it's a statement.</p>
+</div>
+</div>
+<div class="md:col-span-4 bg-tertiary-fixed rounded-xl p-10 flex flex-col items-center justify-center text-center ambient-shadow">
+<div class="text-on-tertiary-fixed-variant mb-6">
+<span class="material-symbols-outlined text-6xl" data-icon="account_balance_wallet" data-weight="fill">account_balance_wallet</span>
+</div>
+<h4 class="font-headline text-2xl font-bold text-on-tertiary-fixed mb-4">3x Higher Yield</h4>
+<p class="text-on-tertiary-fixed-variant text-sm">Design-conscious travelers are willing to pay 180% more for architecturally verified spaces.</p>
+</div>
+<div class="md:col-span-4 bg-secondary-container rounded-xl p-10 ambient-shadow">
+<span class="material-symbols-outlined text-on-secondary-container text-4xl mb-6" data-icon="shield_person">shield_person</span>
+<h4 class="font-headline text-xl font-bold text-on-secondary-container mb-2">Host Protection</h4>
+<p class="text-on-secondary-container text-sm">Specialized insurance covering structural and artistic integrity up to $5M.</p>
+</div>
+<div class="md:col-span-8 bg-surface-container-high rounded-xl p-10 flex items-center gap-8 ambient-shadow">
+<div class="flex-1">
+<h4 class="font-headline text-xl font-bold mb-2">Curator Network</h4>
+<p class="text-on-surface-variant text-sm">Access to our directory of professional photographers and architectural writers to build your brand.</p>
+</div>
+<div class="hidden sm:grid grid-cols-2 gap-2 shrink-0">
+<div class="w-20 h-20 rounded-lg bg-white overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Close up of modern building material" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpV_fMm0-KyJH4GvxTP0__QOHPZweyA-ukCQS8tG-wzlCMZ-cMTW_xzvAN-ZVECa4r4XMKvhTcz4xKRccW07JRORzOXwmsvJ6pLlYCc2_ceDsiVjRIexzbVuGllR9BFyBMiJx_9ldkmjs4fp5yYLh006_3roNgembQEyvPAfFbOsvP77SymvXoobF9sAztiVKFjabSCkRyndaxwkmpqzYw-OuS6YncQEXIWiU5MUYjBQcKRuj4VEWS_gJ2CtBmBWmC1NtnPjjTfkQ"/>
+</div>
+<div class="w-20 h-20 rounded-lg bg-white overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Glass skyscraper detail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqTqZjks30sl5NpnMBnA-ARfemNsQ8sDCLT_dXtiCOijRI2GfILOGT9GC2Hwa6_X6m_2Oj5SPoIs_n2upGvMg-wsPTlaKlEGCJkyjOpt-y-GsgL5rMYASZQM4zv_amekUOlTq7LCjl5Klule63WChIVsyzs7loVNWgE3qoN6N6UcYnVtq5Yr9Mn5Zs734WJ_4g--hM4yv52VTtIgNXYlRdWHHH9gA_VqbmdTVUZ324dkckOCt4PWhB0NaMZYSLzJohWsw_tL0ZgEU"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-24 px-8 bg-surface-container-low border-y border-outline-variant/10">
+<div class="max-w-7xl mx-auto">
+<div class="grid md:grid-cols-2 gap-16 items-center">
+<div>
+<div class="text-primary mb-6">
+<span class="material-symbols-outlined text-5xl" data-icon="format_quote" data-weight="fill">format_quote</span>
+</div>
+<blockquote class="font-headline text-3xl font-medium leading-snug mb-8">
+                            "Architectural Curator didn't just find me guests; they found me people who appreciated the cantilevered concrete and the way the light hit the atrium at 4 PM. It’s a community of connoisseurs."
+                        </blockquote>
+<div class="flex items-center gap-4">
+<img class="w-16 h-16 rounded-full grayscale" data-alt="Portrait of an award winning host" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvFmJOgqPKbHTkNvaobh2mkWM0x29OQgGxBVjRBFA-cdeekppnC2DB8EeXjuyWzUmmZf-yA8XMT2SuNG_cU3FG0bHcgUDT_bUVDcnC5BzoLJm5CTn6CTtBZmYAVPBa6WD4HczOr2jqO5FePGEoJX8lMsATx-hl_uEmebxgf9KAUKjf075Q8cZjB0FjZaxXKtOqKkvUPAxdzHIas42gQJ2hhJPtWflOQa4EcKhp8zdZ1YtgCJS4GaLGl5klET2nH7KVMDviTeEJxWQ"/>
+<div>
+<p class="font-bold text-lg">Marcus Thorne</p>
+<p class="text-on-surface-variant text-sm italic">Owner, The Obsidian House (Pritzker Finalist)</p>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-4 pt-12">
+<div class="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
+<div class="flex text-yellow-500 mb-2">
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+</div>
+<p class="text-xs text-on-surface-variant italic leading-relaxed">"The most professional platform I've used in 20 years of luxury property management."</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
+<div class="flex text-yellow-500 mb-2">
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+</div>
+<p class="text-xs text-on-surface-variant italic leading-relaxed">"Revenue increased by 40% in our first quarter on the platform."</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
+<div class="flex text-yellow-500 mb-2">
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+</div>
+<p class="text-xs text-on-surface-variant italic leading-relaxed">"The photography service is worth the invitation alone. Absolute world-class."</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
+<div class="flex text-yellow-500 mb-2">
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+<span class="material-symbols-outlined text-sm" data-icon="star" data-weight="fill">star</span>
+</div>
+<p class="text-xs text-on-surface-variant italic leading-relaxed">"Finally, a place that values architecture over volume."</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="py-24 px-8 text-center bg-surface-container-lowest">
+<div class="max-w-3xl mx-auto">
+<h2 class="font-headline text-4xl md:text-6xl font-extrabold mb-8 tracking-tighter">Ready to be part of the collection?</h2>
+<p class="text-on-surface-variant text-lg mb-12">Submit your property for review today. Invitations are extended monthly to properties that meet our rigorous aesthetic standards.</p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-primary text-white px-10 py-5 rounded-lg font-bold text-lg hover:opacity-90 transition-all shadow-xl">Apply Now</button>
+<button class="bg-surface-container-high text-on-surface px-10 py-5 rounded-lg font-bold text-lg hover:bg-surface-container-highest transition-all">Download Media Kit</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-8 py-16 max-w-7xl mx-auto">
+<div class="md:col-span-1">
+<div class="text-xl font-bold text-slate-900 dark:text-slate-100 font-headline mb-4">Architectural Curator</div>
+<p class="font-['Inter'] text-sm text-slate-500 dark:text-slate-400 leading-relaxed">Defining the standard of high-end architectural travel through rigorous curation and design authority.</p>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6">Directory</h5>
+<ul class="space-y-4 font-['Inter'] text-sm text-slate-500 dark:text-slate-400">
+<li><a class="hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Directory Index</a></li>
+<li><a class="hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Partner Program</a></li>
+<li><a class="hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Support Center</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6">Legal</h5>
+<ul class="space-y-4 font-['Inter'] text-sm text-slate-500 dark:text-slate-400">
+<li><a class="hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-slate-800 dark:hover:text-slate-200 hover:underline underline-offset-4 transition-colors" href="#">Terms of Service</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 dark:text-slate-100 mb-6">Newsletter</h5>
+<div class="flex gap-2">
+<input class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-4 py-2 text-sm w-full" placeholder="curator@design.com" type="email"/>
+<button class="bg-primary text-white p-2 rounded">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto px-8 py-8 border-t border-slate-200 dark:border-slate-800">
+<p class="font-['Inter'] text-sm text-slate-500 dark:text-slate-400">© 2024 Architectural Curator. All rights reserved.</p>
+</div>
+</footer>
+</body></html>

@@ -1,13 +1,13 @@
 use leptos::prelude::*;
 
-use crate::api::directories::get_directories;
+use crate::api::networks::get_networks;
 use crate::api::crm::{get_users, get_deals};
 use crate::app::GlobalToast;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
     let users_res = LocalResource::new(|| async move { get_users().await.unwrap_or_default() });
-    let dirs_res = LocalResource::new(|| async move { get_directories().await.unwrap_or_default() });
+    let dirs_res = LocalResource::new(|| async move { get_networks().await.unwrap_or_default() });
     let deals_res = LocalResource::new(|| async move { get_deals().await.unwrap_or_default() });
 
     let active_dirs = Signal::derive(move || dirs_res.get().unwrap_or_default().len());

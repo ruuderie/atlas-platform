@@ -3,9 +3,9 @@ use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use crate::api::directories::create_directory;
-use crate::api::models::{CreateDirectory, DirectoryTypeModel};
-use crate::api::directory_types::get_directory_types;
+use crate::api::networks::create_network;
+use crate::api::models::{CreateNetwork, NetworkTypeModel};
+use crate::api::network_types::get_network_types;
 
 #[component]
 pub fn AppCreate() -> impl IntoView {
@@ -13,7 +13,7 @@ pub fn AppCreate() -> impl IntoView {
     let domain = RwSignal::new("".to_string());
     let strategy = RwSignal::new("multi_tenant".to_string());
     
-    let (types, set_types) = signal(Vec::<DirectoryTypeModel>::new());
+    let (network_types, set_network_types) = signal(Vec::<NetworkTypeModel>::new());
     let (selected_type, set_selected_type) = signal(None::<String>);
     
     let is_submitting = RwSignal::new(false);
@@ -23,8 +23,8 @@ pub fn AppCreate() -> impl IntoView {
 
     Effect::new(move |_| {
         leptos::task::spawn_local(async move {
-            if let Ok(data) = get_directory_types().await {
-                set_types.set(data.clone());
+            if let Ok(data) = get_network_types().await {
+                set_network_types.set(data.clone());
                 if let Some(first) = data.first() {
                     set_selected_type.set(Some(first.id.clone()));
                 }
@@ -43,24 +43,24 @@ pub fn AppCreate() -> impl IntoView {
 
         let type_id = selected_type.get().unwrap_or_default();
         if type_id.is_empty() {
-            toast.message.set(Some("A directory type must be selected.".to_string()));
+            toast.message.set(Some("A network type must be selected.".to_string()));
             return;
         }
 
         is_submitting.set(true);
         toast.message.set(Some("Provisioning network tenant...".to_string()));
 
-        let data = CreateDirectory {
+        let data = CreateNetwork {
             name: n,
             domain: d,
-            directory_type_id: type_id,
+            network_type_id: type_id,
             description: "New platform tenant".to_string(),
             deployment_strategy: Some(strategy.get()),
         };
 
         let nav = navigate.clone();
         leptos::task::spawn_local(async move {
-            match create_directory(data).await {
+            match create_network(data).await {
                 Ok(_) => {
                     toast.message.set(Some("Application successfully provisioned!".to_string()));
                     nav("/apps", Default::default());
@@ -97,7 +97,7 @@ pub fn AppCreate() -> impl IntoView {
                     <div class="space-y-2 mt-6">
                         <Label>"Application Template Type"</Label>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                            {move || types.get().into_iter().map(|t| {
+                            {move || network_types.get().into_iter().map(|t| {
                                 let t_id = t.id.clone();
                                 let t_id_2 = t.id.clone();
                                 let t_id_3 = t.id.clone();
@@ -113,7 +113,7 @@ pub fn AppCreate() -> impl IntoView {
                                         class=("border-border", move || selected_type.get() != Some(t_id_3.clone()))
                                         on:click=move |_| set_selected_type.set(Some(change_val.clone()))
                                     >
-                                        <input type="radio" name="directory_type" value=input_val 
+                                        <input type="radio" name="network_type" value=input_val 
                                             prop:checked=move || selected_type.get() == Some(check_val.clone())
                                             class="hidden"
                                         />

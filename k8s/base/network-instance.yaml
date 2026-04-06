@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: directory-instance
+  name: network-instance
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: directory-instance
+      app: network-instance
   template:
     metadata:
       labels:
-        app: directory-instance
+        app: network-instance
     spec:
       imagePullSecrets:
       - name: ghcr-login-secret
       containers:
-      - name: directory-instance
-        image: ghcr.io/ruuderie/directory-instance:latest
+      - name: network-instance
+        image: ghcr.io/ruuderie/network-instance:latest
         ports:
         - containerPort: 8080
         env:
@@ -27,10 +27,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: directory-instance
+  name: network-instance
 spec:
   selector:
-    app: directory-instance
+    app: network-instance
   ports:
   - port: 80
     targetPort: 8080

@@ -67,9 +67,63 @@ pub struct ActivityReport {
     recent_accounts: Vec<account::Model>,
 }
 
+#[derive(Serialize)]
+pub struct PlatformAppModel {
+    pub tenant_id: String,
+    pub instance_id: String,
+    pub name: String,
+    pub app_type: String,
+    pub domain: String,
+    pub site_status: String,
+    pub description: String,
+}
 
 
 
+
+
+pub async fn get_platform_apps(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::{tenant, app_instance, app_domain};
+
+    let instances = app_instance::Entity::find()
+        .find_also_related(tenant::Entity)
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error fetching app instances: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let mut result = Vec::new();
+    
+    for (instance, tenant_opt) in instances {
+        if let Some(tenant_model) = tenant_opt {
+            let domains = app_domain::Entity::find()
+                .filter(app_domain::Column::AppInstanceId.eq(instance.id))
+                .all(&db)
+                .await
+                .unwrap_or_default();
+                
+            let domain_name = domains.into_iter().next().map(|d| d.domain_name).unwrap_or_else(|| "unknown.local".to_string());
+            
+            result.push(PlatformAppModel {
+                tenant_id: tenant_model.id.to_string(),
+                instance_id: instance.id.to_string(),
+                name: tenant_model.name.clone(),
+                app_type: instance.app_type.clone(),
+                domain: domain_name,
+                site_status: tenant_model.site_status.clone(),
+                description: tenant_model.description.clone(),
+            });
+        }
+    }
+    
+    Ok(Json(result))
+}
 
 pub async fn get_directory_listings(
     State(db): State<DatabaseConnection>,

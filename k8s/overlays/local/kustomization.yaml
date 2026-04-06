@@ -10,7 +10,7 @@ resources:
 patches:
   - target:
       kind: Deployment
-      name: directory-instance
+      name: network-instance
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
@@ -18,6 +18,15 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/2/value
         value: "http://api.atlas.orb.local"
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: network-instance
+    patch: |-
+      - op: replace
+        path: /spec/rules/1/host
+        value: directory.localhost
   - target:
       kind: Deployment
       name: platform-admin

@@ -24,7 +24,7 @@ pub fn ListingDetail() -> impl IntoView {
             <header class="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-4">
                 <div>
                      <div class="flex items-center space-x-3 mb-2">
-                        <a href="/listings">
+                        <a href="/network/listings">
                             <Button variant=ButtonVariant::Outline class="h-8 px-2".to_string()>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
                                 "Back"

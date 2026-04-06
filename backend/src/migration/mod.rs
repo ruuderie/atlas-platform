@@ -33,6 +33,7 @@ pub mod m20260404_000001_create_cms_tables;
 pub mod m20260404_000002_anchor_seed;
 pub mod m20260404_000005_create_magic_links;
 pub mod m20260404_000006_create_tenant_settings;
+pub mod m20260405_000001_rename_directory_to_network;
 
 pub struct Migrator;
 
@@ -74,6 +75,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260404_000002_anchor_seed::Migration),
             Box::new(m20260404_000005_create_magic_links::Migration),
             Box::new(m20260404_000006_create_tenant_settings::Migration),
+            Box::new(m20260405_000001_rename_directory_to_network::Migration),
         ]
     }
 }

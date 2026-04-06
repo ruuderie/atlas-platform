@@ -64,23 +64,23 @@ steps:
         - 'backend/**'
         - '.woodpecker.yml'
 
-  publish_directory_instance:
+  publish_network_instance:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
       mirror: https://mirror.gcr.io
-      repo: ghcr.io/ruuderie/directory-instance
+      repo: ghcr.io/ruuderie/network-instance
       tags: latest
       registry: ghcr.io
       context: .
-      dockerfile: apps/directory-instance/Dockerfile
+      dockerfile: apps/network-instance/Dockerfile
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
       path:
-        - 'apps/directory-instance/**'
+        - 'apps/network-instance/**'
         - '.woodpecker.yml'
 
   publish_anchor:
@@ -165,7 +165,7 @@ steps:
         
         # Ensure pods are force-restarted to pull the latest image layer regardless of tag changes
         kubectl rollout restart deployment/platform-admin -n atlas-platform
-        kubectl rollout restart deployment/directory-instance -n atlas-platform
+        kubectl rollout restart deployment/network-instance -n atlas-platform
         kubectl rollout restart deployment/anchor-app -n atlas-platform
         kubectl rollout restart deployment/backend -n atlas-platform
         
@@ -174,8 +174,8 @@ steps:
         kubectl rollout status deployment/backend -n atlas-platform --timeout=180s || exit 1
         echo "Verifying platform-admin rollout..."
         kubectl rollout status deployment/platform-admin -n atlas-platform --timeout=180s || exit 1
-        echo "Verifying directory-instance rollout..."
-        kubectl rollout status deployment/directory-instance -n atlas-platform --timeout=180s || exit 1
+        echo "Verifying network-instance rollout..."
+        kubectl rollout status deployment/network-instance -n atlas-platform --timeout=180s || exit 1
         echo "Verifying anchor-app rollout..."
         kubectl rollout status deployment/anchor-app -n atlas-platform --timeout=180s || exit 1
         

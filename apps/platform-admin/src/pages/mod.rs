@@ -11,17 +11,10 @@ pub mod login;
 pub mod app_create;
 pub mod crm_create;
 pub mod setup;
-pub mod directory_types;
-pub mod directory_type_detail;
-pub mod categories;
-pub mod category_detail;
-pub mod templates;
-pub mod template_detail;
-pub mod template_create;
-pub mod category_create;
-pub mod directory_type_create;
-pub mod listings;
-pub mod listing_detail;
 pub mod platform_admins;
-pub mod listing_create;
 pub mod magic_login;
+
+// Domain folders
+pub mod network;
+pub mod anchor;
+pub mod shared;

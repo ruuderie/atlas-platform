@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Browse Listings - ArchitecturalCurator</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-on-surface": "#f0f1f2",
+              "outline-variant": "#c3c6d6",
+              "surface-container-highest": "#e1e3e4",
+              "tertiary": "#7b2600",
+              "primary-fixed-dim": "#abc7ff",
+              "secondary-fixed": "#cfe6f2",
+              "on-background": "#191c1d",
+              "on-error-container": "#93000a",
+              "on-primary": "#ffffff",
+              "surface-tint": "#255dad",
+              "surface-dim": "#d9dadb",
+              "surface": "#f8f9fa",
+              "on-secondary-fixed-variant": "#354a53",
+              "primary-fixed": "#d7e2ff",
+              "tertiary-container": "#a33500",
+              "background": "#f8f9fa",
+              "on-tertiary-container": "#ffc6b2",
+              "secondary-fixed-dim": "#b4cad6",
+              "inverse-primary": "#abc7ff",
+              "tertiary-fixed-dim": "#ffb59b",
+              "on-tertiary-fixed-variant": "#812800",
+              "on-secondary": "#ffffff",
+              "primary": "#004289",
+              "on-primary-fixed": "#001b3f",
+              "error": "#ba1a1a",
+              "on-primary-fixed-variant": "#00458f",
+              "surface-container-lowest": "#ffffff",
+              "on-surface": "#191c1d",
+              "inverse-surface": "#2e3132",
+              "surface-container-high": "#e7e8e9",
+              "surface-variant": "#e1e3e4",
+              "primary-container": "#2059a9",
+              "secondary-container": "#cfe6f2",
+              "on-surface-variant": "#434654",
+              "tertiary-fixed": "#ffdbcf",
+              "error-container": "#ffdad6",
+              "on-tertiary-fixed": "#380d00",
+              "on-secondary-container": "#526772",
+              "outline": "#737685",
+              "on-primary-container": "#bfd3ff",
+              "on-secondary-fixed": "#071e27",
+              "on-tertiary": "#ffffff",
+              "surface-bright": "#f8f9fa",
+              "on-error": "#ffffff",
+              "secondary": "#4c616c",
+              "surface-container-low": "#f3f4f5",
+              "surface-container": "#edeeef"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      h1, h2, h3, .brand-font {
+        font-family: 'Manrope', sans-serif;
+      }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-none transition-all duration-300">
+<div class="flex justify-between items-center px-8 py-4 max-w-7xl mx-auto">
+<div class="text-2xl font-extrabold text-[#004289] dark:text-blue-500 tracking-tight">
+                ArchitecturalCurator
+            </div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-[#004289] dark:text-blue-400 border-b-2 border-[#004289] pb-1 font-['Manrope'] font-bold tracking-tight transition-all duration-300 hover:opacity-80" href="#">Browse</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] font-['Manrope'] font-bold tracking-tight transition-all duration-300 hover:opacity-80" href="#">Expertise</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] font-['Manrope'] font-bold tracking-tight transition-all duration-300 hover:opacity-80" href="#">About</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-[#004289] font-['Manrope'] font-bold tracking-tight transition-all duration-300 hover:opacity-80" href="#">Contact</a>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded shadow-sm hover:opacity-90 active:scale-95 duration-150 font-semibold text-sm">
+                List a Property
+            </button>
+</div>
+<div class="bg-slate-100 dark:bg-slate-800 h-[1px] w-4/5 mx-auto"></div>
+</nav>
+<!-- Page Header (Search Context) -->
+<header class="pt-32 pb-12 px-8 max-w-7xl mx-auto">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<span class="text-tertiary font-bold tracking-widest text-xs uppercase mb-2 block">Curated Listings</span>
+<h1 class="text-4xl md:text-5xl font-extrabold text-on-surface tracking-tighter leading-none">Modernist Estates</h1>
+<p class="text-on-surface-variant mt-4 max-w-lg font-body">Discover a hand-picked collection of architectural marvels across the globe, selected for their structural integrity and aesthetic vision.</p>
+</div>
+<div class="flex items-center gap-2 text-sm text-on-surface-variant bg-surface-container-low px-4 py-2 rounded-full">
+<span class="font-semibold text-primary">128</span> Results Found
+            </div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-8 pb-24">
+<div class="flex flex-col lg:flex-row gap-12">
+<!-- Sidebar Filters -->
+<aside class="w-full lg:w-72 shrink-0 space-y-10">
+<!-- Filter Section: Categories -->
+<div>
+<h3 class="text-sm font-bold text-on-surface tracking-tight mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="category">category</span>
+                        CATEGORY
+                    </h3>
+<div class="flex flex-col gap-2">
+<label class="flex items-center gap-3 group cursor-pointer">
+<input checked="" class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Residential Estates</span>
+</label>
+<label class="flex items-center gap-3 group cursor-pointer">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Cultural Landmarks</span>
+</label>
+<label class="flex items-center gap-3 group cursor-pointer">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Commercial Icons</span>
+</label>
+<label class="flex items-center gap-3 group cursor-pointer">
+<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Restoration Projects</span>
+</label>
+</div>
+</div>
+<!-- Filter Section: Price Range -->
+<div>
+<h3 class="text-sm font-bold text-on-surface tracking-tight mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="payments">payments</span>
+                        INVESTMENT RANGE
+                    </h3>
+<div class="px-2">
+<input class="w-full h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary" type="range"/>
+<div class="flex justify-between mt-3 text-[10px] font-bold text-outline uppercase tracking-wider">
+<span>$1M</span>
+<span>$50M+</span>
+</div>
+</div>
+</div>
+<!-- Filter Section: Ratings -->
+<div>
+<h3 class="text-sm font-bold text-on-surface tracking-tight mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="verified">verified</span>
+                        EXPERT RATING
+                    </h3>
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-semibold">4.5+ ★</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-semibold hover:bg-surface-variant transition-colors">4.0+</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-semibold hover:bg-surface-variant transition-colors">3.5+</button>
+</div>
+</div>
+<!-- Filter Section: Location -->
+<div class="p-6 bg-surface-container-low rounded-xl">
+<h3 class="text-sm font-bold text-on-surface mb-3">Map Preview</h3>
+<div class="aspect-square bg-surface-container-high rounded overflow-hidden relative group">
+<img class="w-full h-full object-cover grayscale opacity-50 group-hover:scale-110 transition-transform duration-700" data-alt="Stylized topographic map of architectural sites" data-location="Global" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCR7PxU_Btuzr6fzRDv2LaeOFDnyWwvfvskhB-FHM5-prfXm5pJq-24Y1f3X8x-w-SqUgsTGcKaAMt8X7slALJX-QLkwAJWQyqESBm9rzFsH3hgszNaHrRRkYu8KTcpkaRXRT7yoqR9FWcneO7t6AZALHHkq4l0gajBiW2-jWpCdoJa_xIgYAt3jwQNQxH5HKq7Gm-mEyq-E2T19M_CB6pEuG94EwS5dFYNij3lYAys1peLgDrVwE1u6sxxD3BGCAHAYLEPyA_bNIA"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="bg-primary text-on-primary text-[10px] px-2 py-1 rounded-full shadow-lg">Browse Map</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Results List -->
+<div class="flex-1 space-y-12">
+<!-- Listing 1 -->
+<article class="flex flex-col md:flex-row gap-8 group">
+<div class="w-full md:w-80 h-64 shrink-0 overflow-hidden rounded-lg bg-surface-container-low">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Modernist concrete villa with large glass windows at dusk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxL2SbUSYWPs0Ax54ofNEHNlSO_9RhbJjmCKtu1opj1gMSWzy4aYdSpUmsyxuRI95Cb3zFWOKBOfwQoWfmEjcKsI70beR5wa8OUgnzVJ6mj_ctpQVHrM6M11KJKQNLr4WtDGza8WmlSLPp_nbWt6OOA_vpJnUtSXUajheqWvQesowwd_dyBIIN_0KQa2z23A8sYQJQApzalzy8L6PUhB8iR30ONhvXkExAL5HBNRXwUshk4ud4b5Xi8toKajRw0LGBJU7Xcex8AUI"/>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<div class="flex items-center gap-4 mb-3">
+<span class="text-[10px] font-bold tracking-widest text-tertiary uppercase bg-tertiary/10 px-2 py-0.5 rounded">Featured Selection</span>
+<span class="text-outline text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                Zurich, Switzerland
+                            </span>
+</div>
+<h2 class="text-2xl font-bold text-on-surface mb-2 group-hover:text-primary transition-colors">The Obsidian Pavilion</h2>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">A masterclass in brutalist minimalism, this 2022 residence features floor-to-ceiling glass and sustainably sourced dark basalt. Designed by ArchiCore Partners.</p>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-6 text-xs font-medium text-outline">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="square_foot">square_foot</span> 4,200 sqft</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="bed">bed</span> 4 Beds</span>
+</div>
+<button class="text-primary font-bold text-sm flex items-center gap-1 group/btn">
+                                View Details
+                                <span class="material-symbols-outlined text-sm transition-transform group-hover/btn:translate-x-1" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<div class="h-[1px] bg-outline-variant/30 w-full"></div>
+<!-- Listing 2 -->
+<article class="flex flex-col md:flex-row gap-8 group">
+<div class="w-full md:w-80 h-64 shrink-0 overflow-hidden rounded-lg bg-surface-container-low">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Scandinavian style white minimalist house with wood accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDr0qOferyZnD48AY3Va9ymZjRleI8U77C1EngPcp1PDwCVbSqP1GeOc1YJWKQc4D2-plEakrVTYuhpZleU0OaPUTgiexfupti3q3XK87ebcv5ugW0xyyuaHE4r36XazAFz9HHqpE2WumpVDm5Zgb4ZiA-Y_3LBGRd_9L1vz6qUDomK22jt4yeitUSAa5wwm_hB821f57Jf-LA0GtVnW4cSXt-gDvgO_dZNZ5r8UAAd0k6gQqujjudz8qbnSrqlMkIdPj0w-stpKm8"/>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<div class="flex items-center gap-4 mb-3">
+<span class="text-[10px] font-bold tracking-widest text-outline uppercase border border-outline-variant px-2 py-0.5 rounded">Historical Asset</span>
+<span class="text-outline text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                Kyoto, Japan
+                            </span>
+</div>
+<h2 class="text-2xl font-bold text-on-surface mb-2 group-hover:text-primary transition-colors">The Zen Sanctuary</h2>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">Blending traditional Machiya aesthetics with contemporary light-wells, this sanctuary offers a profound dialogue between past and present.</p>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-6 text-xs font-medium text-outline">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="square_foot">square_foot</span> 2,800 sqft</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="bed">bed</span> 3 Beds</span>
+</div>
+<button class="text-primary font-bold text-sm flex items-center gap-1 group/btn">
+                                View Details
+                                <span class="material-symbols-outlined text-sm transition-transform group-hover/btn:translate-x-1" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<div class="h-[1px] bg-outline-variant/30 w-full"></div>
+<!-- Listing 3 -->
+<article class="flex flex-col md:flex-row gap-8 group">
+<div class="w-full md:w-80 h-64 shrink-0 overflow-hidden rounded-lg bg-surface-container-low">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Luxury desert mansion with pool and angular architecture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWx1AKdEWC4q9POO8a2fC8DZvvbggp5cuw4GSZUMdeGgnGSQfdA3DqiALHn8H2I5V9o6SSRHeQrxJSc4hapgiacTi_ceNK3GvUyFPqFBOL11i_xLE3-ny-1q4jPkWE6el0RQAujcGWnkIeUzE_Y_34dKIVreElDmd454gSdEAlGj78mTkVrA2vQQ4bTqrIqexUIyJnXbWqRhAGD-1-hzzhPEUWTQYpVgmF0ZEwD1j1B5OoXRRARwpCO6ttica4gutbFyv39-Dm6WM"/>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<div class="flex items-center gap-4 mb-3">
+<span class="text-[10px] font-bold tracking-widest text-tertiary uppercase bg-tertiary/10 px-2 py-0.5 rounded">Architectural Award 2023</span>
+<span class="text-outline text-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" data-icon="location_on">location_on</span>
+                                Palm Springs, USA
+                            </span>
+</div>
+<h2 class="text-2xl font-bold text-on-surface mb-2 group-hover:text-primary transition-colors">Desert Mirage Estate</h2>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6 line-clamp-2">An experimental structure that utilizes thermal mass and reflective surfaces to integrate seamlessly into the high desert landscape. Zero-net energy certified.</p>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-6 text-xs font-medium text-outline">
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="square_foot">square_foot</span> 5,500 sqft</span>
+<span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-base" data-icon="bed">bed</span> 5 Beds</span>
+</div>
+<button class="text-primary font-bold text-sm flex items-center gap-1 group/btn">
+                                View Details
+                                <span class="material-symbols-outlined text-sm transition-transform group-hover/btn:translate-x-1" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Pagination -->
+<div class="pt-16 flex items-center justify-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-primary text-on-primary font-bold text-sm">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-variant font-bold text-sm">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-variant font-bold text-sm">3</button>
+<span class="text-outline">...</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-low text-on-surface-variant hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-8 py-16 max-w-7xl mx-auto">
+<div class="space-y-4">
+<div class="text-xl font-bold text-slate-900 dark:text-slate-100">Architectural Curator</div>
+<p class="text-sm text-slate-500 dark:text-slate-400 font-['Inter']">Elevating the standards of real estate through rigorous architectural curation and editorial insight.</p>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-xs font-extrabold text-[#004289] dark:text-blue-400 uppercase tracking-widest">Platform</h4>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">Browse Directory</a>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">Expertise Index</a>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">List Property</a>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-xs font-extrabold text-[#004289] dark:text-blue-400 uppercase tracking-widest">Company</h4>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">Our Vision</a>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">Partner Program</a>
+<a class="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-sm hover:underline underline-offset-4 transition-colors" href="#">Privacy Policy</a>
+</div>
+<div class="flex flex-col gap-3">
+<h4 class="text-xs font-extrabold text-[#004289] dark:text-blue-400 uppercase tracking-widest">Newsletter</h4>
+<p class="text-[10px] text-slate-400 uppercase tracking-tighter">The Curated Journal</p>
+<div class="flex gap-2">
+<input class="bg-white border border-slate-200 rounded px-3 py-1.5 text-xs w-full focus:ring-1 focus:ring-primary focus:outline-none" placeholder="Email" type="email"/>
+<button class="bg-primary text-on-primary px-3 py-1.5 rounded text-xs font-bold">Join</button>
+</div>
+</div>
+</div>
+<div class="px-8 py-6 max-w-7xl mx-auto border-t border-slate-100 dark:border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
+<span class="font-['Inter'] text-sm text-slate-500 dark:text-slate-400">© 2024 Architectural Curator. All rights reserved.</span>
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-slate-400 cursor-pointer hover:text-primary transition-colors" data-icon="public">public</span>
+<span class="material-symbols-outlined text-slate-400 cursor-pointer hover:text-primary transition-colors" data-icon="contact_support">contact_support</span>
+</div>
+</div>
+</footer>
+</body></html>

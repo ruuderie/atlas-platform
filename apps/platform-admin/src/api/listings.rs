@@ -2,9 +2,9 @@ use reqwest::StatusCode;
 use crate::api::client::{api_url, create_client, with_credentials};
 use crate::api::models::{ListingModel, ListingCreate, ListingUpdate, ListingWithAttributes};
 
-pub async fn get_listings(directory_id: &str) -> Result<Vec<ListingModel>, String> {
+pub async fn get_listings(network_id: &str) -> Result<Vec<ListingModel>, String> {
     let client = create_client();
-    let url = api_url(&format!("/listings?directory_id={}", directory_id));
+    let url = api_url(&format!("/listings?network_id={}", network_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     

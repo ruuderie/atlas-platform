@@ -1,5 +1,5 @@
 [package]
-name = "atlas_directory_instance"
+name = "atlas_network_instance"
 version = "0.1.0"
 edition = "2024"
 
@@ -43,7 +43,7 @@ ssr = [
 wasm-bindgen-test = "0.3.64"
 
 [package.metadata.leptos]
-output-name = "directory-instance"
+output-name = "network-instance"
 site-root = "target/site"
 site-pkg-dir = "pkg"
 style-file = "style/tailwind-out.css"

@@ -1,17 +1,17 @@
 use leptos::prelude::*;
 use leptos::ev;
 use shared_ui::components::ui::switch::Switch;
-use crate::api::models::{DirectoryModel, CreateDirectory};
-use crate::api::directories::{get_directories, create_directory};
+use crate::api::models::{PlatformAppModel, CreateNetwork};
+use crate::api::networks::{get_networks, create_network};
 
 #[component]
 pub fn Apps() -> impl IntoView {
     let (trigger_fetch, set_trigger_fetch) = signal(0);
     
-    let directories = LocalResource::new(
+    let networks = LocalResource::new(
         move || { 
             trigger_fetch.get();
-            async move { get_directories().await.unwrap_or_default() }
+            async move { get_networks().await.unwrap_or_default() }
         }
     );
 
@@ -43,15 +43,16 @@ pub fn Apps() -> impl IntoView {
             // ── Application Grid ──
             <Suspense fallback=move || view! { <div class="text-on-surface-variant">"Loading applications..."</div> }>
                 <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {move || directories.get().map(|dirs| view! {
+                    {move || networks.get().map(|dirs: Vec<PlatformAppModel>| view! {
                         <For
                             each=move || dirs.clone()
-                            key=|dir: &DirectoryModel| dir.id.clone()
+                            key=|dir: &PlatformAppModel| dir.instance_id.clone()
                             children=move |dir| {
                                 let status = dir.site_status.clone();
-                                let is_active = status == "active";
+                                let is_active = status.to_lowercase() == "active";
                                 let status_display = status.clone();
-                                let dir_id_manage = dir.id.clone();
+                                let dir_id_manage = dir.tenant_id.clone();
+                                let label_app_type = if dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor" { "Services / Anchor" } else { "Directory" };
                                 
                                 view! {
                                     <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">
@@ -67,7 +68,10 @@ pub fn Apps() -> impl IntoView {
                                                         view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-error border border-error/20 uppercase tracking-wider">{status_display}</span> }.into_any()
                                                     }}
                                                 </div>
-                                                <span class="text-xs text-on-surface-variant font-mono">{dir.domain.clone()}</span>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">{label_app_type}</span>
+                                                    <a href=format!("https://{}", dir.domain.clone()) target="_blank" rel="noopener noreferrer" class="text-xs text-on-surface-variant font-mono hover:text-primary transition-colors underline decoration-outline-variant hover:decoration-primary">{dir.domain.clone()}</a>
+                                                </div>
                                             </div>
                                             <div class="h-10 w-10 bg-surface-container-lowest rounded-lg flex items-center justify-center border border-outline-variant/20">
                                                 <span class="material-symbols-outlined text-primary-dim">"corporate_fare"</span>
@@ -77,13 +81,12 @@ pub fn Apps() -> impl IntoView {
                                         <div class="grid grid-cols-2 gap-4 mb-8">
                                             <div class="bg-surface-container-lowest/50 rounded-lg p-3 min-w-0 inline-block w-full">
                                                 <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Theme"</span>
-                                                <span class="block text-sm font-medium text-on-surface truncate" title=dir.theme.clone().unwrap_or_else(|| "Default".to_string())>{dir.theme.clone().unwrap_or_else(|| "Default".to_string())}</span>
+                                                <span class="block text-sm font-medium text-on-surface truncate" title="Default Theme">"Default"</span>
                                             </div>
                                             <div class="bg-surface-container-lowest/50 rounded-lg p-3">
-                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Modules"</span>
+                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"App Type"</span>
                                                 <div class="flex items-center gap-2">
-                                                    <span class="text-sm font-medium text-on-surface">{dir.enabled_modules}</span>
-                                                    <span class="text-[10px] text-tertiary font-bold">"active"</span>
+                                                    <span class="text-sm font-medium text-on-surface">{dir.app_type.clone()}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -93,23 +96,23 @@ pub fn Apps() -> impl IntoView {
                                             <div class="flex items-center justify-between">
                                                 <div class="flex items-center gap-3">
                                                     <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
-                                                    <span class="text-sm font-medium text-on-surface">"Listings"</span>
+                                                    <span class="text-sm font-medium text-on-surface">"Core Features"</span>
                                                 </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.id) checked=true />
+                                                <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.instance_id) checked=true />
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 <div class="flex items-center gap-3">
                                                     <span class="material-symbols-outlined text-on-surface-variant text-lg">"group"</span>
                                                     <span class="text-sm font-medium text-on-surface">"CRM"</span>
                                                 </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.id) checked=true />
+                                                <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.instance_id) checked=true />
                                             </div>
                                             <div class="flex items-center justify-between opacity-60">
                                                 <div class="flex items-center gap-3">
                                                     <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
                                                     <span class="text-sm font-medium text-on-surface">"Payments"</span>
                                                 </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.id) checked=false />
+                                                <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.instance_id) checked=false />
                                             </div>
                                         </div>
                                         // Actions

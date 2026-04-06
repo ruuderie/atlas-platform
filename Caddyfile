@@ -2,7 +2,7 @@
 
 # Route any subdomain of directory.localhost to the directory instances
 http://*.directory.localhost, http://directory.localhost {
-    reverse_proxy directory-instance:8080
+    reverse_proxy network-instance:8080
 }
 
 # Route admin.localhost to the Platform Admin app

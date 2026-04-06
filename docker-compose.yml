@@ -68,15 +68,15 @@ services:
     networks:
       - app-network
 
-  directory-instance:
+  network-instance:
     build:
-      context: ./apps/directory-instance
+      context: ./apps/network-instance
       target: ${DOCKER_TARGET:-development}
     container_name: atlas-platform-instance
     env_file:
       - .env
     volumes:
-      - ./apps/directory-instance:/app
+      - ./apps/network-instance:/app
       - ./apps/shared-ui:/shared-ui
       - backend_cargo_cache:/usr/local/cargo/registry
       - backend_target_cache:/app/target
@@ -86,10 +86,10 @@ services:
       - backend
     develop:
       watch:
-        - path: ./apps/directory-instance/src
+        - path: ./apps/network-instance/src
           target: /app/src
           action: rebuild
-        - path: ./apps/directory-instance/Cargo.toml
+        - path: ./apps/network-instance/Cargo.toml
           target: /app/Cargo.toml
           action: rebuild
     environment:
@@ -149,7 +149,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
     depends_on:
-      - directory-instance
+      - network-instance
       - platform-admin
       - backend
     restart: unless-stopped

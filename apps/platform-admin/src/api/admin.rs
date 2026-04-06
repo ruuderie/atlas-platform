@@ -12,10 +12,10 @@ pub struct UserModel {
     pub is_admin: bool,
 }
 
-pub async fn get_users(directory_id: Option<Uuid>) -> Result<Vec<UserModel>, String> {
+pub async fn get_users(network_id: Option<Uuid>) -> Result<Vec<UserModel>, String> {
     let client = Client::new();
-    let url = if let Some(dir_id) = directory_id {
-        format!("{}?directory_id={}", api_url("api/admin/users"), dir_id)
+    let url = if let Some(net_id) = network_id {
+        format!("{}?network_id={}", api_url("api/admin/users"), net_id)
     } else {
         api_url("api/admin/users")
     };

@@ -7,20 +7,20 @@ use shared_ui::components::ui::table::{
 };
 use crate::api::models::CategoryModel;
 use crate::api::categories::get_categories;
-use crate::api::models::DirectoryModel;
+use crate::api::models::PlatformAppModel;
 
 #[component]
 pub fn Categories() -> impl IntoView {
-    let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
+    let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
     let (categories, set_categories) = signal(Vec::<CategoryModel>::new());
     
     // Create query tracking signals similar to platform_admins.rs
-    let active_directory = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
-    let (selected_directory, set_selected_directory) = signal(active_directory.get().map(|u| u.to_string()).unwrap_or_default());
+    let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
+    let (selected_network, set_selected_network) = signal(active_network.get().map(|u| u.to_string()).unwrap_or_default());
     
     // Use Resource for reactive network fetching
     let cats_res = LocalResource::new(move || {
-        let current_dir = selected_directory.get();
+        let current_dir = selected_network.get();
         async move {
             let filter = if current_dir.is_empty() { None } else { Some(current_dir) };
             get_categories(filter).await.unwrap_or_default()
@@ -41,20 +41,20 @@ pub fn Categories() -> impl IntoView {
                             class="h-10 bg-surface-container-high px-3 rounded-md text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 focus:ring-primary focus:border-primary text-on-surface min-w-[200px]"
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
-                                set_selected_directory.set(val);
+                                set_selected_network.set(val);
                             }
                         >
-                            <option value="" selected=move || selected_directory.get().is_empty()>"All Directories"</option>
+                            <option value="" selected=move || selected_network.get().is_empty()>"All Networks"</option>
                             <Suspense fallback=move || view! { <option>"Loading..."</option> }>
                                 {move || dirs_res.get().map(|directories| view! {
                                     <For
                                         each=move || directories.clone()
-                                        key=|dir| dir.id.clone()
+                                        key=|dir| dir.tenant_id.clone()
                                         children=move |dir| {
                                             view! {
                                                 <option 
-                                                    value=dir.id.to_string()
-                                                    selected=move || selected_directory.get() == dir.id.to_string()
+                                                    value=dir.tenant_id.to_string()
+                                                    selected=move || selected_network.get() == dir.tenant_id.to_string()
                                                 >
                                                     {dir.name.clone()}
                                                 </option>
@@ -65,7 +65,7 @@ pub fn Categories() -> impl IntoView {
                             </Suspense>
                         </select>
                     </div>
-                    <a href="/categories/new" class="mt-5">
+                    <a href="/network/categories/new" class="mt-5">
                         <Button variant=ButtonVariant::Default>"Create Category"</Button>
                     </a>
                 </div>
@@ -87,7 +87,7 @@ pub fn Categories() -> impl IntoView {
                             <Suspense fallback=move || view! { <DataTableRow><DataTableCell attr:colspan="5" class="text-center p-8 text-muted-foreground">"Loading categories..."</DataTableCell></DataTableRow> }>
                             {move || cats_res.get().unwrap_or_default().into_iter().map(|item| {
                                 let id = item.id.clone();
-                                let detail_url = format!("/categories/{}", id);
+                                let detail_url = format!("/network/categories/{}", id);
                                 let icon = item.icon.clone().unwrap_or_else(|| "category".to_string());
                                 let status_class = if item.is_active { "text-primary bg-primary/10" } else { "text-muted-foreground bg-muted" };
                                 let status_text = if item.is_active { "Active" } else { "Inactive" };

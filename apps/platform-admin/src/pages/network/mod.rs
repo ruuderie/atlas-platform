@@ -1,0 +1,12 @@
+pub mod categories;
+pub mod category_create;
+pub mod category_detail;
+pub mod network_types;
+pub mod network_type_create;
+pub mod network_type_detail;
+pub mod listings;
+pub mod listing_create;
+pub mod listing_detail;
+pub mod templates;
+pub mod template_create;
+pub mod template_detail;

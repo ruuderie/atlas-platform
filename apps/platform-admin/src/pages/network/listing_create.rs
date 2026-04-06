@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
-use crate::api::models::{ListingCreate, DirectoryModel, UserInfo};
+use crate::api::models::{ListingCreate, PlatformAppModel, UserInfo};
 use crate::api::listings::create_listing;
 use crate::app::GlobalToast;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub fn ListingCreate() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
     let toast = use_context::<GlobalToast>().expect("toast");
-    let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
+    let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
     let user_ctx = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
 
     let (title, set_title) = signal(String::new());
@@ -26,7 +26,7 @@ pub fn ListingCreate() -> impl IntoView {
         let payload = ListingCreate {
             title: title.get(),
             description: description.get(),
-            directory_id: directory_id.get(),
+            network_id: directory_id.get(),
             profile_id: user_ctx.get().map(|u| u.id).unwrap_or_default(),
             category_id: None,
             listing_type: Some(listing_type.get()),
@@ -65,7 +65,7 @@ pub fn ListingCreate() -> impl IntoView {
     view! {
         <div class="max-w-3xl mx-auto space-y-6 pt-8">
             <header class="mb-8">
-                <a href="/listings" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
+                <a href="/network/listings" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
                 <h2 class="text-3xl font-bold tracking-tight text-foreground">"Create Listing"</h2>
                 <p class="text-muted-foreground mt-2">"Publish a new listing and assign it to a network directory."</p>
             </header>
@@ -119,15 +119,15 @@ pub fn ListingCreate() -> impl IntoView {
                                 class="flex h-10 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                 on:change=move |ev| set_directory_id.set(event_target_value(&ev))
                             >
-                                <option value="" disabled selected=move || directory_id.get().is_empty()>"Select Directory"</option>
+                                <option value="" disabled selected=move || directory_id.get().is_empty()>"Select Network"</option>
                                 <Suspense fallback=move || view! { <option>"Loading directories..."</option> }>
                                     {move || dirs_res.get().map(|directories| view! {
                                         <For
                                             each=move || directories.clone()
-                                            key=|dir| dir.id.clone()
+                                            key=|dir| dir.tenant_id.clone()
                                             children=move |dir| {
                                                 view! {
-                                                    <option value=dir.id.to_string()>{dir.name.clone()}</option>
+                                                    <option value=dir.tenant_id.to_string()>{dir.name.clone()}</option>
                                                 }
                                             }
                                         />
@@ -138,7 +138,7 @@ pub fn ListingCreate() -> impl IntoView {
                     </div>
 
                     <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-border">
-                        <a href="/listings">
+                        <a href="/network/listings">
                             <Button variant=ButtonVariant::Outline>"Cancel"</Button>
                         </a>
                         <Button variant=ButtonVariant::Default>

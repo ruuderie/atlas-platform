@@ -9,22 +9,22 @@ use crate::pages::cms_editor::CmsEditor;
 use crate::pages::login::Login;
 use crate::pages::verify_token::VerifyToken;
 use crate::pages::setup::Setup;
-use crate::pages::directory_types::DirectoryTypes;
-use crate::pages::directory_type_detail::DirectoryTypeDetail;
-use crate::pages::directory_type_create::DirectoryTypeCreate;
-use crate::pages::categories::Categories;
-use crate::pages::category_detail::CategoryDetail;
-use crate::pages::category_create::CategoryCreate;
-use crate::pages::templates::Templates;
-use crate::pages::template_detail::TemplateDetail;
-use crate::pages::template_create::TemplateCreate;
-use crate::pages::listings::Listings;
-use crate::pages::listing_create::ListingCreate;
-use crate::pages::listing_detail::ListingDetail;
+use crate::pages::network::network_types::NetworkTypes;
+use crate::pages::network::network_type_detail::NetworkTypeDetail;
+use crate::pages::network::network_type_create::NetworkTypeCreate;
+use crate::pages::network::categories::Categories;
+use crate::pages::network::category_detail::CategoryDetail;
+use crate::pages::network::category_create::CategoryCreate;
+use crate::pages::network::templates::Templates;
+use crate::pages::network::template_detail::TemplateDetail;
+use crate::pages::network::template_create::TemplateCreate;
+use crate::pages::network::listings::Listings;
+use crate::pages::network::listing_create::ListingCreate;
+use crate::pages::network::listing_detail::ListingDetail;
 use crate::pages::platform_admins::PlatformAdmins;
 use crate::api::auth::validate_session;
-use crate::api::models::{UserInfo, DirectoryModel};
-use crate::api::directories::get_directories;
+use crate::api::models::{UserInfo, PlatformAppModel};
+use crate::api::networks::get_networks;
 
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalToast {
@@ -45,12 +45,12 @@ pub fn App() -> impl IntoView {
     provide_context(user);
     provide_context(auth_checked);
 
-    let dirs_res = LocalResource::new(|| async move { get_directories().await.unwrap_or_default() });
+    let dirs_res = LocalResource::new(|| async move { get_networks().await.unwrap_or_default() });
     provide_context(dirs_res);
 
-    let (active_directory, set_active_directory) = signal(None::<uuid::Uuid>);
-    provide_context(active_directory);
-    provide_context(set_active_directory);
+    let (active_network, set_active_network) = signal(None::<uuid::Uuid>);
+    provide_context(active_network);
+    provide_context(set_active_network);
 
     let toast = GlobalToast { message: RwSignal::new(None) };
     provide_context(toast);
@@ -89,9 +89,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     let user = use_context::<ReadSignal<Option<UserInfo>>>().expect("user context");
     let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>().expect("set user context");
     let auth_checked = use_context::<ReadSignal<bool>>().expect("auth checked context");
-    let dirs_res = use_context::<LocalResource<Vec<DirectoryModel>>>().expect("dirs context");
-    let active_directory = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active dir");
-    let set_active_directory = use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active dir");
+    let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
+    let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network");
+    let set_active_network = use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active network");
     let navigate = leptos_router::hooks::use_navigate();
     let location = leptos_router::hooks::use_location();
     let (show_profile_menu, set_show_profile_menu) = signal(false);
@@ -147,21 +147,21 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
                                 if val.is_empty() {
-                                    set_active_directory.set(None);
+                                    set_active_network.set(None);
                                 } else if let Ok(parsed) = uuid::Uuid::parse_str(&val) {
-                                    set_active_directory.set(Some(parsed));
+                                    set_active_network.set(Some(parsed));
                                 }
                             }
                         >
                             <option value="">"All Sites"</option>
                             <Suspense fallback=move || view! { <option>"Loading..."</option> }>
-                                {move || dirs_res.get().map(|directories| view! {
+                                {move || dirs_res.get().map(|networks| view! {
                                     <For
-                                        each=move || directories.clone()
-                                        key=|dir| dir.id.clone()
+                                        each=move || networks.clone()
+                                        key=|dir| dir.tenant_id.clone()
                                         children=move |dir| {
                                             view! {
-                                                <option value=dir.id.to_string()>{dir.name.clone()}</option>
+                                                <option value=dir.tenant_id.clone()>{dir.name.clone()}</option>
                                             }
                                         }
                                     />
@@ -222,19 +222,19 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"dns"</span>
                             <span>"Applications"</span>
                         </a>
-                        <a href="/directory-types" class=move || side_active_class("/directory-types")>
+                        <a href="/network/network-types" class=move || side_active_class("/network/network-types")>
                             <span class="material-symbols-outlined">"schema"</span>
-                            <span>"Directory Types"</span>
+                            <span>"Network Types"</span>
                         </a>
-                        <a href="/categories" class=move || side_active_class("/categories")>
+                        <a href="/network/categories" class=move || side_active_class("/network/categories")>
                             <span class="material-symbols-outlined">"category"</span>
                             <span>"Categories"</span>
                         </a>
-                        <a href="/templates" class=move || side_active_class("/templates")>
+                        <a href="/network/templates" class=move || side_active_class("/network/templates")>
                             <span class="material-symbols-outlined">"draw"</span>
                             <span>"Templates"</span>
                         </a>
-                        <a href="/listings" class=move || side_active_class("/listings")>
+                        <a href="/network/listings" class=move || side_active_class("/network/listings")>
                             <span class="material-symbols-outlined">"store"</span>
                             <span>"Listings"</span>
                         </a>
@@ -275,18 +275,18 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/apps") view=Apps />
                         <Route path=path!("/apps/new") view=crate::pages::app_create::AppCreate />
                         <Route path=path!("/apps/:id") view=crate::pages::app_dashboard::AppDashboard />
-                        <Route path=path!("/directory-types") view=DirectoryTypes />
-                        <Route path=path!("/directory-types/new") view=DirectoryTypeCreate />
-                        <Route path=path!("/directory-types/:id") view=DirectoryTypeDetail />
-                        <Route path=path!("/categories") view=Categories />
-                        <Route path=path!("/categories/new") view=CategoryCreate />
-                        <Route path=path!("/categories/:id") view=CategoryDetail />
-                        <Route path=path!("/templates") view=Templates />
-                        <Route path=path!("/templates/new") view=TemplateCreate />
-                        <Route path=path!("/templates/:id") view=TemplateDetail />
-                        <Route path=path!("/listings") view=Listings />
-                        <Route path=path!("/listings/new") view=ListingCreate />
-                        <Route path=path!("/listings/:id") view=ListingDetail />
+                        <Route path=path!("/network/network-types") view=NetworkTypes />
+                        <Route path=path!("/network/network-types/new") view=NetworkTypeCreate />
+                        <Route path=path!("/network/network-types/:id") view=NetworkTypeDetail />
+                        <Route path=path!("/network/categories") view=Categories />
+                        <Route path=path!("/network/categories/new") view=CategoryCreate />
+                        <Route path=path!("/network/categories/:id") view=CategoryDetail />
+                        <Route path=path!("/network/templates") view=Templates />
+                        <Route path=path!("/network/templates/new") view=TemplateCreate />
+                        <Route path=path!("/network/templates/:id") view=TemplateDetail />
+                        <Route path=path!("/network/listings") view=Listings />
+                        <Route path=path!("/network/listings/new") view=ListingCreate />
+                        <Route path=path!("/network/listings/:id") view=ListingDetail />
                         <Route path=path!("/crm") view=CrmGrid />
                         <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />

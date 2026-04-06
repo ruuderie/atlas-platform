@@ -20,7 +20,7 @@ pub fn AnchorSettingsPanel() -> impl IntoView {
         move || {
             let sid = site_id();
             async move {
-                if let Ok(setting) = crate::api::directories::get_tenant_setting(&sid, "setup_token").await {
+                if let Ok(setting) = crate::api::networks::get_tenant_setting(&sid, "setup_token").await {
                     Some(setting.value)
                 } else {
                     None
@@ -51,7 +51,7 @@ pub fn AnchorSettingsPanel() -> impl IntoView {
                 value: token_str.clone(),
                 is_encrypted: false,
             };
-            if crate::api::directories::upsert_tenant_setting(&sid, req).await.is_ok() {
+            if crate::api::networks::upsert_tenant_setting(&sid, req).await.is_ok() {
                 setup_token_bind.set(token_str);
                 toast.message.set(Some("Setup token strategically regenerated.".to_string()));
             } else {

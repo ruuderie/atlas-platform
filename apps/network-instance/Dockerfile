@@ -17,7 +17,7 @@ CMD ["cargo", "leptos", "watch"]
 FROM base AS builder
 RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
 COPY . .
-WORKDIR /app/apps/directory-instance
+WORKDIR /app/apps/network-instance
 RUN cargo leptos build --release
 
 # Production stage
@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
     useradd -m appuser
 WORKDIR /app
 # Copy the compiled binary
-COPY --from=builder /app/apps/target/release/atlas_directory_instance /app/directory-instance
+COPY --from=builder /app/apps/target/release/atlas_network_instance /app/network-instance
 # Copy the built site
 COPY --from=builder /app/apps/target/site /app/site
 # Set env var so leptos knows where to find the site root
@@ -39,4 +39,4 @@ USER appuser
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8080/ || exit 1
-CMD ["./directory-instance"]
+CMD ["./network-instance"]

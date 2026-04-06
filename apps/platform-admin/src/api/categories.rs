@@ -2,10 +2,10 @@ use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
 use super::models::CategoryModel;
 use reqwest::StatusCode;
 
-pub async fn get_categories(directory_id: Option<String>) -> Result<Vec<CategoryModel>, String> {
+pub async fn get_categories(network_id: Option<String>) -> Result<Vec<CategoryModel>, String> {
     let client = create_client();
-    let url = match directory_id {
-        Some(d) => api_url(&format!("/api/admin/categories?directory_id={}", d)),
+    let url = match network_id {
+        Some(d) => api_url(&format!("/api/admin/categories?network_id={}", d)),
         None => api_url("/api/admin/categories"),
     };
 

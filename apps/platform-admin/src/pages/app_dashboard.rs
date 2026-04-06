@@ -28,13 +28,13 @@ pub fn AppDashboard() -> impl IntoView {
     let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
 
-    let dirs = use_context::<LocalResource<Vec<crate::api::models::DirectoryModel>>>().expect("dirs context");
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
     let domain_bind = RwSignal::new(String::new());
     
     Effect::new(move |_| {
         let current_id = site_id();
         if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.id.to_string() == current_id) {
+            if let Some(dir) = d.into_iter().find(|dir| dir.tenant_id.to_string() == current_id) {
                 domain_bind.set(dir.domain.clone());
             } else {
                 domain_bind.set(format!("{}.example.com", current_id));
@@ -91,13 +91,13 @@ pub fn AppDashboard() -> impl IntoView {
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
         let app_type_str = if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.id.to_string() == current_id) {
-                dir.directory_type_id.clone()
+            if let Some(dir) = d.into_iter().find(|dir| dir.tenant_id.to_string() == current_id) {
+                dir.app_type.clone()
             } else {
-                "directory".to_string()
+                "network".to_string()
             }
         } else {
-            "directory".to_string()
+            "network".to_string()
         };
         crate::components::app_manifest::get_manifest_for_app_type(&app_type_str)
     });
@@ -165,7 +165,7 @@ pub fn AppDashboard() -> impl IntoView {
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_add_listing.set(false)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2 text-foreground">"Register Business"</h3>
-                        <p class="text-muted-foreground text-sm mb-6">"Add a new commercial entity to this active directory."</p>
+                        <p class="text-muted-foreground text-sm mb-6">"Add a new commercial entity to this active network."</p>
                         <div class="space-y-4 mb-6">
                             <div class="grid gap-2 text-left">
                                 <Label>"Business Name"</Label>

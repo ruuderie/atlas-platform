@@ -10,17 +10,17 @@ use crate::api::admin::{get_users, toggle_admin, UserModel};
 #[component]
 pub fn PlatformAdmins() -> impl IntoView {
     let (trigger_fetch, set_trigger_fetch) = signal(0);
-    let (selected_directory, set_selected_directory) = signal(None::<uuid::Uuid>);
+    let (selected_network, set_selected_network) = signal(None::<uuid::Uuid>);
     
     let users_res = LocalResource::new(
         move || { 
             trigger_fetch.get();
-            let dir_id = selected_directory.get();
+            let dir_id = selected_network.get();
             async move { get_users(dir_id).await.unwrap_or_default() }
         }
     );
 
-    let dirs = use_context::<LocalResource<Vec<crate::api::models::DirectoryModel>>>().expect("dirs context");
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
@@ -48,7 +48,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                         <span class="text-primary/70">"Users"</span>
                     </nav>
                     <h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">"Platform Users"</h1>
-                    <p class="text-on-surface-variant text-sm max-w-2xl">"Manage global accounts and filter visibility by directory instances."</p>
+                    <p class="text-on-surface-variant text-sm max-w-2xl">"Manage global accounts and filter visibility by network instances."</p>
                 </div>
                 <div class="flex items-center gap-3">
                     <select
@@ -56,21 +56,21 @@ pub fn PlatformAdmins() -> impl IntoView {
                         on:change=move |ev| {
                             let val = event_target_value(&ev);
                             if val.is_empty() {
-                                set_selected_directory.set(None);
+                                set_selected_network.set(None);
                             } else if let Ok(parsed) = uuid::Uuid::parse_str(&val) {
-                                set_selected_directory.set(Some(parsed));
+                                set_selected_network.set(Some(parsed));
                             }
                         }
                     >
-                        <option value="">"All Directories"</option>
+                        <option value="">"All Networks"</option>
                         <Suspense fallback=move || view! { <option>"Loading..."</option> }>
                             {move || dirs.get().map(|directories| view! {
                                 <For
                                     each=move || directories.clone()
-                                    key=|dir| dir.id.clone()
+                                    key=|dir| dir.tenant_id.clone()
                                     children=move |dir| {
                                         view! {
-                                            <option value=dir.id.to_string()>{dir.name.clone()}</option>
+                                            <option value=dir.tenant_id.to_string()>{dir.name.clone()}</option>
                                         }
                                     }
                                 />

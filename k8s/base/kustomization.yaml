@@ -5,5 +5,5 @@ resources:
   - namespace.yaml
   - backend.yaml
   - platform-admin.yaml
-  - directory-instance.yaml
+  - network-instance.yaml
   - anchor-app.yaml
