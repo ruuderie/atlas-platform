@@ -23,6 +23,9 @@ pub fn MagicLogin() -> impl IntoView {
             return;
         }
 
+        let nav = navigate_target.clone();
+        let set_user_task_inner = set_user_task.clone();
+
         leptos::task::spawn_local(async move {
             let req_url = crate::api::client::api_url("/magic-links/verify");
             match crate::api::client::api_request::<crate::api::models::SessionResponse>(
@@ -32,7 +35,7 @@ pub fn MagicLogin() -> impl IntoView {
                     // Set token and save user
                     crate::api::client::set_auth_token(&res.token);
                     if let Some(user_info) = res.user.clone() {
-                        set_user_task.set(Some(user_info.clone()));
+                        set_user_task_inner.set(Some(user_info.clone()));
                         
                         // Check if they need passkey setup
                         let email_encoded = urlencoding::encode(&user_info.email);
@@ -40,16 +43,16 @@ pub fn MagicLogin() -> impl IntoView {
                         
                         if let Ok(flow_res) = crate::api::client::api_request::<serde_json::Value>(reqwest::Client::new().get(&flow_url)).await {
                             if let Some(true) = flow_res.get("has_passkey").and_then(|v| v.as_bool()) {
-                                navigate_target("/", Default::default());
+                                nav("/", Default::default());
                             } else {
-                                navigate_target("/setup", Default::default());
+                                nav("/setup", Default::default());
                             }
                         } else {
                             // Fallback to Dashboard if flow inspection fails
-                            navigate_target("/", Default::default());
+                            nav("/", Default::default());
                         }
                     } else {
-                        navigate_target("/", Default::default());
+                        nav("/", Default::default());
                     }
                 }
                 Err(e) => {

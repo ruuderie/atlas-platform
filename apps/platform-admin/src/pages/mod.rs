@@ -24,3 +24,4 @@ pub mod listings;
 pub mod listing_detail;
 pub mod platform_admins;
 pub mod listing_create;
+pub mod magic_login;
