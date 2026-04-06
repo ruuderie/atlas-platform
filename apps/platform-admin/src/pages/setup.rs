@@ -26,11 +26,13 @@ pub fn Setup() -> impl IntoView {
     let query = leptos_router::hooks::use_query_map();
     let url_token = move || query.with(|q| q.get("token").unwrap_or_default());
 
+    let is_already_setup = RwSignal::new(false);
+
     // Check if system needs setup
     leptos::task::spawn_local(async move {
         if let Ok(status) = get_setup_status().await {
             if !status.needs_setup {
-                navigate_setup_check("/login", Default::default());
+                is_already_setup.set(true);
             }
         }
     });
@@ -150,11 +152,29 @@ pub fn Setup() -> impl IntoView {
 
                 <div class="p-8 rounded-2xl bg-surface-container/30 border border-outline-variant/10 shadow-2xl backdrop-blur-xl">
                     <Show 
+                        when=move || !is_already_setup.get()
+                        fallback=|| view! {
+                            <div class="text-center animate-fade-in py-8">
+                                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/20 border border-primary/30 mb-6">
+                                    <span class="material-symbols-outlined text-4xl text-primary block">"verified_user"</span>
+                                </div>
+                                <h2 class="text-2xl font-bold text-on-surface mb-3">"System Initialized"</h2>
+                                <p class="text-on-surface-variant text-sm mb-8 leading-relaxed">
+                                    "The intelligence layer has already been securely configured. No further setup is required."
+                                </p>
+                                <a href="/login" class="inline-flex items-center justify-center px-6 py-3 bg-primary text-on-primary font-bold rounded-xl shadow-[0_0_15px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all">
+                                    <span class="material-symbols-outlined mr-2">"login"</span>
+                                    "Proceed to Authorization"
+                                </a>
+                            </div>
+                        }
+                    >
+                    <Show 
                         when=move || !url_token().is_empty() 
                         fallback=|| view! {
                             <div class="text-center animate-fade-in py-4">
                                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-error-container/20 border border-error/30 mb-6">
-                                    <span class="material-symbols-outlined text-3xl text-error">"lock"</span>
+                                    <span class="material-symbols-outlined text-3xl text-error block">"lock"</span>
                                 </div>
                                 <h2 class="text-xl font-bold text-on-surface mb-3">"Security Token Required"</h2>
                                 <p class="text-on-surface-variant text-sm mb-6 leading-relaxed">
@@ -235,6 +255,7 @@ pub fn Setup() -> impl IntoView {
                             </div>
                         }.into_any()
                     }}
+                    </Show>
                     </Show>
                 </div>
             </div>
