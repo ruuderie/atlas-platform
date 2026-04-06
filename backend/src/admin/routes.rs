@@ -96,6 +96,10 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/statistics/ad-purchases", get(admin::get_ad_purchase_statistics))
                 .route("/admin/reports/activity", get(admin::get_activity_report))
                 .route("/admin/reports/revenue", get(admin::get_revenue_report))
+                // Billing & Monetization
+                .route("/api/admin/billing/plans", get(crate::admin::billing::list_billing_plans))
+                .route("/api/admin/billing/transactions", get(crate::admin::billing::list_transactions))
+                .route("/api/admin/billing/tenant/{tenant_id}", get(crate::admin::billing::get_tenant_ledger))
                 //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
                 .with_state(db)
         })

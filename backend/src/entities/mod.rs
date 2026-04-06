@@ -39,3 +39,8 @@ pub mod app_domain;
 pub mod app_page;
 pub mod app_menu;
 pub mod global_search_index;
+
+// BILLING & MONETIZATION
+pub mod billing_plan;
+pub mod tenant_subscription;
+pub mod transaction;

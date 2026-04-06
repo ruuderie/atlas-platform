@@ -48,6 +48,8 @@ url = "2.5.8"
 async-trait = "0.1.89"
 lettre = { version = "0.11.21", features = ["tokio1", "tokio1-native-tls", "builder"] }
 rand = "0.8.5"
+reqwest = { version = "0.13.2", features = ["json"] }
+async-stripe = { version = "0.41.0", features = ["runtime-tokio-hyper-rustls", "billing", "checkout", "chrono", "connect", "events", "fraud", "full", "hex", "hmac", "issuing", "orders", "products", "sha2", "sigma", "stream", "tax-calculation", "terminal", "uuid", "webhook-endpoints", "webhook-events"] }
 
 [dev-dependencies]
 axum-test = "20.0.0"

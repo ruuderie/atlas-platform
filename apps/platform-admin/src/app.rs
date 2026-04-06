@@ -256,6 +256,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"group"</span>
                             <span>"Users"</span>
                         </a>
+                        <a href="/billing" class=move || side_active_class("/billing")>
+                            <span class="material-symbols-outlined">"payments"</span>
+                            <span>"Financials"</span>
+                        </a>
                     </nav>
                     <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
                         <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
@@ -298,6 +302,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
                         <Route path=path!("/cms") view=CmsEditor />
                         <Route path=path!("/admins") view=PlatformAdmins />
+                        <Route path=path!("/billing") view=crate::pages::billing::billing_dashboard::BillingDashboard />
+                        <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant_ledger::TenantLedger />
                         <Route path=path!("/settings") view=crate::pages::settings::Settings />
                     </Routes>
                 </main>

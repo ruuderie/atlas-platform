@@ -18,3 +18,4 @@ pub mod magic_login;
 pub mod network;
 pub mod anchor;
 pub mod shared;
+pub mod billing;

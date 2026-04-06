@@ -9,4 +9,5 @@ pub mod crm_extended_tests;
 pub mod feed_tests;
 pub mod relational_dependencies_tests;
 pub mod tenant_settings_tests;
+pub mod billing_tests;
 pub mod magic_link_tests;
