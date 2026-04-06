@@ -71,7 +71,7 @@ pub fn Login() -> impl IntoView {
         if login_state.get() == LoginState::SendingToken {
             let current_email = email.get();
             leptos::task::spawn_local(async move {
-                let req_url = crate::api::client::api_url("/magic-links/request");
+                let req_url = crate::api::client::api_url("/api/auth/magic-link/request");
                 if let Err(_) = crate::api::client::api_request::<serde_json::Value>(
                     reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "email": current_email }))
                 ).await {
@@ -194,7 +194,7 @@ pub fn Login() -> impl IntoView {
                                     </div>
                                     <div class="py-2">
                                         <PasskeyLoginButton 
-                                            api_base_url=crate::api::client::api_url("/api/auth/webauthn")
+                                            api_base_url=crate::api::client::api_url("/api/passkeys")
                                             email=email
                                             on_success=handle_passkey_success
                                             on_error=handle_passkey_error

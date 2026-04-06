@@ -27,7 +27,7 @@ pub fn MagicLogin() -> impl IntoView {
         let set_user_task_inner = set_user_task.clone();
 
         leptos::task::spawn_local(async move {
-            let req_url = crate::api::client::api_url("/magic-links/verify");
+            let req_url = crate::api::client::api_url("/api/auth/magic-link/verify");
             match crate::api::client::api_request::<crate::api::models::SessionResponse>(
                 reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "token": t }))
             ).await {
