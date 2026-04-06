@@ -9,21 +9,21 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
         
         let sql = r#"
-            ALTER TABLE IF EXISTS network RENAME TO tenant;
+            ALTER TABLE IF EXISTS directory RENAME TO tenant;
             
-            ALTER TABLE IF EXISTS template RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS lead RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS account RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS deal RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS contact RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS customer RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS category RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS feed RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS profile RENAME COLUMN network_id TO tenant_id;
-            ALTER TABLE IF EXISTS listing RENAME COLUMN network_id TO tenant_id;
+            ALTER TABLE IF EXISTS template RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS lead RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS account RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS deal RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS contact RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS customer RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS category RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS feed RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS profile RENAME COLUMN directory_id TO tenant_id;
+            ALTER TABLE IF EXISTS listing RENAME COLUMN directory_id TO tenant_id;
             
-            ALTER TABLE IF EXISTS category DROP COLUMN network_type_id;
-            DROP TABLE IF EXISTS network_type CASCADE;
+            ALTER TABLE IF EXISTS category DROP COLUMN directory_type_id;
+            DROP TABLE IF EXISTS directory_type CASCADE;
             
             CREATE TABLE IF NOT EXISTS app_instances (
                 id UUID PRIMARY KEY,
@@ -45,28 +45,28 @@ impl MigrationTrait for Migration {
             
             -- Insert an app_instance for existing tenants
             INSERT INTO app_instances (id, tenant_id, app_type, settings)
-            SELECT gen_random_uuid(), id, 'Network', custom_settings 
+            SELECT gen_random_uuid(), id, 'Directory', custom_settings 
             FROM tenant;
             
             -- Insert app_domains for their explicit domains
             INSERT INTO app_domains (id, app_instance_id, domain_name)
             SELECT gen_random_uuid(), a.id, t.domain
             FROM tenant t
-            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Network'
+            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Directory'
             WHERE t.domain IS NOT NULL;
             
             -- Insert app_domains for subdomains too if they exist
             INSERT INTO app_domains (id, app_instance_id, domain_name)
             SELECT gen_random_uuid(), a.id, t.subdomain || '.oply.co'
             FROM tenant t
-            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Network'
+            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Directory'
             WHERE t.subdomain IS NOT NULL AND t.subdomain != '';
             
             -- Insert app_domains for custom_domains too if they exist
             INSERT INTO app_domains (id, app_instance_id, domain_name)
             SELECT gen_random_uuid(), a.id, t.custom_domain
             FROM tenant t
-            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Network'
+            JOIN app_instances a ON a.tenant_id = t.id AND a.app_type = 'Directory'
             WHERE t.custom_domain IS NOT NULL AND t.custom_domain != '';
             
             -- Now, clean up the tenant table properties
@@ -76,7 +76,7 @@ impl MigrationTrait for Migration {
             ALTER TABLE tenant DROP COLUMN IF EXISTS custom_domain;
             ALTER TABLE tenant DROP COLUMN IF EXISTS enabled_modules;
             ALTER TABLE tenant DROP COLUMN IF EXISTS theme;
-            ALTER TABLE tenant DROP COLUMN IF EXISTS network_type_id;
+            ALTER TABLE tenant DROP COLUMN IF EXISTS directory_type_id;
         "#;
         
         db.execute_unprepared(sql).await?;
@@ -87,18 +87,18 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
         let sql = r#"
             -- Reverse operations for down migration (lossy)
-            ALTER TABLE IF EXISTS tenant RENAME TO network;
+            ALTER TABLE IF EXISTS tenant RENAME TO directory;
             
-            ALTER TABLE IF EXISTS template RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS lead RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS account RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS deal RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS contact RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS customer RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS category RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS feed RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS profile RENAME COLUMN tenant_id TO network_id;
-            ALTER TABLE IF EXISTS listing RENAME COLUMN tenant_id TO network_id;
+            ALTER TABLE IF EXISTS template RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS lead RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS account RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS deal RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS contact RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS customer RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS category RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS feed RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS profile RENAME COLUMN tenant_id TO directory_id;
+            ALTER TABLE IF EXISTS listing RENAME COLUMN tenant_id TO directory_id;
             
             DROP TABLE IF EXISTS app_domains CASCADE;
             DROP TABLE IF EXISTS app_instances CASCADE;

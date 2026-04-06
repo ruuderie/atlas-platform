@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(Listing::Id).uuid().not_null().primary_key())
                     .col(ColumnDef::new(Listing::ProfileId).uuid().not_null())
-                    .col(ColumnDef::new(Listing::NetworkId).uuid().not_null())
+                    .col(ColumnDef::new(Listing::DirectoryId).uuid().not_null())
                     .col(ColumnDef::new(Listing::CategoryId).uuid().not_null())
                     .col(ColumnDef::new(Listing::Title).string().not_null())
                     .col(ColumnDef::new(Listing::Description).string().not_null())
@@ -40,9 +40,9 @@ impl MigrationTrait for Migration {
                         .from(Listing::Table, Listing::ProfileId)
                         .to(Profile::Table, Profile::Id))
                     .foreign_key(ForeignKey::create()
-                        .name("fk-listing-network_id")
-                        .from(Listing::Table, Listing::NetworkId)
-                        .to(Network::Table, Network::Id))
+                        .name("fk-listing-directory_id")
+                        .from(Listing::Table, Listing::DirectoryId)
+                        .to(Directory::Table, Directory::Id))
                     .foreign_key(ForeignKey::create()
                         .name("fk-listing-category_id")
                         .from(Listing::Table, Listing::CategoryId)
@@ -68,7 +68,7 @@ enum Listing {
     Table,
     Id,
     ProfileId,
-    NetworkId,
+    DirectoryId,
     CategoryId,
     Title,
     Description,
@@ -99,7 +99,7 @@ enum Profile {
 }
 
 #[derive(Iden)]
-enum Network {
+enum Directory {
     Table,
     Id,
 }

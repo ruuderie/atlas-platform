@@ -9,7 +9,7 @@ impl MigrationTrait for Migration {
         // Execute raw SQL for better performance
         manager.get_connection().execute_unprepared(
             r#"
-            ALTER TABLE "network" 
+            ALTER TABLE "directory" 
             ALTER COLUMN "created_at" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "updated_at" TYPE TIMESTAMP WITH TIME ZONE;
 
@@ -67,7 +67,7 @@ impl MigrationTrait for Migration {
         // Execute raw SQL for better performance
         manager.get_connection().execute_unprepared(
             r#"
-            ALTER TABLE "network" 
+            ALTER TABLE "directory" 
             ALTER COLUMN "created_at" TYPE TIMESTAMP,
             ALTER COLUMN "updated_at" TYPE TIMESTAMP;
 

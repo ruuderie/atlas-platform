@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                     .table(Template::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Template::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Template::NetworkId).uuid().not_null())
+                    .col(ColumnDef::new(Template::DirectoryId).uuid().not_null())
                     .col(ColumnDef::new(Template::CategoryId).uuid().not_null())
                     .col(ColumnDef::new(Template::Name).string().not_null())
                     .col(ColumnDef::new(Template::Description).string().not_null())
@@ -21,9 +21,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Template::CreatedAt).timestamp_with_time_zone().not_null())
                     .col(ColumnDef::new(Template::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(ForeignKey::create()
-                        .name("fk-template-network_id")
-                        .from(Template::Table, Template::NetworkId)
-                        .to(Network::Table, Network::Id))
+                        .name("fk-template-directory_id")
+                        .from(Template::Table, Template::DirectoryId)
+                        .to(Directory::Table, Directory::Id))
                     .foreign_key(ForeignKey::create()
                         .name("fk-template-category_id")
                         .from(Template::Table, Template::CategoryId)
@@ -44,7 +44,7 @@ impl MigrationTrait for Migration {
 enum Template {
     Table,
     Id,
-    NetworkId,
+    DirectoryId,
     CategoryId,
     Name,
     Description,
@@ -55,7 +55,7 @@ enum Template {
 }
 
 #[derive(Iden)]
-enum Network {
+enum Directory {
     Table,
     Id,
 }

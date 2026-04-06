@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                     .table(Account::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Account::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Account::NetworkId).uuid().not_null())
+                    .col(ColumnDef::new(Account::DirectoryId).uuid().not_null())
                     .col(ColumnDef::new(Account::Name).string().not_null())
                     .col(ColumnDef::new(Account::IsActive).boolean().not_null().default(true))
                     .col(ColumnDef::new(Account::CreatedAt).timestamp_with_time_zone().not_null())
@@ -33,7 +33,7 @@ impl MigrationTrait for Migration {
 enum Account {
     Table,
     Id,
-    NetworkId,
+    DirectoryId,
     Name,
     IsActive,
     CreatedAt,

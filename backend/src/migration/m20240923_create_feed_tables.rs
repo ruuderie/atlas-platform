@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
                     .table(Feed::Table)
                     .if_not_exists()
                     .col(ColumnDef::new(Feed::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(Feed::NetworkId).uuid().not_null())
+                    .col(ColumnDef::new(Feed::DirectoryId).uuid().not_null())
                     .col(ColumnDef::new(Feed::Title).string().not_null())
                     .col(ColumnDef::new(Feed::Description).string().not_null())
                     .col(ColumnDef::new(Feed::FeedUrl).string().not_null())
@@ -25,9 +25,9 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Feed::UpdatedAt).timestamp_with_time_zone().not_null())
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-feed-network_id")
-                            .from(Feed::Table, Feed::NetworkId)
-                            .to(Network::Table, Network::Id)
+                            .name("fk-feed-directory_id")
+                            .from(Feed::Table, Feed::DirectoryId)
+                            .to(Directory::Table, Directory::Id)
                             .on_delete(ForeignKeyAction::Cascade)
                     )
                     .to_owned(),
@@ -158,7 +158,7 @@ impl MigrationTrait for Migration {
 enum Feed {
     Table,
     Id,
-    NetworkId,
+    DirectoryId,
     Title,
     Description,
     FeedUrl,
@@ -225,7 +225,7 @@ enum FileAssociation {
 }
 
 #[derive(Iden)]
-enum Network {
+enum Directory {
     Table,
     Id,
 }
