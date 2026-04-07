@@ -36,13 +36,13 @@ pub struct IngestResponse {
 
 pub async fn ingest_telemetry_events(
     State(db): State<DatabaseConnection>,
-    Extension(claims): Extension<Claims>,
+    Extension(_claims): Extension<Claims>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<TelemetryIngestPayload>,
 ) -> Result<axum::Json<IngestResponse>, (StatusCode, String)> {
-    // The claims give us user_id and tenant_id
-    // In a fully developed API key system, claims or a separate extractor would yield the tenant_id.
-    let tenant_id_str = claims.tenant_id.ok_or_else(|| {
-        (StatusCode::FORBIDDEN, "Missing tenant context".to_string())
+    // Extract tenant_id from X-Tenant-Id header
+    let tenant_id_str = headers.get("X-Tenant-Id").and_then(|v| v.to_str().ok()).ok_or_else(|| {
+        (StatusCode::FORBIDDEN, "Missing X-Tenant-Id header context".to_string())
     })?;
     
     let tenant_id = Uuid::parse_str(&tenant_id_str).map_err(|_| {

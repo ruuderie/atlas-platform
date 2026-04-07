@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use sea_orm::{DatabaseConnection, DbBackend, Statement};
+use sea_orm::{DatabaseConnection, DbBackend, Statement, FromQueryResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
@@ -23,7 +23,7 @@ pub struct SearchQuery {
     tenant_id: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, sea_orm::FromQueryResult)]
 pub struct SearchResult {
     id: Uuid,
     entity_type: String,
@@ -60,7 +60,7 @@ pub async fn global_search(
 
     let stmt = Statement::from_sql_and_values(DbBackend::Postgres, sql, values);
     
-    let query_results = sea_orm::JsonValue::find_by_statement(stmt)
+    let query_results = SearchResult::find_by_statement(stmt)
         .all(&db)
         .await
         .map_err(|e| {
@@ -68,12 +68,5 @@ pub async fn global_search(
             (StatusCode::INTERNAL_SERVER_ERROR, "Search failed".to_string())
         })?;
 
-    let mut results = Vec::new();
-    for val in query_results {
-        if let Ok(res) = serde_json::from_value::<SearchResult>(val) {
-            results.push(res);
-        }
-    }
-
-    Ok(Json(results))
+    Ok(Json(query_results))
 }

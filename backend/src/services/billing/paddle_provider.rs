@@ -6,6 +6,7 @@ use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData,
 pub struct PaddleProvider {
     client: reqwest::Client,
     api_key: String,
+    base_url: String,
 }
 
 impl PaddleProvider {
@@ -13,6 +14,15 @@ impl PaddleProvider {
         Self {
             client: reqwest::Client::new(),
             api_key,
+            base_url: "https://api.paddle.com".to_string(),
+        }
+    }
+
+    pub fn with_base_url(api_key: String, base_url: String) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            api_key,
+            base_url,
         }
     }
 }
@@ -23,14 +33,12 @@ impl PaymentProvider for PaddleProvider {
         tracing::info!("Creating Paddle Subscription for tenant {}", tenant_id);
         
         // Paddle uses proper API requests over reqwest because there's no official rust SDK
-        /*
-        let _res = self.client.post("https://api.paddle.com/subscriptions")
+        let _res = self.client.post(&format!("{}/subscriptions", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&serde_json::json!({
-                "items": [{ "price_id": "pri_...", "quantity": 1 }]
+                "items": [{ "price_id": plan_name, "quantity": 1 }]
             }))
             .send().await?;
-        */
 
         Ok(SubscriptionData {
             subscription_id: format!("sub_paddle_{}", Uuid::new_v4()),

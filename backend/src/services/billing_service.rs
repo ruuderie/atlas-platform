@@ -43,7 +43,7 @@ impl BillingService {
         // Convert to active model for updating
         let mut active_sub: tenant_subscription::ActiveModel = subscription.into();
         active_sub.status = Set(new_status.to_string());
-        active_sub.updated_at = Set(Utc::now());
+        active_sub.updated_at = Set(Some(Utc::now().into()));
 
         let updated_sub = active_sub.update(db).await.map_err(|e| {
             tracing::error!("Database update error: {:?}", e);

@@ -16,7 +16,7 @@ pub fn TenantLedger() -> impl IntoView {
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Current Subscription -->
+                {/* Current Subscription */}
                 <div class="glass-panel p-6 rounded-2xl border border-outline-variant/30 flex flex-col gap-4 relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-bl-full mix-blend-screen opacity-50"></div>
                     <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-widest">"Active Plan"</h3>
@@ -27,7 +27,7 @@ pub fn TenantLedger() -> impl IntoView {
                     </div>
                 </div>
 
-                <!-- MRR for this tenant -->
+                {/* MRR for this tenant */}
                 <div class="glass-panel p-6 rounded-2xl border border-outline-variant/30 flex flex-col gap-4">
                     <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-widest">"Tenant MRR"</h3>
                     <div class="text-4xl font-bold text-primary">"$199.00"</div>
@@ -35,7 +35,7 @@ pub fn TenantLedger() -> impl IntoView {
                 </div>
             </div>
 
-            <!-- Transaction History -->
+            {/* Transaction History */}
             <div class="glass-panel rounded-2xl border border-outline-variant/30 overflow-hidden mt-4">
                 <div class="bg-surface-container-high px-6 py-4 border-b border-outline-variant/30">
                     <h3 class="font-bold text-on-surface">"Transaction History"</h3>
@@ -52,7 +52,7 @@ pub fn TenantLedger() -> impl IntoView {
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Mock Data -->
+                            {/* Mock Data */}
                             <tr class="border-b border-outline-variant/10 hover:bg-surface-bright/20">
                                 <td class="p-4 text-sm text-on-surface">"Sep 15, 2026"</td>
                                 <td class="p-4 text-sm text-on-surface font-mono">"$199.00"</td>

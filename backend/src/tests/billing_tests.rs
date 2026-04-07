@@ -22,9 +22,32 @@ async fn test_stripe_provider_abstraction() {
 
 #[tokio::test]
 async fn test_paddle_provider_abstraction() {
-    let provider = PaddleProvider::new("api_key_123".to_string());
+    use wiremock::matchers::{method, path, header, body_json};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use serde_json::json;
+
+    let mock_server = MockServer::start().await;
+    let provider = PaddleProvider::with_base_url("api_key_123".to_string(), mock_server.uri());
     let tenant_id = Uuid::new_v4();
+
+    let expected_payload = json!({
+        "items": [{ "price_id": "pri_example", "quantity": 1 }]
+    });
+
+    Mock::given(method("POST"))
+        .and(path("/subscriptions"))
+        .and(header("authorization", "Bearer api_key_123"))
+        .and(body_json(&expected_payload))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"id": "sub_123"})))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
     
+    // Test subscription
+    let sub = provider.create_subscription(tenant_id, "pri_example", 4999, "USD").await;
+    assert!(sub.is_ok());
+
+    // Test payment capture
     let tx = provider.capture_payment(tenant_id, 4999, "USD").await;
     assert!(tx.is_ok());
     assert_eq!(tx.unwrap().status, "completed");

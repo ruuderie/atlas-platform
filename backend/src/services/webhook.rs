@@ -99,7 +99,7 @@ async fn process_delivery(db: &DatabaseConnection, delivery_id: Uuid) -> Result<
         .await;
 
     let mut active_delivery: webhook_delivery::ActiveModel = delivery.into();
-    active_delivery.attempts = Set(active_delivery.attempts.clone().unwrap_or_default() + 1);
+    active_delivery.attempts = Set(active_delivery.attempts.clone().unwrap() + 1);
 
     match response {
         Ok(resp) => {
@@ -134,7 +134,7 @@ async fn process_delivery(db: &DatabaseConnection, delivery_id: Uuid) -> Result<
 }
 
 fn handle_failure(delivery: &mut webhook_delivery::ActiveModel) {
-    let attempts = delivery.attempts.clone().unwrap_or_default();
+    let attempts = delivery.attempts.clone().unwrap();
     if attempts >= 5 {
         delivery.status = Set("failed".to_string());
         delivery.next_retry_at = Set(None); // no more retries
@@ -155,7 +155,7 @@ pub async fn start_webhook_sweeper(db: DatabaseConnection) {
         loop {
             interval.tick().await;
 
-            let now = Utc::now().into();
+            let now: DateTimeWithTimeZone = Utc::now().into();
             
             // Find pendings older than 2 mins
             let two_mins_ago: DateTimeWithTimeZone = (Utc::now() - chrono::Duration::minutes(2)).into();

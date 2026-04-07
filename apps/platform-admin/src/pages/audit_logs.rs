@@ -6,6 +6,17 @@ use crate::api::audit_logs::{get_audit_logs, AuditLogModel};
 use crate::api::models::UserInfo;
 use crate::app::GlobalToast;
 
+pub fn format_datetime_diff(dt: DateTime<Utc>) -> String {
+    dt.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+pub fn format_json_diff(val: &Option<Value>) -> String {
+    match val {
+        Some(v) => serde_json::to_string_pretty(v).unwrap_or_else(|_| "{}".to_string()),
+        None => "None".to_string(),
+    }
+}
+
 #[component]
 pub fn AuditLogs() -> impl IntoView {
     let (logs, set_logs) = signal(Vec::<AuditLogModel>::new());
@@ -42,16 +53,6 @@ pub fn AuditLogs() -> impl IntoView {
         fetch_logs();
     });
 
-    let format_datetime = |dt: DateTime<Utc>| -> String {
-        dt.format("%Y-%m-%d %H:%M:%S").to_string()
-    };
-    
-    let format_json = |val: &Option<Value>| -> String {
-        match val {
-            Some(v) => serde_json::to_string_pretty(v).unwrap_or_else(|_| "{}".to_string()),
-            None => "None".to_string(),
-        }
-    };
 
     view! {
         <div class="space-y-6">
@@ -109,7 +110,7 @@ pub fn AuditLogs() -> impl IntoView {
                                         children=move |log| {
                                             view! {
                                                 <tr class="hover:bg-surface-bright/10 transition-colors">
-                                                    <td class="px-6 py-4 text-on-surface-variant font-mono text-xs">{format_datetime(log.created_at)}</td>
+                                                    <td class="px-6 py-4 text-on-surface-variant font-mono text-xs">{format_datetime_diff(log.created_at)}</td>
                                                     <td class="px-6 py-4 text-primary font-medium tracking-wide">{log.action_type.clone()}</td>
                                                     <td class="px-6 py-4 text-on-surface font-semibold">{log.entity_type.clone()}</td>
                                                     <td class="px-6 py-4 text-on-surface-variant font-mono text-xs">{log.actor_id.map(|id| id.to_string()).unwrap_or_else(|| "System".to_string())}</td>
@@ -168,7 +169,7 @@ pub fn AuditLogs() -> impl IntoView {
                                     "BEFORE (old_state)"
                                 </div>
                                 <pre class="bg-surface-container-highest p-4 rounded-xl border border-outline-variant/20 overflow-x-auto text-[#e06c75] min-h-[200px] shadow-inner text-xs">
-                                    {move || format_json(&selected_log.get().map(|l| l.old_state).unwrap_or_default())}
+                                    {move || format_json_diff(&selected_log.get().map(|l| l.old_state).unwrap_or_default())}
                                 </pre>
                             </div>
                             
@@ -178,7 +179,7 @@ pub fn AuditLogs() -> impl IntoView {
                                     "AFTER (new_state)"
                                 </div>
                                 <pre class="bg-surface-container-highest p-4 rounded-xl border border-outline-variant/20 overflow-x-auto text-[#98c379] min-h-[200px] shadow-inner text-xs">
-                                    {move || format_json(&selected_log.get().map(|l| l.new_state).unwrap_or_default())}
+                                    {move || format_json_diff(&selected_log.get().map(|l| l.new_state).unwrap_or_default())}
                                 </pre>
                             </div>
                         </div>

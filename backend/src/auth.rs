@@ -7,7 +7,7 @@ use crate::entities::user;
 use std::env;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,           // User ID
     pub is_admin: bool,        // Admin flag

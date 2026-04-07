@@ -12,3 +12,6 @@ pub mod tenant_settings_tests;
 pub mod billing_tests;
 pub mod magic_link_tests;
 pub mod telemetry_tests;
+pub mod audit_tests;
+pub mod webhook_tests;
+pub mod search_tests;

@@ -111,7 +111,7 @@ impl TelemetryService {
                         platform_metrics_daily::Column::MetricSource,
                         platform_metrics_daily::Column::MetricKey,
                     ])
-                    .update_expr(
+                    .value(
                         platform_metrics_daily::Column::MetricValue,
                         sea_orm::sea_query::Expr::col(platform_metrics_daily::Column::MetricValue)
                             .add(sea_orm::sea_query::Expr::cust("EXCLUDED.metric_value"))
