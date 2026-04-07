@@ -19,7 +19,7 @@ pub async fn get_networks() -> Result<Vec<PlatformAppModel>, String> {
     Err("Network Error: Backend unreachable".into())
 }
 
-pub async fn create_network(data: CreateNetwork) -> Result<PlatformAppModel, String> {
+pub async fn create_network(_data: CreateNetwork) -> Result<PlatformAppModel, String> {
     // Note: Creating a unified app requires hitting /api/app-instances and /api/tenants usually.
     // For now we map it to fallback since a pure POST to /api/admin/networks doesn't exist anymore anyway.
     Err("Unified App creation not fully implemented backend-side.".into())

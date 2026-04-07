@@ -2,7 +2,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use leptos::prelude::*;
+
 
 use crate::api::client::{api_url, create_client, with_credentials};
 

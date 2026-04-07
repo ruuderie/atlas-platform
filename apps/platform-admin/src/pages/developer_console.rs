@@ -155,7 +155,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                     <h2 class="text-lg font-semibold text-on-surface">"API Keys"</h2>
                                     <p class="text-sm text-on-surface-variant">"Keys provide blanket access to your tenant data."</p>
                                 </div>
-                                <button on:click=move |_| create_key_action.dispatch(()) class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 transition-all">
+                                <button on:click=move |_| { create_key_action.dispatch(()); } class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 transition-all">
                                     "Generate Root Key"
                                 </button>
                             </div>
@@ -192,7 +192,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                         </div>
                                                                         <div class="text-xs text-on-surface-variant mt-1 font-mono">"Hash: " {key.token_hash.chars().take(15).collect::<String>()} "..."</div>
                                                                     </div>
-                                                                    <button on:click=move |_| revoke_token_action.dispatch(kid) class="text-error hover:text-error-container text-sm font-medium transition-colors">
+                                                                    <button on:click=move |_| { revoke_token_action.dispatch(kid); } class="text-error hover:text-error-container text-sm font-medium transition-colors">
                                                                         "Revoke"
                                                                     </button>
                                                                 </li>
@@ -247,7 +247,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                 <li class="px-4 py-4 sm:px-6 flex flex-col gap-2 hover:bg-surface-bright/5">
                                                                     <div class="flex justify-between items-start">
                                                                         <div class="font-medium text-on-surface break-all pr-4">{hook.target_url}</div>
-                                                                        <button on:click=move |_| delete_webhook_action.dispatch(hid) class="text-error hover:text-error-container font-medium shrink-0">"Delete"</button>
+                                                                        <button on:click=move |_| { delete_webhook_action.dispatch(hid); } class="text-error hover:text-error-container font-medium shrink-0">"Delete"</button>
                                                                     </div>
                                                                     <div class="flex justify-between items-center">
                                                                         <div class="text-xs text-on-surface-variant font-mono bg-surface-container-highest px-2 py-1 rounded">"Secret: " {hook.secret_key}</div>

@@ -12,14 +12,14 @@ pub fn BillingDashboard() -> impl IntoView {
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- MRR Card -->
+                {/* MRR Card */}
                 <div class="glass-panel p-6 rounded-2xl border border-outline-variant/30 flex flex-col gap-4">
                     <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-widest">"Global MRR"</h3>
                     <div class="text-4xl font-bold text-primary">"$24,500.00"</div>
                     <div class="text-xs text-primary-fixed">"+12% from last month"</div>
                 </div>
 
-                <!-- Crypto vs Fiat Card -->
+                {/* Crypto vs Fiat Card */}
                 <div class="glass-panel p-6 rounded-2xl border border-outline-variant/30 flex flex-col gap-4">
                     <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-widest">"Volume Breakdown"</h3>
                     <div class="flex gap-4">
@@ -34,7 +34,7 @@ pub fn BillingDashboard() -> impl IntoView {
                     </div>
                 </div>
 
-                <!-- Churn Metrics -->
+                {/* Churn Metrics */}
                 <div class="glass-panel p-6 rounded-2xl border border-outline-variant/30 flex flex-col gap-4">
                     <h3 class="text-sm font-semibold text-on-surface-variant uppercase tracking-widest">"Network Churn"</h3>
                     <div class="text-4xl font-bold text-error">"1.2%"</div>
@@ -42,7 +42,7 @@ pub fn BillingDashboard() -> impl IntoView {
                 </div>
             </div>
 
-            <!-- Gateway Toggles -->
+            {/* Gateway Toggles */}
             <div class="glass-panel rounded-2xl border border-outline-variant/30 overflow-hidden mt-4">
                 <div class="bg-surface-container-high px-6 py-4 border-b border-outline-variant/30 flex justify-between items-center">
                     <h3 class="font-bold text-on-surface">"Payment Gateways"</h3>
@@ -78,7 +78,7 @@ pub fn BillingDashboard() -> impl IntoView {
                 </div>
             </div>
 
-            <!-- Global Transaction Ledger (Stub) -->
+            {/* Global Transaction Ledger (Stub) */}
             <div class="glass-panel rounded-2xl border border-outline-variant/30 overflow-hidden mt-4">
                 <div class="bg-surface-container-high px-6 py-4 border-b border-outline-variant/30">
                     <h3 class="font-bold text-on-surface">"Recent Transactions"</h3>

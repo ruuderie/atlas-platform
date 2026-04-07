@@ -102,3 +102,9 @@ pub struct ApiErrorResponse {
     pub error: Option<String>,
 }
 
+pub async fn api_get<T: serde::de::DeserializeOwned>(path: &str) -> Result<T, String> {
+    let client = create_client();
+    let url = api_url(path);
+    let req = client.get(&url);
+    api_request(req).await
+}
