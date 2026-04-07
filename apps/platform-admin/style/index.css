@@ -98,3 +98,25 @@ input, textarea, select, option {
 ::selection {
   background: rgba(123, 208, 255, 0.3);
 }
+
+/* ── Premium SVG Chart Animations ── */
+@keyframes draw-path {
+  0% {
+    stroke-dashoffset: 2000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+path {
+  stroke-dasharray: 2000;
+  stroke-dashoffset: 2000;
+  animation: draw-path 2s ease-out forwards;
+}
+
+/* ── Dashboard Glass Enhancements ── */
+.premium-gradient-layer {
+  background: radial-gradient(circle at top right, rgba(123, 208, 255, 0.15), transparent 40%),
+              radial-gradient(circle at bottom left, rgba(0, 76, 105, 0.2), transparent 40%);
+}

@@ -96,10 +96,21 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/admin/statistics/ad-purchases", get(admin::get_ad_purchase_statistics))
                 .route("/admin/reports/activity", get(admin::get_activity_report))
                 .route("/admin/reports/revenue", get(admin::get_revenue_report))
+                // Analytics
+                .route("/api/admin/analytics/business_kpis", get(crate::admin::analytics::get_business_kpis))
+                .route("/api/admin/analytics/engagement", get(crate::admin::analytics::get_engagement))
+                .route("/api/admin/analytics/trends", get(crate::admin::analytics::get_trends))
+                
                 // Billing & Monetization
                 .route("/api/admin/billing/plans", get(crate::admin::billing::list_billing_plans))
                 .route("/api/admin/billing/transactions", get(crate::admin::billing::list_transactions))
                 .route("/api/admin/billing/tenant/{tenant_id}", get(crate::admin::billing::get_tenant_ledger))
+                // Developer Console
+                .route("/api/admin/developer/tenant/{tenant_id}/api-tokens", get(crate::admin::developer_console::list_api_tokens).post(crate::admin::developer_console::create_api_token))
+                .route("/api/admin/developer/tenant/{tenant_id}/api-tokens/{token_id}", delete(crate::admin::developer_console::revoke_api_token))
+                .route("/api/admin/developer/tenant/{tenant_id}/webhooks", get(crate::admin::developer_console::list_webhook_endpoints).post(crate::admin::developer_console::create_webhook_endpoint))
+                .route("/api/admin/developer/tenant/{tenant_id}/webhooks/{endpoint_id}", delete(crate::admin::developer_console::delete_webhook_endpoint))
+                .route("/api/admin/developer/tenant/{tenant_id}/webhook-deliveries", get(crate::admin::developer_console::list_webhook_deliveries))
                 //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
                 .with_state(db)
         })

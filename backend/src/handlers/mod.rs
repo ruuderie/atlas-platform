@@ -36,3 +36,4 @@ pub mod communications;
 pub mod setup;
 pub mod magic_links;
 pub mod search;
+pub mod telemetry;

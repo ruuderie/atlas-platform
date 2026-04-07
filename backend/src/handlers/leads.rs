@@ -315,7 +315,7 @@ pub async fn ingest_lead(
                 
             match account_res {
                 Ok(Some(acct)) => {
-                    let _ = crate::services::billing::charge_for_lead(&db_clone, acct_id, l_id, acct.stripe_customer_id).await;
+                    let _ = crate::services::lead_billing::charge_for_lead(&db_clone, acct_id, l_id, acct.stripe_customer_id).await;
                 }
                 _ => tracing::warn!("Account not found for billing for lead {}", l_id),
             }

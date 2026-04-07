@@ -83,7 +83,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(tenant::authenticated_routes(db.clone()))
         .merge(app_instance::authenticated_routes(db.clone()))
         .merge(communications::authenticated_routes(db.clone()))
-        .merge(search::authenticated_routes());
+        .merge(search::authenticated_routes())
+        .merge(crate::handlers::telemetry::authenticated_routes());
 
     // Combine all routes and apply state at the top level
     Router::new()

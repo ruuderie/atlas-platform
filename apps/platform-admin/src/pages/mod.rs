@@ -13,6 +13,7 @@ pub mod crm_create;
 pub mod setup;
 pub mod platform_admins;
 pub mod magic_login;
+pub mod developer_console;
 
 // Domain folders
 pub mod network;

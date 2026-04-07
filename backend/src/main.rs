@@ -137,6 +137,21 @@ async fn main() {
 
     tracing::info!("Successfully connected to the database and ran migrations");
 
+    let telemetry_db = conn.clone();
+    tokio::spawn(async move {
+        // Run every hour
+        let mut interval = tokio::time::interval(Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            if let Err(e) = crate::services::telemetry::TelemetryService::process_daily_metrics(&telemetry_db).await {
+                tracing::error!("Background telemetry processing failed: {}", e);
+            }
+        }
+    });
+
+    let webhook_db = conn.clone();
+    crate::services::webhook::start_webhook_sweeper(webhook_db).await;
+
     let network_client = std::env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:5001".to_string());
     let admin_client = std::env::var("ADMIN_URL").unwrap_or_else(|_| "http://localhost:5002".to_string());
     tracing::info!("Network URL: {}", network_client);

@@ -44,3 +44,12 @@ pub mod global_search_index;
 pub mod billing_plan;
 pub mod tenant_subscription;
 pub mod transaction;
+
+// TELEMETRY & ANALYTICS
+pub mod telemetry_events;
+pub mod platform_metrics_daily;
+
+// DEVELOPER CONSOLE
+pub mod api_token;
+pub mod webhook_endpoint;
+pub mod webhook_delivery;
