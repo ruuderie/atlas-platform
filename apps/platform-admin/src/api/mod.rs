@@ -15,3 +15,4 @@ pub mod admin;
 pub mod search;
 pub mod analytics;
 pub mod developer;
+pub mod audit_logs;

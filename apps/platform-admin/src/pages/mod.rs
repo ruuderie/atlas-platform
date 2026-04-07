@@ -14,6 +14,7 @@ pub mod setup;
 pub mod platform_admins;
 pub mod magic_login;
 pub mod developer_console;
+pub mod audit_logs;
 
 // Domain folders
 pub mod network;

@@ -33,6 +33,7 @@ pub mod attachment;
 pub mod passkey;
 pub mod magic_link_token;
 pub mod tenant_setting;
+pub mod audit_log;
 // MULTI-TENANT ARCHITECTURE
 pub mod app_instance;
 pub mod app_domain;

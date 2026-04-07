@@ -320,26 +320,16 @@ pub async fn update_user_email(
     Extension(current_user): Extension<user::Model>,
     Json(payload): Json<UpdateEmailRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Check if new email already exists
-    let existing_user = User::find()
-        .filter(user::Column::Email.eq(&payload.new_email))
-        .one(&db)
-        .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string()))?;
-
-    if existing_user.is_some() {
-        return Err((StatusCode::CONFLICT, "Email already in use".to_string()));
+    match crate::services::user_service::UserService::update_email(&db, current_user, payload.new_email).await {
+        Ok(_) => Ok((StatusCode::OK, Json(json!({"message": "Email updated successfully"})))),
+        Err(e) => {
+            if e == "Email already in use" {
+                Err((StatusCode::CONFLICT, e))
+            } else {
+                Err((StatusCode::INTERNAL_SERVER_ERROR, e))
+            }
+        }
     }
-
-    let mut user_active: user::ActiveModel = current_user.into();
-    user_active.email = Set(payload.new_email);
-    user_active.updated_at = Set(Utc::now());
-
-    user_active.update(&db).await.map_err(|_| {
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update email".to_string())
-    })?;
-
-    Ok((StatusCode::OK, Json(json!({"message": "Email updated successfully"}))))
 }
 
 pub async fn update_user_password(
@@ -354,17 +344,8 @@ pub async fn update_user_password(
         Err(_) => return Err((StatusCode::INTERNAL_SERVER_ERROR, "Error verifying password".to_string())),
     }
 
-    // Hash new password
-    let hashed_password = hash_password(&payload.new_password)
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error hashing new password".to_string()))?;
-
-    let mut user_active: user::ActiveModel = current_user.into();
-    user_active.password_hash = Set(hashed_password);
-    user_active.updated_at = Set(Utc::now());
-
-    user_active.update(&db).await.map_err(|_| {
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update password".to_string())
-    })?;
-
-    Ok((StatusCode::OK, Json(json!({"message": "Password updated successfully"}))))
+    match crate::services::user_service::UserService::update_password(&db, current_user, payload.new_password).await {
+        Ok(_) => Ok((StatusCode::OK, Json(json!({"message": "Password updated successfully"})))),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
+    }
 }

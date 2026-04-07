@@ -40,40 +40,19 @@ pub async fn request_magic_link(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     tracing::info!("Received magic link request for email: {}", req.email);
 
-    let user = user::Entity::find()
-        .filter(user::Column::Email.eq(&req.email))
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Database error" })))
-        })?;
-
-    let user = match user {
-        Some(u) => u,
-        None => {
-            // Silently succeed to prevent email enumeration
-            return Ok((StatusCode::OK, Json(json!({ "message": "If the email is registered, a magic link has been sent." }))));
+    let new_token_record = match crate::services::auth_service::AuthService::create_magic_link(&db, &req.email).await {
+        Ok(t) => t,
+        Err((status, message)) => {
+            if status == StatusCode::NOT_FOUND {
+                // Silently succeed to prevent enumeration
+                return Ok((StatusCode::OK, Json(json!({ "message": "If the email is registered, a magic link has been sent." }))));
+            } else {
+                return Err((status, Json(json!({ "message": message }))));
+            }
         }
     };
-
-    // Generate token
-    let token = Uuid::new_v4().to_string();
-    let expires_at = Utc::now() + Duration::minutes(15);
-
-    let new_token = magic_link_token::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        user_id: Set(user.id),
-        token: Set(token.clone()),
-        expires_at: Set(expires_at),
-        is_used: Set(false),
-        created_at: Set(Utc::now()),
-    };
-
-    new_token.insert(&db).await.map_err(|e| {
-        tracing::error!("Failed to create token: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Failed to generate magic link" })))
-    })?;
+    
+    let token = new_token_record.token;
 
     // Prepare Email
     let smtp_server = env::var("SMTP_SERVER").unwrap_or_default();
@@ -135,41 +114,9 @@ pub async fn verify_magic_link(
     State(db): State<DatabaseConnection>,
     Json(req): Json<MagicLinkVerifyRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let token_record = magic_link_token::Entity::find()
-        .filter(magic_link_token::Column::Token.eq(&req.token))
-        .filter(magic_link_token::Column::IsUsed.eq(false))
-        .one(&db)
+    let user_record = crate::services::auth_service::AuthService::verify_magic_link(&db, &req.token)
         .await
-        .map_err(|e| {
-            tracing::error!("Database error: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Database query error" })))
-        })?;
-
-    let token_record = match token_record {
-        Some(t) => t,
-        None => return Err((StatusCode::BAD_REQUEST, Json(json!({ "message": "Invalid or expired magic link" })))),
-    };
-
-    if token_record.expires_at < Utc::now() {
-        return Err((StatusCode::BAD_REQUEST, Json(json!({ "message": "Magic link has expired" }))));
-    }
-
-    let user_record = user::Entity::find_by_id(token_record.user_id)
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error: {:?}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "User query error" })))
-        })?
-        .ok_or((StatusCode::NOT_FOUND, Json(json!({ "message": "User not found" }))))?;
-
-    // Mark token as used
-    let mut updated_token: magic_link_token::ActiveModel = token_record.into();
-    updated_token.is_used = Set(true);
-    updated_token.update(&db).await.map_err(|e| {
-        tracing::error!("Failed to update token: {:?}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Failed to consume token" })))
-    })?;
+        .map_err(|(status, msg)| (status, Json(json!({ "message": msg }))))?;
 
     // Create session (this also naturally serves as the verification step completion loop)
     let session_response = create_passwordless_session(&db, &user_record.email)

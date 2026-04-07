@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 use anyhow::{Result, Context};
 use crate::entities::{self, tenant as network};
+use crate::services::audit::AuditService;
 
 pub struct NetworkService;
 
@@ -70,6 +71,25 @@ impl NetworkService {
         let updated_network = network.update(db)
             .await
             .context("Failed to update network")?;
+        
+        let old_state = serde_json::json!({
+            "name": config.name,
+            "domain": config.domain,
+            "enabled_modules": config.enabled_modules.bits() as i32
+        }); // Simplified old state
+        
+        // Dispatch background audit logging
+        AuditService::log_action(
+            db.clone(),
+            Some(tenant_id),
+            None, // Might need to pass actor_id
+            "network.config.updated".to_string(),
+            "Tenant".to_string(),
+            tenant_id,
+            Some(old_state),
+            Some(serde_json::to_value(&updated_network).unwrap_or_default()),
+            None,
+        );
         
         // Return the updated config
         Self::get_network_config(db, tenant_id).await
@@ -313,10 +333,24 @@ impl NetworkService {
         }
         active_network.updated_at = sea_orm::Set(chrono::Utc::now());
 
+        let old_state = serde_json::to_value(&network).unwrap_or_default();
+
         let updated_network = active_network
             .update(db)
             .await
             .context("Failed to update network")?;
+
+        AuditService::log_action(
+            db.clone(),
+            Some(tenant_id),
+            None, // Ideally pass actor_id
+            "network.updated".to_string(),
+            "Tenant".to_string(),
+            tenant_id,
+            Some(old_state),
+            Some(serde_json::to_value(&updated_network).unwrap_or_default()),
+            None,
+        );
 
         Ok(updated_network)
     }

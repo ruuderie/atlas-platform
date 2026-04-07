@@ -310,6 +310,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant_ledger::TenantLedger />
                         <Route path=path!("/developer") view=crate::pages::developer_console::DeveloperConsole />
                         <Route path=path!("/settings") view=crate::pages::settings::Settings />
+                        <Route path=path!("/logs") view=crate::pages::audit_logs::AuditLogs />
                     </Routes>
                 </main>
             </div>
