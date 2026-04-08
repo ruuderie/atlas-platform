@@ -154,12 +154,11 @@ pub async fn login_finish(
     let _auth_result = state.webauthn.finish_passkey_authentication(&req.response, &auth_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
-    let token = generate_jwt(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let session_response = crate::handlers::sessions::create_session_for_user(&db, &user)
+        .await
+        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create session".to_string()))?;
 
     state.auth_state.invalidate(&user.id).await;
 
-    Ok(Json(serde_json::json!({
-        "token": token,
-        "user": user,
-    })))
+    Ok(Json(serde_json::json!(session_response)))
 }
