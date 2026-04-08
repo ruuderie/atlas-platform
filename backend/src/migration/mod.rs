@@ -1,8 +1,8 @@
 use sea_orm_migration::prelude::*;
 
-pub mod m20230912_create_users_table;
+pub mod m20230912_000000_create_users_table;
 pub mod m20230911_create_accounts_table;
-pub mod m20230912_create_user_accounts_table;
+pub mod m20230912_000001_create_user_accounts_table;
 pub mod m20230913_create_directory_types_table;
 pub mod m20230914_create_directories_table;
 pub mod m20230915_create_profiles_table;
@@ -52,8 +52,8 @@ impl MigratorTrait for Migrator {
         let mut base: Vec<Box<dyn MigrationTrait>> = vec![
             Box::new(m20230911_create_accounts_table::Migration),
             Box::new(m20230911_create_sessions_table::Migration),
-            Box::new(m20230912_create_users_table::Migration),
-            Box::new(m20230912_create_user_accounts_table::Migration),
+            Box::new(m20230912_000000_create_users_table::Migration),
+            Box::new(m20230912_000001_create_user_accounts_table::Migration),
             
             Box::new(m20240922_create_request_log_table::Migration),
             Box::new(m20240923_create_feed_tables::Migration),
@@ -75,13 +75,11 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
         ];
 
-        let mut app_migrations: Vec<Box<dyn MigrationTrait>> = vec![];
         for app in crate::atlas_apps::get_active_apps() {
-            app_migrations.extend(app.migrations());
+            base.extend(app.migrations());
         }
 
-        app_migrations.sort_by(|a, b| a.name().cmp(b.name()));
-        base.extend(app_migrations);
+        base.sort_by(|a, b| a.name().cmp(b.name()));
 
         base
     }
