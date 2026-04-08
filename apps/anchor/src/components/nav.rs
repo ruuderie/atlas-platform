@@ -246,7 +246,7 @@ pub fn Nav() -> impl IntoView {
         <>
         <nav class="fixed top-0 left-0 w-full flex justify-between items-center px-4 md:px-[8.5rem] py-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[20px] z-[60]">
             <A href="/" class="text-xl font-bold font-mono text-cyan-800 dark:text-cyan-400 truncate relative z-[70]">
-                <Suspense fallback=move || view! { <span>"Build With Ruud"</span> }>
+                <Suspense fallback=move || view! { <span>"Portfolio"</span> }>
                     {move || settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or(crate::pages::landing::SiteSettings::default()).site_title}
                 </Suspense>
             </A>

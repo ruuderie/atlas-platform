@@ -3,6 +3,7 @@ use leptos::*;
 use crate::pages::services::HighlightsGallery;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct SiteSettings {
     pub current_focus: String,
     pub status: String,
@@ -35,19 +36,19 @@ pub struct SiteSettings {
 impl Default for SiteSettings {
     fn default() -> Self {
         Self {
-            current_focus: "AI Agent Swarms (Agentforce / CrewAI)".into(),
-            status: "Available for Critical Ops".into(),
-            hero_quote: "Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.".into(),
-            hero_subtitle: "SALESFORCE TECHNICAL ARCHITECT // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, LWC, APEX, AND RUST EXTERNAL MICROSERVICES.".into(),
-            site_title: "ANCHOR".into(),
-            lc_title: "Request Tailored CV".into(),
-            lc_desc: "Input your protocol for a mission-specific credentials package.".into(),
-            lc_label: "Registry Email Address".into(),
-            lc_placeholder: "user@organization.domain".into(),
-            lc_btn: "Initialize Retrieval".into(),
-            lc_footer: "* Check your email to confirm the request parameters.".into(),
-            lc_endpoint: "/api/DownloadResume".into(),
-            status_color: "#ff5449".into(),
+            current_focus: "Commercial Real Estate & Bridge Loans".into(),
+            status: "Funding Available".into(),
+            hero_quote: "Direct non-bank financing for real estate investors. Fast closings and flexible terms.".into(),
+            hero_subtitle: "DIRECT LENDER // SPECIALIZING IN COMMERCIAL REAL ESTATE, RENTAL PORTFOLIOS, AND FIX-AND-FLIP FINANCING.".into(),
+            site_title: "COMMERCIAL CAPITAL".into(),
+            lc_title: "Get Funded".into(),
+            lc_desc: "Submit your basic loan scenario for a rapid term sheet.".into(),
+            lc_label: "Borrower Email Address".into(),
+            lc_placeholder: "investor@example.com".into(),
+            lc_btn: "Request Term Sheet".into(),
+            lc_footer: "* We will review your scenario within 24 hours.".into(),
+            lc_endpoint: "/api/contact".into(),
+            status_color: "#10b981".into(),
             webhook_url: "".into(),
             admin_email: "".into(),
             google_analytics_id: "".into(),
@@ -58,8 +59,8 @@ impl Default for SiteSettings {
             x_url: "".into(),
             linkedin_url: "".into(),
             b2b_enabled: true,
-            meta_title: "Ruud Salym Erie - Technical Architect".into(),
-            meta_description: "Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".into(),
+            meta_title: "Commercial Capital - Direct Lending".into(),
+            meta_description: "Non-bank direct lender providing bridge loans, commercial real estate financing, and hard money lending packages.".into(),
             og_image: "".into(),
         }
     }
@@ -315,10 +316,12 @@ pub fn Landing() -> impl IntoView {
             <section class="w-full grid grid-cols-1 md:grid-cols-12 gap-12 min-h-[716px] items-start px-4 md:px-[8.5rem]">
                 <div class="w-full md:col-span-12 lg:col-span-8 flex flex-col items-start">
                     <div class="inline-block bg-surface-container-high px-3 py-1 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant mb-8 uppercase">
-                        "RUST SYSTEMS ENGINEER // BITCOIN ENTHUSIAST"
+                        "WELCOME TO THE PLATFORM"
                     </div>
-                    <h1 class="text-5xl sm:text-6xl md:text-[6rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-12 uppercase">
-                        "Ruud Salym"<br/>"Erie."
+                    <h1 class="text-5xl sm:text-6xl md:text-[6rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-12 uppercase break-words">
+                        <Suspense fallback=move || view! { <span>"..."</span> }>
+                            {move || settings_resource.get().unwrap_or(Ok(SiteSettings::default())).unwrap_or(SiteSettings::default()).site_title}
+                        </Suspense>
                     </h1>
                     <p class="text-lg sm:text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant max-w-2xl leading-relaxed uppercase">
                         <Suspense fallback=move || view! { <span>"..."</span> }>
