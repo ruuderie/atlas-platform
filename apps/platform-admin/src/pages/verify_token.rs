@@ -17,12 +17,13 @@ pub fn VerifyToken() -> impl IntoView {
             let toast_clone = toast.clone();
             leptos::task::spawn_local(async move {
                 let verify_url = crate::api::client::api_url("/api/auth/magic-link/verify");
-                match crate::api::client::api_request::<serde_json::Value>(
+                match crate::api::client::api_request::<crate::api::models::SessionResponse>(
                     reqwest::Client::new().post(&verify_url).json(&serde_json::json!({ "token": active_token }))
                 ).await {
-                    Ok(res) => {
+                    Ok(session_res) => {
                         // The user is successfully authenticated and old passkeys are deleted.
                         // Force a refresh of the session globally.
+                        crate::api::client::set_auth_token(&session_res.token);
                         if let Ok(user) = crate::api::auth::validate_session().await {
                             set_user.set(Some(user));
                             toast_clone.message.set(Some("Token consumed! Please register a new Passkey immediately.".to_string()));
