@@ -42,6 +42,7 @@ pub mod m20260408_000000_create_audit_logs;
 pub mod m20260408_000000_fix_tenant_app_alignments;
 pub mod m20260408_000001_fix_uat_app_domains;
 pub mod m20260408_000002_create_anchor_legacy_tables;
+pub mod m20260408_000003_seed_anchor_background_jobs;
 
 pub struct Migrator;
 
@@ -92,6 +93,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000000_fix_tenant_app_alignments::Migration),
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
             Box::new(m20260408_000002_create_anchor_legacy_tables::Migration),
+            Box::new(m20260408_000003_seed_anchor_background_jobs::Migration),
         ]
     }
 }
