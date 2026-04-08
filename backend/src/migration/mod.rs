@@ -75,11 +75,13 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
         ];
 
+        let mut app_migrations: Vec<Box<dyn MigrationTrait>> = vec![];
         for app in crate::atlas_apps::get_active_apps() {
-            base.extend(app.migrations());
+            app_migrations.extend(app.migrations());
         }
 
-        base.sort_by(|a, b| a.name().cmp(b.name()));
+        app_migrations.sort_by(|a, b| a.name().cmp(b.name()));
+        base.extend(app_migrations);
 
         base
     }
