@@ -38,26 +38,21 @@ impl AtlasApp for NetworkInstanceApp {
 
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
         // Collect ONLY the domain schemas for the Network / Listing / CRM modules as best practice.
+        // Note: Legacy Directory migrations have been extracted to the Core Base Migrator since Directory was converted to a Core Tenant Architecture.
         vec![
-            Box::new(crate::migration::m20230913_create_directory_types_table::Migration),
-            Box::new(crate::migration::m20230914_create_directories_table::Migration),
             Box::new(crate::migration::m20230915_create_profiles_table::Migration),
             Box::new(crate::migration::m20230916_create_categories_table::Migration),
             Box::new(crate::migration::m20230917_create_templates_table::Migration),
             Box::new(crate::migration::m20230918_create_listings_table::Migration),
             Box::new(crate::migration::m20230919_create_listing_attributes_table::Migration),
             Box::new(crate::migration::m20230920_create_ad_purchases_table::Migration),
-            Box::new(crate::migration::m20240315_add_directory_domain_fields::Migration),
             Box::new(crate::migration::m20240922_create_crm_tables::Migration),
-            Box::new(crate::migration::m20240924_update_directory_multisite_fields::Migration),
             Box::new(crate::migration::m20240924_update_listings_nullable_category::Migration),
             Box::new(crate::migration::m20241001_add_icon_and_slug_to_categories::Migration),
-            Box::new(crate::migration::m20241002_add_directory_id_to_crm_and_categories::Migration),
             Box::new(crate::migration::m20241003_add_slug_to_listings::Migration),
             Box::new(crate::migration::m20260324_000001_collapse_eav_to_jsonb::Migration),
             Box::new(crate::migration::m20260326_add_service_area_to_profile::Migration),
             Box::new(crate::migration::m20260326_create_lead_charges_table::Migration),
-            Box::new(crate::migration::m20260405_000001_rename_directory_to_network::Migration),
         ]
     }
 
