@@ -54,3 +54,8 @@ pub mod platform_metrics_daily;
 pub mod api_token;
 pub mod webhook_endpoint;
 pub mod webhook_delivery;
+
+// ANCHOR APP LEGACY
+pub mod page_view;
+pub mod bitcoin_block;
+pub mod tenant_background_job;

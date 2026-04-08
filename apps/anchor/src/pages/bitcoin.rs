@@ -19,13 +19,18 @@ pub async fn get_bitcoin_blocks(limit: i64) -> Result<Vec<BitcoinBlockRecord>, S
     use sqlx::Row;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    
+    let tenant_id = tenant.0.unwrap_or_default();
 
     let rows = sqlx::query(
         "SELECT id, height, timestamp, tx_count, size, weight, difficulty 
          FROM bitcoin_blocks 
+         WHERE tenant_id = $1
          ORDER BY height DESC 
-         LIMIT $1",
+         LIMIT $2",
     )
+    .bind(tenant_id)
     .bind(limit)
     .fetch_all(&state.pool)
     .await?;

@@ -5,103 +5,25 @@ use std::time::Duration;
 #[server(GetBlockHeight, "/api")]
 pub async fn get_block_height() -> Result<u64, ServerFnError> {
     use axum::Extension;
-    use chrono::Utc;
     use leptos_axum::extract;
+    use sqlx::Row;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
 
-    use sqlx::Row;
     let latest_db = sqlx::query(
-        "SELECT height, timestamp, fetched_at FROM bitcoin_blocks ORDER BY height DESC LIMIT 1",
+        "SELECT height FROM bitcoin_blocks WHERE tenant_id = $1 ORDER BY height DESC LIMIT 1",
     )
+    .bind(tenant_id)
     .fetch_optional(&state.pool)
     .await?;
 
-    let mut needs_fetch = true;
-    let mut current_height = 0;
-
     if let Some(row) = latest_db {
-        current_height = row.get::<i64, _>("height");
-        let block_timestamp = row.get::<i64, _>("timestamp");
-        let fetched_at = row.get::<chrono::DateTime<Utc>, _>("fetched_at");
-        let now = Utc::now();
-
-        let time_since_fetch = now.signed_duration_since(fetched_at).num_seconds();
-        let time_since_block = now.timestamp() - block_timestamp;
-
-        // Skip fetching if either:
-        // 1. We just fetched within the last 60 seconds (prevents hammering API)
-        // 2. OR the block was mined less than 10 mins (600s) ago
-        if time_since_fetch < 60 || time_since_block < 600 {
-            needs_fetch = false;
-        }
+        Ok(row.get::<i64, _>("height") as u64)
+    } else {
+        Ok(0)
     }
-
-    if needs_fetch {
-        let url = "https://mempool.space/api/blocks";
-        let res = reqwest::get(url).await?;
-        let blocks: Vec<serde_json::Value> = res.json().await?;
-
-        if let Some(latest) = blocks.first() {
-            current_height = latest["height"].as_i64().unwrap_or(0);
-        }
-
-        for block in blocks {
-            let id = block["id"].as_str().unwrap_or_default().to_string();
-            let height = block["height"].as_i64().unwrap_or(0);
-            let version = block["version"].as_i64().unwrap_or(0);
-            let timestamp = block["timestamp"].as_i64().unwrap_or(0);
-            let tx_count = block["tx_count"].as_i64().unwrap_or(0) as i32;
-            let size = block["size"].as_i64().unwrap_or(0) as i32;
-            let weight = block["weight"].as_i64().unwrap_or(0) as i32;
-            let merkle_root = block["merkle_root"]
-                .as_str()
-                .unwrap_or_default()
-                .to_string();
-            let previousblockhash = block["previousblockhash"]
-                .as_str()
-                .unwrap_or_default()
-                .to_string();
-            let mediantime = block["mediantime"].as_i64().unwrap_or(0);
-            let nonce = block["nonce"].as_i64().unwrap_or(0);
-            let bits = block["bits"].as_i64().unwrap_or(0);
-            let difficulty = block["difficulty"].as_f64().unwrap_or(0.0);
-
-            let _ = sqlx::query(
-                r#"
-                INSERT INTO bitcoin_blocks (id, height, version, timestamp, tx_count, size, weight, merkle_root, previousblockhash, mediantime, nonce, bits, difficulty)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                ON CONFLICT (id) DO NOTHING
-                "#)
-                .bind(id)
-                .bind(height)
-                .bind(version)
-                .bind(timestamp)
-                .bind(tx_count)
-                .bind(size)
-                .bind(weight)
-                .bind(merkle_root)
-                .bind(previousblockhash)
-                .bind(mediantime)
-                .bind(nonce)
-                .bind(bits)
-                .bind(difficulty)
-                .execute(&state.pool)
-                .await;
-        }
-
-        let _ = sqlx::query(
-            "DELETE FROM bitcoin_blocks WHERE fetched_at < NOW() - INTERVAL '24 hours'",
-        )
-        .execute(&state.pool)
-        .await;
-
-        let _ = sqlx::query("INSERT INTO api_requests_log (endpoint) VALUES ('mempool_api')")
-            .execute(&state.pool)
-            .await;
-    }
-
-    Ok(current_height as u64)
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -119,8 +41,11 @@ pub async fn get_bitcoin_stats() -> Result<BitcoinStats, ServerFnError> {
     use sqlx::Row;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
 
-    let row = sqlx::query("SELECT difficulty, tx_count, size, weight FROM bitcoin_blocks ORDER BY height DESC LIMIT 1")
+    let row = sqlx::query("SELECT difficulty, tx_count, size, weight FROM bitcoin_blocks WHERE tenant_id = $1 ORDER BY height DESC LIMIT 1")
+        .bind(tenant_id)
         .fetch_optional(&state.pool)
         .await?;
 
@@ -158,10 +83,12 @@ pub async fn get_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
     use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
     
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
-        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id)).await {
+        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await {
             return Ok(menus);
         }
     }
@@ -180,10 +107,12 @@ pub async fn get_all_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
-        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id)).await {
+        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await {
             return Ok(menus);
         }
     }

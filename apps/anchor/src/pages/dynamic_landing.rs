@@ -23,6 +23,8 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
     use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
 
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/pages/{}/{}", tenant_id, slug);
@@ -35,7 +37,7 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
             blocks_payload: Option<serde_json::Value>,
         }
         
-        if let Ok(page) = fetch_atlas_data::<AppPageResp>(&endpoint, Some(tenant_id)).await {
+        if let Ok(page) = fetch_atlas_data::<AppPageResp>(&endpoint, Some(tenant_id), host).await {
             let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
             let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
             
@@ -64,6 +66,8 @@ pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnE
     use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
 
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/pages/{}", tenant_id);
@@ -77,7 +81,7 @@ pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnE
             blocks_payload: Option<serde_json::Value>,
         }
         
-        if let Ok(pages) = fetch_atlas_data::<Vec<AppPageResp>>(&endpoint, Some(tenant_id)).await {
+        if let Ok(pages) = fetch_atlas_data::<Vec<AppPageResp>>(&endpoint, Some(tenant_id), host).await {
             let mapped = pages.into_iter().map(|page| {
                 let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
                 let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));

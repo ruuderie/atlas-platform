@@ -10,3 +10,4 @@ pub mod audit;
 pub mod user_service;
 pub mod auth_service;
 pub mod billing_service;
+pub mod data_sync;

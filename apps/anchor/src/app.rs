@@ -59,7 +59,12 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
     }
     cache.insert(cache_key, true).await;
 
-    let _ = sqlx::query("INSERT INTO page_views (path, user_agent) VALUES ($1, $2)")
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
+
+    let _ = sqlx::query("INSERT INTO page_views (id, tenant_id, path, user_agent) VALUES ($1, $2, $3, $4)")
+        .bind(uuid::Uuid::new_v4())
+        .bind(tenant_id)
         .bind(path)
         .bind(user_agent)
         .execute(&state.pool)

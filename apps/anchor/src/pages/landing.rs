@@ -74,6 +74,8 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
     use serde_json::Value;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
 
     let mut settings = SiteSettings::default();
 
@@ -85,7 +87,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             settings: Option<Value>,
         }
         
-        if let Ok(res) = fetch_atlas_data::<AppInstanceResponse>(&endpoint, Some(tenant_id)).await {
+        if let Ok(res) = fetch_atlas_data::<AppInstanceResponse>(&endpoint, Some(tenant_id), host).await {
             if let Some(json_settings) = res.settings {
                 if let Ok(parsed) = serde_json::from_value::<SiteSettings>(json_settings) {
                     settings = parsed;

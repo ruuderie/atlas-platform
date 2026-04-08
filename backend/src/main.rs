@@ -137,6 +137,10 @@ async fn main() {
 
     tracing::info!("Successfully connected to the database and ran migrations");
 
+
+
+    let sync_db = conn.clone();
+    crate::services::data_sync::DataSyncService::start_worker(sync_db).await;
     let telemetry_db = conn.clone();
     tokio::spawn(async move {
         // Run every hour
