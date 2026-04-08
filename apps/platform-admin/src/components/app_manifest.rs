@@ -31,9 +31,10 @@ pub fn get_manifest_for_app_type(type_name: &str) -> AppManifest {
             name: "Network Network".to_string(),
             panels: vec![
                 PanelConfig { id: "listings".to_string(), title: "Listings".to_string(), icon: Some("list_alt".to_string()) },
-                PanelConfig { id: "profiles".to_string(), title: "User Profiles".to_string(), icon: Some("group".to_string()) },
+                PanelConfig { id: "network_types".to_string(), title: "Network Types".to_string(), icon: Some("schema".to_string()) },
                 PanelConfig { id: "categories".to_string(), title: "Categories".to_string(), icon: Some("category".to_string()) },
                 PanelConfig { id: "templates".to_string(), title: "Templates".to_string(), icon: Some("draw".to_string()) },
+                PanelConfig { id: "profiles".to_string(), title: "User Profiles".to_string(), icon: Some("group".to_string()) },
                 PanelConfig { id: "network_settings".to_string(), title: "Settings".to_string(), icon: Some("settings".to_string()) },
             ]
         }
@@ -64,9 +65,9 @@ mod tests {
     fn test_manifest_for_default_network() {
         let manifest = get_manifest_for_app_type("network");
         assert_eq!(manifest.app_type_id, "network");
-        assert_eq!(manifest.panels.len(), 5);
+        assert_eq!(manifest.panels.len(), 6);
         assert_eq!(manifest.panels[0].id, "listings");
-        assert_eq!(manifest.panels[4].id, "network_settings");
+        assert_eq!(manifest.panels[5].id, "network_settings");
     }
 
     #[test]

@@ -228,22 +228,26 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"dns"</span>
                             <span>"Applications"</span>
                         </a>
-                        <a href="/network/network-types" class=move || side_active_class("/network/network-types")>
-                            <span class="material-symbols-outlined">"schema"</span>
-                            <span>"Network Types"</span>
-                        </a>
-                        <a href="/network/categories" class=move || side_active_class("/network/categories")>
-                            <span class="material-symbols-outlined">"category"</span>
-                            <span>"Categories"</span>
-                        </a>
-                        <a href="/network/templates" class=move || side_active_class("/network/templates")>
-                            <span class="material-symbols-outlined">"draw"</span>
-                            <span>"Templates"</span>
-                        </a>
-                        <a href="/network/listings" class=move || side_active_class("/network/listings")>
-                            <span class="material-symbols-outlined">"store"</span>
-                            <span>"Listings"</span>
-                        </a>
+                        <details class="group" open=true>
+                            <summary class="flex items-center gap-3 px-3 py-2.5 text-[#91aaeb] hover:bg-[#05183c]/50 hover:text-[#dee5ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase cursor-pointer transition-all list-none select-none">
+                                <div class="flex items-center gap-3 flex-1">
+                                    <span class="material-symbols-outlined">"account_tree"</span>
+                                    <span>"Global Registries"</span>
+                                </div>
+                                <span class="material-symbols-outlined text-[16px] group-open:-scale-y-100 transition-transform duration-200">"expand_more"</span>
+                            </summary>
+                            <div class="pl-8 pr-3 pt-1 pb-2 space-y-1 border-l border-outline-variant/10 ml-5 mt-1 border-dashed">
+                                <a href="/network/network-types" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
+                                    <span>"Network Types"</span>
+                                </a>
+                                <a href="/network/categories" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
+                                    <span>"Categories"</span>
+                                </a>
+                                <a href="/network/templates" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
+                                    <span>"Templates"</span>
+                                </a>
+                            </div>
+                        </details>
                         <a href="/crm" class=move || side_active_class("/crm")>
                             <span class="material-symbols-outlined">"handshake"</span>
                             <span>"Sales"</span>

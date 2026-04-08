@@ -42,131 +42,155 @@ pub fn Apps() -> impl IntoView {
 
             // ── Application Grid ──
             <Suspense fallback=move || view! { <div class="text-on-surface-variant">"Loading applications..."</div> }>
-                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {move || networks.get().map(|dirs: Vec<PlatformAppModel>| view! {
-                        <For
-                            each=move || dirs.clone()
-                            key=|dir: &PlatformAppModel| dir.instance_id.clone()
-                            children=move |dir| {
-                                let status = dir.site_status.clone();
-                                let is_active = status.to_lowercase() == "active";
-                                let status_display = status.clone();
-                                let dir_id_manage = dir.instance_id.clone();
-                                let is_anchor = dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor";
-                                let label_app_type = if is_anchor { "Services / Anchor" } else { "Network" };
-                                
-                                view! {
-                                    <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">
-                                        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                                        // Header
-                                        <div class="flex justify-between items-start mb-6">
-                                            <div class="flex flex-col">
-                                                <div class="flex items-center gap-2 mb-1">
-                                                    <h3 class="text-xl font-bold text-on-surface tracking-tight">{dir.name.clone()}</h3>
-                                                    {if is_active {
-                                                        view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-tertiary/10 text-tertiary border border-tertiary/20 uppercase tracking-wider">"Active"</span> }.into_any()
-                                                    } else {
-                                                        view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-error border border-error/20 uppercase tracking-wider">{status_display}</span> }.into_any()
-                                                    }}
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">{label_app_type}</span>
-                                                    <a href=format!("https://{}", dir.domain.clone()) target="_blank" rel="noopener noreferrer" class="text-xs text-on-surface-variant font-mono hover:text-primary transition-colors underline decoration-outline-variant hover:decoration-primary">{dir.domain.clone()}</a>
-                                                </div>
+                <div class="space-y-8">
+                    {move || networks.get().map(|dirs: Vec<PlatformAppModel>| {
+                        let grouped_map = crate::utils::group_apps_by_tenant(dirs);
+                        let grouped_vec: Vec<(String, String, Vec<PlatformAppModel>)> = grouped_map
+                            .into_iter()
+                            .map(|(tid, (name, apps))| (tid, name, apps))
+                            .collect();
+                            
+                        view! {
+                            <For
+                                each=move || grouped_vec.clone()
+                                key=|(tid, _, _)| tid.clone()
+                                children=move |(tenant_id, tenant_name, apps)| {
+                                    view! {
+                                        <div class="bg-surface-container rounded-2xl border border-outline-variant/20 p-6 shadow-sm mb-6">
+                                            <div class="flex items-center gap-3 mb-6 border-b border-outline-variant/10 pb-4">
+                                                <span class="material-symbols-outlined text-primary text-2xl">"domain"</span>
+                                                <h2 class="text-2xl font-bold text-on-surface tracking-tight">{tenant_name.clone()}</h2>
+                                                <span class="px-2.5 py-1 text-[10px] font-bold bg-surface-container-high border border-outline-variant/30 rounded-full tracking-wider text-on-surface-variant ml-2 uppercase">"Tenant Group"</span>
                                             </div>
-                                            <div class="h-10 w-10 bg-surface-container-lowest rounded-lg flex items-center justify-center border border-outline-variant/20">
-                                                <span class="material-symbols-outlined text-primary-dim">"corporate_fare"</span>
+                                            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                                <For
+                                                    each=move || apps.clone()
+                                                    key=|dir: &PlatformAppModel| dir.instance_id.clone()
+                                                    children=move |dir| {
+                                                        let status = dir.site_status.clone();
+                                                        let is_active = status.to_lowercase() == "active";
+                                                        let status_display = status.clone();
+                                                        let dir_id_manage = dir.instance_id.clone();
+                                                        let is_anchor = dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor";
+                                                        let label_app_type = if is_anchor { "Services / Anchor" } else { "Network" };
+                                                        
+                                                        view! {
+                                                            <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">
+                                                                <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                                                                // Header
+                                                                <div class="flex justify-between items-start mb-6">
+                                                                    <div class="flex flex-col">
+                                                                        <div class="flex items-center gap-2 mb-1">
+                                                                            <h3 class="text-xl font-bold text-on-surface tracking-tight">{dir.name.clone()}</h3>
+                                                                            {if is_active {
+                                                                                view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-tertiary/10 text-tertiary border border-tertiary/20 uppercase tracking-wider">"Active"</span> }.into_any()
+                                                                            } else {
+                                                                                view! { <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-error border border-error/20 uppercase tracking-wider">{status_display}</span> }.into_any()
+                                                                            }}
+                                                                        </div>
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">{label_app_type}</span>
+                                                                            <a href=format!("https://{}", dir.domain.clone()) target="_blank" rel="noopener noreferrer" class="text-xs text-on-surface-variant font-mono hover:text-primary transition-colors underline decoration-outline-variant hover:decoration-primary">{dir.domain.clone()}</a>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="h-10 w-10 bg-surface-container-lowest rounded-lg flex items-center justify-center border border-outline-variant/20">
+                                                                        <span class="material-symbols-outlined text-primary-dim">"corporate_fare"</span>
+                                                                    </div>
+                                                                </div>
+                                                                // Stats
+                                                                <div class="grid grid-cols-2 gap-4 mb-8">
+                                                                    <div class="bg-surface-container-lowest/50 rounded-lg p-3 min-w-0 inline-block w-full">
+                                                                        <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Theme"</span>
+                                                                        <span class="block text-sm font-medium text-on-surface truncate" title="Default Theme">"Default"</span>
+                                                                    </div>
+                                                                    <div class="bg-surface-container-lowest/50 rounded-lg p-3">
+                                                                        <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"App Type"</span>
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="text-sm font-medium text-on-surface">{dir.app_type.clone()}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                // Active Modules
+                                                                <div class="space-y-4 mb-8">
+                                                                    <h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest border-b border-outline-variant/10 pb-2">"Active Modules"</h4>
+                                                                    {if is_anchor {
+                                                                        view! {
+                                                                            <div class="flex items-center justify-between">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"fingerprint"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Identities"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("a1_{}", dir.instance_id) checked=true />
+                                                                            </div>
+                                                                            <div class="flex items-center justify-between">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"room_service"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Service Offerings"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("a2_{}", dir.instance_id) checked=true />
+                                                                            </div>
+                                                                            <div class="flex items-center justify-between opacity-60">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"content_paste"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Content Matrix"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("a3_{}", dir.instance_id) checked=false />
+                                                                            </div>
+                                                                        }.into_any()
+                                                                    } else {
+                                                                        view! {
+                                                                            <div class="flex items-center justify-between">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Listings"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.instance_id) checked=true />
+                                                                            </div>
+                                                                            <div class="flex items-center justify-between">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"search"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Search Provider"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.instance_id) checked=true />
+                                                                            </div>
+                                                                            <div class="flex items-center justify-between opacity-60">
+                                                                                <div class="flex items-center gap-3">
+                                                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
+                                                                                    <span class="text-sm font-medium text-on-surface">"Payments"</span>
+                                                                                </div>
+                                                                                <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.instance_id) checked=false />
+                                                                            </div>
+                                                                        }.into_any()
+                                                                    }}
+                                                                </div>
+                                                                // Actions
+                                                                <div class="flex items-center gap-2 pt-4 border-t border-outline-variant/10">
+                                                                    <a href=format!("/apps/{}", dir_id_manage) class="flex-1 bg-surface-bright text-on-surface text-xs font-bold py-2 rounded-md hover:bg-surface-bright/80 transition-all uppercase tracking-wider text-center">"Manage App"</a>
+                                                                    <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-primary rounded-md border border-outline-variant/20 transition-all">
+                                                                        <span class="material-symbols-outlined text-sm">"edit"</span>
+                                                                    </button>
+                                                                    <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-error rounded-md border border-outline-variant/20 transition-all">
+                                                                        <span class="material-symbols-outlined text-sm">"delete"</span>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                                <a href="/apps/new" class="bg-surface-container-low border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center p-8 min-h-[300px] group hover:border-primary/40 transition-all cursor-pointer">
+                                                    <div class="h-16 w-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                                        <span class="material-symbols-outlined text-3xl text-on-surface-variant group-hover:text-primary transition-colors">"add"</span>
+                                                    </div>
+                                                    <h3 class="text-on-surface font-bold text-lg mb-1">"Scale Tenant Network"</h3>
+                                                    <p class="text-on-surface-variant text-sm text-center">"Provision a new application instance within this environment."</p>
+                                                </a>
                                             </div>
                                         </div>
-                                        // Stats
-                                        <div class="grid grid-cols-2 gap-4 mb-8">
-                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3 min-w-0 inline-block w-full">
-                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Theme"</span>
-                                                <span class="block text-sm font-medium text-on-surface truncate" title="Default Theme">"Default"</span>
-                                            </div>
-                                            <div class="bg-surface-container-lowest/50 rounded-lg p-3">
-                                                <span class="block text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"App Type"</span>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-sm font-medium text-on-surface">{dir.app_type.clone()}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        // Active Modules
-                                        <div class="space-y-4 mb-8">
-                                            <h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest border-b border-outline-variant/10 pb-2">"Active Modules"</h4>
-                                            {if is_anchor {
-                                                view! {
-                                                    <div class="flex items-center justify-between">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"fingerprint"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Identities"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("a1_{}", dir.instance_id) checked=true />
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"room_service"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Service Offerings"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("a2_{}", dir.instance_id) checked=true />
-                                                    </div>
-                                                    <div class="flex items-center justify-between opacity-60">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"content_paste"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Content Matrix"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("a3_{}", dir.instance_id) checked=false />
-                                                    </div>
-                                                }.into_any()
-                                            } else {
-                                                view! {
-                                                    <div class="flex items-center justify-between">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Listings"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.instance_id) checked=true />
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"search"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Search Provider"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.instance_id) checked=true />
-                                                    </div>
-                                                    <div class="flex items-center justify-between opacity-60">
-                                                        <div class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
-                                                            <span class="text-sm font-medium text-on-surface">"Payments"</span>
-                                                        </div>
-                                                        <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.instance_id) checked=false />
-                                                    </div>
-                                                }.into_any()
-                                            }}
-                                        </div>
-                                        // Actions
-                                        <div class="flex items-center gap-2 pt-4 border-t border-outline-variant/10">
-                                            <a href=format!("/apps/{}", dir_id_manage) class="flex-1 bg-surface-bright text-on-surface text-xs font-bold py-2 rounded-md hover:bg-surface-bright/80 transition-all uppercase tracking-wider text-center">"Manage App"</a>
-                                            <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-primary rounded-md border border-outline-variant/20 transition-all">
-                                                <span class="material-symbols-outlined text-sm">"edit"</span>
-                                            </button>
-                                            <button class="p-2 bg-surface-container-lowest text-on-surface-variant hover:text-error rounded-md border border-outline-variant/20 transition-all">
-                                                <span class="material-symbols-outlined text-sm">"delete"</span>
-                                            </button>
-                                        </div>
-                                    </div>
+                                    }
                                 }
-                            }
-                        />
+                            />
+                        }
                     })}
-                    // Empty State / Add Placeholder
-                    <a href="/apps/new" class="bg-surface-container-low border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center p-8 group hover:border-primary/40 transition-all cursor-pointer">
-                        <div class="h-16 w-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <span class="material-symbols-outlined text-3xl text-on-surface-variant group-hover:text-primary transition-colors">"add"</span>
-                        </div>
-                        <h3 class="text-on-surface font-bold text-lg mb-1">"Scale Network"</h3>
-                        <p class="text-on-surface-variant text-sm text-center">"Provision a new application instance within this environment."</p>
-                    </a>
                 </div>
             </Suspense>
         </div>

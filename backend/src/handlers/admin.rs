@@ -160,8 +160,7 @@ pub async fn add_app_domain(
         id: Set(Uuid::new_v4()),
         app_instance_id: Set(instance_id),
         domain_name: Set(input.domain_name.clone()),
-        created_at: Set(chrono::Utc::now().naive_utc()),
-        updated_at: Set(chrono::Utc::now().naive_utc()),
+        created_at: Set(chrono::Utc::now()),
     };
     new_domain.insert(&db).await.map_err(|e| {
         tracing::error!("Failed to insert domain: {}", e);

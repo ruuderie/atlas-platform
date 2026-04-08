@@ -12,6 +12,7 @@ use crate::pages::network::settings::NetworkSettingsPanel;
 use crate::pages::network::categories::Categories;
 use crate::pages::network::templates::Templates;
 use crate::pages::network::listings::Listings;
+use crate::pages::network::network_types::NetworkTypes;
 
 #[component]
 pub fn PlaceholderPanel(panel_id: String) -> impl IntoView {
@@ -40,6 +41,7 @@ pub fn DynamicPanel(#[prop(into)] panel_id: Signal<String>) -> impl IntoView {
                 "listings" => view! { <Listings /> }.into_any(),
                 "categories" => view! { <Categories /> }.into_any(),
                 "templates" => view! { <Templates /> }.into_any(),
+                "network_types" => view! { <NetworkTypes /> }.into_any(),
                 "profiles" => view! { <ProfilesPanel /> }.into_any(),
                 "services" => view! { <ServicesPanel /> }.into_any(),
                 other => view! { <PlaceholderPanel panel_id=other.to_string() /> }.into_any(),
