@@ -78,7 +78,7 @@ async fn main() {
                 let app_state = app_state.clone();
                 move || leptos::provide_context(app_state.clone())
             },
-            { move || view! { <App/> } },
+            move || view! { <App/> },
         )
         .layer(prometheus_layer)
         .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
@@ -116,20 +116,24 @@ async fn extract_tenant_header(
     if tenant_id.is_none() {
         if let Some(host) = headers.get("host").and_then(|h| h.to_str().ok()) {
             let domain = host.split(':').next().unwrap_or(host).to_string();
-            let row = sqlx::query!(
+            use sqlx::Row;
+            let row = sqlx::query(
                 "SELECT t.id as tenant_id 
                  FROM app_domains ad 
                  JOIN app_instances ai ON ad.app_instance_id = ai.id 
                  JOIN tenant t ON ai.tenant_id = t.id 
-                 WHERE ad.domain_name = $1", domain
+                 WHERE ad.domain_name = $1"
             )
+            .bind(domain)
             .fetch_optional(&state.pool)
             .await
             .ok()
             .flatten();
 
             if let Some(r) = row {
-                tenant_id = Some(r.tenant_id);
+                if let Ok(id) = r.try_get("tenant_id") {
+                    tenant_id = Some(id);
+                }
             }
         }
     }
