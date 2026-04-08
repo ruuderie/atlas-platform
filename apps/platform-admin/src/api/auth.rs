@@ -35,10 +35,13 @@ pub async fn validate_session() -> Result<UserInfo, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status() == StatusCode::OK {
-        // validate-session typically returns the user directly or session info
-        // Let's assume it returns `UserInfo` for now based on common patterns
-        let user = res.json::<UserInfo>().await.map_err(|e| e.to_string())?;
-        Ok(user)
+        // validate-session returns SessionResponse containing the user
+        let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
+        if let Some(user) = session.user {
+            Ok(user)
+        } else {
+            Err("User payload missing".into())
+        }
     } else {
         Err("Session invalid".into())
     }
