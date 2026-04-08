@@ -51,12 +51,20 @@ impl DataSyncService {
 
             debug!("Executing job {} / {} for tenant {}", job.id, job.job_type, job.tenant_id);
 
-            // Dispatch based on job type
-            if job.job_type == "BitcoinSync" {
-                if let Err(e) = Self::sync_bitcoin_blocks(db, job.tenant_id, "https://mempool.space/api/blocks").await {
-                    error!("Failed to execute BitcoinSync for tenant {}: {}", job.tenant_id, e);
+            // Dispatch based on dynamic AtlasApp definitions
+            let mut executed = false;
+            for app in crate::atlas_apps::get_active_apps() {
+                if let Some(app_job) = app.background_jobs().into_iter().find(|j| j.job_type == job.job_type) {
+                    // For now we pass None for the config payload since the legacy schema doesn't fully serialize it yet
+                    if let Err(e) = (app_job.executor)(db.clone(), job.tenant_id, None).await {
+                        error!("Failed to execute {} for tenant {}: {}", job.job_type, job.tenant_id, e);
+                    }
+                    executed = true;
+                    break;
                 }
-            } else {
+            }
+
+            if !executed {
                 debug!("Unknown job type: {}", job.job_type);
             }
 

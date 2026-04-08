@@ -1,3 +1,18 @@
+/* 
+ * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
+ * 
+ * This legacy application currently has its routes, migrations, and background jobs
+ * hardcoded into the global Atlas platform core. 
+ * 
+ * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
+ * located at `backend/src/traits/atlas_app.rs`. 
+ * 
+ * Future work requires refactoring this app to implement the `AtlasApp` trait 
+ * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
+ * instead of manually merging them globally.
+ * 
+ * See the full integration protocol at: `docs/atlas_app_integration.md`
+ */
 use leptos::prelude::*;
 use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;

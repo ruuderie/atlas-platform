@@ -10,6 +10,8 @@ mod models;
 mod traits;
 mod config;
 mod services;
+pub mod atlas_apps;
+
 use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
 use axum::middleware::from_fn_with_state;

@@ -1,3 +1,18 @@
+/* 
+ * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
+ * 
+ * This legacy application router mapping currently has its routes hardcoded 
+ * into the global Atlas platform core. 
+ * 
+ * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
+ * located at `backend/src/traits/atlas_app.rs`. 
+ * 
+ * Future work requires refactoring the sub-apps to implement the `AtlasApp` trait 
+ * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
+ * instead of manually merging them into `backend/src/api.rs`.
+ * 
+ * See the full integration protocol at: `docs/atlas_app_integration.md`
+ */
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
 use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search};
@@ -38,20 +53,21 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .layer(axum::middleware::from_fn(site_context_middleware));
 
     // Public routes (requires state, so merge with state-applied routers)
-    let public_routes = Router::<DatabaseConnection>::new()
+    let mut public_routes = Router::<DatabaseConnection>::new()
         .merge(tenant::public_routes(db.clone()))
-        .merge(app_pages::public_routes(db.clone()))
-        .merge(app_menus::public_routes(db.clone()))
-        .merge(listings::public_routes(db.clone()))
-        .merge(crate::handlers::leads::public_routes())
         .merge(crate::handlers::feeds::public_routes(db.clone()))
         .merge(auth_frontend::public_routes())
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
         .merge(magic_links::public_routes())
+        .route("/health", get(health::health_check));
 
-        .route("/health", get(health::health_check))
+    for app in crate::atlas_apps::get_active_apps() {
+        public_routes = public_routes.merge(app.public_router(db.clone()));
+    }
+
+    let public_routes = public_routes
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 
@@ -59,20 +75,10 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let db_clone = db.clone();
 
     // Authenticated routes (requires state)
-    let authenticated_routes = Router::new()
+    let mut authenticated_routes = Router::new()
         .route("/logout", post(users::logout_user))
-        .merge(profiles::routes(db.clone()))
-        .merge(listings::authenticated_routes())
         .merge(accounts::routes())
         .merge(user_accounts::routes())
-        .merge(ad_purchases::routes())
-        .merge(crate::handlers::leads::authenticated_routes())
-        .merge(crate::handlers::customers::routes())
-        .merge(crate::handlers::contacts::routes())
-        .merge(crate::handlers::deals::routes())
-        .merge(crate::handlers::activities::routes())
-        .merge(crate::handlers::cases::routes())
-        .merge(crate::handlers::notes::routes())
         .merge(admin_routes(db.clone()))
         .merge(users::authenticated_routes(db.clone()))
         .merge(auth_frontend::authenticated_routes())
@@ -86,6 +92,10 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(search::authenticated_routes())
         .merge(crate::handlers::audit_logs::authenticated_routes())
         .merge(crate::handlers::telemetry::authenticated_routes());
+
+    for app in crate::atlas_apps::get_active_apps() {
+        authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));
+    }
 
     // Combine all routes and apply state at the top level
     Router::new()
