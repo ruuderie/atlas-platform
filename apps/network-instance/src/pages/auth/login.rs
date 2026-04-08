@@ -40,7 +40,7 @@ pub fn Login() -> impl IntoView {
 
         leptos::task::spawn_local(async move {
             let client = reqwest::Client::new();
-            let url = "http://127.0.0.1:8000/api/auth/login";
+            let url = format!("{}/api/auth/login", crate::get_api_base_url());
             let payload = json!({
                 "email": email_val,
                 "password": pass_val,
@@ -111,7 +111,7 @@ pub fn Login() -> impl IntoView {
                             view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <PasskeyLoginButton 
-                                        api_base_url="http://127.0.0.1:8000/api/auth/passkeys"
+                                        api_base_url=crate::get_api_base_url() + "/api/auth/passkeys"
                                         email=email
                                         on_success=handle_passkey_success
                                         on_error=handle_passkey_error

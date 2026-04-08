@@ -9,7 +9,7 @@ pub async fn search_listings_from_api(query: String, category: Option<String>, p
     let page = page_str.parse::<u64>().unwrap_or(1);
     let limit = 12;
     
-    let mut url = format!("http://127.0.0.1:8000/listings/search?q={}&page={}&limit={}", query, page, limit);
+    let mut url = format!("{}/listings/search?q={}&page={}&limit={}", crate::get_api_base_url(), query, page, limit);
     if let Some(ref c) = category {
         url = format!("{}&category={}", url, c);
     }

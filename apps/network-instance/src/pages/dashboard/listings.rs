@@ -26,7 +26,7 @@ pub struct CreateListingInput {
 pub async fn fetch_my_listings_api(token: Option<String>) -> Result<Vec<DashboardListingModel>, ServerFnError> {
     let active_token = if let Some(t) = token { t } else if let Some(t) = get_auth_token() { t } else { return Ok(vec![]); };
 
-    let url = "http://127.0.0.1:8000/api/listings/my-listings";
+    let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.get(url)
         .header("Authorization", format!("Bearer {}", active_token))
@@ -44,7 +44,7 @@ pub async fn fetch_my_listings_api(token: Option<String>) -> Result<Vec<Dashboar
 pub async fn create_listing_api(token: Option<String>, payload: CreateListingInput) -> Result<(), ServerFnError> {
     let active_token = if let Some(t) = token { t } else if let Some(t) = get_auth_token() { t } else { return Err(ServerFnError::ServerError("Unauthorized".into())); };
 
-    let url = "http://127.0.0.1:8000/api/listings/my-listings";
+    let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.post(url)
         .header("Authorization", format!("Bearer {}", active_token))

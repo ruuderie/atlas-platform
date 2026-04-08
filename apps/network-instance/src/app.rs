@@ -153,7 +153,7 @@ pub struct CreateLeadInput {
 #[server]
 pub async fn fetch_network_config_from_api(domain: String) -> Result<NetworkConfig, ServerFnError> {
 
-    let url = format!("http://127.0.0.1:8000/networks/lookup?domain={}", domain);
+    let url = format!("{}/networks/lookup?domain={}", crate::get_api_base_url(), domain);
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await?;
     
@@ -167,7 +167,7 @@ pub async fn fetch_network_config_from_api(domain: String) -> Result<NetworkConf
 #[server]
 pub async fn fetch_listing_by_slug_from_api(slug: String) -> Result<ListingModel, ServerFnError> {
 
-    let url = format!("http://127.0.0.1:8000/api/listings/by-slug/{}", slug);
+    let url = format!("{}/api/listings/by-slug/{}", crate::get_api_base_url(), slug);
     let client = reqwest::Client::new();
     let res = client.get(&url).send().await?;
     
@@ -180,7 +180,7 @@ pub async fn fetch_listing_by_slug_from_api(slug: String) -> Result<ListingModel
 
 #[server]
 pub async fn submit_lead_to_api(payload: CreateLeadInput) -> Result<(), ServerFnError> {
-    let url = "http://127.0.0.1:8000/api/leads";
+    let url = format!("{}/api/leads", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.post(url).json(&payload).send().await?;
     
