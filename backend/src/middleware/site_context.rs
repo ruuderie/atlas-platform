@@ -25,7 +25,9 @@ fn is_admin_route(path: &str) -> bool {
 
 fn is_auth_route(path: &str) -> bool {
     path.starts_with("/login") || path.starts_with("/register") || path.starts_with("/auth") ||
-    path.starts_with("/api/login") || path.starts_with("/api/register") || path.starts_with("/api/auth") || path.starts_with("/api/passkeys")
+    path.starts_with("/api/login") || path.starts_with("/api/register") || path.starts_with("/api/auth") || path.starts_with("/api/passkeys") ||
+    path.starts_with("/validate-session") || path.starts_with("/refresh-token") ||
+    path.starts_with("/api/validate-session") || path.starts_with("/api/refresh-token")
 }
 
 fn is_setup_route(path: &str) -> bool {
