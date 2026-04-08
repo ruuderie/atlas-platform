@@ -191,8 +191,12 @@ steps:
       webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
       message: >
         **Atlas Platform Deployment**
-        Pipeline #${CI_PIPELINE_NUMBER} finished with status: ${CI_PIPELINE_STATUS}.
-        *Pipeline Logs:* ${CI_PIPELINE_URL}
+        {{#success build.status}}
+          ✅ Pipeline #{{build.number}} successfully compiled and deployed all unified monorepo applications!
+        {{else}}
+          ❌ Pipeline #{{build.number}} failed during phase `{{build.failed_steps}}`.
+        {{/success}}
+        *Pipeline Logs:* {{build.link}}
     when:
       - status: [success, failure]
         event: [push]
@@ -215,16 +219,19 @@ steps:
       recipients:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
-      subject: "[Atlas CI] Pipeline #${CI_PIPELINE_NUMBER} results: ${CI_PIPELINE_STATUS}"
+      subject: "[Atlas CI] Pipeline #{{build.number}} results: {{build.status}}"
       body: |
         Atlas Platform Deployment Status
         ------------------------------------
-        Status: ${CI_PIPELINE_STATUS}
-        Requested By: ${CI_COMMIT_AUTHOR}
-        Branch: ${CI_COMMIT_BRANCH}
-        Commit: ${CI_COMMIT_SHA}
+        Status: {{build.status}}
+        Project: {{repo.owner}}/{{repo.name}}
+        Branch: {{build.branch}}
+        Commit: {{build.commit}} - {{commit.message}}
+        Requested By: {{build.author}}
         
-        Logs Available At: ${CI_PIPELINE_URL}
+        Failed Steps: {{build.failed_steps}}
+        
+        Logs Available At: {{build.link}}
     when:
       - status: [success, failure]
         event: [push]
