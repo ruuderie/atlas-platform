@@ -54,9 +54,6 @@ impl MigrationTrait for Migration {
             ALTER COLUMN "last_accessed_at" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "token_expiration" TYPE TIMESTAMP WITH TIME ZONE,
             ALTER COLUMN "refresh_token_expiration" TYPE TIMESTAMP WITH TIME ZONE;
-
-            ALTER TABLE "request_log" 
-            ALTER COLUMN "created_at" TYPE TIMESTAMP WITH TIME ZONE;
             "#
         ).await?;
 
@@ -112,9 +109,6 @@ impl MigrationTrait for Migration {
             ALTER COLUMN "last_accessed_at" TYPE TIMESTAMP,
             ALTER COLUMN "token_expiration" TYPE TIMESTAMP,
             ALTER COLUMN "refresh_token_expiration" TYPE TIMESTAMP;
-
-            ALTER TABLE "request_log" 
-            ALTER COLUMN "created_at" TYPE TIMESTAMP;
             
             "#
         ).await?;
