@@ -51,8 +51,9 @@ pub fn Apps() -> impl IntoView {
                                 let status = dir.site_status.clone();
                                 let is_active = status.to_lowercase() == "active";
                                 let status_display = status.clone();
-                                let dir_id_manage = dir.tenant_id.clone();
-                                let label_app_type = if dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor" { "Services / Anchor" } else { "Network" };
+                                let dir_id_manage = dir.instance_id.clone();
+                                let is_anchor = dir.app_type == "Services" || dir.app_type.to_lowercase() == "anchor";
+                                let label_app_type = if is_anchor { "Services / Anchor" } else { "Network" };
                                 
                                 view! {
                                     <div class="bg-surface-container-high rounded-xl p-6 relative group border-t border-white/5 overflow-hidden">
@@ -93,27 +94,55 @@ pub fn Apps() -> impl IntoView {
                                         // Active Modules
                                         <div class="space-y-4 mb-8">
                                             <h4 class="text-[10px] font-bold text-secondary uppercase tracking-widest border-b border-outline-variant/10 pb-2">"Active Modules"</h4>
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-3">
-                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
-                                                    <span class="text-sm font-medium text-on-surface">"Core Features"</span>
-                                                </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.instance_id) checked=true />
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center gap-3">
-                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"group"</span>
-                                                    <span class="text-sm font-medium text-on-surface">"CRM"</span>
-                                                </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.instance_id) checked=true />
-                                            </div>
-                                            <div class="flex items-center justify-between opacity-60">
-                                                <div class="flex items-center gap-3">
-                                                    <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
-                                                    <span class="text-sm font-medium text-on-surface">"Payments"</span>
-                                                </div>
-                                                <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.instance_id) checked=false />
-                                            </div>
+                                            {if is_anchor {
+                                                view! {
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"fingerprint"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Identities"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("a1_{}", dir.instance_id) checked=true />
+                                                    </div>
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"room_service"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Service Offerings"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("a2_{}", dir.instance_id) checked=true />
+                                                    </div>
+                                                    <div class="flex items-center justify-between opacity-60">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"content_paste"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Content Matrix"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("a3_{}", dir.instance_id) checked=false />
+                                                    </div>
+                                                }.into_any()
+                                            } else {
+                                                view! {
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"list_alt"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Listings"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("t1_{}", dir.instance_id) checked=true />
+                                                    </div>
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"search"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Search Provider"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("t2_{}", dir.instance_id) checked=true />
+                                                    </div>
+                                                    <div class="flex items-center justify-between opacity-60">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined text-on-surface-variant text-lg">"payments"</span>
+                                                            <span class="text-sm font-medium text-on-surface">"Payments"</span>
+                                                        </div>
+                                                        <Switch class="shrink-0".to_string() id=format!("t3_{}", dir.instance_id) checked=false />
+                                                    </div>
+                                                }.into_any()
+                                            }}
                                         </div>
                                         // Actions
                                         <div class="flex items-center gap-2 pt-4 border-t border-outline-variant/10">

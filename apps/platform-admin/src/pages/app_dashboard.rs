@@ -34,7 +34,7 @@ pub fn AppDashboard() -> impl IntoView {
     Effect::new(move |_| {
         let current_id = site_id();
         if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.tenant_id.to_string() == current_id) {
+            if let Some(dir) = d.into_iter().find(|dir| dir.instance_id.to_string() == current_id) {
                 domain_bind.set(dir.domain.clone());
             } else {
                 domain_bind.set(format!("{}.example.com", current_id));
@@ -91,7 +91,7 @@ pub fn AppDashboard() -> impl IntoView {
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
         let app_type_str = if let Some(d) = dirs.get() {
-            if let Some(dir) = d.into_iter().find(|dir| dir.tenant_id.to_string() == current_id) {
+            if let Some(dir) = d.into_iter().find(|dir| dir.instance_id.to_string() == current_id) {
                 dir.app_type.clone()
             } else {
                 "network".to_string()

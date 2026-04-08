@@ -59,6 +59,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/tenant/{tenant_id}/listings", get(admin::get_network_listings))
                 .route("/api/admin/tenant/{tenant_id}/listings/{listing_id}", get(admin::get_listing))
                 .route("/api/admin/platform/apps", get(admin::get_platform_apps))
+                .route("/api/admin/platform/apps/{instance_id}/domains", get(admin::get_app_domains).post(admin::add_app_domain))
+                .route("/api/admin/platform/apps/{instance_id}/domains/{domain_name}", delete(admin::remove_app_domain))
                 // Tenant management API is handled via tenant::authenticated_routes
                 // Tenant management API is handled via tenant::authenticated_routes
 

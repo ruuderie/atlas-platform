@@ -125,6 +125,71 @@ pub async fn get_platform_apps(
     Ok(Json(result))
 }
 
+#[derive(Deserialize)]
+pub struct AppDomainInput {
+    pub domain_name: String,
+}
+
+pub async fn get_app_domains(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Path(instance_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::app_domain;
+    let domains = app_domain::Entity::find()
+        .filter(app_domain::Column::AppInstanceId.eq(instance_id))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error fetching app domains: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    let domain_strings: Vec<String> = domains.into_iter().map(|d| d.domain_name).collect();
+    Ok(Json(domain_strings))
+}
+
+pub async fn add_app_domain(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Path(instance_id): Path<Uuid>,
+    Json(input): Json<AppDomainInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::app_domain;
+    let new_domain = app_domain::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        app_instance_id: Set(instance_id),
+        domain_name: Set(input.domain_name.clone()),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        updated_at: Set(chrono::Utc::now().naive_utc()),
+    };
+    new_domain.insert(&db).await.map_err(|e| {
+        tracing::error!("Failed to insert domain: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(StatusCode::CREATED)
+}
+
+pub async fn remove_app_domain(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Path((instance_id, domain_name)): Path<(Uuid, String)>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::app_domain;
+    let domain = app_domain::Entity::find()
+        .filter(app_domain::Column::AppInstanceId.eq(instance_id))
+        .filter(app_domain::Column::DomainName.eq(domain_name))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    if let Some(d) = domain {
+        app_domain::Entity::delete_by_id(d.id).exec(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    }
+    
+    Ok(StatusCode::OK)
+}
+
 pub async fn get_network_listings(
     State(db): State<DatabaseConnection>,
     Extension(_current_user): Extension<user::Model>,

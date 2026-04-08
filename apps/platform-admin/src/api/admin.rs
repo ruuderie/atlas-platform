@@ -52,3 +52,62 @@ pub async fn toggle_admin(id: Uuid) -> Result<UserModel, String> {
         Err(res.text().await.unwrap_or_default())
     }
 }
+
+pub async fn get_app_domains(instance_id: String) -> Result<Vec<String>, String> {
+    let client = Client::new();
+    let url = api_url(&format!("api/admin/platform/apps/{}/domains", instance_id));
+    let token = get_auth_token().unwrap_or_default();
+    
+    let res = client.get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    if res.status().is_success() {
+        res.json::<Vec<String>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn add_app_domain(instance_id: String, domain_name: String) -> Result<(), String> {
+    let client = Client::new();
+    let url = api_url(&format!("api/admin/platform/apps/{}/domains", instance_id));
+    let token = get_auth_token().unwrap_or_default();
+    
+    let payload = serde_json::json!({
+        "domain_name": domain_name
+    });
+    
+    let res = client.post(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+pub async fn remove_app_domain(instance_id: String, domain_name: String) -> Result<(), String> {
+    let client = Client::new();
+    let url = api_url(&format!("api/admin/platform/apps/{}/domains/{}", instance_id, domain_name));
+    let token = get_auth_token().unwrap_or_default();
+    
+    let res = client.delete(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+        
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
