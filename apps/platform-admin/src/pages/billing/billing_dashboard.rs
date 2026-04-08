@@ -1,7 +1,11 @@
 use leptos::prelude::*;
+use shared_ui::components::ui::switch::Switch;
 
 #[component]
 pub fn BillingDashboard() -> impl IntoView {
+    let stripe_bind = RwSignal::new(true);
+    let paddle_bind = RwSignal::new(false);
+    let zaprite_bind = RwSignal::new(true);
     view! {
         <div class="flex flex-col gap-6 animate-fade-in fade-in-up">
             <div class="flex items-center justify-between">
@@ -53,27 +57,21 @@ pub fn BillingDashboard() -> impl IntoView {
                             <div class="font-bold text-on-surface">"Stripe"</div>
                             <div class="text-xs text-on-surface-variant">"CC & ACH"</div>
                         </div>
-                        <div class="w-10 h-5 bg-primary rounded-full relative">
-                            <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                        </div>
+                        <Switch id="stripe_toggle".to_string() checked=stripe_bind.get() />
                     </div>
                     <div class="p-4 rounded-xl border border-outline-variant/50 flex justify-between items-center bg-[#05183c]">
                         <div>
                             <div class="font-bold text-on-surface">"Paddle"</div>
                             <div class="text-xs text-on-surface-variant">"Global MOR"</div>
                         </div>
-                        <div class="w-10 h-5 bg-surface-container-highest rounded-full relative border border-outline-variant/40">
-                            <div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full"></div>
-                        </div>
+                        <Switch id="paddle_toggle".to_string() checked=paddle_bind.get() />
                     </div>
                     <div class="p-4 rounded-xl border border-outline-variant/50 flex justify-between items-center bg-[#05183c]">
                         <div>
                             <div class="font-bold text-on-surface">"Zaprite"</div>
                             <div class="text-xs text-on-surface-variant">"Bitcoin & LN"</div>
                         </div>
-                        <div class="w-10 h-5 bg-primary rounded-full relative">
-                            <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                        </div>
+                        <Switch id="zaprite_toggle".to_string() checked=zaprite_bind.get() />
                     </div>
                 </div>
             </div>
