@@ -25,6 +25,7 @@ impl AtlasApp for AnchorApp {
         vec![
             Box::new(crate::migration::m20260408_000002_create_anchor_legacy_tables::Migration),
             Box::new(crate::migration::m20260408_000003_seed_anchor_background_jobs::Migration),
+            Box::new(crate::migration::m20260408_000004_fix_anchor_tables_and_seed::Migration),
         ]
     }
 

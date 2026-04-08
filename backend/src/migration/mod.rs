@@ -43,6 +43,7 @@ pub mod m20260408_000000_fix_tenant_app_alignments;
 pub mod m20260408_000001_fix_uat_app_domains;
 pub mod m20260408_000002_create_anchor_legacy_tables;
 pub mod m20260408_000003_seed_anchor_background_jobs;
+pub mod m20260408_000004_fix_anchor_tables_and_seed;
 
 pub struct Migrator;
 
