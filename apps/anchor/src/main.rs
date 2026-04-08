@@ -81,7 +81,7 @@ async fn main() {
             { move || view! { <App/> } },
         )
         .layer(prometheus_layer)
-        .layer(axum::middleware::from_fn(extract_tenant_header))
+        .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
         .layer(axum::Extension(app_state.clone()))
         .with_state(app_state);
 
@@ -94,6 +94,7 @@ async fn main() {
 
 #[cfg(feature = "ssr")]
 async fn extract_tenant_header(
+    axum::extract::State(state): axum::extract::State<anchor::state::AppState>,
     headers: axum::http::HeaderMap,
     mut req: axum::extract::Request,
     next: axum::middleware::Next,
@@ -102,19 +103,43 @@ async fn extract_tenant_header(
     use anchor::state::TenantContext;
     use std::str::FromStr;
 
-    let tenant_id = if let Some(tenant_str) = headers.get("x-tenant-id").and_then(|h: &axum::http::HeaderValue| h.to_str().ok()) {
+    let mut tenant_id = if let Some(tenant_str) = headers.get("x-tenant-id").and_then(|h: &axum::http::HeaderValue| h.to_str().ok()) {
         if tenant_str.eq_ignore_ascii_case("null") || tenant_str.is_empty() {
              None
         } else {
              Uuid::from_str(tenant_str).ok()
         }
     } else {
-        // Fallback for local override via .env
-        match std::env::var("DEFAULT_TENANT_ID") {
-            Ok(val) => Uuid::from_str(&val).ok(),
-            Err(_) => None,
-        }
+        None
     };
+
+    if tenant_id.is_none() {
+        if let Some(host) = headers.get("host").and_then(|h| h.to_str().ok()) {
+            let domain = host.split(':').next().unwrap_or(host).to_string();
+            let row = sqlx::query!(
+                "SELECT t.id as tenant_id 
+                 FROM app_domains ad 
+                 JOIN app_instances ai ON ad.app_instance_id = ai.id 
+                 JOIN tenant t ON ai.tenant_id = t.id 
+                 WHERE ad.domain_name = $1", domain
+            )
+            .fetch_optional(&state.pool)
+            .await
+            .ok()
+            .flatten();
+
+            if let Some(r) = row {
+                tenant_id = Some(r.tenant_id);
+            }
+        }
+    }
+
+    if tenant_id.is_none() {
+        match std::env::var("DEFAULT_TENANT_ID") {
+            Ok(val) => tenant_id = Uuid::from_str(&val).ok(),
+            Err(_) => {},
+        }
+    }
 
     // Strict rejection in production if tenant is completely missing
     if tenant_id.is_none() && std::env::var("DEFAULT_TENANT_ID").is_err() {
