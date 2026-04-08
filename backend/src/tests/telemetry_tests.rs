@@ -15,8 +15,7 @@ async fn setup_db() -> DatabaseConnection {
     let db = Database::connect(opt_local_machine).await.expect("Failed to connect to local DB");
     
     // Make sure we have the tables
-    let _ = migration::Migrator::fresh(&db).await;
-    migration::Migrator::up(&db, None).await.unwrap();
+    crate::tests::test_utils::initialize_database(&db).await;
 
     db
 }
@@ -31,8 +30,7 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
     
     let db = match Database::connect(db_result).await {
         Ok(db) => {
-            let _ = migration::Migrator::fresh(&db).await;
-            let _ = migration::Migrator::up(&db, None).await;
+            crate::tests::test_utils::initialize_database(&db).await;
             db
         },
         Err(_) => {
@@ -73,7 +71,7 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
 
     // Run processor
     let process_res = TelemetryService::process_daily_metrics(&db).await;
-    assert!(process_res.is_ok(), "Processor failed");
+    assert!(process_res.is_ok(), "Processor failed: {:?}", process_res.unwrap_err());
 
     // Check output
     let today = Utc::now().date_naive();

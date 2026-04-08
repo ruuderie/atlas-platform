@@ -79,6 +79,8 @@ impl MigratorTrait for Migrator {
             base.extend(app.migrations());
         }
 
+        base.sort_by(|a, b| a.name().cmp(b.name()));
+
         base
     }
 }

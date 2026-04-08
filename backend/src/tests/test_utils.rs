@@ -23,6 +23,22 @@ use uuid::Uuid;
 
 use dotenv::dotenv;
 use crate::entities::{category, tenant, profile, user, user_account};
+use tokio::sync::OnceCell;
+
+pub static DB_INIT: OnceCell<()> = OnceCell::const_new();
+
+/// Guarantees that the concurrent test runner accurately refreshes the database schema exactly ONCE natively, avoiding "duplicate key" or "relation does not exist" panics.
+pub async fn initialize_database(db: &DatabaseConnection) {
+    let db_clone = db.clone();
+    DB_INIT.get_or_init(|| async move {
+        use sea_orm_migration::MigratorTrait;
+        // Drops tables in case the previous test run crashed. Then immediately rebuilds it via the strict async task lifecycle exactly once.
+        let _ = crate::migration::Migrator::fresh(&db_clone).await;
+        crate::migration::Migrator::up(&db_clone, None)
+            .await
+            .expect("Failed to run migrations");
+    }).await;
+}
 
 pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
     let tenant_id = Uuid::new_v4();
@@ -50,13 +66,13 @@ pub async fn register_test_user(
     username: &mut String,
 ) -> (StatusCode, serde_json::Value) {
     dotenv().ok();
-    let first_name: String = username.split("_").next().unwrap_or_default().to_string();
-    let last_name: String = username.split("_").nth(1).unwrap_or_default().to_string();
     if username.is_empty() {
-        *username = format!("{}_{}", first_name, last_name).to_lowercase();
+        *username = format!("user_{}", uuid::Uuid::new_v4()).replace("-", "").to_lowercase();
     } else {
         *username = username.replace(" ", "_").to_lowercase();
     }
+    let first_name: String = username.split("_").next().unwrap_or_default().to_string();
+    let last_name: String = username.split("_").nth(1).unwrap_or_default().to_string();
 
     let domain_suffix = DomainSuffix().fake::<String>();
     let password: String = std::env::var("TEST_PASSWORD").unwrap_or_default();

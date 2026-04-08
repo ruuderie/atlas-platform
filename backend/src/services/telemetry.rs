@@ -113,8 +113,7 @@ impl TelemetryService {
                     ])
                     .value(
                         platform_metrics_daily::Column::MetricValue,
-                        sea_orm::sea_query::Expr::col(platform_metrics_daily::Column::MetricValue)
-                            .add(sea_orm::sea_query::Expr::cust("EXCLUDED.metric_value"))
+                        sea_orm::sea_query::Expr::cust("platform_metrics_daily.metric_value + EXCLUDED.metric_value")
                     )
                     .to_owned()
                 )

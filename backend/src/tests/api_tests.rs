@@ -52,14 +52,8 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
         },
     };
 
-    // Reset database state before each test
-    // Reset database state before each test. If it is already empty, this may error, which we ignore locally.
-    let _ = migration::Migrator::fresh(&db).await;
-    
-    // Run migrations
-    migration::Migrator::up(&db, None)
-        .await
-        .expect("Failed to run migrations");
+    // Reset database schema Exactly Once
+    test_utils::initialize_database(&db).await;
 
     let rp_origin = url::Url::parse("http://localhost:5001").unwrap();
     let webauthn = Arc::new(
