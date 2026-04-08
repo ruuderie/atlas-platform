@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::ui::button::{Button, ButtonVariant};
+use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
 use shared_ui::components::ui::switch::Switch;
 
 #[component]
@@ -172,7 +172,7 @@ pub fn AnchorSettingsPanel() -> impl IntoView {
                                                     <span class="material-symbols-outlined text-success text-[14px]">"language"</span>
                                                     <span class="text-sm font-mono text-on-surface font-semibold">{d.clone()}</span>
                                                 </div>
-                                                <Button variant=ButtonVariant::Destructive size="sm" class="h-6 py-0 px-2 text-[10px]".to_string() on:click=move |_| handle_remove_domain(domain_name.clone())>"Sever Link"</Button>
+                                                <Button variant=ButtonVariant::Destructive size=ButtonSize::Sm class="h-6 py-0 px-2 text-[10px]".to_string() on:click=move |_| handle_remove_domain(domain_name.clone())>"Sever Link"</Button>
                                             </div>
                                         }
                                     }
