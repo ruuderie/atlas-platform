@@ -40,6 +40,7 @@ pub mod m20260406_000002_create_telemetry_tables;
 pub mod m20260406_000003_create_developer_console_tables;
 pub mod m20260408_000000_create_audit_logs;
 pub mod m20260408_000000_fix_tenant_app_alignments;
+pub mod m20260408_000001_fix_uat_app_domains;
 
 pub struct Migrator;
 
@@ -88,6 +89,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260406_000003_create_developer_console_tables::Migration),
             Box::new(m20260408_000000_create_audit_logs::Migration),
             Box::new(m20260408_000000_fix_tenant_app_alignments::Migration),
+            Box::new(m20260408_000001_fix_uat_app_domains::Migration),
         ]
     }
 }

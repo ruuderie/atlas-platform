@@ -103,47 +103,56 @@ pub fn AppDashboard() -> impl IntoView {
     });
 
     view! {
-        <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
-            <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
-                <div>
-                    <div class="flex items-center space-x-3 mb-2">
-                        <Button variant=ButtonVariant::Outline class="h-8 px-2".to_string() on:click=move |_| {
-                            let window = web_sys::window().unwrap();
-                            let _ = window.history().unwrap().back();
-                        }>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
-                            "Back to Registry"
-                        </Button>
-                        <Badge intent=BadgeIntent::Success>"Active"</Badge>
+        <Show 
+            when=move || dirs.get().is_some() 
+            fallback=|| view! { 
+                <div class="p-8 text-center text-on-surface-variant flex flex-col items-center justify-center min-h-[400px]">
+                    <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+                    "Loading Application Workspace..."
+                </div> 
+            }
+        >
+            <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
+                <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <Button variant=ButtonVariant::Outline class="h-8 px-2".to_string() on:click=move |_| {
+                                let window = web_sys::window().unwrap();
+                                let _ = window.history().unwrap().back();
+                            }>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
+                                "Back to Registry"
+                            </Button>
+                            <Badge intent=BadgeIntent::Success>"Active"</Badge>
+                        </div>
+                        <h2 class="text-3xl font-bold tracking-tight">"Application: " {site_id}</h2>
+                        <p class="text-muted-foreground mt-1">"Manage application resources, users, and configuration."</p>
                     </div>
-                    <h2 class="text-3xl font-bold tracking-tight">"Application: " {site_id}</h2>
-                    <p class="text-muted-foreground mt-1">"Manage application resources, users, and configuration."</p>
-                </div>
-                <div class="flex space-x-2">
-                    <a href=move || {
-                        let d = domain_bind.get();
-                        if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
-                    } target="_blank" rel="noopener noreferrer">
-                        <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live App"</Button>
-                    </a>
-                    <Button variant=ButtonVariant::Default>"App Settings"</Button>
-                </div>
-            </header>
-            
-            <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
-                <UpsellBanner 
-                    title="Supercharge your new application!".to_string()
-                    description="Jumpstart your marketplace with pre-populated leads and premium business listings."
-                        .to_string()
-                    cta_text="Get 100 Premium Listings - $49".to_string()
-                    on_click=Callback::new(move |_| {
-                        leptos::logging::log!("Upsell Clicked: Application Injection on Dashboard");
-                    })
-                />
-            </Show>
+                    <div class="flex space-x-2">
+                        <a href=move || {
+                            let d = domain_bind.get();
+                            if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
+                        } target="_blank" rel="noopener noreferrer">
+                            <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live App"</Button>
+                        </a>
+                        <Button variant=ButtonVariant::Default>"App Settings"</Button>
+                    </div>
+                </header>
+                
+                <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
+                    <UpsellBanner 
+                        title="Supercharge your new application!".to_string()
+                        description="Jumpstart your marketplace with pre-populated leads and premium business listings."
+                            .to_string()
+                        cta_text="Get 100 Premium Listings - $49".to_string()
+                        on_click=Callback::new(move |_| {
+                            leptos::logging::log!("Upsell Clicked: Application Injection on Dashboard");
+                        })
+                    />
+                </Show>
 
-            <Tabs default_value="settings".to_string() class="w-full relative z-0 mt-6">
-                <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md overflow-x-auto">
+                <Tabs default_value="settings".to_string() class="w-full relative z-0 mt-6">
+                    <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md overflow-x-auto">
                     {move || app_manifest.get().panels.into_iter().map(|panel| {
                         view! {
                             <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
@@ -257,5 +266,6 @@ pub fn AppDashboard() -> impl IntoView {
                 </div>
             </Show>
         </div>
+        </Show>
     }
 }
