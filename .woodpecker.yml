@@ -182,15 +182,6 @@ steps:
         # Allow purge of old admin dynamically via script or direct DB logic if ever manually needed.
         # Cleaned up application-level API vulnerabilities.
 
-  # Workspace Cleanup
-  cleanup_workspace:
-    image: alpine
-    commands:
-      - rm -rf target/ || true
-    when:
-      - status: [success, failure]
-        event: [push]
-
   # Core Notification
   notify_discord:
     image: appleboy/drone-discord
@@ -200,12 +191,8 @@ steps:
       webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
       message: >
         **Atlas Platform Deployment**
-        {{#success build.status}}
-          ✅ Pipeline #{{build.number}} successfully compiled and deployed all unified monorepo applications!
-        {{else}}
-          ❌ Pipeline #{{build.number}} failed during phase `{{build.failed_steps}}`.
-        {{/success}}
-        *Pipeline Logs:* {{build.link}}
+        Pipeline #${CI_PIPELINE_NUMBER} finished with status: ${CI_PIPELINE_STATUS}.
+        *Pipeline Logs:* ${CI_PIPELINE_URL}
     when:
       - status: [success, failure]
         event: [push]
@@ -228,16 +215,25 @@ steps:
       recipients:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
-      subject: "[Atlas CI] Pipeline #{{build.number}} results: {{build.status}}"
+      subject: "[Atlas CI] Pipeline #${CI_PIPELINE_NUMBER} results: ${CI_PIPELINE_STATUS}"
       body: |
         Atlas Platform Deployment Status
         ------------------------------------
-        Status: {{build.status}}
-        Requested By: {{build.author}}
-        Branch: {{build.branch}}
-        Commit: {{build.commit}}
+        Status: ${CI_PIPELINE_STATUS}
+        Requested By: ${CI_COMMIT_AUTHOR}
+        Branch: ${CI_COMMIT_BRANCH}
+        Commit: ${CI_COMMIT_SHA}
         
-        Logs Available At: {{build.link}}
+        Logs Available At: ${CI_PIPELINE_URL}
+    when:
+      - status: [success, failure]
+        event: [push]
+
+  # Workspace Cleanup
+  cleanup_workspace:
+    image: alpine
+    commands:
+      - rm -rf target/ || true
     when:
       - status: [success, failure]
         event: [push]
