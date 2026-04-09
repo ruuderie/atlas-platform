@@ -15,7 +15,6 @@ data:
   ADMIN_PHONE: "+18608882536"
   ADMIN_USER: "admin@oply.co"
   CREATE_ADMIN_ON_STARTUP: "true"
-  WIPE_DB_ON_STARTUP: "true"
   API_URL: "https://api.uat.atlas.oply.co"
   FRONTEND_URL: "https://network.uat.atlas.oply.co"
   ADMIN_URL: "https://uat.atlas.oply.co"
