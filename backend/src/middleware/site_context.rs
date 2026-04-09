@@ -42,8 +42,8 @@ pub async fn site_context_middleware(
 ) -> Result<Response, StatusCode> {
     let domain = hostname.split(':').next().unwrap_or(&hostname).to_string();
     
-    // Skip site context for admin routes, authentication routes, and setup routes
-    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) || is_setup_route(req.uri().path()) {
+    // Skip site context for admin routes, authentication routes, setup routes, and system endpoints
+    if is_admin_route(req.uri().path()) || is_auth_route(req.uri().path()) || is_setup_route(req.uri().path()) || req.uri().path().starts_with("/api/app-instances") {
         return Ok(next.run(req).await);
     }
     

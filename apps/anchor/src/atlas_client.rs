@@ -24,7 +24,7 @@ pub async fn fetch_atlas_data<T: DeserializeOwned>(
     let mut req = CLIENT.get(&url);
 
     if let Some(h) = host {
-        req = req.header("Host", h);
+        req = req.header("X-Forwarded-Host", h);
     }
 
     let res = req.send().await.map_err(|e| e.to_string())?;
@@ -50,7 +50,7 @@ pub async fn post_to_atlas<T: Serialize, R: DeserializeOwned>(
     let mut req = CLIENT.post(&url);
     
     if let Some(h) = host {
-        req = req.header("Host", h);
+        req = req.header("X-Forwarded-Host", h);
     }
     
     // Pass tenant_id as a common generic header if helpful or it's handled by payload/url.
