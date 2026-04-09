@@ -121,14 +121,6 @@ async fn main() {
 
     let _request_logger = RequestLogger::new(conn.clone());
 
-    // TEMPORARY WIPE INSTRUCTION TO PACIFY SEAORM AND DO A FRESH REBOOT
-    tracing::warn!("Wiping the database to start from scratch without legacy migration conflict...");
-    use sea_orm::{ConnectionTrait, Statement};
-    conn.execute(Statement::from_string(
-        sea_orm::DatabaseBackend::Postgres,
-        "DROP SCHEMA public CASCADE; CREATE SCHEMA public;".to_owned(),
-    )).await.expect("Failed to recreate public schema");
-
     // Run migrations
     Migrator::up(&conn, None).await.unwrap();
 
