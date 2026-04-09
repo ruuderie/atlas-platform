@@ -21,10 +21,8 @@ async fn main() {
         .await
         .expect("Failed to connect to PostgreSQL");
 
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("Failed to run database migrations");
+    // Migrations are now managed structurally by the backend via SeaORM.
+    // We no longer run sqlx migrations on boot here.
 
     let app_state = AppState {
         leptos_options: leptos_options.clone(),
