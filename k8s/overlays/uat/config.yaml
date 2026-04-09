@@ -16,6 +16,7 @@ data:
   ADMIN_USER: "admin@oply.co"
   CREATE_ADMIN_ON_STARTUP: "true"
   API_URL: "https://api.uat.atlas.oply.co"
+  ATLAS_API_URL: "https://api.uat.atlas.oply.co"
   FRONTEND_URL: "https://network.uat.atlas.oply.co"
   ADMIN_URL: "https://uat.atlas.oply.co"
 ---

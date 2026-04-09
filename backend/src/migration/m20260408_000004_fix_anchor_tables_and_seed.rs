@@ -74,41 +74,7 @@ impl MigrationTrait for Migration {
                     PRIMARY KEY (profile_id, entry_id)
                 );
 
-                CREATE TABLE IF NOT EXISTS services (
-                    id SERIAL PRIMARY KEY,
-                    tenant_id UUID,
-                    title VARCHAR(255) NOT NULL,
-                    description TEXT NOT NULL,
-                    deliverables JSONB NOT NULL DEFAULT '[]'::jsonb,
-                    price_range VARCHAR(255),
-                    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-                    display_order INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                );
 
-                CREATE TABLE IF NOT EXISTS case_studies (
-                    id SERIAL PRIMARY KEY,
-                    tenant_id UUID,
-                    client_name VARCHAR(255) NOT NULL,
-                    problem TEXT NOT NULL,
-                    solution TEXT NOT NULL,
-                    roi_impact TEXT NOT NULL,
-                    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-                    display_order INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                );
-
-                CREATE TABLE IF NOT EXISTS highlights (
-                    id SERIAL PRIMARY KEY,
-                    tenant_id UUID,
-                    title VARCHAR(255) NOT NULL,
-                    url VARCHAR(500) NOT NULL,
-                    image_url VARCHAR(500),
-                    description TEXT,
-                    is_visible BOOLEAN NOT NULL DEFAULT TRUE,
-                    display_order INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-                );
 
                 CREATE TABLE IF NOT EXISTS lead_capture_options (
                     id SERIAL PRIMARY KEY,
@@ -215,15 +181,6 @@ impl MigrationTrait for Migration {
 
                     END IF;
 
-                    -- Insert Services if empty
-                    IF NOT EXISTS (SELECT 1 FROM services WHERE tenant_id = v_bwr_tenant_id LIMIT 1) THEN
-                        INSERT INTO services (tenant_id, title, description, deliverables, price_range, is_visible, display_order) VALUES
-                        (v_bwr_tenant_id, 'Strategic Architecture & Process Engineering', 'Reimplementing critical business processes using long-term thinking, elegant architectural design, and scalable infrastructure patterns. We dive deep into your Salesforce and distributed environments to establish sustainable technical foundations.', '["Scalable Business Process Re-engineering", "System Landscape Diagrams", "Technical Debt Refactoring Roadmaps"]'::jsonb, 'Custom per project', true, 1),
-                        (v_bwr_tenant_id, 'Salesforce Security & Threat Modeling', 'Hardening enterprise perimeters with specialized focus on Salesforce native security. Protect critical data flows and prevent automated exploitation through comprehensive system audits and strict access control regimes.', '["Salesforce Shield Implementations", "Identity & Access Management (IAM)", "System and User Access Reviews"]'::jsonb, 'Retainer available', true, 2),
-                        (v_bwr_tenant_id, 'High-Performance Rust, Data, & AI Systems', 'Purpose-built, memory-safe microservices designed for maximum throughput and predictable P99 latency. Leveraging my deep experience building critical infrastructure, I use Rust''s strict compiler guarantees to forge the performance engines behind modern AI architectures and high-volume data engineering pipelines. I specialize in replacing unscalable legacy endpoints with native Rust data streams, giving your platform an unmatched competitive edge in speed, security, and operational cost savings.', '["High-Volume Data Engineering Pipelines", "AI Inference Engine Optimization", "API and backend system development using Rust"]'::jsonb, 'Starting at $25,000', true, 3),
-                        (v_bwr_tenant_id, 'Autonomous AI Agents & Data Orchestration', 'Build end-to-end intelligent agent ecosystems that reason, act, and interface natively with your core business platforms. Drawing on my background architecting complex enterprise data flows, I integrate structured and unstructured data streams—from advanced document OCR extraction to continuous CRM ingestion—to power your autonomous AI deployments. I equip your systems with cutting-edge reasoning tools that operate safely and securely across your unified data graph.', '["Multi-Agent Workflow Automation", "Unified Data Strategies", "Complex Salesforce Integrations"]'::jsonb, 'Engagement based', true, 4),
-                        (v_bwr_tenant_id, 'Cloud-Native Infrastructure & DevOps', 'Accelerate your delivery capabilities with robust, scalable deployment architectures. Having engineered operations across highly distributed environments, I design and implement strictly governed Kubernetes configurations, sophisticated continuous integration pipelines, and immutable infrastructure protocols. I ensure your platform maintains high availability, scales effortlessly under load, and achieves rock-solid deployment reliability.', '["Kubernetes Cluster Architecture", "Zero-Downtime CI/CD Pipelines", "Infrastructure as Code (IaC) Audits"]'::jsonb, 'Tiered Retainers', true, 5);
-                    END IF;
                 END IF;
 
                 -- Insert global page headers

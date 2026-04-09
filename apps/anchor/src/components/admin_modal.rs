@@ -1872,7 +1872,7 @@ pub fn ServiceForm(initial_item: Option<crate::b2b::ServiceRecord>) -> impl Into
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(0);
+    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
     let (title, set_title) = create_signal(
         initial_item
@@ -1987,7 +1987,7 @@ pub fn CaseStudyForm(initial_item: Option<crate::b2b::CaseStudyRecord>) -> impl 
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(0);
+    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
     let (client_name, set_client_name) = create_signal(
         initial_item
@@ -2092,7 +2092,7 @@ pub fn HighlightForm(initial_item: Option<crate::b2b::HighlightRecord>) -> impl 
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(0);
+    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
     let (title, set_title) = create_signal(
         initial_item
