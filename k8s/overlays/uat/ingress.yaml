@@ -3,16 +3,18 @@ kind: Ingress
 metadata:
   name: atlas-ingress-uat
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: "nginx"
   tls:
   - hosts:
     - uat.atlas.oply.co
     - api.uat.atlas.oply.co
-    - uat.buildwithruud.com
     - network.uat.atlas.oply.co
     secretName: uat-atlas-tls
+  - hosts:
+    - uat.buildwithruud.com
+    secretName: uat-bwr-tls
   rules:
   - host: uat.atlas.oply.co
     http:
