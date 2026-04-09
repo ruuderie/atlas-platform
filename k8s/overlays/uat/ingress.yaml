@@ -10,6 +10,8 @@ spec:
   - hosts:
     - uat.atlas.oply.co
     - api.uat.atlas.oply.co
+    - uat.buildwithruud.com
+    - network.uat.atlas.oply.co
     secretName: uat-atlas-tls
   rules:
   - host: uat.atlas.oply.co
