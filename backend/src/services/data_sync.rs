@@ -78,7 +78,8 @@ impl DataSyncService {
     }
 
     pub async fn sync_bitcoin_blocks(db: &DatabaseConnection, tenant_id: Uuid, api_url: &str) -> Result<(), anyhow::Error> {
-        let res = reqwest::get(api_url).await?;
+        let client = reqwest::Client::builder().user_agent("AtlasPlatform/1.0").build()?;
+        let res = client.get(api_url).send().await?;
         if !res.status().is_success() {
             anyhow::bail!("mempool.space returned error status: {}", res.status());
         }

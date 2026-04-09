@@ -28,12 +28,11 @@ impl MigrationTrait for Migration {
 
                 -- Check if buildwithruud tenant already has an anchor app
                 IF NOT EXISTS (SELECT 1 FROM app_instances WHERE tenant_id = v_bwr_tenant_id AND app_type = 'anchor') THEN
-                    INSERT INTO app_instances (id, tenant_id, app_type, settings)
+                    INSERT INTO app_instances (id, tenant_id, app_type)
                     VALUES (
                         v_bwr_anchor_app_id, 
                         v_bwr_tenant_id, 
-                        'anchor', 
-                        '{"current_focus": "AI Agent Swarms (Agentforce / CrewAI)", "status": "Available for Critical Ops", "hero_quote": "Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.", "hero_subtitle": "SALESFORCE TECHNICAL ARCHITECT // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, LWC, APEX, AND RUST EXTERNAL MICROSERVICES.", "site_title": "ANCHOR", "lc_title": "Request Tailored CV", "lc_desc": "Input your protocol for a mission-specific credentials package.", "lc_label": "Registry Email Address", "lc_placeholder": "user@organization.domain", "lc_btn": "Initialize Retrieval", "lc_footer": "* Check your email to confirm the request parameters.", "lc_endpoint": "/api/DownloadResume", "status_color": "#ff5449", "webhook_url": "", "admin_email": "", "google_analytics_id": "", "booking_url": "https://cal.com/ruuderie/15min", "terms_html": "# Terms of Service\\n\\nPlease review our terms.", "privacy_html": "# Privacy Policy\\n\\nWe respect your digital privacy.", "github_url": "https://github.com/ruuderie", "x_url": "https://x.com/ruuderie", "linkedin_url": "https://linkedin.com/in/ruuderie", "b2b_enabled": true, "meta_title": "Ruud Salym Erie - Technical Architect", "meta_description": "Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.", "og_image": ""}'::jsonb
+                        'anchor'
                     );
                 ELSE
                     SELECT id INTO v_bwr_anchor_app_id FROM app_instances WHERE tenant_id = v_bwr_tenant_id AND app_type = 'anchor' LIMIT 1;

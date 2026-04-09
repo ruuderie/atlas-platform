@@ -3,7 +3,7 @@ use leptos_router::A;
 use std::time::Duration;
 
 #[server(GetBlockHeight, "/api")]
-pub async fn get_block_height() -> Result<u64, ServerFnError> {
+pub async fn get_block_height() -> Result<Option<u64>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
@@ -20,9 +20,9 @@ pub async fn get_block_height() -> Result<u64, ServerFnError> {
     .await?;
 
     if let Some(row) = latest_db {
-        Ok(row.get::<i64, _>("height") as u64)
+        Ok(Some(row.get::<i64, _>("height") as u64))
     } else {
-        Ok(0)
+        Ok(None)
     }
 }
 
@@ -241,17 +241,31 @@ pub fn Nav() -> impl IntoView {
                     </a>
                 }>
                     {move || {
-                        let h = height_resource.get().unwrap_or(Ok(0)).unwrap_or(0);
-                        view! {
-                            <a href=format!("https://mempool.space/block/{}", h) target="_blank" rel="noopener noreferrer" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap">
-                                <div class="flex flex-col items-center leading-none justify-center">
-                                    <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">"CURRENT BLOCK"</span>
-                                    <div class="mt-1 flex items-center text-on-surface">
-                                        <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">"currency_bitcoin"</span>
-                                        <span>"#" {h}</span>
+                        let h = height_resource.get().unwrap_or(Ok(None)).unwrap_or(None);
+                        if let Some(height) = h {
+                            view! {
+                                <a href=format!("https://mempool.space/block/{}", height) target="_blank" rel="noopener noreferrer" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap">
+                                    <div class="flex flex-col items-center leading-none justify-center">
+                                        <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">"CURRENT BLOCK"</span>
+                                        <div class="mt-1 flex items-center text-on-surface">
+                                            <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">"currency_bitcoin"</span>
+                                            <span>"#" {height}</span>
+                                        </div>
                                     </div>
-                                </div>
-                            </a>
+                                </a>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <a href="#" class="bg-surface border border-[#f7931a]/30 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider animate-pulse transition-all block whitespace-nowrap">
+                                    <div class="flex flex-col items-center leading-none justify-center">
+                                        <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">"STATE"</span>
+                                        <div class="mt-1 flex items-center text-on-surface">
+                                            <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom animate-spin">"sync"</span>
+                                            <span class="text-[#f7931a]">"SYNCING..."</span>
+                                        </div>
+                                    </div>
+                                </a>
+                            }.into_view()
                         }
                     }}
                 </Suspense>
