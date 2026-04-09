@@ -121,6 +121,15 @@ async fn main() {
 
     let _request_logger = RequestLogger::new(conn.clone());
 
+    if std::env::var("WIPE_DB_ON_STARTUP").unwrap_or_else(|_| "false".to_string()) == "true" {
+        tracing::warn!("WIPE_DB_ON_STARTUP is enabled! Wiping the database to start from scratch...");
+        use sea_orm::{ConnectionTrait, Statement};
+        conn.execute(Statement::from_string(
+            sea_orm::DatabaseBackend::Postgres,
+            "DROP SCHEMA public CASCADE; CREATE SCHEMA public;".to_owned(),
+        )).await.expect("Failed to recreate public schema");
+    }
+
     // Run migrations
     Migrator::up(&conn, None).await.unwrap();
 
