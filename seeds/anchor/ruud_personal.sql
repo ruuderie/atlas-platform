@@ -85,30 +85,30 @@ BEGIN
         v_parent_work UUID := gen_random_uuid();
         v_parent_investments UUID := gen_random_uuid();
     BEGIN
-        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible) VALUES 
-        (v_parent_work, v_bwr_tenant_id, 'header', 'WORK', '#', 10, true),
-        (v_parent_investments, v_bwr_tenant_id, 'header', 'INVESTMENTS', '#', 40, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BLOG', '/blog', 30, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'SERVICES', '/services', 15, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BOOK DISCOVERY', '/book', 25, true);
+        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible, created_at, updated_at) VALUES 
+        (v_parent_work, v_bwr_tenant_id, 'header', 'WORK', '#', 10, true, NOW(), NOW()),
+        (v_parent_investments, v_bwr_tenant_id, 'header', 'INVESTMENTS', '#', 40, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BLOG', '/blog', 30, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'SERVICES', '/services', 15, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BOOK DISCOVERY', '/book', 25, true, NOW(), NOW());
 
-        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, parent_id, display_order, is_visible) VALUES
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'EXPERIENCE', '/resume', v_parent_work, 10, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'PROJECTS', '/projects', v_parent_work, 20, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'REAL ESTATE', '/investments/real-estate', v_parent_investments, 10, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BITCOIN', '/investments/bitcoin', v_parent_investments, 20, true);
+        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, parent_id, display_order, is_visible, created_at, updated_at) VALUES
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'EXPERIENCE', '/resume', v_parent_work, 10, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'PROJECTS', '/projects', v_parent_work, 20, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'REAL ESTATE', '/investments/real-estate', v_parent_investments, 10, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'header', 'BITCOIN', '/investments/bitcoin', v_parent_investments, 20, true, NOW(), NOW());
 
         -- Insert footer menus
-        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible) VALUES
-        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'TERMS OF SERVICE', '/terms', 10, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'PRIVACY POLICY', '/privacy', 20, true),
-        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'SITEMAP', '/sitemap', 30, true);
+        INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible, created_at, updated_at) VALUES
+        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'TERMS OF SERVICE', '/terms', 10, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'PRIVACY POLICY', '/privacy', 20, true, NOW(), NOW()),
+        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'SITEMAP', '/sitemap', 30, true, NOW(), NOW());
     END;
 
     -- Replace landing_pages map into app_pages 
     DELETE FROM app_pages WHERE tenant_id = v_bwr_tenant_id AND slug IN ('real-estate-ventures');
 
-    INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published)
+    INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published, created_at, updated_at)
     VALUES (
         gen_random_uuid(),
         v_bwr_tenant_id,
@@ -118,7 +118,9 @@ BEGIN
         'landing',
         '{"hero_title": "Real Estate<br/>Ventures.", "hero_subtitle": "I am an active real estate investor and landlord always looking for the next deal or strategic partnership. Beyond acquiring properties, I leverage my network as a loan broker to structure investment capital."}'::jsonb,
         '{"lead_capture_title": "Let''s Connect", "lead_capture_desc": "Join the deal flow or request financing. Select your areas of interest below.", "lead_capture_btn": "SUBMIT INQUIRY", "options_json": "{\"buying\": \"Buying a Home\", \"selling\": \"Selling a Home\", \"loan\": \"Getting a real estate investment loan\", \"networking\": \"Connecting with other investors\"}"}'::jsonb,
-        true
+        true,
+        NOW(),
+        NOW()
     );
 
 END $$;
