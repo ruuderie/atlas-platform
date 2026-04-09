@@ -80,9 +80,6 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000000_create_audit_logs::Migration),
             Box::new(m20260408_000000_fix_tenant_app_alignments::Migration),
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
-            Box::new(m20260408_000002_create_anchor_legacy_tables::Migration),
-            Box::new(m20260408_000003_seed_anchor_background_jobs::Migration),
-            Box::new(m20260408_000004_fix_anchor_tables_and_seed::Migration),
             Box::new(m20260408_000006_create_app_content::Migration),
         ];
 
