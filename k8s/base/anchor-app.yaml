@@ -18,8 +18,16 @@ spec:
       - name: anchor-app
         image: ghcr.io/ruuderie/anchor-app:latest
         imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        env:
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
         ports:
-        - containerPort: 3000 
+        - containerPort: 3000
 ---
 apiVersion: v1
 kind: Service
