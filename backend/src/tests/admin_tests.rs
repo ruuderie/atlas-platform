@@ -171,7 +171,7 @@ async fn test_admin_domain_management() {
         )
         .await
         .unwrap();
-    assert!(response.status().is_success() || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(response.status().is_success());
 
     // 2. Get Domains
     let response = app.clone()
@@ -186,7 +186,7 @@ async fn test_admin_domain_management() {
         )
         .await
         .unwrap();
-    assert!(response.status().is_success() || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(response.status().is_success());
 
     // 3. Remove Domain
     let response = app.clone()
@@ -201,5 +201,5 @@ async fn test_admin_domain_management() {
         )
         .await
         .unwrap();
-    assert!(response.status().is_success() || response.status() == StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(response.status().is_success());
 }

@@ -73,19 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         site_status: Set("ACTIVE".to_string()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        logo: Set(None),
-        favicon: Set(None),
-        header_scripts: Set(None),
-        footer_scripts: Set(None),
-        google_analytics_id: Set(None),
-        google_site_verification: Set(None),
-        meta_description: Set(None),
-        meta_keywords: Set(None),
-        meta_title: Set(None),
-        page_title: Set(None),
-        page_description: Set(None),
-        page_keywords: Set(None),
-        canonical_url: Set(None),
+        ..Default::default()
     };
 
     tenant_model.insert(&db).await?;

@@ -242,6 +242,7 @@ pub async fn create_and_login_admin_user(
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     }
     .insert(db)
     .await
@@ -281,6 +282,7 @@ pub async fn create_staff_user_account(
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     }
     .insert(db)
     .await
@@ -295,6 +297,7 @@ pub async fn create_staff_user_account(
         is_active: Set(true),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
     }
     .insert(db)
     .await
