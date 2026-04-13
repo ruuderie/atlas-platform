@@ -82,7 +82,7 @@ pub fn AppDashboard() -> impl IntoView {
     let (show_domain_modal, set_show_domain_modal) = signal(false);
     let new_domain_input = RwSignal::new(String::new());
     
-    let add_domain_action = Action::new({
+    let add_domain_action = Action::new_local({
         let toast = toast.clone();
         let sid = site_id_str.clone();
         move |domain: &String| {
