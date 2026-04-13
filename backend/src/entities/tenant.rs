@@ -13,6 +13,8 @@ pub struct Model {
     pub name: String,
     pub description: String,
     pub site_status: String,
+    #[sea_orm(unique, nullable)]
+    pub slug: Option<String>,
     #[sea_orm(nullable)]
     pub logo: Option<String>,
     #[sea_orm(nullable)]

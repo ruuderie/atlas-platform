@@ -71,22 +71,34 @@ pub fn AppDashboard() -> impl IntoView {
         crate::api::templates::get_templates().await.unwrap_or_default()
     });
 
-    let mock_profiles = vec![
-        ("usr_8821", "Alice Admin", "alice@example.com", "Site Admin"),
-        ("usr_3194", "Bob Driver", "bob@example.com", "Contributor"),
-        ("usr_5561", "Charlie Dispatch", "charlie@example.com", "Editor"),
-    ];
+    let domains_res = LocalResource::new({
+        let sid = site_id_str.clone();
+        move || {
+            let sid = sid.clone();
+            async move { crate::api::admin::get_app_domains(sid).await.unwrap_or_default() }
+        }
+    });
 
-    let mock_categories = vec![
-        ("C-10", "Auto & Transport", "Active"),
-        ("C-11", "Home Services", "Active"),
-        ("C-12", "Professional Services", "Active"),
-    ];
+    let (show_domain_modal, set_show_domain_modal) = signal(false);
+    let new_domain_input = RwSignal::new(String::new());
     
-    let mock_templates = vec![
-        ("T-01", "Standard Business", "v1.2", "Active"),
-        ("T-02", "Premium Listing", "v2.0", "Active"),
-    ];
+    let add_domain_action = Action::new({
+        let toast = toast.clone();
+        let sid = site_id_str.clone();
+        move |domain: &String| {
+            let domain = domain.clone();
+            let sid = sid.clone();
+            let toast = toast.clone();
+            async move {
+                match crate::api::admin::add_app_domain(sid, domain).await {
+                    Ok(_) => { toast.message.set(Some("Domain securely attached.".to_string())); }
+                    Err(e) => { toast.message.set(Some(format!("Error adding domain: {}", e))); }
+                }
+            }
+        }
+    });
+
+    // Local database resources automatically populate children panes
 
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
@@ -158,6 +170,7 @@ pub fn AppDashboard() -> impl IntoView {
                             <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
                         }
                     }).collect_view()}
+                    <TabsTrigger value="domains".to_string()>"Routing & Domains"</TabsTrigger>
                 </TabsList>
 
                 {move || app_manifest.get().panels.into_iter().map(|panel| {
@@ -167,6 +180,71 @@ pub fn AppDashboard() -> impl IntoView {
                         </TabsContent>
                     }
                 }).collect_view()}
+                <TabsContent value="domains".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">
+                            <div>
+                                <h3 class="text-lg font-medium">"Custom Hostnames"</h3>
+                                <p class="text-sm text-muted-foreground">"Manage DNS routing for this application instance. Tenant traffic routes here natively."</p>
+                            </div>
+                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_domain_modal.set(true)>
+                                "Add Domain"
+                            </Button>
+                        </div>
+                        
+                        <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-muted/50 border-b border-border text-xs tracking-wider uppercase text-muted-foreground">
+                                        <th class="px-6 py-4 font-medium">"Domain Name"</th>
+                                        <th class="px-6 py-4 font-medium">"Edge SSL Status"</th>
+                                        <th class="px-6 py-4 font-medium text-right">"Actions"</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-border">
+                                    <Suspense fallback=move || view! { <tr><td colspan="3" class="p-6 text-center text-muted-foreground">"Loading connected routes..."</td></tr> }>
+                                        {move || {
+                                            match domains_res.get() {
+                                                Some(domains) if domains.is_empty() => {
+                                                    view! {
+                                                        <tr>
+                                                            <td colspan="3" class="px-6 py-8 text-center text-muted-foreground">
+                                                                "No custom domains attached. Traffic uses primary wildcard via instance ID."
+                                                            </td>
+                                                        </tr>
+                                                    }.into_any()
+                                                },
+                                                Some(domains) => {
+                                                    domains.into_iter().map(|domain| {
+                                                        let d_clone = domain.clone();
+                                                        let sid = site_id().to_string();
+                                                        let t = toast.clone();
+                                                        view! {
+                                                            <tr class="hover:bg-muted/30 transition-colors">
+                                                                <td class="px-6 py-4 font-mono text-sm text-primary">
+                                                                    {domain.clone()}
+                                                                </td>
+                                                                <td class="px-6 py-4">
+                                                                    <Badge intent=BadgeIntent::Success>"Active / Managed"</Badge>
+                                                                </td>
+                                                                <td class="px-6 py-4 text-right">
+                                                                    <button class="text-destructive hover:underline text-xs font-bold uppercase tracking-widest" >
+                                                                        "DELETE"
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }).collect_view().into_any()
+                                                },
+                                                None => view! { <tr></tr> }.into_any()
+                                            }
+                                        }}
+                                    </Suspense>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </TabsContent>
             </Tabs>
 
             <Show when=move || show_add_listing.get()>
@@ -261,6 +339,29 @@ pub fn AppDashboard() -> impl IntoView {
                                 toast.message.set(Some("Template assigned.".to_string()));
                                 set_show_add_template.set(false);
                             }>"Save"</Button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+            <Show when=move || show_domain_modal.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_domain_modal.set(false)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">"Attach Domain"</h3>
+                        <p class="text-muted-foreground text-sm mb-6">"Provision a new hostname. A Cloudflare SSL certificate will be automatically requested."</p>
+                        <div class="space-y-4 mb-6">
+                            <div class="grid gap-2 text-left">
+                                <Label>"Hostname (e.g. dev.buildwithruud.com)"</Label>
+                                <Input r#type=InputType::Text bind_value=new_domain_input />
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-3">
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_domain_modal.set(false)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Default on:click=move |_| {
+                                let d = new_domain_input.get();
+                                add_domain_action.dispatch(d);
+                                set_show_domain_modal.set(false);
+                            }>"Provision Pipeline"</Button>
                         </div>
                     </div>
                 </div>

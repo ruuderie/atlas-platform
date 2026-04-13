@@ -14,6 +14,28 @@ pub struct LandingPageRecord {
     pub lead_capture_desc: String,
     pub lead_capture_btn: String,
     pub options_json: String,
+    pub dynamic_blocks_json: String,
+}
+
+use crate::components::blocks::hero::{HeroBlock, HeroBlockData};
+use crate::components::blocks::grid::{GridBlock, GridBlockData};
+use crate::components::blocks::rich_text::{RichTextBlock, RichTextData};
+use crate::components::blocks::callout::{CalloutBlock, CalloutBlockData};
+use crate::components::blocks::form_builder::{FormBuilderBlock, FormBuilderData};
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "data")]
+pub enum DynamicBlock {
+    #[serde(rename = "hero")]
+    Hero(HeroBlockData),
+    #[serde(rename = "grid")]
+    Grid(GridBlockData),
+    #[serde(rename = "rich_text")]
+    RichText(RichTextData),
+    #[serde(rename = "callout")]
+    Callout(CalloutBlockData),
+    #[serde(rename = "form_builder")]
+    FormBuilder(FormBuilderData),
 }
 
 #[server(GetLandingPage, "/api")]
@@ -52,6 +74,7 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
                 lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
                 lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
                 options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
+                dynamic_blocks_json: blocks["dynamic_blocks"].to_string(),
             }));
         }
     }
@@ -97,6 +120,7 @@ pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnE
                     lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
                     lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
                     options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
+                    dynamic_blocks_json: blocks["dynamic_blocks"].to_string(),
                 }
             }).collect();
             return Ok(mapped);
@@ -236,8 +260,22 @@ pub fn DynamicLanding() -> impl IntoView {
                                     {&page.hero_subtitle}
                                 </p>
 
-                                <div class="bg-surface-container-low p-8 border-l-4 border-primary my-12">
-                                    {if submitted.get() {
+                                <div class="w-full">
+                                    {move || {
+                                        let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+                                        parsed_blocks.into_iter().map(|block| match block {
+                                            DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
+                                            DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
+                                            DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
+                                            DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
+                                            DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
+                                        }).collect_view()
+                                    }}
+                                </div>
+
+                                {if !page.lead_capture_title.is_empty() {
+                                    view!{ <div class="bg-surface-container-low p-8 border-l-4 border-primary my-12">
+                                        {if submitted.get() {
                                         view! {
                                             <div class="text-center space-y-6 py-8">
                                                 <span class="material-symbols-outlined text-secondary text-5xl">"check_circle"</span>
@@ -295,7 +333,8 @@ pub fn DynamicLanding() -> impl IntoView {
                                             </div>
                                         }.into_view()
                                     }}
-                                </div>
+                                    </div> }.into_view()
+                                } else { view!{}.into_view() }}
                             </section>
                         }.into_view()
                     },

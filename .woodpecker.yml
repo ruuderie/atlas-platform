@@ -126,6 +126,12 @@ steps:
         from_secret: SMTP_USERNAME
       SMTP_FROM:
         from_secret: SMTP_FROM
+      R2_ACCESS_KEY_ID:
+        from_secret: r2_access_key_id
+      R2_SECRET_ACCESS_KEY:
+        from_secret: r2_secret_access_key
+      R2_ENDPOINT:
+        from_secret: r2_endpoint
     commands:
       - set -euo pipefail
       - export KUBECONFIG=/tmp/kubeconfig.yaml
@@ -141,7 +147,7 @@ steps:
           echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
           
           # Strictly validate existence of required secrets so CI fails loudly instead of deploying a broken state
-          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ENDPOINT; do
             secret_value=$(printenv "$secret_name" || echo "")
             if [ -z "$secret_value" ]; then
               echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Deployment aborted to prevent cluster misconfiguration."
@@ -158,6 +164,9 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_R2_ACCESS_KEY_ID|$R2_ACCESS_KEY_ID|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_R2_SECRET_ACCESS_KEY|$R2_SECRET_ACCESS_KEY|g" k8s/overlays/uat/config.yaml
+          sed -i "s|REPLACE_WITH_R2_ENDPOINT|$R2_ENDPOINT|g" k8s/overlays/uat/config.yaml
           
           echo "Deploying to UAT environment..."
           kubectl apply -k k8s/overlays/uat

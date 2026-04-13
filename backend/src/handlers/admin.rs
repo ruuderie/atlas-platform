@@ -156,6 +156,13 @@ pub async fn add_app_domain(
     Json(input): Json<AppDomainInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
     use crate::entities::app_domain;
+    
+    // Abstract Edge Infrastructure Hook - Connects to Cloudflare Custom Hostname API (or alternative)
+    if let Err(e) = crate::services::dns::provision_domain(&input.domain_name).await {
+        tracing::error!("DNS Edge provisioning failed for domain {}: {}", input.domain_name, e);
+        return Err(StatusCode::BAD_GATEWAY);
+    }
+    
     let new_domain = app_domain::ActiveModel {
         id: Set(Uuid::new_v4()),
         app_instance_id: Set(instance_id),

@@ -15,6 +15,10 @@ spec:
   - hosts:
     - uat.buildwithruud.com
     secretName: uat-bwr-tls
+  - hosts:
+    - oplystusa.com
+    - uat.oplystusa.com
+    secretName: uat-oplystusa-tls
   rules:
   - host: uat.atlas.oply.co
     http:
@@ -54,5 +58,25 @@ spec:
         backend:
           service:
             name: network-instance
+            port:
+              number: 80
+  - host: oplystusa.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80
+  - host: uat.oplystusa.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
             port:
               number: 80

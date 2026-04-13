@@ -22,6 +22,7 @@ pub mod listings;
 pub mod profiles;
 pub mod user_accounts;
 pub mod users;
+pub mod forms;
 pub mod passkeys;
 pub mod admin;
 pub mod sessions;

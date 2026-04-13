@@ -16,7 +16,7 @@ data:
   ADMIN_USER: "admin@oply.co"
   CREATE_ADMIN_ON_STARTUP: "true"
   API_URL: "https://api.uat.atlas.oply.co"
-  ATLAS_API_URL: "https://api.uat.atlas.oply.co"
+  ATLAS_API_URL: "http://backend.atlas-platform.svc.cluster.local:8000"
   FRONTEND_URL: "https://network.uat.atlas.oply.co"
   ADMIN_URL: "https://uat.atlas.oply.co"
 ---
@@ -35,3 +35,6 @@ stringData:
   SMTP_PORT: "REPLACE_WITH_SMTP_PORT"
   SMTP_USERNAME: "REPLACE_WITH_SMTP_USERNAME"
   SMTP_FROM: "REPLACE_WITH_SMTP_FROM"
+  R2_ACCESS_KEY_ID: "REPLACE_WITH_R2_ACCESS_KEY_ID"
+  R2_SECRET_ACCESS_KEY: "REPLACE_WITH_R2_SECRET_ACCESS_KEY"
+  R2_ENDPOINT: "REPLACE_WITH_R2_ENDPOINT"

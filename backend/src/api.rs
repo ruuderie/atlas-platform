@@ -15,7 +15,7 @@
  */
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search};
+use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search, forms};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -57,6 +57,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(tenant::public_routes(db.clone()))
         .merge(crate::handlers::feeds::public_routes(db.clone()))
         .merge(auth_frontend::public_routes())
+        .merge(forms::public_routes()) // NEW FORMS HANDLER
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())

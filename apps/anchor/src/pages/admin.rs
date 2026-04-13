@@ -6,6 +6,66 @@ use crate::components::admin_modal::*;
 // WebAuthn JS imports removed
 
 #[component]
+pub fn WebformsTable() -> impl IntoView {
+    view! {
+        <div class="space-y-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">"Lead Capture & Origination Schemas"</h3>
+                    <p class="text-sm text-on-surface-variant">"Manage multi-step form sequences mapped into the JSON layout blocks."</p>
+                </div>
+            </div>
+
+            <div class="bg-surface-container overflow-hidden border border-outline-variant/30 hidden md:block">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-surface-container-high border-b border-outline-variant/30 text-xs tracking-wider uppercase text-on-surface-variant jetbrains">
+                            <th class="px-6 py-4 font-medium">"Form ID (Slug)"</th>
+                            <th class="px-6 py-4 font-medium">"Name"</th>
+                            <th class="px-6 py-4 font-medium">"Description"</th>
+                            <th class="px-6 py-4 font-medium">"Integrations"</th>
+                            <th class="px-6 py-4 font-medium text-right">"Actions"</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline-variant/30">
+                        <tr class="hover:bg-surface-container-high/50 transition-colors">
+                            <td class="px-6 py-4 jetbrains text-xs text-primary font-bold">"cre-application"</td>
+                            <td class="px-6 py-4 text-sm font-medium">"Commercial Real Estate Loan"</td>
+                            <td class="px-6 py-4 text-sm text-on-surface-variant truncate max-w-[200px]">"Standard CRE loan application for multifamily, retail, office, etc."</td>
+                            <td class="px-6 py-4">
+                                <span class="bg-primary/10 text-primary px-2 py-1 text-xs font-bold rounded">"Webhook Active"</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button class="text-primary hover:underline text-xs jetbrains font-bold uppercase tracking-widest mr-4">"EDIT JSON"</button>
+                                <button class="text-error hover:underline text-xs jetbrains font-bold uppercase tracking-widest">"DELETE"</button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-surface-container-high/50 transition-colors">
+                            <td class="px-6 py-4 jetbrains text-xs text-primary font-bold">"hoa-condo-application"</td>
+                            <td class="px-6 py-4 text-sm font-medium">"HOA & Condominium Association Loan"</td>
+                            <td class="px-6 py-4 text-sm text-on-surface-variant truncate max-w-[200px]">"Unsecured lending for condo associations to fund capital improvements."</td>
+                            <td class="px-6 py-4">
+                                <span class="bg-primary/10 text-primary px-2 py-1 text-xs font-bold rounded">"Webhook Active"</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button class="text-primary hover:underline text-xs jetbrains font-bold uppercase tracking-widest mr-4">"EDIT JSON"</button>
+                                <button class="text-error hover:underline text-xs jetbrains font-bold uppercase tracking-widest">"DELETE"</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-surface-container border border-outline-variant/30 p-8 text-center mt-6">
+                <span class="material-symbols-outlined text-4xl text-primary mb-4 block">"view_list"</span>
+                <p class="text-on-surface-variant max-w-lg mx-auto">
+                    "These schemas dynamically populate the `<FormBuilderBlock />` when mapped into App Pages."
+                </p>
+            </div>
+        </div>
+    }
+}
+
+#[component]
 pub fn Admin() -> impl IntoView {
     let query = leptos_router::use_query_map();
     
@@ -164,8 +224,7 @@ pub fn Admin() -> impl IntoView {
                         // Sidebar
                         <aside class="w-full md:w-64 shrink-0 space-y-2">
                             <div class="mb-12">
-                                <span class="font-label text-[0.6875rem] text-outline font-bold tracking-widest uppercase block mb-4">"Navigation"</span>
-                            {["DASHBOARD", "SERVICES", "CASE STUDIES", "HIGHLIGHTS", "MAILING LIST", "SETTINGS", "LEAD OPTIONS", "NAVIGATION", "FOOTER", "PAGE HEADERS", "BLOG", "RESUME PROFILES", "RESUME ENTRIES", "LANDING PAGES", "SECURITY"].iter().map(|&t| {
+                            {["DASHBOARD", "WEBFORMS", "SERVICES", "CASE STUDIES", "HIGHLIGHTS", "MAILING LIST", "SETTINGS", "LEAD OPTIONS", "NAVIGATION", "FOOTER", "PAGE HEADERS", "BLOG", "RESUME PROFILES", "RESUME ENTRIES", "LANDING PAGES", "SECURITY"].iter().map(|&t| {
                                             let tab = t; // Capture `t` for the closure
                                             view! {
                                                 <button
@@ -222,6 +281,7 @@ pub fn Admin() -> impl IntoView {
                                                 "PAGE HEADERS" => ModalState::PageHeader(None),
                                                 "MAILING LIST" => ModalState::MailingList(None),
                                                 "LEAD OPTIONS" => ModalState::LeadOption(None),
+                                                "WEBFORMS" => ModalState::None, // Requires dedicated Form Builder UI
                                                 "SECURITY" => ModalState::Passkey,
                                                 _ => ModalState::None,
                                             };
@@ -237,6 +297,7 @@ pub fn Admin() -> impl IntoView {
                                 <div class="flex-1 overflow-x-auto">
                                     {move || match active_tab.get() {
                                         "DASHBOARD" => view! { <DashboardView /> }.into_view(),
+                                        "WEBFORMS" => view! { <WebformsTable /> }.into_view(),
                                         "SERVICES" => view! { <ServiceTable /> }.into_view(),
                                         "CASE STUDIES" => view! { <CaseStudyTable /> }.into_view(),
                                         "HIGHLIGHTS" => view! { <HighlightTable /> }.into_view(),

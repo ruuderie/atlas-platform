@@ -1,6 +1,7 @@
 pub mod tenant;
 pub mod telephony;
 pub mod billing;
+pub mod dns;
 
 pub mod search_sync;
 pub mod telemetry;
