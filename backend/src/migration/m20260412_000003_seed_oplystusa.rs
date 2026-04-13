@@ -16,8 +16,8 @@ impl MigrationTrait for Migration {
 
         // Intelligently maps to the new `tenant` schema with deterministic string `slug`
         let raw_insert = format!(
-            "INSERT INTO tenant (id, name, description, site_status, slug) 
-             VALUES ('{}', '{}', '{}', 'ACTIVE', '{}') 
+            "INSERT INTO tenant (id, name, description, site_status, slug, created_at, updated_at) 
+             VALUES ('{}', '{}', '{}', 'ACTIVE', '{}', NOW(), NOW()) 
              ON CONFLICT (slug) DO UPDATE SET site_status = 'ACTIVE';",
             oplyst_tenant_id, "OplystUSA Commercial Capital", "A national real estate bridge lender", oplyst_slug
         );

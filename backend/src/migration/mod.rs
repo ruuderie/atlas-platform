@@ -46,8 +46,8 @@ pub mod m20260408_000003_seed_anchor_background_jobs;
 pub mod m20260408_000004_fix_anchor_tables_and_seed;
 pub mod m20260408_000006_create_app_content;
 pub mod m20260412_000001_form_engine;
-pub mod m20260412_000002_seed_oplystusa;
-pub mod m20260412_000003_add_tenant_slug;
+pub mod m20260412_000002_add_tenant_slug;
+pub mod m20260412_000003_seed_oplystusa;
 
 pub struct Migrator;
 
@@ -85,8 +85,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
             Box::new(m20260408_000006_create_app_content::Migration),
             Box::new(m20260412_000001_form_engine::Migration),
-            Box::new(m20260412_000002_seed_oplystusa::Migration),
-            Box::new(m20260412_000003_add_tenant_slug::Migration),
+            Box::new(m20260412_000002_add_tenant_slug::Migration),
+            Box::new(m20260412_000003_seed_oplystusa::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
