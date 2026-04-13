@@ -46,8 +46,8 @@ impl MigrationTrait for Migration {
         for (key, val) in settings {
             let escape_val = val.replace("'", "''");
             let sql_set = format!(
-                "INSERT INTO site_settings (id, tenant_id, key, value) 
-                VALUES (gen_random_uuid(), (SELECT id FROM tenant WHERE slug='{}'), '{}', '{}')
+                "INSERT INTO tenant_setting (id, tenant_id, key, value, created_at, updated_at) 
+                VALUES (gen_random_uuid(), (SELECT id FROM tenant WHERE slug='{}'), '{}', '{}', NOW(), NOW())
                 ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value;",
                 oplyst_slug, key, escape_val
             );
@@ -151,7 +151,7 @@ impl MigrationTrait for Migration {
         ]);
 
         let insert_blocks = format!(
-            "UPDATE app_pages SET dynamic_blocks_json = '{}', updated_at = NOW()
+            "UPDATE app_pages SET blocks_payload = '{}', updated_at = NOW()
              WHERE tenant_id = (SELECT id FROM tenant WHERE slug='{}') AND slug = 'home';",
             blocks_json.to_string().replace("'", "''"),
             oplyst_slug
