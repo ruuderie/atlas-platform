@@ -24,7 +24,7 @@ use crate::pages::bitcoin::BitcoinDashboard;
 use crate::pages::blog::Blog;
 use crate::pages::book::BookDiscovery;
 use crate::pages::certifications::Certifications;
-use crate::pages::dynamic_landing::DynamicLanding;
+use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
 use crate::pages::landing::Landing;
 use crate::pages::legal::{Privacy, Terms};
 use crate::pages::projects::Projects;
@@ -152,7 +152,8 @@ pub fn App() -> impl IntoView {
                 view! { <PageViewTracker /> }
             }
             <Routes>
-                <Route path="/" view=Landing/>
+                <Route path="/" view=DynamicHomeLanding/>
+                <Route path="/legacy" view=Landing/>
                 <Route path="/resume" view=Resume/>
                 <Route path="/work" view=|| view! { <Redirect path="/resume" /> }/>
                 <Route path="/projects" view=Projects/>

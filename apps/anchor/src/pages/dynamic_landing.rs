@@ -345,3 +345,61 @@ pub fn DynamicLanding() -> impl IntoView {
         </main>
     }
 }
+
+/// Root `/` component — renders the CMS `home` page for the current tenant.
+/// Falls back to a clean Anchor platform placeholder when no page is configured yet.
+#[component]
+pub fn DynamicHomeLanding() -> impl IntoView {
+    let page_res = create_resource(|| "home".to_string(), |s| get_landing_page(s));
+
+    view! {
+        <main class="pt-32 pb-24 px-4 md:px-[8.5rem]">
+            <Suspense fallback=move || view! { <div class="text-center pt-24 jetbrains text-outline">"LOADING..."</div> }>
+                {move || match page_res.get() {
+                    // CMS page found — delegate to shared DynamicLanding rendering logic
+                    Some(Ok(Some(page))) => {
+                        let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+                        view! {
+                            <section class="max-w-4xl mx-auto">
+                                <h1 class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase"
+                                    inner_html=page.hero_title.clone()>
+                                </h1>
+                                <p class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12">
+                                    {&page.hero_subtitle}
+                                </p>
+                                <div class="w-full">
+                                    {parsed_blocks.into_iter().map(|block| match block {
+                                        DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
+                                        DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
+                                        DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
+                                        DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
+                                        DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
+                                    }).collect_view()}
+                                </div>
+                            </section>
+                        }.into_view()
+                    },
+                    // No CMS page configured — show neutral Anchor platform placeholder
+                    Some(Ok(None)) | Some(Err(_)) => view! {
+                        <section class="max-w-3xl mx-auto flex flex-col items-start min-h-[60vh] pt-12">
+                            <div class="inline-block bg-surface-container-high px-3 py-1 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant mb-8 uppercase">
+                                "ANCHOR PLATFORM"
+                            </div>
+                            <h1 class="text-5xl md:text-[5.5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase">
+                                "Site is being configured"
+                            </h1>
+                            <p class="text-xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12 max-w-xl">
+                                "This Anchor instance is live. Add pages and content from the platform admin to get started."
+                            </p>
+                            <div class="flex items-center space-x-3">
+                                <span class="w-2 h-2 rounded-full bg-[#6366f1]" style="box-shadow: 0 0 8px #6366f1;"></span>
+                                <span class="jetbrains text-xs uppercase text-outline tracking-widest">"Infrastructure Online"</span>
+                            </div>
+                        </section>
+                    }.into_view(),
+                    None => view! { <div/> }.into_view(),
+                }}
+            </Suspense>
+        </main>
+    }
+}
