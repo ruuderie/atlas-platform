@@ -15,10 +15,6 @@ spec:
   - hosts:
     - uat.buildwithruud.com
     secretName: uat-bwr-tls
-  - hosts:
-    - oplystusa.com
-    - uat.oplystusa.com
-    secretName: uat-oplystusa-tls
   rules:
   - host: uat.atlas.oply.co
     http:

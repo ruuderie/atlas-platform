@@ -61,7 +61,11 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
         
         if let Ok(page) = fetch_atlas_data::<AppPageResp>(&endpoint, Some(tenant_id), host).await {
             let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
-            let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
+            // blocks_payload IS the blocks array directly (e.g. [{"Hero":{...}}, {"Grid":{...}}])
+            let blocks_payload = page.blocks_payload.unwrap_or(serde_json::json!([]));
+            // For CMS pages using the block engine, the full array is passed as dynamic_blocks_json.
+            // hero_title/subtitle fall back to the legacy hero_payload fields for old-style pages.
+            let dynamic_blocks_json = serde_json::to_string(&blocks_payload).unwrap_or_else(|_| "[]".to_string());
             
             return Ok(Some(LandingPageRecord {
                 id: 0,
@@ -70,11 +74,11 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
                 description: page.description,
                 hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
                 hero_subtitle: hero["hero_subtitle"].as_str().unwrap_or_default().to_string(),
-                lead_capture_title: blocks["lead_capture_title"].as_str().unwrap_or_default().to_string(),
-                lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
-                lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
-                options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
-                dynamic_blocks_json: blocks["dynamic_blocks"].to_string(),
+                lead_capture_title: String::new(),
+                lead_capture_desc: String::new(),
+                lead_capture_btn: String::new(),
+                options_json: "{}".to_string(),
+                dynamic_blocks_json,
             }));
         }
     }
