@@ -23,15 +23,66 @@ use crate::components::blocks::rich_text::{RichTextBlock, RichTextData};
 use crate::components::blocks::callout::{CalloutBlock, CalloutBlockData};
 use crate::components::blocks::form_builder::{FormBuilderBlock, FormBuilderData};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-#[serde(untagged)]
+// DynamicBlock represents one block entry in a blocks_payload array.
+// JSON storage format: {"BlockTypeName": { ...block fields... }}
+// We use a custom Deserialize impl because #[serde(untagged)] with all-defaulted
+// fields causes greedy first-variant matching — "Hero" would eat Grid and Callout objects.
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub enum DynamicBlock {
-    Hero(std::collections::HashMap<String, HeroBlockData>),
-    Grid(std::collections::HashMap<String, GridBlockData>),
-    Callout(std::collections::HashMap<String, CalloutBlockData>),
-    RichText(std::collections::HashMap<String, RichTextData>),
-    FormBuilder(std::collections::HashMap<String, FormBuilderData>),
+    Hero(HeroBlockData),
+    Grid(GridBlockData),
+    Callout(CalloutBlockData),
+    RichText(RichTextData),
+    FormBuilder(FormBuilderData),
 }
+
+impl<'de> serde::Deserialize<'de> for DynamicBlock {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        // Deserialize the outer object as a raw map so we can read the key name first
+        let map = serde_json::Map::deserialize(deserializer)
+            .map_err(serde::de::Error::custom)?;
+
+        if map.len() != 1 {
+            return Err(serde::de::Error::custom(
+                format!("DynamicBlock must have exactly one key, got {}", map.len())
+            ));
+        }
+
+        let (key, value) = map.into_iter().next().unwrap();
+
+        match key.as_str() {
+            "Hero" => {
+                let data = serde_json::from_value::<HeroBlockData>(value)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(DynamicBlock::Hero(data))
+            }
+            "Grid" => {
+                let data = serde_json::from_value::<GridBlockData>(value)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(DynamicBlock::Grid(data))
+            }
+            "Callout" => {
+                let data = serde_json::from_value::<CalloutBlockData>(value)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(DynamicBlock::Callout(data))
+            }
+            "RichText" => {
+                let data = serde_json::from_value::<RichTextData>(value)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(DynamicBlock::RichText(data))
+            }
+            "FormBuilder" => {
+                let data = serde_json::from_value::<FormBuilderData>(value)
+                    .map_err(serde::de::Error::custom)?;
+                Ok(DynamicBlock::FormBuilder(data))
+            }
+            unknown => Err(serde::de::Error::custom(
+                format!("Unknown block type: '{}'", unknown)
+            )),
+        }
+    }
+}
+
 
 #[server(GetLandingPage, "/api")]
 pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>, ServerFnError> {
@@ -262,12 +313,12 @@ pub fn DynamicLanding() -> impl IntoView {
                                 <div class="w-full">
                                     {move || {
                                         let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
-                                        parsed_blocks.into_iter().filter_map(|block| match block {
-                                            DynamicBlock::Hero(map) => map.into_values().next().map(|data| view! { <HeroBlock data=data /> }.into_view()),
-                                            DynamicBlock::Grid(map) => map.into_values().next().map(|data| view! { <GridBlock data=data /> }.into_view()),
-                                            DynamicBlock::RichText(map) => map.into_values().next().map(|data| view! { <RichTextBlock data=data /> }.into_view()),
-                                            DynamicBlock::Callout(map) => map.into_values().next().map(|data| view! { <CalloutBlock data=data /> }.into_view()),
-                                            DynamicBlock::FormBuilder(map) => map.into_values().next().map(|data| view! { <FormBuilderBlock data=data /> }.into_view()),
+                                        parsed_blocks.into_iter().map(|block| match block {
+                                            DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
+                                            DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
+                                            DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
+                                            DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
+                                            DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
                                         }).collect_view()
                                     }}
                                 </div>
@@ -367,12 +418,12 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                         // Block-based page — let each block manage its own layout/padding
                         view! {
                             <main>
-                                {parsed_blocks.into_iter().filter_map(|block| match block {
-                                    DynamicBlock::Hero(map) => map.into_values().next().map(|data| view! { <HeroBlock data=data /> }.into_view()),
-                                    DynamicBlock::Grid(map) => map.into_values().next().map(|data| view! { <GridBlock data=data /> }.into_view()),
-                                    DynamicBlock::RichText(map) => map.into_values().next().map(|data| view! { <RichTextBlock data=data /> }.into_view()),
-                                    DynamicBlock::Callout(map) => map.into_values().next().map(|data| view! { <CalloutBlock data=data /> }.into_view()),
-                                    DynamicBlock::FormBuilder(map) => map.into_values().next().map(|data| view! { <FormBuilderBlock data=data /> }.into_view()),
+                                {parsed_blocks.into_iter().map(|block| match block {
+                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
+                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
+                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
+                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
+                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
                                 }).collect_view()}
                             </main>
                         }.into_view()
