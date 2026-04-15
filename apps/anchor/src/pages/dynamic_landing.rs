@@ -351,35 +351,50 @@ pub fn DynamicLanding() -> impl IntoView {
 pub fn DynamicHomeLanding() -> impl IntoView {
     let page_res = create_resource(|| "home".to_string(), |s| get_landing_page(s));
 
+    // For block-based pages the Hero block itself is the first visual element (full-bleed).
+    // We don't want the outer pt-32 padding eating into it. Instead, render blocks
+    // without padding — each block manages its own layout.
+    // For legacy pages (hero_title non-empty) or the fallback placeholder we keep the padded wrapper.
     view! {
-        <main class="pt-32 pb-24 px-4 md:px-[8.5rem]">
-            <Suspense fallback=move || view! { <div class="text-center pt-24 jetbrains text-outline">"LOADING..."</div> }>
-                {move || match page_res.get() {
-                    // CMS page found — delegate to shared DynamicLanding rendering logic
-                    Some(Ok(Some(page))) => {
-                        let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+        <Suspense fallback=move || view! { <div class="pt-32 pb-24 px-4 text-center jetbrains text-outline">"LOADING..."</div> }>
+            {move || match page_res.get() {
+                // CMS block-based page: render blocks full-bleed, no outer padding
+                Some(Ok(Some(page))) => {
+                    let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+                    let has_blocks = !parsed_blocks.is_empty();
+
+                    if has_blocks {
+                        // Block-based page — let each block manage its own layout/padding
                         view! {
-                            <section class="max-w-4xl mx-auto">
-                                <h1 class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase"
-                                    inner_html=page.hero_title.clone()>
-                                </h1>
-                                <p class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12">
-                                    {&page.hero_subtitle}
-                                </p>
-                                <div class="w-full">
-                                    {parsed_blocks.into_iter().filter_map(|block| match block {
-                                        DynamicBlock::Hero(map) => map.into_values().next().map(|data| view! { <HeroBlock data=data /> }.into_view()),
-                                        DynamicBlock::Grid(map) => map.into_values().next().map(|data| view! { <GridBlock data=data /> }.into_view()),
-                                        DynamicBlock::RichText(map) => map.into_values().next().map(|data| view! { <RichTextBlock data=data /> }.into_view()),
-                                        DynamicBlock::Callout(map) => map.into_values().next().map(|data| view! { <CalloutBlock data=data /> }.into_view()),
-                                        DynamicBlock::FormBuilder(map) => map.into_values().next().map(|data| view! { <FormBuilderBlock data=data /> }.into_view()),
-                                    }).collect_view()}
-                                </div>
-                            </section>
+                            <main>
+                                {parsed_blocks.into_iter().filter_map(|block| match block {
+                                    DynamicBlock::Hero(map) => map.into_values().next().map(|data| view! { <HeroBlock data=data /> }.into_view()),
+                                    DynamicBlock::Grid(map) => map.into_values().next().map(|data| view! { <GridBlock data=data /> }.into_view()),
+                                    DynamicBlock::RichText(map) => map.into_values().next().map(|data| view! { <RichTextBlock data=data /> }.into_view()),
+                                    DynamicBlock::Callout(map) => map.into_values().next().map(|data| view! { <CalloutBlock data=data /> }.into_view()),
+                                    DynamicBlock::FormBuilder(map) => map.into_values().next().map(|data| view! { <FormBuilderBlock data=data /> }.into_view()),
+                                }).collect_view()}
+                            </main>
                         }.into_view()
-                    },
-                    // No CMS page configured — show neutral Anchor platform placeholder
-                    Some(Ok(None)) | Some(Err(_)) => view! {
+                    } else {
+                        // Legacy page with hero_title/hero_subtitle in hero_payload
+                        view! {
+                            <main class="pt-32 pb-24 px-4 md:px-[8.5rem]">
+                                <section class="max-w-4xl mx-auto">
+                                    <h1 class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase"
+                                        inner_html=page.hero_title.clone()>
+                                    </h1>
+                                    <p class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12">
+                                        {&page.hero_subtitle}
+                                    </p>
+                                </section>
+                            </main>
+                        }.into_view()
+                    }
+                },
+                // No CMS page configured — show neutral Anchor platform placeholder
+                Some(Ok(None)) | Some(Err(_)) => view! {
+                    <main class="pt-32 pb-24 px-4 md:px-[8.5rem]">
                         <section class="max-w-3xl mx-auto flex flex-col items-start min-h-[60vh] pt-12">
                             <div class="inline-block bg-surface-container-high px-3 py-1 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant mb-8 uppercase">
                                 "ANCHOR PLATFORM"
@@ -395,10 +410,10 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                                 <span class="jetbrains text-xs uppercase text-outline tracking-widest">"Infrastructure Online"</span>
                             </div>
                         </section>
-                    }.into_view(),
-                    None => view! { <div/> }.into_view(),
-                }}
-            </Suspense>
-        </main>
+                    </main>
+                }.into_view(),
+                None => view! { <div/> }.into_view(),
+            }}
+        </Suspense>
     }
 }
