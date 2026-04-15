@@ -3,8 +3,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CalloutBlockData {
+    // Seed stores the callout copy as `text`; admin UI may use `title`
+    #[serde(alias = "text", default)]
     pub title: String,
+    #[serde(default)]
     pub description: String,
+    // `style` field from seed ("primary" etc) — stored but not rendered yet
+    #[serde(default)]
+    pub style: Option<String>,
 }
 
 #[component]

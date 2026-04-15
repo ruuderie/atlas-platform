@@ -3,10 +3,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct HeroBlockData {
+    // Accept both component format (title/subtitle) and seed format (heading/subheading)
+    #[serde(alias = "heading", default)]
     pub title: String,
+    #[serde(alias = "subheading", default)]
     pub subtitle: String,
+    #[serde(alias = "primary_cta_text", default)]
     pub cta_text: Option<String>,
+    #[serde(alias = "primary_cta_link", default)]
     pub cta_link: Option<String>,
+    #[serde(alias = "background_image", default)]
     pub background_image_url: Option<String>,
 }
 

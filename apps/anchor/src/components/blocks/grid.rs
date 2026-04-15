@@ -3,16 +3,26 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GridItem {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub title: String,
+    #[serde(default)]
     pub description: String,
+    #[serde(default)]
     pub image_url: Option<String>,
+    #[serde(default)]
     pub link_url: Option<String>,
+    // icon field used by seed data (material icon name)
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GridBlockData {
     pub section_title: Option<String>,
+    #[serde(default)]
+    pub columns: Option<u32>,
     pub items: Vec<GridItem>,
 }
 

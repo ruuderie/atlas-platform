@@ -50,6 +50,7 @@ pub mod m20260412_000002_add_tenant_slug;
 pub mod m20260412_000003_seed_oplystusa;
 pub mod m20260413_000001_seed_oplystusa_domains;
 pub mod m20260415_000001_seed_oplystusa_home_page;
+pub mod m20260415_000002_upgrade_buildwithruud_home_page;
 
 pub struct Migrator;
 
@@ -91,6 +92,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260412_000003_seed_oplystusa::Migration),
             Box::new(m20260413_000001_seed_oplystusa_domains::Migration),
             Box::new(m20260415_000001_seed_oplystusa_home_page::Migration),
+            Box::new(m20260415_000002_upgrade_buildwithruud_home_page::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
