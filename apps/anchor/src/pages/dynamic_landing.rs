@@ -17,11 +17,19 @@ pub struct LandingPageRecord {
     pub dynamic_blocks_json: String,
 }
 
-use crate::components::blocks::hero::{HeroBlock, HeroBlockData};
-use crate::components::blocks::grid::{GridBlock, GridBlockData};
-use crate::components::blocks::rich_text::{RichTextBlock, RichTextData};
-use crate::components::blocks::callout::{CalloutBlock, CalloutBlockData};
-use crate::components::blocks::form_builder::{FormBuilderBlock, FormBuilderData};
+use crate::components::blocks::{
+    callout::{CalloutBlock, CalloutBlockData},
+    form_builder::{FormBuilderBlock, FormBuilderData},
+    grid::{GridBlock, GridBlockData},
+    hero::{HeroBlock, HeroBlockData},
+    rich_text::{RichTextBlock, RichTextData},
+    timeline::{TimelineBlock, TimelineBlockData},
+    badge_list::{BadgeListBlock, BadgeListBlockData},
+    content_feed::{ContentFeedBlock, ContentFeedBlockData},
+    profile_header::{ProfileHeaderBlock, ProfileHeaderBlockData},
+    stats::{StatsBlock, StatsBlockData},
+    accordion::{AccordionBlock, AccordionBlockData},
+};
 
 // DynamicBlock represents one block entry in a blocks_payload array.
 // JSON storage format: {"BlockTypeName": { ...block fields... }}
@@ -34,6 +42,12 @@ pub enum DynamicBlock {
     Callout(CalloutBlockData),
     RichText(RichTextData),
     FormBuilder(FormBuilderData),
+    Timeline(TimelineBlockData),
+    BadgeList(BadgeListBlockData),
+    ContentFeed(ContentFeedBlockData),
+    ProfileHeader(ProfileHeaderBlockData),
+    Stats(StatsBlockData),
+    Accordion(AccordionBlockData),
 }
 
 impl<'de> serde::Deserialize<'de> for DynamicBlock {
@@ -51,34 +65,51 @@ impl<'de> serde::Deserialize<'de> for DynamicBlock {
         let (key, value) = map.into_iter().next().unwrap();
 
         match key.as_str() {
-            "Hero" => {
-                let data = serde_json::from_value::<HeroBlockData>(value)
-                    .map_err(serde::de::Error::custom)?;
-                Ok(DynamicBlock::Hero(data))
-            }
-            "Grid" => {
-                let data = serde_json::from_value::<GridBlockData>(value)
-                    .map_err(serde::de::Error::custom)?;
-                Ok(DynamicBlock::Grid(data))
-            }
-            "Callout" => {
-                let data = serde_json::from_value::<CalloutBlockData>(value)
-                    .map_err(serde::de::Error::custom)?;
-                Ok(DynamicBlock::Callout(data))
-            }
-            "RichText" => {
-                let data = serde_json::from_value::<RichTextData>(value)
-                    .map_err(serde::de::Error::custom)?;
-                Ok(DynamicBlock::RichText(data))
-            }
-            "FormBuilder" => {
-                let data = serde_json::from_value::<FormBuilderData>(value)
-                    .map_err(serde::de::Error::custom)?;
-                Ok(DynamicBlock::FormBuilder(data))
-            }
-            unknown => Err(serde::de::Error::custom(
-                format!("Unknown block type: '{}'", unknown)
+            "Hero" => Ok(DynamicBlock::Hero(
+                serde_json::from_value::<HeroBlockData>(value).map_err(serde::de::Error::custom)?,
             )),
+            "Grid" => Ok(DynamicBlock::Grid(
+                serde_json::from_value::<GridBlockData>(value).map_err(serde::de::Error::custom)?,
+            )),
+            "Callout" => Ok(DynamicBlock::Callout(
+                serde_json::from_value::<CalloutBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "RichText" => Ok(DynamicBlock::RichText(
+                serde_json::from_value::<RichTextData>(value).map_err(serde::de::Error::custom)?,
+            )),
+            "FormBuilder" => Ok(DynamicBlock::FormBuilder(
+                serde_json::from_value::<FormBuilderData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "Timeline" => Ok(DynamicBlock::Timeline(
+                serde_json::from_value::<TimelineBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "BadgeList" => Ok(DynamicBlock::BadgeList(
+                serde_json::from_value::<BadgeListBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "ContentFeed" => Ok(DynamicBlock::ContentFeed(
+                serde_json::from_value::<ContentFeedBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "ProfileHeader" => Ok(DynamicBlock::ProfileHeader(
+                serde_json::from_value::<ProfileHeaderBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "Stats" => Ok(DynamicBlock::Stats(
+                serde_json::from_value::<StatsBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "Accordion" => Ok(DynamicBlock::Accordion(
+                serde_json::from_value::<AccordionBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            unknown => Err(serde::de::Error::custom(format!(
+                "Unknown block type key: '{}'",
+                unknown
+            ))),
         }
     }
 }
@@ -315,10 +346,16 @@ pub fn DynamicLanding() -> impl IntoView {
                                         let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
                                         parsed_blocks.into_iter().map(|block| match block {
                                             DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
-                                            DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
-                                            DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
-                                            DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
-                                            DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
+                                            DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
                                         }).collect_view()
                                     }}
                                 </div>
@@ -419,11 +456,17 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                         view! {
                             <main>
                                 {parsed_blocks.into_iter().map(|block| match block {
-                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
-                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data /> }.into_view(),
-                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data /> }.into_view(),
-                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data /> }.into_view(),
-                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data /> }.into_view(),
+                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
                                 }).collect_view()}
                             </main>
                         }.into_view()
