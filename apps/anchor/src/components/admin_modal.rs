@@ -1698,7 +1698,7 @@ pub fn BaseResumeEntryForm(
             .unwrap_or_default(),
     );
 
-    let profiles_res = create_resource(move || (), |_| crate::resume_engine::get_resume_profiles());
+    let profiles_res = create_resource(move || (), |_| crate::resume_engine::get_entry_collections());
 
     // Fetch mapped profiles for this entry
     let mapped_res = create_resource(

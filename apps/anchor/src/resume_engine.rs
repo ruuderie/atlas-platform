@@ -21,7 +21,7 @@ pub struct ResumeProfile {
 #[cfg_attr(feature = "ssr", derive(sqlx::Type))]
 #[cfg_attr(
     feature = "ssr",
-    sqlx(type_name = "resume_category_enum", rename_all = "lowercase")
+    sqlx(type_name = "entry_category_enum", rename_all = "lowercase")
 )]
 pub enum ResumeCategory {
     Work,
@@ -85,12 +85,12 @@ pub struct ProfileEntryMapping {
 }
 
 #[server(GetResumeProfiles, "/api")]
-pub async fn get_resume_profiles() -> Result<Vec<ResumeProfile>, ServerFnError> {
+pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM resume_profiles ORDER BY id ASC")
+    let rows = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM entry_collections ORDER BY id ASC")
         .fetch_all(&state.pool)
         .await?;
 
@@ -116,7 +116,7 @@ pub async fn get_resume_profiles() -> Result<Vec<ResumeProfile>, ServerFnError> 
 }
 
 #[server(GetResumeEntries, "/api")]
-pub async fn get_resume_entries(
+pub async fn get_tenant_entries(
     profile_id: Option<i32>,
 ) -> Result<Vec<ResumeEntry>, ServerFnError> {
     use axum::Extension;
@@ -128,7 +128,7 @@ pub async fn get_resume_entries(
         Some(id) => id,
         None => {
             let row = sqlx::query(
-                "SELECT id FROM resume_profiles WHERE is_public = true ORDER BY id ASC LIMIT 1",
+                "SELECT id FROM entry_collections WHERE is_public = true ORDER BY id ASC LIMIT 1",
             )
             .fetch_optional(&state.pool)
             .await?;
@@ -140,7 +140,7 @@ pub async fn get_resume_entries(
         }
     };
 
-    let rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, e.metadata, pe.overrides FROM resume_entries e JOIN resume_profile_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
+    let rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, e.metadata, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
         .bind(target_id)
         .fetch_all(&state.pool)
         .await?;
@@ -175,7 +175,7 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
     use leptos_axum::extract;
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, category, title, subtitle, date_range, bullets, metadata FROM resume_entries ORDER BY id DESC")
+    let rows = sqlx::query("SELECT id, category, title, subtitle, date_range, bullets, metadata FROM tenant_entries ORDER BY id DESC")
         .fetch_all(&state.pool)
         .await?;
 
@@ -205,7 +205,7 @@ pub async fn get_entry_profile_mappings(entry_id: i32) -> Result<Vec<i32>, Serve
     use leptos_axum::extract;
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT profile_id FROM resume_profile_entries WHERE entry_id = $1")
+    let rows = sqlx::query("SELECT profile_id FROM collection_entries WHERE entry_id = $1")
         .bind(entry_id)
         .fetch_all(&state.pool)
         .await?;
@@ -223,7 +223,7 @@ pub async fn get_profile_entry_mappings(
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let rows =
-        sqlx::query("SELECT entry_id, overrides FROM resume_profile_entries WHERE profile_id = $1")
+        sqlx::query("SELECT entry_id, overrides FROM collection_entries WHERE profile_id = $1")
             .bind(profile_id)
             .fetch_all(&state.pool)
             .await?;
@@ -262,7 +262,7 @@ pub async fn add_resume_profile(
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    let row = sqlx::query("INSERT INTO resume_profiles (name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id")
+    let row = sqlx::query("INSERT INTO entry_collections (name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id")
         .bind(name).bind(full_name).bind(objective).bind(is_public).bind(target_role)
         .bind(contact_email).bind(contact_phone).bind(contact_location).bind(contact_link).bind(category_visibility).bind(category_order)
         .fetch_one(&state.pool).await?;
@@ -270,7 +270,7 @@ pub async fn add_resume_profile(
     let pid: i32 = row.get("id");
 
     for mapping in active_entries {
-        sqlx::query("INSERT INTO resume_profile_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3)")
+        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3)")
             .bind(pid).bind(mapping.entry_id).bind(mapping.overrides).execute(&state.pool).await?;
     }
 
@@ -302,13 +302,13 @@ pub async fn update_resume_profile(
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query("UPDATE resume_profiles SET name = $1, full_name = $2, objective = $3, is_public = $4, target_role = $5, contact_email = $6, contact_phone = $7, contact_location = $8, contact_link = $9, category_visibility = $10, category_order = $11 WHERE id = $12")
+    sqlx::query("UPDATE entry_collections SET name = $1, full_name = $2, objective = $3, is_public = $4, target_role = $5, contact_email = $6, contact_phone = $7, contact_location = $8, contact_link = $9, category_visibility = $10, category_order = $11 WHERE id = $12")
         .bind(name).bind(full_name).bind(objective).bind(is_public).bind(target_role)
         .bind(contact_email).bind(contact_phone).bind(contact_location).bind(contact_link).bind(category_visibility).bind(category_order).bind(id)
         .execute(&state.pool).await?;
 
     let current_mappings =
-        sqlx::query("SELECT entry_id FROM resume_profile_entries WHERE profile_id = $1")
+        sqlx::query("SELECT entry_id FROM collection_entries WHERE profile_id = $1")
             .bind(id)
             .fetch_all(&state.pool)
             .await?;
@@ -322,7 +322,7 @@ pub async fn update_resume_profile(
     for eid in &current_eids {
         if !active_eids.contains(eid) {
             sqlx::query(
-                "DELETE FROM resume_profile_entries WHERE profile_id = $1 AND entry_id = $2",
+                "DELETE FROM collection_entries WHERE profile_id = $1 AND entry_id = $2",
             )
             .bind(id)
             .bind(eid)
@@ -333,10 +333,10 @@ pub async fn update_resume_profile(
 
     for mapping in active_entries {
         if current_eids.contains(&mapping.entry_id) {
-            sqlx::query("UPDATE resume_profile_entries SET overrides = $1 WHERE profile_id = $2 AND entry_id = $3")
+            sqlx::query("UPDATE collection_entries SET overrides = $1 WHERE profile_id = $2 AND entry_id = $3")
                 .bind(mapping.overrides).bind(id).bind(mapping.entry_id).execute(&state.pool).await?;
         } else {
-            sqlx::query("INSERT INTO resume_profile_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3) ON CONFLICT DO NOTHING")
+            sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3) ON CONFLICT DO NOTHING")
                 .bind(id).bind(mapping.entry_id).bind(mapping.overrides).execute(&state.pool).await?;
         }
     }
@@ -353,7 +353,7 @@ pub async fn delete_resume_profile(id: i32) -> Result<(), ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM resume_profiles WHERE id = $1")
+    sqlx::query("DELETE FROM entry_collections WHERE id = $1")
         .bind(id)
         .execute(&state.pool)
         .await?;
@@ -380,14 +380,14 @@ pub async fn add_base_entry(
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let bullets_json = serde_json::to_value(&bullets).unwrap_or(serde_json::json!([]));
 
-    let row = sqlx::query("INSERT INTO resume_entries (category, title, subtitle, date_range, bullets, metadata) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id")
+    let row = sqlx::query("INSERT INTO tenant_entries (category, title, subtitle, date_range, bullets, metadata) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id")
         .bind(category).bind(title).bind(subtitle).bind(date_range).bind(bullets_json).bind(metadata)
         .fetch_one(&state.pool).await?;
 
     let entry_id: i32 = row.get("id");
 
     for pid in active_profiles {
-        sqlx::query("INSERT INTO resume_profile_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true)")
+        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true)")
             .bind(pid).bind(entry_id).execute(&state.pool).await?;
     }
 
@@ -415,12 +415,12 @@ pub async fn update_base_entry(
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let bullets_json = serde_json::to_value(&bullets).unwrap_or(serde_json::json!([]));
 
-    sqlx::query("UPDATE resume_entries SET category = $1, title = $2, subtitle = $3, date_range = $4, bullets = $5, metadata = $6 WHERE id = $7")
+    sqlx::query("UPDATE tenant_entries SET category = $1, title = $2, subtitle = $3, date_range = $4, bullets = $5, metadata = $6 WHERE id = $7")
         .bind(category).bind(title).bind(subtitle).bind(date_range).bind(bullets_json).bind(metadata).bind(id)
         .execute(&state.pool).await?;
 
     let current_mappings =
-        sqlx::query("SELECT profile_id FROM resume_profile_entries WHERE entry_id = $1")
+        sqlx::query("SELECT profile_id FROM collection_entries WHERE entry_id = $1")
             .bind(id)
             .fetch_all(&state.pool)
             .await?;
@@ -432,7 +432,7 @@ pub async fn update_base_entry(
     for pid in &current_pids {
         if !active_profiles.contains(pid) {
             sqlx::query(
-                "DELETE FROM resume_profile_entries WHERE entry_id = $1 AND profile_id = $2",
+                "DELETE FROM collection_entries WHERE entry_id = $1 AND profile_id = $2",
             )
             .bind(id)
             .bind(pid)
@@ -443,7 +443,7 @@ pub async fn update_base_entry(
 
     for pid in active_profiles {
         if !current_pids.contains(&pid) {
-            sqlx::query("INSERT INTO resume_profile_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT DO NOTHING")
+            sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT DO NOTHING")
                 .bind(pid).bind(id).execute(&state.pool).await?;
         }
     }
@@ -460,7 +460,7 @@ pub async fn delete_base_entry(id: i32) -> Result<(), ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM resume_entries WHERE id = $1")
+    sqlx::query("DELETE FROM tenant_entries WHERE id = $1")
         .bind(id)
         .execute(&state.pool)
         .await?;
@@ -482,10 +482,10 @@ pub async fn set_profile_entry(
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
     if active {
-        sqlx::query("INSERT INTO resume_profile_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT (profile_id, entry_id) DO NOTHING")
+        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT (profile_id, entry_id) DO NOTHING")
             .bind(profile_id).bind(entry_id).execute(&state.pool).await?;
     } else {
-        sqlx::query("DELETE FROM resume_profile_entries WHERE profile_id = $1 AND entry_id = $2")
+        sqlx::query("DELETE FROM collection_entries WHERE profile_id = $1 AND entry_id = $2")
             .bind(profile_id)
             .bind(entry_id)
             .execute(&state.pool)
@@ -509,7 +509,7 @@ pub async fn update_profile_entry_visibility(
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query("UPDATE resume_profile_entries SET display_order = $1, is_visible = $2 WHERE profile_id = $3 AND entry_id = $4")
+    sqlx::query("UPDATE collection_entries SET display_order = $1, is_visible = $2 WHERE profile_id = $3 AND entry_id = $4")
         .bind(display_order).bind(is_visible).bind(profile_id).bind(entry_id)
         .execute(&state.pool).await?;
 
@@ -733,7 +733,7 @@ pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> 
         return Err(ServerFnError::ServerError("Invalid Profile ID".into()));
     }
 
-    let profile_row = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM resume_profiles WHERE id = $1")
+    let profile_row = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM entry_collections WHERE id = $1")
         .bind(profile_id)
         .fetch_one(&state.pool)
         .await
@@ -754,7 +754,7 @@ pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> 
         category_order: profile_row.get("category_order"),
     };
 
-    let entries_rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, pe.overrides FROM resume_entries e JOIN resume_profile_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
+    let entries_rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
         .bind(profile_id).fetch_all(&state.pool).await?;
 
     let entries: Vec<ResumeEntry> = entries_rows

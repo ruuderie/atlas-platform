@@ -561,13 +561,13 @@ fn SettingsReadView() -> impl IntoView {
 
 #[component]
 fn ResumeProfileTable() -> impl IntoView {
-    use crate::resume_engine::{delete_resume_profile, download_resume, get_resume_profiles};
+    use crate::resume_engine::{delete_resume_profile, download_resume, get_entry_collections};
     let refresh = expect_context::<ReadSignal<i32>>();
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
 
-    let items_res = create_resource(move || refresh.get(), |_| get_resume_profiles());
+    let items_res = create_resource(move || refresh.get(), |_| get_entry_collections());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING..."</div> }>

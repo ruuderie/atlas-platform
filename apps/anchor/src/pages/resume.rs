@@ -51,7 +51,7 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
     use sqlx::Row;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, title, date_range, bullets, metadata FROM resume_entries WHERE category = 'work' ORDER BY id DESC")
+    let rows = sqlx::query("SELECT id, title, date_range, bullets, metadata FROM tenant_entries WHERE category = 'work' ORDER BY id DESC")
         .fetch_all(&state.pool)
         .await?;
 
@@ -156,7 +156,7 @@ pub fn Resume() -> impl IntoView {
     let profiles_resource = create_resource(
         || (),
         |_| async move {
-            crate::resume_engine::get_resume_profiles()
+            crate::resume_engine::get_entry_collections()
                 .await
                 .unwrap_or_default()
         },
@@ -180,7 +180,7 @@ pub fn Resume() -> impl IntoView {
     let profile_data_resource = create_resource(
         move || active_profile_id.get(),
         |id_opt| async move {
-            crate::resume_engine::get_resume_entries(id_opt)
+            crate::resume_engine::get_tenant_entries(id_opt)
                 .await
                 .unwrap_or_default()
         },

@@ -9,7 +9,7 @@ pub async fn get_certifications() -> Result<Vec<ContentNode>, ServerFnError> {
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    let rows = sqlx::query("SELECT id, title, subtitle, date_range, metadata FROM resume_entries WHERE category = 'certification' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY id DESC")
+    let rows = sqlx::query("SELECT id, title, subtitle, date_range, metadata FROM tenant_entries WHERE category = 'certification' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY id DESC")
         .bind(tenant.0)
         .fetch_all(&state.pool)
         .await?;

@@ -17,7 +17,6 @@ impl AtlasApp for NetworkInstanceApp {
         Router::new()
             .merge(crate::handlers::listings::public_routes(db.clone()))
             .merge(crate::handlers::app_pages::public_routes(db.clone()))
-            .merge(crate::handlers::app_menus::public_routes(db.clone()))
             .merge(crate::handlers::leads::public_routes())
     }
 
