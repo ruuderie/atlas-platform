@@ -15,17 +15,17 @@ impl MigrationTrait for Migration {
                 v_tenant_id UUID;
             BEGIN
                 -- Find buildwithruud tenant
-                SELECT id INTO v_tenant_id FROM tenants WHERE name = 'buildwithruud' LIMIT 1;
+                SELECT id INTO v_tenant_id FROM tenant WHERE name = 'buildwithruud' LIMIT 1;
 
                 IF v_tenant_id IS NOT NULL THEN
                     
                     -- 1. Resume Page
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'resume') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'resume', 'Experience', 'Professional Experience', 'My career journey and operational background.',
+                            gen_random_uuid(), v_tenant_id, 'resume', 'Experience', 'My career journey and operational background.',
+                            '{ "hero_title": "Professional Experience", "hero_subtitle": "My career journey and operational background." }'::jsonb,
                             $json$
                             [
                                 {
@@ -50,10 +50,10 @@ impl MigrationTrait for Migration {
                     -- 2. Certifications Page
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'certifications') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'certifications', 'Certifications', 'Certifications & Credentials', 'Technical qualifications and continuous learning.',
+                            gen_random_uuid(), v_tenant_id, 'certifications', 'Certifications', 'Technical qualifications and continuous learning.',
+                            '{ "hero_title": "Certifications & Credentials", "hero_subtitle": "Technical qualifications and continuous learning." }'::jsonb,
                             $json$
                             [
                                 {
@@ -77,10 +77,10 @@ impl MigrationTrait for Migration {
                     -- 3. Projects Page
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'projects') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'projects', 'Projects', 'Featured Projects', 'A selection of engineering and architecture projects I have delivered.',
+                            gen_random_uuid(), v_tenant_id, 'projects', 'Projects', 'A selection of engineering and architecture projects I have delivered.',
+                            '{ "hero_title": "Featured Projects", "hero_subtitle": "A selection of engineering and architecture projects I have delivered." }'::jsonb,
                             $json$
                             [
                                 {
@@ -105,10 +105,10 @@ impl MigrationTrait for Migration {
                     -- 4. Uses Page (Static Block Example)
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'uses') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'uses', 'Uses', 'What I Use', 'My workspace, hardware, and software stack.',
+                            gen_random_uuid(), v_tenant_id, 'uses', 'Uses', 'My workspace, hardware, and software stack.',
+                            '{ "hero_title": "What I Use", "hero_subtitle": "My workspace, hardware, and software stack." }'::jsonb,
                             $json$
                             [
                                 {
@@ -161,10 +161,10 @@ impl MigrationTrait for Migration {
                     -- 5. Hire Me Page (FormBuilder Example)
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'hire-me') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'hire-me', 'Hire Me', 'Work With Me', 'I am available for select contract roles and consulting engagements.',
+                            gen_random_uuid(), v_tenant_id, 'hire-me', 'Hire Me', 'I am available for select contract roles and consulting engagements.',
+                            '{ "hero_title": "Work With Me", "hero_subtitle": "I am available for select contract roles and consulting engagements." }'::jsonb,
                             $json$
                             [
                                 {
@@ -184,10 +184,10 @@ impl MigrationTrait for Migration {
                     -- 6. Consulting Services Page (Grid Example)
                     IF NOT EXISTS (SELECT 1 FROM app_pages WHERE tenant_id = v_tenant_id AND slug = 'consulting') THEN
                         INSERT INTO app_pages (
-                            id, tenant_id, slug, title, hero_title, hero_subtitle, 
-                            dynamic_blocks_json, is_published, created_at, updated_at
+                            id, tenant_id, slug, title, description, hero_payload, blocks_payload, is_published, created_at, updated_at
                         ) VALUES (
-                            gen_random_uuid(), v_tenant_id, 'consulting', 'Consulting & Services', 'Architecture Consulting', 'Systems design, Rust mentoring, and platform scaling.',
+                            gen_random_uuid(), v_tenant_id, 'consulting', 'Consulting & Services', 'Systems design, Rust mentoring, and platform scaling.',
+                            '{ "hero_title": "Architecture Consulting", "hero_subtitle": "Systems design, Rust mentoring, and platform scaling." }'::jsonb,
                             $json$
                             [
                                 {
@@ -232,7 +232,7 @@ impl MigrationTrait for Migration {
             DECLARE
                 v_tenant_id UUID;
             BEGIN
-                SELECT id INTO v_tenant_id FROM tenants WHERE name = 'buildwithruud' LIMIT 1;
+                SELECT id INTO v_tenant_id FROM tenant WHERE name = 'buildwithruud' LIMIT 1;
                 IF v_tenant_id IS NOT NULL THEN
                     DELETE FROM app_pages WHERE tenant_id = v_tenant_id AND slug IN ('resume', 'certifications', 'projects', 'uses', 'hire-me', 'consulting');
                 END IF;
