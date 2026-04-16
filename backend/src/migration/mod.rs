@@ -53,6 +53,7 @@ pub mod m20260415_000001_seed_oplystusa_home_page;
 pub mod m20260415_000002_upgrade_buildwithruud_home_page;
 pub mod m20260415_000003_seed_oplystusa_pages;
 pub mod m20260416_000001_rename_resume_tables;
+pub mod m20260416_000002_seed_buildwithruud_block_pages;
 
 pub struct Migrator;
 
@@ -97,6 +98,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260415_000002_upgrade_buildwithruud_home_page::Migration),
             Box::new(m20260415_000003_seed_oplystusa_pages::Migration),
             Box::new(m20260416_000001_rename_resume_tables::Migration),
+            Box::new(m20260416_000002_seed_buildwithruud_block_pages::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
