@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
                                 jsonb_build_object('FormBuilder', jsonb_build_object(
                                     'title', 'Commercial Real Estate Loan Application',
                                     'description', 'Fill out the form below to apply for bridge or rental portfolio financing.',
-                                    'schema_id', COALESCE(v_cre_form_id, gen_random_uuid())
+                                    'form_id', COALESCE(v_cre_form_id, gen_random_uuid())
                                 ))
                             ), 
                             true, NOW(), NOW()
@@ -54,7 +54,7 @@ impl MigrationTrait for Migration {
                                 jsonb_build_object('FormBuilder', jsonb_build_object(
                                     'title', 'HOA & Condo Association Loan Application',
                                     'description', 'Unsecured lending for condo associations to fund capital improvements.',
-                                    'schema_id', COALESCE(v_hoa_form_id, gen_random_uuid())
+                                    'form_id', COALESCE(v_hoa_form_id, gen_random_uuid())
                                 ))
                             ), 
                             true, NOW(), NOW()
@@ -69,11 +69,11 @@ impl MigrationTrait for Migration {
                             gen_random_uuid(), v_tenant_id, 'programs/bridge-loans', 'Bridge Loans', '12-24 month terms for acquisitions or refinancing.', 'landing', '{}'::jsonb, 
                             jsonb_build_array(
                                 jsonb_build_object('Hero', jsonb_build_object(
-                                    'heading', 'Bridge Loans', 
-                                    'subheading', 'Fast capital for your acquisitions and refi.', 
-                                    'primary_cta_text', 'Apply Now', 
-                                    'primary_cta_link', '/p/apply/cre', 
-                                    'background_image', '/assets/hero-bg.webp'
+                                    'title', 'Bridge Loans', 
+                                    'subtitle', 'Fast capital for your acquisitions and refi.', 
+                                    'cta_text', 'Apply Now', 
+                                    'cta_link', '/p/apply/cre', 
+                                    'background_image_url', '/assets/hero-bg.webp'
                                 ))
                             ), 
                             true, NOW(), NOW()
@@ -87,11 +87,11 @@ impl MigrationTrait for Migration {
                             gen_random_uuid(), v_tenant_id, 'programs/rental-portfolios', 'Rental Portfolios (DSCR)', 'DSCR loans tailored for landlords.', 'landing', '{}'::jsonb, 
                             jsonb_build_array(
                                 jsonb_build_object('Hero', jsonb_build_object(
-                                    'heading', 'DSCR Rental Portfolios', 
-                                    'subheading', 'Scale your rental property portfolio without personal DTI limits.', 
-                                    'primary_cta_text', 'Apply Now', 
-                                    'primary_cta_link', '/p/apply/cre', 
-                                    'background_image', '/assets/hero-bg.webp'
+                                    'title', 'DSCR Rental Portfolios', 
+                                    'subtitle', 'Scale your rental property portfolio without personal DTI limits.', 
+                                    'cta_text', 'Apply Now', 
+                                    'cta_link', '/p/apply/cre', 
+                                    'background_image_url', '/assets/hero-bg.webp'
                                 ))
                             ), 
                             true, NOW(), NOW()
@@ -106,11 +106,11 @@ impl MigrationTrait for Migration {
                             gen_random_uuid(), v_tenant_id, 'partners/brokers', 'ISO & Broker Program', 'Partner with us as an ISO or Broker.', 'landing', '{}'::jsonb, 
                             jsonb_build_array(
                                 jsonb_build_object('Hero', jsonb_build_object(
-                                    'heading', 'Broker Partner Program', 
-                                    'subheading', 'Earn high commissions with fast underwriting direct from a private lender.', 
-                                    'primary_cta_text', 'Contact Us', 
-                                    'primary_cta_link', '/contact', 
-                                    'background_image', '/assets/hero-bg.webp'
+                                    'title', 'Broker Partner Program', 
+                                    'subtitle', 'Earn high commissions with fast underwriting direct from a private lender.', 
+                                    'cta_text', 'Contact Us', 
+                                    'cta_link', '/contact', 
+                                    'background_image_url', '/assets/hero-bg.webp'
                                 ))
                             ), 
                             true, NOW(), NOW()
