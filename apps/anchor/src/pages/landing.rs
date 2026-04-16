@@ -1,7 +1,5 @@
 use leptos::*;
 
-use crate::pages::services::HighlightsGallery;
-
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct SiteSettings {
@@ -484,10 +482,6 @@ pub fn Landing() -> impl IntoView {
                     }}
                 </div>
             </section>
-
-            <div class="px-4 md:px-[8.5rem] mt-24">
-                <HighlightsGallery />
-            </div>
         </main>
     }
 }

@@ -23,13 +23,9 @@ use crate::pages::admin::Admin;
 use crate::pages::bitcoin::BitcoinDashboard;
 use crate::pages::blog::Blog;
 use crate::pages::book::BookDiscovery;
-use crate::pages::certifications::Certifications;
 use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
 use crate::pages::landing::Landing;
 use crate::pages::legal::{Privacy, Terms};
-use crate::pages::projects::Projects;
-use crate::pages::resume::Resume;
-use crate::pages::services::Services;
 
 #[cfg(feature = "ssr")]
 static PAGE_VIEW_CACHE: std::sync::OnceLock<moka::future::Cache<String, bool>> =
@@ -154,14 +150,14 @@ pub fn App() -> impl IntoView {
             <Routes>
                 <Route path="/" view=DynamicHomeLanding/>
                 <Route path="/legacy" view=Landing/>
-                <Route path="/resume" view=Resume/>
-                <Route path="/work" view=|| view! { <Redirect path="/resume" /> }/>
-                <Route path="/projects" view=Projects/>
+                <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
+                <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
+                <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
                 <Route path="/blog" view=Blog/>
-                <Route path="/certifications" view=Certifications/>
+                <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
                 <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
                 <Route path="/investments/bitcoin" view=BitcoinDashboard/>
-                <Route path="/services" view=Services/>
+                <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
                 <Route path="/book" view=BookDiscovery/>
                 <Route path="/terms" view=Terms/>
                 <Route path="/privacy" view=Privacy/>
