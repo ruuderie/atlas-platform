@@ -51,6 +51,7 @@ pub mod m20260412_000003_seed_oplystusa;
 pub mod m20260413_000001_seed_oplystusa_domains;
 pub mod m20260415_000001_seed_oplystusa_home_page;
 pub mod m20260415_000002_upgrade_buildwithruud_home_page;
+pub mod m20260415_000003_seed_oplystusa_pages;
 
 pub struct Migrator;
 
@@ -93,6 +94,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260413_000001_seed_oplystusa_domains::Migration),
             Box::new(m20260415_000001_seed_oplystusa_home_page::Migration),
             Box::new(m20260415_000002_upgrade_buildwithruud_home_page::Migration),
+            Box::new(m20260415_000003_seed_oplystusa_pages::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
