@@ -87,6 +87,8 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
+    let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
+
     view! {
         <Html lang="en"/>
         <Body class="text-on-surface selection:bg-secondary-container selection:text-on-secondary-container"/>
@@ -101,11 +103,9 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
-
         <Stylesheet id="leptos" href="/pkg/anchor.css"/>
 
         {
-            let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
             let title_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.meta_title).unwrap_or("Ruud Salym Erie - Technical Architect".into());
             let desc_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.meta_description).unwrap_or("Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".into());
             let og_image_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.og_image).unwrap_or("".into());
@@ -142,31 +142,43 @@ pub fn App() -> impl IntoView {
             }
         }
 
-        <Router>
-            <Nav />
-            {
-                view! { <PageViewTracker /> }
-            }
-            <Routes>
-                <Route path="/" view=DynamicHomeLanding/>
-                <Route path="/legacy" view=Landing/>
-                <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
-                <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
-                <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
-                <Route path="/blog" view=Blog/>
-                <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
-                <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
-                <Route path="/investments/bitcoin" view=BitcoinDashboard/>
-                <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
-                <Route path="/book" view=BookDiscovery/>
-                <Route path="/terms" view=Terms/>
-                <Route path="/privacy" view=Privacy/>
-                <Route path="/p/:slug" view=DynamicLanding/>
-                <Route path="/admin" view=Admin/>
-                <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
-            </Routes>
-            <Footer />
-        </Router>
+        {
+            let theme_color_sig = move || {
+                settings_resource.get()
+                    .and_then(Result::ok)
+                    .and_then(|s| s.theme_primary_color)
+                    .unwrap_or_else(|| "var(--color-primary, #004c6c)".to_string())
+            };
+            view! {
+                <crate::components::theme_provider::ThemeProvider primary_color=theme_color_sig>
+                    <Router>
+                        <Nav />
+                        {
+                            view! { <PageViewTracker /> }
+                        }
+                        <Routes>
+                            <Route path="/" view=DynamicHomeLanding/>
+                            <Route path="/legacy" view=Landing/>
+                            <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
+                            <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
+                            <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
+                            <Route path="/blog" view=Blog/>
+                            <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
+                            <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
+                            <Route path="/investments/bitcoin" view=BitcoinDashboard/>
+                            <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
+                            <Route path="/book" view=BookDiscovery/>
+                            <Route path="/terms" view=Terms/>
+                            <Route path="/privacy" view=Privacy/>
+                            <Route path="/p/:slug" view=DynamicLanding/>
+                            <Route path="/admin" view=Admin/>
+                            <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
+                        </Routes>
+                        <Footer />
+                    </Router>
+                </crate::components::theme_provider::ThemeProvider>
+            }.into_view()
+        }
     }
 }
 

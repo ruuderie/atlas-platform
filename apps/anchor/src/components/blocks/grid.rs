@@ -32,7 +32,7 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
         <section class="py-16 md:py-24 bg-surface dark:bg-surface w-full">
             <div class="container mx-auto px-4 max-w-7xl">
                 {if data.section_title.is_some() && !data.section_title.clone().unwrap_or_default().is_empty() {
-                    view!{ <h2 class="text-3xl md:text-5xl font-extrabold text-center text-[#003366] dark:text-primary mb-16 tracking-tight">
+                    view!{ <h2 class="text-3xl md:text-5xl font-extrabold text-center text-primary dark:text-primary mb-16 tracking-tight">
                         {data.section_title.clone().unwrap()}
                     </h2> }.into_view()
                 } else { view!{}.into_view() }}
@@ -48,7 +48,7 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
                                     </div> }.into_view()
                                 } else { view!{}.into_view() }}
                                 <div class="p-8">
-                                    <h3 class="text-2xl font-bold text-[#003366] dark:text-on-surface mb-4 group-hover:text-primary transition-colors">
+                                    <h3 class="text-2xl font-bold text-primary dark:text-on-surface mb-4 group-hover:text-primary transition-colors">
                                         {item.title.clone()}
                                     </h3>
                                     <p class="text-lg text-on-surface-variant leading-relaxed">

@@ -371,7 +371,7 @@ fn ListingDetail() -> impl IntoView {
     );
 
     view! {
-        <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center p-8"><div class="w-8 h-8 rounded-full border-4 border-[#004289] border-t-transparent animate-spin"></div></div> }>
+        <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center p-8"><div class="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div></div> }>
             {move || match listing_resource.get() {
                 None => view! { <div/> }.into_any(),
                 Some(Ok(listing)) => {
@@ -496,7 +496,7 @@ fn ListingDetail() -> impl IntoView {
                                     <div class="text-on-surface-variant leading-relaxed space-y-6 text-lg">
                                         <div inner_html=listing.description.clone()></div>
                                     </div>
-                                    <button class="mt-6 text-[#004289] font-bold flex items-center gap-1 hover:underline underline-offset-4">
+                                    <button class="mt-6 text-primary font-bold flex items-center gap-1 hover:underline underline-offset-4">
                                         "Read full service details"
                                         <span class="material-symbols-outlined text-[18px]">"expand_more"</span>
                                     </button>
@@ -514,7 +514,7 @@ fn ListingDetail() -> impl IntoView {
                                                 ("support_agent", "Warranty Included"),
                                             ].into_iter().map(|(icon, label)| view! {
                                                 <div class="bg-surface-container-low p-4 rounded-lg flex items-center gap-3">
-                                                    <span class="material-symbols-outlined text-[#004289] text-xl">{icon}</span>
+                                                    <span class="material-symbols-outlined text-primary text-xl">{icon}</span>
                                                     <span class="font-medium text-on-surface text-sm">{label}</span>
                                                 </div>
                                             }).collect_view()}
@@ -569,7 +569,7 @@ fn ListingDetail() -> impl IntoView {
                                                     <span class="text-3xl font-extrabold text-on-surface">{price_display}</span>
                                                     <span class="text-on-surface-variant">" starting"</span>
                                                 </div>
-                                                <a href="#" class="text-[#004289] font-bold text-sm hover:underline">"See Pricing"</a>
+                                                <a href="#" class="text-primary font-bold text-sm hover:underline">"See Pricing"</a>
                                             </div>
 
                                             // Project Info
@@ -617,7 +617,7 @@ fn ListingDetail() -> impl IntoView {
                                         // Service Specialist
                                         <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm">
                                             <div class="flex items-center gap-4">
-                                                <div class="w-12 h-12 rounded-lg bg-[#004289] flex items-center justify-center text-white font-bold text-xl">"A"</div>
+                                                <div class="w-12 h-12 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">"A"</div>
                                                 <div>
                                                     <span class="text-xs text-on-surface-variant uppercase tracking-widest font-bold block">"Service Specialist"</span>
                                                     <div class="font-bold text-on-surface">"Alex Torres"</div>
@@ -665,7 +665,7 @@ fn HostLanding() -> impl IntoView {
     view! {
         <crate::components::layout::MainLayout>
             // Hero Section
-            <section class="relative min-h-[700px] flex items-center bg-[#004289] px-8 overflow-hidden">
+            <section class="relative min-h-[700px] flex items-center bg-primary px-8 overflow-hidden">
                 <div class="absolute inset-0 opacity-15 pointer-events-none">
                     <img class="w-full h-full object-cover grayscale" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" alt="Construction site" />
                 </div>
@@ -697,27 +697,27 @@ fn HostLanding() -> impl IntoView {
                         <div class="space-y-5">
                             <div>
                                 <label class="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant block mb-2">"Business Name"</label>
-                                <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-[#004289] transition-colors" placeholder="Your Business Name" />
+                                <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-primary transition-colors" placeholder="Your Business Name" />
                             </div>
                             <div>
                                 <label class="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant block mb-2">"Website / Portfolio"</label>
-                                <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-[#004289] transition-colors" placeholder="https://yourbusiness.com" />
+                                <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-primary transition-colors" placeholder="https://yourbusiness.com" />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <label class="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant block mb-2">"Years in Business"</label>
-                                    <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-[#004289] transition-colors" placeholder="e.g. 10" />
+                                    <input type="text" class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-primary transition-colors" placeholder="e.g. 10" />
                                 </div>
                                 <div>
                                     <label class="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant block mb-2">"Service Type"</label>
-                                    <select class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-[#004289] transition-colors appearance-none">
+                                    <select class="w-full border border-outline-variant/50 rounded-lg px-4 py-3 bg-transparent text-on-surface focus:outline-none focus:border-primary transition-colors appearance-none">
                                         {hp.form_category_options.iter().map(|opt| view! {
                                             <option>{opt.clone()}</option>
                                         }).collect_view()}
                                     </select>
                                 </div>
                             </div>
-                            <button class="w-full bg-[#004289] text-white py-4 rounded-lg font-bold text-lg hover:bg-[#00458f] transition-colors">
+                            <button class="w-full bg-primary text-white py-4 rounded-lg font-bold text-lg hover:bg-primary-container transition-colors">
                                 "Submit Application"
                             </button>
                         </div>
@@ -738,7 +738,7 @@ fn HostLanding() -> impl IntoView {
                             <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="" />
                         </div>
                         <div class="relative z-10">
-                            <div class="w-12 h-12 rounded-lg bg-[#004289] flex items-center justify-center mb-4">
+                            <div class="w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-4">
                                 <span class="material-symbols-outlined text-white text-2xl">"auto_awesome"</span>
                             </div>
                             <h3 class="font-headline text-2xl font-bold text-on-surface mb-2">"Targeted Local Exposure"</h3>
@@ -754,15 +754,15 @@ fn HostLanding() -> impl IntoView {
                     </div>
                     // Bottom row
                     <div class="col-span-12 md:col-span-4 bg-surface-container-low rounded-xl p-10 flex flex-col justify-end min-h-[240px]">
-                        <div class="w-12 h-12 rounded-lg bg-[#004289]/10 flex items-center justify-center mb-4">
-                            <span class="material-symbols-outlined text-[#004289] text-2xl">"shield"</span>
+                        <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined text-primary text-2xl">"shield"</span>
                         </div>
                         <h3 class="font-headline text-xl font-bold text-on-surface mb-2">"Verified Badge"</h3>
                         <p class="text-on-surface-variant text-sm">"Get a verified license badge on your profile. Homeowners trust verified contractors 4x more."</p>
                     </div>
                     <div class="col-span-12 md:col-span-8 bg-surface-container-low rounded-xl p-10 flex flex-col justify-end min-h-[240px]">
-                        <div class="w-12 h-12 rounded-lg bg-[#004289]/10 flex items-center justify-center mb-4">
-                            <span class="material-symbols-outlined text-[#004289] text-2xl">"group"</span>
+                        <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined text-primary text-2xl">"group"</span>
                         </div>
                         <h3 class="font-headline text-xl font-bold text-on-surface mb-2">"Professional Profile"</h3>
                         <p class="text-on-surface-variant max-w-md">"Showcase your best work with project photos, customer reviews, and service details that help homeowners choose you."</p>
@@ -774,7 +774,7 @@ fn HostLanding() -> impl IntoView {
             <section class="py-24 px-8 border-t border-outline-variant/30">
                 <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
                     <div>
-                        <span class="material-symbols-outlined text-[#004289] text-5xl mb-8 block">"format_quote"</span>
+                        <span class="material-symbols-outlined text-primary text-5xl mb-8 block">"format_quote"</span>
                         <blockquote class="font-headline text-3xl md:text-4xl font-bold text-on-surface leading-tight mb-10">
                             {hp.testimonial_quote.clone()}
                         </blockquote>
@@ -788,7 +788,7 @@ fn HostLanding() -> impl IntoView {
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm">
-                            <div class="flex gap-0.5 text-[#004289] mb-3">
+                            <div class="flex gap-0.5 text-primary mb-3">
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
@@ -798,7 +798,7 @@ fn HostLanding() -> impl IntoView {
                             <p class="text-sm text-on-surface-variant italic leading-relaxed">"Best platform for getting new residential clients. My phone started ringing within the first week."</p>
                         </div>
                         <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm">
-                            <div class="flex gap-0.5 text-[#004289] mb-3">
+                            <div class="flex gap-0.5 text-primary mb-3">
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
@@ -808,7 +808,7 @@ fn HostLanding() -> impl IntoView {
                             <p class="text-sm text-on-surface-variant italic leading-relaxed">"The verified badge alone has been worth it. Customers trust us immediately."</p>
                         </div>
                         <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm">
-                            <div class="flex gap-0.5 text-[#004289] mb-3">
+                            <div class="flex gap-0.5 text-primary mb-3">
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
@@ -818,7 +818,7 @@ fn HostLanding() -> impl IntoView {
                             <p class="text-sm text-on-surface-variant italic leading-relaxed">"Revenue increased by 40% in our first quarter on the platform."</p>
                         </div>
                         <div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm">
-                            <div class="flex gap-0.5 text-[#004289] mb-3">
+                            <div class="flex gap-0.5 text-primary mb-3">
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">"star"</span>
@@ -837,7 +837,7 @@ fn HostLanding() -> impl IntoView {
                     <h2 class="font-headline text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-6">{hp.cta_headline.clone()}</h2>
                     <p class="text-on-surface-variant max-w-2xl mx-auto mb-12">{hp.cta_subtitle.clone()}</p>
                     <div class="flex flex-col md:flex-row gap-4 justify-center">
-                        <a href="#" class="bg-[#004289] text-white px-10 py-4 rounded-lg font-bold hover:bg-[#00458f] transition-colors inline-block text-center">"Apply Now"</a>
+                        <a href="#" class="bg-primary text-white px-10 py-4 rounded-lg font-bold hover:bg-primary-container transition-colors inline-block text-center">"Apply Now"</a>
                         <a href="/search" class="border border-outline-variant text-on-surface px-10 py-4 rounded-lg font-bold hover:bg-surface-container transition-colors inline-block text-center">"Browse Network"</a>
                     </div>
                 </div>
@@ -871,7 +871,7 @@ fn Home() -> impl IntoView {
     view! {
         <crate::components::layout::MainLayout>
             // Hero Section
-            <section class="relative min-h-[870px] flex items-center bg-[#004289] px-8 overflow-hidden">
+            <section class="relative min-h-[870px] flex items-center bg-primary px-8 overflow-hidden">
                 <div class="absolute inset-0 opacity-20 pointer-events-none">
                     <img class="w-full h-full object-cover grayscale" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80" alt="Home renovation" />
                 </div>
@@ -901,7 +901,7 @@ fn Home() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
-                            <a href="/search" class="bg-[#004289] text-white px-10 py-4 rounded-lg font-bold hover:bg-[#00458f] transition-colors text-center">
+                            <a href="/search" class="bg-primary text-white px-10 py-4 rounded-lg font-bold hover:bg-primary-container transition-colors text-center">
                                 "Search Network"
                             </a>
                         </div>
@@ -917,7 +917,7 @@ fn Home() -> impl IntoView {
                         <h2 class="font-headline text-4xl font-extrabold tracking-tight text-on-surface mb-4">"Featured Service Providers"</h2>
                         <p class="text-on-surface-variant leading-relaxed">"Vetted, reviewed, and trusted by Connecticut homeowners for quality renovations and repairs."</p>
                     </div>
-                    <a href="/search" class="hidden md:flex items-center gap-2 text-[#004289] font-bold hover:underline underline-offset-8">
+                    <a href="/search" class="hidden md:flex items-center gap-2 text-primary font-bold hover:underline underline-offset-8">
                         "View All Network " <span class="material-symbols-outlined">"arrow_forward"</span>
                     </a>
                 </div>
@@ -934,10 +934,10 @@ fn Home() -> impl IntoView {
                                     </div>
                                 </div>
                                 <div class="flex justify-between items-start mb-2">
-                                    <h3 class="font-headline text-xl font-bold text-on-surface group-hover:text-[#004289] transition-colors">{fl.title.clone()}</h3>
+                                    <h3 class="font-headline text-xl font-bold text-on-surface group-hover:text-primary transition-colors">{fl.title.clone()}</h3>
                                     {match &fl.price_label {
                                         Some(price) => view! { <span class="text-tertiary font-bold">{price.clone()}</span> }.into_any(),
-                                        None => view! { <span class="material-symbols-outlined text-outline hover:text-[#004289] transition-colors">"favorite"</span> }.into_any(),
+                                        None => view! { <span class="material-symbols-outlined text-outline hover:text-primary transition-colors">"favorite"</span> }.into_any(),
                                     }}
                                 </div>
                                 <p class="text-sm text-on-surface-variant font-medium mb-4">{fl.subtitle.clone()}</p>
@@ -963,7 +963,7 @@ fn Home() -> impl IntoView {
                         {config.categories.iter().map(|cat| {
                             let href = format!("/search?category={}", cat.slug);
                             view! {
-                                <a href={href} class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-[#004289]/10">
+                                <a href={href} class="bg-surface-container-lowest p-8 rounded-xl shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center cursor-pointer border border-transparent hover:border-primary/10">
                                     <div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center mb-6">
                                         <span class="material-symbols-outlined text-on-secondary-container text-3xl">{cat.icon.clone()}</span>
                                     </div>
@@ -983,7 +983,7 @@ fn Home() -> impl IntoView {
                         <div class="aspect-square bg-surface-container rounded-sm overflow-hidden shadow-2xl">
                             <img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Contractor at work" />
                         </div>
-                        <div class="absolute -bottom-10 -right-10 bg-[#004289] p-12 text-white hidden md:block rounded-sm shadow-xl">
+                        <div class="absolute -bottom-10 -right-10 bg-primary p-12 text-white hidden md:block rounded-sm shadow-xl">
                             <div class="text-5xl font-extrabold mb-2">"200+"</div>
                             <div class="text-on-primary-container font-headline tracking-widest text-xs uppercase">"Verified CT Pros"</div>
                         </div>
@@ -994,7 +994,7 @@ fn Home() -> impl IntoView {
                         <div class="space-y-10">
                             {config.process_steps.iter().map(|step| view! {
                                 <div class="flex gap-6">
-                                    <div class="flex-shrink-0 w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center font-headline font-bold text-[#004289]">{step.number.clone()}</div>
+                                    <div class="flex-shrink-0 w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center font-headline font-bold text-primary">{step.number.clone()}</div>
                                     <div>
                                         <h4 class="font-headline font-bold text-xl mb-2">{step.title.clone()}</h4>
                                         <p class="text-on-surface-variant leading-relaxed">{step.description.clone()}</p>
@@ -1007,11 +1007,11 @@ fn Home() -> impl IntoView {
             </section>
 
             // Final CTA
-            <section class="bg-[#004289] py-24">
+            <section class="bg-primary py-24">
                 <div class="max-w-4xl mx-auto px-8 text-center">
                     <h2 class="font-headline text-white text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">{config.cta_headline.clone()}</h2>
                     <div class="flex flex-col md:flex-row gap-4 justify-center">
-                        <a href="/list-property" class="bg-white text-[#004289] px-10 py-4 rounded-lg font-bold hover:bg-slate-100 transition-colors inline-block text-center">"List Your Service"</a>
+                        <a href="/list-property" class="bg-white text-primary px-10 py-4 rounded-lg font-bold hover:bg-slate-100 transition-colors inline-block text-center">"List Your Service"</a>
                         <a href="/search" class="border border-on-primary-container text-white px-10 py-4 rounded-lg font-bold hover:bg-white/10 transition-colors inline-block text-center">"Browse Network"</a>
                     </div>
                 </div>
@@ -1025,23 +1025,10 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
     // 1. Provide Context Globally
     provide_context(config.clone());
     
-    // 2. Generate CSS Injection based on ThemeConfig
-    let css_payload = format!(
-        ":root {{
-            --primary: {};
-            --bg-surface: {};
-            --radius-ui: {};
-            --font-heading: {};
-        }}",
-        config.theme.brand_primary,
-        config.theme.bg_surface,
-        config.theme.radius_ui,
-        config.theme.font_heading
-    );
-
     view! {
         <Title text=config.name.clone() />
-        <style>{css_payload}</style>
+        
+        <shared_ui::components::theme_provider::ThemeProvider primary_color=config.theme.brand_primary.clone()>
         
         <crate::auth::AuthProvider>
             <Router>
@@ -1060,6 +1047,7 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
                 </leptos_router::components::Routes>
             </Router>
         </crate::auth::AuthProvider>
+        </shared_ui::components::theme_provider::ThemeProvider>
     }
 }
 

@@ -29,6 +29,7 @@ pub struct SiteSettings {
     pub meta_title: String,
     pub meta_description: String,
     pub og_image: String,
+    pub theme_primary_color: Option<String>,
 }
 
 impl Default for SiteSettings {
@@ -60,6 +61,7 @@ impl Default for SiteSettings {
             meta_title: "Anchor — Powered by Atlas Platform".into(),
             meta_description: "A dynamic, multi-tenant CMS site built on the Atlas Platform.".into(),
             og_image: "".into(),
+            theme_primary_color: None,
         }
     }
 }

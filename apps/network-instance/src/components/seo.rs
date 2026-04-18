@@ -49,7 +49,7 @@ mod tests {
             let _el = view! {
                 <Seo 
                     title="Home Page".to_string()
-                    description=Some("Test Description".to_string())
+                    description="Test Description".to_string()
                 />
             };
             // Ensure meta tags map to Head component

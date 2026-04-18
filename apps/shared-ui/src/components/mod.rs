@@ -10,3 +10,4 @@ pub mod attribute_icon;
 pub mod auth;
 pub mod properties_editor;
 pub mod icon;
+pub mod theme_provider;

@@ -26,7 +26,8 @@ impl MigrationTrait for Migration {
                             "subheading": "Fast approvals. Flexible terms. Reliable execution.",
                             "primary_cta_text": "Apply Now",
                             "primary_cta_link": "/apply",
-                            "background_image": "/assets/hero-bg.webp"
+                            "background_image": "/assets/hero-bg.webp",
+                            "layout": "corporate"
                         }
                     },
                     {
