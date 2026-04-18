@@ -25,7 +25,7 @@ impl MigrationTrait for Migration {
                             "heading": "Direct Lending for Commercial Real Estate Investors",
                             "subheading": "Fast approvals. Flexible terms. Reliable execution.",
                             "primary_cta_text": "Apply Now",
-                            "primary_cta_link": "/apply",
+                            "primary_cta_link": "/p/apply/cre",
                             "background_image": "/assets/hero-bg.webp",
                             "layout": "corporate"
                         }
@@ -43,17 +43,20 @@ impl MigrationTrait for Migration {
                                 {
                                     "title": "Bridge Loans",
                                     "description": "12-24 month terms for acquisitions or refinancing.",
-                                    "icon": "account_balance"
+                                    "icon": "account_balance",
+                                    "link_url": "/p/programs/bridge-loans"
                                 },
                                 {
                                     "title": "Rental Portfolios",
                                     "description": "DSCR loans tailored for landlords.",
-                                    "icon": "real_estate_agent"
+                                    "icon": "real_estate_agent",
+                                    "link_url": "/p/programs/rental-portfolios"
                                 },
                                 {
                                     "title": "HOA Lending",
                                     "description": "Capital improvements for condo associations.",
-                                    "icon": "apartment"
+                                    "icon": "apartment",
+                                    "link_url": "/p/apply/hoa"
                                 }
                             ]
                         }
