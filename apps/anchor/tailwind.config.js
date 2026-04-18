@@ -58,18 +58,13 @@ module.exports = {
       fontFamily: {
         "headline": ["Inter"],
         "body": ["Inter"],
+        "sans": ["Inter", "sans-serif"],
+        "display": ["Newsreader", "serif"],
+        "mono": ["JetBrains Mono", "monospace"],
         "label": ["Inter"],
         "jetbrains": ["JetBrains Mono", "monospace"]
       },
-      borderRadius: {
-        "DEFAULT": "0px",
-        "md": "0px",
-        "lg": "0px",
-        "xl": "0px",
-        "2xl": "0px",
-        "3xl": "0px",
-        "full": "9999px"
-      }
+
     },
   },
   plugins: [],

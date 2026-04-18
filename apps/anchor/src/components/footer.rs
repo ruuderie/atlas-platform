@@ -124,24 +124,35 @@ pub async fn delete_footer_item(id: i32) -> Result<(), ServerFnError> {
 
 #[component]
 pub fn Footer() -> impl IntoView {
+    let design = use_context::<crate::pages::landing::DesignConfig>()
+        .unwrap_or_default();
+        
     let footer_resource = create_resource(|| (), |_| get_footer_items());
     let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
 
     view! {
-        <footer class="w-full border-t border-outline-variant/30 py-8 px-6 lg:px-[8.5rem] bg-surface-container-low mt-auto flex flex-col lg:flex-row flex-wrap justify-between items-center text-xs jetbrains text-outline gap-8 lg:gap-6">
+        <footer class=format!("w-full border-t border-outline-variant/30 py-8 text-xs flex flex-col lg:flex-row flex-wrap justify-between items-center gap-8 lg:gap-6 mt-auto {} {} {}",
+            if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-lowest" } else { "bg-surface-container-low" },
+            if design.container_strategy == "asymmetrical-gutters" { "px-6 lg:px-[8.5rem]" } else { "px-6 lg:px-12" },
+            &design.meta_font
+        )>
             <div class="flex flex-col lg:flex-row items-center space-y-2 lg:space-y-0 lg:space-x-4 text-center">
-                <span class="break-words">"© 2026 RUUD SALYM ERIE. ALL RIGHTS RESERVED."</span>
+                <span class="break-words text-on-surface">"© 2026 RUUD SALYM ERIE. ALL RIGHTS RESERVED."</span>
                 <span class="hidden lg:inline text-on-surface-variant">"|"</span>
                 <span class="text-surface-variant font-bold text-outline break-words">"OPLYST INTERNATIONAL, LLC."</span>
             </div>
 
             <div class="flex flex-wrap justify-center items-center gap-6">
                 <Suspense fallback=move || view! { <div class="w-24 h-4 bg-outline-variant/20 animate-pulse rounded"></div> }>
-                    {move || {
+                    {
+                        let link_class = format!("font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface text-[0.75rem]" } else { "text-slate-500 dark:text-slate-400 text-[0.65rem]" });
+                        move || {
                         let items = footer_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
-                        items.into_iter().map(|item| {
+                        let link_class = link_class.clone();
+                        items.into_iter().map(move |item| {
+                            let link_class = link_class.clone();
                             view! {
-                                <a href=item.href.clone().unwrap_or_else(|| "#".to_string()) class="text-slate-500 dark:text-slate-400 font-medium hover:text-primary transition-colors tracking-widest uppercase text-[0.65rem] text-center whitespace-normal break-words">
+                                <a href=item.href.clone().unwrap_or_else(|| "#".to_string()) class=link_class>
                                     {item.label.clone()}
                                 </a>
                             }

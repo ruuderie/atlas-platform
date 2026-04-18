@@ -150,6 +150,9 @@ pub async fn delete_nav_item(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[component]
 pub fn Nav() -> impl IntoView {
+    let design = use_context::<crate::pages::landing::DesignConfig>()
+        .unwrap_or_default();
+        
     let (tick, set_tick) = create_signal(0);
     let (mobile_menu_open, set_mobile_menu_open) = create_signal(false);
 
@@ -173,25 +176,32 @@ pub fn Nav() -> impl IntoView {
 
     view! {
         <>
-        <nav class="fixed top-0 left-0 w-full flex justify-between items-center px-4 md:px-[8.5rem] py-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[20px] z-[60]">
-            <A href="/" class="text-xl font-bold font-mono text-cyan-800 dark:text-cyan-400 truncate relative z-[70]">
+        <nav class=format!("fixed top-0 left-0 w-full flex justify-between items-center py-6 z-[60] {} {}",
+            if design.nav_layout == "floating-glass" { "bg-surface/80 backdrop-blur-[20px] shadow-sm" } else { "bg-surface shadow-[0_4px_24px_rgba(0,0,0,0.06)]" },
+            if design.container_strategy == "asymmetrical-gutters" { "px-4 md:px-[8.5rem]" } else { "px-4 md:px-12" }
+        )>
+            <A href="/" class=format!("text-xl font-bold truncate relative z-[70] {} {}", &design.meta_font, if design.elevation_strategy == "tonal-shifts" { "text-primary" } else { "text-on-surface" })>
                 <Suspense fallback=move || view! { <span>"Portfolio"</span> }>
                     {move || settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or(crate::pages::landing::SiteSettings::default()).site_title}
                 </Suspense>
             </A>
             <div class="hidden md:flex items-center space-x-8">
                 <Suspense fallback=move || view! { <div class="w-24 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></div> }>
-                    {move || {
+                    {
+                        let root_class = format!("font-medium transition-colors uppercase {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface hover:text-primary" } else { "text-on-surface-variant hover:text-on-surface hover:bg-surface-container" });
+                        move || {
                         let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
+                        let root_class = root_class.clone();
 
                         let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
                         root_items.into_iter().map(|root| {
+                            let root_class = root_class.clone();
                             let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
 
                             if children.is_empty() {
                                 view! {
-                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="text-slate-600 dark:text-slate-400 font-medium hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors uppercase">
+                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
                                         {root.label.clone()}
                                     </a>
                                 }.into_view()
@@ -203,10 +213,10 @@ pub fn Nav() -> impl IntoView {
                                         </a>
                                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
 
-                                        <div class="absolute top-full left-0 mt-0 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto">
+                                        <div class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto">
                                             {children.into_iter().map(|child| {
                                                 view! {
-                                                    <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-primary transition-colors border-b border-slate-100 dark:border-slate-800/50 last:border-0 uppercase font-medium">
+                                                    <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
                                                         {child.label.clone()}
                                                     </a>
                                                 }

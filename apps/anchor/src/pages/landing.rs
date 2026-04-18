@@ -2,6 +2,36 @@ use leptos::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
+pub struct DesignConfig {
+    pub heading_font: String,
+    pub body_font: String,
+    pub meta_font: String,
+    pub border_radius_base: String,
+    pub container_strategy: String,
+    pub background_pattern: String,
+    pub elevation_strategy: String,
+    pub button_padding: String,
+    pub nav_layout: String,
+}
+
+impl Default for DesignConfig {
+    fn default() -> Self {
+        Self {
+            heading_font: "font-sans".into(),
+            body_font: "font-sans".into(),
+            meta_font: "font-mono".into(),
+            border_radius_base: "rounded-none".into(),
+            container_strategy: "centered-standard".into(),
+            background_pattern: "none".into(),
+            elevation_strategy: "flat-ghost".into(),
+            button_padding: "px-6 py-2".into(),
+            nav_layout: "solid-full".into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct SiteSettings {
     pub current_focus: String,
     pub status: String,
@@ -30,6 +60,7 @@ pub struct SiteSettings {
     pub meta_description: String,
     pub og_image: String,
     pub theme_primary_color: Option<String>,
+    pub design_config: Option<DesignConfig>,
 }
 
 impl Default for SiteSettings {
@@ -62,6 +93,7 @@ impl Default for SiteSettings {
             meta_description: "A dynamic, multi-tenant CMS site built on the Atlas Platform.".into(),
             og_image: "".into(),
             theme_primary_color: None,
+            design_config: None,
         }
     }
 }
