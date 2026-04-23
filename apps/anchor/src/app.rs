@@ -174,7 +174,7 @@ pub fn App() -> impl IntoView {
                                 <Route path="/book" view=BookDiscovery/>
                                 <Route path="/terms" view=Terms/>
                                 <Route path="/privacy" view=Privacy/>
-                                <Route path="/p/:slug" view=DynamicLanding/>
+                                <Route path="/p/*slug" view=DynamicLanding/>
                                 <Route path="/admin" view=Admin/>
                                 <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
                             </Routes>
