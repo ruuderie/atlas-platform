@@ -52,7 +52,34 @@ pub async fn get_app_instance(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if let Some(inst) = instance {
+    if let Some(mut inst) = instance {
+        // Fetch and merge tenant_settings to hydrate metadata (site_title, hero_quote, etc.)
+        let tenant_settings = crate::entities::tenant_setting::Entity::find()
+            .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
+            .all(&db)
+            .await
+            .unwrap_or_default();
+            
+        let mut merged_settings = inst.settings.take().unwrap_or_else(|| serde_json::json!({}));
+        
+        if let Some(obj) = merged_settings.as_object_mut() {
+            for setting in tenant_settings {
+                let val_str = setting.value.as_str();
+                let json_val = if val_str == "true" {
+                    serde_json::Value::Bool(true)
+                } else if val_str == "false" {
+                    serde_json::Value::Bool(false)
+                } else if let Ok(num) = val_str.parse::<f64>() {
+                    serde_json::json!(num)
+                } else {
+                    serde_json::Value::String(setting.value)
+                };
+                
+                obj.insert(setting.key, json_val);
+            }
+        }
+        
+        inst.settings = Some(merged_settings);
         Ok(Json(inst))
     } else {
         Err(StatusCode::NOT_FOUND)
