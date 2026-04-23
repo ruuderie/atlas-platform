@@ -7,6 +7,9 @@ spec:
     spec:
       containers:
       - name: backend
+        envFrom:
+        - secretRef:
+            name: cloudflare-edge-secrets
         env:
         - name: ATLAS_INIT_TOKEN
           value: "REPLACE_WITH_CI_TOKEN"
