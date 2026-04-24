@@ -22,8 +22,7 @@
     background-image: radial-gradient(circle at top center, theme('colors.primary-fixed'), transparent 60%);
   }
 
-/* Custom utilities from DESIGN.md */
-@layer utilities {
+  /* Custom utilities from DESIGN.md */
   .stacked-plate-effect {
     position: relative;
   }
