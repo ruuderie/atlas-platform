@@ -39,7 +39,46 @@ pub struct BadgeItem {
 
 #[component]
 pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
-    let items_to_render = data.items.clone();
+    let source = data.source.clone();
+    let config = store_value(data.config.clone());
+    let fallback_items = data.items.clone();
+
+    let entries_resource = create_resource(
+        move || source.clone(),
+        move |src| {
+            let fallback = fallback_items.clone();
+            async move {
+                if src == "tenant_entries" {
+                    if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
+                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let mapped: Vec<BadgeItem> = entries
+                            .into_iter()
+                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .map(|e| {
+                                let mut icon_url = None;
+                                if let Some(meta) = &e.metadata {
+                                    if let Some(img) = meta.get("icon_url").and_then(|v| v.as_str()) {
+                                        icon_url = Some(img.to_string());
+                                    }
+                                }
+
+                                BadgeItem {
+                                    title: e.title,
+                                    subtitle: e.subtitle,
+                                    icon_url,
+                                    metadata: e.metadata.unwrap_or(serde_json::json!({})),
+                                }
+                            })
+                            .collect();
+                        if !mapped.is_empty() {
+                            return mapped;
+                        }
+                    }
+                }
+                fallback
+            }
+        }
+    );
 
     view! {
         <section class="py-12 md:py-16 w-full">
@@ -54,27 +93,34 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                     view! {}.into_view()
                 }}
 
-                {if items_to_render.is_empty() {
-                    view! {
-                        <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
-                            "No badges found."
-                        </div>
-                    }.into_view()
-                } else {
-                    view! {
-                        <div class={match data.config.display.as_str() {
-                            "logo-grid" => "flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-80".to_string(),
-                            "list" => "flex flex-wrap gap-3".to_string(),
-                            _ => format!("grid grid-cols-2 md:grid-cols-{} lg:grid-cols-{} gap-4", 
-                                std::cmp::min(data.config.columns, 4), 
-                                data.config.columns),
-                        }}>
-                            {items_to_render.into_iter().map(|item| {
-                                view! { <BadgeItemView item=item config=data.config.clone() /> }
-                            }).collect_view()}
-                        </div>
-                    }.into_view()
-                }}
+                <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading badges..."</div> }>
+                    {move || {
+                        let items_to_render = entries_resource.get().unwrap_or_default();
+                        let cfg = config.get_value();
+                        
+                        if items_to_render.is_empty() {
+                            view! {
+                                <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
+                                    "No badges found."
+                                </div>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <div class={match cfg.display.as_str() {
+                                    "logo-grid" => "flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-80".to_string(),
+                                    "list" => "flex flex-wrap gap-3".to_string(),
+                                    _ => format!("grid grid-cols-2 md:grid-cols-{} lg:grid-cols-{} gap-4", 
+                                        std::cmp::min(cfg.columns, 4), 
+                                        cfg.columns),
+                                }}>
+                                    {items_to_render.into_iter().map(|item| {
+                                        view! { <BadgeItemView item=item config=cfg.clone() /> }
+                                    }).collect_view()}
+                                </div>
+                            }.into_view()
+                        }
+                    }}
+                </Suspense>
             </div>
         </section>
     }

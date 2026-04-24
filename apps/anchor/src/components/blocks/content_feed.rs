@@ -46,7 +46,53 @@ pub struct ContentFeedItem {
 
 #[component]
 pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
-    let items_to_render = data.items.clone();
+    let source = data.source.clone();
+    let config = store_value(data.config.clone());
+    let fallback_items = data.items.clone();
+
+    let entries_resource = create_resource(
+        move || source.clone(),
+        move |src| {
+            let fallback = fallback_items.clone();
+            async move {
+                if src == "tenant_entries" || src == "tenant_pages" {
+                    if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
+                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let mapped: Vec<ContentFeedItem> = entries
+                            .into_iter()
+                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .map(|e| {
+                                let mut tags = Vec::new();
+                                let mut cover_image_url = None;
+                                
+                                if let Some(meta) = e.metadata {
+                                    if let Some(t) = meta.get("tags").and_then(|v| v.as_array()) {
+                                        tags = t.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect();
+                                    }
+                                    if let Some(img) = meta.get("cover_image_url").and_then(|v| v.as_str()) {
+                                        cover_image_url = Some(img.to_string());
+                                    }
+                                }
+
+                                ContentFeedItem {
+                                    title: e.title,
+                                    slug: e.slug.unwrap_or_else(|| e.id.to_string()),
+                                    excerpt: e.subtitle,
+                                    published_at: e.published_at.or(e.date_range),
+                                    tags,
+                                    cover_image_url,
+                                }
+                            })
+                            .collect();
+                        if !mapped.is_empty() {
+                            return mapped;
+                        }
+                    }
+                }
+                fallback
+            }
+        }
+    );
 
     view! {
         <section class="py-16 w-full">
@@ -59,24 +105,31 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                     }.into_view()
                 } else { view! {}.into_view() }}
 
-                {if items_to_render.is_empty() {
-                    view! {
-                        <div class="p-12 border border-outline-variant border-dashed rounded-2xl bg-surface-container-lowest flex items-center justify-center text-on-surface-variant">
-                            "No content available."
-                        </div>
-                    }.into_view()
-                } else {
-                    view! {
-                        <div class={match data.config.layout.as_str() {
-                            "list" => "flex flex-col gap-6 max-w-4xl".to_string(), // list layout
-                            _ => "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8".to_string() // cards layout
-                        }}>
-                            {items_to_render.into_iter().map(|item| {
-                                view! { <FeedItemView item=item config=data.config.clone() /> }
-                            }).collect_view()}
-                        </div>
-                    }.into_view()
-                }}
+                <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading content..."</div> }>
+                    {move || {
+                        let items_to_render = entries_resource.get().unwrap_or_default();
+                        let cfg = config.get_value();
+                        
+                        if items_to_render.is_empty() {
+                            view! {
+                                <div class="p-12 border border-outline-variant border-dashed rounded-2xl bg-surface-container-lowest flex items-center justify-center text-on-surface-variant">
+                                    "No content available."
+                                </div>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <div class={match cfg.layout.as_str() {
+                                    "list" => "flex flex-col gap-6 max-w-4xl".to_string(), // list layout
+                                    _ => "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8".to_string() // cards layout
+                                }}>
+                                    {items_to_render.into_iter().map(|item| {
+                                        view! { <FeedItemView item=item config=cfg.clone() /> }
+                                    }).collect_view()}
+                                </div>
+                            }.into_view()
+                        }
+                    }}
+                </Suspense>
             </div>
         </section>
     }

@@ -46,11 +46,38 @@ pub struct TimelineItem {
 
 #[component]
 pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
-    // For Phase 2, we will only render the static items passed in, or a placeholder if DB fetch is needed.
-    // Full DB fetch integration via Suspense will be hooked up after the components are built.
-    
-    // Fall back to items or render empty if source is empty.
-    let items_to_render = data.items.clone();
+    let source = data.source.clone();
+    let config = store_value(data.config.clone());
+    let fallback_items = data.items.clone();
+
+    let entries_resource = create_resource(
+        move || source.clone(),
+        move |src| {
+            let fallback = fallback_items.clone();
+            async move {
+                if src == "tenant_entries" {
+                    if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
+                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let mapped: Vec<TimelineItem> = entries
+                            .into_iter()
+                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .map(|e| TimelineItem {
+                                title: e.title,
+                                subtitle: e.subtitle,
+                                date_range: e.date_range,
+                                bullets: e.bullets,
+                                metadata: e.metadata.unwrap_or(serde_json::json!({})),
+                            })
+                            .collect();
+                        if !mapped.is_empty() {
+                            return mapped;
+                        }
+                    }
+                }
+                fallback
+            }
+        }
+    );
 
     view! {
         <section class="py-12 md:py-16 w-full">
@@ -65,27 +92,34 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                     view! {}.into_view()
                 }}
 
-                {if items_to_render.is_empty() {
-                    view! {
-                        <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
-                            "No timeline items found."
-                        </div>
-                    }.into_view()
-                } else {
-                    view! {
-                        <div class={match data.config.layout.as_str() {
-                            "cards" => "grid grid-cols-1 md:grid-cols-2 gap-6".to_string(),
-                            "compact" => "space-y-4".to_string(),
-                            _ => "relative border-l-2 border-outline-variant pl-8 space-y-12".to_string(),
-                        }}>
-                            {items_to_render.into_iter().map(|item| {
-                                view! {
-                                    <TimelineItemView item=item config=data.config.clone() />
-                                }
-                            }).collect_view()}
-                        </div>
-                    }.into_view()
-                }}
+                <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading timeline..."</div> }>
+                    {move || {
+                        let items_to_render = entries_resource.get().unwrap_or_default();
+                        let cfg = config.get_value();
+                        
+                        if items_to_render.is_empty() {
+                            view! {
+                                <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
+                                    "No timeline items found."
+                                </div>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <div class={match cfg.layout.as_str() {
+                                    "cards" => "grid grid-cols-1 md:grid-cols-2 gap-6".to_string(),
+                                    "compact" => "space-y-4".to_string(),
+                                    _ => "relative border-l-2 border-outline-variant pl-8 space-y-12".to_string(),
+                                }}>
+                                    {items_to_render.into_iter().map(|item| {
+                                        view! {
+                                            <TimelineItemView item=item config=cfg.clone() />
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }.into_view()
+                        }
+                    }}
+                </Suspense>
             </div>
         </section>
     }
