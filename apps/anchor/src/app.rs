@@ -24,6 +24,7 @@ use crate::pages::bitcoin::BitcoinDashboard;
 use crate::pages::blog::Blog;
 use crate::pages::book::BookDiscovery;
 use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
+use crate::pages::dynamic_entry::DynamicEntry;
 use crate::pages::landing::Landing;
 use crate::pages::legal::{Privacy, Terms};
 
@@ -175,6 +176,7 @@ pub fn App() -> impl IntoView {
                                 <Route path="/terms" view=Terms/>
                                 <Route path="/privacy" view=Privacy/>
                                 <Route path="/p/*slug" view=DynamicLanding/>
+                                <Route path="/e/*slug" view=DynamicEntry/>
                                 <Route path="/admin" view=Admin/>
                                 <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
                             </Routes>

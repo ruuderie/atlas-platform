@@ -139,16 +139,17 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
 fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoView {
     match config.layout.as_str() {
         "list" => view! {
-            <a href=format!("/p/{}", item.slug) class="group flex flex-col sm:flex-row gap-6 p-6 bg-surface border border-outline-variant rounded-2xl hover:border-primary transition-all shadow-sm hover:shadow">
+            <article class="group relative flex flex-col sm:flex-row gap-6 p-6 bg-surface border border-outline-variant rounded-2xl hover:border-primary transition-all shadow-sm hover:shadow">
+                <a href=format!("/e/{}", item.slug) class="absolute inset-0 z-0"></a>
                 {if let Some(img) = item.cover_image_url {
                     view! {
-                        <div class="w-full sm:w-48 h-48 sm:h-auto shrink-0 rounded-xl overflow-hidden bg-surface-container-high">
+                        <div class="w-full sm:w-48 h-48 sm:h-auto shrink-0 rounded-xl overflow-hidden bg-surface-container-high relative z-10 pointer-events-none">
                             <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
                     }.into_view()
                 } else { view! {}.into_view() }}
                 
-                <div class="flex flex-col flex-grow justify-center py-2">
+                <div class="flex flex-col flex-grow justify-center py-2 relative z-10 pointer-events-none">
                     {if config.show_date {
                         if let Some(date) = item.published_at {
                             view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_view()
@@ -158,7 +159,7 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                     <h3 class="text-2xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight mb-3">
                         {item.title}
                     </h3>
-                    
+                            
                     {if let Some(excerpt) = item.excerpt {
                         view! { <p class="text-on-surface-variant text-base line-clamp-2 md:line-clamp-3 mb-4">{excerpt}</p> }.into_view()
                     } else { view! {}.into_view() }}
@@ -171,19 +172,20 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                         }.into_view()
                     } else { view! {}.into_view() }}
                 </div>
-            </a>
+            </article>
         }.into_view(),
         _ => view! {
-            <a href=format!("/p/{}", item.slug) class="group flex flex-col bg-surface border border-outline-variant rounded-2xl overflow-hidden hover:border-primary transition-all shadow-sm hover:shadow">
+            <article class="group relative flex flex-col bg-surface border border-outline-variant/30 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+                <a href=format!("/e/{}", item.slug) class="absolute inset-0 z-0"></a>
                 {if let Some(img) = item.cover_image_url {
                     view! {
-                        <div class="w-full h-56 bg-surface-container-high overflow-hidden">
+                        <div class="w-full h-56 bg-surface-container-high overflow-hidden relative z-10 pointer-events-none">
                             <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
                     }.into_view()
                 } else { view! {}.into_view() }}
                 
-                <div class="p-6 flex flex-col flex-grow">
+                <div class="p-6 flex flex-col flex-grow relative z-10 pointer-events-none">
                     {if config.show_date {
                         if let Some(date) = item.published_at {
                             view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_view()
@@ -206,7 +208,7 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                         }.into_view()
                     } else { view! {}.into_view() }}
                 </div>
-            </a>
+            </article>
         }.into_view() // "cards"
     }
 }

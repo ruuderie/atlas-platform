@@ -839,6 +839,48 @@ pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> 
     Ok(pdf_bytes)
 }
 
+#[server(GetSingleTenantEntry, "/api")]
+pub async fn get_single_tenant_entry(
+    slug: String,
+) -> Result<Option<ResumeEntry>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use sqlx::Row;
+    
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+
+    let row = sqlx::query("SELECT e.id, e.category, e.title, e.subtitle, e.date_range, e.bullets, e.slug, CAST(e.published_at AS TEXT) as published_at, e.metadata FROM tenant_entries e WHERE e.slug = $1 AND e.tenant_id = $2")
+        .bind(&slug)
+        .bind(tenant_id)
+        .fetch_optional(&state.pool)
+        .await?;
+
+    if let Some(r) = row {
+        let bullets_val: serde_json::Value = r.try_get("bullets").unwrap_or(serde_json::json!([]));
+        let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
+        
+        Ok(Some(ResumeEntry {
+            id: r.get("id"),
+            profile_id: 0, // Individual entry viewing might not be bound to a profile
+            category: r.get("category"),
+            title: r.get("title"),
+            subtitle: r.try_get("subtitle").unwrap_or(None),
+            date_range: r.try_get("date_range").unwrap_or(None),
+            bullets,
+            display_order: 0,
+            is_visible: true,
+            slug: r.try_get("slug").unwrap_or(None),
+            published_at: r.try_get("published_at").unwrap_or(None),
+            metadata: r.try_get("metadata").unwrap_or(None),
+            overrides: None,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -879,6 +921,8 @@ mod tests {
             is_visible: true,
             metadata: None,
             overrides: None,
+            published_at: None,
+            slug: None,
         }];
 
         let tex = generate_latex_string(&profile, &entries);
@@ -918,6 +962,8 @@ mod tests {
                 is_visible: false, // Target should hide inherently
                 metadata: None,
                 overrides: None,
+                published_at: None,
+                slug: None,
             },
             ResumeEntry {
                 id: 2,
@@ -931,6 +977,8 @@ mod tests {
                 is_visible: true, // Should hide because master JSON hides Education
                 metadata: None,
                 overrides: None,
+                published_at: None,
+                slug: None,
             },
         ];
 
