@@ -9,9 +9,6 @@
     /* Default fallback, overridden by pattern utilities */
   }
 }
-    /* Default fallback, overridden by pattern utilities */
-  }
-}
 
 @layer utilities {
   .blueprint-grid {
