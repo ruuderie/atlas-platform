@@ -765,7 +765,7 @@ pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> 
         category_order: profile_row.get("category_order"),
     };
 
-    let entries_rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
+    let entries_rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, e.slug, CAST(e.published_at AS TEXT) as published_at, e.metadata, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
         .bind(profile_id).fetch_all(&state.pool).await?;
 
     let entries: Vec<ResumeEntry> = entries_rows
@@ -783,7 +783,9 @@ pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> 
                 bullets,
                 display_order: row.get("display_order"),
                 is_visible: row.get("is_visible"),
-                metadata: None,
+                slug: row.try_get("slug").unwrap_or(None),
+                published_at: row.try_get("published_at").unwrap_or(None),
+                metadata: row.try_get("metadata").unwrap_or(None),
                 overrides: row.try_get("overrides").unwrap_or(None),
             }
         })
