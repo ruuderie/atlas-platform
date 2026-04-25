@@ -106,7 +106,7 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
-        <Stylesheet id="leptos" href="/pkg/anchor.css"/>
+        <Stylesheet id="leptos" href="/pkg/anchor.css?v=2"/>
 
         {
             let title_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.meta_title).unwrap_or("Ruud Salym Erie - Technical Architect".into());
