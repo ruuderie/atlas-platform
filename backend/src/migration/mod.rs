@@ -58,6 +58,7 @@ pub mod m20260417_000001_seed_design_system_config;
 pub mod m20260417_000002_fix_buildwithruud_pages;
 pub mod m20260417_000003_seed_formbuilder_pages;
 pub mod m20260425_000001_update_buildwithruud_home;
+pub mod m20260425_000002_create_footer_items_table;
 
 pub struct Migrator;
 

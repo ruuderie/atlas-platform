@@ -27,6 +27,7 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260408_000002_create_anchor_legacy_tables::Migration),
             Box::new(crate::migration::m20260408_000003_seed_anchor_background_jobs::Migration),
             Box::new(crate::migration::m20260408_000004_fix_anchor_tables_and_seed::Migration),
+            Box::new(crate::migration::m20260425_000002_create_footer_items_table::Migration),
         ]
     }
 
