@@ -9,3 +9,4 @@ pub mod profile_header;
 pub mod accordion;
 pub mod content_feed;
 pub mod stats;
+pub mod raw_html;

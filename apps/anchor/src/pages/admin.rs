@@ -1069,6 +1069,7 @@ pub fn LandingPageTable() -> impl IntoView {
                     {move || match pages_resource.get() {
                         Some(Ok(pages)) => pages.into_iter().map(|p| {
                             let p_clone = p.clone();
+                            let p_clone_2 = p.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 font-bold text-primary">"/" {p.slug}</td>
@@ -1083,9 +1084,9 @@ pub fn LandingPageTable() -> impl IntoView {
                                         </button>
                                         <button
                                             on:click=move |_| {
-                                                let id = p.id;
+                                                let target_slug = p_clone_2.slug.clone();
                                                 spawn_local(async move {
-                                                    if let Ok(_) = delete_landing_page(id).await {
+                                                    if let Ok(_) = delete_landing_page(target_slug).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
                                                 });

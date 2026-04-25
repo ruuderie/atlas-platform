@@ -29,6 +29,7 @@ use crate::components::blocks::{
     profile_header::{ProfileHeaderBlock, ProfileHeaderBlockData},
     stats::{StatsBlock, StatsBlockData},
     accordion::{AccordionBlock, AccordionBlockData},
+    raw_html::{RawHtmlBlock, RawHtmlData},
 };
 
 // DynamicBlock represents one block entry in a blocks_payload array.
@@ -48,6 +49,7 @@ pub enum DynamicBlock {
     ProfileHeader(ProfileHeaderBlockData),
     Stats(StatsBlockData),
     Accordion(AccordionBlockData),
+    RawHtml(RawHtmlData),
 }
 
 impl<'de> serde::Deserialize<'de> for DynamicBlock {
@@ -104,6 +106,10 @@ impl<'de> serde::Deserialize<'de> for DynamicBlock {
             )),
             "Accordion" => Ok(DynamicBlock::Accordion(
                 serde_json::from_value::<AccordionBlockData>(value)
+                    .map_err(serde::de::Error::custom)?,
+            )),
+            "RawHtml" => Ok(DynamicBlock::RawHtml(
+                serde_json::from_value::<RawHtmlData>(value)
                     .map_err(serde::de::Error::custom)?,
             )),
             unknown => Err(serde::de::Error::custom(format!(
@@ -218,67 +224,109 @@ pub async fn add_landing_page(
     description: String,
     hero_title: String,
     hero_subtitle: String,
-    lead_capture_title: String,
-    lead_capture_desc: String,
-    lead_capture_btn: String,
-    options_json: String,
+    dynamic_blocks_json: String,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
+    use uuid::Uuid;
+    
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = match tenant.0 {
+        Some(id) => id,
+        None => return Err(ServerFnError::ServerError("No tenant context".into())),
+    };
 
-    sqlx::query("INSERT INTO landing_pages (slug, title, description, hero_title, hero_subtitle, lead_capture_title, lead_capture_desc, lead_capture_btn, options_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-        .bind(slug).bind(title).bind(description).bind(hero_title).bind(hero_subtitle).bind(lead_capture_title).bind(lead_capture_desc).bind(lead_capture_btn).bind(options_json)
+    let hero_payload = serde_json::json!({
+        "hero_title": hero_title,
+        "hero_subtitle": hero_subtitle
+    });
+    
+    let blocks_payload: serde_json::Value = serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
+    let id = Uuid::new_v4();
+
+    sqlx::query("INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 'dynamic', $6, $7, true, NOW(), NOW())")
+        .bind(id)
+        .bind(tenant_id)
+        .bind(slug)
+        .bind(title)
+        .bind(description)
+        .bind(hero_payload)
+        .bind(blocks_payload)
         .execute(&state.pool).await?;
     Ok(())
 }
 
 #[server(UpdateLandingPage, "/api")]
 pub async fn update_landing_page(
-    id: i32,
+    old_slug: String,
     slug: String,
     title: String,
     description: String,
     hero_title: String,
     hero_subtitle: String,
-    lead_capture_title: String,
-    lead_capture_desc: String,
-    lead_capture_btn: String,
-    options_json: String,
+    dynamic_blocks_json: String,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
+    
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = match tenant.0 {
+        Some(id) => id,
+        None => return Err(ServerFnError::ServerError("No tenant context".into())),
+    };
 
-    sqlx::query("UPDATE landing_pages SET slug = $1, title = $2, description = $3, hero_title = $4, hero_subtitle = $5, lead_capture_title = $6, lead_capture_desc = $7, lead_capture_btn = $8, options_json = $9 WHERE id = $10")
-        .bind(slug).bind(title).bind(description).bind(hero_title).bind(hero_subtitle).bind(lead_capture_title).bind(lead_capture_desc).bind(lead_capture_btn).bind(options_json).bind(id)
+    let hero_payload = serde_json::json!({
+        "hero_title": hero_title,
+        "hero_subtitle": hero_subtitle
+    });
+    
+    let blocks_payload: serde_json::Value = serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
+
+    sqlx::query("UPDATE app_pages SET slug = $1, title = $2, description = $3, hero_payload = $4, blocks_payload = $5, updated_at = NOW() WHERE tenant_id = $6 AND slug = $7")
+        .bind(slug)
+        .bind(title)
+        .bind(description)
+        .bind(hero_payload)
+        .bind(blocks_payload)
+        .bind(tenant_id)
+        .bind(old_slug)
         .execute(&state.pool).await?;
     Ok(())
 }
 
 #[server(DeleteLandingPage, "/api")]
-pub async fn delete_landing_page(id: i32) -> Result<(), ServerFnError> {
+pub async fn delete_landing_page(slug: String) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
+    
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM landing_pages WHERE id = $1")
-        .bind(id)
-        .execute(&state.pool)
-        .await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = match tenant.0 {
+        Some(id) => id,
+        None => return Err(ServerFnError::ServerError("No tenant context".into())),
+    };
+
+    sqlx::query("DELETE FROM app_pages WHERE tenant_id = $1 AND slug = $2")
+        .bind(tenant_id)
+        .bind(slug)
+        .execute(&state.pool).await?;
     Ok(())
 }
+
 
 #[server(HandleDynamicLead, "/api")]
 pub async fn handle_dynamic_lead(
@@ -356,6 +404,7 @@ pub fn DynamicLanding() -> impl IntoView {
                                             DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
                                             DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
                                             DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
+                                            DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_view(),
                                         }).collect_view()
                                     }}
                                 </div>
@@ -467,6 +516,7 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                                     DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
                                     DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
                                     DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
+                                    DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_view(),
                                 }).collect_view()}
                             </main>
                         }.into_view()

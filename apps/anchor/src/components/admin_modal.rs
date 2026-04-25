@@ -1168,53 +1168,31 @@ pub fn LandingPageForm(
             .map(|p| p.hero_subtitle.clone())
             .unwrap_or_default(),
     );
-    let (lc_title, set_lc_title) = create_signal(
+    let (dynamic_blocks_json, set_dynamic_blocks_json) = create_signal(
         initial_page
             .as_ref()
-            .map(|p| p.lead_capture_title.clone())
-            .unwrap_or_default(),
-    );
-    let (lc_desc, set_lc_desc) = create_signal(
-        initial_page
-            .as_ref()
-            .map(|p| p.lead_capture_desc.clone())
-            .unwrap_or_default(),
-    );
-    let (lc_btn, set_lc_btn) = create_signal(
-        initial_page
-            .as_ref()
-            .map(|p| p.lead_capture_btn.clone())
-            .unwrap_or_default(),
-    );
-    let (options_json, set_options_json) = create_signal(
-        initial_page
-            .as_ref()
-            .map(|p| p.options_json.clone())
-            .unwrap_or_else(|| {
-                "{\n  \"opt1\": \"First Option\",\n  \"opt2\": \"Second Option\"\n}".to_string()
-            }),
+            .map(|p| p.dynamic_blocks_json.clone())
+            .unwrap_or_else(|| "[]".to_string()),
     );
 
     let save = move |_| {
+        let old_slug_val = initial_page.as_ref().map(|p| p.slug.clone()).unwrap_or_default();
         let s = slug.get_untracked();
         let t = title.get_untracked();
         let d = description.get_untracked();
         let ht = hero_title.get_untracked();
         let hs = hero_subtitle.get_untracked();
-        let lct = lc_title.get_untracked();
-        let lcd = lc_desc.get_untracked();
-        let lcb = lc_btn.get_untracked();
-        let oj = options_json.get_untracked();
+        let dbj = dynamic_blocks_json.get_untracked();
 
         spawn_local(async move {
             if is_edit {
                 let _ = crate::pages::dynamic_landing::update_landing_page(
-                    id_val, s, t, d, ht, hs, lct, lcd, lcb, oj,
+                    old_slug_val, s, t, d, ht, hs, dbj
                 )
                 .await;
             } else {
                 let _ = crate::pages::dynamic_landing::add_landing_page(
-                    s, t, d, ht, hs, lct, lcd, lcb, oj,
+                    s, t, d, ht, hs, dbj
                 )
                 .await;
             }
@@ -1251,24 +1229,11 @@ pub fn LandingPageForm(
             </div>
 
             <div class="border-t border-outline-variant/30 pt-6 mt-4">
-                <h3 class="font-label text-sm font-bold text-primary tracking-widest uppercase mb-4">"Lead Capture Block"</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="flex flex-col gap-2">
-                        <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Lead Capture Title"</label>
-                        <input type="text" prop:value=lc_title on:input=move |ev| set_lc_title.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" />
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Submit Button Label"</label>
-                        <input type="text" prop:value=lc_btn on:input=move |ev| set_lc_btn.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" />
-                    </div>
-                </div>
+                <h3 class="font-label text-sm font-bold text-primary tracking-widest uppercase mb-4">"Dynamic Blocks Payload"</h3>
                 <div class="flex flex-col gap-2 mt-4">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Lead Capture Description"</label>
-                    <textarea prop:value=lc_desc on:input=move |ev| set_lc_desc.set(event_target_value(&ev)) rows="2" class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains resize-y"></textarea>
-                </div>
-                <div class="flex flex-col gap-2 mt-4">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Checkboxes config (JSON Map)"</label>
-                    <textarea prop:value=options_json on:input=move |ev| set_options_json.set(event_target_value(&ev)) rows="5" class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm font-mono text-secondary resize-y" placeholder="{{ \"val_id\": \"User Facing Label\" }}"></textarea>
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Blocks JSON Array"</label>
+                    <textarea prop:value=dynamic_blocks_json on:input=move |ev| set_dynamic_blocks_json.set(event_target_value(&ev)) rows="15" class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-xs font-mono text-secondary resize-y" placeholder="[ Array of Block JSON Objects ]"></textarea>
+                    <span class="text-xs text-outline">"Directly manages the blocks_payload column for this app_page."</span>
                 </div>
             </div>
 
