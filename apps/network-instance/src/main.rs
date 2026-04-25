@@ -12,7 +12,7 @@ async fn main() {
     let routes = generate_route_list(App);
 
     let app = Router::new()
-        .route("/api/*fn_name", axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns))
+        .route("/api/{*fn_name}", axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns))
         .route("/sitemap.xml", axum::routing::get(sitemap_handler))
         .leptos_routes(&leptos_options, routes, {
             let leptos_options = leptos_options.clone();
