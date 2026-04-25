@@ -16,8 +16,9 @@ impl AtlasApp for AnchorApp {
         Router::new()
     }
 
-    fn authenticated_router(&self, _state: DatabaseConnection) -> Router<DatabaseConnection> {
+    fn authenticated_router(&self, db: DatabaseConnection) -> Router<DatabaseConnection> {
         Router::new()
+            .merge(crate::handlers::anchor::pages::authenticated_routes(db))
     }
 
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
