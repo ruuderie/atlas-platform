@@ -379,7 +379,7 @@ pub fn DynamicLanding() -> impl IntoView {
                         let has_options = options_stored.with_value(|v| !v.is_empty());
 
                         view! {
-                            <section class="max-w-4xl mx-auto items-start">
+                            <section class="w-full max-w-4xl mx-auto items-start px-6 md:px-8">
                                 <div class="inline-block bg-surface-container-high px-3 py-1 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant mb-8 uppercase">
                                     {&page.title}
                                 </div>
