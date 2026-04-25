@@ -59,6 +59,7 @@ pub mod m20260417_000002_fix_buildwithruud_pages;
 pub mod m20260417_000003_seed_formbuilder_pages;
 pub mod m20260425_000001_update_buildwithruud_home;
 pub mod m20260425_000002_create_footer_items_table;
+pub mod m20260425_000003_fix_buildwithruud_padding;
 
 pub struct Migrator;
 
@@ -108,6 +109,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
             Box::new(m20260417_000003_seed_formbuilder_pages::Migration),
             Box::new(m20260425_000001_update_buildwithruud_home::Migration),
+            Box::new(m20260425_000002_create_footer_items_table::Migration),
+            Box::new(m20260425_000003_fix_buildwithruud_padding::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
