@@ -60,6 +60,7 @@ pub mod m20260417_000003_seed_formbuilder_pages;
 pub mod m20260425_000001_update_buildwithruud_home;
 pub mod m20260425_000002_create_footer_items_table;
 pub mod m20260425_000003_fix_buildwithruud_padding;
+pub mod m20260425_000004_stitch_ruuderie_payload;
 
 pub struct Migrator;
 
