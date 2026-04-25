@@ -64,7 +64,6 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(magic_links::public_routes())
         .merge(app_instance::public_routes(db.clone()))
         .merge(app_menus::public_routes(db.clone()))
-        .merge(app_pages::public_routes(db.clone()))
         .route("/health", get(health::health_check));
 
     for app in crate::atlas_apps::get_active_apps() {
