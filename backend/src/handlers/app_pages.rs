@@ -37,10 +37,12 @@ pub async fn get_page_by_slug(
     Path((tenant_id, slug)): Path<(Uuid, String)>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<app_page::Model>, StatusCode> {
-    tracing::info!("DEBUG get_page_by_slug: tenant_id={}, slug='{}'", tenant_id, slug);
+    let clean_slug = slug.trim_start_matches('/');
+    
+    tracing::info!("DEBUG get_page_by_slug: tenant_id={}, slug='{}', clean_slug='{}'", tenant_id, slug, clean_slug);
     let page = AppPage::find()
         .filter(app_page::Column::TenantId.eq(tenant_id))
-        .filter(app_page::Column::Slug.eq(slug))
+        .filter(app_page::Column::Slug.eq(clean_slug))
         .filter(app_page::Column::IsPublished.eq(true))
         .one(&db)
         .await
