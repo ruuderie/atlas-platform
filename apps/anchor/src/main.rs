@@ -40,7 +40,7 @@ async fn main() {
             axum::routing::get(|| async move { metric_handle.render() }),
         )
         .route(
-            "/api/{*fn_name}",
+            "/api/*fn_name",
             axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
         )
         .route(
