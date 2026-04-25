@@ -37,6 +37,7 @@ pub async fn get_page_by_slug(
     Path((tenant_id, slug)): Path<(Uuid, String)>,
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<app_page::Model>, StatusCode> {
+    tracing::info!("DEBUG get_page_by_slug: tenant_id={}, slug='{}'", tenant_id, slug);
     let page = AppPage::find()
         .filter(app_page::Column::TenantId.eq(tenant_id))
         .filter(app_page::Column::Slug.eq(slug))
