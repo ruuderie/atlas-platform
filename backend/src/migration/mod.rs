@@ -57,6 +57,7 @@ pub mod m20260416_000002_seed_buildwithruud_block_pages;
 pub mod m20260417_000001_seed_design_system_config;
 pub mod m20260417_000002_fix_buildwithruud_pages;
 pub mod m20260417_000003_seed_formbuilder_pages;
+pub mod m20260425_000001_update_buildwithruud_home;
 
 pub struct Migrator;
 
@@ -105,6 +106,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260417_000001_seed_design_system_config::Migration),
             Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
             Box::new(m20260417_000003_seed_formbuilder_pages::Migration),
+            Box::new(m20260425_000001_update_buildwithruud_home::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
