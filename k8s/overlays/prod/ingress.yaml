@@ -1,0 +1,98 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlas-ingress-prod
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: "nginx"
+  tls:
+  - hosts:
+    - atlas.oply.co
+    - api.atlas.oply.co
+    - network.atlas.oply.co
+    secretName: prod-atlas-tls
+  - hosts:
+    - buildwithruud.com
+    - www.buildwithruud.com
+    secretName: prod-bwr-tls
+  - hosts:
+    - oplystusa.com
+    - www.oplystusa.com
+    secretName: prod-oplystusa-tls
+  rules:
+  # Platform Admin
+  - host: atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-admin
+            port:
+              number: 80
+  # Backend API
+  - host: api.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+  # Network Instance
+  - host: network.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: network-instance
+            port:
+              number: 80
+  # Anchor: buildwithruud.com (production — no uat. prefix)
+  - host: buildwithruud.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80
+  - host: www.buildwithruud.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80
+  # Anchor: oplystusa.com (production)
+  - host: oplystusa.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80
+  - host: www.oplystusa.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80

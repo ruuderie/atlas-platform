@@ -133,10 +133,35 @@ steps:
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
       - kubectl cluster-info
       - echo "Push branch is $CI_COMMIT_BRANCH"
-      - |
+      - |\
         if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
           echo "Deploying to PROD environment..."
-          kubectl apply -k k8s/overlays/prod || echo "[Warn] Prod overlay not yet scaffolded"
+
+          # Validate all required secrets exist before touching prod
+          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+            secret_value=$(printenv "$secret_name" || echo "")
+            if [ -z "$secret_value" ]; then
+              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Prod deployment aborted."
+              exit 1
+            fi
+          done
+
+          # Ensure atlas_prod database exists on the host (idempotent)
+          PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
+            -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
+
+          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
+          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/prod/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/prod/config.yaml
+
+          echo "Deploying to PROD environment..."
+          kubectl apply -k k8s/overlays/prod
         else
           echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
           

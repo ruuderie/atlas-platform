@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: atlas-platform
+data:
+  ENVIRONMENT: "prod"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  DATABASE_HOST: "10.42.0.1"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "atlas_prod"
+  ADMIN_FIRST_NAME: "Ruud"
+  ADMIN_LAST_NAME: "Erie"
+  ADMIN_PHONE: "+18608882536"
+  ADMIN_USER: "admin@oply.co"
+  CREATE_ADMIN_ON_STARTUP: "true"
+  API_URL: "https://api.atlas.oply.co"
+  ATLAS_API_URL: "http://backend.atlas-platform.svc.cluster.local:8000"
+  FRONTEND_URL: "https://network.atlas.oply.co"
+  ADMIN_URL: "https://atlas.oply.co"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  namespace: atlas-platform
+type: Opaque
+stringData:
+  POSTGRES_USER: "REPLACE_WITH_DB_USER"
+  POSTGRES_PASSWORD: "REPLACE_WITH_DB_PASSWORD"
+  ADMIN_PASSWORD: "REPLACE_WITH_ADMIN_PASSWORD"
+  SMTP_TOKEN: "REPLACE_WITH_SMTP_TOKEN"
+  SMTP_SERVER: "REPLACE_WITH_SMTP_SERVER"
+  SMTP_PORT: "REPLACE_WITH_SMTP_PORT"
+  SMTP_USERNAME: "REPLACE_WITH_SMTP_USERNAME"
+  SMTP_FROM: "REPLACE_WITH_SMTP_FROM"
