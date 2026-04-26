@@ -31,6 +31,7 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260425_000003_fix_buildwithruud_padding::Migration),
             Box::new(crate::migration::m20260425_000004_stitch_ruuderie_payload::Migration),
             Box::new(crate::migration::m20260425_000005_fix_ruud_tenant_lookup::Migration),
+            Box::new(crate::migration::m20260425_000006_force_ruud_payload::Migration),
         ]
     }
 
