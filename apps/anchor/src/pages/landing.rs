@@ -1,4 +1,5 @@
 use leptos::*;
+use crate::components::widget_registry::WidgetInstance;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -61,6 +62,10 @@ pub struct SiteSettings {
     pub og_image: String,
     pub theme_primary_color: Option<String>,
     pub design_config: Option<DesignConfig>,
+    /// Tenant-configured widget instances. Parsed from app_instances.settings.widgets[].
+    /// Defaults to empty — tenants with no widgets configured get no widget rendering.
+    #[serde(default)]
+    pub widgets: Vec<WidgetInstance>,
 }
 
 impl Default for SiteSettings {
@@ -94,6 +99,7 @@ impl Default for SiteSettings {
             og_image: "".into(),
             theme_primary_color: None,
             design_config: None,
+            widgets: vec![],
         }
     }
 }
