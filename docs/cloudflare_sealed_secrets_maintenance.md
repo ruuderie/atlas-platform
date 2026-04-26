@@ -8,7 +8,7 @@ We have fully migrated away from injecting Cloudflare and R2 secrets via the Woo
 
 1. **The Controller:** The `sealed-secrets` controller runs inside your remote NixOS K3s cluster. It was declaratively installed via `NixForge/flake.nix`.
 2. **The Encryption:** Secrets are encrypted on your local Mac using the cluster's public key. The resulting `SealedSecret` file is safe to commit to GitHub.
-3. **The Decryption:** When Woodpecker runs `kubectl apply -k k8s/overlays/uat`, the `SealedSecret` is deployed to the cluster. The `sealed-secrets` controller uses its private key (which never leaves the cluster) to decrypt the file back into a standard Kubernetes `Secret`.
+3. **The Decryption:** When Woodpecker runs `kubectl apply -k k8s/overlays/<env>`, the `SealedSecret` is deployed to the cluster. The `sealed-secrets` controller uses its private key (which never leaves the cluster) to decrypt the file back into a standard Kubernetes `Secret`.
 
 ---
 
@@ -43,7 +43,7 @@ stringData:
 ### 3. Encrypt the File
 Run `kubeseal` (installed via Homebrew) using the public certificate you downloaded:
 ```bash
-kubeseal --cert pub-cert.pem --format yaml < secret-plain.yaml > k8s/overlays/uat/sealed-secret.yaml
+kubeseal --cert pub-cert.pem --format yaml < secret-plain.yaml > k8s/overlays/<env>/sealed-secret.yaml
 ```
 
 ### 4. Clean Up and Commit
@@ -53,4 +53,4 @@ kubeseal --cert pub-cert.pem --format yaml < secret-plain.yaml > k8s/overlays/ua
 rm secret-plain.yaml pub-cert.pem
 ```
 
-Finally, commit the updated `k8s/overlays/uat/sealed-secret.yaml` to Git and push. Woodpecker CI will automatically deploy the new encrypted state to the server.
+Finally, commit the updated `k8s/overlays/<env>/sealed-secret.yaml` to Git and push. Woodpecker CI will automatically deploy the new encrypted state to the target environment.
