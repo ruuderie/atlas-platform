@@ -73,6 +73,16 @@ impl AtlasApp for AnchorApp {
             // This is the terminal authoritative migration for the home page layout.
             // It supersedes all above pt-8→pt-32 patches on fresh databases.
             Box::new(crate::migration::m20260426_000001_hardened_ruud_payload::Migration),
+
+            // --- UAT stabilization: layout, content, and widget system ---
+            // Consulting page restored (was deleted in m20260417_000003)
+            Box::new(crate::migration::m20260427_000001_restore_consulting_page::Migration),
+            // Real-estate-ventures redesigned as investor/landlord landing (5 strategy pillars)
+            Box::new(crate::migration::m20260427_000002_real_estate_ventures_redesign::Migration),
+            // Widget instance config: bitcoin clock for buildwithruud, empty for all others
+            Box::new(crate::migration::m20260427_000003_widget_instance_config::Migration),
+            // Blog content_format column: supports 'markdown' | 'latex' | 'mdlatex'
+            Box::new(crate::migration::m20260427_000004_blog_content_format::Migration),
         ]
     }
 
