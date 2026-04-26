@@ -1,7 +1,18 @@
 use sea_orm_migration::prelude::*;
 
-pub mod m20230912_000000_create_users_table;
+// ═══════════════════════════════════════════════════════════════════════════════
+// CORE PLATFORM MIGRATION MODULES
+// These migrations handle platform-level schema: users, accounts, sessions,
+// directories, CRM, tenants, billing, telemetry, and other shared infrastructure.
+//
+// RULE: Only platform schema belongs here.
+// App-specific content/seed migrations belong in each AtlasApp::migrations() impl.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// --- Legacy schema (pre-2024) ---
 pub mod m20230911_create_accounts_table;
+pub mod m20230911_create_sessions_table;
+pub mod m20230912_000000_create_users_table;
 pub mod m20230912_000001_create_user_accounts_table;
 pub mod m20230913_create_directory_types_table;
 pub mod m20230914_create_directories_table;
@@ -12,17 +23,18 @@ pub mod m20230918_create_listings_table;
 pub mod m20230919_create_listing_attributes_table;
 pub mod m20230920_create_ad_purchases_table;
 pub mod m20240001_update_timestamp_migration;
-pub mod m20230911_create_sessions_table;
+pub mod m20240315_add_directory_domain_fields;
 pub mod m20240922_create_crm_tables;
 pub mod m20240922_create_request_log_table;
 pub mod m20240923_create_feed_tables;
-pub mod m20240924_update_listings_nullable_category;
 pub mod m20240924_update_directory_multisite_fields;
-pub mod m20240315_add_directory_domain_fields;
+pub mod m20240924_update_listings_nullable_category;
 pub mod m20241001_add_icon_and_slug_to_categories;
 pub mod m20241002_add_directory_id_to_crm_and_categories;
 pub mod m20241003_add_slug_to_listings;
 pub mod m20250101_create_ab_testing_tables;
+
+// --- Core platform schema (2026) ---
 pub mod m20260320_create_passkeys_table;
 pub mod m20260324_000001_collapse_eav_to_jsonb;
 pub mod m20260326_add_service_area_to_profile;
@@ -41,6 +53,12 @@ pub mod m20260406_000003_create_developer_console_tables;
 pub mod m20260408_000000_create_audit_logs;
 pub mod m20260408_000000_fix_tenant_app_alignments;
 pub mod m20260408_000001_fix_uat_app_domains;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANCHOR APP MIGRATION MODULES (pub mod declarations only — not in base vec)
+// These are declared here so Rust can resolve them via crate::migration::*,
+// but they are registered exclusively in AnchorApp::migrations(), not below.
+// ═══════════════════════════════════════════════════════════════════════════════
 pub mod m20260408_000002_create_anchor_legacy_tables;
 pub mod m20260408_000003_seed_anchor_background_jobs;
 pub mod m20260408_000004_fix_anchor_tables_and_seed;
@@ -63,12 +81,23 @@ pub mod m20260425_000003_fix_buildwithruud_padding;
 pub mod m20260425_000004_stitch_ruuderie_payload;
 pub mod m20260425_000005_fix_ruud_tenant_lookup;
 pub mod m20260425_000006_force_ruud_payload;
+pub mod m20260426_000001_hardened_ruud_payload;
 
 pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
+        // ═══════════════════════════════════════════════════════════════════
+        // BASE VEC — Core platform schema migrations ONLY.
+        //
+        // DO NOT add app-specific content or seed migrations here.
+        // Those belong exclusively in each AtlasApp::migrations() impl.
+        //
+        // This vec + app migrations are merged then sorted alphabetically
+        // by migration name (filename prefix), which is why consistent
+        // naming is critical for deterministic ordering.
+        // ═══════════════════════════════════════════════════════════════════
         let mut base: Vec<Box<dyn MigrationTrait>> = vec![
             Box::new(m20230911_create_accounts_table::Migration),
             Box::new(m20230911_create_sessions_table::Migration),
@@ -98,19 +127,6 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000000_create_audit_logs::Migration),
             Box::new(m20260408_000000_fix_tenant_app_alignments::Migration),
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
-            Box::new(m20260408_000006_create_app_content::Migration),
-            Box::new(m20260412_000001_form_engine::Migration),
-            Box::new(m20260412_000002_add_tenant_slug::Migration),
-            Box::new(m20260412_000003_seed_oplystusa::Migration),
-            Box::new(m20260413_000001_seed_oplystusa_domains::Migration),
-            Box::new(m20260415_000001_seed_oplystusa_home_page::Migration),
-            Box::new(m20260415_000002_upgrade_buildwithruud_home_page::Migration),
-            Box::new(m20260415_000003_seed_oplystusa_pages::Migration),
-            Box::new(m20260416_000001_rename_resume_tables::Migration),
-            Box::new(m20260416_000002_seed_buildwithruud_block_pages::Migration),
-            Box::new(m20260417_000001_seed_design_system_config::Migration),
-            Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
-            Box::new(m20260417_000003_seed_formbuilder_pages::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
