@@ -382,9 +382,18 @@ pub fn DynamicLanding() -> impl IntoView {
                     let has_blocks = !parsed_blocks.is_empty();
 
                     if has_blocks {
-                        // Block-based page — let each block manage its own layout/padding
+                        // Block-based page — let each block manage its own layout/padding.
+                        // If the first block is not a Hero (which provides its own full-bleed
+                        // top area), inject a pt-24 spacer so content clears the fixed navbar.
+                        let first_is_hero = matches!(parsed_blocks.first(), Some(DynamicBlock::Hero(_)));
                         view! {
                             <main>
+                                // Nav spacer: only needed when the page doesn't open with a Hero block
+                                {if !first_is_hero {
+                                    view! { <div class="pt-24"></div> }.into_view()
+                                } else {
+                                    view! {}.into_view()
+                                }}
                                 {parsed_blocks.into_iter().map(|block| match block {
                                     DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
                                     DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_view(),
