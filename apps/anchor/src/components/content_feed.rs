@@ -14,6 +14,16 @@ pub struct ContentNode {
     pub markdown: Option<String>,
     pub link_url: Option<String>,
     pub is_highlight: bool,
+    /// Content rendering format: 'markdown' (default), 'latex', or 'mdlatex'
+    /// - 'markdown'  : render via pulldown_cmark (existing path)
+    /// - 'latex'     : raw LaTeX, client-side KaTeX auto-render
+    /// - 'mdlatex'   : Markdown with $...$ / $$...$$ delimiters, KaTeX for math
+    #[serde(default = "default_content_format")]
+    pub content_format: String,
+}
+
+fn default_content_format() -> String {
+    "markdown".to_string()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -82,14 +92,43 @@ pub fn ContentFeed(
         LayoutMode::List => view! {
             <div class="space-y-12 max-w-4xl">
                 {nodes.into_iter().map(|node| {
+                    // Branch rendering on content_format:
+                    // - 'markdown'       : render via pulldown_cmark (Mermaid-aware)
+                    // - 'latex'/'mdlatex': pass raw content to client-side KaTeX auto-render
                     let html_output = if let Some(md) = &node.markdown {
-                        let mut options = pulldown_cmark::Options::empty();
-                        options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
-                        options.insert(pulldown_cmark::Options::ENABLE_TABLES);
-                        let parser = pulldown_cmark::Parser::new_ext(md, options);
-                        let mut html = String::new();
-                        pulldown_cmark::html::push_html(&mut html, parser);
-                        html
+                        match node.content_format.as_str() {
+                            "latex" | "mdlatex" => {
+                                // For LaTeX content: emit the raw source in a KaTeX-ready div.
+                                // KaTeX auto-render (loaded conditionally in app.rs for these
+                                // formats) picks up .katex-content divs on the client.
+                                // The 'mdlatex' path runs through pulldown_cmark first, then
+                                // KaTeX handles inline $...$ / $$...$$ delimiters on the client.
+                                if node.content_format == "mdlatex" {
+                                    // Run through Markdown first, KaTeX handles math delimiters
+                                    let mut options = pulldown_cmark::Options::empty();
+                                    options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
+                                    options.insert(pulldown_cmark::Options::ENABLE_TABLES);
+                                    let parser = pulldown_cmark::Parser::new_ext(md, options);
+                                    let mut html = String::new();
+                                    pulldown_cmark::html::push_html(&mut html, parser);
+                                    format!("<div class='katex-content' data-format='mdlatex'>{}</div>", html)
+                                } else {
+                                    // Pure LaTeX: wrap in pre, KaTeX auto-render processes it
+                                    format!("<div class='katex-content' data-format='latex'><pre class='katex-source'>{}</pre></div>",
+                                        html_escape::encode_text(md))
+                                }
+                            }
+                            _ => {
+                                // Default: 'markdown'
+                                let mut options = pulldown_cmark::Options::empty();
+                                options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
+                                options.insert(pulldown_cmark::Options::ENABLE_TABLES);
+                                let parser = pulldown_cmark::Parser::new_ext(md, options);
+                                let mut html = String::new();
+                                pulldown_cmark::html::push_html(&mut html, parser);
+                                html
+                            }
+                        }
                     } else {
                         String::new()
                     };

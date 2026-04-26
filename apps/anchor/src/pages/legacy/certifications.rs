@@ -42,6 +42,7 @@ pub async fn get_certifications() -> Result<Vec<ContentNode>, ServerFnError> {
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
                 is_highlight: is_training,
+                content_format: "markdown".to_string(),
             }
         })
         .collect();

@@ -80,6 +80,7 @@ pub async fn get_projects() -> Result<Vec<ContentNode>, ServerFnError> {
                     Some(format!("https://github.com/ruuderie/{}", slug))
                 },
                 is_highlight: false,
+                content_format: "markdown".to_string(),
             }
         })
         .collect();
