@@ -2,6 +2,15 @@
 
 The Anchor CMS now supports a fully generic, declarative layout engine using `dynamic_blocks_json` from the `app_pages` table.
 
+## Architectural Note: Layout & Padding
+As of the recent UI architecture update, **pages built with dynamic blocks are rendered inside a bare `<main>` element with no default padding**. This allows individual blocks to achieve "full-bleed" edge-to-edge designs (like Hero sections with background colors spanning the full viewport).
+
+Because of this, **your JSON payloads must include their own padding classes** (e.g., `pt-32` to clear the fixed navigation bar) if they need to avoid overlapping the header. 
+
+*(Note: Legacy pages that rely exclusively on `hero_title` database fields without JSON blocks will still fall back to the old hardcoded `pt-32 pb-24` padded wrapper).*
+
+---
+
 Below are the acceptable schema formats for each available Dynamic Block.
 
 ## 1. TimelineBlock

@@ -72,8 +72,11 @@ When building Leptos or SSR components that make `reqwest` calls internally to p
 
 Failure to forward the incoming `Host` header will cause the backend router proxy to fail rendering tenant configurations (producing `404 Not Found`).
 
-### 2. SeaORM Migrations 
-DO NOT execute raw `sqlx::query!(...)` strings assuming an unmanaged schema structure. Every table your application defines MUST contain a `tenant_id` UUID column enforcing strict isolation. Include these isolated migrations within the `migrations()` interface.
+### 2. SeaORM Migrations & The Unified Registry Rule
+DO NOT execute raw `sqlx::query!(...)` strings assuming an unmanaged schema structure. Every table your application defines MUST contain a `tenant_id` UUID column enforcing strict isolation.
+
+**CRITICAL:** All app-specific migrations (schema creation, seed data, tenant JSON payloads) MUST be registered exclusively within your app's `migrations()` trait method. 
+**You are strictly forbidden from placing app-specific migrations in the core platform's `base` vector (`backend/src/migration/mod.rs`).** Splitting app migrations between the core registry and the app registry causes non-deterministic ordering and will trigger a fatal SeaORM `Migration file is missing` panic during K8s pod startup, leading to a `CrashLoopBackOff`.
 
 ### 3. Background Syncs
 Never trigger costly background integrations silently via a Frontend page load (`use_effect` / Server Functions that call external systems on block build). Wrap all 3rd Party systems into encapsulated `BackgroundJob` structs so the Core Poller can regulate rate limits efficiently inline.
