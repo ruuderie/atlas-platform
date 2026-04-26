@@ -130,6 +130,17 @@ async fn main() {
         )).await.expect("Failed to recreate public schema");
     }
 
+    // Fix renamed migrations in the database before running Migrator
+    tracing::info!("Ensuring legacy migration names are updated in seaql_migrations...");
+    use sea_orm::{ConnectionTrait, Statement};
+    let _ = conn.execute(Statement::from_string(
+        sea_orm::DatabaseBackend::Postgres,
+        "
+        UPDATE seaql_migrations SET version = 'm20230912_000000_create_users_table' WHERE version = 'm20230912_create_users_table';
+        UPDATE seaql_migrations SET version = 'm20230912_000001_create_user_accounts_table' WHERE version = 'm20230912_create_user_accounts_table';
+        ".to_owned()
+    )).await;
+
     // Run migrations
     Migrator::up(&conn, None).await.unwrap();
 
