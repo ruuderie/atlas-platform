@@ -12,8 +12,8 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     // content_format defaults to 'markdown' via column DEFAULT — all existing posts unaffected
     let rows = sqlx::query(
-        "SELECT id, slug, title, content, content_format, to_char(created_at, 'YYYY.MM.DD') as created_at, tags \
-         FROM blog_posts WHERE tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC"
+        "SELECT id, title, to_char(created_at, 'YYYY.MM.DD') as created_at, payload \
+         FROM app_content WHERE collection_type = 'blog_post' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC"
     )
         .bind(tenant.0)
         .fetch_all(&state.pool)
@@ -22,8 +22,15 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
     let posts = rows
         .into_iter()
         .map(|row| {
-            let id: i32 = row.get("id");
-            let slug: String = row.get("slug");
+            let id: uuid::Uuid = row.get("id");
+            let payload: serde_json::Value = row.get("payload");
+            
+            let slug = payload.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let content = payload.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let tags: Vec<String> = payload.get("tags").and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+            let content_format = payload.get("content_format").and_then(|v| v.as_str()).unwrap_or("markdown").to_string();
 
             ContentNode {
                 id: id.to_string(),
@@ -32,12 +39,12 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
                 subtitle: Some(slug),
                 date_label: row.try_get("created_at").unwrap_or(None),
                 status: None,
-                tags: row.get::<Vec<String>, _>("tags"),
+                tags,
                 bullets: vec![],
-                markdown: Some(row.get("content")),
+                markdown: Some(content),
                 link_url: None,
                 is_highlight: false,
-                content_format: row.try_get("content_format").unwrap_or_else(|_| "markdown".to_string()),
+                content_format,
             }
         })
         .collect();
@@ -61,12 +68,18 @@ pub async fn add_post(
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    sqlx::query("INSERT INTO blog_posts (tenant_id, slug, title, content, tags) VALUES ($1, $2, $3, $4, $5)")
+    
+    let payload = serde_json::json!({
+        "slug": slug,
+        "content": content,
+        "tags": tags,
+        "content_format": "markdown"
+    });
+
+    sqlx::query("INSERT INTO app_content (tenant_id, collection_type, title, payload) VALUES ($1, 'blog_post', $2, $3)")
         .bind(tenant.0)
-        .bind(slug)
         .bind(title)
-        .bind(content)
-        .bind(tags)
+        .bind(payload)
         .execute(&state.pool)
         .await?;
     Ok(())
@@ -74,7 +87,7 @@ pub async fn add_post(
 
 #[server(UpdatePost, "/api")]
 pub async fn update_post(
-    id: i32,
+    id: String,
     slug: String,
     title: String,
     content: String,
@@ -86,16 +99,25 @@ pub async fn update_post(
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
+    
+    let uuid_id = uuid::Uuid::parse_str(&id).map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    
+    let payload = serde_json::json!({
+        "slug": slug,
+        "content": content,
+        "tags": tags,
+        "content_format": "markdown"
+    });
+
     sqlx::query(
-        "UPDATE blog_posts SET slug = $1, title = $2, content = $3, tags = $4 WHERE id = $5 AND tenant_id IS NOT DISTINCT FROM $6",
+        "UPDATE app_content SET title = $1, payload = $2 WHERE id = $3 AND tenant_id IS NOT DISTINCT FROM $4 AND collection_type = 'blog_post'",
     )
-    .bind(slug)
     .bind(title)
-    .bind(content)
-    .bind(tags)
-    .bind(id)
+    .bind(payload)
+    .bind(uuid_id)
     .bind(tenant.0)
     .execute(&state.pool)
     .await?;
@@ -103,17 +125,20 @@ pub async fn update_post(
 }
 
 #[server(DeletePost, "/api")]
-pub async fn delete_post(id: i32) -> Result<(), ServerFnError> {
+pub async fn delete_post(id: String) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
+    
+    let uuid_id = uuid::Uuid::parse_str(&id).map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    sqlx::query("DELETE FROM blog_posts WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2")
-        .bind(id)
+    sqlx::query("DELETE FROM app_content WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2 AND collection_type = 'blog_post'")
+        .bind(uuid_id)
         .bind(tenant.0)
         .execute(&state.pool)
         .await?;

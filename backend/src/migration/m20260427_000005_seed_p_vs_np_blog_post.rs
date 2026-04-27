@@ -9,7 +9,7 @@ impl MigrationTrait for Migration {
         let db = manager.get_connection();
 
         let sql = r#"
-            DO $$
+            DO $migration$
             DECLARE
                 v_tenant_id UUID;
             BEGIN
@@ -20,14 +20,23 @@ impl MigrationTrait for Migration {
                 END IF;
 
                 -- Idempotent insert
-                IF NOT EXISTS (SELECT 1 FROM blog_posts WHERE tenant_id = v_tenant_id AND slug = 'exploratory-diagonalization-argument-p-vs-np') THEN
-                    INSERT INTO blog_posts (
-                        tenant_id, slug, title, content, tags
+                IF NOT EXISTS (
+                    SELECT 1 FROM app_content 
+                    WHERE tenant_id = v_tenant_id 
+                      AND collection_type = 'blog_post' 
+                      AND payload->>'slug' = 'exploratory-diagonalization-argument-p-vs-np'
+                ) THEN
+                    INSERT INTO app_content (
+                        tenant_id, collection_type, title, payload
                     ) VALUES (
                         v_tenant_id,
-                        'exploratory-diagonalization-argument-p-vs-np',
+                        'blog_post',
                         'An Exploratory Diagonalization Argument Concerning P ≠ NP',
-                        $markdown$## Important Disclaimer
+                        jsonb_build_object(
+                            'slug', 'exploratory-diagonalization-argument-p-vs-np',
+                            'tags', jsonb_build_array('p-vs-np', 'complexity-theory', 'theoretical-computer-science', 'diagonalization', 'logic'),
+                            'content_format', 'mdlatex',
+                            'content', $markdown$## Important Disclaimer
 
 This work is an exploratory mathematical exercise. While every step follows logically from the stated definitions and constructions, the author and collaborator acknowledge that the P vs NP problem remains an open question in theoretical computer science. The argument presented here is offered in the spirit of open inquiry and should not be interpreted as a definitive or verified solution. Readers are encouraged to examine the reasoning critically.
 
@@ -97,12 +106,12 @@ All mathematical content was constructed specifically for this collaboration.
 The reasoning above leads to a formal contradiction under the assumption that 3-SAT ∈ P. While the steps are logically consistent within the stated framework, the author and collaborator present this work as an exploratory exercise rather than a resolution of the long-standing open question of whether P = NP.
 
 Readers are invited to examine the argument critically and to consider its limitations.
-$markdown$,
-                        ARRAY['p-vs-np', 'complexity-theory', 'theoretical-computer-science', 'diagonalization', 'logic']
+$markdown$
+                        )
                     );
-                    RAISE NOTICE 'SUCCESS: Seeded P vs NP blog post';
+                    RAISE NOTICE 'SUCCESS: Seeded P vs NP blog post into app_content';
                 END IF;
-            END $$;
+            END $migration$;
         "#;
 
         db.execute_unprepared(sql).await?;
@@ -112,14 +121,17 @@ $markdown$,
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
         let sql = r#"
-            DO $$
+            DO $migration$
             DECLARE v_tenant_id UUID;
             BEGIN
                 SELECT id INTO v_tenant_id FROM tenant WHERE name ILIKE '%buildwithruud%' LIMIT 1;
                 IF v_tenant_id IS NOT NULL THEN
-                    DELETE FROM blog_posts WHERE tenant_id = v_tenant_id AND slug = 'exploratory-diagonalization-argument-p-vs-np';
+                    DELETE FROM app_content 
+                    WHERE tenant_id = v_tenant_id 
+                      AND collection_type = 'blog_post' 
+                      AND payload->>'slug' = 'exploratory-diagonalization-argument-p-vs-np';
                 END IF;
-            END $$;
+            END $migration$;
         "#;
         db.execute_unprepared(sql).await?;
         Ok(())

@@ -81,8 +81,6 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260427_000002_real_estate_ventures_redesign::Migration),
             // Widget instance config: bitcoin clock for buildwithruud, empty for all others
             Box::new(crate::migration::m20260427_000003_widget_instance_config::Migration),
-            // Blog content_format column: supports 'markdown' | 'latex' | 'mdlatex'
-            Box::new(crate::migration::m20260427_000004_blog_content_format::Migration),
             // Seed the P vs NP exploratory argument blog post into buildwithruud tenant
             Box::new(crate::migration::m20260427_000005_seed_p_vs_np_blog_post::Migration),
         ]
