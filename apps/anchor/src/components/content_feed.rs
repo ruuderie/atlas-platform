@@ -177,7 +177,7 @@ pub fn ContentFeed(
 
                     if let Some(href) = link {
                         view! {
-                            <A href=href class="block no-underline outline-none">{card}</A>
+                            <a href=href class="block no-underline outline-none">{card}</a>
                         }.into_view()
                     } else {
                         card.into_view()

@@ -543,6 +543,10 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
     let target_role_str = profile.target_role.clone().unwrap_or_default();
     let objective_str = profile.objective.clone().unwrap_or_default();
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Kami design system: build contact line in stone-colored metadata row
+    // ─────────────────────────────────────────────────────────────────────────
+
     let mut contact_parts = Vec::new();
     if let Some(ref email) = profile.contact_email {
         if !email.is_empty() {
@@ -564,46 +568,84 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
             contact_parts.push(latex_escape(link));
         }
     }
-    let contact_str = contact_parts.join(" \\textbar{} ");
+    // Stone-colored metadata separator (textbullet is more legible than textbar in small sizes)
+    let contact_str = contact_parts.join(" \\textbullet{} ");
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Kami preamble
+    // Color tokens  --brand #1B365D · --near-black #141413 · --olive #504e49
+    //               --stone #6b6a64 · --border-soft #e5e3d8 · --parchment #f5f4ed
+    //               --tagbg #EEF2F7 (ink-blue @ 0.08 solid equivalent)
+    // Packages auto-fetched by tectonic from TeX Live 2023 on first compile.
+    // ─────────────────────────────────────────────────────────────────────────
     let mut tex_content = format!(
         r#"
-\documentclass[11pt,letterpaper]{{article}}
+\documentclass[9pt,a4paper]{{article}}
 \usepackage[utf8]{{inputenc}}
-\usepackage[left=0.5in,top=0.5in,right=0.5in,bottom=0.5in]{{geometry}}
+\usepackage[T1]{{fontenc}}
+\usepackage{{charter}}
+\usepackage{{xcolor}}
+\usepackage[left=13mm,top=11mm,right=13mm,bottom=11mm]{{geometry}}
 \usepackage{{enumitem}}
 \usepackage{{titlesec}}
-\usepackage{{charter}}
+\usepackage{{mdframed}}
+\usepackage{{parskip}}
+\usepackage{{microtype}}
 
+% ── Kami color tokens ────────────────────────────────────────────────────────
+\definecolor{{brand}}{{HTML}}{{1B365D}}
+\definecolor{{nearblack}}{{HTML}}{{141413}}
+\definecolor{{olive}}{{HTML}}{{504e49}}
+\definecolor{{stone}}{{HTML}}{{6b6a64}}
+\definecolor{{bordersoft}}{{HTML}}{{e5e3d8}}
+\definecolor{{parchment}}{{HTML}}{{f5f4ed}}
+\definecolor{{tagbg}}{{HTML}}{{EEF2F7}}
+
+\pagecolor{{parchment}}
+\color{{nearblack}}
+
+% ── Section title: 2.5pt brand left bar + soft bottom rule ──────────────────
 \titleformat{{\section}}
-  {{\normalfont\Large\bfseries}}
-  {{}}{{0em}}
-  {{}}[\titlerule]
-\titlespacing*{{\section}}{{0pt}}{{2ex}}{{1ex}}
+  {{\normalfont\large\bfseries\color{{nearblack}}}}{{}}{{0em}}
+  {{\leavevmode\llap{{\textcolor{{brand}}{{\rule[-0.3ex]{{2.5pt}}{{1.1em}}\hspace{{6pt}}}}}}}}
+  [{{\vspace{{-4pt}}\textcolor{{bordersoft}}{{\hrule height 0.4pt}}\vspace{{2pt}}}}]
+\titlespacing*{{\section}}{{0pt}}{{14pt}}{{6pt}}
+
+% ── En-dash bullet list (Kami editorial style) ───────────────────────────────
+\setlist[itemize,1]{{
+  label={{\textcolor{{brand}}{{\textendash}}}},
+  leftmargin=*,nosep,topsep=2pt,parsep=0pt,itemsep=1.5pt
+}}
 
 \begin{{document}}
 \pagestyle{{empty}}
+
+% ── Header: name (26pt nearblack bold) · role (olive) · contact (stone small)
 \begin{{center}}
-    {{\Huge \textbf{{{}}}}} \\
-    \vspace{{0.1in}}
-    {{\Large \textsc{{{}}}}} \\
-    \vspace{{0.05in}}
-    {{\normalsize \texttt{{{}}}}}
+  {{\fontsize{{26pt}}{{30pt}}\selectfont\textbf{{\textcolor{{nearblack}}{{{}}}}}}} \\[4pt]
+  {{\normalsize\textcolor{{olive}}{{{}}}}} \\[3pt]
+  {{\small\textcolor{{stone}}{{{}}}}}
 \end{{center}}
-\vspace{{0.1in}}
+\vspace{{8pt}}
 "#,
         latex_escape(&profile.full_name),
         latex_escape(&target_role_str),
         contact_str
     );
 
+    // ── Objective: mdframed brand left-bar quote box (Kami quote component) ──
     if !objective_str.is_empty() {
         tex_content.push_str(&format!(
-            "\\section*{{Executive Summary}}\n\\noindent {}\n\n",
+            r#"\begin{{mdframed}}[linewidth=2pt,linecolor=brand,topline=false,bottomline=false,rightline=false,innerleftmargin=10pt,innerrightmargin=0pt,innertopmargin=4pt,innerbottommargin=4pt,backgroundcolor=parchment]
+  \textcolor{{olive}}{{\small {}}}
+\end{{mdframed}}
+\vspace{{6pt}}
+"#,
             latex_escape(&objective_str)
         ));
     }
 
+    // ── Category ordering / visibility ────────────────────────────────────────
     let is_cat_visible = |cat: &ResumeCategory| -> bool {
         profile
             .category_visibility
@@ -670,6 +712,23 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
 
         tex_content.push_str(&format!("\\section*{{{}}}\n", section_title));
 
+        // ── Skill section: Kami tag component — inline colorbox per skill ──────
+        if cat_enum == ResumeCategory::Skill {
+            tex_content.push_str("\\noindent\n");
+            for (i, entry) in cat_entries.iter().enumerate() {
+                if i > 0 {
+                    tex_content.push_str("\\;");
+                }
+                tex_content.push_str(&format!(
+                    "\\colorbox{{tagbg}}{{\\small\\textcolor{{brand}}{{\\strut {}}}}}",
+                    latex_escape(&entry.title)
+                ));
+            }
+            tex_content.push_str("\n\\vspace{6pt}\n\n");
+            continue;
+        }
+
+        // ── All other categories: title · date · subtitle · bullet list ────────
         for entry in cat_entries {
             let mut resolved_title = entry.title.clone();
             let mut resolved_subtitle = entry.subtitle.clone().unwrap_or_default();
@@ -707,31 +766,38 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
             let date = latex_escape(&resolved_date);
             let subtitle = latex_escape(&resolved_subtitle);
 
+            // Title (nearblack bold) right-flush date (stone small)
             tex_content.push_str(&format!(
-                "\\noindent \\textbf{{{}}} \\hfill {} \\\\\n",
+                "\\noindent\\textbf{{\\textcolor{{nearblack}}{{{}}}}} \\hfill \\textcolor{{stone}}{{\\small {}}}\\\\\n",
                 title, date
             ));
 
+            // Subtitle in olive, small weight
             if !subtitle.is_empty() {
-                tex_content.push_str(&format!("\\textit{{{}}} \\vspace{{0.05in}}\n", subtitle));
+                tex_content.push_str(&format!(
+                    "\\textcolor{{olive}}{{\\small {}}}\\vspace{{3pt}}\n",
+                    subtitle
+                ));
             } else {
-                tex_content.push_str("\\vspace{0.05in}\n");
+                tex_content.push_str("\\vspace{3pt}\n");
             }
 
+            // Bullets rendered as en-dash list (setlist config above)
             if !resolved_bullets.is_empty() {
-                tex_content.push_str("\\begin{itemize}[leftmargin=*,noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt]\n");
+                tex_content.push_str("\\begin{itemize}\n");
                 for bullet in &resolved_bullets {
                     tex_content.push_str(&format!("\\item {}\n", latex_escape(bullet)));
                 }
                 tex_content.push_str("\\end{itemize}\n");
             }
-            tex_content.push_str("\\vspace{0.15in}\n\n");
+            tex_content.push_str("\\vspace{8pt}\n\n");
         }
     }
 
     tex_content.push_str("\\end{document}\n");
     tex_content
 }
+
 
 #[server(DownloadResume, "/api")]
 pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> {
@@ -986,5 +1052,49 @@ mod tests {
 
         assert!(!tex.contains("Hidden Job"));
         assert!(!tex.contains("Hidden Education"));
+    }
+
+    #[test]
+    fn test_generate_latex_kami_tokens() {
+        let profile = ResumeProfile {
+            id: 1,
+            name: "Kami Profile".into(),
+            full_name: "Kami User".into(),
+            objective: Some("Design test".into()),
+            is_public: true,
+            target_role: Some("Designer".into()),
+            contact_email: None,
+            contact_phone: None,
+            contact_location: None,
+            contact_link: None,
+            category_visibility: serde_json::json!({"skill": true}),
+            category_order: serde_json::json!(["skill"]),
+        };
+        let entries = vec![ResumeEntry {
+            id: 1,
+            profile_id: 1,
+            category: ResumeCategory::Skill,
+            title: "Rust".into(),
+            subtitle: None,
+            date_range: None,
+            bullets: vec![],
+            display_order: 0,
+            is_visible: true,
+            metadata: None,
+            overrides: None,
+            published_at: None,
+            slug: None,
+        }];
+
+        let tex = generate_latex_string(&profile, &entries);
+
+        // Verify Kami design tokens are present
+        assert!(tex.contains("1B365D")); // --brand
+        assert!(tex.contains("f5f4ed")); // --parchment
+        assert!(tex.contains("EEF2F7")); // --tagbg
+        assert!(tex.contains("\\pagecolor{parchment}"));
+        assert!(tex.contains("\\textcolor{brand}{\\textendash}"));
+        assert!(tex.contains("mdframed")); // Quote box
+        assert!(tex.contains("\\colorbox{tagbg}")); // Skill tag
     }
 }
