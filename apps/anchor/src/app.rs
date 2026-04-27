@@ -21,7 +21,7 @@ use crate::components::footer::Footer;
 use crate::components::nav::Nav;
 use crate::pages::admin::Admin;
 use crate::pages::bitcoin::BitcoinDashboard;
-use crate::pages::blog::Blog;
+use crate::pages::blog::{Blog, BlogPost};
 use crate::pages::book::BookDiscovery;
 use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
 use crate::pages::dynamic_entry::DynamicEntry;
@@ -170,6 +170,7 @@ pub fn App() -> impl IntoView {
                                         <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
                                         <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
                                         <Route path="/blog" view=Blog/>
+                                        <Route path="/blog/:slug" view=BlogPost/>
                                         <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
                                         <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
                                         <Route path="/investments/bitcoin" view=BitcoinDashboard/>

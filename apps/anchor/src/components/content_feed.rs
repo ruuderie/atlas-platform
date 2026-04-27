@@ -133,10 +133,14 @@ pub fn ContentFeed(
                         String::new()
                     };
 
-                    view! {
+                    let link = node.link_url.clone();
+
+                    let card = view! {
                         <article class="bg-surface-container p-8 hover:bg-surface-container-high transition-colors group cursor-pointer border-l-4 border-transparent hover:border-secondary">
                             <div class="flex flex-col md:flex-row md:justify-between items-start mb-4 gap-4">
-                                <h3 class="text-2xl font-bold text-primary group-hover:text-secondary transition-colors truncate">{node.title}</h3>
+                                <h3 class="text-2xl font-bold text-primary group-hover:text-secondary transition-colors leading-snug">
+                                    {node.title}
+                                </h3>
                                 {node.date_label.map(|date| view! {
                                     <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider whitespace-nowrap pt-1">
                                         {date} {node.subtitle.map(|sub| format!(" // {}", sub)).unwrap_or_default()}
@@ -169,6 +173,14 @@ pub fn ContentFeed(
                                 }).collect_view()}
                             </div>
                         </article>
+                    };
+
+                    if let Some(href) = link {
+                        view! {
+                            <A href=href class="block no-underline outline-none">{card}</A>
+                        }.into_view()
+                    } else {
+                        card.into_view()
                     }
                 }).collect_view()}
             </div>
