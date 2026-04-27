@@ -83,6 +83,8 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260427_000003_widget_instance_config::Migration),
             // Seed the P vs NP exploratory argument blog post into buildwithruud tenant
             Box::new(crate::migration::m20260427_000005_seed_p_vs_np_blog_post::Migration),
+            // Real-estate-ventures: add newsletter opt-in to contact form + ProfileHeader
+            Box::new(crate::migration::m20260427_000006_real_estate_newsletter_form::Migration),
         ]
     }
 

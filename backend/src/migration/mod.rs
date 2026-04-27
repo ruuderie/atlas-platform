@@ -86,6 +86,7 @@ pub mod m20260427_000001_restore_consulting_page;
 pub mod m20260427_000002_real_estate_ventures_redesign;
 pub mod m20260427_000003_widget_instance_config;
 pub mod m20260427_000005_seed_p_vs_np_blog_post;
+pub mod m20260427_000006_real_estate_newsletter_form;
 
 pub struct Migrator;
 

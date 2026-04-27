@@ -378,7 +378,22 @@ pub fn DynamicLanding() -> impl IntoView {
         <Suspense fallback=move || view! { <div class="pt-32 pb-24 px-4 text-center jetbrains text-outline">"LOADING..."</div> }>
             {move || match page_res.get() {
                 Some(Ok(Some(page))) => {
-                    let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+                    // Parse blocks individually — a single bad block skips itself rather than
+                    // silently dropping the entire array (unwrap_or_default behaviour).
+                    let raw_blocks: Vec<serde_json::Value> = serde_json::from_str(&page.dynamic_blocks_json)
+                        .unwrap_or_default();
+                    let parsed_blocks: Vec<DynamicBlock> = raw_blocks
+                        .into_iter()
+                        .filter_map(|v| {
+                            match serde_json::from_value::<DynamicBlock>(v.clone()) {
+                                Ok(b) => Some(b),
+                                Err(e) => {
+                                    leptos::logging::warn!("[DynamicLanding] Skipping unrenderable block: {} — {:?}", v, e);
+                                    None
+                                }
+                            }
+                        })
+                        .collect();
                     let has_blocks = !parsed_blocks.is_empty();
 
                     if has_blocks {
@@ -517,7 +532,20 @@ pub fn DynamicHomeLanding() -> impl IntoView {
             {move || match page_res.get() {
                 // CMS block-based page: render blocks full-bleed, no outer padding
                 Some(Ok(Some(page))) => {
-                    let parsed_blocks: Vec<DynamicBlock> = serde_json::from_str(&page.dynamic_blocks_json).unwrap_or_default();
+                    let raw_blocks: Vec<serde_json::Value> = serde_json::from_str(&page.dynamic_blocks_json)
+                        .unwrap_or_default();
+                    let parsed_blocks: Vec<DynamicBlock> = raw_blocks
+                        .into_iter()
+                        .filter_map(|v| {
+                            match serde_json::from_value::<DynamicBlock>(v.clone()) {
+                                Ok(b) => Some(b),
+                                Err(e) => {
+                                    leptos::logging::warn!("[DynamicHomeLanding] Skipping unrenderable block: {} — {:?}", v, e);
+                                    None
+                                }
+                            }
+                        })
+                        .collect();
                     let has_blocks = !parsed_blocks.is_empty();
 
                     if has_blocks {
