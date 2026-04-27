@@ -307,27 +307,33 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
 /// Wire via `build_ssrf_safe_client()`. Do not construct reqwest clients manually
 /// for tenant RestEndpoint fetches.
 #[cfg(feature = "ssr")]
-pub struct SsrfSafeResolver {
-    inner: std::sync::Arc<dyn reqwest::dns::Resolve>,
-}
+pub struct SsrfSafeResolver;
 
 #[cfg(feature = "ssr")]
 impl SsrfSafeResolver {
     pub fn new() -> Self {
-        Self {
-            inner: std::sync::Arc::new(reqwest::dns::GaiResolver::new()),
-        }
+        Self
     }
 }
 
 #[cfg(feature = "ssr")]
 impl reqwest::dns::Resolve for SsrfSafeResolver {
-    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
-        let inner_fut = self.inner.resolve(name.clone());
+    fn resolve(&self, name: hyper::client::connect::dns::Name) -> reqwest::dns::Resolving {
         let name_str = name.as_str().to_string();
 
         Box::pin(async move {
-            let addrs: Vec<std::net::SocketAddr> = inner_fut.await?.collect();
+            let lookup_str = format!("{}:0", name_str);
+            let addrs = tokio::net::lookup_host(&lookup_str).await;
+
+            let addrs: Vec<std::net::SocketAddr> = match addrs {
+                Ok(iter) => iter.collect(),
+                Err(e) => {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        format!("DNS resolution failed for '{}': {}", name_str, e),
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+            };
 
             if addrs.is_empty() {
                 return Err(Box::new(std::io::Error::new(

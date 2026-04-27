@@ -100,7 +100,10 @@ pub async fn update_post(
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     
-    let uuid_id = uuid::Uuid::parse_str(&id).map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    let uuid_id = match uuid::Uuid::parse_str(&id) {
+        Ok(v) => v,
+        Err(e) => return Err(ServerFnError::ServerError(e.to_string())),
+    };
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
@@ -133,7 +136,10 @@ pub async fn delete_post(id: String) -> Result<(), ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     
-    let uuid_id = uuid::Uuid::parse_str(&id).map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    let uuid_id = match uuid::Uuid::parse_str(&id) {
+        Ok(v) => v,
+        Err(e) => return Err(ServerFnError::ServerError(e.to_string())),
+    };
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
