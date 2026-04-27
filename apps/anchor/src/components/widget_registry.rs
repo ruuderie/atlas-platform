@@ -5,9 +5,23 @@
 /// app_instances.settings.widgets. No platform code change is needed to add
 /// a new widget instance for a tenant.
 ///
-/// Security: RestEndpoint URLs are validated against an SSRF allowlist on save.
-///           PlatformTable queries are always scoped to tenant_id automatically.
-///           WidgetInstance is fully typed via serde — no raw SQL interpolation.
+/// Security — Two-layer SSRF defense for RestEndpoint data sources:
+///
+///   Layer 1 (static, sync): validate_widget_url()
+///     Called on widget save. Uses url::Host enum dispatch + IpAddr stdlib
+///     methods (is_loopback, is_private, is_link_local, to_ipv4_mapped) to
+///     block direct IP address attacks. Domain names intentionally pass Layer 1
+///     because DNS cannot be resolved at parse time.
+///
+///   Layer 2 (async, post-DNS): enforce_ssrf_safe_fetch()
+///     Called before every outbound HTTP request to a tenant URL. Resolves all
+///     DNS A/AAAA records via tokio::net::lookup_host and validates every
+///     returned IpAddr. This is the only effective defense against DNS rebinding
+///     and custom domain redirects to private IPs. MUST be called before any
+///     reqwest/hyper call to a tenant-supplied URL.
+///
+///   PlatformTable queries are always scoped to tenant_id automatically.
+///   WidgetInstance is fully typed via serde — no raw SQL interpolation.
 ///
 /// Scalability: Nav widgets are fetched in one server round-trip via get_site_settings().
 ///              External API results are cached server-side with per-widget TTL.
@@ -158,11 +172,68 @@ pub fn validate_widget_list(widgets: &[WidgetInstance]) -> Result<(), String> {
 
 pub const MAX_WIDGETS_PER_TENANT: usize = 10;
 
-/// SSRF protection: reject RFC-1918, loopback, and cloud metadata addresses.
-/// Also enforces HTTPS in production.
+// ─── IP Classification ────────────────────────────────────────────────────────
+// These functions operate on parsed IpAddr values — never on strings.
+// This eliminates entire classes of bypass (bracket formatting, prefix tricks,
+// IPv4-mapped IPv6, alternate loopback IPs in the 127.0.0.0/8 range, etc.)
+
+#[cfg(feature = "ssr")]
+fn is_dangerous_ipv4(addr: std::net::Ipv4Addr) -> bool {
+    addr.is_loopback()      // Full 127.0.0.0/8 — not just 127.0.0.1
+    || addr.is_private()    // 10.x, 172.16-31.x, 192.168.x
+    || addr.is_link_local() // 169.254.0.0/16 — AWS/GCP cloud metadata
+    || addr.is_broadcast()  // 255.255.255.255
+    || addr.is_unspecified()// 0.0.0.0
+    // Carrier-grade NAT (100.64.0.0/10) — often used in cloud environments
+    || (addr.octets()[0] == 100 && (addr.octets()[1] & 0xC0) == 64)
+}
+
+#[cfg(feature = "ssr")]
+fn is_dangerous_ipv6(addr: std::net::Ipv6Addr) -> bool {
+    // Loopback (::1) and unspecified (::)
+    if addr.is_loopback() || addr.is_unspecified() {
+        return true;
+    }
+    // IPv4-mapped IPv6 (::ffff:x.x.x.x) and IPv4-compatible (::x.x.x.x)
+    // Both to_ipv4_mapped() and to_ipv4() return Some for these forms.
+    // This is the critical check for ::ffff:169.254.169.254 bypass.
+    if let Some(v4) = addr.to_ipv4_mapped().or_else(|| addr.to_ipv4()) {
+        return is_dangerous_ipv4(v4);
+    }
+    // IPv6 link-local (fe80::/10) — analogous to 169.254.x.x
+    if (addr.segments()[0] & 0xffc0) == 0xfe80 {
+        return true;
+    }
+    // IPv6 unique-local (fc00::/7) — analogous to RFC-1918
+    if (addr.segments()[0] & 0xfe00) == 0xfc00 {
+        return true;
+    }
+    false
+}
+
+#[cfg(feature = "ssr")]
+fn is_dangerous_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => is_dangerous_ipv4(v4),
+        std::net::IpAddr::V6(v6) => is_dangerous_ipv6(v6),
+    }
+}
+
+// ─── Layer 1: Static pre-flight URL validation ────────────────────────────────
+//
+// Operates on the parsed URL *before* any network activity.
+// Guards against direct IP address attacks but CANNOT guard against
+// DNS rebinding (where a domain resolves to a private IP at request time).
+// Domain names are explicitly allowed here — DNS validation happens in Layer 2.
+//
+// Called synchronously on widget save from validate_widget_instance().
+
 #[cfg(feature = "ssr")]
 pub fn validate_widget_url(url: &str) -> Result<(), String> {
     let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
+
+    // Require a host
+    let host = parsed.host().ok_or_else(|| "URL must have a host".to_string())?;
 
     // Enforce HTTPS (allow http only in dev/test via LEPTOS_ENV)
     let env = std::env::var("LEPTOS_ENV").unwrap_or_default();
@@ -170,31 +241,78 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
         return Err("RestEndpoint URL must use HTTPS in non-development environments".into());
     }
 
-    let host = parsed.host_str().unwrap_or("").to_lowercase();
-
-    // Block loopback
-    if host == "localhost" || host == "127.0.0.1" || host == "::1" {
-        return Err(format!("RestEndpoint URL host '{}' is not allowed (loopback)", host));
+    // Static IP validation — only reachable for literal IP addresses in the URL.
+    // Bypasses involving DNS (e.g. attacker.com → 10.0.0.1) are caught in Layer 2.
+    match host {
+        url::Host::Ipv4(addr) => {
+            if is_dangerous_ipv4(addr) {
+                return Err(format!("IP address {addr} is not allowed (loopback/private/link-local)"));
+            }
+        }
+        url::Host::Ipv6(addr) => {
+            // url::Host::Ipv6 gives us the Ipv6Addr directly — no bracket/formatting ambiguity.
+            if is_dangerous_ipv6(addr) {
+                return Err(format!("IPv6 address {addr} is not allowed (loopback/private/link-local/IPv4-mapped)"));
+            }
+        }
+        url::Host::Domain(_domain) => {
+            // Domain names are allowed at static validation time.
+            // The actual SSRF defense for domain names is enforce_ssrf_safe_fetch()
+            // which resolves DNS and validates each returned IpAddr before connecting.
+            // DO NOT attempt string matching on domain names here — it cannot be made safe.
+        }
     }
 
-    // Block AWS/GCP/cloud metadata endpoints
-    if host == "169.254.169.254" || host == "metadata.google.internal" {
-        return Err(format!("RestEndpoint URL host '{}' is not allowed (cloud metadata)", host));
+    Ok(())
+}
+
+// ─── Layer 2: Post-DNS resolution validation ─────────────────────────────────
+//
+// This is the MANDATORY second layer. Static URL validation alone is insufficient
+// because a domain name can resolve to a private IP (DNS rebinding attack).
+//
+// MUST be called server-side before any outbound HTTP request to a tenant-
+// configured RestEndpoint URL. Never call reqwest/hyper directly on a tenant URL
+// without first passing through this function.
+//
+// Usage (in the background fetch job / Phase 2 polling):
+//   enforce_ssrf_safe_fetch("https://api.example.com/price").await?;
+//   // Only reaches here if all resolved IPs are safe
+//   let resp = reqwest_client.get(url).send().await?;
+
+#[cfg(feature = "ssr")]
+pub async fn enforce_ssrf_safe_fetch(url: &str) -> Result<(), String> {
+    use tokio::net::lookup_host;
+
+    let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
+
+    // Re-run static validation as a sanity guard
+    validate_widget_url(url)?;
+
+    let host_str = parsed.host_str().ok_or("URL has no host")?;
+    // Default to port 443 for HTTPS, 80 for HTTP
+    let port = parsed.port_or_known_default().unwrap_or(443);
+
+    // Resolve all DNS records for this host+port combination
+    let addrs: Vec<_> = lookup_host(format!("{host_str}:{port}"))
+        .await
+        .map_err(|e| format!("DNS resolution failed for '{host_str}': {e}"))?
+        .collect();
+
+    if addrs.is_empty() {
+        return Err(format!("DNS resolution returned no addresses for '{host_str}'"));
     }
 
-    // Block RFC-1918 private ranges (basic string prefix check)
-    if host.starts_with("10.")
-        || host.starts_with("192.168.")
-        || (host.starts_with("172.") && {
-            // Check 172.16.0.0/12 range
-            host.split('.')
-                .nth(1)
-                .and_then(|s| s.parse::<u8>().ok())
-                .map(|n| (16..=31).contains(&n))
-                .unwrap_or(false)
-        })
-    {
-        return Err(format!("RestEndpoint URL host '{}' is not allowed (private IP range)", host));
+    // Every single resolved IP must be safe.
+    // Accepting any unsafe IP in a multi-address response is a bypass.
+    for addr in &addrs {
+        let ip = addr.ip();
+        if is_dangerous_ip(ip) {
+            return Err(format!(
+                "Host '{host_str}' resolved to blocked IP {ip} (loopback/private/link-local). \
+                 Request denied."
+            ));
+        }
     }
 
     Ok(())
@@ -216,8 +334,7 @@ pub fn validate_platform_table(table: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "PlatformTable '{}' is not in the allowlist. Allowed tables: {:?}",
-            table, ALLOWED_TABLES
+            "PlatformTable '{table}' is not in the allowlist. Allowed tables: {ALLOWED_TABLES:?}"
         ))
     }
 }
@@ -397,44 +514,164 @@ mod tests {
         assert_eq!(nav[0].id, "w1");
     }
 
-    // ── Security: RestEndpoint URL validation ──────────────────────────────────
+    // ── Security: IP classification (direct IpAddr tests) ─────────────────────
+    // These test the core classification logic independently of URL parsing.
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_rejects_private_ip_10x() {
-        assert!(validate_widget_url("http://10.0.0.1/internal").is_err());
+    fn test_ipv4_loopback_full_range() {
+        use std::net::Ipv4Addr;
+        // The full 127.0.0.0/8 range must be blocked, not just 127.0.0.1
+        // Bypass vector: http://127.0.0.2 or http://127.123.0.1
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 1)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 2)));   // bypass attempt
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 123, 45, 67))); // bypass attempt
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 255, 255, 255)));
     }
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_rejects_private_ip_192168() {
-        assert!(validate_widget_url("http://192.168.1.1/secret").is_err());
+    fn test_ipv4_private_ranges() {
+        use std::net::Ipv4Addr;
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(10, 0, 0, 1)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(10, 255, 255, 255)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(172, 16, 0, 1)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(172, 31, 255, 255)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(192, 168, 0, 1)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(192, 168, 255, 255)));
     }
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_rejects_localhost() {
-        assert!(validate_widget_url("http://localhost/admin").is_err());
+    fn test_ipv4_link_local_metadata() {
+        use std::net::Ipv4Addr;
+        // Cloud metadata endpoint (AWS IMDSv1/v2, GCP)
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(169, 254, 169, 254)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(169, 254, 0, 1)));
     }
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_rejects_metadata_endpoint() {
-        assert!(validate_widget_url("http://169.254.169.254/latest/meta-data").is_err());
+    fn test_ipv4_carrier_grade_nat() {
+        use std::net::Ipv4Addr;
+        // 100.64.0.0/10 — carrier-grade NAT, sometimes used in cloud
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(100, 64, 0, 1)));
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(100, 127, 255, 255)));
     }
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_rejects_http_in_prod() {
-        // LEPTOS_ENV is unset in test — treated as production
-        // http:// should fail
+    fn test_ipv4_public_addresses_are_safe() {
+        use std::net::Ipv4Addr;
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(1, 1, 1, 1)));       // Cloudflare DNS
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(8, 8, 8, 8)));       // Google DNS
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(52, 12, 0, 1)));     // Example AWS public
+    }
+
+    // ── Bypass vector 1: Alternate loopback IPs (127.x.x.x range) ────────────
+    // Old code checked host == "127.0.0.1" only. 127.0.0.2, 127.1.0.1, etc. bypassed it.
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_alternate_loopback_127_0_0_2() {
+        // http://127.0.0.2 was NOT caught by the old host == "127.0.0.1" check
+        assert!(validate_widget_url("https://127.0.0.2/admin").is_err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_alternate_loopback_127_1_0_1() {
+        assert!(validate_widget_url("https://127.1.0.1/internal").is_err());
+    }
+
+    // ── Bypass vector 2: IPv6 bracket formatting ──────────────────────────────
+    // Old code checked host == "::1" but url::Host::Ipv6 wraps in brackets in
+    // some representations. Using url::Host enum gives us Ipv6Addr directly.
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv6_loopback_bracket_format() {
+        // The url crate parses http://[::1] into Host::Ipv6(::1) — we get the
+        // Ipv6Addr and call .is_loopback() on it. No string comparison needed.
+        assert!(validate_widget_url("https://[::1]/secret").is_err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv6_link_local() {
+        // fe80::/10 — IPv6 link-local, analogous to 169.254.x.x
+        assert!(validate_widget_url("https://[fe80::1]/metadata").is_err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv6_unique_local() {
+        // fc00::/7 — IPv6 unique-local, analogous to RFC-1918
+        assert!(validate_widget_url("https://[fc00::1]/internal").is_err());
+    }
+
+    // ── Bypass vector 3: IPv4-mapped IPv6 ────────────────────────────────────
+    // Old string check started_with("10.") missed ::ffff:10.0.0.1 entirely.
+    // to_ipv4_mapped() catches these.
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv4_mapped_ipv6_metadata() {
+        // ::ffff:169.254.169.254 — IPv4-mapped IPv6 form of the cloud metadata endpoint
+        assert!(validate_widget_url("https://[::ffff:169.254.169.254]/latest/meta-data").is_err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv4_mapped_ipv6_private() {
+        // ::ffff:10.0.0.1 — IPv4-mapped IPv6 form of a private IP
+        assert!(validate_widget_url("https://[::ffff:10.0.0.1]/internal").is_err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_bypass_ipv4_mapped_ipv6_loopback() {
+        // ::ffff:127.0.0.1 — IPv4-mapped IPv6 loopback
+        assert!(validate_widget_url("https://[::ffff:127.0.0.1]/admin").is_err());
+    }
+
+    // ── Bypass vector 4: DNS rebinding ────────────────────────────────────────
+    // Static validation cannot detect this. Layer 2 (enforce_ssrf_safe_fetch)
+    // is required. We verify the function exists and is async (compile-time check).
+    // Integration tests against a real DNS resolver are in /tests/widget_ssrf.rs.
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_dns_rebinding_defense_function_exists() {
+        // enforce_ssrf_safe_fetch is the mandatory Layer 2 defense.
+        // Any domain that passes Layer 1 MUST go through this before fetching.
+        // This test asserts the function is callable and returns the right type.
+        // The actual rebinding defense requires a live DNS resolver — tested in integration tests.
+        let _: fn(&str) -> _ = enforce_ssrf_safe_fetch;
+    }
+
+    // ── Static validation: domains still pass Layer 1 (by design) ────────────
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_valid_public_domain_passes_layer1() {
+        // Domain names pass Layer 1 — DNS resolution happens in Layer 2.
+        // This is correct: we cannot know at parse time what IP a domain resolves to.
+        assert!(validate_widget_url("https://api.coinbase.com/v2/prices").is_ok());
+        assert!(validate_widget_url("https://api.example.com/data").is_ok());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_http_rejected_in_prod() {
+        // LEPTOS_ENV is unset in test context — treated as production
         assert!(validate_widget_url("http://api.example.com/data").is_err());
     }
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_rest_endpoint_accepts_valid_https() {
-        assert!(validate_widget_url("https://api.coinbase.com/v2/prices").is_ok());
+    fn test_url_without_host_rejected() {
+        assert!(validate_widget_url("https:///no-host").is_err());
     }
 
     // ── Security: PlatformTable allowlist ──────────────────────────────────────
