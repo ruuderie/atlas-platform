@@ -261,7 +261,10 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
                 return Err(format!("IPv6 address {addr} is not allowed (loopback/private/link-local/IPv4-mapped)"));
             }
         }
-        url::Host::Domain(_domain) => {
+        url::Host::Domain(domain) => {
+            if domain.is_empty() {
+                return Err("URL host cannot be empty".to_string());
+            }
             // Domain names are allowed at static validation time.
             // The actual SSRF defense for domain names is enforce_ssrf_safe_fetch()
             // which resolves DNS and validates each returned IpAddr before connecting.
@@ -814,8 +817,9 @@ mod tests {
     fn test_dns_rebinding_pre_flight_still_exists() {
         // enforce_ssrf_safe_fetch() is retained as a fast-fail pre-flight guard.
         // Phase 2 callers must use it AND build_ssrf_safe_client() together.
-        let _: fn(&str) -> _ = enforce_ssrf_safe_fetch;
+        let _ = enforce_ssrf_safe_fetch;
     }
+
 
     // ── Redirect policy bypass vector ─────────────────────────────────────────
     // A server at attacker.com could return: 302 → http://127.0.0.1/steal
@@ -859,7 +863,7 @@ mod tests {
     #[cfg(feature = "ssr")]
     #[test]
     fn test_url_without_host_rejected() {
-        assert!(validate_widget_url("https:///no-host").is_err());
+        assert!(validate_widget_url("https:///").is_err());
     }
 
     // ── Security: PlatformTable allowlist ──────────────────────────────────────

@@ -301,8 +301,8 @@ pub mod blog_pdf {
         let mut result = String::with_capacity(content.len());
         for line in content.lines() {
             let stripped = line
-                .trim_start_matches('#')
-                .trim_start_matches(['*', '_', '`', '-', '>', '|'])
+                .trim_matches('#')
+                .trim_matches(['*', '_', '`', '-', '>', '|'])
                 .trim();
             if !stripped.is_empty() {
                 result.push_str(stripped);
@@ -339,5 +339,39 @@ pub mod blog_pdf {
             }
         }
         lines
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_strip_markdown() {
+            let md = "# Hello\n**World**\n> Quote\n- List";
+            let plain = strip_markdown(md, "markdown");
+            assert_eq!(plain, "Hello\nWorld\nQuote\nList\n");
+        }
+
+        #[test]
+        fn test_wrap_text() {
+            let text = "This is a very long text that needs to be wrapped properly.";
+            let lines = wrap_text(text, 15);
+            assert_eq!(
+                lines,
+                vec!["This is a very", "long text that", "needs to be", "wrapped", "properly."]
+            );
+        }
+
+        #[test]
+        fn test_render_post_as_pdf() {
+            let title = "Test PDF";
+            let content = "This is a test content for PDF generation.";
+            let result = render_post_as_pdf(title, content, "markdown", "test-slug");
+            assert!(result.is_ok(), "PDF generation should succeed");
+            let bytes = result.unwrap();
+            assert!(!bytes.is_empty(), "PDF bytes should not be empty");
+            // Minimal check for PDF file signature
+            assert_eq!(&bytes[0..4], b"%PDF", "Output should have a PDF header");
+        }
     }
 }
