@@ -85,6 +85,12 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260427_000005_seed_p_vs_np_blog_post::Migration),
             // Real-estate-ventures: add newsletter opt-in to contact form + ProfileHeader
             Box::new(crate::migration::m20260427_000006_real_estate_newsletter_form::Migration),
+            // Kami Resume profile: Role/Actions/Impact overrides for buildwithruud work entries
+            Box::new(crate::migration::m20260427_000007_seed_kami_resume_profile::Migration),
+            // Fix P vs NP blog post math delimiters: \( \) → $ and \[ \] → $$
+            Box::new(crate::migration::m20260427_000008_fix_p_vs_np_math_delimiters::Migration),
+            // Blog PDF feature: lead capture table for gated PDF downloads
+            Box::new(crate::migration::m20260427_000009_blog_download_leads::Migration),
         ]
     }
 

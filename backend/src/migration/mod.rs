@@ -89,6 +89,7 @@ pub mod m20260427_000005_seed_p_vs_np_blog_post;
 pub mod m20260427_000006_real_estate_newsletter_form;
 pub mod m20260427_000007_seed_kami_resume_profile;
 pub mod m20260427_000008_fix_p_vs_np_math_delimiters;
+pub mod m20260427_000009_blog_download_leads;
 
 pub struct Migrator;
 
