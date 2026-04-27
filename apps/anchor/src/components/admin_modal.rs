@@ -159,6 +159,52 @@ pub fn PostForm(
             .unwrap_or_default(),
     );
 
+    // ── PDF settings state ───────────────────────────────────────────
+    let (pdf_attachment_url, set_pdf_attachment_url) = create_signal(String::new());
+    let (pdf_generate, set_pdf_generate) = create_signal(false);
+    let (pdf_require_lead, set_pdf_require_lead) = create_signal(false);
+    let (pdf_cta_label, set_pdf_cta_label) = create_signal(String::new());
+    let (pdf_notify_email, set_pdf_notify_email) = create_signal(String::new());
+    let (pdf_upload_status, set_pdf_upload_status) = create_signal(String::new());
+
+    // Pre-fill PDF settings when editing an existing post
+    let pdf_slug = initial_post
+        .as_ref()
+        .and_then(|p| p.subtitle.clone())
+        .unwrap_or_default();
+    let pdf_config_res = create_resource(
+        move || pdf_slug.clone(),
+        |s| async move {
+            if s.is_empty() { return None; }
+            crate::pages::blog::get_blog_pdf_config(s).await.unwrap_or(None)
+        },
+    );
+    create_effect(move |_| {
+        if let Some(Some(cfg)) = pdf_config_res.get() {
+            set_pdf_attachment_url.set(cfg.pdf_attachment_url.unwrap_or_default());
+            set_pdf_generate.set(cfg.pdf_generate_from_content);
+            set_pdf_require_lead.set(cfg.pdf_require_lead_capture);
+            set_pdf_cta_label.set(cfg.pdf_lead_capture_label.unwrap_or_default());
+            set_pdf_notify_email.set(cfg.pdf_lead_notification_email.unwrap_or_default());
+        }
+    });
+
+    // R2 presigned upload trigger
+    let on_upload_click = move |_| {
+        set_pdf_upload_status.set("Requesting upload URL...".to_string());
+        spawn_local(async move {
+            match crate::pages::blog::get_r2_presigned_upload_url("blog-attachment.pdf".to_string()).await {
+                Ok(presigned_url) => {
+                    let object_url = presigned_url.split('?').next().unwrap_or("").to_string();
+                    set_pdf_attachment_url.set(object_url);
+                    set_pdf_upload_status.set(format!("Presigned URL ready — use a PUT request to upload your PDF file."));
+                }
+                Err(e) => set_pdf_upload_status.set(format!("Error: {:?}", e)),
+            }
+        });
+    };
+
+    let post_id_sv = store_value(id_val.clone());
     let save = move |_| {
         let t = title.get_untracked();
         let s = slug.get_untracked();
@@ -169,11 +215,22 @@ pub fn PostForm(
             .map(|x| x.trim().to_string())
             .filter(|x: &String| !x.is_empty())
             .collect();
-        let current_id = id_val.clone();
+        let current_id = post_id_sv.get_value();
+
+        let p_url = { let u = pdf_attachment_url.get_untracked(); if u.is_empty() { None } else { Some(u) } };
+        let p_gen = pdf_generate.get_untracked();
+        let p_lead = pdf_require_lead.get_untracked();
+        let p_label = { let l = pdf_cta_label.get_untracked(); if l.is_empty() { None } else { Some(l) } };
+        let p_email = { let e = pdf_notify_email.get_untracked(); if e.is_empty() { None } else { Some(e) } };
 
         spawn_local(async move {
             if is_edit {
-                let _ = crate::pages::blog::update_post(current_id, s, t, c, tg).await;
+                let _ = crate::pages::blog::update_post(current_id.clone(), s, t, c, tg).await;
+                if !current_id.is_empty() {
+                    let _ = crate::pages::blog::save_blog_pdf_settings(
+                        current_id, p_url, p_gen, p_lead, p_label, p_email,
+                    ).await;
+                }
             } else {
                 let _ = crate::pages::blog::add_post(s, t, c, tg).await;
             }
@@ -184,6 +241,7 @@ pub fn PostForm(
 
     view! {
         <div class="space-y-6">
+            // ── Core post fields ────────────────────────────────────────────
             <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col gap-2">
                     <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Title"</label>
@@ -205,6 +263,125 @@ pub fn PostForm(
                 </div>
                 <textarea prop:value=content on:input=move |ev| set_content.set(event_target_value(&ev)) rows="15" class="bg-surface p-4 border border-outline-variant focus:border-primary focus:ring-0 text-sm font-mono text-on-surface resize-y whitespace-pre block w-full"></textarea>
             </div>
+
+            // ── PDF Settings ────────────────────────────────────────────
+            <div class="border-t border-outline-variant/30 pt-8 mt-4">
+                <div class="bg-primary/5 border-l-4 border-primary p-4 mb-6">
+                    <p class="jetbrains text-[0.65rem] text-on-surface uppercase tracking-widest font-bold">"PDF DELIVERY SETTINGS"</p>
+                    <p class="jetbrains text-[0.6rem] mt-1 text-on-surface-variant leading-relaxed">
+                        "Attach a pre-uploaded PDF or generate one on the fly from post content. "
+                        "Optionally gate downloads behind a lead-capture form (name + email required)."
+                    </p>
+                </div>
+
+                // Attachment URL + R2 upload trigger
+                <div class="flex flex-col gap-2 mb-4">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">
+                        "PDF Attachment URL (R2 Vault)"
+                    </label>
+                    <div class="flex gap-2">
+                        <input
+                            type="text"
+                            prop:value=pdf_attachment_url
+                            on:input=move |ev| set_pdf_attachment_url.set(event_target_value(&ev))
+                            placeholder="https://... or leave blank to generate on the fly"
+                            class="bg-surface flex-1 p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains font-mono"
+                        />
+                        <button
+                            on:click=on_upload_click
+                            type="button"
+                            class="bg-surface-container border border-outline-variant px-4 jetbrains text-[0.65rem] uppercase tracking-widest hover:border-primary transition-colors"
+                        >
+                            "GET UPLOAD URL"
+                        </button>
+                    </div>
+                    <Show when=move || !pdf_upload_status.get().is_empty()>
+                        <span class="jetbrains text-[0.58rem] text-secondary font-mono break-all">
+                            {move || pdf_upload_status.get()}
+                        </span>
+                    </Show>
+                </div>
+
+                // Generate on the fly toggle
+                <div class="flex items-center gap-4 mb-4 p-4 border border-outline-variant/30">
+                    <label class="flex items-center gap-3 cursor-pointer flex-1">
+                        <div class="relative">
+                            <input type="checkbox" class="sr-only"
+                                prop:checked=pdf_generate
+                                on:change=move |ev| set_pdf_generate.set(event_target_checked(&ev))
+                            />
+                            <div class="block bg-surface-container-highest w-10 h-6 rounded-full transition-colors duration-300"
+                                class:bg-primary=move || pdf_generate.get()></div>
+                            <div class="dot absolute left-1 top-1 bg-surface w-4 h-4 rounded-full transition-transform duration-300"
+                                class:translate-x-4=move || pdf_generate.get()></div>
+                        </div>
+                        <div>
+                            <p class="jetbrains text-[0.65rem] uppercase tracking-widest font-bold text-on-surface">
+                                "Generate PDF from Content (On the Fly)"
+                            </p>
+                            <p class="jetbrains text-[0.6rem] text-on-surface-variant mt-0.5">
+                                "Creates a Kami-branded PDF from this post's markdown on each download. Ignored when Attachment URL is set."
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                // Lead capture gate toggle
+                <div class="flex items-center gap-4 mb-4 p-4 border border-outline-variant/30">
+                    <label class="flex items-center gap-3 cursor-pointer flex-1">
+                        <div class="relative">
+                            <input type="checkbox" class="sr-only"
+                                prop:checked=pdf_require_lead
+                                on:change=move |ev| set_pdf_require_lead.set(event_target_checked(&ev))
+                            />
+                            <div class="block bg-surface-container-highest w-10 h-6 rounded-full transition-colors duration-300"
+                                class:bg-secondary=move || pdf_require_lead.get()></div>
+                            <div class="dot absolute left-1 top-1 bg-surface w-4 h-4 rounded-full transition-transform duration-300"
+                                class:translate-x-4=move || pdf_require_lead.get()></div>
+                        </div>
+                        <div>
+                            <p class="jetbrains text-[0.65rem] uppercase tracking-widest font-bold text-on-surface">
+                                "Gate Download Behind Lead Capture"
+                            </p>
+                            <p class="jetbrains text-[0.6rem] text-on-surface-variant mt-0.5">
+                                "Readers must submit name + email before receiving a signed download token."
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                // CTA label + notification email
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-2">
+                        <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">
+                            "CTA Button Label"
+                        </label>
+                        <input
+                            type="text"
+                            prop:value=pdf_cta_label
+                            on:input=move |ev| set_pdf_cta_label.set(event_target_value(&ev))
+                            placeholder="Download PDF"
+                            class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains"
+                        />
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">
+                            "Lead Notification Email"
+                        </label>
+                        <input
+                            type="email"
+                            prop:value=pdf_notify_email
+                            on:input=move |ev| set_pdf_notify_email.set(event_target_value(&ev))
+                            placeholder="admin@domain.com"
+                            class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains"
+                        />
+                        <span class="jetbrains text-[0.58rem] text-on-surface-variant/70">
+                            "You'll receive an email notification each time someone downloads this PDF."
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <button on:click=save class="mt-8 bg-primary text-on-primary font-bold jetbrains uppercase w-full py-4 tracking-widest hover:bg-primary-container transition-colors">
                 "COMMIT TO DATABASE"
             </button>

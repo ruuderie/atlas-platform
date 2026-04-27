@@ -68,6 +68,14 @@ async fn main() {
                 }
             }),
         )
+        // ── Kami PDF delivery ──────────────────────────────────────────────
+        // Serves pre-uploaded R2 attachments or generates Kami-branded PDFs
+        // on the fly from post markdown. Token validation required when
+        // pdf_require_lead_capture is set on the post payload.
+        .route(
+            "/api/blog/:slug/pdf",
+            axum::routing::get(anchor::handlers::blog_pdf::blog_pdf::blog_pdf_handler),
+        )
         .nest_service("/pkg", ServeDir::new(format!("{}/pkg", site_root)))
         .leptos_routes_with_context(
             &app_state,
