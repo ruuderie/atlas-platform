@@ -5,20 +5,26 @@
 /// app_instances.settings.widgets. No platform code change is needed to add
 /// a new widget instance for a tenant.
 ///
-/// Security — Two-layer SSRF defense for RestEndpoint data sources:
+/// Security — Three-layer SSRF defense for RestEndpoint data sources:
 ///
 ///   Layer 1 (static, sync): validate_widget_url()
 ///     Called on widget save. Uses url::Host enum dispatch + IpAddr stdlib
-///     methods (is_loopback, is_private, is_link_local, to_ipv4_mapped) to
-///     block direct IP address attacks. Domain names intentionally pass Layer 1
-///     because DNS cannot be resolved at parse time.
+///     methods to block direct IP address attacks immediately. Domain names
+///     intentionally pass — DNS cannot be resolved at parse time.
 ///
-///   Layer 2 (async, post-DNS): enforce_ssrf_safe_fetch()
-///     Called before every outbound HTTP request to a tenant URL. Resolves all
-///     DNS A/AAAA records via tokio::net::lookup_host and validates every
-///     returned IpAddr. This is the only effective defense against DNS rebinding
-///     and custom domain redirects to private IPs. MUST be called before any
-///     reqwest/hyper call to a tenant-supplied URL.
+///   Layer 2 (TOCTOU-safe, inside reqwest): SsrfSafeResolver + build_ssrf_safe_client()
+///     A custom reqwest dns::Resolve implementation that validates each resolved
+///     SocketAddr INSIDE the HTTP client's connection flow — after DNS resolution
+///     but before the TCP socket is opened. This eliminates the TOCTOU window
+///     that exists when enforce_ssrf_safe_fetch() and reqwest perform separate
+///     DNS lookups. A custom redirect policy also re-validates IP-literal targets
+///     on every redirect hop (separate bypass vector). Phase 2 background workers
+///     MUST use build_ssrf_safe_client().
+///
+///   Layer 2b (pre-flight, async): enforce_ssrf_safe_fetch()
+///     Early-rejection guard that runs before any network activity. Useful for
+///     fast failure on obviously bad inputs without building a client. Does NOT
+///     eliminate TOCTOU on its own — always pair with build_ssrf_safe_client().
 ///
 ///   PlatformTable queries are always scoped to tenant_id automatically.
 ///   WidgetInstance is fully typed via serde — no raw SQL interpolation.
@@ -266,34 +272,168 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
     Ok(())
 }
 
-// ─── Layer 2: Post-DNS resolution validation ─────────────────────────────────
+// ─── Layer 2: TOCTOU-safe DNS resolver (inside reqwest connection flow) ──────
 //
-// This is the MANDATORY second layer. Static URL validation alone is insufficient
-// because a domain name can resolve to a private IP (DNS rebinding attack).
+// Problem with enforce_ssrf_safe_fetch() + separate reqwest call:
+//   1. Our lookup_host() resolves attacker.com → 8.8.8.8 (safe). Check passes.
+//   2. Attacker's DNS switches the record to 127.0.0.1 (TTL=0).
+//   3. reqwest performs its OWN lookup_host() → 127.0.0.1. Connects to loopback.
 //
-// MUST be called server-side before any outbound HTTP request to a tenant-
-// configured RestEndpoint URL. Never call reqwest/hyper directly on a tenant URL
-// without first passing through this function.
+// Fix: Embed the IP validation INSIDE the reqwest DNS resolver so the same
+// resolution result that passes our check is the one used to open the socket.
+// There is no separate resolution — no TOCTOU window.
 //
-// Usage (in the background fetch job / Phase 2 polling):
-//   enforce_ssrf_safe_fetch("https://api.example.com/price").await?;
-//   // Only reaches here if all resolved IPs are safe
-//   let resp = reqwest_client.get(url).send().await?;
+// Additionally, a custom redirect policy re-validates each redirect target URL
+// using Layer 1 static checks. This catches 302 → http://127.0.0.1/ redirects
+// where no DNS resolution occurs (IP literal in the redirect target).
+//
+// Usage in Phase 2 background workers:
+//   let client = build_ssrf_safe_client()?;
+//   // Layer 2b pre-flight (fast fail before any I/O):
+//   enforce_ssrf_safe_fetch(url).await?;
+//   // Actual request — resolver validates IPs at connection time:
+//   let resp = client.get(url).send().await?;
 
+/// TOCTOU-safe DNS resolver for use with reqwest.
+///
+/// Wraps `reqwest::dns::GaiResolver` (the system resolver) and validates each
+/// resolved `SocketAddr` against the SSRF IP blocklist *inside* the reqwest
+/// connection pipeline — after DNS resolution but before the TCP socket opens.
+///
+/// This eliminates the TOCTOU window in the pattern:
+///   `enforce_ssrf_safe_fetch().await?` → `reqwest.get().send().await?`
+/// because those two calls perform independent DNS lookups with a gap between them.
+///
+/// Wire via `build_ssrf_safe_client()`. Do not construct reqwest clients manually
+/// for tenant RestEndpoint fetches.
+#[cfg(feature = "ssr")]
+pub struct SsrfSafeResolver {
+    inner: std::sync::Arc<dyn reqwest::dns::Resolve>,
+}
+
+#[cfg(feature = "ssr")]
+impl SsrfSafeResolver {
+    pub fn new() -> Self {
+        Self {
+            inner: std::sync::Arc::new(reqwest::dns::GaiResolver::new()),
+        }
+    }
+}
+
+#[cfg(feature = "ssr")]
+impl reqwest::dns::Resolve for SsrfSafeResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let inner_fut = self.inner.resolve(name.clone());
+        let name_str = name.as_str().to_string();
+
+        Box::pin(async move {
+            let addrs: Vec<std::net::SocketAddr> = inner_fut.await?.collect();
+
+            if addrs.is_empty() {
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("DNS resolution returned no addresses for '{name_str}'"),
+                )) as Box<dyn std::error::Error + Send + Sync>);
+            }
+
+            // ALL resolved IPs must pass — one bad IP in a multi-record response
+            // is enough to block the request. No partial-accept bypass.
+            for addr in &addrs {
+                if is_dangerous_ip(addr.ip()) {
+                    return Err(Box::new(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!(
+                            "SSRF blocked: '{}' resolved to dangerous IP {} \
+                             (loopback/private/link-local/cloud-metadata)",
+                            name_str,
+                            addr.ip()
+                        ),
+                    )) as Box<dyn std::error::Error + Send + Sync>);
+                }
+            }
+
+            Ok(Box::new(addrs.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
+}
+
+/// Build a reqwest::Client that is safe to use for tenant RestEndpoint fetches.
+///
+/// Applies defense-in-depth:
+///   - DNS resolver: SsrfSafeResolver validates IPs at connection time (TOCTOU-safe)
+///   - Redirect policy: re-validates each redirect URL with Layer 1 static checks
+///     (catches IP-literal redirect targets where no DNS is performed)
+///   - Timeouts: 10s connect / 30s total to prevent resource exhaustion
+///
+/// Phase 2 background workers MUST use this function — never construct a raw
+/// reqwest::Client for tenant-supplied URLs.
+#[cfg(feature = "ssr")]
+pub fn build_ssrf_safe_client() -> Result<reqwest::Client, String> {
+    use std::sync::Arc;
+
+    let resolver = Arc::new(SsrfSafeResolver::new());
+
+    // Custom redirect policy: statically validate every redirect target.
+    // reqwest's SsrfSafeResolver handles domain names (via DNS), but if a
+    // server returns a 302 to http://127.0.0.1/, no DNS resolution occurs —
+    // we must catch it here with a Layer 1 IP check.
+    let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
+        let url = attempt.url();
+        match url.host() {
+            Some(url::Host::Ipv4(addr)) if is_dangerous_ipv4(addr) => {
+                attempt.error(format!(
+                    "SSRF blocked: redirect to dangerous IPv4 address {addr}"
+                ))
+            }
+            Some(url::Host::Ipv6(addr)) if is_dangerous_ipv6(addr) => {
+                attempt.error(format!(
+                    "SSRF blocked: redirect to dangerous IPv6 address {addr}"
+                ))
+            }
+            _ => {
+                if attempt.previous().len() >= 5 {
+                    attempt.stop()
+                } else {
+                    attempt.follow()
+                }
+            }
+        }
+    });
+
+    reqwest::Client::builder()
+        .dns_resolver(resolver)
+        .redirect(redirect_policy)
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to build SSRF-safe HTTP client: {e}"))
+}
+
+// ─── Layer 2b: Pre-flight early-rejection guard ───────────────────────────────
+//
+// Runs BEFORE any network I/O for fast failure on obvious bad inputs.
+// Does NOT eliminate TOCTOU — always pair with build_ssrf_safe_client().
+//
+// Correct usage:
+//   enforce_ssrf_safe_fetch(url).await?;    // fast fail, no client built yet
+//   let client = build_ssrf_safe_client()?; // TOCTOU-safe client
+//   let resp = client.get(url).send().await?; // resolver re-validates at connect time
+
+/// Pre-flight SSRF guard. Resolves DNS and validates returned IPs before any
+/// HTTP activity. Provides a fast-fail path but is NOT TOCTOU-safe on its own.
+/// Always use in conjunction with build_ssrf_safe_client() for the actual request.
 #[cfg(feature = "ssr")]
 pub async fn enforce_ssrf_safe_fetch(url: &str) -> Result<(), String> {
     use tokio::net::lookup_host;
 
     let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
 
-    // Re-run static validation as a sanity guard
+    // Layer 1 static check
     validate_widget_url(url)?;
 
     let host_str = parsed.host_str().ok_or("URL has no host")?;
-    // Default to port 443 for HTTPS, 80 for HTTP
     let port = parsed.port_or_known_default().unwrap_or(443);
 
-    // Resolve all DNS records for this host+port combination
     let addrs: Vec<_> = lookup_host(format!("{host_str}:{port}"))
         .await
         .map_err(|e| format!("DNS resolution failed for '{host_str}': {e}"))?
@@ -303,14 +443,14 @@ pub async fn enforce_ssrf_safe_fetch(url: &str) -> Result<(), String> {
         return Err(format!("DNS resolution returned no addresses for '{host_str}'"));
     }
 
-    // Every single resolved IP must be safe.
-    // Accepting any unsafe IP in a multi-address response is a bypass.
+    // All resolved IPs must be safe (no partial-accept bypass)
     for addr in &addrs {
         let ip = addr.ip();
         if is_dangerous_ip(ip) {
             return Err(format!(
                 "Host '{host_str}' resolved to blocked IP {ip} (loopback/private/link-local). \
-                 Request denied."
+                 Request denied. NOTE: this pre-flight check is not TOCTOU-safe — \
+                 use build_ssrf_safe_client() for the actual request."
             ));
         }
     }
@@ -635,19 +775,61 @@ mod tests {
         assert!(validate_widget_url("https://[::ffff:127.0.0.1]/admin").is_err());
     }
 
-    // ── Bypass vector 4: DNS rebinding ────────────────────────────────────────
-    // Static validation cannot detect this. Layer 2 (enforce_ssrf_safe_fetch)
-    // is required. We verify the function exists and is async (compile-time check).
-    // Integration tests against a real DNS resolver are in /tests/widget_ssrf.rs.
+    // ── Bypass vector 4: DNS rebinding / TOCTOU ───────────────────────────────
+    //
+    // Static validation + separate DNS check (Layer 2b) has a TOCTOU window:
+    //   enforce_ssrf_safe_fetch() → DNS resolves to 8.8.8.8 (safe)
+    //   attacker switches DNS to 127.0.0.1 (TTL=0)
+    //   reqwest does its own DNS → connects to 127.0.0.1
+    //
+    // Fix: SsrfSafeResolver embeds the check inside reqwest's connection flow.
+    // Integration tests with a real malicious DNS server: /tests/widget_ssrf_integration.rs
 
     #[cfg(feature = "ssr")]
     #[test]
-    fn test_dns_rebinding_defense_function_exists() {
-        // enforce_ssrf_safe_fetch is the mandatory Layer 2 defense.
-        // Any domain that passes Layer 1 MUST go through this before fetching.
-        // This test asserts the function is callable and returns the right type.
-        // The actual rebinding defense requires a live DNS resolver — tested in integration tests.
+    fn test_ssrf_safe_resolver_can_be_constructed() {
+        // Verify SsrfSafeResolver::new() doesn't panic and can be boxed into Arc
+        let resolver = std::sync::Arc::new(SsrfSafeResolver::new());
+        // Verify it satisfies the reqwest::dns::Resolve bound
+        let _: std::sync::Arc<dyn reqwest::dns::Resolve> = resolver;
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_build_ssrf_safe_client_succeeds() {
+        // The client must build without errors — if this fails, the resolver or
+        // redirect policy configuration is broken.
+        let result = build_ssrf_safe_client();
+        assert!(result.is_ok(), "build_ssrf_safe_client() failed: {:?}", result.err());
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_dns_rebinding_pre_flight_still_exists() {
+        // enforce_ssrf_safe_fetch() is retained as a fast-fail pre-flight guard.
+        // Phase 2 callers must use it AND build_ssrf_safe_client() together.
         let _: fn(&str) -> _ = enforce_ssrf_safe_fetch;
+    }
+
+    // ── Redirect policy bypass vector ─────────────────────────────────────────
+    // A server at attacker.com could return: 302 → http://127.0.0.1/steal
+    // No DNS resolution occurs for an IP literal redirect target, so
+    // SsrfSafeResolver would not run. The redirect policy catches this.
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn test_redirect_policy_rejects_loopback_ip_literal() {
+        // We can't easily invoke the redirect policy in a unit test (it requires
+        // a live HTTP exchange), but we can verify the IP classification that
+        // backs it rejects 127.0.0.1 as a redirect target.
+        use std::net::Ipv4Addr;
+        // The redirect policy calls is_dangerous_ipv4() / is_dangerous_ipv6() —
+        // these are already tested exhaustively above. This test documents the
+        // threat model so the connection to the redirect policy is explicit.
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 1)),
+            "127.0.0.1 must be blocked — redirect policy relies on this");
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(169, 254, 169, 254)),
+            "169.254.169.254 must be blocked — redirect policy relies on this");
     }
 
     // ── Static validation: domains still pass Layer 1 (by design) ────────────
