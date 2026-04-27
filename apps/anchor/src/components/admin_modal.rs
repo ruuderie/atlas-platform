@@ -131,8 +131,8 @@ pub fn PostForm(
     let is_edit = initial_post.is_some();
     let id_val = initial_post
         .as_ref()
-        .and_then(|p| p.id.parse::<i32>().ok())
-        .unwrap_or(0);
+        .map(|p| p.id.clone())
+        .unwrap_or_default();
 
     let (title, set_title) = create_signal(
         initial_post
@@ -169,10 +169,11 @@ pub fn PostForm(
             .map(|x| x.trim().to_string())
             .filter(|x: &String| !x.is_empty())
             .collect();
+        let current_id = id_val.clone();
 
         spawn_local(async move {
             if is_edit {
-                let _ = crate::pages::blog::update_post(id_val, s, t, c, tg).await;
+                let _ = crate::pages::blog::update_post(current_id, s, t, c, tg).await;
             } else {
                 let _ = crate::pages::blog::add_post(s, t, c, tg).await;
             }

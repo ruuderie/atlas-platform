@@ -955,7 +955,7 @@ fn PostTable() -> impl IntoView {
                     {move || match posts_resource.get() {
                         Some(Ok(posts)) => posts.into_iter().map(|p| {
                             let p_clone = p.clone();
-                            let del_id = p.id.parse::<i32>().unwrap_or(0);
+                            let del_id = p.id.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">"#" {p.id.clone()}</td>
@@ -971,8 +971,9 @@ fn PostTable() -> impl IntoView {
                                         </button>
                                         <button
                                             on:click=move |_| {
+                                                let target_id = del_id.clone();
                                                 spawn_local(async move {
-                                                    if let Ok(_) = crate::pages::blog::delete_post(del_id).await {
+                                                    if let Ok(_) = crate::pages::blog::delete_post(target_id).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
                                                 });
