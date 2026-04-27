@@ -1,17 +1,17 @@
 use sea_orm_migration::prelude::*;
 
-#[derive(DeriveMigrationName)]
-pub struct Migration;
-
 /// Redesigns the real-estate-ventures page from a generic "Invest with Us"
 /// FormBuilder into a personal investor/landlord landing page with 5 strategy
 /// pillars: Wholesale, Buy & Hold, Lease-Option, Joint Venture, and Commercial.
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
-        let sql = r#"
+        let sql = r##"
             DO $$
             DECLARE
                 v_tenant_id UUID;
@@ -129,13 +129,13 @@ impl MigrationTrait for Migration {
                     RAISE EXCEPTION 'real-estate-ventures page not found for buildwithruud tenant';
                 END IF;
             END $$;
-        "#;
+        "##;
 
         db.execute_unprepared(sql).await?;
         Ok(())
     }
 
-    async fn down(&self, _manager: &SchemaManager) -> Result<(), DbErr> {
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         // Not reversing — the previous payload is superseded
         Ok(())
     }
