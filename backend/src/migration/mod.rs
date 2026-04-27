@@ -82,6 +82,11 @@ pub mod m20260425_000004_stitch_ruuderie_payload;
 pub mod m20260425_000005_fix_ruud_tenant_lookup;
 pub mod m20260425_000006_force_ruud_payload;
 pub mod m20260426_000001_hardened_ruud_payload;
+pub mod m20260427_000001_restore_consulting_page;
+pub mod m20260427_000002_real_estate_ventures_redesign;
+pub mod m20260427_000003_widget_instance_config;
+pub mod m20260427_000004_blog_content_format;
+pub mod m20260427_000005_seed_p_vs_np_blog_post;
 
 pub struct Migrator;
 

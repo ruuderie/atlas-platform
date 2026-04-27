@@ -157,30 +157,34 @@ pub fn App() -> impl IntoView {
                 view! {
                     <crate::components::theme_provider::ThemeProvider primary_color=move || theme_color.clone()>
                         <Router>
-                            <Nav />
-                            {
-                                view! { <PageViewTracker /> }
-                            }
-                            <Routes>
-                                <Route path="/" view=DynamicHomeLanding/>
-                                <Route path="/legacy" view=Landing/>
-                                <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
-                                <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
-                                <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
-                                <Route path="/blog" view=Blog/>
-                                <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
-                                <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
-                                <Route path="/investments/bitcoin" view=BitcoinDashboard/>
-                                <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
-                                <Route path="/book" view=BookDiscovery/>
-                                <Route path="/terms" view=Terms/>
-                                <Route path="/privacy" view=Privacy/>
-                                <Route path="/p/*slug" view=DynamicLanding/>
-                                <Route path="/e/*slug" view=DynamicEntry/>
-                                <Route path="/admin" view=Admin/>
-                                <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
-                            </Routes>
-                            <Footer />
+                            <div class="flex flex-col min-h-screen">
+                                <Nav />
+                                {
+                                    view! { <PageViewTracker /> }
+                                }
+                                <div class="flex-grow">
+                                    <Routes>
+                                        <Route path="/" view=DynamicHomeLanding/>
+                                        <Route path="/legacy" view=Landing/>
+                                        <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
+                                        <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
+                                        <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
+                                        <Route path="/blog" view=Blog/>
+                                        <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
+                                        <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
+                                        <Route path="/investments/bitcoin" view=BitcoinDashboard/>
+                                        <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
+                                        <Route path="/book" view=BookDiscovery/>
+                                        <Route path="/terms" view=Terms/>
+                                        <Route path="/privacy" view=Privacy/>
+                                        <Route path="/p/*slug" view=DynamicLanding/>
+                                        <Route path="/e/*slug" view=DynamicEntry/>
+                                        <Route path="/admin" view=Admin/>
+                                        <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
+                                    </Routes>
+                                </div>
+                                <Footer />
+                            </div>
                         </Router>
                     </crate::components::theme_provider::ThemeProvider>
                 }.into_view()

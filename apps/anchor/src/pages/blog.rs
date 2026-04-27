@@ -10,7 +10,11 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    let rows = sqlx::query("SELECT id, slug, title, content, to_char(created_at, 'YYYY.MM.DD') as created_at, tags FROM blog_posts WHERE tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC")
+    // content_format defaults to 'markdown' via column DEFAULT — all existing posts unaffected
+    let rows = sqlx::query(
+        "SELECT id, slug, title, content, content_format, to_char(created_at, 'YYYY.MM.DD') as created_at, tags \
+         FROM blog_posts WHERE tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC"
+    )
         .bind(tenant.0)
         .fetch_all(&state.pool)
         .await?;
@@ -33,12 +37,14 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
                 markdown: Some(row.get("content")),
                 link_url: None,
                 is_highlight: false,
+                content_format: row.try_get("content_format").unwrap_or_else(|_| "markdown".to_string()),
             }
         })
         .collect();
 
     Ok(posts)
 }
+
 
 #[server(AddPost, "/api")]
 pub async fn add_post(

@@ -1,6 +1,5 @@
 use leptos::*;
 use leptos_router::A;
-use std::time::Duration;
 
 #[server(GetBlockHeight, "/api")]
 pub async fn get_block_height() -> Result<Option<u64>, ServerFnError> {
@@ -153,26 +152,18 @@ pub fn Nav() -> impl IntoView {
     let design = use_context::<crate::pages::landing::DesignConfig>()
         .unwrap_or_default();
         
-    let (tick, set_tick) = create_signal(0);
-    let (mobile_menu_open, set_mobile_menu_open) = create_signal(false);
-
-    create_effect(move |_| {
-        let handle = set_interval_with_handle(
-            move || set_tick.update(|t| *t += 1),
-            Duration::from_secs(60),
-        )
-        .ok();
-
-        on_cleanup(move || {
-            if let Some(h) = handle {
-                h.clear();
-            }
-        });
-    });
-
-    let height_resource = create_resource(move || tick.get(), |_| get_block_height());
     let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
     let nav_resource = create_resource(|| (), |_| get_nav_items());
+    let (mobile_menu_open, set_mobile_menu_open) = create_signal(false);
+
+    // Derive nav-placement widgets reactively from settings
+    let nav_widgets = move || {
+        settings_resource
+            .get()
+            .and_then(|r| r.ok())
+            .map(|s| s.widgets.into_iter().filter(|w| w.is_nav_widget()).collect::<Vec<_>>())
+            .unwrap_or_default()
+    };
 
     view! {
         <>
@@ -229,7 +220,9 @@ pub fn Nav() -> impl IntoView {
                     }}
                 </Suspense>
             </div>
+            // Right side: hamburger (mobile) + admin icon + tenant widgets (desktop only)
             <div class="flex items-center space-x-4 md:space-x-6 z-50">
+                // Hamburger — mobile only, rendered first so it's never obscured by widgets
                 <button
                     on:click=move |_| set_mobile_menu_open.update(|o| *o = !*o)
                     class="md:hidden text-primary focus:outline-none flex items-center justify-center p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -239,53 +232,25 @@ pub fn Nav() -> impl IntoView {
                     </span>
                 </button>
                 <a href="/admin" class="material-symbols-outlined text-primary cursor-pointer hover:opacity-80 transition-opacity hidden sm:block">"terminal"</a>
-                <Suspense fallback=move || view! {
-                    <a href="#" class="bg-surface border border-outline-variant/30 px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider opacity-50 block whitespace-nowrap">
-                        <div class="flex flex-col items-center leading-none justify-center">
-                            <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium">"CURRENT BLOCK"</span>
-                            <div class="mt-1 flex items-center text-on-surface">
-                                <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">"currency_bitcoin"</span>
-                                <span>"..."</span>
-                            </div>
-                        </div>
-                    </a>
-                }>
-                    {move || {
-                        let h = height_resource.get().unwrap_or(Ok(None)).unwrap_or(None);
-                        if let Some(height) = h {
-                            view! {
-                                <a href=format!("https://mempool.space/block/{}", height) target="_blank" rel="noopener noreferrer" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap">
-                                    <div class="flex flex-col items-center leading-none justify-center">
-                                        <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">"CURRENT BLOCK"</span>
-                                        <div class="mt-1 flex items-center text-on-surface">
-                                            <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">"currency_bitcoin"</span>
-                                            <span>"#" {height}</span>
-                                        </div>
-                                    </div>
-                                </a>
-                            }.into_view()
-                        } else {
-                            view! {
-                                <a href="#" class="bg-surface border border-[#f7931a]/30 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider animate-pulse transition-all block whitespace-nowrap">
-                                    <div class="flex flex-col items-center leading-none justify-center">
-                                        <span class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">"STATE"</span>
-                                        <div class="mt-1 flex items-center text-on-surface">
-                                            <span class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom animate-spin">"sync"</span>
-                                            <span class="text-[#f7931a]">"SYNCING..."</span>
-                                        </div>
-                                    </div>
-                                </a>
-                            }.into_view()
-                        }
-                    }}
-                </Suspense>
+                // Tenant-configured widgets — hidden on mobile to avoid hamburger collision
+                // Each WidgetShell dispatches to the correct renderer based on WidgetRenderer variant
+                <div class="hidden sm:flex items-center gap-2">
+                    <Suspense fallback=move || view! {}>
+                        {move || {
+                            nav_widgets().into_iter().map(|widget| {
+                                view! { <crate::components::widget_registry::WidgetShell widget=widget /> }
+                            }).collect_view()
+                        }}
+                    </Suspense>
+                </div>
             </div>
 
         </nav>
 
-        // Mobile Menu Overlay
+        // Mobile Menu Overlay — z-[55] so it renders above page content but below the
+        // fixed nav bar (z-[60]), ensuring the close button remains accessible
         <div
-            class="fixed inset-0 bg-surface dark:bg-slate-900 z-50 flex flex-col pt-32 px-6 transition-all duration-300 ease-in-out md:hidden"
+            class="fixed inset-0 bg-surface dark:bg-slate-900 z-[55] flex flex-col pt-32 px-6 transition-all duration-300 ease-in-out md:hidden"
             style=move || if mobile_menu_open.get() { "transform: translateX(0); opacity: 1; pointer-events: auto;" } else { "transform: translateX(100%); opacity: 0; pointer-events: none;" }
         >
             <div class="flex flex-col space-y-8 overflow-y-auto pb-24 h-full">
