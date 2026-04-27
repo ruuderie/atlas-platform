@@ -103,6 +103,11 @@ pub async fn add_post(
     title: String,
     content: String,
     tags: Vec<String>,
+    pdf_attachment_url: Option<String>,
+    pdf_generate_from_content: bool,
+    pdf_require_lead_capture: bool,
+    pdf_lead_capture_label: Option<String>,
+    pdf_lead_notification_email: Option<String>,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
@@ -117,7 +122,12 @@ pub async fn add_post(
         "slug": slug,
         "content": content,
         "tags": tags,
-        "content_format": "markdown"
+        "content_format": "markdown",
+        "pdf_attachment_url": pdf_attachment_url,
+        "pdf_generate_from_content": pdf_generate_from_content,
+        "pdf_require_lead_capture": pdf_require_lead_capture,
+        "pdf_lead_capture_label": pdf_lead_capture_label,
+        "pdf_lead_notification_email": pdf_lead_notification_email,
     });
 
     sqlx::query("INSERT INTO app_content (tenant_id, collection_type, title, payload) VALUES ($1, 'blog_post', $2, $3)")
@@ -136,6 +146,11 @@ pub async fn update_post(
     title: String,
     content: String,
     tags: Vec<String>,
+    pdf_attachment_url: Option<String>,
+    pdf_generate_from_content: bool,
+    pdf_require_lead_capture: bool,
+    pdf_lead_capture_label: Option<String>,
+    pdf_lead_notification_email: Option<String>,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
@@ -156,7 +171,12 @@ pub async fn update_post(
         "slug": slug,
         "content": content,
         "tags": tags,
-        "content_format": "markdown"
+        "content_format": "markdown",
+        "pdf_attachment_url": pdf_attachment_url,
+        "pdf_generate_from_content": pdf_generate_from_content,
+        "pdf_require_lead_capture": pdf_require_lead_capture,
+        "pdf_lead_capture_label": pdf_lead_capture_label,
+        "pdf_lead_notification_email": pdf_lead_notification_email,
     });
 
     sqlx::query(

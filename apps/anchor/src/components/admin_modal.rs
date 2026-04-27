@@ -225,14 +225,13 @@ pub fn PostForm(
 
         spawn_local(async move {
             if is_edit {
-                let _ = crate::pages::blog::update_post(current_id.clone(), s, t, c, tg).await;
-                if !current_id.is_empty() {
-                    let _ = crate::pages::blog::save_blog_pdf_settings(
-                        current_id, p_url, p_gen, p_lead, p_label, p_email,
-                    ).await;
-                }
+                let _ = crate::pages::blog::update_post(
+                    current_id.clone(), s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
+                ).await;
             } else {
-                let _ = crate::pages::blog::add_post(s, t, c, tg).await;
+                let _ = crate::pages::blog::add_post(
+                    s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
+                ).await;
             }
             set_refresh.set(refresh.get_untracked() + 1);
             set_modal_state.set(ModalState::None);
