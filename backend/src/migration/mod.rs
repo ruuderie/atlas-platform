@@ -90,6 +90,7 @@ pub mod m20260427_000006_real_estate_newsletter_form;
 pub mod m20260427_000007_seed_kami_resume_profile;
 pub mod m20260427_000008_fix_p_vs_np_math_delimiters;
 pub mod m20260427_000009_blog_download_leads;
+pub mod m20260427_000010_enable_kami_mode_buildwithruud;
 
 pub struct Migrator;
 

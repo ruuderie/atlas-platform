@@ -91,6 +91,8 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260427_000008_fix_p_vs_np_math_delimiters::Migration),
             // Blog PDF feature: lead capture table for gated PDF downloads
             Box::new(crate::migration::m20260427_000009_blog_download_leads::Migration),
+            // Enable kami_mode in design_config for buildwithruud anchor app instance
+            Box::new(crate::migration::m20260427_000010_enable_kami_mode_buildwithruud::Migration),
         ]
     }
 

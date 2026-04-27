@@ -13,6 +13,10 @@ pub struct DesignConfig {
     pub elevation_strategy: String,
     pub button_padding: String,
     pub nav_layout: String,
+    /// When true, applies the Kami academic paper design system to this tenant.
+    /// Set via migration for buildwithruud; defaults to false for all other tenants.
+    #[serde(default)]
+    pub kami_mode: bool,
 }
 
 impl Default for DesignConfig {
@@ -27,6 +31,7 @@ impl Default for DesignConfig {
             elevation_strategy: "flat-ghost".into(),
             button_padding: "px-6 py-2".into(),
             nav_layout: "solid-full".into(),
+            kami_mode: false,
         }
     }
 }
