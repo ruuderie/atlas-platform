@@ -43,13 +43,13 @@ This work is an exploratory mathematical exercise. While every step follows logi
 ## Definitions
 
 **Class P**  
-A language \( L \subseteq \{0,1\}^* \) belongs to **P** if there exists a deterministic Turing machine \( M \) and a constant \( c \geq 1 \) such that for every input \( x \) with \( |x| = n \), \( M \) decides membership of \( x \) in \( L \) and halts within \( n^c \) steps.
+A language $L \subseteq \{0,1\}^*$ belongs to **P** if there exists a deterministic Turing machine $M$ and a constant $c \geq 1$ such that for every input $x$ with $|x| = n$, $M$ decides membership of $x$ in $L$ and halts within $n^c$ steps.
 
 **Class NP**  
-A language \( L \subseteq \{0,1\}^* \) belongs to **NP** if there exists a deterministic Turing machine \( V \) (the verifier) and a constant \( c \geq 1 \) such that:
+A language $L \subseteq \{0,1\}^*$ belongs to **NP** if there exists a deterministic Turing machine $V$ (the verifier) and a constant $c \geq 1$ such that:
 
-- \( V \) runs in at most \( n^c \) steps on inputs of the form \( (x, w) \) where \( |x| = n \);
-- \( x \in L \) if and only if there exists a witness string \( w \) with \( |w| \leq n^c \) for which \( V \) accepts.
+- $V$ runs in at most $n^c$ steps on inputs of the form $(x, w)$ where $|x| = n$;
+- $x \in L$ if and only if there exists a witness string $w$ with $|w| \leq n^c$ for which $V$ accepts.
 
 ## Key Constructions
 
@@ -57,15 +57,15 @@ A language \( L \subseteq \{0,1\}^* \) belongs to **NP** if there exists a deter
 The language 3-SAT consists of the encodings of satisfiable 3-CNF formulas. A satisfying assignment serves as a witness of polynomial length. Verification consists of substituting the assignment into each clause and checking truth values, which can be performed in linear time. Thus 3-SAT is in NP.
 
 **Cook–Levin Construction**  
-Let \( L \in \mathbf{NP} \) with verifier \( V \) running in time \( O(n^c) \). For any input \( x \) of length \( n \), one can construct in polynomial time a 3-CNF formula \( \psi_x \) of size \( O(n^{O(c)}) \) such that \( x \in L \) if and only if \( \psi_x \) is satisfiable.
+Let $L \in \mathbf{NP}$ with verifier $V$ running in time $O(n^c)$. For any input $x$ of length $n$, one can construct in polynomial time a 3-CNF formula $\psi_x$ of size $O(n^{O(c)})$ such that $x \in L$ if and only if $\psi_x$ is satisfiable.
 
-The construction proceeds by creating Boolean variables for each cell of a computation tableau of size \( O(t(n)) \times O(t(n)) \), where \( t(n) = O(n^c) \). Clauses are added to enforce:
+The construction proceeds by creating Boolean variables for each cell of a computation tableau of size $O(t(n)) \times O(t(n))$, where $t(n) = O(n^c)$. Clauses are added to enforce:
 
-- Local consistency with the finite transition function of \( V \);
-- Correct initial configuration containing the input \( x \);
+- Local consistency with the finite transition function of $V$;
+- Correct initial configuration containing the input $x$;
 - Acceptance in the final time step.
 
-This yields a polynomial-size 3-CNF whose satisfiability is equivalent to membership in \( L \).
+This yields a polynomial-size 3-CNF whose satisfiability is equivalent to membership in $L$.
 
 If 3-SAT admits a polynomial-time algorithm, then every language in NP would also admit a polynomial-time algorithm (by composition with the Cook–Levin reduction). In other words, 3-SAT ∈ P would imply P = NP.
 
@@ -73,18 +73,18 @@ If 3-SAT admits a polynomial-time algorithm, then every language in NP would als
 
 We now explore what follows from the assumption that 3-SAT ∈ P.
 
-Assume there exists a deterministic Turing machine \( A \) and constant \( k \geq 1 \) that correctly decides any 3-CNF formula of size \( n \) in at most \( O(n^k) \) steps.
+Assume there exists a deterministic Turing machine $A$ and constant $k \geq 1$ that correctly decides any 3-CNF formula of size $n$ in at most $O(n^k)$ steps.
 
-Apply the Cook–Levin construction to the fixed machine \( A \). This produces a 3-CNF formula that encodes the statement  
-“the computation of \( A \) on input string \( \sigma \) (\( |\sigma| = n \)) outputs ‘unsatisfiable’.”
+Apply the Cook–Levin construction to the fixed machine $A$. This produces a 3-CNF formula that encodes the statement  
+“the computation of $A$ on input string $\sigma$ ($|\sigma| = n$) outputs ‘unsatisfiable’.”
 
-We augment this formula with forcing clauses that identify the input-tape variables with the bits of the formula itself and add tautological padding clauses to reach a consistent encoding length. Because the generation procedure is deterministic and finite for each fixed length, a string \( \phi \) exists that is consistent with its own encoding.
+We augment this formula with forcing clauses that identify the input-tape variables with the bits of the formula itself and add tautological padding clauses to reach a consistent encoding length. Because the generation procedure is deterministic and finite for each fixed length, a string $\phi$ exists that is consistent with its own encoding.
 
 By the semantics of the tableau encoding we obtain:
 
 $$ \phi \text{ is satisfiable} \quad \Leftrightarrow \quad A(\phi) \text{ outputs ``unsatisfiable''}. $$
 
-Under the assumption that \( A \) correctly decides 3-SAT we also have:
+Under the assumption that $A$ correctly decides 3-SAT we also have:
 
 $$ \phi \text{ is satisfiable} \quad \Leftrightarrow \quad A(\phi) \text{ outputs ``satisfiable''}. $$
 

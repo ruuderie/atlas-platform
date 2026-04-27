@@ -311,22 +311,14 @@ pub fn BlogPost() -> impl IntoView {
                                                 crossorigin="anonymous"
                                                 defer=true
                                             />
-                                            <script
-                                                src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-                                                crossorigin="anonymous"
-                                                defer=true
-                                            />
                                             <script>
                                                 "document.addEventListener('DOMContentLoaded', function() { \
-                                                    if (typeof renderMathInElement !== 'undefined') { \
-                                                        renderMathInElement(document.body, { \
-                                                            delimiters: [ \
-                                                                {left: '$$', right: '$$', display: true}, \
-                                                                {left: '\\\\[', right: '\\\\]', display: true}, \
-                                                                {left: '$', right: '$', display: false}, \
-                                                                {left: '\\\\(', right: '\\\\)', display: false} \
-                                                            ], \
-                                                            throwOnError: false \
+                                                    if (typeof katex !== 'undefined') { \
+                                                        document.querySelectorAll('.math-inline').forEach(function(el) { \
+                                                            katex.render(el.textContent, el, {displayMode: false, throwOnError: false}); \
+                                                        }); \
+                                                        document.querySelectorAll('.math-display').forEach(function(el) { \
+                                                            katex.render(el.textContent, el, {displayMode: true, throwOnError: false}); \
                                                         }); \
                                                     } \
                                                 });"
@@ -353,12 +345,12 @@ fn render_post_html(post: &ContentNode) -> String {
                     html_escape::encode_text(md))
             }
             // mdlatex and markdown both go through pulldown_cmark;
-            // KaTeX auto-render handles math delimiters client-side for mdlatex
             _ => {
                 let mut options = pulldown_cmark::Options::empty();
                 options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
                 options.insert(pulldown_cmark::Options::ENABLE_TABLES);
                 options.insert(pulldown_cmark::Options::ENABLE_FOOTNOTES);
+                options.insert(pulldown_cmark::Options::ENABLE_MATH);
                 let parser = pulldown_cmark::Parser::new_ext(md, options);
                 let mut html = String::new();
                 pulldown_cmark::html::push_html(&mut html, parser);
