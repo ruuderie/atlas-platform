@@ -93,6 +93,8 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260427_000009_blog_download_leads::Migration),
             // Enable kami_mode in design_config for buildwithruud anchor app instance
             Box::new(crate::migration::m20260427_000010_enable_kami_mode_buildwithruud::Migration),
+            // Set content_feed layout = "kami_cards" on buildwithruud /p/projects page
+            Box::new(crate::migration::m20260427_000011_kami_projects_layout::Migration),
         ]
     }
 

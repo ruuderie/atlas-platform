@@ -1,5 +1,6 @@
 use leptos::*;
 use serde::{Deserialize, Serialize};
+use crate::components::design_mode::use_kami_mode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ContentFeedBlockData {
@@ -18,7 +19,7 @@ pub struct ContentFeedConfig {
     #[serde(default = "default_10")]
     pub page_size: u32,
     #[serde(default = "default_cards")]
-    pub layout: String,                    // "cards" | "list"
+    pub layout: String,                    // "cards" | "list" | "kami_cards"
     #[serde(default)]
     pub show_tags: bool,
     #[serde(default)]
@@ -117,16 +118,27 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                                 </div>
                             }.into_view()
                         } else {
-                            view! {
-                                <div class={match cfg.layout.as_str() {
-                                    "list" => "flex flex-col gap-6 max-w-4xl".to_string(), // list layout
-                                    _ => "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8".to_string() // cards layout
-                                }}>
-                                    {items_to_render.into_iter().map(|item| {
-                                        view! { <FeedItemView item=item config=cfg.clone() /> }
-                                    }).collect_view()}
-                                </div>
-                            }.into_view()
+                            let is_kami = use_kami_mode() || cfg.layout == "kami_cards";
+                            if is_kami {
+                                view! {
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {items_to_render.into_iter().map(|item| {
+                                            view! { <KamiFeedItemView item=item config=cfg.clone() /> }
+                                        }).collect_view()}
+                                    </div>
+                                }.into_view()
+                            } else {
+                                view! {
+                                    <div class={match cfg.layout.as_str() {
+                                        "list" => "flex flex-col gap-6 max-w-4xl".to_string(),
+                                        _ => "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8".to_string()
+                                    }}>
+                                        {items_to_render.into_iter().map(|item| {
+                                            view! { <FeedItemView item=item config=cfg.clone() /> }
+                                        }).collect_view()}
+                                    </div>
+                                }.into_view()
+                            }
                         }
                     }}
                 </Suspense>
@@ -210,5 +222,54 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                 </div>
             </article>
         }.into_view() // "cards"
+    }
+}
+
+/// Kami parchment project card — used when kami_mode or layout = "kami_cards".
+#[component]
+fn KamiFeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoView {
+    view! {
+        <a href=format!("/e/{}", item.slug) class="block no-underline group">
+            <article class="bg-[#f5f4ed] border border-[#1B365D]/10 hover:border-[#1B365D]/30 shadow-sm hover:shadow-md transition-all p-7">
+
+                {if let Some(img) = item.cover_image_url {
+                    view! {
+                        <div class="w-full h-40 overflow-hidden mb-5">
+                            <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        </div>
+                    }.into_view()
+                } else { view! {}.into_view() }}
+
+                {if config.show_date {
+                    if let Some(date) = item.published_at {
+                        view! {
+                            <div class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#6b6a64] mb-2">{date}</div>
+                        }.into_view()
+                    } else { view! {}.into_view() }
+                } else { view! {}.into_view() }}
+
+                <h3 class="font-display text-base font-bold text-[#1B365D] leading-snug mb-2 group-hover:text-[#2a4d87] transition-colors">
+                    {item.title}
+                </h3>
+
+                {if let Some(excerpt) = item.excerpt {
+                    view! {
+                        <p class="text-[#504e49] text-sm leading-relaxed mb-4 line-clamp-3">{excerpt}</p>
+                    }.into_view()
+                } else { view! {}.into_view() }}
+
+                {if config.show_tags && !item.tags.is_empty() {
+                    view! {
+                        <div class="flex flex-wrap gap-1.5 mt-3">
+                            {item.tags.into_iter().map(|tag| view! {
+                                <span class="border border-[#1B365D]/20 text-[#1B365D] px-2 py-0.5 jetbrains text-[0.55rem] uppercase tracking-wider">
+                                    {tag}
+                                </span>
+                            }).collect_view()}
+                        </div>
+                    }.into_view()
+                } else { view! {}.into_view() }}
+            </article>
+        </a>
     }
 }

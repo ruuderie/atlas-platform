@@ -1,5 +1,6 @@
 use leptos::*;
 use serde::{Deserialize, Serialize};
+use crate::components::design_mode::use_kami_mode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TimelineBlockData {
@@ -29,6 +30,17 @@ pub struct TimelineBlockConfig {
 
 fn default_layout() -> String {
     "detailed".to_string()
+}
+
+/// Parses a bullet that may contain "Role: ...", "Action: ..." or "Impact: ..." labels.
+/// Returns a pair of (label, rest) when a label is detected, otherwise (None, full_text).
+fn parse_rai_bullet(b: &str) -> (Option<&str>, &str) {
+    for label in ["Role", "Action", "Impact"] {
+        if let Some(rest) = b.strip_prefix(&format!("{}: ", label)) {
+            return (Some(label), rest);
+        }
+    }
+    (None, b)
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -80,48 +92,82 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
     );
 
     view! {
-        <section class="py-12 md:py-16 w-full">
-            <div class="container mx-auto px-4 max-w-4xl">
-                {if let Some(ref title) = data.config.section_title {
-                    view! {
-                        <h2 class="text-3xl font-bold text-on-surface mb-8">
-                            {title}
-                        </h2>
-                    }.into_view()
-                } else {
-                    view! {}.into_view()
-                }}
-
-                <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading timeline..."</div> }>
-                    {move || {
-                        let items_to_render = entries_resource.get().unwrap_or_default();
-                        let cfg = config.get_value();
-                        
-                        if items_to_render.is_empty() {
+        {if use_kami_mode() {
+            // ── Kami parchment timeline ───────────────────────────────────────
+            view! {
+                <section class="py-16 w-full bg-[#f5f4ed]">
+                    <div class="container mx-auto px-4 max-w-3xl">
+                        {if let Some(ref title) = data.config.section_title {
                             view! {
-                                <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
-                                    "No timeline items found."
+                                <div class="mb-10">
+                                    <div class="jetbrains text-[0.6rem] uppercase tracking-[0.25em] text-[#6b6a64] mb-2">{title}</div>
+                                    <div class="w-12 h-px bg-[#1B365D]/30"></div>
                                 </div>
+                            }.into_view()
+                        } else { view! {}.into_view() }}
+
+                        <Suspense fallback=move || view! { <div class="text-[#6b6a64] jetbrains text-xs uppercase animate-pulse">"Loading..."</div> }>
+                            {move || {
+                                let items_to_render = entries_resource.get().unwrap_or_default();
+                                view! {
+                                    <div class="space-y-12">
+                                        {items_to_render.into_iter().map(|item| {
+                                            view! { <KamiTimelineItemView item=item show_bullets=config.get_value().show_bullets show_date=config.get_value().show_date_range /> }
+                                        }).collect_view()}
+                                    </div>
+                                }
+                            }}
+                        </Suspense>
+                    </div>
+                </section>
+            }.into_view()
+        } else {
+            // ── Material 3 dark (existing) ────────────────────────────────────
+            view! {
+                <section class="py-12 md:py-16 w-full">
+                    <div class="container mx-auto px-4 max-w-4xl">
+                        {if let Some(ref title) = data.config.section_title {
+                            view! {
+                                <h2 class="text-3xl font-bold text-on-surface mb-8">
+                                    {title}
+                                </h2>
                             }.into_view()
                         } else {
-                            view! {
-                                <div class={match cfg.layout.as_str() {
-                                    "cards" => "grid grid-cols-1 md:grid-cols-2 gap-6".to_string(),
-                                    "compact" => "space-y-4".to_string(),
-                                    _ => "relative border-l-2 border-outline-variant pl-8 space-y-12".to_string(),
-                                }}>
-                                    {items_to_render.into_iter().map(|item| {
-                                        view! {
-                                            <TimelineItemView item=item config=cfg.clone() />
-                                        }
-                                    }).collect_view()}
-                                </div>
-                            }.into_view()
-                        }
-                    }}
-                </Suspense>
-            </div>
-        </section>
+                            view! {}.into_view()
+                        }}
+
+                        <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading timeline..."</div> }>
+                            {move || {
+                                let items_to_render = entries_resource.get().unwrap_or_default();
+                                let cfg = config.get_value();
+
+                                if items_to_render.is_empty() {
+                                    view! {
+                                        <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
+                                            "No timeline items found."
+                                        </div>
+                                    }.into_view()
+                                } else {
+                                    view! {
+                                        <div class={match cfg.layout.as_str() {
+                                            "cards" => "grid grid-cols-1 md:grid-cols-2 gap-6".to_string(),
+                                            "compact" => "space-y-4".to_string(),
+                                            _ => "relative border-l-2 border-outline-variant pl-8 space-y-12".to_string(),
+                                        }}>
+                                            {items_to_render.into_iter().map(|item| {
+                                                view! {
+                                                    <TimelineItemView item=item config=cfg.clone() />
+                                                }
+                                            }).collect_view()}
+                                        </div>
+                                    }.into_view()
+                                }
+                            }}
+                        </Suspense>
+                    </div>
+                </section>
+            }.into_view()
+        }}
     }
 }
 
@@ -202,5 +248,67 @@ fn TimelineItemView(item: TimelineItem, config: TimelineBlockConfig) -> impl Int
                 } else { view! {}.into_view() }}
             </div>
         }.into_view() // "detailed"
+    }
+}
+
+/// Kami parchment timeline entry with Role/Action/Impact bullet parsing.
+#[component]
+fn KamiTimelineItemView(item: TimelineItem, show_bullets: bool, show_date: bool) -> impl IntoView {
+    view! {
+        <div class="border-l-2 border-[#1B365D]/20 pl-6">
+            // Title + date header row
+            <div class="flex flex-col md:flex-row md:items-baseline md:justify-between gap-2 mb-2">
+                <div>
+                    <h3 class="font-display text-[1.15rem] font-bold text-[#1B365D] leading-snug">
+                        {item.title}
+                    </h3>
+                    {if let Some(sub) = item.subtitle {
+                        view! {
+                            <div class="jetbrains text-xs text-[#6b6a64] uppercase tracking-wider mt-0.5">
+                                {sub}
+                            </div>
+                        }.into_view()
+                    } else { view! {}.into_view() }}
+                </div>
+                {if show_date {
+                    if let Some(dates) = item.date_range {
+                        view! {
+                            <span class="jetbrains text-[0.6rem] uppercase tracking-widest text-[#6b6a64] whitespace-nowrap">
+                                {dates}
+                            </span>
+                        }.into_view()
+                    } else { view! {}.into_view() }
+                } else { view! {}.into_view() }}
+            </div>
+
+            // Bullets — detect Role/Action/Impact prefix and render as aligned label+text
+            {if show_bullets && !item.bullets.is_empty() {
+                view! {
+                    <ul class="mt-4 space-y-2.5 list-none pl-0">
+                        {item.bullets.into_iter().map(|b| {
+                            let (label, rest) = parse_rai_bullet(&b);
+                            let label = label.map(str::to_string);
+                            let rest = rest.to_string();
+                            view! {
+                                <li class="text-[#504e49] text-sm leading-[1.75] flex gap-2">
+                                    {if let Some(lbl) = label {
+                                        view! {
+                                            <span class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#1B365D] font-bold mt-[0.2rem] shrink-0 w-14 text-right">
+                                                {lbl}":"
+                                            </span>
+                                        }.into_view()
+                                    } else {
+                                        view! {
+                                            <span class="text-[#1B365D]/40 mt-[0.3rem] shrink-0">"—"</span>
+                                        }.into_view()
+                                    }}
+                                    <span>{rest}</span>
+                                </li>
+                            }
+                        }).collect_view()}
+                    </ul>
+                }.into_view()
+            } else { view! {}.into_view() }}
+        </div>
     }
 }
