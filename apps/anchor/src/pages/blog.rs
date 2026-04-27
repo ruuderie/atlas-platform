@@ -1,6 +1,6 @@
 use leptos::*;
 use leptos_router::*;
-
+use crate::components::design_mode::use_kami_mode;
 use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
 
 #[server(GetPosts, "/api")]
@@ -506,13 +506,20 @@ pub fn Blog() -> impl IntoView {
     );
 
     view! {
-        <main class="pt-32 pb-24 px-4 md:px-[8.5rem] bg-surface-container-low min-h-screen">
-            <crate::components::dynamic_header::DynamicPageHeader route_path="/blog".to_string() badge_color="primary".to_string() />
-
-            <Suspense fallback=move || view! { <div class="text-on-surface-variant font-bold jetbrains uppercase">"Fetching remote Markdown streams..."</div> }>
+        <main class="pt-32 pb-24 bg-surface-container-low min-h-screen">
+            <Suspense fallback=move || view! { <div class="px-4 md:px-[8.5rem] text-on-surface-variant font-bold jetbrains uppercase">"⏳ Fetching remote Markdown streams..."</div> }>
                 {move || {
                     let posts = posts_resource.get().unwrap_or_default();
-                    view! { <ContentFeed nodes=posts layout=LayoutMode::List /> }
+                    if use_kami_mode() {
+                        view! { <KamiBlogIndex posts=posts /> }.into_view()
+                    } else {
+                        view! {
+                            <div class="px-4 md:px-[8.5rem]">
+                                <crate::components::dynamic_header::DynamicPageHeader route_path="/blog".to_string() badge_color="primary".to_string() />
+                                <ContentFeed nodes=posts layout=LayoutMode::List />
+                            </div>
+                        }.into_view()
+                    }
                 }}
             </Suspense>
         </main>
@@ -593,13 +600,18 @@ pub fn BlogPost() -> impl IntoView {
                                             </div>
                                         </header>
 
-                                        // ── PDF Download CTA (rendered server-side when configured) ───
-                                        // PDF settings are stored in payload; the Axum handler at
-                                        // /api/blog/:slug/pdf serves the file. The CTA strip and lead
-                                        // capture modal are rendered client-side via the BlogPdfCta
-                                        // component once pdf_attachment_url or pdf_generate_from_content
-                                        // is set on the post. Placeholder div for hydration target.
-                                        <div id="blog-pdf-cta" class="mb-12"></div>
+                                        // ── PDF Download CTA ──────────────────────────────────────────
+                                        // BlogPdfCta checks the post payload for PDF config and renders
+                                        // either a direct download link or a lead-gate modal.
+                                        {
+                                            let pdf_url = post.markdown.as_deref()
+                                                .map(|_| "") // placeholder — pdf_attachment_url from payload below
+                                                .unwrap_or("");
+                                            // Extract PDF config from payload stored in subtitle field (slug)
+                                            // The actual post id is used for the slug-based Axum route.
+                                            let post_slug = post.subtitle.clone().unwrap_or_default();
+                                            view! { <BlogPdfCta slug=post_slug /> }
+                                        }
 
                                         // ── Paper body — Kami academic prose styling ───────────────────
                                         <div
@@ -679,5 +691,238 @@ fn render_post_html(post: &ContentNode) -> String {
         }
     } else {
         String::new()
+    }
+}
+
+// ─── Kami Blog Index ─────────────────────────────────────────────────────────
+// Parchment mini-card index for the /blog list when kami_mode is enabled.
+
+#[component]
+fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
+    // Generate excerpt: strip HTML tags and take first 180 chars.
+    fn excerpt(md: &str) -> String {
+        // Run through pulldown_cmark to get HTML, then strip tags.
+        let mut opts = pulldown_cmark::Options::empty();
+        opts.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
+        let parser = pulldown_cmark::Parser::new_ext(md, opts);
+        let mut html = String::new();
+        pulldown_cmark::html::push_html(&mut html, parser);
+        // Strip HTML tags with a simple approach
+        let text: String = html
+            .split('<')
+            .enumerate()
+            .map(|(i, s)| if i == 0 { s.to_string() } else { s.split_once('>').map(|(_, after)| after).unwrap_or("").to_string() })
+            .collect::<Vec<_>>()
+            .join("");
+        let trimmed = text.trim();
+        if trimmed.len() > 180 {
+            format!("{}\u{2026}", &trimmed[..180])
+        } else {
+            trimmed.to_string()
+        }
+    }
+
+    view! {
+        <div class="max-w-3xl mx-auto px-4 pb-24">
+            // Archive header
+            <div class="mb-12">
+                <div class="jetbrains text-[0.6rem] uppercase tracking-[0.25em] text-[#6b6a64] mb-2">"Technical Writing"</div>
+                <h1 class="font-display text-3xl font-bold text-[#1B365D] mb-4">"Papers &amp; Notes"</h1>
+                <div class="w-16 h-px bg-[#1B365D]/30"></div>
+            </div>
+
+            // Post list
+            <div class="space-y-4">
+                {posts.into_iter().map(|post| {
+                    let href = post.link_url.clone().unwrap_or_else(|| "/blog".to_string());
+                    let exc = post.markdown.as_deref().map(excerpt).unwrap_or_default();
+                    let date = post.date_label.clone().unwrap_or_default();
+                    let tags = post.tags.clone();
+
+                    view! {
+                        <a href=href class="block no-underline">
+                            <article class="bg-[#f5f4ed] border border-[#1B365D]/10 px-8 py-6 shadow-sm hover:shadow-md hover:border-[#1B365D]/25 transition-all group">
+                                <div class="flex items-baseline justify-between gap-4 mb-2">
+                                    <h2 class="font-display text-lg font-bold text-[#1B365D] leading-snug group-hover:text-[#2a4d87] transition-colors">
+                                        {post.title}
+                                    </h2>
+                                    <span class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#6b6a64] whitespace-nowrap shrink-0">
+                                        {date}
+                                    </span>
+                                </div>
+
+                                {(!exc.is_empty()).then(|| view! {
+                                    <p class="text-[#504e49] text-sm leading-relaxed mt-1 mb-3">{exc}</p>
+                                })}
+
+                                {(!tags.is_empty()).then(|| view! {
+                                    <div class="flex flex-wrap gap-2 mt-3">
+                                        {tags.into_iter().map(|tag| view! {
+                                            <span class="border border-[#1B365D]/20 text-[#1B365D] px-2 py-0.5 jetbrains text-[0.55rem] uppercase tracking-wider">
+                                                {tag}
+                                            </span>
+                                        }).collect_view()}
+                                    </div>
+                                })}
+                            </article>
+                        </a>
+                    }
+                }).collect_view()}
+            </div>
+        </div>
+    }
+}
+
+// ─── Blog PDF CTA ────────────────────────────────────────────────────────────
+// Rendered inside the blog post detail for posts with PDF config.
+// Checks the GetBlogPdfConfig server fn and conditionally shows gated/non-gated UI.
+
+#[component]
+fn BlogPdfCta(slug: String) -> impl IntoView {
+    let slug_clone = slug.clone();
+    let config_resource = create_resource(
+        move || slug.clone(),
+        |s| async move { get_blog_pdf_config(s).await.unwrap_or(None) },
+    );
+
+    // Lead capture state
+    let (show_modal, set_show_modal) = create_signal(false);
+    let (lead_name, set_lead_name) = create_signal(String::new());
+    let (lead_email, set_lead_email) = create_signal(String::new());
+    let (submitting, set_submitting) = create_signal(false);
+    let (download_token, set_download_token) = create_signal(Option::<String>::None);
+
+    let slug_for_submit = slug_clone.clone();
+    // Store slug in a StoredValue so multiple Fn closures can each call .get_value()
+    // without consuming the String (which would make the outer closure FnOnce).
+    let slug_store = store_value(slug_clone);
+    let submit_action = create_action(move |_: &()| {
+        let slug = slug_for_submit.clone();
+        let email = lead_email.get_untracked();
+        let name_str = lead_name.get_untracked();
+        let name = if name_str.is_empty() { None } else { Some(name_str) };
+        async move {
+            set_submitting.set(true);
+            match submit_download_lead(slug, email, name).await {
+                Ok(resp) => {
+                    set_download_token.set(Some(resp.token));
+                    set_show_modal.set(false);
+                }
+                Err(_) => {}
+            }
+            set_submitting.set(false);
+        }
+    });
+
+    view! {
+        <Suspense fallback=move || view! {}>
+            {move || {
+                let cfg = config_resource.get().and_then(|c| c);
+                let Some(cfg) = cfg else { return view! {}.into_view(); };
+
+                let has_pdf = cfg.pdf_attachment_url.is_some() || cfg.pdf_generate_from_content;
+                if !has_pdf { return view! {}.into_view(); }
+
+                let label = cfg.pdf_lead_capture_label.clone().unwrap_or_else(|| "Download PDF".to_string());
+                let requires_lead = cfg.pdf_require_lead_capture;
+
+                view! {
+                    <div class="mb-12">
+                        // CTA strip
+                        <div class="flex items-center justify-between gap-4 border border-[#1B365D]/20 bg-[#ecebd4] px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-[#1B365D] text-xl">"📄"</span>
+                                <span class="font-display text-sm text-[#504e49]">
+                                    "A formatted Kami PDF of this paper is available."
+                                </span>
+                            </div>
+
+                            {move || {
+                                let slug_dl = slug_store.get_value();
+                                if let Some(token) = download_token.get() {
+                                    // Token received — trigger download via link
+                                    let href = format!("/api/blog/{}/pdf?token={}", slug_dl, token);
+                                    view! {
+                                        <a href=href
+                                           download=true
+                                           class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
+                                            "↓ Download"
+                                        </a>
+                                    }.into_view()
+                                } else if requires_lead {
+                                    view! {
+                                        <button
+                                            id="blog-pdf-download-btn"
+                                            on:click=move |_| set_show_modal.set(true)
+                                            class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
+                                            {label.clone()}
+                                        </button>
+                                    }.into_view()
+                                } else {
+                                    let href = format!("/api/blog/{}/pdf", slug_dl);
+                                    view! {
+                                        <a href=href
+                                           class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
+                                            {label.clone()}
+                                        </a>
+                                    }.into_view()
+                                }
+                            }}
+                        </div>
+
+                        // Lead-gate modal (slide-in)
+                        {move || show_modal.get().then(|| view! {
+                            <div class="mt-0 border border-[#1B365D]/25 bg-[#f5f4ed] px-8 py-8 shadow-lg">
+                                <h3 class="font-display text-base font-bold text-[#1B365D] mb-6">
+                                    "Access the PDF"
+                                </h3>
+                                <div class="space-y-5">
+                                    <div>
+                                        <label class="jetbrains text-[0.6rem] uppercase tracking-widest text-[#6b6a64] block mb-1">
+                                            "Name (optional)"
+                                        </label>
+                                        <input
+                                            id="pdf-lead-name"
+                                            type="text"
+                                            placeholder="Your name"
+                                            prop:value=lead_name
+                                            on:input=move |ev| set_lead_name.set(event_target_value(&ev))
+                                            class="w-full bg-transparent border-b border-[#1B365D]/30 focus:border-[#1B365D] outline-none py-2 font-display text-sm text-[#141413] placeholder:text-[#6b6a64]/60"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="jetbrains text-[0.6rem] uppercase tracking-widest text-[#6b6a64] block mb-1">
+                                            "Email *"
+                                        </label>
+                                        <input
+                                            id="pdf-lead-email"
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            prop:value=lead_email
+                                            on:input=move |ev| set_lead_email.set(event_target_value(&ev))
+                                            class="w-full bg-transparent border-b border-[#1B365D]/30 focus:border-[#1B365D] outline-none py-2 font-display text-sm text-[#141413] placeholder:text-[#6b6a64]/60"
+                                        />
+                                    </div>
+                                    <div class="flex justify-between items-center pt-2">
+                                        <button
+                                            on:click=move |_| set_show_modal.set(false)
+                                            class="jetbrains text-[0.6rem] uppercase text-[#6b6a64] hover:text-[#141413] transition-colors">
+                                            "Cancel"
+                                        </button>
+                                        <button
+                                            id="pdf-lead-submit"
+                                            on:click=move |_| submit_action.dispatch(())
+                                            disabled=submitting
+                                            class="jetbrains text-[0.65rem] uppercase tracking-widest px-6 py-3 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors disabled:opacity-50">
+                                            {move || if submitting.get() { "⏳ Sending..." } else { "↓ Send & Download" }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        })}
+                    </div>
+                }.into_view()
+            }}
+        </Suspense>
     }
 }
