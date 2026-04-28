@@ -44,6 +44,19 @@ impl MigrationTrait for Migration {
                 v_blocks    JSONB;
                 i           INT;
             BEGIN
+                -- Guard: if the pages table hasn't been created yet (e.g. a fresh
+                -- test schema where migrations run in order), exit cleanly.
+                -- pg_catalog lookup avoids a hard 42P01 runtime error.
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_catalog.pg_class c
+                    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relname = 'pages'
+                      AND n.nspname = current_schema()
+                ) THEN
+                    RETURN;
+                END IF;
+
                 -- Locate the buildwithruud tenant (case-insensitive).
                 SELECT id INTO v_tenant_id
                 FROM tenant
@@ -110,6 +123,17 @@ impl MigrationTrait for Migration {
                 v_blocks    JSONB;
                 i           INT;
             BEGIN
+                -- Same table-existence guard as up().
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM pg_catalog.pg_class c
+                    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relname = 'pages'
+                      AND n.nspname = current_schema()
+                ) THEN
+                    RETURN;
+                END IF;
+
                 SELECT id INTO v_tenant_id FROM tenant WHERE name ILIKE '%buildwithruud%' LIMIT 1;
                 IF v_tenant_id IS NULL THEN RETURN; END IF;
 
