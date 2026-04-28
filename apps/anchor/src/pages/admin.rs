@@ -65,11 +65,30 @@ pub fn WebformsTable() -> impl IntoView {
     }
 }
 
+/// Three-state auth signal to prevent Leptos hydration mismatch.
+///
+/// The SSR pass renders `Pending` (a neutral skeleton) because the async
+/// session check hasn't run yet. The WASM hydrator also starts in `Pending`,
+/// so the server-rendered and client-rendered DOM always match at hydration
+/// time. The `create_effect` resolves to `Yes` or `No` immediately after
+/// WASM mounts, which triggers a clean reactive update — no `dyn_child`
+/// `unwrap()` on a `None` node.
+#[derive(Clone, PartialEq)]
+enum AuthState {
+    /// Initial state on both SSR and first WASM frame — renders a loading skeleton.
+    Pending,
+    /// Session check resolved to unauthenticated — renders login form.
+    No,
+    /// Session check resolved to authenticated — renders dashboard.
+    Yes,
+}
+
 #[component]
 pub fn Admin() -> impl IntoView {
     let query = leptos_router::use_query_map();
-    
-    let (is_authenticated, set_authenticated) = create_signal(false);
+
+    // Start in Pending — identical on SSR and initial WASM state.
+    let (auth_state, set_auth_state) = create_signal(AuthState::Pending);
     let (active_tab, set_active_tab) = create_signal("DASHBOARD");
     let (username, set_username) = create_signal(String::new());
     let (setup_token, set_setup_token) = create_signal(String::new());
@@ -91,12 +110,13 @@ pub fn Admin() -> impl IntoView {
             let q = query.get();
             if let Some(token) = q.get("token") {
                 if verify_magic_link(token.clone()).await.is_ok() {
-                    set_authenticated.set(true);
+                    set_auth_state.set(AuthState::Yes);
                     return;
                 }
             }
-            if let Ok(true) = check_session().await {
-                set_authenticated.set(true);
+            match check_session().await {
+                Ok(true) => set_auth_state.set(AuthState::Yes),
+                _        => set_auth_state.set(AuthState::No),
             }
         });
     });
@@ -136,8 +156,16 @@ pub fn Admin() -> impl IntoView {
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
-            {move || if !is_authenticated.get() {
-                view! {
+            {move || match auth_state.get() {
+                // ── Pending: identical on SSR and initial WASM frame ────────────
+                AuthState::Pending => view! {
+                    <div class="flex-1 flex justify-center items-center">
+                        <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
+                    </div>
+                }.into_view(),
+
+                // ── Unauthenticated ─────────────────────────────────────────────
+                AuthState::No => view! {
                     <div class="flex-1 flex justify-center items-center">
                         <div class="w-full max-w-lg bg-surface-container-highest p-1 lg:p-1 blueprint-overlay">
                             <div class="bg-surface-container-lowest p-12">
@@ -217,9 +245,10 @@ pub fn Admin() -> impl IntoView {
                             </div>
                         </div>
                     </div>
-                }.into_view()
-            } else {
-                view! {
+                }.into_view(),
+
+                // ── Authenticated ───────────────────────────────────────────────
+                AuthState::Yes => view! {
                     <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
                         // Sidebar
                         <aside class="w-full md:w-64 shrink-0 space-y-2">
@@ -246,7 +275,7 @@ pub fn Admin() -> impl IntoView {
                                 </div>
 
                             <button
-                                on:click=move |_| set_authenticated.set(false)
+                                on:click=move |_| set_auth_state.set(AuthState::No)
                                 class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
                             >
                                 "[ TERMINATE SESSION ]"
@@ -323,7 +352,7 @@ pub fn Admin() -> impl IntoView {
                             <AdminEditorModal />
                         </section>
                     </div>
-                }.into_view()
+                }.into_view(),
             }}
         </main>
     }

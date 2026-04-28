@@ -5,6 +5,7 @@ pub mod components;
 pub mod email;
 pub mod pages;
 pub mod resume_engine;
+pub mod utils;
 #[cfg(feature = "ssr")]
 pub mod state;
 #[cfg(feature = "ssr")]

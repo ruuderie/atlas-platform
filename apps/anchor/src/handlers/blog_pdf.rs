@@ -182,7 +182,18 @@ pub mod blog_pdf {
     }
 
     async fn fetch_remote_pdf(url: &str) -> Result<Vec<u8>, String> {
-        let response = reqwest::get(url)
+        // Layer 2b pre-flight: fast-fail on private/loopback IPs before any I/O.
+        // The admin-supplied pdf_attachment_url could point to internal services.
+        crate::components::widget_registry::enforce_ssrf_safe_fetch(url).await?;
+
+        // TOCTOU-safe client: IP validation is embedded in the DNS resolver,
+        // so the same resolution that passes the pre-flight is used to open
+        // the socket — no rebinding window between the two checks.
+        let client = crate::components::widget_registry::build_ssrf_safe_client()?;
+
+        let response = client
+            .get(url)
+            .send()
             .await
             .map_err(|e| e.to_string())?;
 
@@ -372,6 +383,24 @@ pub mod blog_pdf {
             assert!(!bytes.is_empty(), "PDF bytes should not be empty");
             // Minimal check for PDF file signature
             assert_eq!(&bytes[0..4], b"%PDF", "Output should have a PDF header");
+        }
+
+        /// Validates that `fetch_remote_pdf` rejects private/loopback IP addresses
+        /// via the SSRF pre-flight guard before any TCP connection is attempted.
+        /// This covers the CAUTION finding from the PR review.
+        #[tokio::test]
+        async fn test_fetch_remote_pdf_rejects_private_ip() {
+            // Loopback
+            let err = fetch_remote_pdf("http://127.0.0.1/secret.pdf").await;
+            assert!(err.is_err(), "loopback should be rejected");
+
+            // AWS cloud metadata
+            let err = fetch_remote_pdf("http://169.254.169.254/latest/meta-data/").await;
+            assert!(err.is_err(), "cloud metadata endpoint should be rejected");
+
+            // RFC-1918 private range
+            let err = fetch_remote_pdf("http://10.0.0.1/internal.pdf").await;
+            assert!(err.is_err(), "private network IP should be rejected");
         }
     }
 }

@@ -34,14 +34,7 @@ fn default_layout() -> String {
 
 /// Parses a bullet that may contain "Role: ...", "Action: ..." or "Impact: ..." labels.
 /// Returns a pair of (label, rest) when a label is detected, otherwise (None, full_text).
-fn parse_rai_bullet(b: &str) -> (Option<&str>, &str) {
-    for label in ["Role", "Action", "Impact"] {
-        if let Some(rest) = b.strip_prefix(&format!("{}: ", label)) {
-            return (Some(label), rest);
-        }
-    }
-    (None, b)
-}
+use crate::utils::text::parse_rai;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TimelineItem {
@@ -286,7 +279,7 @@ fn KamiTimelineItemView(item: TimelineItem, show_bullets: bool, show_date: bool)
                 view! {
                     <ul class="mt-4 space-y-2.5 list-none pl-0">
                         {item.bullets.into_iter().map(|b| {
-                            let (label, rest) = parse_rai_bullet(&b);
+                            let (label, rest) = parse_rai(&b);
                             let label = label.map(str::to_string);
                             let rest = rest.to_string();
                             view! {

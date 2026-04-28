@@ -205,6 +205,10 @@ pub fn PostForm(
     };
 
     let post_id_sv = store_value(id_val.clone());
+    // Error surfacing: captures server function failures so the user is
+    // notified inline instead of the modal silently closing on DB errors.
+    let (save_error, set_save_error) = create_signal::<Option<String>>(None);
+
     let save = move |_| {
         let t = title.get_untracked();
         let s = slug.get_untracked();
@@ -223,18 +227,26 @@ pub fn PostForm(
         let p_label = { let l = pdf_cta_label.get_untracked(); if l.is_empty() { None } else { Some(l) } };
         let p_email = { let e = pdf_notify_email.get_untracked(); if e.is_empty() { None } else { Some(e) } };
 
+        set_save_error.set(None); // clear prior error
         spawn_local(async move {
-            if is_edit {
-                let _ = crate::pages::blog::update_post(
+            let result = if is_edit {
+                crate::pages::blog::update_post(
                     current_id.clone(), s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
-                ).await;
+                ).await
             } else {
-                let _ = crate::pages::blog::add_post(
+                crate::pages::blog::add_post(
                     s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
-                ).await;
+                ).await
+            };
+            match result {
+                Ok(_) => {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                    set_modal_state.set(ModalState::None);
+                }
+                Err(e) => {
+                    set_save_error.set(Some(format!("Save failed: {}", e)));
+                }
             }
-            set_refresh.set(refresh.get_untracked() + 1);
-            set_modal_state.set(ModalState::None);
         });
     };
 
@@ -380,6 +392,12 @@ pub fn PostForm(
                     </div>
                 </div>
             </div>
+
+            <Show when=move || save_error.get().is_some()>
+                <div class="bg-error/10 border-l-4 border-error p-3 jetbrains text-xs text-error font-medium">
+                    {move || save_error.get().unwrap_or_default()}
+                </div>
+            </Show>
 
             <button on:click=save class="mt-8 bg-primary text-on-primary font-bold jetbrains uppercase w-full py-4 tracking-widest hover:bg-primary-container transition-colors">
                 "COMMIT TO DATABASE"

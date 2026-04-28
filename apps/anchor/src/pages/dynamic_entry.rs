@@ -2,16 +2,7 @@ use leptos::*;
 use leptos_router::*;
 use crate::resume_engine::get_single_tenant_entry;
 use crate::components::design_mode::use_kami_mode;
-
-/// Parses Role/Action/Impact prefix from a bullet string.
-fn parse_rai(b: &str) -> (Option<&str>, &str) {
-    for label in ["Role", "Action", "Impact"] {
-        if let Some(rest) = b.strip_prefix(&format!("{}: ", label)) {
-            return (Some(label), rest);
-        }
-    }
-    (None, b)
-}
+use crate::utils::text::parse_rai;
 
 #[component]
 pub fn DynamicEntry() -> impl IntoView {

@@ -719,28 +719,7 @@ fn render_post_html(post: &ContentNode) -> String {
 
 #[component]
 fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
-    // Generate excerpt: strip HTML tags and take first 180 chars.
-    fn excerpt(md: &str) -> String {
-        // Run through pulldown_cmark to get HTML, then strip tags.
-        let mut opts = pulldown_cmark::Options::empty();
-        opts.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
-        let parser = pulldown_cmark::Parser::new_ext(md, opts);
-        let mut html = String::new();
-        pulldown_cmark::html::push_html(&mut html, parser);
-        // Strip HTML tags with a simple approach
-        let text: String = html
-            .split('<')
-            .enumerate()
-            .map(|(i, s)| if i == 0 { s.to_string() } else { s.split_once('>').map(|(_, after)| after).unwrap_or("").to_string() })
-            .collect::<Vec<_>>()
-            .join("");
-        let trimmed = text.trim();
-        if trimmed.len() > 180 {
-            format!("{}\u{2026}", &trimmed[..180])
-        } else {
-            trimmed.to_string()
-        }
-    }
+    use crate::utils::text::markdown_excerpt;
 
     view! {
         <div class="max-w-3xl mx-auto px-4 pb-24">
@@ -755,7 +734,7 @@ fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
             <div class="space-y-4">
                 {posts.into_iter().map(|post| {
                     let href = post.link_url.clone().unwrap_or_else(|| "/blog".to_string());
-                    let exc = post.markdown.as_deref().map(excerpt).unwrap_or_default();
+                    let exc = post.markdown.as_deref().map(|md| markdown_excerpt(md, 180)).unwrap_or_default();
                     let date = post.date_label.clone().unwrap_or_default();
                     let tags = post.tags.clone();
 
