@@ -8,6 +8,7 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
+    use crate::utils::text::markdown_excerpt;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
@@ -33,6 +34,14 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
             let content_format = payload.get("content_format").and_then(|v| v.as_str()).unwrap_or("markdown").to_string();
             let link_url = format!("/blog/{}", slug);
 
+            // Compute excerpt on the server so WASM clients receive a plain string.
+            // pulldown_cmark runs here once, not once per post per client frame.
+            let excerpt = if content_format == "markdown" && !content.is_empty() {
+                Some(markdown_excerpt(&content, 180))
+            } else {
+                None
+            };
+
             ContentNode {
                 id: id.to_string(),
                 category: "blog_post".to_string(),
@@ -43,6 +52,7 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
                 tags,
                 bullets: vec![],
                 markdown: Some(content),
+                excerpt,
                 link_url: Some(link_url),
                 is_highlight: false,
                 content_format,
@@ -90,6 +100,7 @@ pub async fn get_post_by_slug(slug: String) -> Result<Option<ContentNode>, Serve
             tags,
             bullets: vec![],
             markdown: Some(content),
+            excerpt: None, // single-post view; excerpt not needed
             link_url: None,
             is_highlight: false,
             content_format,
@@ -719,7 +730,7 @@ fn render_post_html(post: &ContentNode) -> String {
 
 #[component]
 fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
-    use crate::utils::text::markdown_excerpt;
+    // Excerpt is pre-computed server-side in get_posts — no pulldown_cmark in WASM.
 
     view! {
         <div class="max-w-3xl mx-auto px-4 pb-24">
@@ -734,7 +745,7 @@ fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
             <div class="space-y-4">
                 {posts.into_iter().map(|post| {
                     let href = post.link_url.clone().unwrap_or_else(|| "/blog".to_string());
-                    let exc = post.markdown.as_deref().map(|md| markdown_excerpt(md, 180)).unwrap_or_default();
+                    let exc = post.excerpt.clone().unwrap_or_default();
                     let date = post.date_label.clone().unwrap_or_default();
                     let tags = post.tags.clone();
 
@@ -790,6 +801,9 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
     let (lead_email, set_lead_email) = create_signal(String::new());
     let (submitting, set_submitting) = create_signal(false);
     let (download_token, set_download_token) = create_signal(Option::<String>::None);
+    // Store the submitted email so it can be appended to the download URL
+    // for HMAC verification on the server (passed as plain ?email= param).
+    let (submitted_email, set_submitted_email) = create_signal(String::new());
 
     let slug_for_submit = slug_clone.clone();
     // Store slug in a StoredValue so multiple Fn closures can each call .get_value()
@@ -802,8 +816,9 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
         let name = if name_str.is_empty() { None } else { Some(name_str) };
         async move {
             set_submitting.set(true);
-            match submit_download_lead(slug, email, name).await {
+            match submit_download_lead(slug, email.clone(), name).await {
                 Ok(resp) => {
+                    set_submitted_email.set(email);
                     set_download_token.set(Some(resp.token));
                     set_show_modal.set(false);
                 }
@@ -839,8 +854,19 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                             {move || {
                                 let slug_dl = slug_store.get_value();
                                 if let Some(token) = download_token.get() {
-                                    // Token received — trigger download via link
-                                    let href = format!("/api/blog/{}/pdf?token={}", slug_dl, token);
+                                    // Token received — build download URL with email for
+                                    // server-side HMAC re-derivation. Email is not a secret;
+                                    // the HMAC is the cryptographic proof of identity.
+                                    let enc_email = submitted_email.get()
+                                        .bytes()
+                                        .map(|b| if b.is_ascii_alphanumeric() || b == b'@'
+                                                    || b == b'.' || b == b'-' || b == b'_' {
+                                            (b as char).to_string()
+                                        } else {
+                                            format!("%{:02X}", b)
+                                        })
+                                        .collect::<String>();
+                                    let href = format!("/api/blog/{}/pdf?token={}&email={}", slug_dl, token, enc_email);
                                     view! {
                                         <a href=href
                                            download=true

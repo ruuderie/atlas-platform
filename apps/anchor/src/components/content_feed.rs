@@ -12,6 +12,10 @@ pub struct ContentNode {
     pub tags: Vec<String>,
     pub bullets: Vec<String>,
     pub markdown: Option<String>,
+    /// Pre-computed plain-text excerpt (max 180 chars). Populated by the
+    /// `GetPosts` server function so WASM clients never run pulldown_cmark.
+    #[serde(default)]
+    pub excerpt: Option<String>,
     pub link_url: Option<String>,
     pub is_highlight: bool,
     /// Content rendering format: 'markdown' (default), 'latex', or 'mdlatex'

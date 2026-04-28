@@ -74,6 +74,7 @@ pub async fn get_projects() -> Result<Vec<ContentNode>, ServerFnError> {
                 tags,
                 bullets,
                 markdown: None,
+                excerpt: None,
                 link_url: if slug.is_empty() {
                     None
                 } else {

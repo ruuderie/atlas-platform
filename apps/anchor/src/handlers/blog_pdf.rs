@@ -34,6 +34,9 @@ pub mod blog_pdf {
     #[derive(Deserialize)]
     pub struct PdfQuery {
         pub token: Option<String>,
+        /// The email address used during lead capture, passed back as a plain
+        /// query parameter so the HMAC can be re-derived and verified.
+        pub email: Option<String>,
     }
 
     /// Top-level Axum handler for GET /api/blog/:slug/pdf
@@ -43,7 +46,7 @@ pub mod blog_pdf {
         State(state): State<AppState>,
         Extension(tenant): Extension<TenantContext>,
     ) -> Response {
-        match serve_blog_pdf(slug, params.token, state, tenant).await {
+        match serve_blog_pdf(slug, params.token, params.email, state, tenant).await {
             Ok(resp) => resp,
             Err(e) => {
                 leptos::logging::warn!("PDF handler error: {}", e);
@@ -55,6 +58,7 @@ pub mod blog_pdf {
     async fn serve_blog_pdf(
         slug: String,
         token: Option<String>,
+        email: Option<String>,
         state: AppState,
         tenant: TenantContext,
     ) -> Result<Response, String> {
@@ -83,7 +87,8 @@ pub mod blog_pdf {
 
         if requires_lead {
             let tok = token.ok_or_else(|| "Token required".to_string())?;
-            validate_token(&tok, &post_id.to_string(), &state)?;
+            let em  = email.as_deref().ok_or_else(|| "Email required for token verification".to_string())?;
+            validate_token(&tok, &post_id.to_string(), em, &state)?;
         }
 
         // 3. Determine the source — attachment URL takes priority
@@ -143,39 +148,56 @@ pub mod blog_pdf {
         Ok(response)
     }
 
-    /// Validates the short-lived HMAC token issued by SubmitDownloadLead.
-    /// Accepts the current 5-minute bucket and the immediately preceding one
-    /// to account for clock skew at bucket boundaries.
-    fn validate_token(token: &str, post_id: &str, state: &AppState) -> Result<(), String> {
+    /// Validates the short-lived HMAC token issued by `SubmitDownloadLead`.
+    ///
+    /// Token format (issued in `submit_download_lead`):
+    ///   `base64( HMAC-SHA256(ADMIN_PASSWORD, "{post_id}:{email}:{5_min_bucket}") )`
+    ///
+    /// The caller passes `email` back as a plain query parameter so we can
+    /// reconstruct the exact message that was signed.  We never embed the email
+    /// *inside* the opaque token — that would require the handler to trust the
+    /// token's own payload, defeating the purpose of the HMAC.
+    ///
+    /// Accepts the current bucket and the immediately preceding one to tolerate
+    /// requests that arrive up to ~5 minutes after the token was issued.
+    fn validate_token(
+        token: &str,
+        post_id: &str,
+        email: &str,
+        _state: &AppState,
+    ) -> Result<(), String> {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
 
+        if token.is_empty() || email.is_empty() {
+            return Err("Missing token or email".to_string());
+        }
+
         let secret =
             std::env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "fallback-secret".to_string());
+
+        let incoming =
+            base64::decode(token).map_err(|_| "Invalid token encoding".to_string())?;
+        // HMAC-SHA256 output is always 32 bytes; anything else is structurally invalid.
+        if incoming.len() != 32 {
+            return Err("Invalid token length".to_string());
+        }
+
         let now_bucket = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs()
             / 300;
 
-        // Decode the incoming token
-        let incoming = base64::decode(token).map_err(|_| "Invalid token encoding".to_string())?;
-
-        // Check current bucket and one prior (handles boundary crossing)
         for bucket in [now_bucket, now_bucket.saturating_sub(1)] {
-            // We need the email that was used — we can't reverse the HMAC.
-            // Strategy: query the DB for leads on this post that were created in the
-            // relevant 5-minute window and verify against each.
-            // For a production implementation, embed the email in the token payload.
-            // For now, accept any valid-format token by checking against a placeholder email.
-            // ⚠️ TODO: embed email in token and pass it back via query param for full validation.
-            let _ = (bucket, &state, &incoming);
-        }
-
-        // Lightweight validation: verify the token is a valid base64 string of the right length
-        // Full verification deferred to next PR when email is embedded in token payload.
-        if incoming.len() == 32 {
-            return Ok(());
+            let message = format!("{}:{}:{}", post_id, email, bucket);
+            let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+                .map_err(|e| e.to_string())?;
+            mac.update(message.as_bytes());
+            // `verify_slice` is constant-time — no timing oracle.
+            if mac.verify_slice(&incoming).is_ok() {
+                return Ok(());
+            }
         }
 
         Err("Invalid or expired token".to_string())
