@@ -26,6 +26,7 @@ use crate::pages::book::BookDiscovery;
 use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
 use crate::pages::landing::Landing;
 use crate::pages::legal::{Privacy, Terms};
+use crate::pages::onboarding::TenantOnboarding;
 
 #[cfg(feature = "ssr")]
 static PAGE_VIEW_CACHE: std::sync::OnceLock<moka::future::Cache<String, bool>> =
@@ -175,6 +176,7 @@ pub fn App() -> impl IntoView {
                                 <Route path="/terms" view=Terms/>
                                 <Route path="/privacy" view=Privacy/>
                                 <Route path="/p/*slug" view=DynamicLanding/>
+                                <Route path="/setup" view=TenantOnboarding/>
                                 <Route path="/admin" view=Admin/>
                                 <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
                             </Routes>
