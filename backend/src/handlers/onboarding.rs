@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State, Query},
-    http::StatusCode,
+    http::{StatusCode, HeaderMap},
     Json,
     routing::{get, post},
     Router,
@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::Utc;
 use std::collections::HashMap;
+use subtle::ConstantTimeEq;
 
 use crate::entities::onboarding_progress;
 use crate::atlas_apps::get_active_apps;
@@ -47,9 +48,22 @@ pub struct OnboardingStatusResponse {
 // REQUEST TYPES
 // ──────────────────────────────────────────────────────────────────────────────
 
+/// Query-param token — used only on the initial GET so the tenant's browser can
+/// load the page from the magic link. Mutations must use the Authorization header.
 #[derive(Deserialize)]
 pub struct TokenQuery {
     pub token: Option<String>,
+}
+
+/// Extracts the Bearer token from the Authorization header.
+/// Falls back to the query-param token for the GET endpoint only.
+fn extract_bearer(headers: &HeaderMap, fallback: Option<&str>) -> Option<String> {
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(|t| t.to_string())
+        .or_else(|| fallback.map(|t| t.to_string()))
 }
 
 #[derive(Deserialize)]
@@ -290,19 +304,25 @@ pub async fn dismiss_wizard(
 pub async fn get_onboarding_status_public(
     Path(app_instance_id): Path<Uuid>,
     Query(params): Query<TokenQuery>,
+    headers: HeaderMap,
     State(db): State<DatabaseConnection>,
 ) -> Result<(StatusCode, Json<OnboardingStatusResponse>), StatusCode> {
-    validate_setup_token(&db, app_instance_id, &params.token).await?;
+    // GET: accept token from query-param (magic link) OR Authorization header
+    let token = extract_bearer(&headers, params.token.as_deref());
+    validate_setup_token(&db, app_instance_id, &token).await?;
     let response = build_status_response(&db, app_instance_id).await?;
     Ok((StatusCode::OK, Json(response)))
 }
 
 pub async fn complete_step_public(
     Path((app_instance_id, step_id)): Path<(Uuid, String)>,
-    Query(params): Query<TokenQuery>,
+    headers: HeaderMap,
     State(db): State<DatabaseConnection>,
 ) -> Result<StatusCode, StatusCode> {
-    let instance = validate_setup_token(&db, app_instance_id, &params.token).await?;
+    // POST mutations: token MUST come from Authorization header — not query params
+    // (query params are logged by proxies and stored in browser history)
+    let token = extract_bearer(&headers, None);
+    let instance = validate_setup_token(&db, app_instance_id, &token).await?;
 
     upsert_progress(&db, instance.tenant_id, app_instance_id, &step_id, |m| {
         m.completed_at = Set(Some(Utc::now()));
@@ -317,7 +337,8 @@ pub async fn complete_step_public(
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Validates that the provided setup_token matches the one stored in TenantSettings
-/// for this app_instance. Returns the AppInstance model on success.
+/// for this app_instance. Uses constant-time comparison to prevent timing attacks.
+/// Returns the AppInstance model on success.
 async fn validate_setup_token(
     db: &DatabaseConnection,
     app_instance_id: Uuid,
@@ -342,7 +363,12 @@ async fn validate_setup_token(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    if stored.value != token {
+    // Constant-time comparison prevents timing-attack token enumeration.
+    // subtle::ConstantTimeEq operates on byte slices; always runs in O(min(a,b)) time.
+    let stored_bytes = stored.value.as_bytes();
+    let token_bytes = token.as_bytes();
+    let tokens_match = bool::from(stored_bytes.ct_eq(token_bytes));
+    if !tokens_match {
         return Err(StatusCode::UNAUTHORIZED);
     }
 

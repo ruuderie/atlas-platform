@@ -145,8 +145,18 @@ pub fn AppDashboard() -> impl IntoView {
                 Some(Ok(ref status)) if !status.is_ready && status.dismissed_at.is_none() => {
                     let ai = ob_site_id2.clone();
                     let tid = tenant_id_for_wizard.get();
+                    // on_dismiss: called by the wizard after the API call resolves.
+                    // Triggers a refetch so the parent banner appears immediately,
+                    // no page reload required.
+                    let on_dismiss = Callback::new(move |_: ()| {
+                        onboarding_status.refetch();
+                    });
                     view! {
-                        <OnboardingWizard app_instance_id=ai tenant_id=tid />
+                        <OnboardingWizard
+                            app_instance_id=ai
+                            tenant_id=tid
+                            on_dismiss=on_dismiss
+                        />
                     }.into_any()
                 }
                 _ => view! { <div></div> }.into_any()

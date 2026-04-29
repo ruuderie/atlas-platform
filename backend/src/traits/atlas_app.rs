@@ -126,6 +126,8 @@ pub trait AtlasApp: Send + Sync {
                     crate::entities::tenant_setting::Entity::find()
                         .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
                         .filter(crate::entities::tenant_setting::Column::Key.eq(key.as_str()))
+                        // A setting saved with an empty value must not count as complete
+                        .filter(crate::entities::tenant_setting::Column::Value.ne(""))
                         .count(db)
                         .await
                         .map(|c| c > 0)
@@ -140,21 +142,29 @@ pub trait AtlasApp: Send + Sync {
                         .unwrap_or(false)
                 }
                 StepCompletionCheck::EntityCountGte { table, min } => {
-                    // For generic tables we issue a raw count. This is intentionally
-                    // kept simple — apps needing complex checks should use Custom.
+                    // Use sea_query to build a safe, idiomatic COUNT query.
+                    // `table` is &'static str so no injection is possible, but
+                    // using the query builder is the correct architectural pattern.
+                    use sea_orm::sea_query::{Alias, Expr, Query, SelectStatement};
                     use sea_orm::{ConnectionTrait, Statement};
-                    let sql = format!(
-                        "SELECT COUNT(*) AS cnt FROM {} WHERE tenant_id = $1",
-                        table
-                    );
+
+                    let stmt: SelectStatement = Query::select()
+                        .expr(Expr::col(sea_orm::sea_query::Asterisk).count())
+                        .from(Alias::new(*table))
+                        .and_where(
+                            Expr::col(Alias::new("tenant_id")).eq(tenant_id.to_string())
+                        )
+                        .to_owned();
+
+                    let (sql, values) = stmt.build(sea_orm::sea_query::PostgresQueryBuilder);
                     let result = db.query_one(Statement::from_sql_and_values(
                         sea_orm::DatabaseBackend::Postgres,
                         &sql,
-                        vec![tenant_id.into()],
+                        values,
                     )).await;
                     match result {
                         Ok(Some(row)) => {
-                            let count: i64 = row.try_get("", "cnt").unwrap_or(0);
+                            let count: i64 = row.try_get("", "count").unwrap_or(0);
                             count >= *min as i64
                         }
                         _ => false,

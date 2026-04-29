@@ -56,15 +56,21 @@ pub async fn complete_onboarding_step(
     step_id: String,
     token: String,
 ) -> Result<(), ServerFnError> {
+    // POST mutation: token goes in Authorization header, not the query string.
+    // Query params are logged by reverse proxies, CDNs, and stored in browser history.
     let url = format!(
-        "{}/onboarding/step/{}/{}?token={}",
+        "{}/onboarding/step/{}/{}",
         crate::atlas_client::get_atlas_api_url(),
         app_instance_id,
         step_id,
-        token,
     );
     let client = reqwest::Client::new();
-    let res = client.post(&url).send().await.map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    let res = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
     if res.status().is_success() || res.status().as_u16() == 204 {
         Ok(())
     } else {

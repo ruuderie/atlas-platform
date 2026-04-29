@@ -42,6 +42,7 @@ fn IdentityStep(
     let ai = app_instance_id.clone();
     let save = move |_| {
         let title = site_title.get();
+        let tag = tagline.get();
         if title.trim().is_empty() {
             error.set(Some("Site name is required.".to_string()));
             return;
@@ -51,28 +52,44 @@ fn IdentityStep(
         saving.set(true);
         error.set(None);
         leptos::task::spawn_local(async move {
-            // Upsert tenant setting for site_title
             let base = crate::api::client::api_url(&format!("api/tenants/{}/settings", ai));
             let client = crate::api::client::create_client();
+
+            // 1. Save site_title (required)
             let payload = serde_json::json!({"key": "site_title", "value": title});
             let res = crate::api::client::with_credentials(client.post(&base).json(&payload))
                 .send()
                 .await;
             match res {
-                Ok(r) if r.status().is_success() => {
-                    // Also mark tagline if provided
+                Ok(r) if !r.status().is_success() => {
                     saving.set(false);
-                    on_complete.run(());
-                }
-                Ok(r) => {
-                    saving.set(false);
-                    error.set(Some(format!("Error: HTTP {}", r.status())));
+                    error.set(Some(format!("Error saving site name: HTTP {}", r.status())));
+                    return;
                 }
                 Err(e) => {
                     saving.set(false);
                     error.set(Some(e.to_string()));
+                    return;
+                }
+                _ => {}
+            }
+
+            // 2. Save tagline (optional — only if user provided one)
+            if !tag.trim().is_empty() {
+                let tl_payload = serde_json::json!({"key": "site_tagline", "value": tag});
+                let tl_res = crate::api::client::with_credentials(
+                    client.post(&base).json(&tl_payload)
+                )
+                .send()
+                .await;
+                if let Err(e) = tl_res {
+                    // Tagline failure is non-fatal — warn but still advance
+                    leptos::logging::warn!("Failed to save tagline: {}", e);
                 }
             }
+
+            saving.set(false);
+            on_complete.run(());
         });
     };
 
@@ -147,10 +164,32 @@ fn DomainStep(
                 .send()
                 .await;
             match res {
-                Ok(r) if r.status().is_success() || r.status().as_u16() == 409 => {
-                    // 409 = already exists, treat as success
+                Ok(r) if r.status().is_success() => {
                     saving.set(false);
                     on_complete.run(());
+                }
+                Ok(r) if r.status().as_u16() == 409 => {
+                    // A 409 means the domain record already exists, but we must
+                    // verify it belongs to THIS app_instance — not another tenant.
+                    // The backend returns {app_instance_id: "..."} in the 409 body.
+                    let body: serde_json::Value =
+                        r.json().await.unwrap_or(serde_json::Value::Null);
+                    let owner = body
+                        .get("app_instance_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if owner == ai {
+                        // Already bound to us — treat as a successful idempotent bind
+                        saving.set(false);
+                        on_complete.run(());
+                    } else {
+                        saving.set(false);
+                        error.set(Some(
+                            "This domain is already in use by another account. \
+                             Please use a different domain or contact support."
+                                .to_string(),
+                        ));
+                    }
                 }
                 Ok(r) => {
                     saving.set(false);
@@ -391,6 +430,8 @@ fn GenericCustomStep(
 
 #[component]
 fn OnboardingComplete(app_instance_id: String) -> impl IntoView {
+    // Use leptos_router::A for client-side SPA navigation (avoids full page reload)
+    use leptos_router::components::A;
     view! {
         <div class="text-center space-y-6 py-8">
             <div class="text-6xl animate-bounce">"🎉"</div>
@@ -400,13 +441,13 @@ fn OnboardingComplete(app_instance_id: String) -> impl IntoView {
                     "All required setup steps are complete. Your app is ready to go."
                 </p>
             </div>
-            <a
+            <A
                 href=format!("/apps/{}", app_instance_id)
-                id="ob-goto-dashboard"
-                class="inline-block py-3 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+                attr:id="ob-goto-dashboard"
+                attr:class="inline-block py-3 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
             >
                 "Go to Dashboard →"
-            </a>
+            </A>
         </div>
     }
 }
@@ -419,6 +460,11 @@ fn OnboardingComplete(app_instance_id: String) -> impl IntoView {
 pub fn OnboardingWizard(
     app_instance_id: String,
     tenant_id: String,
+    /// Called after the wizard is dismissed so the parent can refetch
+    /// `onboarding_status` and immediately show the persistent banner
+    /// without requiring a page reload.
+    #[prop(optional)]
+    on_dismiss: Option<Callback<()>>,
 ) -> impl IntoView {
     let ai = app_instance_id.clone();
     let status: LocalResource<Result<OnboardingStatusResponse, String>> =
@@ -433,8 +479,13 @@ pub fn OnboardingWizard(
     let ai_dismiss = app_instance_id.clone();
     let dismiss = StoredValue::new(move |_: web_sys::MouseEvent| {
         let ai = ai_dismiss.clone();
+        let cb = on_dismiss.clone();
         leptos::task::spawn_local(async move {
             let _ = dismiss_wizard(&ai).await;
+            // Notify the parent to refetch so the banner appears immediately
+            if let Some(f) = cb {
+                f.run(());
+            }
         });
         dismissed.set(true);
     });
