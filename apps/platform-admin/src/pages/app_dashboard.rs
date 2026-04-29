@@ -13,6 +13,8 @@ use shared_ui::components::ui::label::Label;
 use shared_ui::components::ui::related_list::RelatedList;
 
 use crate::components::upsell_banner::UpsellBanner;
+use crate::components::onboarding_wizard::OnboardingWizard;
+use crate::api::onboarding::get_onboarding_status;
 
 #[component]
 pub fn AppDashboard() -> impl IntoView {
@@ -98,7 +100,26 @@ pub fn AppDashboard() -> impl IntoView {
         }
     });
 
-    // Local database resources automatically populate children panes
+    // ── Onboarding readiness gate ──────────────────────────────────────────
+    // Fetches step status and drives the full-page wizard takeover.
+    let ob_site_id = site_id_str.clone();
+    let onboarding_status = LocalResource::new(move || {
+        let sid = ob_site_id.clone();
+        async move { get_onboarding_status(&sid).await }
+    });
+
+    // Derive per-instance tenant_id from the dirs context for the wizard
+    let tenant_id_for_wizard = Signal::derive(move || {
+        let current_id = site_id();
+        if let Some(d) = dirs.get() {
+            d.into_iter()
+                .find(|dir| dir.instance_id.to_string() == current_id)
+                .map(|dir| dir.tenant_id.to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        }
+    });
 
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
@@ -114,10 +135,56 @@ pub fn AppDashboard() -> impl IntoView {
         crate::components::app_manifest::get_manifest_for_app_type(&app_type_str)
     });
 
+    let ob_site_id2 = site_id_str.clone();
+    let ob_site_id3 = site_id_str.clone();
+
     view! {
-        <Show 
-            when=move || dirs.get().is_some() 
-            fallback=|| view! { 
+        // ── Onboarding Wizard — full-page takeover ─────────────────────────
+        {move || {
+            match onboarding_status.get() {
+                Some(Ok(ref status)) if !status.is_ready && status.dismissed_at.is_none() => {
+                    let ai = ob_site_id2.clone();
+                    let tid = tenant_id_for_wizard.get();
+                    view! {
+                        <OnboardingWizard app_instance_id=ai tenant_id=tid />
+                    }.into_any()
+                }
+                _ => view! { <div></div> }.into_any()
+            }
+        }}
+        // ── Persistent incomplete banner (shown after dismissal) ────────────
+        {move || {
+            match onboarding_status.get() {
+                Some(Ok(ref status)) if !status.is_ready && status.dismissed_at.is_some() => {
+                    let incomplete = status.steps.iter()
+                        .filter(|s| s.is_required && !s.is_complete)
+                        .count();
+                    let ob_sid = ob_site_id3.clone();
+                    view! {
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mb-4 mx-6 mt-4">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-600 text-lg">"⚠️"</span>
+                                <p class="text-sm text-amber-800 font-medium">
+                                    {format!("{} required setup step{} remaining before your app goes live.",
+                                        incomplete, if incomplete == 1 { "" } else { "s" })}
+                                </p>
+                            </div>
+                            <a
+                                href=format!("/apps/{}", ob_sid)
+                                id="ob-reopen-wizard"
+                                class="text-sm text-amber-700 underline font-semibold whitespace-nowrap"
+                            >
+                                "Resume Setup →"
+                            </a>
+                        </div>
+                    }.into_any()
+                }
+                _ => view! { <div></div> }.into_any()
+            }
+        }}
+        <Show
+            when=move || dirs.get().is_some()
+            fallback=|| view! {
                 <div class="p-8 text-center text-on-surface-variant flex flex-col items-center justify-center min-h-[400px]">
                     <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
                     "Loading Application Workspace..."

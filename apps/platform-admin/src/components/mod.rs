@@ -6,3 +6,4 @@ pub mod recommended_partners;
 pub mod milestone_modal;
 pub mod app_manifest;
 pub mod upsell_banner;
+pub mod onboarding_wizard;

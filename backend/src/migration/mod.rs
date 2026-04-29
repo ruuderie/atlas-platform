@@ -57,6 +57,9 @@ pub mod m20260416_000002_seed_buildwithruud_block_pages;
 pub mod m20260417_000001_seed_design_system_config;
 pub mod m20260417_000002_fix_buildwithruud_pages;
 
+// ONBOARDING SYSTEM
+pub mod m20260429_000001_create_onboarding_progress;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -103,6 +106,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260416_000002_seed_buildwithruud_block_pages::Migration),
             Box::new(m20260417_000001_seed_design_system_config::Migration),
             Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
+            // ONBOARDING SYSTEM — must follow tenant shift and app_instances table
+            Box::new(m20260429_000001_create_onboarding_progress::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

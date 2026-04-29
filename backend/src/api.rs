@@ -15,7 +15,7 @@
  */
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search, forms};
+use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search, forms, onboarding};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
@@ -64,6 +64,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(magic_links::public_routes())
         .merge(app_instance::public_routes(db.clone()))
         .merge(app_menus::public_routes(db.clone()))
+        // Tenant self-service onboarding wizard (token-gated)
+        .merge(onboarding::public_routes(db.clone()))
         .route("/health", get(health::health_check));
 
     for app in crate::atlas_apps::get_active_apps() {
@@ -94,7 +96,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(communications::authenticated_routes(db.clone()))
         .merge(search::authenticated_routes())
         .merge(crate::handlers::audit_logs::authenticated_routes())
-        .merge(crate::handlers::telemetry::authenticated_routes());
+        .merge(crate::handlers::telemetry::authenticated_routes())
+        // Platform admin onboarding wizard
+        .merge(onboarding::authenticated_routes(db.clone()));
 
     for app in crate::atlas_apps::get_active_apps() {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));
