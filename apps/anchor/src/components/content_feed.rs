@@ -82,14 +82,38 @@ pub fn ContentFeed(
         LayoutMode::List => view! {
             <div class="space-y-12 max-w-4xl">
                 {nodes.into_iter().map(|node| {
-                    let html_output = if let Some(md) = &node.markdown {
-                        let mut options = pulldown_cmark::Options::empty();
-                        options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
-                        options.insert(pulldown_cmark::Options::ENABLE_TABLES);
-                        let parser = pulldown_cmark::Parser::new_ext(md, options);
-                        let mut html = String::new();
-                        pulldown_cmark::html::push_html(&mut html, parser);
-                        html
+                    // Build a 140-char plain-text preview from the raw markdown.
+                    // We strip the most common markdown tokens so the snippet reads
+                    // cleanly without stray #, *, `, or other control characters.
+                    let preview = if let Some(md) = &node.markdown {
+                        // Strip common markdown syntax tokens
+                        let plain = md
+                            .lines()
+                            .filter(|l| !l.trim_start().starts_with("```") && !l.trim_start().starts_with("---"))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        let plain = {
+                            let mut s = plain;
+                            // headers
+                            while let Some(i) = s.find('#') {
+                                if s[i..].starts_with("# ") || s[i..].starts_with("## ") || s[i..].starts_with("### ") {
+                                    s = s[i..].trim_start_matches('#').trim_start().to_string();
+                                } else {
+                                    break;
+                                }
+                            }
+                            // bold / italic / inline-code: strip * _ `
+                            s.chars()
+                                .filter(|&c| c != '*' && c != '_' && c != '`' && c != '~')
+                                .collect::<String>()
+                        };
+                        // Collapse extra whitespace
+                        let plain = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+                        if plain.chars().count() > 140 {
+                            format!("{}…", &plain[..plain.char_indices().nth(140).map(|(i, _)| i).unwrap_or(plain.len())])
+                        } else {
+                            plain
+                        }
                     } else {
                         String::new()
                     };
@@ -104,27 +128,15 @@ pub fn ContentFeed(
                                     </span>
                                 })}
                             </div>
-                            
-                            {(!html_output.is_empty()).then(|| view! {
-                                <div class="text-on-surface-variant leading-relaxed text-sm mb-6 max-w-2xl prose prose-invert prose-p:text-sm prose-a:text-secondary prose-a:no-underline hover:prose-a:underline" inner_html=html_output>
-                                    {
-                                        #[cfg(target_arch = "wasm32")]
-                                        let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
-                                    }
-                                </div>
-                            })}
-                            
-                            {(!node.bullets.is_empty()).then(|| view! {
-                                <ul class="text-on-surface-variant leading-relaxed text-sm mb-6 space-y-4 list-none p-0 m-0">
-                                    {node.bullets.into_iter().map(|b| view! {
-                                        <li class="relative pl-5 before:content-['//'] before:absolute before:-left-1 before:text-secondary before:font-bold before:jetbrains">
-                                            {b}
-                                        </li>
-                                    }).collect_view()}
-                                </ul>
+
+                            {(!preview.is_empty()).then(|| view! {
+                                <p class="text-on-surface-variant text-sm leading-relaxed mb-4 max-w-2xl">
+                                    {preview}
+                                    <span class="text-secondary font-semibold ml-1">"Read more →"</span>
+                                </p>
                             })}
 
-                            <div class="flex flex-wrap gap-4 mt-6">
+                            <div class="flex flex-wrap gap-4 mt-4">
                                 {node.tags.into_iter().map(|tag| view! {
                                     <span class="bg-surface-container-highest px-3 py-1 jetbrains text-[0.65rem] font-bold text-on-surface-variant uppercase">{tag}</span>
                                 }).collect_view()}
