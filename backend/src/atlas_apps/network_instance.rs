@@ -60,7 +60,6 @@ impl AtlasApp for NetworkInstanceApp {
         vec![]
     }
 
-    /// Network Instance onboarding steps, in the order the wizard presents them.
     fn onboarding_steps(&self) -> Vec<OnboardingStep> {
         vec![
             OnboardingStep {
@@ -68,6 +67,7 @@ impl AtlasApp for NetworkInstanceApp {
                 title: "Network Identity".to_string(),
                 description: "Set your network's name and tagline so members know what it's about.".to_string(),
                 is_required: true,
+                position: 1,
                 completion_check: StepCompletionCheck::TenantSettingExists {
                     key: "site_title".to_string(),
                 },
@@ -77,6 +77,7 @@ impl AtlasApp for NetworkInstanceApp {
                 title: "Custom Domain".to_string(),
                 description: "Connect your domain so your network has its live web address.".to_string(),
                 is_required: true,
+                position: 2,
                 completion_check: StepCompletionCheck::AppDomainExists,
             },
             OnboardingStep {
@@ -84,6 +85,7 @@ impl AtlasApp for NetworkInstanceApp {
                 title: "Categories".to_string(),
                 description: "Add at least one category to organize your listings.".to_string(),
                 is_required: true,
+                position: 3,
                 completion_check: StepCompletionCheck::EntityCountGte {
                     table: "category",
                     min: 1,
@@ -94,6 +96,7 @@ impl AtlasApp for NetworkInstanceApp {
                 title: "Listing Template".to_string(),
                 description: "Choose a listing template from the library to define how listings appear.".to_string(),
                 is_required: true,
+                position: 4,
                 completion_check: StepCompletionCheck::EntityCountGte {
                     table: "template",
                     min: 1,
@@ -104,6 +107,7 @@ impl AtlasApp for NetworkInstanceApp {
                 title: "First Listing".to_string(),
                 description: "Add your first listing to populate the network for members.".to_string(),
                 is_required: false,
+                position: 5,
                 completion_check: StepCompletionCheck::EntityCountGte {
                     table: "listing",
                     min: 1,

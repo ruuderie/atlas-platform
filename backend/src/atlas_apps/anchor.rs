@@ -21,11 +21,15 @@ impl AtlasApp for AnchorApp {
     }
 
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
-        // Extract isolated Anchor specific tables correctly away from Core Infrastructure.
+        // The legacy table migration is kept in history so the migration runner's
+        // applied-migrations log remains consistent on existing environments.
+        // The subsequent drop migration tears down those tables on any environment
+        // where they were created, and is a no-op on fresh clean installs.
         vec![
             Box::new(crate::migration::m20260408_000002_create_anchor_legacy_tables::Migration),
             Box::new(crate::migration::m20260408_000003_seed_anchor_background_jobs::Migration),
             Box::new(crate::migration::m20260408_000004_fix_anchor_tables_and_seed::Migration),
+            Box::new(crate::migration::m20260430_000001_drop_anchor_legacy_tables::Migration),
         ]
     }
 
@@ -53,6 +57,8 @@ impl AtlasApp for AnchorApp {
 
     /// Anchor onboarding steps, in the order the wizard presents them.
     /// Steps are evaluated server-side against real data — not flags.
+    /// `position` is explicit so the frontend wizard has a stable sort key
+    /// that is independent of Vec insertion order.
     fn onboarding_steps(&self) -> Vec<OnboardingStep> {
         vec![
             OnboardingStep {
@@ -60,6 +66,7 @@ impl AtlasApp for AnchorApp {
                 title: "Brand Identity".to_string(),
                 description: "Set your site name and tagline so visitors know who you are.".to_string(),
                 is_required: true,
+                position: 1,
                 completion_check: StepCompletionCheck::TenantSettingExists {
                     key: "site_title".to_string(),
                 },
@@ -69,6 +76,7 @@ impl AtlasApp for AnchorApp {
                 title: "Custom Domain".to_string(),
                 description: "Connect your domain so your site has its live web address.".to_string(),
                 is_required: true,
+                position: 2,
                 completion_check: StepCompletionCheck::AppDomainExists,
             },
             OnboardingStep {
@@ -76,6 +84,7 @@ impl AtlasApp for AnchorApp {
                 title: "Design Theme".to_string(),
                 description: "Choose your color palette and typography to match your brand.".to_string(),
                 is_required: true,
+                position: 3,
                 completion_check: StepCompletionCheck::TenantSettingExists {
                     key: "design_config".to_string(),
                 },
@@ -85,6 +94,7 @@ impl AtlasApp for AnchorApp {
                 title: "Your First Page".to_string(),
                 description: "Create your home page so your site has something to show visitors.".to_string(),
                 is_required: true,
+                position: 4,
                 completion_check: StepCompletionCheck::EntityCountGte {
                     table: "app_page",
                     min: 1,
@@ -95,6 +105,7 @@ impl AtlasApp for AnchorApp {
                 title: "Audience Mode".to_string(),
                 description: "Tell us whether your site targets businesses (B2B) or consumers (B2C).".to_string(),
                 is_required: false,
+                position: 5,
                 completion_check: StepCompletionCheck::TenantSettingExists {
                     key: "b2b_mode".to_string(),
                 },

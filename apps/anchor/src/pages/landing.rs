@@ -102,27 +102,49 @@ impl Default for SiteSettings {
 pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::atlas_client::fetch_atlas_data;
-    use serde_json::Value;
+    use sqlx::Row;
 
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
 
     let mut settings = SiteSettings::default();
 
     if let Some(tenant_id) = tenant.0 {
-        let endpoint = format!("/api/app-instances/{}/anchor", tenant_id);
-        
-        #[derive(serde::Deserialize)]
-        struct AppInstanceResponse {
-            settings: Option<Value>,
-        }
-        
-        if let Ok(res) = fetch_atlas_data::<AppInstanceResponse>(&endpoint, Some(tenant_id), host).await {
-            if let Some(json_settings) = res.settings {
-                if let Ok(parsed) = serde_json::from_value::<SiteSettings>(json_settings) {
-                    settings = parsed;
+        if let Ok(rows) = sqlx::query("SELECT key, value FROM tenant_setting WHERE tenant_id = $1")
+            .bind(tenant_id)
+            .fetch_all(&state.pool)
+            .await {
+            for row in rows {
+                let key: String = row.get("key");
+                let val: String = row.get("value");
+                match key.as_str() {
+                    "current_focus" => settings.current_focus = val,
+                    "status" => settings.status = val,
+                    "hero_quote" => settings.hero_quote = val,
+                    "hero_subtitle" => settings.hero_subtitle = val,
+                    "site_title" => settings.site_title = val,
+                    "lead_capture_title" => settings.lc_title = val,
+                    "lead_capture_desc" => settings.lc_desc = val,
+                    "lead_capture_label" => settings.lc_label = val,
+                    "lead_capture_placeholder" => settings.lc_placeholder = val,
+                    "lead_capture_btn" => settings.lc_btn = val,
+                    "lead_capture_footer" => settings.lc_footer = val,
+                    "lead_capture_endpoint" => settings.lc_endpoint = val,
+                    "status_color" => settings.status_color = val,
+                    "webhook_url" => settings.webhook_url = val,
+                    "admin_email" => settings.admin_email = val,
+                    "google_analytics_id" => settings.google_analytics_id = val,
+                    "booking_url" => settings.booking_url = val,
+                    "terms_html" => settings.terms_html = val,
+                    "privacy_html" => settings.privacy_html = val,
+                    "github_url" => settings.github_url = val,
+                    "x_url" => settings.x_url = val,
+                    "linkedin_url" => settings.linkedin_url = val,
+                    "b2b_enabled" => settings.b2b_enabled = val == "true",
+                    "meta_title" => settings.meta_title = val,
+                    "meta_description" => settings.meta_description = val,
+                    "og_image" => settings.og_image = val,
+                    _ => {}
                 }
             }
         }
@@ -170,96 +192,96 @@ pub async fn update_site_settings(
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tid = tenant.0;
 
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'current_focus' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'current_focus', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(current_focus)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'status' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'status', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(status)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'hero_quote' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'hero_quote', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(hero_quote)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'hero_subtitle' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'hero_subtitle', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(hero_subtitle)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'site_title' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'site_title', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(site_title)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_title' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_title', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_title)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_desc' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_desc', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_desc)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_label' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_label', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_label)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_placeholder' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_placeholder', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_placeholder)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_btn' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_btn', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_btn)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_footer' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_footer', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_footer)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'lead_capture_endpoint' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'lead_capture_endpoint', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(lc_endpoint)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'status_color' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'status_color', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(status_color)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'webhook_url' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'webhook_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(webhook_url)
         .bind(tid)
         .execute(&state.pool)
         .await?;
-    sqlx::query("UPDATE site_settings SET value = $1 WHERE key = 'admin_email' AND tenant_id IS NOT DISTINCT FROM $2")
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'admin_email', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()")
         .bind(admin_email)
         .bind(tid)
         .execute(&state.pool)
         .await?;
         
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'google_analytics_id', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(google_analytics_id).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'booking_url', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(booking_url).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'terms_html', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(terms_html).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'privacy_html', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(privacy_html).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'github_url', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(github_url).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'x_url', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(x_url).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'linkedin_url', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(linkedin_url).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'google_analytics_id', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(google_analytics_id).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'booking_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(booking_url).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'terms_html', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(terms_html).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'privacy_html', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(privacy_html).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'github_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(github_url).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'x_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(x_url).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'linkedin_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(linkedin_url).bind(tid).execute(&state.pool).await?;
 
     let b2b_str = if b2b_enabled { "true" } else { "false" };
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'b2b_enabled', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(b2b_str).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'b2b_enabled', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(b2b_str).bind(tid).execute(&state.pool).await?;
 
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'meta_title', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(meta_title).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'meta_description', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(meta_description).bind(tid).execute(&state.pool).await?;
-    sqlx::query("INSERT INTO site_settings (tenant_id, key, value) VALUES ($2, 'og_image', $1) ON CONFLICT (tenant_id, key) DO UPDATE SET value = $1").bind(og_image).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'meta_title', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(meta_title).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'meta_description', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(meta_description).bind(tid).execute(&state.pool).await?;
+    sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'og_image', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(og_image).bind(tid).execute(&state.pool).await?;
 
     Ok(())
 }

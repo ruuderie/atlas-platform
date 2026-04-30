@@ -33,7 +33,7 @@ impl std::fmt::Display for JobType {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct JobRecord {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub date_range: String,
     pub role: String,
     pub company: String,
@@ -51,14 +51,15 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
     use sqlx::Row;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, title, date_range, bullets, metadata FROM tenant_entries WHERE category = 'work' ORDER BY id DESC")
+    let rows = sqlx::query("SELECT id, title, payload FROM app_content WHERE collection_type = 'resume_entry' ORDER BY created_at DESC")
         .fetch_all(&state.pool)
         .await?;
 
     let jobs = rows
         .into_iter()
         .map(|row| {
-            let meta: Option<serde_json::Value> = row.try_get("metadata").unwrap_or(None);
+            let payload: serde_json::Value = row.get("payload");
+            let meta: Option<serde_json::Value> = payload.get("metadata").cloned();
             let company = meta
                 .as_ref()
                 .and_then(|m| m.get("company"))
@@ -94,15 +95,15 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
                         .unwrap_or_default()
                 });
 
-            let bullets_val: serde_json::Value =
-                row.try_get("bullets").unwrap_or(serde_json::json!([]));
-            let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
-            let date_range_opt: Option<String> = row.try_get("date_range").unwrap_or(None);
+            let bullets = payload.get("bullets").and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+            let date_range_opt = payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string());
 
             JobRecord {
                 id: row.get("id"),
                 date_range: date_range_opt.unwrap_or_default(),
-                role: row.get("title"),
+                role: payload.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                 company,
                 bullets,
                 employment_type,
@@ -122,7 +123,7 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
 
 #[component]
 pub fn Resume() -> impl IntoView {
-    let download_pdf = create_action(|id: &i32| {
+    let download_pdf = create_action(|id: &uuid::Uuid| {
         let profile_id = *id;
         use crate::resume_engine::download_resume;
         async move {
@@ -162,7 +163,7 @@ pub fn Resume() -> impl IntoView {
         },
     );
 
-    let (active_profile_id, set_active_profile_id) = create_signal(None::<i32>);
+    let (active_profile_id, set_active_profile_id) = create_signal(None::<uuid::Uuid>);
     let (show_modal, set_show_modal) = create_signal(false);
     let (lead_name, set_lead_name) = create_signal(String::new());
     let (lead_email, set_lead_email) = create_signal(String::new());
@@ -245,14 +246,14 @@ pub fn Resume() -> impl IntoView {
                                     <select
                                         class="bg-surface border-2 border-outline-variant/30 text-on-surface text-sm font-bold jetbrains px-4 py-2 outline-none focus:border-primary transition-colors cursor-pointer w-full md:w-auto"
                                         on:change=move |ev| {
-                                            if let Ok(id) = event_target_value(&ev).parse::<i32>() {
+                                            if let Ok(id) = event_target_value(&ev).parse::<uuid::Uuid>() {
                                                 set_active_profile_id.set(Some(id));
                                             }
                                         }
                                     >
                                         {profiles.into_iter().map(|p| view! {
                                             <option
-                                                value=p.id
+                                                value=p.id.to_string()
                                                 selected=move || active_profile_id.get() == Some(p.id)
                                             >
                                                 {p.name}

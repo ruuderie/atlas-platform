@@ -129,10 +129,7 @@ pub fn PostForm(
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_post.is_some();
-    let id_val = initial_post
-        .as_ref()
-        .and_then(|p| p.id.parse::<i32>().ok())
-        .unwrap_or(0);
+    let id_val = initial_post.as_ref().map(|p| p.id.clone());
 
     let (title, set_title) = create_signal(
         initial_post
@@ -159,6 +156,7 @@ pub fn PostForm(
             .unwrap_or_default(),
     );
 
+    let current_id = id_val.clone();
     let save = move |_| {
         let t = title.get_untracked();
         let s = slug.get_untracked();
@@ -169,10 +167,11 @@ pub fn PostForm(
             .map(|x| x.trim().to_string())
             .filter(|x: &String| !x.is_empty())
             .collect();
+        let cid = current_id.clone();
 
         spawn_local(async move {
             if is_edit {
-                let _ = crate::pages::blog::update_post(id_val, s, t, c, tg).await;
+                let _ = crate::pages::blog::update_post(uuid::Uuid::parse_str(&cid.clone().unwrap()).unwrap_or_default(), s, t, c, tg).await;
             } else {
                 let _ = crate::pages::blog::add_post(s, t, c, tg).await;
             }
@@ -624,7 +623,7 @@ pub fn ResumeProfileForm(
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_profile.is_some();
-    let id_val = initial_profile.as_ref().map(|p| p.id).unwrap_or(0);
+    let id_val = initial_profile.as_ref().map(|p| p.id);
 
     let (name, set_name) = create_signal(
         initial_profile
@@ -743,8 +742,8 @@ pub fn ResumeProfileForm(
     let mapped_res = create_resource(
         move || (),
         move |_| async move {
-            if id_val > 0 {
-                crate::resume_engine::get_profile_entry_mappings(id_val).await
+            if let Some(id) = id_val {
+                crate::resume_engine::get_profile_entry_mappings(id).await
             } else {
                 Ok(vec![])
             }
@@ -752,9 +751,9 @@ pub fn ResumeProfileForm(
     );
 
     let (active_entries, set_active_entries) =
-        create_signal(std::collections::HashMap::<i32, Option<serde_json::Value>>::new());
+        create_signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
     let (expanded_entries, set_expanded_entries) =
-        create_signal(std::collections::HashSet::<i32>::new());
+        create_signal(std::collections::HashSet::<uuid::Uuid>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -766,7 +765,7 @@ pub fn ResumeProfileForm(
         }
     });
 
-    let toggle_entry = move |eid: i32, checked: bool| {
+    let toggle_entry = move |eid: uuid::Uuid, checked: bool| {
         set_active_entries.update(|state| {
             if checked && !state.contains_key(&eid) {
                 state.insert(eid, None);
@@ -779,7 +778,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let toggle_expand = move |eid: i32| {
+    let toggle_expand = move |eid: uuid::Uuid| {
         set_expanded_entries.update(|e| {
             if e.contains(&eid) {
                 e.remove(&eid);
@@ -789,7 +788,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let update_override = move |eid: i32, key: &str, val: String| {
+    let update_override = move |eid: uuid::Uuid, key: &str, val: String| {
         set_active_entries.update(|state| {
             if let Some(opt_val) = state.get_mut(&eid) {
                 let mut obj = opt_val.take().unwrap_or_else(|| serde_json::json!({}));
@@ -812,7 +811,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let get_override = move |eid: i32, key: &str| -> String {
+    let get_override = move |eid: uuid::Uuid, key: &str| -> String {
         active_entries.with(|state| {
             state
                 .get(&eid)
@@ -911,7 +910,7 @@ pub fn ResumeProfileForm(
         spawn_local(async move {
             if is_edit {
                 let _ = crate::resume_engine::update_resume_profile(
-                    id_val, n, fnm, obj, p_pub, tr, ce, cp, clo, cli, cv, co, ae,
+                    id_val.clone().unwrap(), n, fnm, obj, p_pub, tr, ce, cp, clo, cli, cv, co, ae,
                 )
                 .await;
             } else {
@@ -1651,7 +1650,7 @@ pub fn BaseResumeEntryForm(
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_entry.is_some();
-    let id_val = initial_entry.as_ref().map(|e| e.id).unwrap_or(0);
+    let id_val = initial_entry.as_ref().map(|e| e.id);
 
     let (category_str, set_category_str) = create_signal(
         initial_entry
@@ -1704,15 +1703,15 @@ pub fn BaseResumeEntryForm(
     let mapped_res = create_resource(
         move || (),
         move |_| async move {
-            if id_val > 0 {
-                crate::resume_engine::get_entry_profile_mappings(id_val).await
+            if let Some(id) = id_val {
+                crate::resume_engine::get_entry_profile_mappings(id).await
             } else {
                 Ok(vec![])
             }
         },
     );
 
-    let (active_profiles, set_active_profiles) = create_signal(Vec::<i32>::new());
+    let (active_profiles, set_active_profiles) = create_signal(Vec::<uuid::Uuid>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -1720,7 +1719,7 @@ pub fn BaseResumeEntryForm(
         }
     });
 
-    let toggle_profile = move |pid: i32, checked: bool| {
+    let toggle_profile = move |pid: uuid::Uuid, checked: bool| {
         set_active_profiles.update(|state| {
             if checked && !state.contains(&pid) {
                 state.push(pid);
@@ -1770,7 +1769,7 @@ pub fn BaseResumeEntryForm(
 
         spawn_local(async move {
             if is_edit {
-                let _ = update_base_entry(id_val, cat_val, t, sub, dr, b, md, profs).await;
+                let _ = update_base_entry(id_val.clone().unwrap(), cat_val, t, sub, dr, b, md, profs).await;
             } else {
                 let _ = add_base_entry(cat_val, t, sub, dr, b, md, profs).await;
             }

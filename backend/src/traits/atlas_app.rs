@@ -62,6 +62,9 @@ pub struct OnboardingStep {
     pub description: String,
     /// Required steps block the "launch ready" state. Optional steps can be skipped.
     pub is_required: bool,
+    /// Explicit display order exposed to the frontend wizard.
+    /// Prevents ordering from being implicitly coupled to Vec insertion order.
+    pub position: u8,
     /// How the backend evaluates whether this step is complete
     pub completion_check: StepCompletionCheck,
 }
@@ -106,6 +109,9 @@ pub trait AtlasApp: Send + Sync {
     ///
     /// The default implementation uses `onboarding_steps()` and evaluates each
     /// `StepCompletionCheck` against the database. Apps may override for custom logic.
+    ///
+    /// Performance: TenantSetting checks are batched into a single query evaluated in
+    /// memory, rather than issuing one COUNT per step (N+1 anti-pattern).
     async fn onboarding_readiness(
         &self,
         db: &DatabaseConnection,
@@ -113,25 +119,30 @@ pub trait AtlasApp: Send + Sync {
         app_instance_id: Uuid,
     ) -> Result<Vec<String>, String> {
         use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, PaginatorTrait};
+        use std::collections::HashSet;
 
         let steps = self.onboarding_steps();
+        let required_steps: Vec<_> = steps.iter().filter(|s| s.is_required).collect();
+
+        // ── Batch fetch: load all non-empty TenantSetting keys in a single query ──
+        // This replaces the N+1 pattern (one COUNT query per TenantSettingExists step).
+        let existing_setting_keys: HashSet<String> = crate::entities::tenant_setting::Entity::find()
+            .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::tenant_setting::Column::Value.ne(""))
+            .all(db)
+            .await
+            .map_err(|e| format!("DB error fetching tenant_settings: {e}"))?
+            .into_iter()
+            .map(|r| r.key)
+            .collect();
+
         let mut incomplete: Vec<String> = Vec::new();
 
-        for step in &steps {
-            if !step.is_required {
-                continue;
-            }
+        for step in &required_steps {
             let done = match &step.completion_check {
                 StepCompletionCheck::TenantSettingExists { key } => {
-                    crate::entities::tenant_setting::Entity::find()
-                        .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
-                        .filter(crate::entities::tenant_setting::Column::Key.eq(key.as_str()))
-                        // A setting saved with an empty value must not count as complete
-                        .filter(crate::entities::tenant_setting::Column::Value.ne(""))
-                        .count(db)
-                        .await
-                        .map(|c| c > 0)
-                        .unwrap_or(false)
+                    // In-memory lookup — no additional DB roundtrip needed.
+                    existing_setting_keys.contains(key.as_str())
                 }
                 StepCompletionCheck::AppDomainExists => {
                     crate::entities::app_domain::Entity::find()
@@ -262,6 +273,7 @@ mod tests {
                     title: "Brand Identity".to_string(),
                     description: "Set your site name.".to_string(),
                     is_required: true,
+                    position: 1,
                     completion_check: StepCompletionCheck::TenantSettingExists {
                         key: "site_title".to_string(),
                     },

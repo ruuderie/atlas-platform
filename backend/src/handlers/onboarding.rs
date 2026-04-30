@@ -13,8 +13,17 @@ use std::collections::HashMap;
 use subtle::ConstantTimeEq;
 
 use crate::entities::onboarding_progress;
-use crate::atlas_apps::get_active_apps;
 use crate::entities::app_instance;
+
+/// Lazily-initialised, zero-allocation registry of active AtlasApp implementations.
+/// `get_active_apps()` previously allocated a new `Vec<Box<dyn AtlasApp>>` on every call;
+/// with `OnceLock` the registry is built exactly once and then shared by reference.
+static ACTIVE_APPS: std::sync::OnceLock<Vec<Box<dyn crate::traits::atlas_app::AtlasApp>>> =
+    std::sync::OnceLock::new();
+
+fn active_apps() -> &'static Vec<Box<dyn crate::traits::atlas_app::AtlasApp>> {
+    ACTIVE_APPS.get_or_init(crate::atlas_apps::get_active_apps)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // RESPONSE TYPES
@@ -27,6 +36,9 @@ pub struct OnboardingStepStatus {
     pub title: String,
     pub description: String,
     pub is_required: bool,
+    /// Explicit display order \u2014 frontend should sort by this field rather than
+    /// relying on Vec insertion order, which is an unstable implementation detail.
+    pub position: u8,
     pub is_complete: bool,
     pub is_skipped: bool,
 }
@@ -141,8 +153,7 @@ async fn build_status_response(
     let app_type = instance.app_type.clone();
 
     // 2. Find the matching AtlasApp implementation
-    let apps = get_active_apps();
-    let app = apps
+    let app = active_apps()
         .iter()
         .find(|a| a.app_id() == app_type.as_str())
         .ok_or_else(|| {
@@ -207,6 +218,7 @@ async fn build_status_response(
                 title: step.title.clone(),
                 description: step.description.clone(),
                 is_required: step.is_required,
+                position: step.position,
                 is_complete: data_complete || explicitly_complete,
                 is_skipped: skipped,
             }
@@ -250,6 +262,27 @@ pub async fn complete_step(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
+    // Guard: reject phantom step IDs that are not declared by the app.
+    // Without this, any caller can silently inflate onboarding_progress with
+    // arbitrary rows that corrupt the readiness calculation.
+    let app = active_apps()
+        .iter()
+        .find(|a| a.app_id() == instance.app_type.as_str())
+        .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let valid_ids: Vec<String> = app.onboarding_steps()
+        .iter()
+        .map(|s| s.id.clone())
+        .collect();
+
+    if !valid_ids.contains(&step_id) {
+        tracing::warn!(
+            "complete_step rejected phantom step_id '{}' for app '{}'",
+            step_id, instance.app_type
+        );
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
     upsert_progress(&db, instance.tenant_id, app_instance_id, &step_id, |m| {
         m.completed_at = Set(Some(Utc::now()));
     })
@@ -267,6 +300,25 @@ pub async fn skip_step(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Guard: required steps cannot be skipped — this would make `is_ready` unreliable.
+    let app = active_apps()
+        .iter()
+        .find(|a| a.app_id() == instance.app_type.as_str())
+        .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let step = app.onboarding_steps()
+        .into_iter()
+        .find(|s| s.id == step_id)
+        .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    if step.is_required {
+        tracing::warn!(
+            "skip_step rejected: step '{}' is required for app '{}'",
+            step_id, instance.app_type
+        );
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
 
     upsert_progress(&db, instance.tenant_id, app_instance_id, &step_id, |m| {
         m.skipped = Set(true);

@@ -586,7 +586,7 @@ fn ResumeProfileTable() -> impl IntoView {
                             let clone_item = item.clone();
                             view! {
                                 <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                    <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                    <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                     <td class="py-4 font-bold text-on-surface">{&item.name}</td>
                                     <td class="py-4 text-right space-x-4">
                                         <button
@@ -731,7 +731,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
                                                     let clone_item = item.clone();
                                                     view! {
                                                         <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                                            <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                                            <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                                             <td class="py-4 font-bold text-on-surface truncate">{&item.title}</td>
                                                             <td class="py-4 text-right space-x-4">
                                                                 <button on:click=move |_| set_modal_state.set(crate::components::admin_modal::ModalState::BaseEntry(Some(clone_item.clone()), Some(clone_item.category))) class="text-secondary hover:text-on-secondary-fixed-variant font-medium tracking-wide">"[EDIT]"</button>
@@ -846,7 +846,7 @@ fn LeadOptionTable() -> impl IntoView {
                             let clone_item = item.clone();
                             view! {
                                 <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                    <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                    <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                     <td class="py-4 text-on-surface font-medium">{item.display_order}</td>
                                     <td class="py-4 text-on-surface font-mono text-xs">{item.value_key.clone()}</td>
                                     <td class="py-4 font-bold text-on-surface truncate">{item.label.clone()}</td>
@@ -955,7 +955,7 @@ fn PostTable() -> impl IntoView {
                     {move || match posts_resource.get() {
                         Some(Ok(posts)) => posts.into_iter().map(|p| {
                             let p_clone = p.clone();
-                            let del_id = p.id.parse::<i32>().unwrap_or(0);
+                            let del_id = uuid::Uuid::parse_str(&p.id).unwrap_or_default();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">"#" {p.id.clone()}</td>

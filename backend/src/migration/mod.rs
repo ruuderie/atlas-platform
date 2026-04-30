@@ -59,6 +59,7 @@ pub mod m20260417_000002_fix_buildwithruud_pages;
 
 // ONBOARDING SYSTEM
 pub mod m20260429_000001_create_onboarding_progress;
+pub mod m20260430_000001_drop_anchor_legacy_tables;
 
 pub struct Migrator;
 
