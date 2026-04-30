@@ -1,5 +1,9 @@
 when:
   - event: [push]
+    branch:
+      - uat
+      - main
+      - master
 
 services:
   database:
@@ -163,7 +167,7 @@ steps:
           echo "Deploying to PROD environment..."
           kubectl apply -k k8s/overlays/prod
         else
-          echo "Injecting UAT Environment Secrets dynamically via Woodpecker..."
+          echo "Injecting uat environment secrets dynamically via Woodpecker..."
           
           # Strictly validate existence of required secrets so CI fails loudly instead of deploying a broken state
           for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
@@ -184,7 +188,7 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
           
-          echo "Deploying to UAT environment..."
+          echo "Deploying to uat environment..."
           kubectl apply -k k8s/overlays/uat
         fi
         
