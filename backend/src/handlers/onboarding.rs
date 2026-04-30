@@ -198,10 +198,16 @@ async fn build_status_response(
         .map(|r| (r.step_id.clone(), r))
         .collect();
 
-    // 6. Check for a wizard-level dismissal record
+    // 6. Check for a wizard-level dismissal record.
+    //    The snooze window is 7 days: if the user dismissed the wizard more than
+    //    7 days ago *and* there are still unmet required steps, we treat it as
+    //    un-dismissed so the full-screen wizard re-appears automatically.
+    //    This ensures future mandatory steps (e.g. new ToS, payment config) are
+    //    never permanently silenced by a prior "I'll do this later" click.
     let dismissed_at = progress_map
         .get("__wizard__")
-        .and_then(|r| r.dismissed_at);
+        .and_then(|r| r.dismissed_at)
+        .filter(|d| Utc::now().signed_duration_since(*d).num_days() < 7);
 
     // 7. Merge declared steps with readiness and override data
     let step_statuses: Vec<OnboardingStepStatus> = steps
