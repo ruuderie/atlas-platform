@@ -615,7 +615,7 @@ fn ResumeProfileTable() -> impl IntoView {
                             let clone_item = item.clone();
                             view! {
                                 <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                    <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                    <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                     <td class="py-4 font-bold text-on-surface">{&item.name}</td>
                                     <td class="py-4 text-right space-x-4">
                                         <button
@@ -760,7 +760,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
                                                     let clone_item = item.clone();
                                                     view! {
                                                         <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                                            <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                                            <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                                             <td class="py-4 font-bold text-on-surface truncate">{&item.title}</td>
                                                             <td class="py-4 text-right space-x-4">
                                                                 <button on:click=move |_| set_modal_state.set(crate::components::admin_modal::ModalState::BaseEntry(Some(clone_item.clone()), Some(clone_item.category))) class="text-secondary hover:text-on-secondary-fixed-variant font-medium tracking-wide">"[EDIT]"</button>
@@ -875,7 +875,7 @@ fn LeadOptionTable() -> impl IntoView {
                             let clone_item = item.clone();
                             view! {
                                 <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
-                                    <td class="py-4 text-outline-variant font-medium">#{id_val}</td>
+                                    <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
                                     <td class="py-4 text-on-surface font-medium">{item.display_order}</td>
                                     <td class="py-4 text-on-surface font-mono text-xs">{item.value_key.clone()}</td>
                                     <td class="py-4 font-bold text-on-surface truncate">{item.label.clone()}</td>

@@ -4,6 +4,7 @@ use sea_orm_migration::MigrationTrait;
 use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
+use uuid::Uuid;
 
 /// Represents a dynamic asynchronous executor closure for background jobs.
 pub type JobExecutor = Box<
@@ -11,6 +12,46 @@ pub type JobExecutor = Box<
         + Send
         + Sync,
 >;
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SEED PACK CONTRACT
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Async executor closure for applying a seed pack to a tenant.
+/// Receives (db, tenant_id, app_instance_id) and inserts demo/test data
+/// scoped to that tenant. Must use ON CONFLICT DO NOTHING on global tables.
+pub type SeedApplyFn = Box<
+    dyn Fn(DatabaseConnection, Uuid, Uuid) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// A declarative description of a demo/test seed dataset an app can offer.
+/// Seed packs are listed in the platform-admin when launching an app instance
+/// and can be applied on-demand for demos and development.
+pub struct AppSeedPack {
+    /// Stable machine-readable ID, e.g. "transportation_logistics_starter".
+    /// Used as the URL segment in the apply endpoint.
+    pub id: &'static str,
+    /// Human-readable title shown in the platform-admin picker.
+    pub title: &'static str,
+    /// Short description of what this pack seeds.
+    pub description: &'static str,
+    /// Hint shown to the admin, e.g. "~6 categories, 55 listings"
+    pub content_summary: &'static str,
+    /// The async executor that inserts seed rows scoped to the tenant.
+    pub apply: SeedApplyFn,
+}
+
+// Manual Debug impl since SeedApplyFn is not Debug.
+impl std::fmt::Debug for AppSeedPack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppSeedPack")
+            .field("id", &self.id)
+            .field("title", &self.title)
+            .finish()
+    }
+}
 
 /// Configuration and Execution strategy for a standard Multi-Tenant Background Job.
 /// This enforces Option B: Perfect Encapsulation where the app provides the executable logic.
@@ -32,6 +73,46 @@ pub struct BackgroundJob {
     pub executor: JobExecutor,
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// ONBOARDING CONTRACT
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Declares how the platform should verify that a single onboarding step is complete.
+/// These checks are evaluated server-side against real data — they are not flags.
+#[derive(Debug, Clone)]
+pub enum StepCompletionCheck {
+    /// Step is complete when a TenantSetting row with `key` exists for this tenant.
+    TenantSettingExists { key: String },
+    /// Step is complete when at least one AppDomain row exists for this app_instance.
+    AppDomainExists,
+    /// Step is complete when a given table has at least `min` rows scoped to this tenant.
+    EntityCountGte { table: &'static str, min: usize },
+    /// Step completion is evaluated entirely by `onboarding_readiness()` custom logic.
+    Custom,
+}
+
+/// A single declarative onboarding step.
+#[derive(Debug, Clone)]
+pub struct OnboardingStep {
+    /// Unique stable identifier, e.g. "identity", "domain", "categories"
+    pub id: String,
+    /// Human-readable title shown in the wizard UI
+    pub title: String,
+    /// Descriptive sentence shown under the title in the wizard
+    pub description: String,
+    /// Required steps block the "launch ready" state. Optional steps can be skipped.
+    pub is_required: bool,
+    /// Explicit display order exposed to the frontend wizard.
+    /// Prevents ordering from being implicitly coupled to Vec insertion order.
+    pub position: u8,
+    /// How the backend evaluates whether this step is complete
+    pub completion_check: StepCompletionCheck,
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// ATLAS APP TRAIT
+// ──────────────────────────────────────────────────────────────────────────────
+
 /// The formal API Contract for any application plugging into the Atlas Platform.
 #[async_trait]
 pub trait AtlasApp: Send + Sync {
@@ -51,6 +132,123 @@ pub trait AtlasApp: Send + Sync {
     /// Defines standard templates and execution capsules for background sync services.
     /// This pattern prevents frontend apps from silently pinging APIs by moving the burden to platform pollers.
     fn background_jobs(&self) -> Vec<BackgroundJob>;
+
+    // ── Seed Pack Contract ────────────────────────────────────────────────────
+
+    /// Returns the list of demo/test seed packs this app offers.
+    /// Each pack can be applied from the platform-admin to a specific tenant instance.
+    ///
+    /// Seed packs are intended for demos, development, and UAT — not for production
+    /// content seeding. They are idempotent on global tables (ON CONFLICT DO NOTHING)
+    /// and can be applied multiple times; each application is timestamped in `tenant_setting`.
+    ///
+    /// Default implementation returns an empty list (no seed packs available).
+    fn seed_packs(&self) -> Vec<AppSeedPack> {
+        vec![]
+    }
+
+    // ── Onboarding Contract ───────────────────────────────────────────────────
+
+    /// Returns the ordered list of onboarding steps this app requires before it is
+    /// considered "live-ready". Each step is declarative and serializable so the
+    /// frontend wizard can render it without knowing app internals.
+    ///
+    /// Default implementation returns an empty list (no onboarding required).
+    fn onboarding_steps(&self) -> Vec<OnboardingStep> {
+        vec![]
+    }
+
+    /// Evaluates which onboarding steps are still incomplete for a specific tenant.
+    /// Returns a Vec of step IDs that are NOT yet done. Empty = app is ready to go live.
+    ///
+    /// The default implementation uses `onboarding_steps()` and evaluates each
+    /// `StepCompletionCheck` against the database. Apps may override for custom logic.
+    ///
+    /// Performance: TenantSetting checks are batched into a single query evaluated in
+    /// memory, rather than issuing one COUNT per step (N+1 anti-pattern).
+    async fn onboarding_readiness(
+        &self,
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        app_instance_id: Uuid,
+    ) -> Result<Vec<String>, String> {
+        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, PaginatorTrait};
+        use std::collections::HashSet;
+
+        let steps = self.onboarding_steps();
+        let required_steps: Vec<_> = steps.iter().filter(|s| s.is_required).collect();
+
+        // ── Batch fetch: load all non-empty TenantSetting keys in a single query ──
+        // This replaces the N+1 pattern (one COUNT query per TenantSettingExists step).
+        let existing_setting_keys: HashSet<String> = crate::entities::tenant_setting::Entity::find()
+            .filter(crate::entities::tenant_setting::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::tenant_setting::Column::Value.ne(""))
+            .all(db)
+            .await
+            .map_err(|e| format!("DB error fetching tenant_settings: {e}"))?
+            .into_iter()
+            .map(|r| r.key)
+            .collect();
+
+        let mut incomplete: Vec<String> = Vec::new();
+
+        for step in &required_steps {
+            let done = match &step.completion_check {
+                StepCompletionCheck::TenantSettingExists { key } => {
+                    // In-memory lookup — no additional DB roundtrip needed.
+                    existing_setting_keys.contains(key.as_str())
+                }
+                StepCompletionCheck::AppDomainExists => {
+                    crate::entities::app_domain::Entity::find()
+                        .filter(crate::entities::app_domain::Column::AppInstanceId.eq(app_instance_id))
+                        .count(db)
+                        .await
+                        .map(|c| c > 0)
+                        .unwrap_or(false)
+                }
+                StepCompletionCheck::EntityCountGte { table, min } => {
+                    // Use sea_query to build a safe, idiomatic COUNT query.
+                    // `table` is &'static str so no injection is possible, but
+                    // using the query builder is the correct architectural pattern.
+                    use sea_orm::sea_query::{Alias, Expr, Query, SelectStatement};
+                    use sea_orm::{ConnectionTrait, Statement};
+
+                    let stmt: SelectStatement = Query::select()
+                        .expr(Expr::col(sea_orm::sea_query::Asterisk).count())
+                        .from(Alias::new(*table))
+                        .and_where(
+                            Expr::col(Alias::new("tenant_id")).eq(tenant_id.to_string())
+                        )
+                        .to_owned();
+
+                    let (sql, values) = stmt.build(sea_orm::sea_query::PostgresQueryBuilder);
+                    let result = db.query_one(Statement::from_sql_and_values(
+                        sea_orm::DatabaseBackend::Postgres,
+                        &sql,
+                        values,
+                    )).await;
+                    match result {
+                        Ok(Some(row)) => {
+                            let count: i64 = row.try_get("", "count").unwrap_or(0);
+                            count >= *min as i64
+                        }
+                        _ => false,
+                    }
+                }
+                StepCompletionCheck::Custom => {
+                    // Custom steps must be handled by the app's own override of
+                    // `onboarding_readiness`. Here we conservatively mark as incomplete.
+                    false
+                }
+            };
+
+            if !done {
+                incomplete.push(step.id.clone());
+            }
+        }
+
+        Ok(incomplete)
+    }
 }
 
 // ==========================================
@@ -121,6 +319,21 @@ mod tests {
                 }),
             }]
         }
+
+        fn onboarding_steps(&self) -> Vec<OnboardingStep> {
+            vec![
+                OnboardingStep {
+                    id: "identity".to_string(),
+                    title: "Brand Identity".to_string(),
+                    description: "Set your site name.".to_string(),
+                    is_required: true,
+                    position: 1,
+                    completion_check: StepCompletionCheck::TenantSettingExists {
+                        key: "site_title".to_string(),
+                    },
+                },
+            ]
+        }
     }
 
     #[tokio::test]
@@ -142,8 +355,13 @@ mod tests {
         assert_eq!(job.job_type, "dummy_sync");
         assert_eq!(job.default_interval_seconds, 60);
 
-        // 4. Verify Execution Closure executes within correct Isolated Context
-        // Safe to instantiate via transient in-memory sqlite connection
+        // 4. Verify Onboarding Steps
+        let steps = app.onboarding_steps();
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].id, "identity");
+        assert!(steps[0].is_required);
+
+        // 5. Verify Execution Closure executes within correct Isolated Context
         let db = sea_orm::Database::connect("sqlite::memory:").await.expect("Failed to create in-memory test db");
 
         let result = (job.executor)(db.clone(), uuid::Uuid::nil(), job.default_config_payload.clone()).await;

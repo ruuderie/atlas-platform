@@ -6,3 +6,4 @@ pub mod dynamic_landing;
 pub mod dynamic_entry;
 pub mod landing;
 pub mod legal;
+pub mod onboarding;

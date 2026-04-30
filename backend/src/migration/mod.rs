@@ -93,6 +93,10 @@ pub mod m20260427_000009_blog_download_leads;
 pub mod m20260427_000010_enable_kami_mode_buildwithruud;
 pub mod m20260427_000011_kami_projects_layout;
 
+// ONBOARDING SYSTEM
+pub mod m20260429_000001_create_onboarding_progress;
+pub mod m20260430_000001_drop_anchor_legacy_tables;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -137,6 +141,20 @@ impl MigratorTrait for Migrator {
             Box::new(m20260408_000000_create_audit_logs::Migration),
             Box::new(m20260408_000000_fix_tenant_app_alignments::Migration),
             Box::new(m20260408_000001_fix_uat_app_domains::Migration),
+            Box::new(m20260408_000006_create_app_content::Migration),
+            Box::new(m20260412_000001_form_engine::Migration),
+            Box::new(m20260412_000002_add_tenant_slug::Migration),
+            Box::new(m20260412_000003_seed_oplystusa::Migration),
+            Box::new(m20260413_000001_seed_oplystusa_domains::Migration),
+            Box::new(m20260415_000001_seed_oplystusa_home_page::Migration),
+            Box::new(m20260415_000002_upgrade_buildwithruud_home_page::Migration),
+            Box::new(m20260415_000003_seed_oplystusa_pages::Migration),
+            Box::new(m20260416_000001_rename_resume_tables::Migration),
+            Box::new(m20260416_000002_seed_buildwithruud_block_pages::Migration),
+            Box::new(m20260417_000001_seed_design_system_config::Migration),
+            Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
+            // ONBOARDING SYSTEM — must follow tenant shift and app_instances table
+            Box::new(m20260429_000001_create_onboarding_progress::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

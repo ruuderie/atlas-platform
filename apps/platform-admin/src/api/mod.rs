@@ -16,3 +16,5 @@ pub mod search;
 pub mod analytics;
 pub mod developer;
 pub mod audit_logs;
+pub mod onboarding;
+pub mod seeds;

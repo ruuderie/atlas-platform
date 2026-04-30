@@ -1,4 +1,4 @@
-use crate::traits::atlas_app::{AtlasApp, BackgroundJob};
+use crate::traits::atlas_app::{AtlasApp, AppSeedPack, BackgroundJob, OnboardingStep, StepCompletionCheck};
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
@@ -58,5 +58,65 @@ impl AtlasApp for NetworkInstanceApp {
     fn background_jobs(&self) -> Vec<BackgroundJob> {
         // Currently NetworkInstance endpoints hook mostly from direct HTTP. Background jobs handle Telemetry which is Core.
         vec![]
+    }
+
+    fn seed_packs(&self) -> Vec<AppSeedPack> {
+        crate::atlas_apps::seeds::network_instance::all_packs()
+    }
+
+    fn onboarding_steps(&self) -> Vec<OnboardingStep> {
+        vec![
+            OnboardingStep {
+                id: "identity".to_string(),
+                title: "Network Identity".to_string(),
+                description: "Set your network's name and tagline so members know what it's about.".to_string(),
+                is_required: true,
+                position: 1,
+                completion_check: StepCompletionCheck::TenantSettingExists {
+                    key: "site_title".to_string(),
+                },
+            },
+            OnboardingStep {
+                id: "domain".to_string(),
+                title: "Custom Domain".to_string(),
+                description: "Connect your domain so your network has its live web address.".to_string(),
+                is_required: true,
+                position: 2,
+                completion_check: StepCompletionCheck::AppDomainExists,
+            },
+            OnboardingStep {
+                id: "categories".to_string(),
+                title: "Categories".to_string(),
+                description: "Add at least one category to organize your listings.".to_string(),
+                is_required: true,
+                position: 3,
+                completion_check: StepCompletionCheck::EntityCountGte {
+                    table: "category",
+                    min: 1,
+                },
+            },
+            OnboardingStep {
+                id: "first_template".to_string(),
+                title: "Listing Template".to_string(),
+                description: "Choose a listing template from the library to define how listings appear.".to_string(),
+                is_required: true,
+                position: 4,
+                completion_check: StepCompletionCheck::EntityCountGte {
+                    table: "template",
+                    min: 1,
+                },
+            },
+            OnboardingStep {
+                id: "first_listing".to_string(),
+                title: "First Listing".to_string(),
+                description: "Add your first listing to populate the network for members.".to_string(),
+                is_required: false,
+                position: 5,
+                completion_check: StepCompletionCheck::EntityCountGte {
+                    table: "listing",
+                    min: 1,
+                },
+            },
+        ]
     }
 }

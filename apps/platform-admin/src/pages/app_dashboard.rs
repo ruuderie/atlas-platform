@@ -13,6 +13,9 @@ use shared_ui::components::ui::label::Label;
 use shared_ui::components::ui::related_list::RelatedList;
 
 use crate::components::upsell_banner::UpsellBanner;
+use crate::components::onboarding_wizard::OnboardingWizard;
+use crate::components::seed_picker::SeedPicker;
+use crate::api::onboarding::get_onboarding_status;
 
 #[component]
 pub fn AppDashboard() -> impl IntoView {
@@ -43,6 +46,9 @@ pub fn AppDashboard() -> impl IntoView {
     });
     
     let site_id_str = site_id().to_string();
+    // Wrap in StoredValue so reactive `move ||` closures can clone it
+    // without consuming the binding (avoids FnOnce / Fn mismatch).
+    let site_id_stored = StoredValue::new(site_id_str.clone());
     let listings_res = LocalResource::new({
         let sid = site_id_str.clone();
         move || {
@@ -98,7 +104,26 @@ pub fn AppDashboard() -> impl IntoView {
         }
     });
 
-    // Local database resources automatically populate children panes
+    // ── Onboarding readiness gate ──────────────────────────────────────────
+    // Fetches step status and drives the full-page wizard takeover.
+    let ob_site_id = site_id_str.clone();
+    let onboarding_status = LocalResource::new(move || {
+        let sid = ob_site_id.clone();
+        async move { get_onboarding_status(&sid).await }
+    });
+
+    // Derive per-instance tenant_id from the dirs context for the wizard
+    let tenant_id_for_wizard = Signal::derive(move || {
+        let current_id = site_id();
+        if let Some(d) = dirs.get() {
+            d.into_iter()
+                .find(|dir| dir.instance_id.to_string() == current_id)
+                .map(|dir| dir.tenant_id.to_string())
+                .unwrap_or_default()
+        } else {
+            String::new()
+        }
+    });
 
     let app_manifest = Signal::derive(move || {
         let current_id = site_id();
@@ -114,10 +139,66 @@ pub fn AppDashboard() -> impl IntoView {
         crate::components::app_manifest::get_manifest_for_app_type(&app_type_str)
     });
 
+    let ob_site_id2 = site_id_str.clone();
+    let ob_site_id3 = site_id_str.clone();
+
     view! {
-        <Show 
-            when=move || dirs.get().is_some() 
-            fallback=|| view! { 
+        // ── Onboarding Wizard — full-page takeover ─────────────────────────
+        {move || {
+            match onboarding_status.get() {
+                Some(Ok(ref status)) if !status.is_ready && status.dismissed_at.is_none() => {
+                    let ai = ob_site_id2.clone();
+                    let tid = tenant_id_for_wizard.get();
+                    // on_dismiss: called by the wizard after the API call resolves.
+                    // Triggers a refetch so the parent banner appears immediately,
+                    // no page reload required.
+                    let on_dismiss = Callback::new(move |_: ()| {
+                        onboarding_status.refetch();
+                    });
+                    view! {
+                        <OnboardingWizard
+                            app_instance_id=ai
+                            tenant_id=tid
+                            on_dismiss=on_dismiss
+                        />
+                    }.into_any()
+                }
+                _ => view! { <div></div> }.into_any()
+            }
+        }}
+        // ── Persistent incomplete banner (shown after dismissal) ────────────
+        {move || {
+            match onboarding_status.get() {
+                Some(Ok(ref status)) if !status.is_ready && status.dismissed_at.is_some() => {
+                    let incomplete = status.steps.iter()
+                        .filter(|s| s.is_required && !s.is_complete)
+                        .count();
+                    let ob_sid = ob_site_id3.clone();
+                    view! {
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-4 mb-4 mx-6 mt-4">
+                            <div class="flex items-center gap-2">
+                                <span class="text-amber-600 text-lg">"⚠️"</span>
+                                <p class="text-sm text-amber-800 font-medium">
+                                    {format!("{} required setup step{} remaining before your app goes live.",
+                                        incomplete, if incomplete == 1 { "" } else { "s" })}
+                                </p>
+                            </div>
+                            <a
+                                href=format!("/apps/{}", ob_sid)
+                                id="ob-reopen-wizard"
+                                class="text-sm text-amber-700 underline font-semibold whitespace-nowrap"
+                            >
+                                "Resume Setup →"
+                            </a>
+                        </div>
+                    }.into_any()
+                }
+                _ => view! { <div></div> }.into_any()
+            }
+        }}
+        <Show
+            when=move || dirs.get().is_some()
+            fallback=|| view! {
                 <div class="p-8 text-center text-on-surface-variant flex flex-col items-center justify-center min-h-[400px]">
                     <div class="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
                     "Loading Application Workspace..."
@@ -170,6 +251,7 @@ pub fn AppDashboard() -> impl IntoView {
                             <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
                         }
                     }).collect_view()}
+                    <TabsTrigger value="seed_data".to_string()>"Seed Data"</TabsTrigger>
                     <TabsTrigger value="domains".to_string()>"Routing & Domains"</TabsTrigger>
                 </TabsList>
 
@@ -180,6 +262,11 @@ pub fn AppDashboard() -> impl IntoView {
                         </TabsContent>
                     }
                 }).collect_view()}
+                <TabsContent value="seed_data".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
+                        <SeedPicker app_instance_id=site_id_stored.get_value() />
+                    </div>
+                </TabsContent>
                 <TabsContent value="domains".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     <div class="space-y-6">
                         <div class="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">

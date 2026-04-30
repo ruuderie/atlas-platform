@@ -1,4 +1,4 @@
-use crate::traits::atlas_app::{AtlasApp, BackgroundJob};
+use crate::traits::atlas_app::{AtlasApp, BackgroundJob, OnboardingStep, StepCompletionCheck};
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
@@ -35,6 +35,10 @@ impl AtlasApp for AnchorApp {
         // ═══════════════════════════════════════════════════════════════════════
 
         // --- Anchor schema: tables & background job seeds ---
+        // The legacy table migration is kept in history so the migration runner's
+        // applied-migrations log remains consistent on existing environments.
+        // The subsequent drop migration tears down those tables on any environment
+        // where they were created, and is a no-op on fresh clean installs.
         vec![
             Box::new(crate::migration::m20260408_000002_create_anchor_legacy_tables::Migration),
             Box::new(crate::migration::m20260408_000003_seed_anchor_background_jobs::Migration),
@@ -60,8 +64,6 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260417_000003_seed_formbuilder_pages::Migration),
 
             // --- buildwithruud home page: layout migration chain ---
-            // These patch the home payload from the old hardcoded-padding design
-            // to the new block-owns-its-own-layout architecture (pt-32 in payload).
             Box::new(crate::migration::m20260425_000001_update_buildwithruud_home::Migration),
             Box::new(crate::migration::m20260425_000002_create_footer_items_table::Migration),
             Box::new(crate::migration::m20260425_000003_fix_buildwithruud_padding::Migration),
@@ -69,32 +71,23 @@ impl AtlasApp for AnchorApp {
             Box::new(crate::migration::m20260425_000005_fix_ruud_tenant_lookup::Migration),
             Box::new(crate::migration::m20260425_000006_force_ruud_payload::Migration),
 
-            // --- Hardened canonical payload fix (RAISE EXCEPTION on failure) ---
-            // This is the terminal authoritative migration for the home page layout.
-            // It supersedes all above pt-8→pt-32 patches on fresh databases.
+            // --- Hardened canonical payload fix ---
             Box::new(crate::migration::m20260426_000001_hardened_ruud_payload::Migration),
 
-            // --- UAT stabilization: layout, content, and widget system ---
-            // Consulting page restored (was deleted in m20260417_000003)
+            // --- UAT stabilization ---
             Box::new(crate::migration::m20260427_000001_restore_consulting_page::Migration),
-            // Real-estate-ventures redesigned as investor/landlord landing (5 strategy pillars)
             Box::new(crate::migration::m20260427_000002_real_estate_ventures_redesign::Migration),
-            // Widget instance config: bitcoin clock for buildwithruud, empty for all others
             Box::new(crate::migration::m20260427_000003_widget_instance_config::Migration),
-            // Seed the P vs NP exploratory argument blog post into buildwithruud tenant
             Box::new(crate::migration::m20260427_000005_seed_p_vs_np_blog_post::Migration),
-            // Real-estate-ventures: add newsletter opt-in to contact form + ProfileHeader
             Box::new(crate::migration::m20260427_000006_real_estate_newsletter_form::Migration),
-            // Kami Resume profile: Role/Actions/Impact overrides for buildwithruud work entries
             Box::new(crate::migration::m20260427_000007_seed_kami_resume_profile::Migration),
-            // Fix P vs NP blog post math delimiters: \( \) → $ and \[ \] → $$
             Box::new(crate::migration::m20260427_000008_fix_p_vs_np_math_delimiters::Migration),
-            // Blog PDF feature: lead capture table for gated PDF downloads
             Box::new(crate::migration::m20260427_000009_blog_download_leads::Migration),
-            // Enable kami_mode in design_config for buildwithruud anchor app instance
             Box::new(crate::migration::m20260427_000010_enable_kami_mode_buildwithruud::Migration),
-            // Set content_feed layout = "kami_cards" on buildwithruud /p/projects page
             Box::new(crate::migration::m20260427_000011_kami_projects_layout::Migration),
+
+            // --- Onboarding system: drop legacy anchor tables (idempotent) ---
+            Box::new(crate::migration::m20260430_000001_drop_anchor_legacy_tables::Migration),
         ]
     }
 
@@ -117,6 +110,64 @@ impl AtlasApp for AnchorApp {
                     })
                 })
             }
+        ]
+    }
+
+    /// Anchor onboarding steps, in the order the wizard presents them.
+    /// Steps are evaluated server-side against real data — not flags.
+    /// `position` is explicit so the frontend wizard has a stable sort key
+    /// that is independent of Vec insertion order.
+    fn onboarding_steps(&self) -> Vec<OnboardingStep> {
+        vec![
+            OnboardingStep {
+                id: "identity".to_string(),
+                title: "Brand Identity".to_string(),
+                description: "Set your site name and tagline so visitors know who you are.".to_string(),
+                is_required: true,
+                position: 1,
+                completion_check: StepCompletionCheck::TenantSettingExists {
+                    key: "site_title".to_string(),
+                },
+            },
+            OnboardingStep {
+                id: "domain".to_string(),
+                title: "Custom Domain".to_string(),
+                description: "Connect your domain so your site has its live web address.".to_string(),
+                is_required: true,
+                position: 2,
+                completion_check: StepCompletionCheck::AppDomainExists,
+            },
+            OnboardingStep {
+                id: "design".to_string(),
+                title: "Design Theme".to_string(),
+                description: "Choose your color palette and typography to match your brand.".to_string(),
+                is_required: true,
+                position: 3,
+                completion_check: StepCompletionCheck::TenantSettingExists {
+                    key: "design_config".to_string(),
+                },
+            },
+            OnboardingStep {
+                id: "first_page".to_string(),
+                title: "Your First Page".to_string(),
+                description: "Create your home page so your site has something to show visitors.".to_string(),
+                is_required: true,
+                position: 4,
+                completion_check: StepCompletionCheck::EntityCountGte {
+                    table: "app_page",
+                    min: 1,
+                },
+            },
+            OnboardingStep {
+                id: "audience_mode".to_string(),
+                title: "Audience Mode".to_string(),
+                description: "Tell us whether your site targets businesses (B2B) or consumers (B2C).".to_string(),
+                is_required: false,
+                position: 5,
+                completion_check: StepCompletionCheck::TenantSettingExists {
+                    key: "b2b_mode".to_string(),
+                },
+            },
         ]
     }
 }

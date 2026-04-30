@@ -59,3 +59,6 @@ pub mod webhook_delivery;
 pub mod page_view;
 pub mod bitcoin_block;
 pub mod tenant_background_job;
+
+// ONBOARDING
+pub mod onboarding_progress;

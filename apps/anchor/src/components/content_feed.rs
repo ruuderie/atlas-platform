@@ -96,46 +96,41 @@ pub fn ContentFeed(
         LayoutMode::List => view! {
             <div class="space-y-12 max-w-4xl">
                 {nodes.into_iter().map(|node| {
-                    // Branch rendering on content_format:
-                    // - 'markdown'       : render via pulldown_cmark (Mermaid-aware)
-                    // - 'latex'/'mdlatex': pass raw content to client-side KaTeX auto-render
-                    let html_output = if let Some(md) = &node.markdown {
-                        match node.content_format.as_str() {
-                            "latex" | "mdlatex" => {
-                                // For LaTeX content: emit the raw source in a KaTeX-ready div.
-                                // KaTeX auto-render (loaded conditionally in app.rs for these
-                                // formats) picks up .katex-content divs on the client.
-                                // The 'mdlatex' path runs through pulldown_cmark first, then
-                                // KaTeX handles inline $...$ / $$...$$ delimiters on the client.
-                                if node.content_format == "mdlatex" {
-                                    // Run through Markdown first, KaTeX handles math delimiters
-                                    let mut options = pulldown_cmark::Options::empty();
-                                    options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
-                                    options.insert(pulldown_cmark::Options::ENABLE_TABLES);
-                                    let parser = pulldown_cmark::Parser::new_ext(md, options);
-                                    let mut html = String::new();
-                                    pulldown_cmark::html::push_html(&mut html, parser);
-                                    format!("<div class='katex-content' data-format='mdlatex'>{}</div>", html)
-                                } else {
-                                    // Pure LaTeX: wrap in pre, KaTeX auto-render processes it
-                                    format!("<div class='katex-content' data-format='latex'><pre class='katex-source'>{}</pre></div>",
-                                        html_escape::encode_text(md))
+                    // Build a 140-char plain-text preview from the raw markdown.
+                    // We strip the most common markdown tokens so the snippet reads
+                    // cleanly without stray #, *, `, or other control characters.
+                    let preview = if let Some(md) = &node.markdown {
+                        // Strip common markdown syntax tokens line by line
+                        let plain = md
+                            .lines()
+                            .filter(|l| !l.trim_start().starts_with("```") && !l.trim_start().starts_with("---"))
+                            .map(|l| {
+                                let mut line = l.trim_start();
+                                // Strip heading markers at the start of the line
+                                while line.starts_with('#') {
+                                    line = &line[1..];
                                 }
-                            }
-                            _ => {
-                                // Default: 'markdown'
-                                let mut options = pulldown_cmark::Options::empty();
-                                options.insert(pulldown_cmark::Options::ENABLE_STRIKETHROUGH);
-                                options.insert(pulldown_cmark::Options::ENABLE_TABLES);
-                                let parser = pulldown_cmark::Parser::new_ext(md, options);
-                                let mut html = String::new();
-                                pulldown_cmark::html::push_html(&mut html, parser);
-                                html
-                            }
+                                line.trim_start()
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
+                        // bold / italic / inline-code: strip * _ `
+                        let plain = plain.chars()
+                            .filter(|&c| c != '*' && c != '_' && c != '`' && c != '~')
+                            .collect::<String>();
+
+                        // Collapse extra whitespace
+                        let plain = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+                        if plain.chars().count() > 140 {
+                            format!("{}…", &plain[..plain.char_indices().nth(140).map(|(i, _)| i).unwrap_or(plain.len())])
+                        } else {
+                            plain
                         }
                     } else {
                         String::new()
                     };
+
 
                     let link = node.link_url.clone();
 
@@ -151,27 +146,15 @@ pub fn ContentFeed(
                                     </span>
                                 })}
                             </div>
-                            
-                            {(!html_output.is_empty()).then(|| view! {
-                                <div class="text-on-surface-variant leading-relaxed text-sm mb-6 max-w-2xl prose prose-invert prose-p:text-sm prose-a:text-secondary prose-a:no-underline hover:prose-a:underline" inner_html=html_output>
-                                    {
-                                        #[cfg(target_arch = "wasm32")]
-                                        let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
-                                    }
-                                </div>
-                            })}
-                            
-                            {(!node.bullets.is_empty()).then(|| view! {
-                                <ul class="text-on-surface-variant leading-relaxed text-sm mb-6 space-y-4 list-none p-0 m-0">
-                                    {node.bullets.into_iter().map(|b| view! {
-                                        <li class="relative pl-5 before:content-['//'] before:absolute before:-left-1 before:text-secondary before:font-bold before:jetbrains">
-                                            {b}
-                                        </li>
-                                    }).collect_view()}
-                                </ul>
+
+                            {(!preview.is_empty()).then(|| view! {
+                                <p class="text-on-surface-variant text-sm leading-relaxed mb-4 max-w-2xl">
+                                    {preview}
+                                    <span class="text-secondary font-semibold ml-1">"Read more →"</span>
+                                </p>
                             })}
 
-                            <div class="flex flex-wrap gap-4 mt-6">
+                            <div class="flex flex-wrap gap-4 mt-4">
                                 {node.tags.into_iter().map(|tag| view! {
                                     <span class="bg-surface-container-highest px-3 py-1 jetbrains text-[0.65rem] font-bold text-on-surface-variant uppercase">{tag}</span>
                                 }).collect_view()}
