@@ -86,27 +86,26 @@ pub fn ContentFeed(
                     // We strip the most common markdown tokens so the snippet reads
                     // cleanly without stray #, *, `, or other control characters.
                     let preview = if let Some(md) = &node.markdown {
-                        // Strip common markdown syntax tokens
+                        // Strip common markdown syntax tokens line by line
                         let plain = md
                             .lines()
                             .filter(|l| !l.trim_start().starts_with("```") && !l.trim_start().starts_with("---"))
+                            .map(|l| {
+                                let mut line = l.trim_start();
+                                // Strip heading markers at the start of the line
+                                while line.starts_with('#') {
+                                    line = &line[1..];
+                                }
+                                line.trim_start()
+                            })
                             .collect::<Vec<_>>()
                             .join(" ");
-                        let plain = {
-                            let mut s = plain;
-                            // headers
-                            while let Some(i) = s.find('#') {
-                                if s[i..].starts_with("# ") || s[i..].starts_with("## ") || s[i..].starts_with("### ") {
-                                    s = s[i..].trim_start_matches('#').trim_start().to_string();
-                                } else {
-                                    break;
-                                }
-                            }
-                            // bold / italic / inline-code: strip * _ `
-                            s.chars()
-                                .filter(|&c| c != '*' && c != '_' && c != '`' && c != '~')
-                                .collect::<String>()
-                        };
+
+                        // bold / italic / inline-code: strip * _ `
+                        let plain = plain.chars()
+                            .filter(|&c| c != '*' && c != '_' && c != '`' && c != '~')
+                            .collect::<String>();
+
                         // Collapse extra whitespace
                         let plain = plain.split_whitespace().collect::<Vec<_>>().join(" ");
                         if plain.chars().count() > 140 {
