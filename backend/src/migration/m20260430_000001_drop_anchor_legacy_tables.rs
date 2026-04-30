@@ -89,7 +89,7 @@ impl MigrationTrait for Migration {
         ] {
             db.execute(sea_orm::Statement::from_string(
                 sea_orm::DatabaseBackend::Postgres,
-                format!("DROP TABLE IF EXISTS {table}"),
+                format!("DROP TABLE IF EXISTS {table} CASCADE"),
             ))
             .await?;
         }
