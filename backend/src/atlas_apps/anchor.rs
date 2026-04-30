@@ -39,28 +39,17 @@ impl AtlasApp for AnchorApp {
         // applied-migrations log remains consistent on existing environments.
         // The subsequent drop migration tears down those tables on any environment
         // where they were created, and is a no-op on fresh clean installs.
+        //
+        // NOTE: Migrations up to m20260417_000002_fix_buildwithruud_pages are
+        // registered in migration/mod.rs (base platform list) and must NOT be
+        // duplicated here. anchor.rs only contains migrations that run AFTER
+        // the base platform has been fully initialized.
         vec![
             Box::new(crate::migration::m20260408_000002_create_anchor_legacy_tables::Migration),
             Box::new(crate::migration::m20260408_000003_seed_anchor_background_jobs::Migration),
             Box::new(crate::migration::m20260408_000004_fix_anchor_tables_and_seed::Migration),
-            Box::new(crate::migration::m20260408_000006_create_app_content::Migration),
 
-            // --- Form engine & tenant configuration ---
-            Box::new(crate::migration::m20260412_000001_form_engine::Migration),
-            Box::new(crate::migration::m20260412_000002_add_tenant_slug::Migration),
-
-            // --- Tenant seeds: OplystUSA ---
-            Box::new(crate::migration::m20260412_000003_seed_oplystusa::Migration),
-            Box::new(crate::migration::m20260413_000001_seed_oplystusa_domains::Migration),
-            Box::new(crate::migration::m20260415_000001_seed_oplystusa_home_page::Migration),
-            Box::new(crate::migration::m20260415_000003_seed_oplystusa_pages::Migration),
-
-            // --- Tenant seeds: buildwithruud ---
-            Box::new(crate::migration::m20260415_000002_upgrade_buildwithruud_home_page::Migration),
-            Box::new(crate::migration::m20260416_000001_rename_resume_tables::Migration),
-            Box::new(crate::migration::m20260416_000002_seed_buildwithruud_block_pages::Migration),
-            Box::new(crate::migration::m20260417_000001_seed_design_system_config::Migration),
-            Box::new(crate::migration::m20260417_000002_fix_buildwithruud_pages::Migration),
+            // --- Anchor-only: formbuilder page seeds (after base form_engine schema) ---
             Box::new(crate::migration::m20260417_000003_seed_formbuilder_pages::Migration),
 
             // --- buildwithruud home page: layout migration chain ---
