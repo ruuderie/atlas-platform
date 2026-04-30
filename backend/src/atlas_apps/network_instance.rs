@@ -1,4 +1,4 @@
-use crate::traits::atlas_app::{AtlasApp, BackgroundJob, OnboardingStep, StepCompletionCheck};
+use crate::traits::atlas_app::{AtlasApp, AppSeedPack, BackgroundJob, OnboardingStep, StepCompletionCheck};
 use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
@@ -58,6 +58,10 @@ impl AtlasApp for NetworkInstanceApp {
     fn background_jobs(&self) -> Vec<BackgroundJob> {
         // Currently NetworkInstance endpoints hook mostly from direct HTTP. Background jobs handle Telemetry which is Core.
         vec![]
+    }
+
+    fn seed_packs(&self) -> Vec<AppSeedPack> {
+        crate::atlas_apps::seeds::network_instance::all_packs()
     }
 
     fn onboarding_steps(&self) -> Vec<OnboardingStep> {

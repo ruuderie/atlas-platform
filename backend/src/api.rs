@@ -98,7 +98,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::audit_logs::authenticated_routes())
         .merge(crate::handlers::telemetry::authenticated_routes())
         // Platform admin onboarding wizard
-        .merge(onboarding::authenticated_routes(db.clone()));
+        .merge(onboarding::authenticated_routes(db.clone()))
+        // App instance seed pack API
+        .merge(crate::handlers::app_seeds::authenticated_routes(db.clone()));
 
     for app in crate::atlas_apps::get_active_apps() {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));

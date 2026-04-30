@@ -1,0 +1,27 @@
+INSERT INTO listing (id, profile_id, network_id, category_id, title, description, listing_type, price, price_type, country, state, city, neighborhood, latitude, longitude, additional_info, status, is_featured, is_based_on_template, based_on_template_id, is_ad_placement, is_active, created_at, updated_at)
+SELECT 
+    gen_random_uuid(),
+    (SELECT id FROM profile ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM network ORDER BY RANDOM() LIMIT 1),
+    (SELECT id FROM category ORDER BY RANDOM() LIMIT 1),
+    'Listing ' || generate_series(1, 500),
+    'Description for Listing ' || generate_series(1, 500),
+    (ARRAY['Service', 'Product', 'Event'])[floor(random() * 3 + 1)],
+    CASE WHEN random() < 0.8 THEN floor(random() * 10000)::bigint ELSE NULL END,
+    CASE WHEN random() < 0.8 THEN (ARRAY['Fixed', 'Hourly', 'Daily'])[floor(random() * 3 + 1)] ELSE NULL END,
+    'United States',
+    (ARRAY['CA', 'NY', 'TX', 'FL', 'IL'])[floor(random() * 5 + 1)],
+    (ARRAY['Los Angeles', 'New York', 'Houston', 'Miami', 'Chicago'])[floor(random() * 5 + 1)],
+    CASE WHEN random() < 0.5 THEN 'Neighborhood ' || generate_series(1, 500) ELSE NULL END,
+    CASE WHEN random() < 0.5 THEN random() * 180 - 90 ELSE NULL END,
+    CASE WHEN random() < 0.5 THEN random() * 360 - 180 ELSE NULL END,
+    '{"key": "value"}',
+    (ARRAY['pending', 'approved', 'rejected'])[floor(random() * 3 + 1)],
+    random() < 0.1,
+    random() < 0.2,
+    CASE WHEN random() < 0.2 THEN (SELECT id FROM template ORDER BY RANDOM() LIMIT 1) ELSE NULL END,
+    random() < 0.05,
+    true,
+    NOW() - (random() * interval '365 days'),
+    NOW()
+FROM generate_series(1, 500);

@@ -13,6 +13,46 @@ pub type JobExecutor = Box<
         + Sync,
 >;
 
+// ──────────────────────────────────────────────────────────────────────────────
+// SEED PACK CONTRACT
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Async executor closure for applying a seed pack to a tenant.
+/// Receives (db, tenant_id, app_instance_id) and inserts demo/test data
+/// scoped to that tenant. Must use ON CONFLICT DO NOTHING on global tables.
+pub type SeedApplyFn = Box<
+    dyn Fn(DatabaseConnection, Uuid, Uuid) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// A declarative description of a demo/test seed dataset an app can offer.
+/// Seed packs are listed in the platform-admin when launching an app instance
+/// and can be applied on-demand for demos and development.
+pub struct AppSeedPack {
+    /// Stable machine-readable ID, e.g. "transportation_logistics_starter".
+    /// Used as the URL segment in the apply endpoint.
+    pub id: &'static str,
+    /// Human-readable title shown in the platform-admin picker.
+    pub title: &'static str,
+    /// Short description of what this pack seeds.
+    pub description: &'static str,
+    /// Hint shown to the admin, e.g. "~6 categories, 55 listings"
+    pub content_summary: &'static str,
+    /// The async executor that inserts seed rows scoped to the tenant.
+    pub apply: SeedApplyFn,
+}
+
+// Manual Debug impl since SeedApplyFn is not Debug.
+impl std::fmt::Debug for AppSeedPack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppSeedPack")
+            .field("id", &self.id)
+            .field("title", &self.title)
+            .finish()
+    }
+}
+
 /// Configuration and Execution strategy for a standard Multi-Tenant Background Job.
 /// This enforces Option B: Perfect Encapsulation where the app provides the executable logic.
 pub struct BackgroundJob {
@@ -92,6 +132,20 @@ pub trait AtlasApp: Send + Sync {
     /// Defines standard templates and execution capsules for background sync services.
     /// This pattern prevents frontend apps from silently pinging APIs by moving the burden to platform pollers.
     fn background_jobs(&self) -> Vec<BackgroundJob>;
+
+    // ── Seed Pack Contract ────────────────────────────────────────────────────
+
+    /// Returns the list of demo/test seed packs this app offers.
+    /// Each pack can be applied from the platform-admin to a specific tenant instance.
+    ///
+    /// Seed packs are intended for demos, development, and UAT — not for production
+    /// content seeding. They are idempotent on global tables (ON CONFLICT DO NOTHING)
+    /// and can be applied multiple times; each application is timestamped in `tenant_setting`.
+    ///
+    /// Default implementation returns an empty list (no seed packs available).
+    fn seed_packs(&self) -> Vec<AppSeedPack> {
+        vec![]
+    }
 
     // ── Onboarding Contract ───────────────────────────────────────────────────
 

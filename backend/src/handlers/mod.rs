@@ -39,4 +39,5 @@ pub mod magic_links;
 pub mod search;
 pub mod telemetry;
 pub mod audit_logs;
+pub mod app_seeds;
 pub mod onboarding;

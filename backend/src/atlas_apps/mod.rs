@@ -1,5 +1,6 @@
 pub mod anchor;
 pub mod network_instance;
+pub mod seeds;
 
 use crate::traits::atlas_app::AtlasApp;
 
