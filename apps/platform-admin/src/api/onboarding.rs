@@ -12,6 +12,8 @@ pub struct OnboardingStepStatus {
     pub title: String,
     pub description: String,
     pub is_required: bool,
+    /// Explicit display order — sort by this field, not Vec index.
+    pub position: u8,
     pub is_complete: bool,
     pub is_skipped: bool,
 }

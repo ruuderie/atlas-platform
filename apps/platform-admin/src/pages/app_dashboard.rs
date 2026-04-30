@@ -14,6 +14,7 @@ use shared_ui::components::ui::related_list::RelatedList;
 
 use crate::components::upsell_banner::UpsellBanner;
 use crate::components::onboarding_wizard::OnboardingWizard;
+use crate::components::seed_picker::SeedPicker;
 use crate::api::onboarding::get_onboarding_status;
 
 #[component]
@@ -45,6 +46,9 @@ pub fn AppDashboard() -> impl IntoView {
     });
     
     let site_id_str = site_id().to_string();
+    // Wrap in StoredValue so reactive `move ||` closures can clone it
+    // without consuming the binding (avoids FnOnce / Fn mismatch).
+    let site_id_stored = StoredValue::new(site_id_str.clone());
     let listings_res = LocalResource::new({
         let sid = site_id_str.clone();
         move || {
@@ -247,6 +251,7 @@ pub fn AppDashboard() -> impl IntoView {
                             <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
                         }
                     }).collect_view()}
+                    <TabsTrigger value="seed_data".to_string()>"Seed Data"</TabsTrigger>
                     <TabsTrigger value="domains".to_string()>"Routing & Domains"</TabsTrigger>
                 </TabsList>
 
@@ -257,6 +262,11 @@ pub fn AppDashboard() -> impl IntoView {
                         </TabsContent>
                     }
                 }).collect_view()}
+                <TabsContent value="seed_data".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
+                        <SeedPicker app_instance_id=site_id_stored.get_value() />
+                    </div>
+                </TabsContent>
                 <TabsContent value="domains".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     <div class="space-y-6">
                         <div class="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">
