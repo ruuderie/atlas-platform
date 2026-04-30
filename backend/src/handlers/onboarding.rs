@@ -81,22 +81,22 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
     Router::new()
         // Get onboarding status for an app instance
         .route(
-            "/api/onboarding/:app_instance_id",
+            "/api/onboarding/{app_instance_id}",
             get(get_onboarding_status),
         )
         // Mark a step complete (Custom steps only — data steps resolve automatically)
         .route(
-            "/api/onboarding/:app_instance_id/complete/:step_id",
+            "/api/onboarding/{app_instance_id}/complete/{step_id}",
             post(complete_step),
         )
         // Skip an optional step
         .route(
-            "/api/onboarding/:app_instance_id/skip/:step_id",
+            "/api/onboarding/{app_instance_id}/skip/{step_id}",
             post(skip_step),
         )
         // Dismiss the full-page takeover ("I'll do this later")
         .route(
-            "/api/onboarding/:app_instance_id/dismiss",
+            "/api/onboarding/{app_instance_id}/dismiss",
             post(dismiss_wizard),
         )
         .with_state(db)
@@ -107,12 +107,12 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
     Router::new()
         // Get status — tenant reads via ?token=
         .route(
-            "/onboarding/status/:app_instance_id",
+            "/onboarding/status/{app_instance_id}",
             get(get_onboarding_status_public),
         )
         // Complete a step — tenant submits via ?token=
         .route(
-            "/onboarding/step/:app_instance_id/:step_id",
+            "/onboarding/step/{app_instance_id}/{step_id}",
             post(complete_step_public),
         )
         .with_state(db)
