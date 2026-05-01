@@ -121,42 +121,125 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
     let mut settings = SiteSettings::default();
 
     if let Some(tenant_id) = tenant.0 {
-        if let Ok(rows) = sqlx::query("SELECT key, value FROM tenant_setting WHERE tenant_id = $1")
+        // Primary: read flat KV settings from tenant_setting table directly
+        match sqlx::query("SELECT key, value FROM tenant_setting WHERE tenant_id = $1")
             .bind(tenant_id)
             .fetch_all(&state.pool)
-            .await {
-            for row in rows {
-                let key: String = row.get("key");
-                let val: String = row.get("value");
-                match key.as_str() {
-                    "current_focus" => settings.current_focus = val,
-                    "status" => settings.status = val,
-                    "hero_quote" => settings.hero_quote = val,
-                    "hero_subtitle" => settings.hero_subtitle = val,
-                    "site_title" => settings.site_title = val,
-                    "lead_capture_title" => settings.lc_title = val,
-                    "lead_capture_desc" => settings.lc_desc = val,
-                    "lead_capture_label" => settings.lc_label = val,
-                    "lead_capture_placeholder" => settings.lc_placeholder = val,
-                    "lead_capture_btn" => settings.lc_btn = val,
-                    "lead_capture_footer" => settings.lc_footer = val,
-                    "lead_capture_endpoint" => settings.lc_endpoint = val,
-                    "status_color" => settings.status_color = val,
-                    "webhook_url" => settings.webhook_url = val,
-                    "admin_email" => settings.admin_email = val,
-                    "google_analytics_id" => settings.google_analytics_id = val,
-                    "booking_url" => settings.booking_url = val,
-                    "terms_html" => settings.terms_html = val,
-                    "privacy_html" => settings.privacy_html = val,
-                    "github_url" => settings.github_url = val,
-                    "x_url" => settings.x_url = val,
-                    "linkedin_url" => settings.linkedin_url = val,
-                    "b2b_enabled" => settings.b2b_enabled = val == "true",
-                    "meta_title" => settings.meta_title = val,
-                    "meta_description" => settings.meta_description = val,
-                    "og_image" => settings.og_image = val,
-                    _ => {}
+            .await
+        {
+            Ok(rows) => {
+                tracing::info!("[get_site_settings] tenant={} rows={}", tenant_id, rows.len());
+                for row in rows {
+                    let key: String = row.get("key");
+                    let val: String = row.get("value");
+                    match key.as_str() {
+                        "current_focus" => settings.current_focus = val,
+                        "status" => settings.status = val,
+                        "hero_quote" => settings.hero_quote = val,
+                        "hero_subtitle" => settings.hero_subtitle = val,
+                        "site_title" => settings.site_title = val,
+                        "lead_capture_title" => settings.lc_title = val,
+                        "lead_capture_desc" => settings.lc_desc = val,
+                        "lead_capture_label" => settings.lc_label = val,
+                        "lead_capture_placeholder" => settings.lc_placeholder = val,
+                        "lead_capture_btn" => settings.lc_btn = val,
+                        "lead_capture_footer" => settings.lc_footer = val,
+                        "lead_capture_endpoint" => settings.lc_endpoint = val,
+                        "status_color" => settings.status_color = val,
+                        "webhook_url" => settings.webhook_url = val,
+                        "admin_email" => settings.admin_email = val,
+                        "google_analytics_id" => settings.google_analytics_id = val,
+                        "booking_url" => settings.booking_url = val,
+                        "terms_html" => settings.terms_html = val,
+                        "privacy_html" => settings.privacy_html = val,
+                        "github_url" => settings.github_url = val,
+                        "x_url" => settings.x_url = val,
+                        "linkedin_url" => settings.linkedin_url = val,
+                        "b2b_enabled" => settings.b2b_enabled = val == "true",
+                        "meta_title" => settings.meta_title = val,
+                        "meta_description" => settings.meta_description = val,
+                        "og_image" => settings.og_image = val,
+                        _ => {}
+                    }
                 }
+            }
+            Err(e) => {
+                // Log the error explicitly so we can diagnose UAT failures.
+                // Fall through with defaults — do not propagate as a hard error.
+                tracing::error!("[get_site_settings] DB error querying tenant_setting: {:?}", e);
+            }
+        }
+
+        // Secondary: read app_instances.settings via the backend API.
+        // This supplements design_config, theme_primary_color, and widgets which are not
+        // stored in tenant_setting (they live in the JSONB blob on app_instances).
+        // The backend /api/app-instances/{tenant_id}/{app_type} merges both sources.
+        let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
+        let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+        let endpoint = format!("/api/app-instances/{}/anchor", tenant_id);
+
+        match crate::atlas_client::fetch_atlas_data::<serde_json::Value>(&endpoint, Some(tenant_id), host).await {
+            Ok(inst_json) => {
+                // The backend response is the AppInstance model with settings merged in.
+                // Fields: { id, tenant_id, app_type, settings: { ...merged JSONB + tenant_setting KV... } }
+                let s = inst_json.get("settings").cloned().unwrap_or_else(|| serde_json::json!({}));
+
+                // design_config — only set if not already populated by tenant_setting
+                if settings.design_config.is_none() {
+                    if let Some(dc) = s.get("design_config") {
+                        settings.design_config = serde_json::from_value(dc.clone()).ok();
+                    }
+                }
+                // theme_primary_color
+                if settings.theme_primary_color.is_none() {
+                    if let Some(tc) = s.get("theme_primary_color").and_then(|v| v.as_str()) {
+                        if !tc.is_empty() {
+                            settings.theme_primary_color = Some(tc.to_string());
+                        }
+                    }
+                }
+                // widgets array — allows nav-registered widgets like BitcoinBlockClock
+                if settings.widgets.is_empty() {
+                    if let Some(ws) = s.get("widgets") {
+                        if let Ok(widget_list) = serde_json::from_value::<Vec<crate::components::widget_registry::WidgetInstance>>(ws.clone()) {
+                            settings.widgets = widget_list;
+                        }
+                    }
+                }
+
+                // Fallback: if tenant_setting gave us defaults for key fields, try the
+                // merged JSONB. This handles tenants whose settings lived only in
+                // app_instances.settings before the canonicalize migration ran.
+                if settings.site_title == "ANCHOR PLATFORM" {
+                    if let Some(v) = s.get("site_title").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.site_title = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("current_focus").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.current_focus = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("status").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.status = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("hero_quote").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.hero_quote = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("hero_subtitle").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.hero_subtitle = v.to_string(); }
+                    }
+                    // LC fields
+                    if let Some(v) = s.get("lead_capture_title").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.lc_title = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("lead_capture_btn").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.lc_btn = v.to_string(); }
+                    }
+                    if let Some(v) = s.get("lead_capture_desc").and_then(|v| v.as_str()) {
+                        if !v.is_empty() { settings.lc_desc = v.to_string(); }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("[get_site_settings] Backend API unavailable ({}), using tenant_setting data only", e);
             }
         }
     }
