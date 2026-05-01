@@ -2,15 +2,16 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "uat" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "uat" ]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
   IMAGE_NAME_PLATFORM_ADMIN: ${{ github.repository }}-platform-admin
   IMAGE_NAME_DIRECTORY_INSTANCE: ${{ github.repository }}-network-instance
+  IMAGE_NAME_ANCHOR: ruuderie/anchor-app
 
 jobs:
   build-and-push-images:
@@ -23,12 +24,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to the Container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Anchor App Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./apps/anchor/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ANCHOR }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ANCHOR }}:${{ github.sha }}
+          platforms: linux/amd64
+          cache-from: type=gha,scope=anchor
+          cache-to: type=gha,mode=max,scope=anchor
 
       - name: Build and push Backend Docker image
         uses: docker/build-push-action@v5
@@ -37,6 +52,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
           target: production
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Build and push Platform Admin Docker image
         uses: docker/build-push-action@v5
@@ -45,6 +62,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:latest
           target: production
+          cache-from: type=gha,scope=platform-admin
+          cache-to: type=gha,mode=max,scope=platform-admin
 
       - name: Build and push Network Instance Docker image
         uses: docker/build-push-action@v5
@@ -53,30 +72,40 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:latest
           target: production
+          cache-from: type=gha,scope=network-instance
+          cache-to: type=gha,mode=max,scope=network-instance
 
   deploy:
     needs: build-and-push-images
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      # Setup Kustomize
-      - name: Setup Kustomize
-        uses: imranismail/setup-kustomize@v2
-        
-      # Update the image tags in kustomization.yaml to the newly built SHA
-      - name: Update Kubernetes manifests
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
         run: |
-          cd k8s
-          kustomize edit set image ghcr.io/yourusername/business-network-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
-          kustomize edit set image ghcr.io/yourusername/business-network-platform-admin=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }}
-          kustomize edit set image ghcr.io/yourusername/business-network-network-instance=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }}
-          
-      # In a real environment, you would configure kubectl access here using secrets
-      # - name: Deploy to Kubernetes
-      #   run: |
-      #     # kubectl config ...
-      #     kustomize build k8s | kubectl apply -f -
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Rolling restart anchor-app
+        run: |
+          kubectl rollout restart deployment/anchor-app -n atlas-platform
+          kubectl rollout status deployment/anchor-app -n atlas-platform --timeout=300s
+
+      - name: Rolling restart backend
+        run: |
+          kubectl rollout restart deployment/backend -n atlas-platform
+          kubectl rollout status deployment/backend -n atlas-platform --timeout=300s
+
+      - name: Verify deployments
+        run: |
+          kubectl get pods -n atlas-platform
+          echo "--- anchor-app image ---"
+          kubectl get deployment anchor-app -n atlas-platform -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
+          echo "--- backend image ---"
+          kubectl get deployment backend -n atlas-platform -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo ""
