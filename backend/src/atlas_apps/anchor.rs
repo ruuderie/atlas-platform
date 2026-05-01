@@ -77,6 +77,11 @@ impl AtlasApp for AnchorApp {
 
             // --- Onboarding system: drop legacy anchor tables (idempotent) ---
             Box::new(crate::migration::m20260430_000001_drop_anchor_legacy_tables::Migration),
+
+            // --- Data integrity: canonicalize tenant_setting from app_instances.settings ---
+            // Fixes the UAT content gap (2026-04-30): settings were stored in app_instances.settings
+            // but get_site_settings() reads tenant_setting. Also fixes lc_* → lead_capture_* key mismatch.
+            Box::new(crate::migration::m20260501_000001_canonicalize_tenant_settings::Migration),
         ]
     }
 

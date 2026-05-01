@@ -97,6 +97,10 @@ pub mod m20260427_000011_kami_projects_layout;
 pub mod m20260429_000001_create_onboarding_progress;
 pub mod m20260430_000001_drop_anchor_legacy_tables;
 
+// DATA INTEGRITY FIXES
+// Canonicalizes tenant_setting from app_instances.settings — fixes UAT content gap (2026-04-30)
+pub mod m20260501_000001_canonicalize_tenant_settings;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
