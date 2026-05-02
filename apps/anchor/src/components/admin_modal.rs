@@ -159,6 +159,17 @@ pub fn PostForm(
             .unwrap_or_default(),
     );
 
+    let (pdf_attachment_url, set_pdf_attachment_url) = create_signal(String::new());
+    let (pdf_generate, set_pdf_generate) = create_signal(false);
+    let (pdf_require_lead, set_pdf_require_lead) = create_signal(false);
+    let (pdf_cta_label, set_pdf_cta_label) = create_signal(String::new());
+    let (pdf_notify_email, set_pdf_notify_email) = create_signal(String::new());
+    let (pdf_upload_status, set_pdf_upload_status) = create_signal(String::new());
+
+    let on_upload_click = move |_| {
+        set_pdf_upload_status.set("URL generation not implemented in this snippet".to_string());
+    };
+
     let post_id_sv = store_value(id_val.clone());
     // Error surfacing: captures server function failures so the user is
     // notified inline instead of the modal silently closing on DB errors.
@@ -902,9 +913,9 @@ pub fn ResumeProfileForm(
     );
 
     let (active_entries, set_active_entries) =
-        create_signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
+        create_signal(std::collections::HashMap::<i32, Option<serde_json::Value>>::new());
     let (expanded_entries, set_expanded_entries) =
-        create_signal(std::collections::HashSet::<uuid::Uuid>::new());
+        create_signal(std::collections::HashSet::<i32>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -916,7 +927,7 @@ pub fn ResumeProfileForm(
         }
     });
 
-    let toggle_entry = move |eid: uuid::Uuid, checked: bool| {
+    let toggle_entry = move |eid: i32, checked: bool| {
         set_active_entries.update(|state| {
             if checked && !state.contains_key(&eid) {
                 state.insert(eid, None);
@@ -929,7 +940,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let toggle_expand = move |eid: uuid::Uuid| {
+    let toggle_expand = move |eid: i32| {
         set_expanded_entries.update(|e| {
             if e.contains(&eid) {
                 e.remove(&eid);
@@ -939,7 +950,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let update_override = move |eid: uuid::Uuid, key: &str, val: String| {
+    let update_override = move |eid: i32, key: &str, val: String| {
         set_active_entries.update(|state| {
             if let Some(opt_val) = state.get_mut(&eid) {
                 let mut obj = opt_val.take().unwrap_or_else(|| serde_json::json!({}));
@@ -962,7 +973,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let get_override = move |eid: uuid::Uuid, key: &str| -> String {
+    let get_override = move |eid: i32, key: &str| -> String {
         active_entries.with(|state| {
             state
                 .get(&eid)
@@ -1827,7 +1838,7 @@ pub fn BaseResumeEntryForm(
         },
     );
 
-    let (active_profiles, set_active_profiles) = create_signal(Vec::<uuid::Uuid>::new());
+    let (active_profiles, set_active_profiles) = create_signal(Vec::<i32>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -1835,7 +1846,7 @@ pub fn BaseResumeEntryForm(
         }
     });
 
-    let toggle_profile = move |pid: uuid::Uuid, checked: bool| {
+    let toggle_profile = move |pid: i32, checked: bool| {
         set_active_profiles.update(|state| {
             if checked && !state.contains(&pid) {
                 state.push(pid);
