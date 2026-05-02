@@ -6,6 +6,7 @@ use sea_orm::DatabaseConnection;
 use crate::handlers::{admin, categories, 
     profiles, templates, contacts, customers,
     leads, deals, cases, files, listings, accounts};
+use crate::admin::provision::provision_tenant;
 
 
 pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
@@ -61,7 +62,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/platform/apps", get(admin::get_platform_apps))
                 .route("/api/admin/platform/apps/{instance_id}/domains", get(admin::get_app_domains).post(admin::add_app_domain))
                 .route("/api/admin/platform/apps/{instance_id}/domains/{domain_name}", delete(admin::remove_app_domain))
-                // Tenant management API is handled via tenant::authenticated_routes
+                // Provision a new tenant (calls provision() on all active AtlasApps)
+                .route("/api/admin/platform/provision/{tenant_id}", post(provision_tenant))
                 // Tenant management API is handled via tenant::authenticated_routes
 
                 // Listing management

@@ -1,6 +1,24 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// The backend-side `TenantModel` returned by `POST /api/tenants`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TenantCreatedModel {
+    pub id: Uuid,
+    pub name: String,
+    pub description: String,
+}
+
+/// Payload for `POST /api/app-instances`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAppInstance {
+    pub tenant_id: Uuid,
+    pub app_type: String,
+    pub database_url: Option<String>,
+    pub data_seed_name: Option<String>,
+    pub settings: Option<serde_json::Value>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UserInfo {
     pub id: String,
@@ -9,6 +27,7 @@ pub struct UserInfo {
     pub last_name: String,
     pub is_admin: bool,
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionResponse {

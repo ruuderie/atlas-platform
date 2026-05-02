@@ -88,46 +88,52 @@ pub struct DismissPayload {
 // ROUTES
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Authenticated routes (platform admin)
-pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free authenticated route definitions (platform admin).
+/// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        // Get onboarding status for an app instance
         .route(
             "/api/onboarding/{app_instance_id}",
             get(get_onboarding_status),
         )
-        // Mark a step complete (Custom steps only — data steps resolve automatically)
         .route(
             "/api/onboarding/{app_instance_id}/complete/{step_id}",
             post(complete_step),
         )
-        // Skip an optional step
         .route(
             "/api/onboarding/{app_instance_id}/skip/{step_id}",
             post(skip_step),
         )
-        // Dismiss the full-page takeover ("I'll do this later")
         .route(
             "/api/onboarding/{app_instance_id}/dismiss",
             post(dismiss_wizard),
         )
-        .with_state(db)
 }
 
-/// Public token-gated routes (tenant self-service via magic link)
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free public token-gated route definitions (tenant self-service via magic link).
+/// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        // Get status — tenant reads via ?token=
         .route(
             "/onboarding/status/{app_instance_id}",
             get(get_onboarding_status_public),
         )
-        // Complete a step — tenant submits via ?token=
         .route(
             "/onboarding/step/{app_instance_id}/{step_id}",
             post(complete_step_public),
         )
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    authenticated_routes_raw().with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    public_routes_raw().with_state(db)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

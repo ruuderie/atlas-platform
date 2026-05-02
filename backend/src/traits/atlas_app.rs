@@ -114,15 +114,55 @@ pub struct OnboardingStep {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// The formal API Contract for any application plugging into the Atlas Platform.
+///
+/// # State Binding Contract
+///
+/// Handler modules that are used inside an `AtlasApp` implementation MUST expose
+/// state-free route constructors (i.e., functions that return `Router<DatabaseConnection>`
+/// WITHOUT calling `.with_state(db)` internally). State is applied exactly once,
+/// at the `AtlasApp` boundary, inside `public_router()` or `authenticated_router()`.
+///
+/// ```rust,ignore
+/// // ✅ Correct — state-free constructor in the handler module
+/// pub fn public_routes_raw() -> Router<DatabaseConnection> {
+///     Router::new().route("/api/public/pages/{tenant_id}", get(list_pages))
+///     // No .with_state() here!
+/// }
+///
+/// // ✅ Correct — state applied once at the AtlasApp boundary
+/// fn public_router(&self, db: DatabaseConnection) -> Router<DatabaseConnection> {
+///     Router::new()
+///         .merge(crate::handlers::app_pages::public_routes_raw())
+///         .with_state(db)  // Exactly once, here.
+/// }
+/// ```
+///
+/// Violating this contract causes Axum to silently drop routes from
+/// pre-finalized sub-routers merged via the `get_active_apps()` loop.
+/// This was the root cause of the Apr 8→Apr 15 2026 404 regression and the
+/// May 2 2026 "Overlapping method route" panic.
+///
+/// # Registration Order
+///
+/// `get_active_apps()` returns apps in the order they are merged into the
+/// global router. `CorePlatformApp` MUST be registered first so its routes
+/// are established before any domain sub-app routes are merged.
+///
+/// # Canonical Reference Implementation
+///
+/// See `backend/src/atlas_apps/core_platform.rs` for the canonical example of
+/// a correct `AtlasApp` implementation.
 #[async_trait]
 pub trait AtlasApp: Send + Sync {
     /// A unique, namespace-friendly identifier (e.g., "anchor", "crm", "telemetry")
     fn app_id(&self) -> &'static str;
 
     /// Exposes the Axum router containing the app's native endpoints accessible without authentication.
+    /// State is applied once inside this method via `.with_state(db)`.
     fn public_router(&self, state: DatabaseConnection) -> Router<DatabaseConnection>;
 
     /// Exposes the Axum router containing the app's native endpoints that explicitly require authentication via core platform middleware.
+    /// State is applied once inside this method via `.with_state(db)`.
     fn authenticated_router(&self, state: DatabaseConnection) -> Router<DatabaseConnection>;
 
     /// Provides SeaORM standard migrations localized strictly to this app.
@@ -132,6 +172,22 @@ pub trait AtlasApp: Send + Sync {
     /// Defines standard templates and execution capsules for background sync services.
     /// This pattern prevents frontend apps from silently pinging APIs by moving the burden to platform pollers.
     fn background_jobs(&self) -> Vec<BackgroundJob>;
+
+    // ── Provisioning Contract ─────────────────────────────────────────────────
+
+    /// Called when a new tenant is onboarded to this app.
+    ///
+    /// Override to create default pages, menus, app_instance records, onboarding
+    /// seeds, or any other initial state a new tenant needs to get started.
+    ///
+    /// The implementation should be idempotent — safe to call multiple times
+    /// on the same tenant without corrupting existing data (use ON CONFLICT DO NOTHING
+    /// or EXISTS guards).
+    ///
+    /// Default: no-op. Returns `Ok(())` without touching the database.
+    async fn provision(&self, _db: &DatabaseConnection, _tenant_id: Uuid) -> Result<(), String> {
+        Ok(())
+    }
 
     // ── Seed Pack Contract ────────────────────────────────────────────────────
 

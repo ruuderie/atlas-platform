@@ -1,41 +1,29 @@
 /* 
- * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
- * 
- * This legacy application router mapping currently has its routes hardcoded 
- * into the global Atlas platform core. 
- * 
- * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
- * located at `backend/src/traits/atlas_app.rs`. 
- * 
- * Future work requires refactoring the sub-apps to implement the `AtlasApp` trait 
- * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
- * instead of manually merging them into `backend/src/api.rs`.
- * 
+ * DONE — AtlasApp migration complete as of 2026-05-02.
+ *
+ * This file now contains ONLY Tier 3 platform infrastructure:
+ *   Auth (login/register/session/refresh/logout), Passkeys, Magic Links, OAuth,
+ *   Accounts, User Accounts, Admin Panel, A/B Testing, Setup (first-run), /health.
+ *
+ * All Tier 1 routes (CMS, tenant, onboarding, forms, feeds, search, audit logs,
+ * seeds, app_instance) are now owned by `CorePlatformApp` in:
+ *   `backend/src/atlas_apps/core_platform.rs`
+ *
+ * Domain sub-app routes (listings, CRM, profiles, anchor pages) remain in their
+ * respective AtlasApp implementations (AnchorApp, NetworkInstanceApp).
+ *
  * See the full integration protocol at: `docs/atlas_app_integration.md`
+ * Architecture layer map: `docs/architecture/platform_layer_map.md`
  */
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, profiles, listings, accounts, my_accounts, ab_testing, user_accounts, ad_purchases, tenant, app_instance, app_pages, app_menus, sessions, health, auth_frontend, communications, setup, magic_links, search, forms, onboarding};
+use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup, magic_links};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
 use axum::{extract::Request, middleware::Next};
 use std::env;
-
-// async fn auth_middleware_wrapper(
-//     Extension(db): Extension<DatabaseConnection>,
-//     Extension(rate_limiter): Extension<RateLimiter>,
-//     req: Request<axum::body::Body>,
-//     next: Next,
-// ) -> axum::response::Response {
-//     auth_middleware(Extension(db), Extension(rate_limiter), req, next).await.unwrap_or_else(|err| {
-//         axum::http::Response::builder()
-//             .status(err)
-//             .body(axum::body::Body::empty())
-//             .unwrap()
-//     })
-// }
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
@@ -52,32 +40,17 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 
-    // Public routes (requires state, so merge with state-applied routers)
+    // Public routes — Tier 3 infrastructure only.
+    // Tier 1 routes (CMS, tenant, onboarding, forms, feeds, search, audit_logs,
+    // app_instance, app_seeds) are registered via CorePlatformApp in get_active_apps().
+    // Tier 2 routes (listings, CRM, profiles, anchor pages) are registered via
+    // AnchorApp and NetworkInstanceApp in get_active_apps().
     let mut public_routes = Router::<DatabaseConnection>::new()
-        .merge(tenant::public_routes(db.clone()))
-        .merge(crate::handlers::feeds::public_routes(db.clone()))
         .merge(auth_frontend::public_routes())
-        .merge(forms::public_routes()) // NEW FORMS HANDLER
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
         .merge(magic_links::public_routes())
-        .merge(app_instance::public_routes(db.clone()))
-        // NOTE: app_menus and app_pages are registered here directly rather than via an AtlasApp
-        // because they are cross-cutting platform concerns shared by all atlas apps.
-        // Navigation menus and CMS pages have no single "owner" app — both anchor and
-        // network_instance consume them. Registering them in the global api.rs ensures
-        // they are available regardless of which AtlasApps happen to be active.
-        //
-        // IMPORTANT: Do NOT also register app_pages in network_instance.rs or any
-        // other AtlasApp::public_router() — Axum panics with "Overlapping method route"
-        // at startup if the same path is merged twice. This is what broke all tests
-        // in commit 1b84c375 (May 2 2026) and was the root cause of the Apr 8 → Apr 15
-        // regression where pages returned 404 but menus did not.
-        .merge(app_menus::public_routes(db.clone()))
-        .merge(app_pages::public_routes(db.clone()))
-        // Tenant self-service onboarding wizard (token-gated)
-        .merge(onboarding::public_routes(db.clone()))
         .route("/health", get(health::health_check));
 
     for app in crate::atlas_apps::get_active_apps() {
@@ -91,7 +64,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let rate_limiter = RateLimiter::new();
     let db_clone = db.clone();
 
-    // Authenticated routes (requires state)
+    // Authenticated routes — Tier 3 infrastructure only.
+    // Tier 1 and Tier 2 authenticated routes are injected via the get_active_apps() loop below.
     let mut authenticated_routes = Router::new()
         .route("/logout", post(users::logout_user))
         .merge(accounts::routes())
@@ -102,17 +76,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(my_accounts::authenticated_routes())
         .merge(ab_testing::authenticated_routes())
         .merge(crate::handlers::passkeys::authenticated_routes())
-        .merge(crate::handlers::feeds::authenticated_routes(db.clone()))
-        .merge(tenant::authenticated_routes(db.clone()))
-        .merge(app_instance::authenticated_routes(db.clone()))
-        .merge(communications::authenticated_routes(db.clone()))
-        .merge(search::authenticated_routes())
-        .merge(crate::handlers::audit_logs::authenticated_routes())
-        .merge(crate::handlers::telemetry::authenticated_routes())
-        // Platform admin onboarding wizard
-        .merge(onboarding::authenticated_routes(db.clone()))
-        // App instance seed pack API
-        .merge(crate::handlers::app_seeds::authenticated_routes(db.clone()));
+        .merge(crate::handlers::communications::authenticated_routes(db.clone()))
+        .merge(crate::handlers::telemetry::authenticated_routes());
 
     for app in crate::atlas_apps::get_active_apps() {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));

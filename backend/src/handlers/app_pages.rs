@@ -9,11 +9,18 @@ use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
 use crate::entities::app_page::{self, Entity as AppPage};
 use uuid::Uuid;
 
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free public route definitions.
+/// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/public/pages/{tenant_id}", get(list_pages))
         .route("/api/public/pages/{tenant_id}/{*slug}", get(get_page_by_slug))
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    public_routes_raw().with_state(db)
 }
 
 pub async fn list_pages(

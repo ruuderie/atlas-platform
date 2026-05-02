@@ -24,17 +24,31 @@ pub struct CreateAppInstancePayload {
     pub settings: Option<Value>,
 }
 
-pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free authenticated route definitions.
+/// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/app-instances", post(create_app_instance))
         .route("/api/app-instances/seeds/{app_type}", get(list_data_seeds))
-        .with_state(db)
 }
 
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free public route definitions.
+/// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/app-instances/{tenant_id}/{app_type}", get(get_app_instance))
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    authenticated_routes_raw().with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    public_routes_raw().with_state(db)
 }
 
 /// Fetches an AppInstance by tenant ID and app type.

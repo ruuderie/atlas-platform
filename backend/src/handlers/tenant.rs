@@ -13,22 +13,36 @@ use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use crate::services::tenant::TenantService;
 
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free public route definitions.
+/// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/tenants", get(get_tenants))
         .route("/tenants/lookup", get(lookup_tenant_by_domain))
         .route("/tenants/{id}", get(get_tenant_by_id))
-        .with_state(db)
 }
 
-pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free authenticated route definitions.
+/// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/tenants", post(create_tenant))
         .route("/api/tenants/{id}", put(update_tenant))
         .route("/api/tenants/{id}", delete(delete_tenant))
         .route("/api/tenants/{id}/settings", get(get_tenant_settings))
         .route("/api/tenants/{id}/settings", post(upsert_tenant_setting))
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    public_routes_raw().with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    authenticated_routes_raw().with_state(db)
 }
 
 pub async fn get_tenants(
