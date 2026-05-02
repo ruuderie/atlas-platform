@@ -42,3 +42,4 @@ pub mod audit_logs;
 pub mod anchor;
 pub mod app_seeds;
 pub mod onboarding;
+pub mod version;

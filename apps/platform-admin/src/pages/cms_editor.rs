@@ -6,10 +6,11 @@ use shared_ui::components::ui::tabs::{TabsContent, TabsList};
 use shared_ui::components::data_table::DataTable;
 use leptos_router::hooks::use_query_map;
 
-// Phase 5: now uses the proper app_pages CRUD endpoint instead of api/listings
-use crate::api::pages::{list_pages, create_page, delete_page, PageSummary, CreatePagePayload};
+// Phase 5+6: uses app_pages CRUD and block-aware visual editor
+use crate::api::pages::{list_pages, create_page, PageSummary, CreatePagePayload};
 use crate::api::files::create_file;
 use crate::api::models::CreateFileInput;
+use crate::pages::block_editor::{parse_blocks, BlockPreview, block_templates};
 
 /// Parses the tenant_id from the query string (?tenant_id=...).
 /// Falls back to the nil UUID so the editor doesn't crash without a tenant context.
@@ -32,9 +33,10 @@ pub fn CmsEditor() -> impl IntoView {
     let title = RwSignal::new("".to_string());
     let slug = RwSignal::new("".to_string());
     let summary = RwSignal::new("".to_string());
-    let blocks_content = RwSignal::new("".to_string());
+    let blocks_json = RwSignal::new("[]".to_string());
     let page_type = RwSignal::new("standard".to_string());
     let is_published = RwSignal::new(false);
+    let show_raw_json = RwSignal::new(false);
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     let tenant_id = get_tenant_id();
@@ -72,14 +74,18 @@ pub fn CmsEditor() -> impl IntoView {
             .collect::<Vec<Vec<String>>>()
     });
 
+    // ── Derived: live block parse ─────────────────────────────────────────────
+    // Re-parses blocks_json on every keystroke to drive the right-pane preview.
+    let parsed_blocks = Signal::derive(move || {
+        let (blocks, err) = parse_blocks(&blocks_json.get());
+        (blocks, err)
+    });
+
     // ── Publish handler ───────────────────────────────────────────────────────
     let handle_publish = move |_| {
         leptos::task::spawn_local(async move {
-            let blocks: Option<serde_json::Value> = if blocks_content.get().is_empty() {
-                Some(serde_json::json!([]))
-            } else {
-                serde_json::from_str(&blocks_content.get()).ok()
-            };
+            let blocks_value: Option<serde_json::Value> =
+                serde_json::from_str(&blocks_json.get()).ok();
 
             let payload = CreatePagePayload {
                 slug: slug.get(),
@@ -87,7 +93,7 @@ pub fn CmsEditor() -> impl IntoView {
                 description: summary.get(),
                 page_type: Some(page_type.get()),
                 hero_payload: None,
-                blocks_payload: blocks,
+                blocks_payload: blocks_value,
                 is_published: Some(is_published.get()),
             };
 
@@ -97,7 +103,7 @@ pub fn CmsEditor() -> impl IntoView {
                     title.set("".to_string());
                     slug.set("".to_string());
                     summary.set("".to_string());
-                    blocks_content.set("".to_string());
+                    blocks_json.set("[]".to_string());
                     is_published.set(false);
                     toast.message.set(Some("Page published successfully.".to_string()));
                 }
@@ -242,13 +248,90 @@ pub fn CmsEditor() -> impl IntoView {
                                     <Textarea rows=2u32 placeholder="A brief description of this page..." bind_value=summary />
                                 </div>
 
-                                // Blocks JSON
-                                <div class="space-y-2">
-                                    <div class="flex justify-between items-end">
-                                        <label class="text-[10px] font-bold uppercase tracking-wider text-secondary">"Blocks Payload (JSON)"</label>
-                                        <span class="text-[10px] text-on-surface-variant">"Raw block editor — visual editor coming in Phase 6"</span>
+                                // ── Blocks Editor ────────────────────────────────────────────────
+                                <div class="space-y-4">
+                                    <div class="flex justify-between items-center">
+                                        <label class="text-[10px] font-bold uppercase tracking-wider text-secondary">"Page Blocks"</label>
+                                        <button
+                                            class="text-[10px] text-on-surface-variant hover:text-primary transition-colors"
+                                            on:click=move |_| show_raw_json.update(|v| *v = !*v)
+                                        >
+                                            {move || if show_raw_json.get() { "← Visual" } else { "{ } Raw JSON" }}
+                                        </button>
                                     </div>
-                                    <Textarea rows=12u32 placeholder="[]" bind_value=blocks_content />
+
+                                    // Block Palette
+                                    {move || if !show_raw_json.get() {
+                                        let templates = block_templates();
+                                        view! {
+                                            <div class="space-y-3">
+                                                // Add block buttons
+                                                <div class="grid grid-cols-3 gap-2">
+                                                    {templates.into_iter().map(|tmpl| {
+                                                        let json_snippet = tmpl.json.to_string();
+                                                        view! {
+                                                            <button
+                                                                class="flex flex-col items-center gap-1 p-3 bg-surface-container-high hover:bg-surface-bright/50 rounded-lg border border-outline-variant/20 hover:border-primary/30 transition-all group text-center"
+                                                                on:click=move |_| {
+                                                                    let current = blocks_json.get();
+                                                                    let trimmed = current.trim();
+                                                                    let new_json = if trimmed == "[]" || trimmed.is_empty() {
+                                                                        format!("[{}]", json_snippet)
+                                                                    } else {
+                                                                        // Insert before the closing ]
+                                                                        let without_bracket = trimmed.trim_end_matches(']').trim_end_matches(',');
+                                                                        format!("{},{}]", without_bracket, json_snippet)
+                                                                    };
+                                                                    blocks_json.set(new_json);
+                                                                }
+                                                            >
+                                                                <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary text-lg transition-colors">{tmpl.icon}</span>
+                                                                <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant group-hover:text-on-surface">{tmpl.label}</span>
+                                                            </button>
+                                                        }
+                                                    }).collect_view()}
+                                                </div>
+
+                                                // Parse error banner
+                                                {move || {
+                                                    let (_, err) = parsed_blocks.get();
+                                                    err.map(|e| view! {
+                                                        <div class="flex items-center gap-2 px-3 py-2 bg-error-container text-error rounded text-xs">
+                                                            <span class="material-symbols-outlined text-sm">"error"</span>
+                                                            {e}
+                                                        </div>
+                                                    })
+                                                }}
+
+                                                // Block stack preview
+                                                <div class="space-y-2">
+                                                    {move || {
+                                                        let (blocks, _) = parsed_blocks.get();
+                                                        if blocks.is_empty() {
+                                                            view! {
+                                                                <div class="text-center py-8 border-2 border-dashed border-outline-variant/20 rounded-lg">
+                                                                    <span class="material-symbols-outlined text-on-surface-variant text-3xl">"view_carousel"</span>
+                                                                    <p class="text-xs text-on-surface-variant mt-2">"Click a block type above to add it to this page"</p>
+                                                                </div>
+                                                            }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <div class="space-y-2">
+                                                                    {blocks.into_iter().enumerate().map(|(i, block)| view! {
+                                                                        <BlockPreview block=block index=i />
+                                                                    }).collect_view()}
+                                                                </div>
+                                                            }.into_any()
+                                                        }
+                                                    }}
+                                                </div>
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <Textarea rows=10u32 placeholder="[]" bind_value=blocks_json />
+                                        }.into_any()
+                                    }}
                                 </div>
 
                                 // Asset Upload
@@ -259,47 +342,85 @@ pub fn CmsEditor() -> impl IntoView {
                             </div>
                         </section>
 
-                        // ── Right Pane: Live Preview ──
+                        // ── Right Pane: Block Structure Preview ──
                         <section class="flex-1 bg-surface-container-lowest p-10 overflow-hidden flex flex-col">
                             <div class="flex justify-between items-center mb-6">
                                 <div class="flex items-center gap-3">
-                                    <span class="material-symbols-outlined text-secondary">"visibility"</span>
-                                    <span class="text-[10px] font-bold uppercase tracking-widest text-secondary">"Page Preview"</span>
+                                    <span class="material-symbols-outlined text-secondary">"view_carousel"</span>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-secondary">"Block Stack Preview"</span>
                                 </div>
-                                <div class="flex gap-2">
-                                    <button class="p-1.5 rounded-full bg-surface-container text-primary"><span class="material-symbols-outlined text-sm">"desktop_windows"</span></button>
-                                    <button class="p-1.5 rounded-full hover:bg-surface-container text-on-surface-variant"><span class="material-symbols-outlined text-sm">"smartphone"</span></button>
+                                <div class="flex items-center gap-2">
+                                    {move || {
+                                        let (blocks, _) = parsed_blocks.get();
+                                        let count = blocks.len();
+                                        view! {
+                                            <span class="text-[10px] text-on-surface-variant">{count}" blocks"</span>
+                                        }
+                                    }}
                                 </div>
                             </div>
-                            // Framed Preview
-                            <div class="flex-1 rounded-xl bg-white overflow-y-auto shadow-2xl overflow-x-hidden">
-                                <div class="w-full text-slate-900 font-sans">
-                                    // Mock nav
-                                    <nav class="h-16 px-10 flex items-center justify-between border-b border-slate-100">
-                                        <div class="font-black text-xl tracking-tighter italic text-slate-900">"YOUR SITE"</div>
-                                        <div class="flex gap-8 text-xs font-bold uppercase text-slate-500">
-                                            <span>"Home"</span>
-                                            <span>"About"</span>
-                                            <span>"Contact"</span>
-                                        </div>
-                                    </nav>
-                                    // Content preview
-                                    <div class="p-10 max-w-2xl">
-                                        <div class="flex gap-2 mb-4">
-                                            <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase rounded">{move || page_type.get()}</span>
-                                        </div>
-                                        <h2 class="text-2xl font-bold text-slate-800 mb-6">
+
+                            // Page meta summary card
+                            <div class="bg-surface-container rounded-xl p-4 mb-4 border border-outline-variant/10">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p class="text-sm font-bold text-on-surface">
                                             {move || if title.get().is_empty() { "Untitled Page".to_string() } else { title.get() }}
-                                        </h2>
-                                        <p class="text-slate-500 leading-relaxed mb-6 italic border-l-4 border-blue-500 pl-4">
-                                            {move || if summary.get().is_empty() { "Page description will appear here...".to_string() } else { summary.get() }}
                                         </p>
-                                        <div class="text-xs font-mono text-slate-400 bg-slate-50 rounded p-4">
-                                            "Slug: /"
+                                        <p class="text-[10px] text-on-surface-variant font-mono mt-0.5">"/"
                                             {move || slug.get()}
-                                        </div>
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-bold rounded uppercase">
+                                            {move || page_type.get()}
+                                        </span>
+                                        {move || if is_published.get() {
+                                            view! {
+                                                <span class="px-2 py-0.5 bg-tertiary/10 text-tertiary text-[9px] font-bold rounded uppercase">"Published"</span>
+                                            }.into_any()
+                                        } else {
+                                            view! {
+                                                <span class="px-2 py-0.5 bg-surface-container-high text-on-surface-variant text-[9px] font-bold rounded uppercase">"Draft"</span>
+                                            }.into_any()
+                                        }}
                                     </div>
                                 </div>
+                                <p class="text-xs text-on-surface-variant italic line-clamp-2">
+                                    {move || if summary.get().is_empty() { "No description set".to_string() } else { summary.get() }}
+                                </p>
+                            </div>
+
+                            // Block preview list (scrollable)
+                            <div class="flex-1 overflow-y-auto space-y-3">
+                                {move || {
+                                    let (blocks, err) = parsed_blocks.get();
+                                    if let Some(e) = err {
+                                        view! {
+                                            <div class="flex flex-col items-center justify-center h-full text-center">
+                                                <span class="material-symbols-outlined text-error text-3xl mb-2">"error"</span>
+                                                <p class="text-xs text-error font-mono">{e}</p>
+                                                <p class="text-[10px] text-on-surface-variant mt-2">"Switch to Raw JSON tab to fix the syntax."</p>
+                                            </div>
+                                        }.into_any()
+                                    } else if blocks.is_empty() {
+                                        view! {
+                                            <div class="flex flex-col items-center justify-center h-full text-center">
+                                                <span class="material-symbols-outlined text-on-surface-variant text-4xl mb-3">"layers"</span>
+                                                <p class="text-sm font-bold text-on-surface">"No blocks yet"</p>
+                                                <p class="text-xs text-on-surface-variant mt-1">"Add blocks from the palette on the left."</p>
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <div class="space-y-3">
+                                                {blocks.into_iter().enumerate().map(|(i, block)| view! {
+                                                    <BlockPreview block=block index=i />
+                                                }).collect_view()}
+                                            </div>
+                                        }.into_any()
+                                    }
+                                }}
                             </div>
                         </section>
                     </div>

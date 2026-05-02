@@ -24,6 +24,7 @@ use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
 use axum::{extract::Request, middleware::Next};
 use std::env;
+use crate::handlers::version::version_header_middleware;
 
 pub fn create_router(db: DatabaseConnection) -> Router {
     // Check environment
@@ -51,6 +52,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
         .merge(magic_links::public_routes())
+        .merge(crate::handlers::version::public_routes()) // GET /api/version
         .route("/health", get(health::health_check));
 
     for app in crate::atlas_apps::get_active_apps() {
@@ -83,7 +85,9 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));
     }
 
-    // Combine all routes and apply state at the top level
+    // Combine all routes and apply state at the top level.
+    // The version_header_middleware wraps the entire router so EVERY response
+    // (including error responses from the auth middleware) carries X-Atlas-Version.
     Router::new()
         .merge(auth_routes)  // Keep auth routes at the root level
         .merge(public_routes)
@@ -108,7 +112,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
                 .layer(Extension(db_clone))
                 .layer(Extension(rate_limiter)),
         )
-        .layer(Extension(db.clone())) // For middleware that might need it
+        .layer(axum::middleware::from_fn(version_header_middleware)) // X-Atlas-Version on every response
+        .layer(Extension(db.clone()))
         .layer(TraceLayer::new_for_http())
-        .with_state(db) // Apply state to the entire router
+        .with_state(db)
 }
