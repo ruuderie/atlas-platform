@@ -21,6 +21,7 @@ use crate::pages::dashboard::Dashboard;
 use crate::pages::apps::Apps;
 use crate::pages::crm_grid::CrmGrid;
 use crate::pages::cms_editor::CmsEditor;
+use crate::pages::menu_editor::MenuEditor;
 use crate::pages::login::Login;
 use crate::pages::verify_token::VerifyToken;
 use crate::pages::setup::Setup;
@@ -40,6 +41,7 @@ use crate::pages::platform_admins::PlatformAdmins;
 use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, PlatformAppModel};
 use crate::api::networks::get_networks;
+use crate::api::version::get_version;
 
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalToast {
@@ -291,10 +293,17 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span class="material-symbols-outlined">"handshake"</span>
                             <span>"Sales"</span>
                         </a>
-                        <a href="/cms" class=move || side_active_class("/cms")>
-                            <span class="material-symbols-outlined">"article"</span>
-                            <span>"Content"</span>
-                        </a>
+                        <div class="pt-2">
+                            <div class="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1 mt-2">"Content"</div>
+                            <a href="/cms" class=move || side_active_class("/cms")>
+                                <span class="material-symbols-outlined">"article"</span>
+                                <span>"Pages"</span>
+                            </a>
+                            <a href="/menus" class=move || side_active_class("/menus")>
+                                <span class="material-symbols-outlined">"menu"</span>
+                                <span>"Navigation"</span>
+                            </a>
+                        </div>
                         <a href="/admins" class=move || side_active_class("/admins")>
                             <span class="material-symbols-outlined">"group"</span>
                             <span>"Users"</span>
@@ -308,7 +317,30 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <span>"Developer"</span>
                         </a>
                     </nav>
+                    // ── Sidebar Footer: version + utility links ──
                     <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
+                        // Version chip — fetched once on mount
+                        {{
+                            let version_res = LocalResource::new(|| async move {
+                                get_version().await.unwrap_or_default()
+                            });
+                            view! {
+                                <Suspense fallback=|| ()>
+                                    {move || version_res.get().map(|v| view! {
+                                        <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 flex items-center justify-between">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
+                                                <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
+                                                <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
+                                            </div>
+                                            <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
+                                                {v.build_sha.chars().take(7).collect::<String>()}
+                                            </span>
+                                        </div>
+                                    })}
+                                </Suspense>
+                            }
+                        }}
                         <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
                             <span class="material-symbols-outlined text-sm">"help"</span>
                             <span>"Support"</span>
@@ -348,6 +380,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
                         <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
                         <Route path=path!("/cms") view=CmsEditor />
+                        <Route path=path!("/menus") view=MenuEditor />
                         <Route path=path!("/admins") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::billing_dashboard::BillingDashboard />
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant_ledger::TenantLedger />
