@@ -88,20 +88,19 @@ steps:
         - '.woodpecker.yml'
 
   publish_anchor:
-    image: quay.io/podman/stable
+    image: woodpeckerci/plugin-docker-buildx
     privileged: true
-    volumes:
-      - /run/podman/podman.sock:/run/podman/podman.sock
-    environment:
-      DOCKER_USERNAME:
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/anchor-app
+      tags: latest
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/anchor/Dockerfile
+      username:
         from_secret: docker_username
-      DOCKER_PASSWORD:
+      password:
         from_secret: docker_password
-    commands:
-      - export CONTAINER_HOST=unix:///run/podman/podman.sock
-      - echo "$DOCKER_PASSWORD" | podman login ghcr.io -u "$DOCKER_USERNAME" --password-stdin
-      - podman build --platform linux/amd64 -t ghcr.io/ruuderie/anchor-app:latest -f apps/anchor/Dockerfile .
-      - podman push ghcr.io/ruuderie/anchor-app:latest
     when:
       path:
         - 'apps/anchor/**'
