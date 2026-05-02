@@ -163,7 +163,7 @@ pub fn App() -> impl IntoView {
                                 {
                                     view! { <PageViewTracker /> }
                                 }
-                                <div class="flex-grow">
+                                <div class="flex-1 flex flex-col">
                                     <Routes>
                                         <Route path="/" view=DynamicHomeLanding/>
                                         <Route path="/legacy" view=Landing/>
