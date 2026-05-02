@@ -57,6 +57,8 @@ impl AtlasApp for CorePlatformApp {
         Router::new()
             .merge(crate::handlers::tenant::authenticated_routes_raw())
             .merge(crate::handlers::app_instance::authenticated_routes_raw())
+            .merge(crate::handlers::app_pages::authenticated_routes_raw())   // Phase 5: CRUD
+            .merge(crate::handlers::app_menus::authenticated_routes_raw())   // Phase 5: CRUD
             .merge(crate::handlers::onboarding::authenticated_routes_raw())
             .merge(crate::handlers::feeds::authenticated_routes_raw())
             .merge(crate::handlers::search::authenticated_routes()) // already state-free
@@ -64,6 +66,7 @@ impl AtlasApp for CorePlatformApp {
             .merge(crate::handlers::app_seeds::authenticated_routes_raw())
             .with_state(db)
     }
+
 
     /// Core platform schema migrations live in the base mod.rs migrator today.
     /// A follow-up can extract them here for full encapsulation once the migration

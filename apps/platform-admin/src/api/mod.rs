@@ -19,3 +19,5 @@ pub mod audit_logs;
 pub mod onboarding;
 pub mod seeds;
 pub mod provision;
+pub mod pages;
+pub mod menus;
