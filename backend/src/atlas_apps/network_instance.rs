@@ -13,10 +13,15 @@ impl AtlasApp for NetworkInstanceApp {
     }
 
     fn public_router(&self, db: DatabaseConnection) -> Router<DatabaseConnection> {
-        // Expose all Network / Directory specific API routes that are accessible without login
+        // Expose all Network / Directory specific API routes that are accessible without login.
+        //
+        // NOTE: app_pages::public_routes is intentionally NOT registered here.
+        // CMS pages are a cross-cutting concern (consumed by anchor, network_instance, etc.)
+        // and are owned by the global api.rs router alongside app_menus. Registering it
+        // here would create a duplicate route and cause Axum to panic at startup with
+        // "Overlapping method route". See backend/src/api.rs for the canonical registration.
         Router::new()
             .merge(crate::handlers::listings::public_routes(db.clone()))
-            .merge(crate::handlers::app_pages::public_routes(db.clone()))
             .merge(crate::handlers::leads::public_routes())
     }
 

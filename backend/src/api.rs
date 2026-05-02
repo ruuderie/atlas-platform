@@ -63,6 +63,17 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(setup::public_routes())
         .merge(magic_links::public_routes())
         .merge(app_instance::public_routes(db.clone()))
+        // NOTE: app_menus and app_pages are registered here directly rather than via an AtlasApp
+        // because they are cross-cutting platform concerns shared by all atlas apps.
+        // Navigation menus and CMS pages have no single "owner" app — both anchor and
+        // network_instance consume them. Registering them in the global api.rs ensures
+        // they are available regardless of which AtlasApps happen to be active.
+        //
+        // IMPORTANT: Do NOT also register app_pages in network_instance.rs or any
+        // other AtlasApp::public_router() — Axum panics with "Overlapping method route"
+        // at startup if the same path is merged twice. This is what broke all tests
+        // in commit 1b84c375 (May 2 2026) and was the root cause of the Apr 8 → Apr 15
+        // regression where pages returned 404 but menus did not.
         .merge(app_menus::public_routes(db.clone()))
         .merge(app_pages::public_routes(db.clone()))
         // Tenant self-service onboarding wizard (token-gated)
