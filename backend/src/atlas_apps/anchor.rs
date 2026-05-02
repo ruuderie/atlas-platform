@@ -82,6 +82,9 @@ impl AtlasApp for AnchorApp {
             // Fixes the UAT content gap (2026-04-30): settings were stored in app_instances.settings
             // but get_site_settings() reads tenant_setting. Also fixes lc_* → lead_capture_* key mismatch.
             Box::new(crate::migration::m20260501_000001_canonicalize_tenant_settings::Migration),
+
+            // --- Seed missing resume data into app_content for buildwithruud ---
+            Box::new(crate::migration::m20260502_000001_seed_app_content_resume::Migration),
         ]
     }
 

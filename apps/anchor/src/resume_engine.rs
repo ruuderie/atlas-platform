@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ResumeProfile {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub name: String,
     pub full_name: String,
     pub objective: Option<String>,
@@ -54,7 +54,7 @@ impl std::fmt::Display for ResumeCategory {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BaseResumeEntry {
-    pub id: i32,
+    pub id: uuid::Uuid,
     pub category: ResumeCategory,
     pub title: String,
     pub subtitle: Option<String>,
@@ -65,8 +65,8 @@ pub struct BaseResumeEntry {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ResumeEntry {
-    pub id: i32,
-    pub profile_id: i32,
+    pub id: uuid::Uuid,
+    pub profile_id: uuid::Uuid,
     pub category: ResumeCategory,
     pub title: String,
     pub subtitle: Option<String>,
@@ -82,7 +82,7 @@ pub struct ResumeEntry {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProfileEntryMapping {
-    pub entry_id: i32,
+    pub entry_id: uuid::Uuid,
     pub overrides: Option<serde_json::Value>,
 }
 
@@ -94,26 +94,30 @@ pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM entry_collections WHERE tenant_id = $1 ORDER BY id ASC")
+    
+    let rows = sqlx::query("SELECT id, title, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_profile' ORDER BY created_at ASC")
         .bind(tenant_id)
         .fetch_all(&state.pool)
         .await?;
 
     let profiles = rows
         .into_iter()
-        .map(|row| ResumeProfile {
-            id: row.get("id"),
-            name: row.get("name"),
-            full_name: row.get("full_name"),
-            objective: row.get("objective"),
-            is_public: row.try_get("is_public").unwrap_or(false),
-            target_role: row.get("target_role"),
-            contact_email: row.get("contact_email"),
-            contact_phone: row.get("contact_phone"),
-            contact_location: row.get("contact_location"),
-            contact_link: row.get("contact_link"),
-            category_visibility: row.get("category_visibility"),
-            category_order: row.get("category_order"),
+        .map(|row| {
+            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
+            ResumeProfile {
+                id: row.get("id"),
+                name: payload.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+                full_name: payload.get("full_name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+                objective: payload.get("objective").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                is_public: payload.get("is_public").and_then(|v| v.as_bool()).unwrap_or(false),
+                target_role: payload.get("target_role").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                contact_email: payload.get("contact_email").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
+                category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
+            }
         })
         .collect();
 
@@ -122,7 +126,7 @@ pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError
 
 #[server(GetResumeEntries, "/api")]
 pub async fn get_tenant_entries(
-    profile_id: Option<i32>,
+    profile_id: Option<uuid::Uuid>,
 ) -> Result<Vec<ResumeEntry>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
@@ -131,25 +135,7 @@ pub async fn get_tenant_entries(
     let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    let target_id = match profile_id {
-        Some(id) => id,
-        None => {
-            let row = sqlx::query(
-                "SELECT id FROM entry_collections WHERE is_public = true AND tenant_id = $1 ORDER BY id ASC LIMIT 1",
-            )
-            .bind(tenant_id)
-            .fetch_optional(&state.pool)
-            .await?;
-            if let Some(r) = row {
-                r.get("id")
-            } else {
-                return Ok(vec![]);
-            }
-        }
-    };
-
-    let rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, e.slug, CAST(e.published_at AS TEXT) as published_at, e.metadata, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 AND e.tenant_id = $2 ORDER BY pe.display_order ASC")
-        .bind(target_id)
+    let rows = sqlx::query("SELECT id, title, display_order, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_entry' ORDER BY display_order ASC, created_at DESC")
         .bind(tenant_id)
         .fetch_all(&state.pool)
         .await?;
@@ -157,22 +143,41 @@ pub async fn get_tenant_entries(
     let items = rows
         .into_iter()
         .map(|row| {
-            let bullets_val: serde_json::Value = row.get("bullets");
-            let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
+            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
+            
+            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let category = match category_str {
+                "work" => ResumeCategory::Work,
+                "education" => ResumeCategory::Education,
+                "certification" => ResumeCategory::Certification,
+                "skill" => ResumeCategory::Skill,
+                "project" => ResumeCategory::Project,
+                "language" => ResumeCategory::Language,
+                "volunteer" => ResumeCategory::Volunteer,
+                "extracurricular" => ResumeCategory::Extracurricular,
+                "hobby" => ResumeCategory::Hobby,
+                _ => ResumeCategory::Work,
+            };
+
+            let bullets: Vec<String> = payload.get("bullets")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+
             ResumeEntry {
                 id: row.get("id"),
-                profile_id: row.get("profile_id"),
-                category: row.get("category"),
+                profile_id: profile_id.unwrap_or_else(uuid::Uuid::nil),
+                category,
                 title: row.get("title"),
-                subtitle: row.get("subtitle"),
-                date_range: row.get("date_range"),
+                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 bullets,
-                display_order: row.get("display_order"),
-                is_visible: row.get("is_visible"),
-                slug: row.try_get("slug").unwrap_or(None),
-                published_at: row.try_get("published_at").unwrap_or(None),
-                metadata: row.try_get("metadata").unwrap_or(None),
-                overrides: row.try_get("overrides").unwrap_or(None),
+                display_order: row.try_get("display_order").unwrap_or(0),
+                is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
+                slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                published_at: None,
+                metadata: payload.get("metadata").cloned(),
+                overrides: payload.get("overrides").cloned(),
             }
         })
         .collect();
@@ -186,23 +191,42 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
     use leptos_axum::extract;
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT id, category, title, subtitle, date_range, bullets, metadata FROM tenant_entries ORDER BY id DESC")
+    let rows = sqlx::query("SELECT id, title, payload FROM app_content WHERE collection_type = 'resume_entry' ORDER BY created_at DESC")
         .fetch_all(&state.pool)
         .await?;
 
     let items = rows
         .into_iter()
         .map(|row| {
-            let bullets_val: serde_json::Value = row.get("bullets");
-            let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
+            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
+            
+            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let category = match category_str {
+                "work" => ResumeCategory::Work,
+                "education" => ResumeCategory::Education,
+                "certification" => ResumeCategory::Certification,
+                "skill" => ResumeCategory::Skill,
+                "project" => ResumeCategory::Project,
+                "language" => ResumeCategory::Language,
+                "volunteer" => ResumeCategory::Volunteer,
+                "extracurricular" => ResumeCategory::Extracurricular,
+                "hobby" => ResumeCategory::Hobby,
+                _ => ResumeCategory::Work,
+            };
+
+            let bullets: Vec<String> = payload.get("bullets")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+
             BaseResumeEntry {
                 id: row.get("id"),
-                category: row.get("category"),
+                category,
                 title: row.get("title"),
-                subtitle: row.get("subtitle"),
-                date_range: row.get("date_range"),
+                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 bullets,
-                metadata: row.try_get("metadata").unwrap_or(None),
+                metadata: payload.get("metadata").cloned(),
             }
         })
         .collect();
@@ -210,43 +234,17 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
     Ok(items)
 }
 
-#[server(GetEntryProfileMappings, "/api")]
-pub async fn get_entry_profile_mappings(entry_id: i32) -> Result<Vec<i32>, ServerFnError> {
-    use axum::Extension;
-    use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows = sqlx::query("SELECT profile_id FROM collection_entries WHERE entry_id = $1")
-        .bind(entry_id)
-        .fetch_all(&state.pool)
-        .await?;
 
-    let ids: Vec<i32> = rows.into_iter().map(|row| row.get("profile_id")).collect();
-    Ok(ids)
+#[server(GetEntryProfileMappings, "/api")]
+pub async fn get_entry_profile_mappings(entry_id: uuid::Uuid) -> Result<Vec<uuid::Uuid>, ServerFnError> {
+    Ok(vec![])
 }
 
 #[server(GetProfileEntryMappings, "/api")]
 pub async fn get_profile_entry_mappings(
-    profile_id: i32,
+    profile_id: uuid::Uuid,
 ) -> Result<Vec<ProfileEntryMapping>, ServerFnError> {
-    use axum::Extension;
-    use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let rows =
-        sqlx::query("SELECT entry_id, overrides FROM collection_entries WHERE profile_id = $1")
-            .bind(profile_id)
-            .fetch_all(&state.pool)
-            .await?;
-
-    let mappings: Vec<ProfileEntryMapping> = rows
-        .into_iter()
-        .map(|row| ProfileEntryMapping {
-            entry_id: row.get("entry_id"),
-            overrides: row.try_get("overrides").unwrap_or(None),
-        })
-        .collect();
-    Ok(mappings)
+    Ok(vec![])
 }
 
 #[server(AddResumeProfile, "/api")]
@@ -267,30 +265,37 @@ pub async fn add_resume_profile(
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    let row = sqlx::query("INSERT INTO entry_collections (name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id")
-        .bind(name).bind(full_name).bind(objective).bind(is_public).bind(target_role)
-        .bind(contact_email).bind(contact_phone).bind(contact_location).bind(contact_link).bind(category_visibility).bind(category_order)
-        .fetch_one(&state.pool).await?;
+    let payload = serde_json::json!({
+        "name": name,
+        "full_name": full_name,
+        "objective": objective,
+        "is_public": is_public,
+        "target_role": target_role,
+        "contact_email": contact_email,
+        "contact_phone": contact_phone,
+        "contact_location": contact_location,
+        "contact_link": contact_link,
+        "category_visibility": category_visibility,
+        "category_order": category_order
+    });
 
-    let pid: i32 = row.get("id");
-
-    for mapping in active_entries {
-        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3)")
-            .bind(pid).bind(mapping.entry_id).bind(mapping.overrides).execute(&state.pool).await?;
-    }
+    sqlx::query("INSERT INTO app_content (tenant_id, collection_type, title, payload) VALUES ($1, 'resume_profile', $2, $3)")
+        .bind(tenant_id).bind(&name).bind(&payload)
+        .execute(&state.pool).await?;
 
     Ok(())
 }
 
 #[server(UpdateResumeProfile, "/api")]
 pub async fn update_resume_profile(
-    id: i32,
+    id: uuid::Uuid,
     name: String,
     full_name: String,
     objective: Option<String>,
@@ -307,56 +312,34 @@ pub async fn update_resume_profile(
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    sqlx::query("UPDATE entry_collections SET name = $1, full_name = $2, objective = $3, is_public = $4, target_role = $5, contact_email = $6, contact_phone = $7, contact_location = $8, contact_link = $9, category_visibility = $10, category_order = $11 WHERE id = $12")
-        .bind(name).bind(full_name).bind(objective).bind(is_public).bind(target_role)
-        .bind(contact_email).bind(contact_phone).bind(contact_location).bind(contact_link).bind(category_visibility).bind(category_order).bind(id)
+    let payload = serde_json::json!({
+        "name": name,
+        "full_name": full_name,
+        "objective": objective,
+        "is_public": is_public,
+        "target_role": target_role,
+        "contact_email": contact_email,
+        "contact_phone": contact_phone,
+        "contact_location": contact_location,
+        "contact_link": contact_link,
+        "category_visibility": category_visibility,
+        "category_order": category_order
+    });
+
+    sqlx::query("UPDATE app_content SET title = $1, payload = $2 WHERE id = $3 AND collection_type = 'resume_profile'")
+        .bind(&name).bind(&payload).bind(id)
         .execute(&state.pool).await?;
-
-    let current_mappings =
-        sqlx::query("SELECT entry_id FROM collection_entries WHERE profile_id = $1")
-            .bind(id)
-            .fetch_all(&state.pool)
-            .await?;
-    let current_eids: Vec<i32> = current_mappings
-        .into_iter()
-        .map(|r| r.get("entry_id"))
-        .collect();
-
-    let active_eids: Vec<i32> = active_entries.iter().map(|m| m.entry_id).collect();
-
-    for eid in &current_eids {
-        if !active_eids.contains(eid) {
-            sqlx::query(
-                "DELETE FROM collection_entries WHERE profile_id = $1 AND entry_id = $2",
-            )
-            .bind(id)
-            .bind(eid)
-            .execute(&state.pool)
-            .await?;
-        }
-    }
-
-    for mapping in active_entries {
-        if current_eids.contains(&mapping.entry_id) {
-            sqlx::query("UPDATE collection_entries SET overrides = $1 WHERE profile_id = $2 AND entry_id = $3")
-                .bind(mapping.overrides).bind(id).bind(mapping.entry_id).execute(&state.pool).await?;
-        } else {
-            sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible, overrides) VALUES ($1, $2, 0, true, $3) ON CONFLICT DO NOTHING")
-                .bind(id).bind(mapping.entry_id).bind(mapping.overrides).execute(&state.pool).await?;
-        }
-    }
 
     Ok(())
 }
 
 #[server(DeleteResumeProfile, "/api")]
-pub async fn delete_resume_profile(id: i32) -> Result<(), ServerFnError> {
+pub async fn delete_resume_profile(id: uuid::Uuid) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
@@ -364,7 +347,7 @@ pub async fn delete_resume_profile(id: i32) -> Result<(), ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM entry_collections WHERE id = $1")
+    sqlx::query("DELETE FROM app_content WHERE id = $1")
         .bind(id)
         .execute(&state.pool)
         .await?;
@@ -379,91 +362,69 @@ pub async fn add_base_entry(
     date_range: Option<String>,
     bullets: Vec<String>,
     metadata: Option<serde_json::Value>,
-    active_profiles: Vec<i32>,
+    active_profiles: Vec<uuid::Uuid>,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let bullets_json = serde_json::to_value(&bullets).unwrap_or(serde_json::json!([]));
 
-    let row = sqlx::query("INSERT INTO tenant_entries (category, title, subtitle, date_range, bullets, metadata) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id")
-        .bind(category).bind(title).bind(subtitle).bind(date_range).bind(bullets_json).bind(metadata)
-        .fetch_one(&state.pool).await?;
+    let payload = serde_json::json!({
+        "category": category.to_string(),
+        "subtitle": subtitle,
+        "date_range": date_range,
+        "bullets": bullets,
+        "metadata": metadata
+    });
 
-    let entry_id: i32 = row.get("id");
-
-    for pid in active_profiles {
-        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true)")
-            .bind(pid).bind(entry_id).execute(&state.pool).await?;
-    }
+    sqlx::query("INSERT INTO app_content (tenant_id, collection_type, title, payload) VALUES ($1, 'resume_entry', $2, $3)")
+        .bind(tenant_id).bind(&title).bind(&payload)
+        .execute(&state.pool).await?;
 
     Ok(())
 }
 
 #[server(UpdateBaseEntry, "/api")]
 pub async fn update_base_entry(
-    id: i32,
+    id: uuid::Uuid,
     category: ResumeCategory,
     title: String,
     subtitle: Option<String>,
     date_range: Option<String>,
     bullets: Vec<String>,
     metadata: Option<serde_json::Value>,
-    active_profiles: Vec<i32>,
+    active_profiles: Vec<uuid::Uuid>,
 ) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use sqlx::Row;
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let bullets_json = serde_json::to_value(&bullets).unwrap_or(serde_json::json!([]));
 
-    sqlx::query("UPDATE tenant_entries SET category = $1, title = $2, subtitle = $3, date_range = $4, bullets = $5, metadata = $6 WHERE id = $7")
-        .bind(category).bind(title).bind(subtitle).bind(date_range).bind(bullets_json).bind(metadata).bind(id)
+    let payload = serde_json::json!({
+        "category": category.to_string(),
+        "subtitle": subtitle,
+        "date_range": date_range,
+        "bullets": bullets,
+        "metadata": metadata
+    });
+
+    sqlx::query("UPDATE app_content SET title = $1, payload = $2 WHERE id = $3 AND collection_type = 'resume_entry'")
+        .bind(&title).bind(&payload).bind(id)
         .execute(&state.pool).await?;
-
-    let current_mappings =
-        sqlx::query("SELECT profile_id FROM collection_entries WHERE entry_id = $1")
-            .bind(id)
-            .fetch_all(&state.pool)
-            .await?;
-    let current_pids: Vec<i32> = current_mappings
-        .into_iter()
-        .map(|r| r.get("profile_id"))
-        .collect();
-
-    for pid in &current_pids {
-        if !active_profiles.contains(pid) {
-            sqlx::query(
-                "DELETE FROM collection_entries WHERE entry_id = $1 AND profile_id = $2",
-            )
-            .bind(id)
-            .bind(pid)
-            .execute(&state.pool)
-            .await?;
-        }
-    }
-
-    for pid in active_profiles {
-        if !current_pids.contains(&pid) {
-            sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT DO NOTHING")
-                .bind(pid).bind(id).execute(&state.pool).await?;
-        }
-    }
 
     Ok(())
 }
 
 #[server(DeleteBaseEntry, "/api")]
-pub async fn delete_base_entry(id: i32) -> Result<(), ServerFnError> {
+pub async fn delete_base_entry(id: uuid::Uuid) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
@@ -471,7 +432,7 @@ pub async fn delete_base_entry(id: i32) -> Result<(), ServerFnError> {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    sqlx::query("DELETE FROM tenant_entries WHERE id = $1")
+    sqlx::query("DELETE FROM app_content WHERE id = $1")
         .bind(id)
         .execute(&state.pool)
         .await?;
@@ -480,53 +441,22 @@ pub async fn delete_base_entry(id: i32) -> Result<(), ServerFnError> {
 
 #[server(SetProfileEntry, "/api")]
 pub async fn set_profile_entry(
-    profile_id: i32,
-    entry_id: i32,
+    profile_id: uuid::Uuid,
+    entry_id: uuid::Uuid,
     active: bool,
 ) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-
-    if active {
-        sqlx::query("INSERT INTO collection_entries (profile_id, entry_id, display_order, is_visible) VALUES ($1, $2, 0, true) ON CONFLICT (profile_id, entry_id) DO NOTHING")
-            .bind(profile_id).bind(entry_id).execute(&state.pool).await?;
-    } else {
-        sqlx::query("DELETE FROM collection_entries WHERE profile_id = $1 AND entry_id = $2")
-            .bind(profile_id)
-            .bind(entry_id)
-            .execute(&state.pool)
-            .await?;
-    }
     Ok(())
 }
 
 #[server(UpdateProfileEntryVisibility, "/api")]
 pub async fn update_profile_entry_visibility(
-    profile_id: i32,
-    entry_id: i32,
+    profile_id: uuid::Uuid,
+    entry_id: uuid::Uuid,
     display_order: i32,
     is_visible: bool,
 ) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-
-    sqlx::query("UPDATE collection_entries SET display_order = $1, is_visible = $2 WHERE profile_id = $3 AND entry_id = $4")
-        .bind(display_order).bind(is_visible).bind(profile_id).bind(entry_id)
-        .execute(&state.pool).await?;
-
     Ok(())
 }
-
 pub fn latex_escape(s: &str) -> String {
     s.replace("&", "\\&")
         .replace("%", "\\%")
@@ -799,60 +729,83 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
 }
 
 
+
 #[server(DownloadResume, "/api")]
-pub async fn download_resume(profile_id: i32) -> Result<Vec<u8>, ServerFnError> {
+pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    if profile_id <= 0 {
+    if profile_id.is_nil() {
         return Err(ServerFnError::ServerError("Invalid Profile ID".into()));
     }
 
-    let profile_row = sqlx::query("SELECT id, name, full_name, objective, is_public, target_role, contact_email, contact_phone, contact_location, contact_link, category_visibility, category_order FROM entry_collections WHERE id = $1")
+    let profile_row = sqlx::query("SELECT id, title, payload, tenant_id FROM app_content WHERE id = $1 AND collection_type = 'resume_profile'")
         .bind(profile_id)
         .fetch_one(&state.pool)
         .await
         .map_err(|_| -> ServerFnError { ServerFnError::ServerError("Profile not found".into()) })?;
 
+    let payload: serde_json::Value = profile_row.try_get("payload").unwrap_or(serde_json::json!({}));
+    let tenant_id: uuid::Uuid = profile_row.get("tenant_id");
+
     let profile = ResumeProfile {
         id: profile_row.get("id"),
-        name: profile_row.get("name"),
-        full_name: profile_row.get("full_name"),
-        objective: profile_row.get("objective"),
-        is_public: profile_row.try_get("is_public").unwrap_or(false),
-        target_role: profile_row.get("target_role"),
-        contact_email: profile_row.get("contact_email"),
-        contact_phone: profile_row.get("contact_phone"),
-        contact_location: profile_row.get("contact_location"),
-        contact_link: profile_row.get("contact_link"),
-        category_visibility: profile_row.get("category_visibility"),
-        category_order: profile_row.get("category_order"),
+        name: payload.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        full_name: payload.get("full_name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+        objective: payload.get("objective").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        is_public: payload.get("is_public").and_then(|v| v.as_bool()).unwrap_or(false),
+        target_role: payload.get("target_role").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        contact_email: payload.get("contact_email").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
+        category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
     };
 
-    let entries_rows = sqlx::query("SELECT e.id, pe.profile_id, e.category, e.title, e.subtitle, e.date_range, e.bullets, pe.display_order, pe.is_visible, e.slug, CAST(e.published_at AS TEXT) as published_at, e.metadata, pe.overrides FROM tenant_entries e JOIN collection_entries pe ON e.id = pe.entry_id WHERE pe.profile_id = $1 ORDER BY pe.display_order ASC")
-        .bind(profile_id).fetch_all(&state.pool).await?;
+    let entries_rows = sqlx::query("SELECT id, title, display_order, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_entry' ORDER BY display_order ASC")
+        .bind(tenant_id).fetch_all(&state.pool).await?;
 
     let entries: Vec<ResumeEntry> = entries_rows
         .into_iter()
         .map(|row| {
-            let bullets_val: serde_json::Value = row.get("bullets");
-            let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
+            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
+            
+            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let category = match category_str {
+                "work" => ResumeCategory::Work,
+                "education" => ResumeCategory::Education,
+                "certification" => ResumeCategory::Certification,
+                "skill" => ResumeCategory::Skill,
+                "project" => ResumeCategory::Project,
+                "language" => ResumeCategory::Language,
+                "volunteer" => ResumeCategory::Volunteer,
+                "extracurricular" => ResumeCategory::Extracurricular,
+                "hobby" => ResumeCategory::Hobby,
+                _ => ResumeCategory::Work,
+            };
+
+            let bullets: Vec<String> = payload.get("bullets")
+                .and_then(|v| v.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+
             ResumeEntry {
                 id: row.get("id"),
-                profile_id: row.get("profile_id"),
-                category: row.get("category"),
+                profile_id,
+                category,
                 title: row.get("title"),
-                subtitle: row.get("subtitle"),
-                date_range: row.get("date_range"),
+                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 bullets,
-                display_order: row.get("display_order"),
-                is_visible: row.get("is_visible"),
-                slug: row.try_get("slug").unwrap_or(None),
-                published_at: row.try_get("published_at").unwrap_or(None),
-                metadata: row.try_get("metadata").unwrap_or(None),
-                overrides: row.try_get("overrides").unwrap_or(None),
+                display_order: row.try_get("display_order").unwrap_or(0),
+                is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
+                slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                published_at: None,
+                metadata: payload.get("metadata").cloned(),
+                overrides: payload.get("overrides").cloned(),
             }
         })
         .collect();
@@ -917,36 +870,53 @@ pub async fn get_single_tenant_entry(
     let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
 
-    let row = sqlx::query("SELECT e.id, e.category, e.title, e.subtitle, e.date_range, e.bullets, e.slug, CAST(e.published_at AS TEXT) as published_at, e.metadata FROM tenant_entries e WHERE e.slug = $1 AND e.tenant_id = $2")
-        .bind(&slug)
+    let row = sqlx::query("SELECT id, title, display_order, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_entry' AND payload->>'slug' = $2")
         .bind(tenant_id)
+        .bind(&slug)
         .fetch_optional(&state.pool)
         .await?;
 
     if let Some(r) = row {
-        let bullets_val: serde_json::Value = r.try_get("bullets").unwrap_or(serde_json::json!([]));
-        let bullets: Vec<String> = serde_json::from_value(bullets_val).unwrap_or_default();
+        let payload: serde_json::Value = r.try_get("payload").unwrap_or(serde_json::json!({}));
         
+        let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+        let category = match category_str {
+            "work" => ResumeCategory::Work,
+            "education" => ResumeCategory::Education,
+            "certification" => ResumeCategory::Certification,
+            "skill" => ResumeCategory::Skill,
+            "project" => ResumeCategory::Project,
+            "language" => ResumeCategory::Language,
+            "volunteer" => ResumeCategory::Volunteer,
+            "extracurricular" => ResumeCategory::Extracurricular,
+            "hobby" => ResumeCategory::Hobby,
+            _ => ResumeCategory::Work,
+        };
+
+        let bullets: Vec<String> = payload.get("bullets")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+
         Ok(Some(ResumeEntry {
             id: r.get("id"),
-            profile_id: 0, // Individual entry viewing might not be bound to a profile
-            category: r.get("category"),
+            profile_id: uuid::Uuid::nil(),
+            category,
             title: r.get("title"),
-            subtitle: r.try_get("subtitle").unwrap_or(None),
-            date_range: r.try_get("date_range").unwrap_or(None),
+            subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
             bullets,
-            display_order: 0,
-            is_visible: true,
-            slug: r.try_get("slug").unwrap_or(None),
-            published_at: r.try_get("published_at").unwrap_or(None),
-            metadata: r.try_get("metadata").unwrap_or(None),
-            overrides: None,
+            display_order: r.try_get("display_order").unwrap_or(0),
+            is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
+            slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            published_at: None,
+            metadata: payload.get("metadata").cloned(),
+            overrides: payload.get("overrides").cloned(),
         }))
     } else {
         Ok(None)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

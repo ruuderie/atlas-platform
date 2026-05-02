@@ -100,6 +100,7 @@ pub mod m20260430_000001_drop_anchor_legacy_tables;
 // DATA INTEGRITY FIXES
 // Canonicalizes tenant_setting from app_instances.settings — fixes UAT content gap (2026-04-30)
 pub mod m20260501_000001_canonicalize_tenant_settings;
+pub mod m20260502_000001_seed_app_content_resume;
 
 pub struct Migrator;
 

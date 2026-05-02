@@ -913,9 +913,9 @@ pub fn ResumeProfileForm(
     );
 
     let (active_entries, set_active_entries) =
-        create_signal(std::collections::HashMap::<i32, Option<serde_json::Value>>::new());
+        create_signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
     let (expanded_entries, set_expanded_entries) =
-        create_signal(std::collections::HashSet::<i32>::new());
+        create_signal(std::collections::HashSet::<uuid::Uuid>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -927,7 +927,7 @@ pub fn ResumeProfileForm(
         }
     });
 
-    let toggle_entry = move |eid: i32, checked: bool| {
+    let toggle_entry = move |eid: uuid::Uuid, checked: bool| {
         set_active_entries.update(|state| {
             if checked && !state.contains_key(&eid) {
                 state.insert(eid, None);
@@ -940,7 +940,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let toggle_expand = move |eid: i32| {
+    let toggle_expand = move |eid: uuid::Uuid| {
         set_expanded_entries.update(|e| {
             if e.contains(&eid) {
                 e.remove(&eid);
@@ -950,7 +950,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let update_override = move |eid: i32, key: &str, val: String| {
+    let update_override = move |eid: uuid::Uuid, key: &str, val: String| {
         set_active_entries.update(|state| {
             if let Some(opt_val) = state.get_mut(&eid) {
                 let mut obj = opt_val.take().unwrap_or_else(|| serde_json::json!({}));
@@ -973,7 +973,7 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let get_override = move |eid: i32, key: &str| -> String {
+    let get_override = move |eid: uuid::Uuid, key: &str| -> String {
         active_entries.with(|state| {
             state
                 .get(&eid)
@@ -1838,7 +1838,7 @@ pub fn BaseResumeEntryForm(
         },
     );
 
-    let (active_profiles, set_active_profiles) = create_signal(Vec::<i32>::new());
+    let (active_profiles, set_active_profiles) = create_signal(Vec::<uuid::Uuid>::new());
 
     create_effect(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -1846,7 +1846,7 @@ pub fn BaseResumeEntryForm(
         }
     });
 
-    let toggle_profile = move |pid: i32, checked: bool| {
+    let toggle_profile = move |pid: uuid::Uuid, checked: bool| {
         set_active_profiles.update(|state| {
             if checked && !state.contains(&pid) {
                 state.push(pid);
