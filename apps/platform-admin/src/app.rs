@@ -114,6 +114,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     let location = leptos_router::hooks::use_location();
     let (show_profile_menu, set_show_profile_menu) = signal(false);
 
+    let version_res = LocalResource::new(|| async move {
+        get_version().await.unwrap_or_default()
+    });
+
     Effect::new(move |_| {
         if user.get().is_none() && auth_checked.get() {
             navigate("/login", Default::default());
@@ -320,27 +324,20 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     // ── Sidebar Footer: version + utility links ──
                     <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
                         // Version chip — fetched once on mount
-                        {{
-                            let version_res = LocalResource::new(|| async move {
-                                get_version().await.unwrap_or_default()
-                            });
-                            view! {
-                                <Suspense fallback=|| ()>
-                                    {move || version_res.get().map(|v| view! {
-                                        <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 flex items-center justify-between">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
-                                                <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
-                                                <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
-                                            </div>
-                                            <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
-                                                {v.build_sha.chars().take(7).collect::<String>()}
-                                            </span>
-                                        </div>
-                                    })}
-                                </Suspense>
-                            }
-                        }}
+                        <Suspense fallback=|| ()>
+                            {move || version_res.get().map(|v| view! {
+                                <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 flex items-center justify-between">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
+                                        <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
+                                        <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
+                                    </div>
+                                    <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
+                                        {v.build_sha.chars().take(7).collect::<String>()}
+                                    </span>
+                                </div>
+                            })}
+                        </Suspense>
                         <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
                             <span class="material-symbols-outlined text-sm">"help"</span>
                             <span>"Support"</span>
