@@ -23,7 +23,9 @@ use axum::{
 };
 use crate::handlers::{feeds, feed_items};
 
-pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free public route definitions.
+/// Use inside `AtlasApp::public_router()`. Never call `.with_state()` here.
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Feed routes
         .route("/feeds", get(feeds::get_feeds))
@@ -31,26 +33,36 @@ pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
         .route("/feeds/{feed_id}/items", get(feeds::get_feed_with_items))
         .route("/feeds/network/{tenant_id}", get(feeds::get_feeds_by_network))
         .route("/feeds/{feed_id}/json", get(feeds::get_json_feed))
-        
         // Feed item routes
         .route("/feed-items", get(feed_items::get_feed_items))
         .route("/feed-items/{feed_item_id}", get(feed_items::get_feed_item_by_id))
         .route("/feed-items/feed/{feed_id}", get(feed_items::get_feed_items_by_feed))
-        .with_state(db)
 }
 
-pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free authenticated route definitions.
+/// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Feed management routes
         .route("/api/feeds", post(feeds::create_feed))
         .route("/api/feeds/{feed_id}", put(feeds::update_feed))
         .route("/api/feeds/{feed_id}", delete(feeds::delete_feed))
-        
         // Feed item management routes
         .route("/api/feed-items", post(feed_items::create_feed_item))
         .route("/api/feed-items/{feed_item_id}", put(feed_items::update_feed_item))
         .route("/api/feed-items/{feed_item_id}", delete(feed_items::delete_feed_item))
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    public_routes_raw().with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    authenticated_routes_raw().with_state(db)
 }
 
 pub async fn get_feeds(

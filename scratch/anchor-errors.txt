@@ -1,0 +1,128 @@
+    Updating crates.io index
+warning: spurious network error (3 tries remaining): failed to get successful HTTP response from `https://index.crates.io/on/ce/once_cell` (2a04:4e42:2a::649), got 503
+body:
+
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <title>503 first byte timeout</title>
+  </head>
+  <body>
+    <h1>Error 503 first byte timeout</h1>
+    <p>first byte timeout</p>
+    <h3>Error 54113</h3>
+    <p>Details: cache-gig2250082-GIG 1777744337 1656231071</p>
+    <hr>
+    <p>Varnish cache server</p>
+  </body>
+</html>
+
+warning: spurious network error (3 tries remaining): failed to get successful HTTP response from `https://index.crates.io/fu/tu/futures-core` (2a04:4e42:2a::649), got 503
+body:
+
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <title>503 first byte timeout</title>
+  </head>
+  <body>
+    <h1>Error 503 first byte timeout</h1>
+    <p>first byte timeout</p>
+    <h3>Error 54113</h3>
+    <p>Details: cache-gig2250079-GIG 1777744364 1530640664</p>
+    <hr>
+    <p>Varnish cache server</p>
+  </body>
+</html>
+
+warning: spurious network error (3 tries remaining): [28] Timeout was reached (Operation too slow. Less than 10 bytes/sec transferred the last 30 seconds)
+warning: spurious network error (3 tries remaining): [28] Timeout was reached (Operation too slow. Less than 10 bytes/sec transferred the last 30 seconds)
+warning: spurious network error (3 tries remaining): failed to get successful HTTP response from `https://index.crates.io/3/c/crc` (2a04:4e42:2a::649), got 503
+body:
+
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <title>503 first byte timeout</title>
+  </head>
+  <body>
+    <h1>Error 503 first byte timeout</h1>
+    <p>first byte timeout</p>
+    <h3>Error 54113</h3>
+    <p>Details: cache-gig2250027-GIG 1777744410 306304975</p>
+    <hr>
+    <p>Varnish cache server</p>
+  </body>
+</html>
+
+     Locking 14 packages to latest compatible versions
+      Adding adler2 v2.0.1
+      Adding bstr v1.12.1
+      Adding crc32fast v1.5.0
+      Adding flate2 v1.1.9
+      Adding linked-hash-map v0.5.6
+      Adding lopdf v0.31.0
+      Adding md5 v0.7.0
+      Adding miniz_oxide v0.8.9
+      Adding owned_ttf_parser v0.19.0
+      Adding pom v3.4.0
+      Adding printpdf v0.7.0 (available: v0.9.1)
+      Adding simd-adler32 v0.3.9
+      Adding ttf-parser v0.19.2
+      Adding weezl v0.1.12
+    Checking anchor v0.1.0 (/Users/oply/src/git/orbit_/atlas-platform/apps/anchor)
+anchor/src/components/admin_modal.rs:179:31: error[E0425]: cannot find value `pdf_attachment_url` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:180:21: error[E0425]: cannot find value `pdf_generate` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:181:22: error[E0425]: cannot find value `pdf_require_lead` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:182:33: error[E0425]: cannot find value `pdf_cta_label` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:183:33: error[E0425]: cannot find value `pdf_notify_email` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:251:40: error[E0425]: cannot find value `pdf_attachment_url` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:252:48: error[E0425]: cannot find value `set_pdf_attachment_url` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:257:38: error[E0425]: cannot find value `on_upload_click` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:276:46: error[E0425]: cannot find value `pdf_generate` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:277:53: error[E0425]: cannot find value `set_pdf_generate` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:300:46: error[E0425]: cannot find value `pdf_require_lead` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:301:53: error[E0425]: cannot find value `set_pdf_require_lead` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:327:40: error[E0425]: cannot find value `pdf_cta_label` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:328:48: error[E0425]: cannot find value `set_pdf_cta_label` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:339:40: error[E0425]: cannot find value `pdf_notify_email` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:340:48: error[E0425]: cannot find value `set_pdf_notify_email` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:264:41: error[E0425]: cannot find value `pdf_upload_status` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:266:38: error[E0425]: cannot find value `pdf_upload_status` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:280:58: error[E0425]: cannot find value `pdf_generate` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:282:61: error[E0425]: cannot find value `pdf_generate` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:304:60: error[E0425]: cannot find value `pdf_require_lead` in this scope: not found in this scope
+anchor/src/components/admin_modal.rs:306:61: error[E0425]: cannot find value `pdf_require_lead` in this scope: not found in this scope
+anchor/src/pages/onboarding.rs:155:60: warning: unnecessary parentheses around block return value
+anchor/src/components/admin_modal.rs:915:36: error[E0308]: mismatched types: expected `HashMap<Uuid, Option<Value>>`, found `HashMap<i32, Option<Value>>`
+anchor/src/components/admin_modal.rs:1054:27: error[E0308]: mismatched types: expected `i32`, found `Uuid`
+anchor/src/components/admin_modal.rs:1212:96: error[E0308]: mismatched types: expected `&Uuid`, found `&i32`
+anchor/src/components/admin_modal.rs:1220:86: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1227:102: error[E0308]: mismatched types: expected `&Uuid`, found `&i32`
+anchor/src/components/admin_modal.rs:1230:89: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1233:101: error[E0308]: mismatched types: expected `&Uuid`, found `&i32`
+anchor/src/components/admin_modal.rs:1237:96: error[E0308]: mismatched types: expected `&Uuid`, found `&i32`
+anchor/src/components/admin_modal.rs:1243:112: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1243:161: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1247:112: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1247:164: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1251:112: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1251:166: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1255:103: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1255:154: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1834:37: error[E0308]: mismatched types: expected `Vec<Uuid>`, found `Vec<i32>`
+anchor/src/components/admin_modal.rs:1888:96: error[E0308]: mismatched types: expected `Vec<i32>`, found `Vec<Uuid>`
+anchor/src/components/admin_modal.rs:1890:68: error[E0308]: mismatched types: expected `Vec<i32>`, found `Vec<Uuid>`
+anchor/src/components/admin_modal.rs:1949:93: error[E0308]: mismatched types: expected `&Uuid`, found `&i32`
+anchor/src/components/admin_modal.rs:1955:84: error[E0308]: mismatched types: expected `Uuid`, found `i32`
+anchor/src/components/admin_modal.rs:1289:9: warning: unused variable: `id_val`: help: if this is intentional, prefix it with an underscore: `_id_val`
+anchor/src/components/blocks/form_builder.rs:128:49: warning: unused variable: `field_name_clone`: help: if this is intentional, prefix it with an underscore: `_field_name_clone`
+anchor/src/pages/blog.rs:638:49: warning: unused variable: `pdf_url`: help: if this is intentional, prefix it with an underscore: `_pdf_url`
+warning: `anchor` (lib) generated 4 warnings
+error: could not compile `anchor` (lib) due to 43 previous errors; 4 warnings emitted

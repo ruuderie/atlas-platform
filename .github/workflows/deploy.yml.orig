@@ -11,7 +11,6 @@ env:
   IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
   IMAGE_NAME_PLATFORM_ADMIN: ${{ github.repository }}-platform-admin
   IMAGE_NAME_DIRECTORY_INSTANCE: ${{ github.repository }}-network-instance
-  IMAGE_NAME_ANCHOR: ${{ github.repository }}-anchor-app
 
 jobs:
   build-and-push-images:
@@ -47,14 +46,6 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:latest
           target: production
 
-      - name: Build and push Anchor App Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./apps/anchor
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ANCHOR }}:${{ github.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ANCHOR }}:latest
-          target: production
-
       - name: Build and push Network Instance Docker image
         uses: docker/build-push-action@v5
         with:
@@ -83,7 +74,6 @@ jobs:
           kustomize edit set image ghcr.io/yourusername/business-network-backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
           kustomize edit set image ghcr.io/yourusername/business-network-platform-admin=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_PLATFORM_ADMIN }}:${{ github.sha }}
           kustomize edit set image ghcr.io/yourusername/business-network-network-instance=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_DIRECTORY_INSTANCE }}:${{ github.sha }}
-          kustomize edit set image ghcr.io/yourusername/business-network-anchor-app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_ANCHOR }}:${{ github.sha }}
           
       # In a real environment, you would configure kubectl access here using secrets
       # - name: Deploy to Kubernetes

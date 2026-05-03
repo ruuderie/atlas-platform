@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+            <html lang="en">
+                <head>
+                    <meta charset="utf-8"/>
+                    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                    <title>Ruud Salym Erie - Technical Architect</title><link id="leptos-link-1" href="https://fonts.googleapis.com" rel="preconnect" data-hk="0-0-0-5"/><link id="leptos-link-2" crossorigin="anonymous" href="https://fonts.gstatic.com" rel="preconnect" data-hk="0-0-0-7"/><link id="leptos-link-3" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" data-hk="0-0-0-9"/><link id="leptos-link-4" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" data-hk="0-0-0-11"/><script id="leptos-link-5" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" data-hk="0-0-0-13"></script><script id="leptos-link-6" data-hk="0-0-0-15">window.addEventListener('load', () => { mermaid.initialize({ startOnLoad: false, theme: 'dark' }); });window.renderMermaid = function() { setTimeout(function() { try { document.querySelectorAll('pre > code.language-mermaid').forEach(el => { let div = document.createElement('div'); div.className = 'mermaid'; div.textContent = el.textContent; el.parentElement.replaceWith(div); }); mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };</script><link id="leptos" href="/pkg/anchor.css" rel="stylesheet" data-hk="0-0-0-18"/><meta name="viewport" content="width=device-width, initial-scale=1.0" data-hk="0-0-0-21"/><meta name="description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-24"/><meta property="og:title" content="Ruud Salym Erie - Technical Architect" data-hk="0-0-0-26"/><meta property="og:description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-28"/><meta property="og:type" content="website" data-hk="0-0-0-30"/><meta property="og:image" content data-hk="0-0-0-32"/><meta name="twitter:card" content="summary_large_image" data-hk="0-0-0-34"/><meta name="twitter:title" content="Ruud Salym Erie - Technical Architect" data-hk="0-0-0-36"/><meta name="twitter:description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-38"/><meta name="twitter:image" content data-hk="0-0-0-40"/>
+                    <link rel="modulepreload" href="/pkg/anchor.js">
+                    <link rel="preload" href="/pkg/anchor.wasm" as="fetch" type="application/wasm" crossorigin="">
+                    <script type="module">
+                        function idle(c) {
+                            if ("requestIdleCallback" in window) {
+                                window.requestIdleCallback(c);
+                            } else {
+                                c();
+                            }
+                        }
+                        idle(() => {
+                            import('/pkg/anchor.js')
+                                .then(mod => {
+                                    mod.default('/pkg/anchor.wasm').then(() => mod.hydrate());
+                                })
+                        });
+                    </script>
+                    
+                </head><body class="text-on-surface selection:bg-secondary-container selection:text-on-secondary-container"><!--hk=0-0-0-3--><!--hk=0-0-0-4--><!--hk=0-0-0-6--><!--hk=0-0-0-8--><!--hk=0-0-0-10--><!--hk=0-0-0-12--><!--hk=0-0-0-14--><!--hk=0-0-0-17--><!--hk=0-0-0-19--><!--hk=0-0-0-22--><!--hk=0-0-0-23--><!--hk=0-0-0-25--><!--hk=0-0-0-27--><!--hk=0-0-0-29--><!--hk=0-0-0-31--><!--hk=0-0-0-33--><!--hk=0-0-0-35--><!--hk=0-0-0-37--><!--hk=0-0-0-39--><!--hk=0-0-0-41--><!--suspense-open-0-1-0-0--><!--hk=0-1-0-1--><!--hk=0-1-0-1--><!--suspense-close-0-1-0-0--><!--hk=0-0-0-42--><!--hk=0-0-0-20--><!--suspense-open-0-3-0-0--><div data-hk="0-3-0-1" class="min-h-screen bg-surface"></div><!--hk=0-3-0-1--><!--suspense-close-0-3-0-0--><!--hk=0-2-0-1--><!--hk=0-0-0-2--><!--hk=0-0-0-1--><script>__LEPTOS_PENDING_RESOURCES = [{"idx":1,"version":1},{"idx":2,"version":1},{"idx":3,"version":1},{"idx":4,"version":1},{"idx":5,"version":1},{"idx":6,"version":1},{"idx":7,"version":1}];__LEPTOS_RESOLVED_RESOURCES = new Map();__LEPTOS_RESOURCE_RESOLVERS = new Map();__LEPTOS_LOCAL_ONLY = [];</script>
+                <template id="0-14-0-0f"><a href="/terms" data-hk="0-14-0-4" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/terms" data-hk="0-14-0-5" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/privacy" data-hk="0-14-0-6" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><a href="/privacy" data-hk="0-14-0-7" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><!--hk=0-14-0-8--><!--hk=0-14-0-3--><!--hk=0-14-0-2--><!--hk=0-14-0-1--></template>
+                <script>
+                    (function() { let id = "0-14-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-14-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-8-0-0f"><a href="https://mempool.space/block/947598" target="_blank" rel="noopener noreferrer" data-hk="0-8-0-4" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap"><div data-hk="0-8-0-5" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-8-0-6" class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">CURRENT BLOCK</span><div data-hk="0-8-0-7" class="mt-1 flex items-center text-on-surface"><span data-hk="0-8-0-8" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-8-0-9">#947598</span></div></div></a><!--hk=0-8-0-3--><!--hk=0-8-0-2--><!--hk=0-8-0-1--></template>
+                <script>
+                    (function() { let id = "0-8-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-8-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-12-0-0f"><main data-hk="0-12-0-4" class="pt-32 pb-24 px-4 md:px-[8.5rem]"><section data-hk="0-12-0-5" class="max-w-4xl mx-auto"><h1 data-hk="0-12-0-6" class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase"></h1><p data-hk="0-12-0-7" class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12"></p></section></main><!--hk=0-12-0-3--><!--hk=0-12-0-2--><!--hk=0-12-0-1--></template>
+                <script>
+                    (function() { let id = "0-12-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-12-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-6-0-0f"><div data-hk="0-6-0-4" class="relative group cursor-pointer text-slate-600 dark:text-slate-400 font-medium transition-colors uppercase flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-5" class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 block py-2 select-none">WORK</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-6" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-7"></path></svg><div data-hk="0-6-0-8" class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto"><a href="/resume" data-hk="0-6-0-9" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">EXPERIENCE</a><a href="/projects" data-hk="0-6-0-10" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">PROJECTS</a><!--hk=0-6-0-11--></div></div><a href="/services" data-hk="0-6-0-12" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">SERVICES</a><a href="/book" data-hk="0-6-0-13" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">BOOK DISCOVERY</a><a href="/blog" data-hk="0-6-0-14" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">BLOG</a><div data-hk="0-6-0-15" class="relative group cursor-pointer text-slate-600 dark:text-slate-400 font-medium transition-colors uppercase flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-16" class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 block py-2 select-none">INVESTMENTS</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-17" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-18"></path></svg><div data-hk="0-6-0-19" class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto"><a href="/investments/real-estate" data-hk="0-6-0-20" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-6-0-21" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">BITCOIN</a><!--hk=0-6-0-22--></div></div><!--hk=0-6-0-23--><!--hk=0-6-0-3--><!--hk=0-6-0-2--><!--hk=0-6-0-1--></template>
+                <script>
+                    (function() { let id = "0-6-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-6-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-10-0-0f"><div data-hk="0-10-0-4" class="flex flex-col space-y-3 pt-4"><div data-hk="0-10-0-5" class="text-2xl sm:text-3xl font-bold text-slate-400 dark:text-slate-500 uppercase bg-transparent w-full text-left">WORK</div><div data-hk="0-10-0-6" class="flex flex-col space-y-2 pl-4 border-l-2 border-slate-200 dark:border-slate-800"><a href="/resume" data-hk="0-10-0-7" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">EXPERIENCE</a><a href="/projects" data-hk="0-10-0-8" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">PROJECTS</a><!--hk=0-10-0-9--></div></div><a href="/services" data-hk="0-10-0-10" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">SERVICES</a><a href="/book" data-hk="0-10-0-11" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">BOOK DISCOVERY</a><a href="/blog" data-hk="0-10-0-12" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">BLOG</a><div data-hk="0-10-0-13" class="flex flex-col space-y-3 pt-4"><div data-hk="0-10-0-14" class="text-2xl sm:text-3xl font-bold text-slate-400 dark:text-slate-500 uppercase bg-transparent w-full text-left">INVESTMENTS</div><div data-hk="0-10-0-15" class="flex flex-col space-y-2 pl-4 border-l-2 border-slate-200 dark:border-slate-800"><a href="/investments/real-estate" data-hk="0-10-0-16" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-10-0-17" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">BITCOIN</a><!--hk=0-10-0-18--></div></div><!--hk=0-10-0-19--><!--hk=0-10-0-3--><!--hk=0-10-0-2--><!--hk=0-10-0-1--></template>
+                <script>
+                    (function() { let id = "0-10-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-10-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-1-0-0f"><!--hk=0-1-0-4--><!--hk=0-1-0-3--><!--hk=0-1-0-2--><!--hk=0-1-0-1--></template>
+                <script>
+                    (function() { let id = "0-1-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-1-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-3-0-0f"><style id="atlas-platform-theme" data-hk="0-3-0-6"><!>:root { --color-primary: var(--color-primary, #004c6c); --brand-primary: var(--color-primary, #004c6c); }<!--hk=0-3-0-7--></style><nav data-hk="0-3-0-13" class=" fixed top-0 left-0 w-full flex justify-between items-center py-6 z-[60] bg-surface shadow-[0_4px_24px_rgba(0,0,0,0.06)] px-4 md:px-12"><a href="/"  aria-current="page"  data-hk="0-3-0-15" class=" text-xl font-bold truncate relative z-[70] font-mono text-on-surface"><!--suspense-open-0-4-0-0--><span data-hk="0-4-0-1">Portfolio</span><!--hk=0-4-0-1--><!--suspense-close-0-4-0-0--><!--hk=0-3-0-17--><!--hk=0-3-0-16--></a><!--hk=0-3-0-14--><div data-hk="0-5-0-1" class="hidden md:flex items-center space-x-8"><!--suspense-open-0-6-0-0--><div data-hk="0-6-0-1" class="w-24 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></div><!--hk=0-6-0-1--><!--suspense-close-0-6-0-0--><!--hk=0-5-0-2--></div><div data-hk="0-7-0-1" class="flex items-center space-x-4 md:space-x-6 z-50"><button data-hk="0-7-0-2" class="md:hidden text-primary focus:outline-none flex items-center justify-center p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span data-hk="0-7-0-3" class="material-symbols-outlined text-3xl"><!>menu<!--hk=0-7-0-4--></span></button><a href="/admin" data-hk="0-7-0-5" class="material-symbols-outlined text-primary cursor-pointer hover:opacity-80 transition-opacity hidden sm:block">terminal</a><!--suspense-open-0-8-0-0--><a href="#" data-hk="0-8-0-1" class="bg-surface border border-outline-variant/30 px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider opacity-50 block whitespace-nowrap"><div data-hk="0-8-0-2" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-8-0-3" class="text-[0.55rem] text-on-surface-variant uppercase font-medium">CURRENT BLOCK</span><div data-hk="0-8-0-4" class="mt-1 flex items-center text-on-surface"><span data-hk="0-8-0-5" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-8-0-6">...</span></div></div></a><!--hk=0-8-0-1--><!--suspense-close-0-8-0-0--><!--hk=0-7-0-6--></div></nav><div data-hk="0-9-0-1" class="fixed inset-0 bg-surface dark:bg-slate-900 z-50 flex flex-col pt-32 px-6 transition-all duration-300 ease-in-out md:hidden" style=" transform: translateX(100%); opacity: 0; pointer-events: none;;"><div data-hk="0-9-0-2" class="flex flex-col space-y-8 overflow-y-auto pb-24 h-full"><!--suspense-open-0-10-0-0--><div data-hk="0-10-0-1" class="w-24 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></div><!--hk=0-10-0-1--><!--suspense-close-0-10-0-0--><!--hk=0-9-0-3--><a href="/admin" data-hk="0-11-0-1" class="mt-8 flex items-center space-x-2 text-primary text-xl font-bold uppercase transition-opacity border p-4 border-outline-variant/30 text-center justify-center"><span data-hk="0-11-0-2" class="material-symbols-outlined">terminal</span><span data-hk="0-11-0-3">Admin Terminal</span></a></div></div><!--hk=0-3-0-12--><!--hk=0-3-0-11--><div data-hk="0-11-0-5" class="hidden"></div><!--hk=0-11-0-4--><!--suspense-open-0-12-0-0--><div data-hk="0-12-0-1" class="pt-32 pb-24 px-4 text-center jetbrains text-outline">LOADING...</div><!--hk=0-12-0-1--><!--suspense-close-0-12-0-0--><!--hk=0-11-0-10--><!--hk=0-11-0-9--><!--hk=0-11-0-8--><!--hk=0-11-0-6--><footer data-hk="0-13-0-2" class=" w-full border-t border-outline-variant/30 py-8 text-xs flex flex-col lg:flex-row flex-wrap justify-between items-center gap-8 lg:gap-6 mt-auto bg-surface-container-low px-6 lg:px-12 font-mono"><div data-hk="0-13-0-3" class="flex flex-col lg:flex-row items-center space-y-2 lg:space-y-0 lg:space-x-4 text-center"><span data-hk="0-13-0-4" class="break-words text-on-surface">© 2026 RUUD SALYM ERIE. ALL RIGHTS RESERVED.</span><span data-hk="0-13-0-5" class="hidden lg:inline text-on-surface-variant">|</span><span data-hk="0-13-0-6" class="text-surface-variant font-bold text-outline break-words">OPLYST INTERNATIONAL, LLC.</span></div><div data-hk="0-13-0-7" class="flex flex-wrap justify-center items-center gap-6"><!--suspense-open-0-14-0-0--><div data-hk="0-14-0-1" class="w-24 h-4 bg-outline-variant/20 animate-pulse rounded"></div><!--hk=0-14-0-1--><!--suspense-close-0-14-0-0--><!--hk=0-13-0-8--></div><div data-hk="0-15-0-1" class="flex flex-wrap items-center justify-center space-x-6"><!--suspense-open-0-16-0-0--><div data-hk="0-16-0-1"></div><!--hk=0-16-0-1--><!--suspense-close-0-16-0-0--><!--hk=0-15-0-2--></div><div data-hk="0-17-0-1" class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-3 w-full lg:w-auto mt-4 lg:mt-0"><span data-hk="0-17-0-2" class="text-[0.65rem] tracking-widest uppercase text-on-surface-variant break-words text-center">Engineered natively in</span><a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer" data-hk="0-17-0-3" class="flex items-center opacity-70 hover:opacity-100 transition-opacity p-2 bg-surface-container hover:bg-surface-container-high rounded-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Rust_programming_language_black_logo.svg" alt="Rust Logo" data-hk="0-17-0-4" class="h-5 w-5 dark:invert"/><span data-hk="0-17-0-5" class="ml-2 font-bold text-on-surface tracking-widest">RUST</span></a></div></footer><!--hk=0-13-0-1--><!--hk=0-3-0-10--><!--hk=0-3-0-9--><!--hk=0-3-0-8--><!--hk=0-3-0-5--><!--hk=0-3-0-4--><!--hk=0-3-0-3--><!--hk=0-3-0-2--><!--hk=0-3-0-1--></template>
+                <script>
+                    (function() { let id = "0-3-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-3-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-4-0-0f"><!>ANCHOR PLATFORM<!--hk=0-4-0-3--><!--hk=0-4-0-2--><!--hk=0-4-0-1--></template>
+                <script>
+                    (function() { let id = "0-4-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-4-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-16-0-0f"><div data-hk="0-16-0-4" class="flex items-center space-x-4"><!--hk=0-16-0-5--><!--hk=0-16-0-6--><!--hk=0-16-0-7--></div><!--hk=0-16-0-3--><!--hk=0-16-0-2--><!--hk=0-16-0-1--></template>
+                <script>
+                    (function() { let id = "0-16-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-16-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                <script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":1,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":947598}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":2,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":3,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":4,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"id\":0,\"slug\":\"home\",\"title\":\"Ruud Salym Erie — Technical Architect\",\"description\":\"Systems architect and software engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"hero_title\":\"\",\"hero_subtitle\":\"\",\"lead_capture_title\":\"\",\"lead_capture_desc\":\"\",\"lead_capture_btn\":\"\",\"options_json\":\"{}\",\"dynamic_blocks_json\":\"[{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full pt-32 pb-24 px-4 md:px-[8.5rem] bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8\\\\\\\">\\u003cdiv class=\\\\\\\"lg:col-span-7 flex flex-col justify-start\\\\\\\">\\u003cdiv class=\\\\\\\"inline-block bg-surface-container-high px-3 py-1 mb-8 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant uppercase w-max\\\\\\\">VER: v1.0.4 // KERNEL_ACTIVE\\u003c/div>\\u003ch1 class=\\\\\\\"text-[5rem] lg:text-[7rem] leading-[0.85] font-extrabold tracking-tight text-[#0a385c] uppercase mb-12\\\\\\\">RUUD\\u003cbr/>ERIE.\\u003c/h1>\\u003cp class=\\\\\\\"text-xl lg:text-2xl font-medium text-on-surface uppercase tracking-wide leading-relaxed max-w-2xl mb-16\\\\\\\">SYSTEMS ARCHITECT // SPECIALIZING IN \\u003cspan class=\\\\\\\"text-[#b83b19]\\\\\\\">DISTRIBUTED INFRASTRUCTURE\\u003c/span>, HIGH-PERFORMANCE RUST SYSTEMS, AND SCALABLE CLOUD FABRICS.\\u003c/p>\\u003cdiv class=\\\\\\\"flex flex-col md:flex-row gap-8 md:gap-16\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">CURRENT FOCUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm\\\\\\\">Sub-millisecond Latency Optimization\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">STATUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm flex items-center gap-2\\\\\\\">\\u003cdiv class=\\\\\\\"w-1.5 h-1.5 bg-[#b83b19]\\\\\\\">\\u003c/div>AVAILABLE FOR CRITICAL OPS\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"lg:col-span-5 flex flex-col gap-6\\\\\\\">\\u003cdiv class=\\\\\\\"bg-[#f4f5f5] p-8 border-l-4 border-[#b83b19] flex flex-col\\\\\\\">\\u003cdiv class=\\\\\\\"text-[#b83b19] text-4xl leading-none font-serif font-black mb-4\\\\\\\">\\\\\\\"\\u003c/div>\\u003cp class=\\\\\\\"italic text-on-surface font-medium text-lg mb-12\\\\\\\">\\\\\\\"Architecture is not about drawing boxes; it's about defining the physics of the data flow.\\\\\\\"\\u003c/p>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">SYSTEM EFFICIENCY\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold\\\\\\\">99.98%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#b83b19]\\\\\\\" style=\\\\\\\"width: 99.98%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">RESOURCE OVERHEAD\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#0a385c] font-bold\\\\\\\">2.4%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#0a385c]\\\\\\\" style=\\\\\\\"width: 2.4%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"bg-black text-white relative overflow-hidden aspect-[16/9] flex items-end p-4 border border-outline-variant/20\\\\\\\">\\u003cdiv class=\\\\\\\"absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-black/90 to-black pointer-events-none\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"absolute inset-0\\\\\\\" style=\\\\\\\"background-image: repeating-radial-gradient(circle at center, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 11px); opacity: 0.5;\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"relative z-10 bg-white text-black jetbrains text-[0.5rem] px-2 py-1 tracking-widest font-bold\\\\\\\">LOC: /US/NY/BKLYN/11211\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}},{\\\"FormBuilder\\\":{\\\"button_classes\\\":\\\"w-full bg-[#b83b19] text-white py-4 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-[#9a2f13] transition-colors rounded-none outline-none border-none shadow-none\\\",\\\"container_classes\\\":\\\"w-full px-4 md:px-[8.5rem] py-24 bg-[#f4f5f5] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]\\\",\\\"description\\\":\\\"Input your protocol for a mission-specific credentials package.\\\",\\\"fields\\\":[{\\\"custom_classes\\\":\\\"w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-[#b83b19] focus:ring-0 px-0 py-4 jetbrains text-lg text-outline placeholder:text-outline-variant/70 transition-all rounded-none\\\",\\\"field_type\\\":\\\"email\\\",\\\"label\\\":\\\"Registry Email Address\\\",\\\"label_classes\\\":\\\"jetbrains text-[0.55rem] uppercase tracking-[0.1em] text-outline text-center block mb-2\\\",\\\"name\\\":\\\"email\\\",\\\"placeholder\\\":\\\"user@organization.domain\\\",\\\"required\\\":true}],\\\"form_classes\\\":\\\"space-y-8 w-full py-8 max-w-2xl mx-auto\\\",\\\"form_id\\\":\\\"rev_intake\\\",\\\"submit_button_text\\\":\\\"Initialize Retrieval\\\",\\\"title\\\":\\\"Request Tailored CV\\\"}},{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full px-4 md:px-[8.5rem] py-24 bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 md:grid-cols-3 gap-12\\\\\\\">\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_01\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">DISTRIBUTED SYSTEMS\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Designing fault-tolerant backends that scale horizontally across global cloud regions without compromising consistency.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_02\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">RUST PERFORMANCE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Memory-safe, high-concurrency systems built for bare-metal speed and absolute reliability in production.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_03\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">CLOUD ARCHITECTURE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Strategic infrastructure deployment leveraging Kubernetes, Terraform, and custom automation fabrics.\\u003c/p>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}}]\"}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":5,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":6,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":7,"version":1}, val);
+                  } })();
+              </script>
+                <template id="0-14-0-0f"><a href="/terms" data-hk="0-14-0-4" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/terms" data-hk="0-14-0-5" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/privacy" data-hk="0-14-0-6" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><a href="/privacy" data-hk="0-14-0-7" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><!--hk=0-14-0-8--><!--hk=0-14-0-3--><!--hk=0-14-0-2--><!--hk=0-14-0-1--></template>
+                <script>
+                    (function() { let id = "0-14-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-14-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-8-0-0f"><a href="https://mempool.space/block/947598" target="_blank" rel="noopener noreferrer" data-hk="0-8-0-4" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap"><div data-hk="0-8-0-5" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-8-0-6" class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">CURRENT BLOCK</span><div data-hk="0-8-0-7" class="mt-1 flex items-center text-on-surface"><span data-hk="0-8-0-8" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-8-0-9">#947598</span></div></div></a><!--hk=0-8-0-3--><!--hk=0-8-0-2--><!--hk=0-8-0-1--></template>
+                <script>
+                    (function() { let id = "0-8-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-8-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-10-0-0f"><div data-hk="0-10-0-4" class="flex flex-col space-y-3 pt-4"><div data-hk="0-10-0-5" class="text-2xl sm:text-3xl font-bold text-slate-400 dark:text-slate-500 uppercase bg-transparent w-full text-left">WORK</div><div data-hk="0-10-0-6" class="flex flex-col space-y-2 pl-4 border-l-2 border-slate-200 dark:border-slate-800"><a href="/resume" data-hk="0-10-0-7" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">EXPERIENCE</a><a href="/projects" data-hk="0-10-0-8" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">PROJECTS</a><!--hk=0-10-0-9--></div></div><a href="/services" data-hk="0-10-0-10" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">SERVICES</a><a href="/book" data-hk="0-10-0-11" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">BOOK DISCOVERY</a><a href="/blog" data-hk="0-10-0-12" class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">BLOG</a><div data-hk="0-10-0-13" class="flex flex-col space-y-3 pt-4"><div data-hk="0-10-0-14" class="text-2xl sm:text-3xl font-bold text-slate-400 dark:text-slate-500 uppercase bg-transparent w-full text-left">INVESTMENTS</div><div data-hk="0-10-0-15" class="flex flex-col space-y-2 pl-4 border-l-2 border-slate-200 dark:border-slate-800"><a href="/investments/real-estate" data-hk="0-10-0-16" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-10-0-17" class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">BITCOIN</a><!--hk=0-10-0-18--></div></div><!--hk=0-10-0-19--><!--hk=0-10-0-3--><!--hk=0-10-0-2--><!--hk=0-10-0-1--></template>
+                <script>
+                    (function() { let id = "0-10-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-10-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-6-0-0f"><div data-hk="0-6-0-4" class="relative group cursor-pointer text-slate-600 dark:text-slate-400 font-medium transition-colors uppercase flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-5" class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 block py-2 select-none">WORK</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-6" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-7"></path></svg><div data-hk="0-6-0-8" class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto"><a href="/resume" data-hk="0-6-0-9" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">EXPERIENCE</a><a href="/projects" data-hk="0-6-0-10" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">PROJECTS</a><!--hk=0-6-0-11--></div></div><a href="/services" data-hk="0-6-0-12" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">SERVICES</a><a href="/book" data-hk="0-6-0-13" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">BOOK DISCOVERY</a><a href="/blog" data-hk="0-6-0-14" class=" font-medium transition-colors uppercase text-on-surface-variant hover:text-on-surface hover:bg-surface-container">BLOG</a><div data-hk="0-6-0-15" class="relative group cursor-pointer text-slate-600 dark:text-slate-400 font-medium transition-colors uppercase flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-16" class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 block py-2 select-none">INVESTMENTS</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-17" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-18"></path></svg><div data-hk="0-6-0-19" class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto"><a href="/investments/real-estate" data-hk="0-6-0-20" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-6-0-21" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">BITCOIN</a><!--hk=0-6-0-22--></div></div><!--hk=0-6-0-23--><!--hk=0-6-0-3--><!--hk=0-6-0-2--><!--hk=0-6-0-1--></template>
+                <script>
+                    (function() { let id = "0-6-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-6-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-4-0-0f"><!>ANCHOR PLATFORM<!--hk=0-4-0-3--><!--hk=0-4-0-2--><!--hk=0-4-0-1--></template>
+                <script>
+                    (function() { let id = "0-4-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-4-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-12-0-0f"><main data-hk="0-12-0-4" class="pt-32 pb-24 px-4 md:px-[8.5rem]"><section data-hk="0-12-0-5" class="max-w-4xl mx-auto"><h1 data-hk="0-12-0-6" class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase"></h1><p data-hk="0-12-0-7" class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12"></p></section></main><!--hk=0-12-0-3--><!--hk=0-12-0-2--><!--hk=0-12-0-1--></template>
+                <script>
+                    (function() { let id = "0-12-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-12-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-16-0-0f"><div data-hk="0-16-0-4" class="flex items-center space-x-4"><!--hk=0-16-0-5--><!--hk=0-16-0-6--><!--hk=0-16-0-7--></div><!--hk=0-16-0-3--><!--hk=0-16-0-2--><!--hk=0-16-0-1--></template>
+                <script>
+                    (function() { let id = "0-16-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-16-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                <script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":1,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":947598}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":2,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":3,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":4,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"id\":0,\"slug\":\"home\",\"title\":\"Ruud Salym Erie — Technical Architect\",\"description\":\"Systems architect and software engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"hero_title\":\"\",\"hero_subtitle\":\"\",\"lead_capture_title\":\"\",\"lead_capture_desc\":\"\",\"lead_capture_btn\":\"\",\"options_json\":\"{}\",\"dynamic_blocks_json\":\"[{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full pt-32 pb-24 px-4 md:px-[8.5rem] bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8\\\\\\\">\\u003cdiv class=\\\\\\\"lg:col-span-7 flex flex-col justify-start\\\\\\\">\\u003cdiv class=\\\\\\\"inline-block bg-surface-container-high px-3 py-1 mb-8 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant uppercase w-max\\\\\\\">VER: v1.0.4 // KERNEL_ACTIVE\\u003c/div>\\u003ch1 class=\\\\\\\"text-[5rem] lg:text-[7rem] leading-[0.85] font-extrabold tracking-tight text-[#0a385c] uppercase mb-12\\\\\\\">RUUD\\u003cbr/>ERIE.\\u003c/h1>\\u003cp class=\\\\\\\"text-xl lg:text-2xl font-medium text-on-surface uppercase tracking-wide leading-relaxed max-w-2xl mb-16\\\\\\\">SYSTEMS ARCHITECT // SPECIALIZING IN \\u003cspan class=\\\\\\\"text-[#b83b19]\\\\\\\">DISTRIBUTED INFRASTRUCTURE\\u003c/span>, HIGH-PERFORMANCE RUST SYSTEMS, AND SCALABLE CLOUD FABRICS.\\u003c/p>\\u003cdiv class=\\\\\\\"flex flex-col md:flex-row gap-8 md:gap-16\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">CURRENT FOCUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm\\\\\\\">Sub-millisecond Latency Optimization\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">STATUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm flex items-center gap-2\\\\\\\">\\u003cdiv class=\\\\\\\"w-1.5 h-1.5 bg-[#b83b19]\\\\\\\">\\u003c/div>AVAILABLE FOR CRITICAL OPS\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"lg:col-span-5 flex flex-col gap-6\\\\\\\">\\u003cdiv class=\\\\\\\"bg-[#f4f5f5] p-8 border-l-4 border-[#b83b19] flex flex-col\\\\\\\">\\u003cdiv class=\\\\\\\"text-[#b83b19] text-4xl leading-none font-serif font-black mb-4\\\\\\\">\\\\\\\"\\u003c/div>\\u003cp class=\\\\\\\"italic text-on-surface font-medium text-lg mb-12\\\\\\\">\\\\\\\"Architecture is not about drawing boxes; it's about defining the physics of the data flow.\\\\\\\"\\u003c/p>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">SYSTEM EFFICIENCY\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold\\\\\\\">99.98%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#b83b19]\\\\\\\" style=\\\\\\\"width: 99.98%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">RESOURCE OVERHEAD\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#0a385c] font-bold\\\\\\\">2.4%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#0a385c]\\\\\\\" style=\\\\\\\"width: 2.4%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"bg-black text-white relative overflow-hidden aspect-[16/9] flex items-end p-4 border border-outline-variant/20\\\\\\\">\\u003cdiv class=\\\\\\\"absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-black/90 to-black pointer-events-none\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"absolute inset-0\\\\\\\" style=\\\\\\\"background-image: repeating-radial-gradient(circle at center, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 11px); opacity: 0.5;\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"relative z-10 bg-white text-black jetbrains text-[0.5rem] px-2 py-1 tracking-widest font-bold\\\\\\\">LOC: /US/NY/BKLYN/11211\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}},{\\\"FormBuilder\\\":{\\\"button_classes\\\":\\\"w-full bg-[#b83b19] text-white py-4 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-[#9a2f13] transition-colors rounded-none outline-none border-none shadow-none\\\",\\\"container_classes\\\":\\\"w-full px-4 md:px-[8.5rem] py-24 bg-[#f4f5f5] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]\\\",\\\"description\\\":\\\"Input your protocol for a mission-specific credentials package.\\\",\\\"fields\\\":[{\\\"custom_classes\\\":\\\"w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-[#b83b19] focus:ring-0 px-0 py-4 jetbrains text-lg text-outline placeholder:text-outline-variant/70 transition-all rounded-none\\\",\\\"field_type\\\":\\\"email\\\",\\\"label\\\":\\\"Registry Email Address\\\",\\\"label_classes\\\":\\\"jetbrains text-[0.55rem] uppercase tracking-[0.1em] text-outline text-center block mb-2\\\",\\\"name\\\":\\\"email\\\",\\\"placeholder\\\":\\\"user@organization.domain\\\",\\\"required\\\":true}],\\\"form_classes\\\":\\\"space-y-8 w-full py-8 max-w-2xl mx-auto\\\",\\\"form_id\\\":\\\"rev_intake\\\",\\\"submit_button_text\\\":\\\"Initialize Retrieval\\\",\\\"title\\\":\\\"Request Tailored CV\\\"}},{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full px-4 md:px-[8.5rem] py-24 bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 md:grid-cols-3 gap-12\\\\\\\">\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_01\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">DISTRIBUTED SYSTEMS\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Designing fault-tolerant backends that scale horizontally across global cloud regions without compromising consistency.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_02\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">RUST PERFORMANCE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Memory-safe, high-concurrency systems built for bare-metal speed and absolute reliability in production.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_03\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">CLOUD ARCHITECTURE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Strategic infrastructure deployment leveraging Kubernetes, Terraform, and custom automation fabrics.\\u003c/p>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}}]\"}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":5,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":6,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":7,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":947598}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":8,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":9,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":10,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"id\":0,\"slug\":\"home\",\"title\":\"Ruud Salym Erie — Technical Architect\",\"description\":\"Systems architect and software engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"hero_title\":\"\",\"hero_subtitle\":\"\",\"lead_capture_title\":\"\",\"lead_capture_desc\":\"\",\"lead_capture_btn\":\"\",\"options_json\":\"{}\",\"dynamic_blocks_json\":\"[{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full pt-32 pb-24 px-4 md:px-[8.5rem] bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8\\\\\\\">\\u003cdiv class=\\\\\\\"lg:col-span-7 flex flex-col justify-start\\\\\\\">\\u003cdiv class=\\\\\\\"inline-block bg-surface-container-high px-3 py-1 mb-8 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant uppercase w-max\\\\\\\">VER: v1.0.4 // KERNEL_ACTIVE\\u003c/div>\\u003ch1 class=\\\\\\\"text-[5rem] lg:text-[7rem] leading-[0.85] font-extrabold tracking-tight text-[#0a385c] uppercase mb-12\\\\\\\">RUUD\\u003cbr/>ERIE.\\u003c/h1>\\u003cp class=\\\\\\\"text-xl lg:text-2xl font-medium text-on-surface uppercase tracking-wide leading-relaxed max-w-2xl mb-16\\\\\\\">SYSTEMS ARCHITECT // SPECIALIZING IN \\u003cspan class=\\\\\\\"text-[#b83b19]\\\\\\\">DISTRIBUTED INFRASTRUCTURE\\u003c/span>, HIGH-PERFORMANCE RUST SYSTEMS, AND SCALABLE CLOUD FABRICS.\\u003c/p>\\u003cdiv class=\\\\\\\"flex flex-col md:flex-row gap-8 md:gap-16\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">CURRENT FOCUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm\\\\\\\">Sub-millisecond Latency Optimization\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-outline tracking-widest uppercase mb-1\\\\\\\">STATUS\\u003c/div>\\u003cdiv class=\\\\\\\"font-bold text-sm flex items-center gap-2\\\\\\\">\\u003cdiv class=\\\\\\\"w-1.5 h-1.5 bg-[#b83b19]\\\\\\\">\\u003c/div>AVAILABLE FOR CRITICAL OPS\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"lg:col-span-5 flex flex-col gap-6\\\\\\\">\\u003cdiv class=\\\\\\\"bg-[#f4f5f5] p-8 border-l-4 border-[#b83b19] flex flex-col\\\\\\\">\\u003cdiv class=\\\\\\\"text-[#b83b19] text-4xl leading-none font-serif font-black mb-4\\\\\\\">\\\\\\\"\\u003c/div>\\u003cp class=\\\\\\\"italic text-on-surface font-medium text-lg mb-12\\\\\\\">\\\\\\\"Architecture is not about drawing boxes; it's about defining the physics of the data flow.\\\\\\\"\\u003c/p>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">SYSTEM EFFICIENCY\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold\\\\\\\">99.98%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#b83b19]\\\\\\\" style=\\\\\\\"width: 99.98%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv>\\u003cdiv class=\\\\\\\"flex justify-between items-end mb-1\\\\\\\">\\u003cspan class=\\\\\\\"jetbrains text-[0.5rem] tracking-widest text-outline uppercase\\\\\\\">RESOURCE OVERHEAD\\u003c/span>\\u003cspan class=\\\\\\\"jetbrains text-[0.55rem] text-[#0a385c] font-bold\\\\\\\">2.4%\\u003c/span>\\u003c/div>\\u003cdiv class=\\\\\\\"w-full h-1 bg-outline-variant/30\\\\\\\">\\u003cdiv class=\\\\\\\"h-full bg-[#0a385c]\\\\\\\" style=\\\\\\\"width: 2.4%\\\\\\\">\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003cdiv class=\\\\\\\"bg-black text-white relative overflow-hidden aspect-[16/9] flex items-end p-4 border border-outline-variant/20\\\\\\\">\\u003cdiv class=\\\\\\\"absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-black/90 to-black pointer-events-none\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"absolute inset-0\\\\\\\" style=\\\\\\\"background-image: repeating-radial-gradient(circle at center, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 11px); opacity: 0.5;\\\\\\\">\\u003c/div>\\u003cdiv class=\\\\\\\"relative z-10 bg-white text-black jetbrains text-[0.5rem] px-2 py-1 tracking-widest font-bold\\\\\\\">LOC: /US/NY/BKLYN/11211\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}},{\\\"FormBuilder\\\":{\\\"button_classes\\\":\\\"w-full bg-[#b83b19] text-white py-4 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-[#9a2f13] transition-colors rounded-none outline-none border-none shadow-none\\\",\\\"container_classes\\\":\\\"w-full px-4 md:px-[8.5rem] py-24 bg-[#f4f5f5] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]\\\",\\\"description\\\":\\\"Input your protocol for a mission-specific credentials package.\\\",\\\"fields\\\":[{\\\"custom_classes\\\":\\\"w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-[#b83b19] focus:ring-0 px-0 py-4 jetbrains text-lg text-outline placeholder:text-outline-variant/70 transition-all rounded-none\\\",\\\"field_type\\\":\\\"email\\\",\\\"label\\\":\\\"Registry Email Address\\\",\\\"label_classes\\\":\\\"jetbrains text-[0.55rem] uppercase tracking-[0.1em] text-outline text-center block mb-2\\\",\\\"name\\\":\\\"email\\\",\\\"placeholder\\\":\\\"user@organization.domain\\\",\\\"required\\\":true}],\\\"form_classes\\\":\\\"space-y-8 w-full py-8 max-w-2xl mx-auto\\\",\\\"form_id\\\":\\\"rev_intake\\\",\\\"submit_button_text\\\":\\\"Initialize Retrieval\\\",\\\"title\\\":\\\"Request Tailored CV\\\"}},{\\\"RawHtml\\\":{\\\"content\\\":\\\"\\u003cdiv class=\\\\\\\"w-full px-4 md:px-[8.5rem] py-24 bg-surface text-on-surface\\\\\\\">\\u003cdiv class=\\\\\\\"grid grid-cols-1 md:grid-cols-3 gap-12\\\\\\\">\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_01\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">DISTRIBUTED SYSTEMS\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Designing fault-tolerant backends that scale horizontally across global cloud regions without compromising consistency.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_02\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">RUST PERFORMANCE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Memory-safe, high-concurrency systems built for bare-metal speed and absolute reliability in production.\\u003c/p>\\u003c/div>\\u003cdiv class=\\\\\\\"space-y-4\\\\\\\">\\u003cdiv class=\\\\\\\"jetbrains text-[0.55rem] text-[#b83b19] font-bold tracking-widest uppercase mb-6\\\\\\\">CORE_03\\u003c/div>\\u003ch3 class=\\\\\\\"text-xl font-bold text-[#0a385c]\\\\\\\">CLOUD ARCHITECTURE\\u003c/h3>\\u003cp class=\\\\\\\"text-sm text-on-surface-variant leading-relaxed\\\\\\\">Strategic infrastructure deployment leveraging Kubernetes, Terraform, and custom automation fabrics.\\u003c/p>\\u003c/div>\\u003c/div>\\u003c/div>\\\"}}]\"}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":11,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":11,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":11,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":12,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":12,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":12,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Anchor CMS Platform\",\"status\":\"Configuring\",\"hero_quote\":\"Your site is live. Add pages and content from the platform admin.\",\"hero_subtitle\":\"ANCHOR // MULTI-TENANT CMS PLATFORM — POWERED BY ATLAS.\",\"site_title\":\"ANCHOR PLATFORM\",\"lc_title\":\"Coming Soon\",\"lc_desc\":\"This site is being set up. Check back soon.\",\"lc_label\":\"Email\",\"lc_placeholder\":\"you@example.com\",\"lc_btn\":\"Notify Me\",\"lc_footer\":\"\",\"lc_endpoint\":\"/api/contact\",\"status_color\":\"#6366f1\",\"webhook_url\":\"\",\"admin_email\":\"\",\"google_analytics_id\":\"\",\"booking_url\":\"\",\"terms_html\":\"\",\"privacy_html\":\"\",\"github_url\":\"\",\"x_url\":\"\",\"linkedin_url\":\"\",\"b2b_enabled\":false,\"meta_title\":\"Anchor — Powered by Atlas Platform\",\"meta_description\":\"A dynamic, multi-tenant CMS site built on the Atlas Platform.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":13,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":13,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":13,"version":1}, val);
+                  } })();
+              </script></body></html>

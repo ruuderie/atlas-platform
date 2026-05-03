@@ -40,7 +40,9 @@ pub struct SeedApplyResponse {
 // ROUTES
 // ──────────────────────────────────────────────────────────────────────────────
 
-pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+/// State-free authenticated route definitions.
+/// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route(
             "/api/app-instances/{app_instance_id}/seeds",
@@ -50,7 +52,12 @@ pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection
             "/api/app-instances/{app_instance_id}/seeds/{seed_id}/apply",
             post(apply_seed_pack),
         )
-        .with_state(db)
+}
+
+/// Legacy state-finalized constructor. Used by api.rs during transition period.
+/// Remove after CorePlatformApp is active and api.rs is cleaned up (Phase 3).
+pub fn authenticated_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    authenticated_routes_raw().with_state(db)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

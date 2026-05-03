@@ -1,19 +1,33 @@
 # Atlas App Integration Protocol
 
-This protocol determines how applications (both internal systems and third-party modules) attach to the Atlas Platform. We leverage the `AtlasApp` Rust Trait API to guarantee full compatibility.
+This protocol determines how applications attach to the Atlas Platform. The `AtlasApp` Rust trait
+is the **only** sanctioned integration point — direct mutation of `api.rs` is forbidden for app routes.
+
+> See also: [`docs/architecture/platform_layer_map.md`](architecture/platform_layer_map.md)
+> for the full Tier 1 / Tier 2 / Tier 3 route ownership model.
+
+---
 
 ## Purpose
 
-The legacy approach involved hardcoding an app's router setups via `backend/src/api.rs`, pushing raw `sqlx::query!(...)` patterns, and relying on frontend page loads fetching APIs under the hood.
+The legacy approach hardcoded each app's routes directly into `backend/src/api.rs`, making
+cross-app isolation impossible and causing repeated "overlapping method route" panics whenever
+two apps registered the same prefix.
 
-The **AtlasApp API** solves this by strictly enforcing:
-1. True SSR/Proxy Header Forwarding
-2. Scoped Multi-Tenant SeaORM DB Schemas 
-3. Isolated Background Polling Handlers
+The **`AtlasApp` trait** solves this by enforcing:
+
+1. **State-free route constructors** — every handler returns `Router<DatabaseConnection>`,
+   with `.with_state(db)` called exactly once at the `AtlasApp` boundary.
+2. **Scoped multi-tenant SeaORM schemas** — every table requires a `tenant_id UUID` column.
+3. **Isolated background polling** — background jobs declared as `BackgroundJob` structs,
+   not side-effecting page loads.
+4. **Idempotent provisioning** — the `provision()` hook seeds default data for new tenants.
+
+---
 
 ## Implementing the `AtlasApp` Trait
 
-Create your application in `backend/src/apps/your_app/` and implement the standard `AtlasApp` trait imported from `traits::atlas_app::AtlasApp`.
+Create your app in `backend/src/atlas_apps/your_app.rs` and implement the trait:
 
 ```rust
 use crate::traits::atlas_app::{AtlasApp, BackgroundJob};
@@ -22,61 +36,204 @@ use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
 use async_trait::async_trait;
 
-pub struct AnchorApp;
+pub struct MyApp;
 
 #[async_trait]
-impl AtlasApp for AnchorApp {
+impl AtlasApp for MyApp {
     fn app_id(&self) -> &'static str {
-        "anchor"
+        "my_app"  // must be globally unique
     }
 
-    fn router(&self, state: DatabaseConnection) -> Router {
-        // Build and return your Axum router.
-        // Make sure you bind it specifically to your paths!
-        crate::apps::anchor::api::create_router(state)
+    // ── Public routes (no auth required) ─────────────────────────────────────
+    // Return a state-FREE router. The platform calls .with_state(db) exactly once.
+    fn public_router(&self, db: DatabaseConnection) -> Router {
+        crate::handlers::my_app::public_routes_raw()
+            .with_state(db)
     }
 
+    // ── Authenticated routes (JWT required) ───────────────────────────────────
+    fn authenticated_router(&self, db: DatabaseConnection) -> Router {
+        crate::handlers::my_app::authenticated_routes_raw()
+            .with_state(db)
+    }
+
+    // ── Migrations ────────────────────────────────────────────────────────────
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
-        // Map your app-specific migration structs here.
-        // All models MUST support a tenant_id foreign key constraint. No rigid local tables.
         vec![
-            Box::new(crate::apps::anchor::migrations::m20260408_000002_create_anchor_legacy_tables::Migration),
+            Box::new(crate::migration::m20260101_000001_create_my_app_tables::Migration),
         ]
     }
 
+    // ── Provisioning (optional) ───────────────────────────────────────────────
+    // Called by POST /api/admin/platform/provision/{tenant_id}.
+    // Use ON CONFLICT DO NOTHING — this must be idempotent.
+    async fn provision(
+        &self,
+        db: &DatabaseConnection,
+        tenant_id: uuid::Uuid,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Seed default data for a new tenant here.
+        Ok(())
+    }
+
+    // ── Background Jobs (optional) ────────────────────────────────────────────
     fn background_jobs(&self) -> Vec<BackgroundJob> {
-        // Perfectly Encapsulated Application Logic
         vec![
             BackgroundJob {
-                job_type: "anchor_bitcoin_block_sync".to_string(),
+                job_type: "my_app_sync".to_string(),
                 default_interval_seconds: 600,
                 is_active_by_default: true,
                 default_config_payload: None,
-                executor: Box::new(|db, config| {
+                executor: Box::new(|db, _config| {
                     Box::pin(async move {
-                        // Your internal service logic runs here.
-                        // The backend poller loop will inject `db` dynamically.
-                        crate::apps::anchor::services::sync_bitcoin_blocks(db).await
+                        crate::atlas_apps::my_app::services::sync(db).await
                     })
-                })
+                }),
             }
         ]
     }
 }
 ```
 
+Register the app in `backend/src/atlas_apps/mod.rs`:
+
+```rust
+pub fn get_active_apps() -> Vec<Box<dyn AtlasApp>> {
+    vec![
+        Box::new(core_platform::CorePlatformApp),  // ← always first
+        Box::new(anchor::AnchorApp),
+        Box::new(my_app::MyApp),                   // ← add here
+    ]
+}
+```
+
+---
+
+## State Binding Contract ⚠️
+
+> **This is the most common source of silent 404 regressions.**
+
+Every handler file must expose a `_raw()` constructor that returns a **state-free** router:
+
+```rust
+// ✅ CORRECT — state is NOT bound inside the handler file
+pub fn public_routes_raw() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/public/my-app/{tenant_id}", get(get_items))
+        .route("/api/public/my-app/{tenant_id}/{slug}", get(get_item))
+}
+
+// ✅ The AtlasApp impl binds state exactly once at its boundary:
+fn public_router(&self, db: DatabaseConnection) -> Router {
+    crate::handlers::my_app::public_routes_raw().with_state(db)
+}
+```
+
+```rust
+// ❌ WRONG — pre-binding state inside the handler causes Axum to silently
+//            drop routes when the router is merged at the platform level.
+pub fn public_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/public/my-app/{tenant_id}", get(get_items))
+        .with_state(db)  // ← NEVER do this inside a handler file
+}
+```
+
+**Historical regressions caused by violating this contract:**
+- Apr 8–15, 2026 — global 404 on all CMS pages (`app_pages` pre-binding)
+- May 2, 2026 commit `1b84c375` — "Overlapping method route" panic
+
+---
+
 ## Important Integration Rules
 
-### 1. SSR Reqwest Headers (Preventing 404s)
-When building Leptos or SSR components that make `reqwest` calls internally to platform endpoints, you **must explicitly extract and forward** the browser's `Host` and `Origin` headers via Context.
+### 1. Route Prefix Ownership
 
-Failure to forward the incoming `Host` header will cause the backend router proxy to fail rendering tenant configurations (producing `404 Not Found`).
+Every app owns a **unique route prefix**. Never register a prefix in more than one app.
 
-### 2. SeaORM Migrations & The Unified Registry Rule
-DO NOT execute raw `sqlx::query!(...)` strings assuming an unmanaged schema structure. Every table your application defines MUST contain a `tenant_id` UUID column enforcing strict isolation.
+| App                    | Owned public prefix          | Owned auth prefix            |
+|------------------------|------------------------------|------------------------------|
+| `CorePlatformApp`      | `/api/public/pages/*`        | `/api/pages/*`               |
+| `CorePlatformApp`      | `/api/public/menus/*`        | `/api/menus/*`               |
+| `AnchorApp`            | `/api/public/anchor/*`       | `/api/anchor/*`              |
+| `NetworkInstanceApp`   | `/api/public/listings/*`     | `/api/listings/*`            |
 
-**CRITICAL:** All app-specific migrations (schema creation, seed data, tenant JSON payloads) MUST be registered exclusively within your app's `migrations()` trait method. 
-**You are strictly forbidden from placing app-specific migrations in the core platform's `base` vector (`backend/src/migration/mod.rs`).** Splitting app migrations between the core registry and the app registry causes non-deterministic ordering and will trigger a fatal SeaORM `Migration file is missing` panic during K8s pod startup, leading to a `CrashLoopBackOff`.
+Overlapping prefixes cause Axum to panic at startup with `Overlapping method route`.
 
-### 3. Background Syncs
-Never trigger costly background integrations silently via a Frontend page load (`use_effect` / Server Functions that call external systems on block build). Wrap all 3rd Party systems into encapsulated `BackgroundJob` structs so the Core Poller can regulate rate limits efficiently inline.
+### 2. Tenant Isolation — SeaORM Migrations
+
+Every table your app creates **must** include a `tenant_id UUID` column with a foreign key
+to the `tenants` table. No global, unscoped tables.
+
+```rust
+// ✅ Correct — tenant-scoped query
+MyEntity::find()
+    .filter(my_entity::Column::TenantId.eq(tenant_id))
+    .all(db)
+    .await?;
+
+// ❌ Wrong — leaks data across tenants
+MyEntity::find().all(db).await?;
+```
+
+### 3. Migrations — Unified Registry Rule
+
+App-specific migrations **must** be declared inside your `AtlasApp::migrations()` method.
+
+**Never** place app-specific migrations in the core platform registry
+(`backend/src/migration/mod.rs`). Splitting migrations between the two registries causes
+non-deterministic ordering and triggers a fatal `Migration file is missing` panic during
+K8s pod startup → `CrashLoopBackOff`.
+
+### 4. Provisioning — Idempotency
+
+The `provision()` method is called:
+- Automatically when `create_network()` completes in platform-admin
+- Manually via `POST /api/admin/platform/provision/{tenant_id}`
+- **Potentially multiple times** (retry on partial failure)
+
+Always use `ON CONFLICT DO NOTHING` / `INSERT OR IGNORE`. Never assume a clean slate.
+
+### 5. Background Jobs
+
+Never trigger expensive external calls from a frontend page load or server function.
+Wrap all third-party integrations in a `BackgroundJob` struct so the core poller can
+regulate rate limits.
+
+```rust
+// ❌ Wrong — triggers on every page render
+#[server]
+async fn load_page() -> Result<Data, ServerFnError> {
+    sync_with_external_service().await?;  // blocks render, burns rate limits
+    Ok(data)
+}
+
+// ✅ Correct — runs on the background poller cadence
+BackgroundJob {
+    job_type: "my_app_external_sync".to_string(),
+    default_interval_seconds: 600,
+    executor: Box::new(|db, _| Box::pin(async move {
+        sync_with_external_service(db).await
+    })),
+}
+```
+
+### 6. SSR Header Forwarding
+
+When making `reqwest` calls from server-side Leptos components to platform endpoints,
+you **must** explicitly extract and forward the browser's `Host` and `Origin` headers via Context.
+
+Failure to forward `Host` causes the backend router to fail tenant resolution → `404 Not Found`.
+
+---
+
+## Registered Apps (as of v0.9.x)
+
+| App                  | File                                        | Position | provision()? |
+|----------------------|---------------------------------------------|----------|--------------|
+| `CorePlatformApp`    | `atlas_apps/core_platform.rs`               | 1st      | ✅ Yes        |
+| `AnchorApp`          | `atlas_apps/anchor.rs`                      | 2nd      | ❌ No         |
+| `NetworkInstanceApp` | `atlas_apps/network_instance.rs`            | 3rd      | ❌ No         |
+
+> **`CorePlatformApp` must always be registered first** — it seeds the base `app_pages`
+> and `app_menus` that other apps may depend on via provisioning.
