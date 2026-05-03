@@ -235,7 +235,7 @@ pub fn Nav() -> impl IntoView {
                 // Tenant-configured widgets — hidden on mobile to avoid hamburger collision
                 // Each WidgetShell dispatches to the correct renderer based on WidgetRenderer variant
                 <div class="hidden sm:flex items-center gap-2">
-                    <Suspense fallback=move || view! {}>
+                    <Suspense fallback=move || view! { <span class="hidden"></span> }>
                         {move || {
                             nav_widgets().into_iter().map(|widget| {
                                 view! { <crate::components::widget_registry::WidgetShell widget=widget /> }

@@ -40,6 +40,9 @@ steps:
       registry: ghcr.io
       context: .
       dockerfile: apps/platform-admin/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
       username:
         from_secret: docker_username
       password:
@@ -59,6 +62,9 @@ steps:
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
       username:
         from_secret: docker_username
       password:
@@ -78,6 +84,9 @@ steps:
       registry: ghcr.io
       context: .
       dockerfile: apps/network-instance/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
       username:
         from_secret: docker_username
       password:
@@ -97,6 +106,9 @@ steps:
       registry: ghcr.io
       context: .
       dockerfile: apps/anchor/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
       username:
         from_secret: docker_username
       password:

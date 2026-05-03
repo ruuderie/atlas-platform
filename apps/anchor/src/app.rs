@@ -127,7 +127,7 @@ pub fn App() -> impl IntoView {
                 <Meta name="twitter:description" content=desc_sig/>
                 <Meta name="twitter:image" content=og_image_sig/>
 
-                <Suspense fallback=move || view! {}>
+                <Suspense fallback=move || view! { <span class="hidden"></span> }>
                     {move || {
                         let settings = settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or_default();
                         let gcode = settings.google_analytics_id;
