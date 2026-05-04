@@ -536,7 +536,7 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
                         <button
                             class="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white rounded font-medium disabled:opacity-50 transition-colors"
                             disabled=move || is_submitting.get()
-                            on:click=move |_| provision_action.dispatch(())
+                            on:click=move |_| { provision_action.dispatch(()); }
                         >
                             {move || if is_submitting.get() { "Provisioning..." } else { "Create Owner Account" }}
                         </button>
