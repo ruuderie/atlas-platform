@@ -439,16 +439,17 @@ pub async fn toggle_admin(
         let account_id = match existing_account {
             Some(ua) => ua.account_id,
             None => {
-                // ── Issue 6 fix: deterministic lookup ─────────────────────
-                // Use the caller's own account rather than an arbitrary
-                // `.find().one()` which is non-deterministic in multi-tenant setups.
-                let caller_account = user_account::Entity::find()
-                    .filter(user_account::Column::UserId.eq(current_user.id))
-                    .one(&db)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                caller_account.account_id
+                // N1 fix: PlatformSuperAdmin is a platform-level role, not bound to any
+                // real tenant account. Using Uuid::nil() as a well-known sentinel is
+                // correct here. The previous fix (using caller's account_id) was wrong
+                // — it would associate the TARGET user with the CALLER's tenant account,
+                // causing a cross-tenant data corruption.
+                //
+                // The FK constraint on user_account.account_id must permit nil or the
+                // account table must have a seed row with id=nil for this to succeed.
+                // If not, the insert will fail with a clear DB error rather than silently
+                // corrupting tenant association data.
+                Uuid::nil()
             }
         };
 

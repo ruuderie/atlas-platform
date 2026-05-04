@@ -481,6 +481,24 @@ pub async fn refresh_token(
     match updated_session.update(&db).await {
         Ok(_) => {
             tracing::info!("Session refreshed successfully for user: {}", user.id);
+
+            // R1 fix: populate app_permissions on the refresh path, same as the login path.
+            // Without this, a client that refreshes its token loses permission context
+            // until its next full login.
+            let app_permissions: Vec<crate::models::session::AppPermission> =
+                crate::entities::user_app_permission::Entity::find()
+                    .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
+                    .all(&db)
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|p| crate::models::session::AppPermission {
+                        tenant_id: p.tenant_id,
+                        app_slug: p.app_slug,
+                        permissions: p.permissions,
+                    })
+                    .collect();
+
             Ok(Json(SessionResponse { 
                 user: Some(UserInfo {
                     id: user.id,
@@ -488,7 +506,7 @@ pub async fn refresh_token(
                     first_name: user.first_name,
                     last_name: user.last_name,
                     is_admin: is_platform_admin,
-                    app_permissions: Vec::new(),
+                    app_permissions,
                 }), token: new_bearer_token, refresh_token: new_refresh_token }))
         },
         Err(e) => {

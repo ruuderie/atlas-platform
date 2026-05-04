@@ -67,12 +67,21 @@ pub async fn register_start(
         exclude_credentials
     ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to start registration: {:?}", e)))?;
 
-    // Enable discoverable credentials (resident key) by mutating the response
-    // since webauthn-rs start_passkey_registration defaults to false for broad compatibility
-    if let Some(ref mut sel) = ccr.public_key.authenticator_selection {
-        sel.require_resident_key = true;
-        // Deserializing directly since ResidentKeyRequirement might not be in prelude
-        sel.resident_key = serde_json::from_value(serde_json::json!("required")).ok();
+    // Enable discoverable credentials (resident key) by mutating the response.
+    // If authenticator_selection is None (device has no authenticator selection
+    // preference) we initialise the field rather than silently skipping — R4 fix.
+    match ccr.public_key.authenticator_selection {
+        Some(ref mut sel) => {
+            sel.require_resident_key = true;
+            sel.resident_key = serde_json::from_value(serde_json::json!("required")).ok();
+        }
+        None => {
+            // Build a minimal AuthenticatorSelectionCriteria requiring resident key.
+            ccr.public_key.authenticator_selection = serde_json::from_value(serde_json::json!({
+                "requireResidentKey": true,
+                "residentKey": "required"
+            })).ok();
+        }
     }
     
     state.reg_state.insert(user.id, reg_state).await;
@@ -176,7 +185,13 @@ pub async fn login_start(
     let session_id = Uuid::new_v4();
     state.auth_state.insert(session_id, auth_state).await;
 
-    let cookie = format!("passkey_session={}; Path=/api/passkeys; HttpOnly; Max-Age=300; SameSite=Strict", session_id);
+    // R3 fix: add Secure flag to passkey_session cookie so it is only sent over
+    // HTTPS. Without Secure, the challenge-binding cookie can be observed over
+    // plaintext HTTP, enabling a challenge-replay on a downgraded connection.
+    let cookie = format!(
+        "passkey_session={}; Path=/api/passkeys; HttpOnly; Secure; Max-Age=300; SameSite=Strict",
+        session_id
+    );
     
     Ok((
         StatusCode::OK,
