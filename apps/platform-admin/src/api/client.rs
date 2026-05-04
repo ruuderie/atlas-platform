@@ -39,39 +39,22 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
     }
 }
 
+/// Deprecated: Auth token is stored as an HttpOnly cookie — JavaScript cannot read it.
+/// This always returns None. Remove any call site that reads the token.
+#[deprecated(note = "Auth is now cookie-based. Token is not accessible to JavaScript.")]
 pub fn get_auth_token() -> Option<String> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                return storage.get_item("auth_token").unwrap_or(None);
-            }
-        }
-    }
     None
 }
 
-pub fn set_auth_token(token: &str) {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                let _ = storage.set_item("auth_token", token);
-            }
-        }
-    }
-}
+/// Deprecated: Token is now set as an HttpOnly cookie by the backend.
+/// This function is a no-op kept to surface compile errors at any remaining call sites.
+/// Remove any call to `set_auth_token` — the backend handles the cookie.
+#[deprecated(note = "Auth is now cookie-based. Backend sets HttpOnly cookie. Remove this call.")]
+pub fn set_auth_token(_token: &str) {}
 
-pub fn clear_auth_token() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(Some(storage)) = window.local_storage() {
-                let _ = storage.remove_item("auth_token");
-            }
-        }
-    }
-}
+/// Deprecated: Auth is now cookie-based. Call POST /api/auth/session/revoke instead.
+#[deprecated(note = "Auth is now cookie-based. Call POST /api/auth/session/revoke to clear.")]
+pub fn clear_auth_token() {}
 
 pub fn api_url(path: &str) -> String {
     let mut base_url = "http://api.localhost".to_string();

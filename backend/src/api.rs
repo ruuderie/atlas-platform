@@ -36,8 +36,12 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     let auth_routes = Router::new()
         .route("/login", post(users::login_user))
         .route("/register", post(users::register_user))
+        // Legacy — kept for backward compat with platform-admin during migration
         .route("/validate-session", get(sessions::validate_session))
         .route("/refresh-token", post(sessions::refresh_token))
+        // Unified Atlas Auth Protocol endpoints (all apps should use these)
+        .route("/api/auth/session/validate", get(sessions::validate_session))
+        .route("/api/auth/session/revoke", post(sessions::revoke_session))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 

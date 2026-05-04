@@ -13,8 +13,8 @@ pub async fn login(credentials: UserLogin) -> Result<SessionResponse, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status() == StatusCode::OK {
+        // Session cookie is set by the backend as HttpOnly — no client-side storage needed.
         let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
-        crate::api::client::set_auth_token(&session.token);
         Ok(session)
     } else {
         let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
@@ -27,7 +27,8 @@ pub async fn login(credentials: UserLogin) -> Result<SessionResponse, String> {
 
 pub async fn validate_session() -> Result<UserInfo, String> {
     let client = create_client();
-    let url = api_url("/validate-session");
+    // Use the unified Atlas Auth Protocol endpoint
+    let url = api_url("/api/auth/session/validate");
 
     let req = client.get(&url);
     let req = with_credentials(req);
@@ -35,7 +36,6 @@ pub async fn validate_session() -> Result<UserInfo, String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status() == StatusCode::OK {
-        // validate-session returns SessionResponse containing the user
         let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
         if let Some(user) = session.user {
             Ok(user)
@@ -49,19 +49,14 @@ pub async fn validate_session() -> Result<UserInfo, String> {
 
 pub async fn logout() -> Result<(), String> {
     let client = create_client();
-    let url = api_url("/logout");
+    // Call the unified revoke endpoint — backend deactivates session and clears cookie.
+    let url = api_url("/api/auth/session/revoke");
 
     let req = client.post(&url);
     let req = with_credentials(req);
 
-    let res = req.send().await.map_err(|e| e.to_string())?;
-
-    if res.status().is_success() {
-        crate::api::client::clear_auth_token();
-        Ok(())
-    } else {
-        Err("Failed to logout".into())
-    }
+    let _ = req.send().await; // Best-effort. Always clear local state regardless.
+    Ok(())
 }
 
 pub async fn impersonate_user(user_id: &str) -> Result<SessionResponse, String> {

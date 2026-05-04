@@ -92,7 +92,8 @@ pub fn Login() -> impl IntoView {
         let navigate = navigate_pk.clone();
         let toast = toast_pk.clone();
         leptos::task::spawn_local(async move {
-            crate::api::client::set_auth_token(&_token);
+            // Session cookie was set by the backend as HttpOnly on finish-login.
+            // No client-side token storage needed — validate_session reads the cookie.
             if let Ok(user) = crate::api::auth::validate_session().await {
                 set_user.set(Some(user));
                 navigate("/", Default::default());

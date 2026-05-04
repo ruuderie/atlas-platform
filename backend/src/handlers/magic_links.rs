@@ -1,7 +1,7 @@
 use axum::{
     extract::{Json, Query, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
     routing::post,
     Router,
 };
@@ -11,12 +11,12 @@ use serde_json::json;
 use uuid::Uuid;
 use chrono::{Duration, Utc};
 use lettre::{SmtpTransport, Transport, Message, transport::smtp::authentication::Credentials};
-use lettre::message::{header, MultiPart, SinglePart};
+use lettre::message::{header as mail_header, MultiPart, SinglePart};
 use std::env;
 
 use crate::entities::{user, magic_link_token};
 use crate::models::session::SessionResponse;
-use crate::handlers::sessions::create_passwordless_session;
+use crate::handlers::sessions::{create_passwordless_session, session_cookie_header};
 
 #[derive(Deserialize)]
 pub struct MagicLinkRequest {
@@ -73,12 +73,12 @@ pub async fn request_magic_link(
             MultiPart::alternative()
                 .singlepart(
                     SinglePart::builder()
-                        .header(header::ContentType::TEXT_PLAIN)
+                        .header(mail_header::ContentType::TEXT_PLAIN)
                         .body(format!("Click the following link to log in securely: {}", magic_link_url)),
                 )
                 .singlepart(
                     SinglePart::builder()
-                        .header(header::ContentType::TEXT_HTML)
+                        .header(mail_header::ContentType::TEXT_HTML)
                         .body(format!(
                             "<p>Click the link below to securely log into your Atlas Platform account.</p>\
                             <p><a href=\"{0}\">Log In Now</a></p>\
@@ -113,15 +113,21 @@ pub async fn request_magic_link(
 pub async fn verify_magic_link(
     State(db): State<DatabaseConnection>,
     Json(req): Json<MagicLinkVerifyRequest>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
     let user_record = crate::services::auth_service::AuthService::verify_magic_link(&db, &req.token)
         .await
         .map_err(|(status, msg)| (status, Json(json!({ "message": msg }))))?;
 
-    // Create session (this also naturally serves as the verification step completion loop)
+    // Create session
     let session_response = create_passwordless_session(&db, &user_record.email)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": "Failed to establish session" }))))?;
 
-    Ok((StatusCode::OK, Json(session_response)))
+    // Set HttpOnly session cookie (24h). JSON body retained for backward compatibility.
+    let cookie = session_cookie_header(&session_response.token, 86_400);
+    Ok((
+        StatusCode::OK,
+        [(header::SET_COOKIE, cookie)],
+        Json(session_response),
+    ).into_response())
 }

@@ -1,6 +1,7 @@
 use axum::{
     extract::{Extension, Json},
-    http::StatusCode,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
     routing::post,
     Router,
 };
@@ -11,6 +12,7 @@ use uuid::Uuid;
 use moka::future::Cache;
 use crate::entities::{user, passkey};
 use crate::auth::generate_jwt;
+use crate::handlers::sessions::session_cookie_header;
 
 pub struct WebauthnStateRaw {
     pub webauthn: Arc<Webauthn>,
@@ -141,7 +143,7 @@ pub async fn login_finish(
     Extension(state): Extension<WebauthnState>,
     Extension(db): Extension<DatabaseConnection>,
     Json(req): Json<LoginFinishRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     
     let user = user::Entity::find()
         .filter(user::Column::Email.eq(&req.email))
@@ -160,5 +162,12 @@ pub async fn login_finish(
 
     state.auth_state.invalidate(&user.id).await;
 
-    Ok(Json(serde_json::json!(session_response)))
+    // Set HttpOnly session cookie (24h) so frontends don't need localStorage/Bearer tokens.
+    // JSON body retained for backward compatibility during the transition period.
+    let cookie = session_cookie_header(&session_response.token, 86_400);
+    Ok((
+        StatusCode::OK,
+        [(header::SET_COOKIE, cookie)],
+        Json(serde_json::json!(session_response)),
+    ).into_response())
 }

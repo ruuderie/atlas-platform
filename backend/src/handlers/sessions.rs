@@ -1,9 +1,8 @@
 use axum::{
     extract::{Extension, Json},
-    http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    http::{HeaderMap, StatusCode, header},
+    response::{IntoResponse, Response},
 };
- 
 use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrait, QueryFilter};
 use uuid::Uuid;
 use chrono::{Utc, Duration};
@@ -14,6 +13,51 @@ use crate::models::user::UserLogin;
 use axum::extract::State;
 use serde::Deserialize;
 
+/// Builds the `Set-Cookie` header value for the session token.
+/// HttpOnly; Secure; SameSite=Strict — never readable by JavaScript.
+/// Call this on every auth success endpoint (passkey login, magic link verify).
+pub fn session_cookie_header(token: &str, max_age_secs: i64) -> String {
+    format!(
+        "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age={}",
+        token, max_age_secs
+    )
+}
+
+/// Clears the session cookie (used on logout / revoke).
+pub fn clear_session_cookie_header() -> String {
+    "session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0".to_string()
+}
+
+/// Extracts the session token from either:
+///   1. `Authorization: Bearer <token>` header (platform-admin legacy, transitional)
+///   2. `session` HttpOnly cookie (all apps post-migration)
+/// Cookie takes priority when both are present.
+pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
+    // 1. Cookie (preferred — JS-inaccessible)
+    if let Some(cookie_header) = headers.get(header::COOKIE) {
+        if let Ok(cookie_str) = cookie_header.to_str() {
+            for part in cookie_str.split(';') {
+                let part = part.trim();
+                if let Some(token) = part.strip_prefix("session=") {
+                    if !token.is_empty() {
+                        return Some(token.to_string());
+                    }
+                }
+            }
+        }
+    }
+    // 2. Bearer header (transitional fallback)
+    if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                if !token.is_empty() {
+                    return Some(token.to_string());
+                }
+            }
+        }
+    }
+    None
+}
 
 pub async fn create_session(
     State(db): State<DatabaseConnection>,
@@ -147,32 +191,11 @@ pub async fn validate_session(
     headers: HeaderMap,
 ) -> Result<Json<SessionResponse>, StatusCode> {
     tracing::info!("Validating session");
-    
-    // Extract token from Authorization header
-    let token = match headers.get("Authorization") {
-        Some(auth_header) => {
-            match auth_header.to_str() {
-                Ok(auth_str) => {
-                    if auth_str.starts_with("Bearer ") {
-                        let token = auth_str[7..].to_string();
-                        tracing::info!("Token extracted: {}", token.chars().take(10).collect::<String>() + "...");
-                        token
-                    } else {
-                        tracing::warn!("Authorization header doesn't start with 'Bearer '");
-                        return Err(StatusCode::UNAUTHORIZED);
-                    }
-                },
-                Err(e) => {
-                    tracing::error!("Failed to parse Authorization header: {:?}", e);
-                    return Err(StatusCode::UNAUTHORIZED);
-                }
-            }
-        },
-        None => {
-            tracing::warn!("No Authorization header found");
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-    };
+
+    let token = extract_session_token(&headers).ok_or_else(|| {
+        tracing::warn!("No session cookie or Authorization header found");
+        StatusCode::UNAUTHORIZED
+    })?;
     
     // Query for session with this token
     tracing::info!("Querying database for session with token");
@@ -267,6 +290,33 @@ pub async fn validate_session(
         token: session.bearer_token.clone(),
         refresh_token: session.refresh_token.clone(),
     }))
+}
+
+/// Revokes the current session and clears the HttpOnly cookie.
+/// Called by all apps on logout.
+pub async fn revoke_session(
+    Extension(db): Extension<DatabaseConnection>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(token) = extract_session_token(&headers) else {
+        return StatusCode::NO_CONTENT.into_response();
+    };
+
+    // Deactivate session in DB
+    if let Ok(Some(sess)) = session::Entity::find()
+        .filter(session::Column::BearerToken.eq(&token))
+        .one(&db)
+        .await
+    {
+        let mut active: session::ActiveModel = sess.into();
+        active.is_active = Set(false);
+        let _ = active.update(&db).await;
+    }
+
+    // Clear the cookie regardless
+    (StatusCode::NO_CONTENT,
+     [(header::SET_COOKIE, clear_session_cookie_header())])
+        .into_response()
 }
 
 pub async fn delete_session(
