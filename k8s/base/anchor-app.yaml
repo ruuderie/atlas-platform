@@ -16,7 +16,7 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: anchor-app
-        image: ghcr.io/ruuderie/anchor-app:latest
+        image: ghcr.io/ruuderie/anchor-app:ATLAS_IMAGE_TAG
         imagePullPolicy: Always
         envFrom:
         - configMapRef:

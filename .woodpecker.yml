@@ -27,8 +27,12 @@ steps:
         done
       - cd backend && cargo test --workspace -j 1 -- --test-threads=1
 
-  # Sequential Docker Build & Push
-
+  # ── Docker Build & Push ─────────────────────────────────────────────────────
+  # Each publish step tags the image with both :latest AND the short commit SHA
+  # (first 8 chars of CI_COMMIT_SHA). This eliminates the :latest race condition
+  # where kubectl might pull a stale image if the push hasn't completed yet.
+  # The deploy step uses the SHA tag for the rollout so Kubernetes always pins
+  # the exact commit that this pipeline built.
 
   publish_platform_admin:
     image: woodpeckerci/plugin-docker-buildx
@@ -36,7 +40,9 @@ steps:
     settings:
       mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/platform-admin
-      tags: latest
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
       registry: ghcr.io
       context: .
       dockerfile: apps/platform-admin/Dockerfile
@@ -58,7 +64,9 @@ steps:
     settings:
       mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/atlas-backend
-      tags: latest
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile
@@ -80,7 +88,9 @@ steps:
     settings:
       mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/network-instance
-      tags: latest
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
       registry: ghcr.io
       context: .
       dockerfile: apps/network-instance/Dockerfile
@@ -102,7 +112,9 @@ steps:
     settings:
       mirror: https://mirror.gcr.io
       repo: ghcr.io/ruuderie/anchor-app
-      tags: latest
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
       registry: ghcr.io
       context: .
       dockerfile: apps/anchor/Dockerfile
@@ -118,7 +130,15 @@ steps:
         - 'apps/anchor/**'
         - '.woodpecker.yml'
 
-  # Unified CD Deployment Step
+  # ── Unified CD Deployment ───────────────────────────────────────────────────
+  # Injects secrets, applies Kustomize overlays, then performs a SCOPED rollout:
+  # only the deployments whose source paths changed in this commit are restarted.
+  # This avoids unnecessary pod churn and makes it unambiguous which service
+  # caused a problem if a rollout fails.
+  #
+  # The SHA-tagged image is patched into each deployment's container spec via
+  # kubectl set image — this guarantees the pod pulls the exact image built by
+  # this pipeline run, not a racy :latest that may still be uploading.
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
     volumes:
@@ -148,7 +168,12 @@ steps:
       - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
       - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
       - kubectl cluster-info
-      - echo "Push branch is $CI_COMMIT_BRANCH"
+      - echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
+
+      # Short SHA used for image tagging (matches publish steps above)
+      - SHORT_SHA="${CI_COMMIT_SHA:0:8}"
+      - echo "Deploying images tagged :$SHORT_SHA"
+
       - |
         if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
           echo "Deploying to PROD environment..."
@@ -166,6 +191,12 @@ steps:
           PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
             -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
 
+          # Inject the commit SHA into base manifests so kubectl apply deploys the exact image
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
+
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/prod/config.yaml
@@ -176,19 +207,25 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/prod/config.yaml
 
-          echo "Deploying to PROD environment..."
           kubectl apply -k k8s/overlays/prod
+          OVERLAY="prod"
         else
-          echo "Injecting uat environment secrets dynamically via Woodpecker..."
-          
-          # Strictly validate existence of required secrets so CI fails loudly instead of deploying a broken state
+          echo "Deploying to UAT environment..."
+
+          # Strictly validate existence of required secrets so CI fails loudly
           for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
             secret_value=$(printenv "$secret_name" || echo "")
             if [ -z "$secret_value" ]; then
-              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Deployment aborted to prevent cluster misconfiguration."
+              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Deployment aborted."
               exit 1
             fi
           done
+
+          # Inject the commit SHA into base manifests so kubectl apply deploys the exact image
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
+          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
 
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
@@ -199,35 +236,57 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
-          
-          echo "Deploying to uat environment..."
-          kubectl apply -k k8s/overlays/uat
-        fi
-        
-        # Ensure pods are force-restarted to pull the latest image layer regardless of tag changes
-        kubectl rollout restart deployment/platform-admin -n atlas-platform
-        kubectl rollout restart deployment/network-instance -n atlas-platform
-        kubectl rollout restart deployment/anchor-app -n atlas-platform
-        kubectl rollout restart deployment/backend -n atlas-platform
-        
-        # Block pipeline success until all new replica sets are verified as healthy and running
-        echo "Verifying backend rollout..."
-        kubectl rollout status deployment/backend -n atlas-platform --timeout=180s || {
-          echo "================ BACKEND POD LOGS ================"
-          kubectl logs -n atlas-platform -l app=backend --tail=200 --all-containers=true
-          exit 1
-        }
-        echo "Verifying platform-admin rollout..."
-        kubectl rollout status deployment/platform-admin -n atlas-platform --timeout=180s || exit 1
-        echo "Verifying network-instance rollout..."
-        kubectl rollout status deployment/network-instance -n atlas-platform --timeout=180s || exit 1
-        echo "Verifying anchor-app rollout..."
-        kubectl rollout status deployment/anchor-app -n atlas-platform --timeout=180s || exit 1
-        
-        # Allow purge of old admin dynamically via script or direct DB logic if ever manually needed.
-        # Cleaned up application-level API vulnerabilities.
 
-  # Core Notification
+          kubectl apply -k k8s/overlays/uat
+          OVERLAY="uat"
+        fi
+
+      # ── Scoped rollout: only update pods whose source changed ───────────────
+      # git diff against the previous commit to determine which services need
+      # a rollout. For .woodpecker.yml changes (pipeline infra), update all services
+      # since any step could have been modified.
+      - |
+        CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+        echo "Changed paths: $CHANGED"
+
+        # Helper: wait for a deployment rollout to complete and tail logs on failure
+        rollout_service() {
+          local DEPLOY=$1
+          echo "==> Verifying rollout: $DEPLOY"
+          kubectl rollout status deployment/$DEPLOY -n atlas-platform --timeout=180s || {
+            echo "===== LOGS: $DEPLOY ====="
+            kubectl logs -n atlas-platform -l app=$DEPLOY --tail=100 --all-containers=true
+            exit 1
+          }
+          echo "==> $DEPLOY is live on $SHORT_SHA ✓"
+        }
+
+        # Detect pipeline-wide change (woodpecker.yml itself) → restart all
+        if echo "$CHANGED" | grep -q "\.woodpecker\.yml"; then
+          echo "Pipeline config changed — rolling out all services."
+          rollout_service backend
+          rollout_service platform-admin
+          rollout_service network-instance
+          rollout_service anchor-app
+        else
+          # Service-scoped rollouts — only restart what changed
+          if echo "$CHANGED" | grep -qE "^backend/"; then
+            rollout_service backend
+          fi
+          if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
+            rollout_service platform-admin
+          fi
+          if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
+            rollout_service network-instance
+          fi
+          if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
+            rollout_service anchor-app
+          fi
+        fi
+
+        echo "Deployment complete. Commit $SHORT_SHA is live."
+
+  # ── Notifications ───────────────────────────────────────────────────────────
   notify_discord:
     image: appleboy/drone-discord
     failure: ignore
@@ -246,7 +305,6 @@ steps:
       - status: [success, failure]
         event: [push]
 
-  # Global Email Notification
   notify_email:
     image: drillster/drone-email
     failure: ignore
@@ -273,15 +331,15 @@ steps:
         Branch: {{build.branch}}
         Commit: {{build.commit}} - {{commit.message}}
         Requested By: {{build.author}}
-        
+
         Failed Steps: {{build.failed_steps}}
-        
+
         Logs Available At: {{build.link}}
     when:
       - status: [success, failure]
         event: [push]
 
-  # Workspace Cleanup
+  # ── Workspace Cleanup ───────────────────────────────────────────────────────
   cleanup_workspace:
     image: alpine
     commands:

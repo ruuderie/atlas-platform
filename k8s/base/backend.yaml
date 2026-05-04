@@ -16,7 +16,7 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: backend
-        image: ghcr.io/ruuderie/atlas-backend:latest
+        image: ghcr.io/ruuderie/atlas-backend:ATLAS_IMAGE_TAG
         ports:
         - containerPort: 8000
         envFrom:

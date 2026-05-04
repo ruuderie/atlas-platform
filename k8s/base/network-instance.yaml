@@ -16,7 +16,7 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: network-instance
-        image: ghcr.io/ruuderie/network-instance:latest
+        image: ghcr.io/ruuderie/network-instance:ATLAS_IMAGE_TAG
         ports:
         - containerPort: 8080
         env:
