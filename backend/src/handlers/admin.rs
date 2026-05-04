@@ -369,25 +369,60 @@ pub async fn delete_user(
 
 pub async fn toggle_admin(
     State(db): State<DatabaseConnection>,
-    Extension(_current_user): Extension<user::Model>,
+    Extension(current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    // is_admin was removed from the user entity during the RBAC migration.
-    // Admin status is now represented by role='PlatformSuperAdmin' in user_account.
-    // Toggling admin = inserting or deleting that role record.
+    // ── Issue 1: caller authorization check ────────────────────────────────
+    // Only an existing PlatformSuperAdmin may grant or revoke that role.
+    // The middleware already enforces /api/admin/* access, but we add an
+    // explicit check here because the consequences of a bypass are severe
+    // (privilege escalation) and defence-in-depth is warranted.
+    use crate::entities::user_account::{self, UserRole};
     use sea_orm::ActiveModelTrait;
-    use crate::entities::user_account;
+
+    let caller_is_admin = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .filter(user_account::Column::Role.eq(UserRole::PlatformSuperAdmin))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .is_some();
+
+    if !caller_is_admin {
+        tracing::warn!(
+            "Non-admin user {} attempted to toggle admin status for user {}",
+            current_user.id, user_id
+        );
+        return Err(StatusCode::FORBIDDEN);
+    }
 
     let existing = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(user_id))
-        .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+        .filter(user_account::Column::Role.eq(UserRole::PlatformSuperAdmin))
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     if let Some(record) = existing {
-        // Currently admin — revoke
+        // ── Issue 2: last-admin guard ─────────────────────────────────────
+        // Count how many PlatformSuperAdmin records exist. If this is the
+        // last one, refuse the revocation — the platform would become
+        // unrecoverable through the UI.
+        let admin_count = user_account::Entity::find()
+            .filter(user_account::Column::Role.eq(UserRole::PlatformSuperAdmin))
+            .count(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        if admin_count <= 1 {
+            tracing::warn!(
+                "Refused to revoke last PlatformSuperAdmin (user {}). Platform would be locked out.",
+                user_id
+            );
+            return Err(StatusCode::CONFLICT);
+        }
+
         user_account::Entity::delete_by_id(record.id)
             .exec(&db)
             .await
@@ -404,23 +439,16 @@ pub async fn toggle_admin(
         let account_id = match existing_account {
             Some(ua) => ua.account_id,
             None => {
-                // Create a platform-level account if the user has none
-                use crate::entities::account;
-                let platform_tenant = crate::entities::tenant::Entity::find()
+                // ── Issue 6 fix: deterministic lookup ─────────────────────
+                // Use the caller's own account rather than an arbitrary
+                // `.find().one()` which is non-deterministic in multi-tenant setups.
+                let caller_account = user_account::Entity::find()
+                    .filter(user_account::Column::UserId.eq(current_user.id))
                     .one(&db)
                     .await
                     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
                     .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-                let new_account = account::ActiveModel {
-                    id: Set(Uuid::new_v4()),
-                    tenant_id: Set(platform_tenant.id),
-                    name: Set("Platform Super Admin Account".to_string()),
-                    is_active: Set(true),
-                    created_at: Set(chrono::Utc::now()),
-                    updated_at: Set(chrono::Utc::now()),
-                    ..Default::default()
-                }.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                new_account.id
+                caller_account.account_id
             }
         };
 
@@ -428,7 +456,7 @@ pub async fn toggle_admin(
             id: Set(Uuid::new_v4()),
             user_id: Set(user_id),
             account_id: Set(account_id),
-            role: Set(user_account::UserRole::PlatformSuperAdmin),
+            role: Set(UserRole::PlatformSuperAdmin),
             is_active: Set(true),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),

@@ -10,6 +10,17 @@ pub struct SessionResponse {
     pub refresh_token: String,
 }
 
+/// A flattened view of one `user_app_permission` row, safe to include in the
+/// login response so clients can make immediate feature-gate decisions without
+/// an extra round-trip.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppPermission {
+    pub tenant_id: Uuid,
+    pub app_slug: String,
+    /// Raw JSON permissions blob (e.g. `["read","write"]`) from the DB.
+    pub permissions: serde_json::Value,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserInfo {
     pub id: Uuid,
@@ -17,5 +28,5 @@ pub struct UserInfo {
     pub first_name: String,
     pub last_name: String,
     pub is_admin: bool,
-    pub app_permissions: Vec<String>,
+    pub app_permissions: Vec<AppPermission>,
 }

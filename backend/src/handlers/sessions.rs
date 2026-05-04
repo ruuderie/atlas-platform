@@ -113,7 +113,9 @@ pub async fn create_session_for_user(
     // A 'PlatformSuperAdmin' role in user_account grants elevated JWT claims.
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
-        .filter(crate::entities::user_account::Column::Role.eq("PlatformSuperAdmin"))
+        .filter(crate::entities::user_account::Column::Role.eq(
+            crate::entities::user_account::UserRole::PlatformSuperAdmin
+        ))
         .one(db)
         .await
         .unwrap_or(None)
@@ -181,6 +183,24 @@ pub async fn create_session_for_user(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
+    // Issue 4 fix: fetch app-level permissions so the login response is immediately
+    // usable by client-side feature gates (e.g. ListingPoster). The middleware
+    // re-injects these per-request, but on first login the client only has the
+    // JSON response to go on.
+    let app_permissions: Vec<crate::models::session::AppPermission> =
+        crate::entities::user_app_permission::Entity::find()
+            .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
+            .all(db)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| crate::models::session::AppPermission {
+                tenant_id: p.tenant_id,
+                app_slug: p.app_slug,
+                permissions: p.permissions,
+            })
+            .collect();
+
     Ok(SessionResponse {
         user: Some(UserInfo {
             id: user.id,
@@ -188,7 +208,7 @@ pub async fn create_session_for_user(
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
             is_admin: is_platform_admin,
-            app_permissions: Vec::new(),
+            app_permissions,
         }),
         token: bearer_token,
         refresh_token,
@@ -399,7 +419,9 @@ pub async fn refresh_token(
     // Generate new bearer token — re-check admin status since roles may have changed.
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
-        .filter(crate::entities::user_account::Column::Role.eq("PlatformSuperAdmin"))
+        .filter(crate::entities::user_account::Column::Role.eq(
+            crate::entities::user_account::UserRole::PlatformSuperAdmin
+        ))
         .one(&db)
         .await
         .unwrap_or(None)
@@ -420,15 +442,41 @@ pub async fn refresh_token(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Update the session with the new tokens
+    // Update the session with the new tokens and refreshed admin status.
     let new_token_expiration = Utc::now() + Duration::hours(1);
     let new_refresh_token_expiration = Utc::now() + Duration::days(7);
-    let mut updated_session: session::ActiveModel = session.into();
+    let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.bearer_token = Set(new_bearer_token.clone());
     updated_session.refresh_token = Set(new_refresh_token.clone());
     updated_session.token_expiration = Set(new_token_expiration);
     updated_session.refresh_token_expiration = Set(new_refresh_token_expiration);
     updated_session.last_accessed_at = Set(Utc::now());
+    updated_session.last_modified_date = Set(Utc::now());
+    // Issue 5 fix: persist the re-evaluated admin status so the session row
+    // stays consistent with the current user_account.role. Without this write,
+    // a revoked admin who refreshes will keep is_admin=true in the DB, causing
+    // the integrity hash to diverge on the next verify_integrity() call.
+    updated_session.is_admin = Set(is_platform_admin);
+
+    // Recompute integrity hash over ALL the new field values before writing.
+    let refreshed_hash = {
+        let temp = session::Model {
+            id: session.id,
+            user_id: user.id,
+            bearer_token: new_bearer_token.clone(),
+            refresh_token: new_refresh_token.clone(),
+            token_expiration: new_token_expiration,
+            refresh_token_expiration: new_refresh_token_expiration,
+            created_at: session.created_at,
+            last_accessed_at: Utc::now(),
+            last_modified_date: Utc::now(),
+            is_admin: is_platform_admin,
+            is_active: session.is_active,
+            integrity_hash: String::new(),
+        };
+        temp.generate_integrity_hash()
+    };
+    updated_session.integrity_hash = Set(refreshed_hash);
 
     match updated_session.update(&db).await {
         Ok(_) => {

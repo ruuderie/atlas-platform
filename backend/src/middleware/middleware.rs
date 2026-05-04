@@ -215,7 +215,7 @@ pub async fn auth_middleware(
         
         let is_platform_admin = match user_account::Entity::find()
             .filter(user_account::Column::UserId.eq(user.id))
-            .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+            .filter(user_account::Column::Role.eq(user_account::UserRole::PlatformSuperAdmin))
             .one(&db)
             .await {
                 Ok(Some(_)) => true,
