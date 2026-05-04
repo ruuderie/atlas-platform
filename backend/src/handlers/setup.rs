@@ -61,7 +61,6 @@ pub async fn get_setup_status(
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<SetupStatusResponse>, StatusCode> {
     // Admin status is now a role in user_account, not a field on the user entity.
-    use crate::entities::user_account;
     let admin_count = user_account::Entity::find()
         .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)
@@ -94,7 +93,6 @@ pub async fn webauthn_start(
     }
 
     // Check admin count via user_account role instead of the removed user.is_admin field.
-    use crate::entities::user_account;
     let admin_count = user_account::Entity::find()
         .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)
@@ -152,7 +150,6 @@ pub async fn initialize_finish(
         .ok_or((StatusCode::BAD_REQUEST, Json(json!({ "message": "Registration challenge expired" }))))?;
 
     // Check admin count via user_account role.
-    use crate::entities::user_account;
     let admin_count = user_account::Entity::find()
         .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)

@@ -264,21 +264,6 @@ pub async fn validate_session(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // Get user information
-    let user = match user::Entity::find_by_id(session.user_id)
-        .one(&db)
-        .await {
-            Ok(Some(user)) => user,
-            Ok(None) => {
-                tracing::error!("User not found for session");
-                return Err(StatusCode::UNAUTHORIZED);
-            },
-            Err(e) => {
-                tracing::error!("Database error when finding user: {:?}", e);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        };
-
     // Update last_accessed_at
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
@@ -289,19 +274,9 @@ pub async fn validate_session(
 
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Note: app_permissions are NOT re-fetched here. The auth middleware already injects
-    // the user's permissions into Axum request extensions on every authenticated API request,
-    // which is the canonical source for RBAC checks in downstream handlers.
-    // Returning an empty vec keeps the response shape stable for consumers that read `user`.
+    // Return the tokens. We omit the full UserInfo object here to save a DB fetch.
     Ok(Json(SessionResponse {
-        user: Some(UserInfo {
-            id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            is_admin: session.is_admin,
-            app_permissions: Vec::new(),
-        }),
+        user: None,
         token: session.bearer_token.clone(),
         refresh_token: session.refresh_token.clone(),
     }))

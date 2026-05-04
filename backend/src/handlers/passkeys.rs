@@ -70,17 +70,30 @@ pub async fn register_start(
     // Enable discoverable credentials (resident key) by mutating the response.
     // If authenticator_selection is None (device has no authenticator selection
     // preference) we initialise the field rather than silently skipping — R4 fix.
+    //
+    // Both branches use map_err(|e| ...)? rather than .ok() so that any
+    // schema rename in webauthn-rs surfaces as a hard handler error instead
+    // of silently dropping the resident key requirement.
     match ccr.public_key.authenticator_selection {
         Some(ref mut sel) => {
             sel.require_resident_key = true;
-            sel.resident_key = serde_json::from_value(serde_json::json!("required")).ok();
+            sel.resident_key = serde_json::from_value(serde_json::json!("required"))
+                .map_err(|e| (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to set resident_key on existing authenticator_selection: {e}"),
+                ))?;
         }
         None => {
             // Build a minimal AuthenticatorSelectionCriteria requiring resident key.
-            ccr.public_key.authenticator_selection = serde_json::from_value(serde_json::json!({
-                "requireResidentKey": true,
-                "residentKey": "required"
-            })).ok();
+            ccr.public_key.authenticator_selection =
+                Some(serde_json::from_value(serde_json::json!({
+                    "requireResidentKey": true,
+                    "residentKey": "required"
+                }))
+                .map_err(|e| (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to build AuthenticatorSelectionCriteria: {e}"),
+                ))?);
         }
     }
     
