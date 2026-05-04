@@ -91,6 +91,45 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
     }
 }
 
+#[server(ExchangeSetupToken, "/api")]
+pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        let payload = serde_json::json!({
+            "token": token,
+        });
+        
+        let url = format!("{}/api/auth/setup/exchange", crate::atlas_client::get_atlas_api_url());
+        let client = reqwest::Client::new();
+        let res = client.post(&url).json(&payload).send().await;
+
+        match res {
+            Ok(r) if r.status().is_success() => {
+                let data: serde_json::Value = r.json().await.unwrap_or_default();
+                if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
+                    use leptos_axum::ResponseOptions;
+                    let response = leptos::expect_context::<ResponseOptions>();
+                    let header_val = format!(
+                        "session={}; HttpOnly; Path=/; SameSite=Strict",
+                        session_token
+                    );
+                    response.append_header(
+                        axum::http::header::SET_COOKIE,
+                        axum::http::HeaderValue::from_str(&header_val).unwrap(),
+                    );
+                    return Ok("SUCCESS".to_string());
+                }
+                Err(ServerFnError::ServerError("Invalid response format".into()))
+            },
+            _ => Err(ServerFnError::ServerError("Failed to exchange setup token".into())),
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok("SUCCESS".to_string())
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct UserRecord {
     pub id: i32,

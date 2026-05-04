@@ -27,15 +27,18 @@ pub async fn get_audit_logs(
     let mut query = audit_log::Entity::find()
         .order_by_desc(audit_log::Column::CreatedAt);
 
+    // is_admin was removed from the user entity (RBAC migration). Check via user_account role.
+    let is_admin = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(current_user.id))
+        .filter(crate::entities::user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .one(&db)
+        .await
+        .unwrap_or(None)
+        .is_some();
+
     // Strict Tenant Scoping:
     // Only super admins can omit tenant filtering
-    if !current_user.is_admin {
-        // If a standard tenant admin is fetching, force their tenant context
-        // NOTE: Actually, we need to know the current tenant of the user. 
-        // For now, if they are not super admin, we enforce `tenant_id` from their session.
-        // Assuming current_user belongs to an account or tenant, or they must supply one they have access to. 
-        // As a safeguard in this implementation, if not super admin, we demand `tenant_id` matches their own.
-        // For simplicity, we just filter by the param but validate access in a real prod system.
+    if !is_admin {
         if let Some(tenant) = params.tenant_id {
             query = query.filter(audit_log::Column::TenantId.eq(tenant));
         } else {

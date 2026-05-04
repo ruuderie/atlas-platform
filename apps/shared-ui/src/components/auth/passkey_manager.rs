@@ -7,22 +7,28 @@ use crate::auth::passkey::start_registration;
 pub fn ManagePasskeys(
     #[prop(into)] api_base_url: Signal<String>,
     #[prop(into)] auth_token: String,
+    #[prop(default = false)] auto_register: bool,
 ) -> impl IntoView {
     let is_submitting = RwSignal::new(false);
     let message = RwSignal::new(String::new());
     let is_error = RwSignal::new(false);
     
-    let handle_register = move |_| {
-        if is_submitting.get() { return; }
+    let api_url_sig = api_base_url;
+    let auth_token_str = auth_token;
+
+    let do_register = Action::new_local(move |_: &()| {
+        let is_submitting = is_submitting.clone();
+        let message = message.clone();
+        let is_error = is_error.clone();
+        let api_url = api_url_sig.get();
+        let token = auth_token_str.clone();
+
+        async move {
+            if is_submitting.get() { return; }
         
-        is_submitting.set(true);
-        message.set("Initiating registration...".to_string());
-        is_error.set(false);
-        
-        let api_url = api_base_url.get();
-        let token = auth_token.clone();
-        
-        leptos::task::spawn_local(async move {
+            is_submitting.set(true);
+            message.set("Initiating registration...".to_string());
+            is_error.set(false);
             let client = Client::new();
             
             // 1. Start Registration
@@ -90,8 +96,15 @@ pub fn ManagePasskeys(
             }
             
             is_submitting.set(false);
-        });
-    };
+        }
+    });
+
+    // Auto trigger if requested
+    Effect::new(move |_| {
+        if auto_register {
+            do_register.dispatch(());
+        }
+    });
 
     view! {
         <div class="bg-surface-container-high p-6 rounded-2xl shadow-sm border border-outline-variant/30 mt-6">
@@ -111,7 +124,7 @@ pub fn ManagePasskeys(
             
             <button 
                 type="button" 
-                on:click=handle_register
+                on:click=move |_| { do_register.dispatch(()); }
                 disabled=move || is_submitting.get()
                 class="inline-flex justify-center items-center py-2.5 px-4 font-bold rounded-xl bg-primary text-on-primary hover:bg-primary-dim focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all disabled:opacity-70 shadow-[0_0_15px_rgba(123,208,255,0.15)] hover:shadow-[0_0_20px_rgba(123,208,255,0.3)]"
             >

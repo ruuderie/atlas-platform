@@ -1,5 +1,6 @@
 use leptos::*;
 
+
 use crate::auth::*;
 use crate::components::admin_modal::*;
 
@@ -104,12 +105,15 @@ pub fn Admin() -> impl IntoView {
     provide_context(refresh);
     provide_context(set_refresh);
 
+    let (show_passkey_nudge, set_show_passkey_nudge) = create_signal(false);
+
     create_effect(move |_| {
         spawn_local(async move {
             let q = query.get();
             if let Some(token) = q.get("token") {
                 if verify_magic_link(token.clone()).await.is_ok() {
                     set_auth_state.set(AuthState::Yes);
+                    set_show_passkey_nudge.set(true);
                     return;
                 }
             }
@@ -136,6 +140,8 @@ pub fn Admin() -> impl IntoView {
         set_is_loading.set(false);
     });
 
+    let (use_email, set_use_email) = create_signal(false);
+
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
@@ -158,35 +164,130 @@ pub fn Admin() -> impl IntoView {
                                 <h2 class="text-4xl font-extrabold text-primary mb-8 tracking-tight">"SYSTEM_CMS"</h2>
 
                                 <div class="space-y-12">
-                                    <div class="relative w-full group">
-                                        <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Identity Hash"</label>
-                                        <input
-                                            type="text"
-                                            placeholder="admin"
-                                            on:input=move |ev| set_username.set(event_target_value(&ev))
-                                            prop:value=username
-                                            class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
-                                        />
-                                    </div>
+                                    <Show when=move || use_email.get() fallback=move || view! {
+                                        <div class="space-y-6">
+                                            <button
+                                                id="login-passkey-btn"
+                                                class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors flex items-center justify-center gap-3"
+                                            >
+                                                <span class="material-symbols-outlined text-base">"passkey"</span>
+                                                <span class="inline-block translate-y-[1px]">"Sign In with Passkey"</span>
+                                            </button>
+                                            <div id="passkey-message" class="text-sm text-center text-error font-medium h-4"></div>
 
-                                    <div class="space-y-4 pt-6">
-                                        <Show when=move || !auth_error.get().is_empty()>
-                                            <div class="bg-error/10 border-l-4 border-error p-4 mb-4 text-error jetbrains text-sm font-medium">
-                                                {move || auth_error.get()}
+                                            <script>
+                                            // Dynamically load SimpleWebAuthn and bind the click listener inside
+                                            // its onload callback — eliminates the setTimeout race on slow networks.
+                                            // Uses same-origin /api paths since anchor is SSR on the same host.
+                                            "(function() {
+                                                var existing = document.querySelector('script[data-simplewebauthn]');
+                                                var scriptEl = existing || document.createElement('script');
+                                                if (!existing) {
+                                                    scriptEl.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
+                                                    scriptEl.setAttribute('data-simplewebauthn', 'true');
+                                                    document.head.appendChild(scriptEl);
+                                                }
+
+                                                function bindBtn() {
+                                                    var btn = document.getElementById('login-passkey-btn');
+                                                    var msg = document.getElementById('passkey-message');
+                                                    if (!btn || btn.dataset.bound) return;
+                                                    btn.dataset.bound = 'true';
+                                                    btn.addEventListener('click', async function() {
+                                                        try {
+                                                            btn.disabled = true;
+                                                            msg.innerText = 'Initiating...';
+
+                                                            // Empty email triggers the discoverable-credentials
+                                                            // (usernameless) WebAuthn flow — the authenticator
+                                                            // presents stored passkeys for this RP origin.
+                                                            var startRes = await fetch('/api/passkeys/start-login', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ email: '' })
+                                                            });
+                                                            if (!startRes.ok) throw new Error('Failed to start login');
+                                                            var options = await startRes.json();
+
+                                                            msg.innerText = 'Please follow browser prompts...';
+                                                            var startAuthentication = window.SimpleWebAuthnBrowser.startAuthentication;
+                                                            var credential = await startAuthentication(options);
+
+                                                            msg.innerText = 'Verifying...';
+                                                            var finishRes = await fetch('/api/passkeys/finish-login', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify(credential)
+                                                            });
+
+                                                            if (finishRes.ok) {
+                                                                msg.innerText = 'Success! Redirecting...';
+                                                                msg.className = 'text-sm text-center text-green-500 font-medium h-4';
+                                                                window.location.reload();
+                                                            } else {
+                                                                throw new Error(await finishRes.text());
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            msg.innerText = err.message || 'Login failed';
+                                                            msg.className = 'text-sm text-center text-error font-medium h-4';
+                                                        } finally {
+                                                            btn.disabled = false;
+                                                        }
+                                                    });
+                                                }
+
+                                                if (existing && window.SimpleWebAuthnBrowser) {
+                                                    bindBtn();
+                                                } else {
+                                                    scriptEl.onload = bindBtn;
+                                                }
+                                            })();"
+                                            </script>
+
+                                            <div class="text-center pt-2">
+                                                <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(true)>
+                                                    "Use Email Instead"
+                                                </button>
                                             </div>
-                                        </Show>
+                                        </div>
+                                    }>
+                                        <div class="relative w-full group">
+                                            <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Identity Hash"</label>
+                                            <input
+                                                type="text"
+                                                placeholder="admin"
+                                                on:input=move |ev| set_username.set(event_target_value(&ev))
+                                                prop:value=username
+                                                class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
+                                            />
+                                        </div>
 
-                                        <button
-                                            on:click=move |_| login_action.dispatch(())
-                                            disabled=is_loading
-                                            class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-                                        >
-                                            <Show when=move || is_loading.get()>
-                                                <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                        <div class="space-y-4 pt-6">
+                                            <Show when=move || !auth_error.get().is_empty()>
+                                                <div class="bg-error/10 border-l-4 border-error p-4 mb-4 text-error jetbrains text-sm font-medium">
+                                                    {move || auth_error.get()}
+                                                </div>
                                             </Show>
-                                            <span class="inline-block translate-y-[1px]">"Send Magic Link"</span>
-                                        </button>
-                                    </div>
+
+                                            <button
+                                                on:click=move |_| login_action.dispatch(())
+                                                disabled=is_loading
+                                                class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+                                            >
+                                                <Show when=move || is_loading.get()>
+                                                    <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                                </Show>
+                                                <span class="inline-block translate-y-[1px]">"Send Magic Link"</span>
+                                            </button>
+                                            
+                                            <div class="text-center pt-2">
+                                                <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(false)>
+                                                    "← Back to Passkey"
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </Show>
                                 </div>
                             </div>
                         </div>
@@ -221,7 +322,24 @@ pub fn Admin() -> impl IntoView {
                                 </div>
 
                             <button
-                                on:click=move |_| set_auth_state.set(AuthState::No)
+                                on:click=move |_| {
+                                    // Call the backend revoke endpoint so the server-side session
+                                    // is deactivated and the HttpOnly cookie is cleared (Max-Age=0).
+                                    // Resetting local state without this would leave the cookie live.
+                                    spawn_local(async move {
+                                        let url = format!(
+                                            "{}/api/auth/session/revoke",
+                                            crate::atlas_client::get_atlas_api_url()
+                                        );
+                                        let _ = reqwest::Client::new()
+                                            .post(&url)
+                                            .send()
+                                            .await;
+                                        // Always transition to No — even if the network call fails
+                                        // the user has expressed intent to leave this session.
+                                        set_auth_state.set(AuthState::No);
+                                    });
+                                }
                                 class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
                             >
                                 "[ TERMINATE SESSION ]"
@@ -231,6 +349,9 @@ pub fn Admin() -> impl IntoView {
                         // Main Content Area
                         <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
                             <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
+                                <Show when=move || show_passkey_nudge.get()>
+                                    <PasskeyRegistrationNudge />
+                                </Show>
                                 // Header
                                 <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
                                     <div>
@@ -1332,5 +1453,84 @@ pub fn HighlightTable() -> impl IntoView {
                 </tbody>
             </table>
         </Transition>
+    }
+}
+
+#[component]
+fn PasskeyRegistrationNudge() -> impl IntoView {
+    let (is_hidden, set_is_hidden) = create_signal(false);
+    
+    view! {
+        <Show when=move || !is_hidden.get()>
+            <div class="bg-primary/10 border border-primary p-6 mb-8 flex justify-between items-center w-full">
+                <div>
+                    <h3 class="text-primary font-bold text-lg">"Action Required: Set Up a Passkey"</h3>
+                    <p class="text-sm text-on-surface-variant mt-1">"You logged in using an email link. For future logins, please set up a passkey."</p>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <button 
+                        id="nudge-register-passkey-btn"
+                        class="bg-primary text-white px-4 py-2 font-bold hover:bg-primary-container transition-colors disabled:opacity-50"
+                    >
+                        "Set Up Passkey"
+                    </button>
+                    <button 
+                        class="text-outline hover:text-on-surface"
+                        on:click=move |_| set_is_hidden.set(true)
+                    >
+                        <span class="material-symbols-outlined">"close"</span>
+                    </button>
+                </div>
+                <div id="nudge-passkey-message" class="text-sm font-medium mt-2"></div>
+            </div>
+            <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
+            <script>
+            "setTimeout(() => {
+                const btn = document.getElementById('nudge-register-passkey-btn');
+                const msg = document.getElementById('nudge-passkey-message');
+                if(btn && !btn.dataset.bound) {
+                    btn.dataset.bound = 'true';
+                    btn.addEventListener('click', async () => {
+                        try {
+                            btn.disabled = true;
+                            msg.innerText = 'Initiating...';
+                            
+                            const startRes = await fetch('/api/passkeys/start-register', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                            if (!startRes.ok) throw new Error('Failed to start registration');
+                            const options = await startRes.json();
+                            
+                            msg.innerText = 'Please follow browser prompts...';
+                            const { startRegistration } = window.SimpleWebAuthnBrowser;
+                            const credential = await startRegistration(options);
+                            
+                            msg.innerText = 'Verifying...';
+                            const finishRes = await fetch('/api/passkeys/finish-register', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(credential)
+                            });
+                            
+                            if (finishRes.ok) {
+                                msg.innerText = 'Passkey registered successfully!';
+                                msg.className = 'text-sm font-medium text-green-500 mt-2';
+                                setTimeout(() => btn.closest('.bg-primary\\\\/10').style.display = 'none', 2000);
+                            } else {
+                                throw new Error(await finishRes.text());
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            msg.innerText = err.message || 'Registration failed';
+                            msg.className = 'text-sm font-medium text-error mt-2';
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                }
+            }, 500);"
+            </script>
+        </Show>
     }
 }

@@ -29,6 +29,7 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/tenants", post(create_tenant))
         .route("/api/tenants/{id}", put(update_tenant))
         .route("/api/tenants/{id}", delete(delete_tenant))
+        .route("/api/tenants/{id}/provision-admin", post(provision_admin))
         .route("/api/tenants/{id}/settings", get(get_tenant_settings))
         .route("/api/tenants/{id}/settings", post(upsert_tenant_setting))
 }
@@ -134,6 +135,88 @@ pub async fn delete_tenant(
         })?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+pub struct ProvisionAdminPayload {
+    pub email: String,
+    pub first_name: String,
+    pub last_name: String,
+}
+
+pub async fn provision_admin(
+    Path(tenant_id): Path<Uuid>,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<ProvisionAdminPayload>,
+) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    use crate::entities::user;
+    use crate::services::auth_service::AuthService;
+
+    // 1. Check if user exists
+    let existing_user = user::Entity::find()
+        .filter(user::Column::Email.eq(&payload.email))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let user_id = if let Some(u) = existing_user {
+        u.id
+    } else {
+        // Create new user
+        let new_user = user::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            email: Set(payload.email.clone()),
+            username: Set(payload.email.clone()),
+            first_name: Set(payload.first_name),
+            last_name: Set(payload.last_name),
+            phone: Set("".to_string()),
+            password_hash: Set("".to_string()),
+            is_active: Set(true),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        };
+        let u = new_user.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        // Phase 2: Create a user_account as Owner for this tenant
+        // First, find the account associated with the tenant
+        use crate::entities::{user_account, account};
+        let account = account::Entity::find()
+            .filter(account::Column::TenantId.eq(tenant_id))
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+        if let Some(account) = account {
+            let new_user_account = user_account::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                user_id: Set(u.id),
+                account_id: Set(account.id),
+                role: Set(user_account::UserRole::Owner),
+                is_active: Set(true),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+            let _ = new_user_account.insert(&db).await;
+        }
+        
+        u.id
+    };
+
+    // 2. Generate setup token (24h validity)
+    let setup_token = AuthService::create_setup_token(&db, user_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Return the token so the frontend can display the setup link or send an email.
+    Ok((
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "message": "Admin provisioned successfully",
+            "setup_token": setup_token.token,
+            "setup_url": format!("/setup-passkey?token={}", setup_token.token)
+        })),
+    ))
 }
 
 #[derive(Serialize, Deserialize)]

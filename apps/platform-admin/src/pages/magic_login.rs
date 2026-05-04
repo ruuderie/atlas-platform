@@ -45,7 +45,7 @@ pub fn MagicLogin() -> impl IntoView {
                             if let Some(true) = flow_res.get("has_passkey").and_then(|v| v.as_bool()) {
                                 nav("/", Default::default());
                             } else {
-                                nav("/setup", Default::default());
+                                nav("/settings?register_passkey=true", Default::default());
                             }
                         } else {
                             // Fallback to Dashboard if flow inspection fails

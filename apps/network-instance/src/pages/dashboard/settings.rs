@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::auth::{AuthContext, get_auth_token};
+use crate::auth::AuthContext;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
 #[component]
@@ -14,21 +14,13 @@ pub fn DashboardSettings() -> impl IntoView {
             </p>
             
             {move || {
-                let token = get_auth_token().unwrap_or_default();
-                if token.is_empty() {
-                    view! {
-                        <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/30">
-                            "Please log in to manage your settings."
-                        </div>
-                    }.into_any()
-                } else {
-                    view! {
-                        <ManagePasskeys 
-                            api_base_url=Signal::derive(|| format!("{}/api/auth/passkeys", crate::get_api_base_url()))
-                            auth_token=token
-                        />
-                    }.into_any()
-                }
+                // Settings page is gated, so we can render ManagePasskeys
+                view! {
+                    <ManagePasskeys 
+                        api_base_url=Signal::derive(|| format!("{}/api/passkeys", crate::get_api_base_url()))
+                        auth_token="".to_string()
+                    />
+                }.into_any()
             }}
         </div>
     }

@@ -3,6 +3,13 @@ use axum::Router;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
 use async_trait::async_trait;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum AnchorPermission {
+    ManageContent,
+    ManageSettings,
+}
 
 pub struct AnchorApp;
 

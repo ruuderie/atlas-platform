@@ -11,7 +11,6 @@ pub struct User {
     pub last_name: String,
     pub email: String,
     pub password_hash: String,
-    pub is_admin: bool,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -43,7 +42,6 @@ pub struct UserAdmin {
     pub last_name: String,
     pub email: String,
     pub password_hash: String,
-    pub is_admin: bool,
     pub is_active: bool,
 }
 

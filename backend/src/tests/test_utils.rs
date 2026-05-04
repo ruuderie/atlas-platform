@@ -106,10 +106,21 @@ pub async fn register_test_user(
         .unwrap();
 
     let status = response.status();
+    let mut token_from_cookie = None;
+    for cookie in response.headers().get_all(axum::http::header::SET_COOKIE).iter() {
+        if let Ok(c) = cookie.to_str() {
+            if c.starts_with("session=") {
+                token_from_cookie = Some(c.split(';').next().unwrap().strip_prefix("session=").unwrap().to_string());
+            }
+        }
+    }
     let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     println!("TEST LOG: Register response status: {}, body: {}", status, body);
-    let json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
+    let mut json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
+    if let Some(token) = token_from_cookie {
+        json_body["token"] = serde_json::json!(token);
+    }
 
     // If registration successful, get token directly and update the profile
     if status.is_success() {
@@ -205,6 +216,14 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
         "TEST LOG: from login_test_user status and response: {:?}",
         response
     );
+    let mut token_from_cookie = None;
+    for cookie in response.headers().get_all(axum::http::header::SET_COOKIE).iter() {
+        if let Ok(c) = cookie.to_str() {
+            if c.starts_with("session=") {
+                token_from_cookie = Some(c.split(';').next().unwrap().strip_prefix("session=").unwrap().to_string());
+            }
+        }
+    }
     let body_bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let body = String::from_utf8_lossy(&body_bytes).to_string();
     println!(
@@ -215,12 +234,16 @@ pub async fn login_test_user(app: &Router, email: &str, password: &str) -> serde
         panic!("Login failed with status {}: {}", status, body);
     }
 
-    serde_json::from_str(&body).unwrap_or_else(|e| {
+    let mut json_body: serde_json::Value = serde_json::from_str(&body).unwrap_or_else(|e| {
         panic!(
             "Failed to parse login response as JSON. Error: {}. Response body: {}",
             e, body
         )
-    })
+    });
+    if let Some(token) = token_from_cookie {
+        json_body["token"] = serde_json::json!(token);
+    }
+    json_body
 }
 
 pub async fn create_and_login_admin_user(
@@ -237,7 +260,6 @@ pub async fn create_and_login_admin_user(
         email: Set(format!("admin{}@example.com", Uuid::new_v4())),
         phone: Set("1234567890".to_string()),
         password_hash: Set(crate::auth::hash_password(&password).unwrap()),
-        is_admin: Set(true),
         is_active: Set(true),
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),
@@ -247,6 +269,28 @@ pub async fn create_and_login_admin_user(
     .insert(db)
     .await
     .expect("Failed to create admin user");
+
+    let tenant = create_test_tenant(db).await;
+    let account = crate::entities::account::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        tenant_id: Set(tenant.id),
+        name: Set("Admin Test Account".to_string()),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }.insert(db).await.expect("Failed to create admin account");
+
+    user_account::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(admin_user.id),
+        account_id: Set(account.id),
+        role: Set(user_account::UserRole::PlatformSuperAdmin),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }.insert(db).await.expect("Failed to create admin user account");
+
     // Login the admin user
     let login_response: serde_json::Value = login_test_user(app, &admin_user.email, &password).await;
 
@@ -277,7 +321,6 @@ pub async fn create_staff_user_account(
         email: Set(email),
         phone: Set(phone),
         password_hash: Set(crate::auth::hash_password("staffpass123").unwrap()),
-        is_admin: Set(false),
         is_active: Set(true),
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),

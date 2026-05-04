@@ -7,3 +7,4 @@ pub mod dynamic_entry;
 pub mod landing;
 pub mod legal;
 pub mod onboarding;
+pub mod setup_passkey;

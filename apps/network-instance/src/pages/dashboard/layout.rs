@@ -2,12 +2,15 @@ use leptos::prelude::*;
 use leptos_router::components::Outlet;
 use crate::auth::AuthContext;
 use crate::app::NetworkConfig;
+use crate::components::login_modal::LoginModal;
 
 #[component]
 pub fn DashboardLayout() -> impl IntoView {
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
     let network = use_context::<NetworkConfig>().expect("NetworkConfig missing");
     
+    let (show_login, set_show_login) = create_signal(false);
+
     // Derived states
     let user_name = Signal::derive(move || {
         match auth.user.get() {
@@ -50,16 +53,53 @@ pub fn DashboardLayout() -> impl IntoView {
 
     let handle_logout = move |_| {
         crate::auth::clear_auth_token();
-        window().location().set_href("/auth/login").unwrap();
+        web_sys::window().unwrap().location().set_href("/").unwrap();
     };
 
+    let is_authorized = Signal::derive(move || {
+        match auth.user.get() {
+            Some(Ok(Some(u))) => {
+                u.app_permissions.contains(&"ListingPoster".to_string())
+            },
+            _ => false
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(Ok(None)) = auth.user.get() {
+            // Not logged in
+            set_show_login.set(true);
+        }
+    });
+
     view! {
-        <div class="min-h-screen bg-surface-container-lowest flex bg-slate-50 relative">
-            // Sidebar Navigation
-            <aside class="w-64 bg-white border-r border-outline-variant/30 hidden md:flex flex-col h-screen sticky top-0">
-                <div class="p-6 border-b border-outline-variant/30 flex items-center justify-between">
-                    <a href="/" class="font-headline font-extrabold text-xl tracking-tight text-[#004289]">{network.name.clone()}</a>
+        <LoginModal 
+            is_open=show_login 
+            on_close=move || web_sys::window().unwrap().location().set_href("/").unwrap() 
+            on_success=move || {
+                set_show_login.set(false);
+                web_sys::window().unwrap().location().reload().unwrap();
+            }
+        />
+        
+        <Show when=move || is_authorized.get() fallback=move || view! { 
+            <Show when=move || !show_login.get() fallback=move || view! { <div class="min-h-screen bg-slate-50"/> }>
+                <div class="min-h-screen flex items-center justify-center bg-slate-50">
+                    <div class="text-center p-8 bg-white rounded-2xl shadow-sm border border-outline-variant/30 max-w-md">
+                        <span class="material-symbols-outlined text-4xl text-error mb-4 block">"gpp_bad"</span>
+                        <h2 class="text-xl font-headline font-bold text-on-surface mb-2">"Access Denied"</h2>
+                        <p class="text-on-surface-variant text-sm mb-6">"You do not have permission to view the provider dashboard. If you believe this is an error, please contact support."</p>
+                        <a href="/" class="text-[#004289] font-bold hover:underline">"Return Home"</a>
+                    </div>
                 </div>
+            </Show>
+        }>
+            <div class="min-h-screen bg-surface-container-lowest flex bg-slate-50 relative">
+                // Sidebar Navigation
+                <aside class="w-64 bg-white border-r border-outline-variant/30 hidden md:flex flex-col h-screen sticky top-0">
+                    <div class="p-6 border-b border-outline-variant/30 flex items-center justify-between">
+                        <a href="/" class="font-headline font-extrabold text-xl tracking-tight text-[#004289]">{network.name.clone()}</a>
+                    </div>
                 
                 // Active Account Switcher
                 <div class="p-4 relative">
@@ -162,6 +202,7 @@ pub fn DashboardLayout() -> impl IntoView {
                 </div>
             </main>
         </div>
+        </Show>
     }
 }
 

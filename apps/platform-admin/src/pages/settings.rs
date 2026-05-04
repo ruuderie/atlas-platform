@@ -15,6 +15,9 @@ pub fn Settings() -> impl IntoView {
     let new_password = RwSignal::new(String::new());
     let confirm_password = RwSignal::new(String::new());
 
+    let query = leptos_router::hooks::use_query_map();
+    let auto_register = move || query.with(|q| q.get("register_passkey").map(|s| s == "true").unwrap_or(false));
+
     // Update email action
     let save_email_action = Action::new_local(move |_: &()| {
         let email = new_email.get();
@@ -171,6 +174,7 @@ pub fn Settings() -> impl IntoView {
                                 <ManagePasskeys 
                                     api_base_url=Signal::derive(move || crate::api::client::api_url("/api/passkeys")) 
                                     auth_token=crate::api::client::get_auth_token().unwrap_or_default()
+                                    auto_register=auto_register()
                                 />
                             </div>
                         </section>

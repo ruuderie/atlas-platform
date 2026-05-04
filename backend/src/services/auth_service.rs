@@ -70,6 +70,50 @@ impl AuthService {
         Ok(inserted_token)
     }
 
+    pub async fn create_setup_token(
+        db: &DatabaseConnection,
+        user_id: Uuid,
+    ) -> Result<magic_link_token::Model, (StatusCode, String)> {
+        // Generate token
+        let token_string = Uuid::new_v4().to_string();
+        let expires_at = Utc::now() + Duration::days(1); // 24 hours for setup
+
+        let new_token = magic_link_token::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            user_id: Set(user_id),
+            token: Set(token_string.clone()),
+            expires_at: Set(expires_at),
+            is_used: Set(false),
+            created_at: Set(Utc::now()),
+        };
+
+        let inserted_token = new_token.insert(db).await.map_err(|e| {
+            tracing::error!("Failed to create setup token: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate setup token".to_string())
+        })?;
+
+        let new_state = json!({
+            "token_id": inserted_token.id,
+            "user_id": user_id,
+            "expires_at": expires_at,
+            "is_setup": true
+        });
+
+        AuditService::log_action(
+            db.clone(),
+            None,
+            Some(user_id),
+            "auth.setup_token.created".to_string(),
+            "MagicLinkToken".to_string(),
+            inserted_token.id,
+            None,
+            Some(new_state),
+            None,
+        );
+
+        Ok(inserted_token)
+    }
+
     pub async fn verify_magic_link(
         db: &DatabaseConnection,
         token_string: &str,

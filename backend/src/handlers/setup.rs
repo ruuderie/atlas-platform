@@ -12,7 +12,7 @@ use uuid::Uuid;
 use chrono::Utc;
 
 use crate::entities::user::{self, Entity as User};
-use crate::entities::passkey;
+use crate::entities::{passkey, user_account};
 use crate::entities::magic_link_token;
 use crate::auth::hash_password;
 use crate::handlers::sessions::create_passwordless_session;
@@ -60,9 +60,10 @@ pub fn public_routes() -> Router<DatabaseConnection> {
 pub async fn get_setup_status(
     State(db): State<DatabaseConnection>,
 ) -> Result<Json<SetupStatusResponse>, StatusCode> {
-    // Check if any admin user exists
-    let admin_count = User::find()
-        .filter(user::Column::IsAdmin.eq(true))
+    // Admin status is now a role in user_account, not a field on the user entity.
+    use crate::entities::user_account;
+    let admin_count = user_account::Entity::find()
+        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)
         .await
         .map_err(|e| {
@@ -92,8 +93,10 @@ pub async fn webauthn_start(
         }
     }
 
-    let admin_count = User::find()
-        .filter(user::Column::IsAdmin.eq(true))
+    // Check admin count via user_account role instead of the removed user.is_admin field.
+    use crate::entities::user_account;
+    let admin_count = user_account::Entity::find()
+        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() }))))?;
@@ -104,7 +107,14 @@ pub async fn webauthn_start(
 
     let user_unique_id = Uuid::new_v4();
 
-    let (ccr, reg_state) = webauthn_state.webauthn.start_passkey_registration(
+    // Use the platform's primary origin for the setup flow.
+    // The setup endpoint is served from the admin origin which is seeded at startup.
+    let platform_origin = std::env::var("ANCHOR_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let webauthn = webauthn_state.registry.get_or_create(&platform_origin).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("WebAuthn registry error: {e}") }))))?;
+
+    let (ccr, reg_state) = webauthn.start_passkey_registration(
         user_unique_id,
         req.email.as_str(),
         req.email.as_str(),
@@ -141,12 +151,24 @@ pub async fn initialize_finish(
     let reg_state = webauthn_state.reg_state.get(&req.session_id).await
         .ok_or((StatusCode::BAD_REQUEST, Json(json!({ "message": "Registration challenge expired" }))))?;
 
-    let admin_count = User::find().filter(user::Column::IsAdmin.eq(true)).count(&db).await.unwrap_or(0);
+    // Check admin count via user_account role.
+    use crate::entities::user_account;
+    let admin_count = user_account::Entity::find()
+        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .count(&db)
+        .await
+        .unwrap_or(0);
     if admin_count > 0 {
         return Err((StatusCode::FORBIDDEN, Json(json!({ "message": "System already initialized" }))));
     }
 
-    let passkey_reg = webauthn_state.webauthn.finish_passkey_registration(&req.webauthn_response, &reg_state)
+    // Resolve the setup-flow Webauthn instance via the registry (same origin as webauthn_start).
+    let platform_origin = std::env::var("ANCHOR_ORIGIN")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let webauthn = webauthn_state.registry.get_or_create(&platform_origin).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("WebAuthn registry error: {e}") }))))?;
+
+    let passkey_reg = webauthn.finish_passkey_registration(&req.webauthn_response, &reg_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, Json(json!({ "message": format!("Registration failed: {:?}", e) }))))?;
 
     let random_pwd = hash_password(&Uuid::new_v4().to_string()).unwrap();
@@ -155,7 +177,7 @@ pub async fn initialize_finish(
     let txn = db.begin().await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() }))))?;
     
-    // Create Admin
+    // Create Admin user — is_admin removed from user entity; admin status tracked via user_account role.
     let new_user = user::ActiveModel {
         id: Set(req.session_id),
         username: Set(setup_payload.email.clone()),
@@ -164,7 +186,6 @@ pub async fn initialize_finish(
         email: Set(setup_payload.email.clone()),
         password_hash: Set(random_pwd),
         phone: Set(String::new()),
-        is_admin: Set(true),
         is_active: Set(true),
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),
@@ -176,13 +197,30 @@ pub async fn initialize_finish(
         Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() })))),
     }
 
+    // Grant PlatformSuperAdmin role — is_admin was removed from the user entity.
+    let platform_role = user_account::ActiveModel {
+        id: Set(Uuid::new_v4()),
+        user_id: Set(req.session_id),
+        account_id: Set(Uuid::nil()), // Platform-level sentinel; no real account for super admin
+        role: Set(user_account::UserRole::PlatformSuperAdmin),
+        is_active: Set(true),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    };
+    match platform_role.insert(&txn).await {
+        Ok(_) => {},
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": e.to_string() })))),
+    }
+
     // Create Passkey
     let credential_id = passkey_reg.cred_id().clone();
     let passkey_model = passkey::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(req.session_id),
         credential_id: Set(credential_id.to_vec()),
-        public_key: Set(serde_json::to_vec(&passkey_reg).unwrap()),
+        public_key: Set(
+            serde_json::to_vec(&passkey_reg)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "message": format!("Passkey serialisation failed: {e}") }))))?),
         sign_count: Set(0),
         name: Set("System Admin Passkey".to_string()),
         last_used_at: Set(None),

@@ -429,9 +429,62 @@ fn GenericCustomStep(
 // ──────────────────────────────────────────────────────────────────────────────
 
 #[component]
-fn OnboardingComplete(app_instance_id: String) -> impl IntoView {
-    // Use leptos_router::A for client-side SPA navigation (avoids full page reload)
+fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoView {
     use leptos_router::components::A;
+    
+    let email = RwSignal::new(String::new());
+    let first_name = RwSignal::new(String::new());
+    let last_name = RwSignal::new(String::new());
+    let is_submitting = RwSignal::new(false);
+    let setup_url = RwSignal::new(Option::<String>::None);
+    let error = RwSignal::new(Option::<String>::None);
+    
+    let tid = tenant_id.clone();
+    
+    let provision_action = Action::new_local(move |_: &()| {
+        let e = email.get();
+        let f = first_name.get();
+        let l = last_name.get();
+        let tid = tid.clone();
+        
+        async move {
+            if e.is_empty() || f.is_empty() || l.is_empty() {
+                error.set(Some("All fields are required.".to_string()));
+                return;
+            }
+            is_submitting.set(true);
+            error.set(None);
+            
+            let url = crate::api::client::api_url(&format!("api/tenants/{}/provision-admin", tid));
+            let payload = serde_json::json!({
+                "email": e,
+                "first_name": f,
+                "last_name": l
+            });
+            let client = crate::api::client::create_client();
+            let res = crate::api::client::with_credentials(client.post(&url).json(&payload))
+                .send()
+                .await;
+                
+            is_submitting.set(false);
+            match res {
+                Ok(r) if r.status().is_success() => {
+                    if let Ok(body) = r.json::<serde_json::Value>().await {
+                        if let Some(s) = body.get("setup_url").and_then(|v| v.as_str()) {
+                            setup_url.set(Some(s.to_string()));
+                        }
+                    }
+                }
+                Ok(r) => {
+                    error.set(Some(format!("Error: HTTP {}", r.status())));
+                }
+                Err(err) => {
+                    error.set(Some(err.to_string()));
+                }
+            }
+        }
+    });
+
     view! {
         <div class="text-center space-y-6 py-8">
             <div class="text-6xl animate-bounce">"🎉"</div>
@@ -441,13 +494,65 @@ fn OnboardingComplete(app_instance_id: String) -> impl IntoView {
                     "All required setup steps are complete. Your app is ready to go."
                 </p>
             </div>
-            <A
-                href=format!("/apps/{}", app_instance_id)
-                attr:id="ob-goto-dashboard"
-                attr:class="inline-block py-3 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
-            >
-                "Go to Dashboard →"
-            </A>
+            
+            {move || if let Some(url) = setup_url.get() {
+                view! {
+                    <div class="bg-green-50 text-green-800 p-4 rounded-lg text-left mt-4 border border-green-200">
+                        <h3 class="font-bold mb-2">"Admin Provisioned!"</h3>
+                        <p class="text-sm mb-4">"Share this setup link with the new administrator so they can configure their passkey:"</p>
+                        <div class="bg-white p-2 rounded border break-all font-mono text-xs select-all">
+                            {url}
+                        </div>
+                    </div>
+                }.into_any()
+            } else {
+                view! {
+                    <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 text-left space-y-4">
+                        <div>
+                            <h3 class="font-semibold text-gray-900">"Provision Tenant Owner"</h3>
+                            <p class="text-sm text-gray-500">"Create the initial administrator account for this tenant."</p>
+                        </div>
+                        <div class="space-y-3">
+                            <input
+                                type="text"
+                                placeholder="First Name"
+                                class="w-full px-3 py-2 border rounded text-sm"
+                                on:input=move |e| first_name.set(event_target_value(&e))
+                            />
+                            <input
+                                type="text"
+                                placeholder="Last Name"
+                                class="w-full px-3 py-2 border rounded text-sm"
+                                on:input=move |e| last_name.set(event_target_value(&e))
+                            />
+                            <input
+                                type="email"
+                                placeholder="Email Address"
+                                class="w-full px-3 py-2 border rounded text-sm"
+                                on:input=move |e| email.set(event_target_value(&e))
+                            />
+                        </div>
+                        {move || error.get().map(|e| view! { <p class="text-sm text-red-600">{e}</p> })}
+                        <button
+                            class="w-full py-2 bg-gray-900 hover:bg-gray-800 text-white rounded font-medium disabled:opacity-50 transition-colors"
+                            disabled=move || is_submitting.get()
+                            on:click=move |_| provision_action.dispatch(())
+                        >
+                            {move || if is_submitting.get() { "Provisioning..." } else { "Create Owner Account" }}
+                        </button>
+                    </div>
+                }.into_any()
+            }}
+
+            <div class="pt-4">
+                <A
+                    href=format!("/apps/{}", app_instance_id)
+                    attr:id="ob-goto-dashboard"
+                    attr:class="inline-block py-3 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                    "Go to Dashboard →"
+                </A>
+            </div>
         </div>
     }
 }
@@ -567,7 +672,7 @@ pub fn OnboardingWizard(
                                         <div class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8 space-y-6">
                                             {match &current_step {
                                                 None => view! {
-                                                    <OnboardingComplete app_instance_id=ai.clone() />
+                                                    <OnboardingComplete app_instance_id=ai.clone() tenant_id=tid.clone() />
                                                 }.into_any(),
                                                 Some(step) => {
                                                     let step = step.clone();

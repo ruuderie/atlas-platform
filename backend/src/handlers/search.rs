@@ -42,7 +42,19 @@ pub async fn global_search(
     }
 
     let mut effective_tenant_id = query.tenant_id;
-    if !current_user.is_admin {
+    // is_admin was removed from the user entity (RBAC migration). Check via user_account role.
+    let is_admin = {
+        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+        use crate::entities::user_account;
+        user_account::Entity::find()
+            .filter(user_account::Column::UserId.eq(current_user.id))
+            .filter(user_account::Column::Role.eq(user_account::UserRole::PlatformSuperAdmin))
+            .one(&db)
+            .await
+            .unwrap_or(None)
+            .is_some()
+    };
+    if !is_admin {
         if effective_tenant_id.is_none() {
             return Err((StatusCode::FORBIDDEN, "Tenant ID required for non-admins".to_string()));
         }

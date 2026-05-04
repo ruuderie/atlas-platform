@@ -5,6 +5,7 @@ use axum::{
     routing::post,
     Router,
 };
+use axum_extra::extract::cookie::CookieJar;
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
 use webauthn_rs::prelude::*;
 use std::sync::Arc;
@@ -13,9 +14,10 @@ use moka::future::Cache;
 use crate::entities::{user, passkey};
 use crate::auth::generate_jwt;
 use crate::handlers::sessions::session_cookie_header;
+use crate::webauthn_registry::WebauthnRegistry;
 
 pub struct WebauthnStateRaw {
-    pub webauthn: Arc<Webauthn>,
+    pub registry: Arc<WebauthnRegistry>,
     pub reg_state: Cache<Uuid, PasskeyRegistration>,
     pub auth_state: Cache<Uuid, PasskeyAuthentication>,
 }
@@ -38,8 +40,16 @@ pub async fn register_start(
     Extension(state): Extension<WebauthnState>,
     Extension(db): Extension<DatabaseConnection>,
     Extension(user): Extension<user::Model>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Json<CreationChallengeResponse>, (StatusCode, String)> {
     
+    let origin = headers.get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
+
+    let webauthn = state.registry.get_or_create(origin).await
+        .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
+
     let passkeys = passkey::Entity::find()
         .filter(passkey::Column::UserId.eq(user.id))
         .all(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -50,12 +60,20 @@ pub async fn register_start(
             .collect()
     );
 
-    let (ccr, reg_state) = state.webauthn.start_passkey_registration(
+    let (mut ccr, reg_state) = webauthn.start_passkey_registration(
         user.id,
         user.email.as_str(),
         user.email.as_str(),
         exclude_credentials
     ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to start registration: {:?}", e)))?;
+
+    // Enable discoverable credentials (resident key) by mutating the response
+    // since webauthn-rs start_passkey_registration defaults to false for broad compatibility
+    if let Some(ref mut sel) = ccr.public_key.authenticator_selection {
+        sel.require_resident_key = true;
+        // Deserializing directly since ResidentKeyRequirement might not be in prelude
+        sel.resident_key = serde_json::from_value(serde_json::json!("required")).ok();
+    }
     
     state.reg_state.insert(user.id, reg_state).await;
 
@@ -66,13 +84,21 @@ pub async fn register_finish(
     Extension(state): Extension<WebauthnState>,
     Extension(db): Extension<DatabaseConnection>,
     Extension(user): Extension<user::Model>,
+    headers: axum::http::HeaderMap,
     Json(reg): Json<RegisterPublicKeyCredential>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     
+    let origin = headers.get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
+
+    let webauthn = state.registry.get_or_create(origin).await
+        .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
+
     let reg_state = state.reg_state.get(&user.id).await
         .ok_or((StatusCode::BAD_REQUEST, "Registration challenge not found or expired".to_string()))?;
         
-    let passkey_reg = state.webauthn.finish_passkey_registration(&reg, &reg_state)
+    let passkey_reg = webauthn.finish_passkey_registration(&reg, &reg_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Registration failed: {:?}", e)))?;
         
     // In webauthn-rs 0.5.4, passkey_reg is a Passkey object that we can store.
@@ -84,7 +110,13 @@ pub async fn register_finish(
         user_id: Set(user.id),
         credential_id: Set(credential_id.to_vec()),
         // Store whole passkey via serde json or extract pub key
-        public_key: Set(serde_json::to_vec(&passkey_reg).unwrap()), // Hack for now to store the internal structure
+        // Store the full Passkey struct as JSON. The column is named `public_key` for
+        // historical reasons but contains the complete webauthn-rs Passkey object, which
+        // is needed to reconstruct credentials on the authentication path.
+        public_key: Set(
+            serde_json::to_vec(&passkey_reg)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialise passkey: {e}")))?
+        ),
         sign_count: Set(0),
         name: Set("My Passkey".to_string()),
         last_used_at: Set(None),
@@ -105,32 +137,52 @@ pub struct LoginStartRequest {
 pub async fn login_start(
     Extension(state): Extension<WebauthnState>,
     Extension(db): Extension<DatabaseConnection>,
+    headers: axum::http::HeaderMap,
     Json(req): Json<LoginStartRequest>,
-) -> Result<Json<RequestChallengeResponse>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     
-    let user = user::Entity::find()
-        .filter(user::Column::Email.eq(&req.email))
-        .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::BAD_REQUEST, "User not found".to_string()))?;
+    let origin = headers.get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
 
-    let user_passkeys = passkey::Entity::find()
-        .filter(passkey::Column::UserId.eq(user.id))
-        .all(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let webauthn = state.registry.get_or_create(origin).await
+        .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
 
-    let credentials: Vec<Passkey> = user_passkeys.into_iter().filter_map(|pk| {
-        serde_json::from_slice(&pk.public_key).ok()
-    }).collect();
+    let credentials = if req.email.trim().is_empty() {
+        vec![] // Empty triggers discoverable credentials prompt
+    } else {
+        let user = user::Entity::find()
+            .filter(user::Column::Email.eq(req.email.trim()))
+            .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+            .ok_or((StatusCode::BAD_REQUEST, "User not found".to_string()))?;
 
-    if credentials.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "No passkeys registered for this user".to_string()));
-    }
+        let user_passkeys = passkey::Entity::find()
+            .filter(passkey::Column::UserId.eq(user.id))
+            .all(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let (rcr, auth_state) = state.webauthn.start_passkey_authentication(&credentials)
+        let creds: Vec<Passkey> = user_passkeys.into_iter().filter_map(|pk| {
+            serde_json::from_slice(&pk.public_key).ok()
+        }).collect();
+
+        if creds.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "No passkeys registered for this user".to_string()));
+        }
+        creds
+    };
+
+    let (rcr, auth_state) = webauthn.start_passkey_authentication(&credentials)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    state.auth_state.insert(user.id, auth_state).await;
+    let session_id = Uuid::new_v4();
+    state.auth_state.insert(session_id, auth_state).await;
 
-    Ok(Json(rcr))
+    let cookie = format!("passkey_session={}; Path=/api/passkeys; HttpOnly; Max-Age=300; SameSite=Strict", session_id);
+    
+    Ok((
+        StatusCode::OK,
+        [(header::SET_COOKIE, cookie)],
+        Json(rcr)
+    ).into_response())
 }
 
 #[derive(serde::Deserialize)]
@@ -142,32 +194,57 @@ pub struct LoginFinishRequest {
 pub async fn login_finish(
     Extension(state): Extension<WebauthnState>,
     Extension(db): Extension<DatabaseConnection>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
     Json(req): Json<LoginFinishRequest>,
 ) -> Result<Response, (StatusCode, String)> {
     
-    let user = user::Entity::find()
-        .filter(user::Column::Email.eq(&req.email))
-        .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::BAD_REQUEST, "User not found".to_string()))?;
+    let origin = headers.get(header::ORIGIN)
+        .and_then(|v| v.to_str().ok())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
 
-    let auth_state = state.auth_state.get(&user.id).await
+    let webauthn = state.registry.get_or_create(origin).await
+        .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
+
+    let session_id = jar.get("passkey_session")
+        .and_then(|c| Uuid::parse_str(c.value()).ok())
+        .ok_or((StatusCode::BAD_REQUEST, "Passkey session missing or expired".to_string()))?;
+
+    let auth_state = state.auth_state.get(&session_id).await
         .ok_or((StatusCode::BAD_REQUEST, "Auth state not found".to_string()))?;
 
-    let _auth_result = state.webauthn.finish_passkey_authentication(&req.response, &auth_state)
+    // Consume the one-time auth state immediately — invalidate on all code paths below.
+    // If authentication fails for any reason, the challenge must not be reusable.
+    state.auth_state.invalidate(&session_id).await;
+
+    let auth_result = webauthn.finish_passkey_authentication(&req.response, &auth_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+
+    let cred_id = auth_result.cred_id();
+
+    let pk_model = passkey::Entity::find()
+        .filter(passkey::Column::CredentialId.eq(cred_id.to_vec()))
+        .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::BAD_REQUEST, "Passkey not found in db".to_string()))?;
+
+    let user = user::Entity::find_by_id(pk_model.user_id)
+        .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::BAD_REQUEST, "User not found".to_string()))?;
 
     let session_response = crate::handlers::sessions::create_session_for_user(&db, &user)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create session".to_string()))?;
 
-    state.auth_state.invalidate(&user.id).await;
-
     // Set HttpOnly session cookie (24h) so frontends don't need localStorage/Bearer tokens.
-    // JSON body retained for backward compatibility during the transition period.
     let cookie = session_cookie_header(&session_response.token, 86_400);
+    let clear_pk_session = "passkey_session=; Path=/api/passkeys; HttpOnly; Max-Age=0";
+    
     Ok((
         StatusCode::OK,
-        [(header::SET_COOKIE, cookie)],
+        [
+            (header::SET_COOKIE, cookie.clone()),
+            (header::SET_COOKIE, clear_pk_session.to_string())
+        ],
         Json(serde_json::json!(session_response)),
     ).into_response())
 }

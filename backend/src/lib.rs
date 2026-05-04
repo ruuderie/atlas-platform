@@ -3,6 +3,7 @@ mod tests;
 
 pub mod api;
 pub mod auth;
+pub mod webauthn_registry;
 pub mod db;
 pub mod entities;
 pub mod migration;

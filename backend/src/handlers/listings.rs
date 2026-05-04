@@ -125,8 +125,17 @@ pub async fn create_listing(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .is_some();
     println!("TEST LOG: from create_listing and user_account_exists: {:?}", user_account_exists);
-    if !current_user.is_admin && !user_account_exists {
-        return Err(StatusCode::FORBIDDEN);
+    if !user_account_exists {
+        let is_platform_admin = UserAccount::find()
+            .filter(user_account::Column::UserId.eq(current_user.id))
+            .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+            .one(&txn)
+            .await
+            .unwrap_or(None)
+            .is_some();
+        if !is_platform_admin {
+            return Err(StatusCode::FORBIDDEN);
+        }
     }
 
     // Create the listing
@@ -183,9 +192,18 @@ pub async fn update_listing(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if !current_user.is_admin && user_account_exists.is_none() {
-        println!("TEST LOG: from update_listing and user_account_exists: {:?}", user_account_exists);
-        return Err(StatusCode::FORBIDDEN);
+    if user_account_exists.is_none() {
+        let is_platform_admin = UserAccount::find()
+            .filter(user_account::Column::UserId.eq(current_user.id))
+            .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+            .one(&db)
+            .await
+            .unwrap_or(None)
+            .is_some();
+        if !is_platform_admin {
+            println!("TEST LOG: from update_listing and user_account_exists: {:?}", user_account_exists);
+            return Err(StatusCode::FORBIDDEN);
+        }
     }
 
     let mut listing_active_model: listing::ActiveModel = existing_listing.into();
@@ -255,8 +273,17 @@ pub async fn delete_listing(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    if !current_user.is_admin && user_account_exists.is_none() {
-        return Err(StatusCode::FORBIDDEN);
+    if user_account_exists.is_none() {
+        let is_platform_admin = UserAccount::find()
+            .filter(user_account::Column::UserId.eq(current_user.id))
+            .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+            .one(&db)
+            .await
+            .unwrap_or(None)
+            .is_some();
+        if !is_platform_admin {
+            return Err(StatusCode::FORBIDDEN);
+        }
     }
 
     Listing::delete_by_id(listing.id)

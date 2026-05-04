@@ -10,7 +10,6 @@ use uuid::Uuid;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,           // User ID
-    pub is_admin: bool,        // Admin flag
     pub exp: usize,            // Expiration timestamp
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jti: Option<String>,   // JWT ID for tracking
@@ -93,14 +92,13 @@ pub fn generate_jwt(user: &user::Model) -> Result<String, jsonwebtoken::errors::
 
     let claims = Claims {
         sub: user.id.to_string(),
-        is_admin: user.is_admin,
         exp: expiration as usize,
         jti: Some(Uuid::new_v4().to_string()),
         impersonator_id: None,
     };
 
-    tracing::debug!("[{}] JWT claims: sub={}, is_admin={}, exp={}, jti={}", 
-        operation_id, claims.sub, claims.is_admin, claims.exp, claims.jti.as_ref().unwrap_or(&"none".to_string()));
+    tracing::debug!("[{}] JWT claims: sub={}, exp={}, jti={}", 
+        operation_id, claims.sub, claims.exp, claims.jti.as_ref().unwrap_or(&"none".to_string()));
 
     let header = Header::default();
     let encoding_key = EncodingKey::from_secret(jwt_secret.as_ref());
@@ -132,11 +130,6 @@ pub fn generate_jwt(user: &user::Model) -> Result<String, jsonwebtoken::errors::
 pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::errors::Error> {
     let operation_id = Uuid::new_v4();
     
-    if !user.is_admin {
-        tracing::warn!("[{}] Attempted to generate admin JWT for non-admin user: {} ({})", 
-            operation_id, user.id, user.email);
-    }
-    
     tracing::debug!("[{}] Generating admin JWT for user: {} ({})", 
         operation_id, user.id, user.email);
     
@@ -161,13 +154,12 @@ pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::er
     let claims = Claims {
         sub: user.id.to_string(),
         exp: expiration as usize,
-        is_admin: true, // Force admin flag to true
         jti: Some(Uuid::new_v4().to_string()),
         impersonator_id: None,
     };
 
-    tracing::debug!("[{}] Admin JWT claims: sub={}, is_admin={}, exp={}, jti={}", 
-        operation_id, claims.sub, claims.is_admin, claims.exp, claims.jti.as_ref().unwrap_or(&"none".to_string()));
+    tracing::debug!("[{}] Admin JWT claims: sub={}, exp={}, jti={}", 
+        operation_id, claims.sub, claims.exp, claims.jti.as_ref().unwrap_or(&"none".to_string()));
 
     let header = Header::default();
     let encoding_key = EncodingKey::from_secret(jwt_secret.as_ref());
@@ -214,7 +206,6 @@ pub fn generate_impersonation_jwt(target_user: &user::Model, admin_id: &Uuid) ->
 
     let claims = Claims {
         sub: target_user.id.to_string(),
-        is_admin: target_user.is_admin, // Carry over whatever bounds the target has naturally
         exp: expiration as usize,
         jti: Some(Uuid::new_v4().to_string()),
         impersonator_id: Some(admin_id.to_string()),

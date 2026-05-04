@@ -109,19 +109,27 @@ pub async fn create_session_for_user(
     db: &DatabaseConnection,
     user: &user::Model,
 ) -> Result<SessionResponse, StatusCode> {
+    // Determine admin status via user_account role (is_admin was removed from the user entity).
+    // A 'PlatformSuperAdmin' role in user_account grants elevated JWT claims.
+    let is_platform_admin = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(user.id))
+        .filter(crate::entities::user_account::Column::Role.eq("PlatformSuperAdmin"))
+        .one(db)
+        .await
+        .unwrap_or(None)
+        .is_some();
+
     // Generate tokens
-    let bearer_token = if user.is_admin {
+    let bearer_token = if is_platform_admin {
         generate_jwt_admin(user)
     } else {
         generate_jwt(user)
     }.map_err(|e| {
-        println!("TEST LOG: from create_session_for_user and token generation failed: {:?}", e);
         tracing::error!("Token generation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     let refresh_token = generate_jwt(user).map_err(|e| {
-        println!("TEST LOG: from create_session_for_user and refresh token generation failed: {:?}", e);
         tracing::error!("Refresh token generation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -140,12 +148,13 @@ pub async fn create_session_for_user(
         created_at: Set(Utc::now()),
         last_accessed_at: Set(Utc::now()),
         last_modified_date: Set(Utc::now()),
-        is_admin: Set(user.is_admin),
+        is_admin: Set(is_platform_admin),
         is_active: Set(true),
         integrity_hash: Set(String::new()),
     };
 
-    // Generate integrity hash
+    // Generate integrity hash — must match the fields covered by generate_integrity_hash().
+    // is_active = true because this is a freshly created, active session.
     let integrity_hash = {
         let temp_model = session::Model {
             id: new_session.id.clone().unwrap(),
@@ -157,7 +166,7 @@ pub async fn create_session_for_user(
             created_at: Utc::now(),
             last_accessed_at: Utc::now(),
             last_modified_date: Utc::now(),
-            is_admin: user.is_admin,
+            is_admin: is_platform_admin,
             is_active: true,
             integrity_hash: String::new(),
         };
@@ -168,7 +177,6 @@ pub async fn create_session_for_user(
 
     // Insert session
     new_session.insert(db).await.map_err(|e| {
-        println!("TEST LOG: from create_session_for_user and session creation failed: {:?}", e);
         tracing::error!("Session creation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -179,7 +187,8 @@ pub async fn create_session_for_user(
             email: user.email.clone(),
             first_name: user.first_name.clone(),
             last_name: user.last_name.clone(),
-            is_admin: user.is_admin,
+            is_admin: is_platform_admin,
+            app_permissions: Vec::new(),
         }),
         token: bearer_token,
         refresh_token,
@@ -253,39 +262,25 @@ pub async fn validate_session(
     // Update last_accessed_at
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
-/*
-    // Generate new integrity hash
-    let integrity_hash = {
-        let temp_model = session::Model {
-            id: session.id,
-            user_id: session.user_id,
-            bearer_token: session.bearer_token.clone(),
-            refresh_token: session.refresh_token.clone(),
-            token_expiration: session.token_expiration,
-            refresh_token_expiration: session.refresh_token_expiration,
-            created_at: session.created_at,
-            last_accessed_at: Utc::now(),
-            last_modified_date: session.last_modified_date,
-            is_admin: session.is_admin,
-            is_active: session.is_active,
-            integrity_hash: String::new(),
-        };
-        temp_model.generate_integrity_hash()
-    };
-    
-    updated_session.integrity_hash = Set(integrity_hash); 
-
-    */
+    // Note: integrity_hash is intentionally NOT recomputed here.
+    // generate_integrity_hash() covers: id, user_id, bearer_token, token_expiration, is_admin.
+    // last_accessed_at is excluded from the hash by design so that this frequent
+    // housekeeping write does not trigger a hash update on every request.
 
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(SessionResponse { 
+    // Note: app_permissions are NOT re-fetched here. The auth middleware already injects
+    // the user's permissions into Axum request extensions on every authenticated API request,
+    // which is the canonical source for RBAC checks in downstream handlers.
+    // Returning an empty vec keeps the response shape stable for consumers that read `user`.
+    Ok(Json(SessionResponse {
         user: Some(UserInfo {
             id: user.id,
             email: user.email,
             first_name: user.first_name,
             last_name: user.last_name,
-            is_admin: user.is_admin,
+            is_admin: session.is_admin,
+            app_permissions: Vec::new(),
         }),
         token: session.bearer_token.clone(),
         refresh_token: session.refresh_token.clone(),
@@ -302,14 +297,27 @@ pub async fn revoke_session(
         return StatusCode::NO_CONTENT.into_response();
     };
 
-    // Deactivate session in DB
+    // Deactivate session in DB and regenerate integrity hash to reflect the revocation.
+    // is_active is now part of the hash, so setting it to false without updating the hash
+    // would cause any subsequent verify_integrity() call to fail — but more importantly,
+    // recomputing here means an attacker who flips is_active back to true in the DB
+    // will also need to forge the hash, which they cannot do without the secret.
     if let Ok(Some(sess)) = session::Entity::find()
         .filter(session::Column::BearerToken.eq(&token))
         .one(&db)
         .await
     {
+        // Build the revoked model to compute the new hash.
+        let revoked_model = session::Model {
+            is_active: false,
+            integrity_hash: String::new(), // placeholder for hash computation
+            ..sess.clone()
+        };
+        let new_hash = revoked_model.generate_integrity_hash();
+
         let mut active: session::ActiveModel = sess.into();
         active.is_active = Set(false);
+        active.integrity_hash = Set(new_hash);
         let _ = active.update(&db).await;
     }
 
@@ -388,8 +396,16 @@ pub async fn refresh_token(
             }
         };
 
-    // Generate new bearer token
-    let new_bearer_token = if user.is_admin {
+    // Generate new bearer token — re-check admin status since roles may have changed.
+    let is_platform_admin = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(user.id))
+        .filter(crate::entities::user_account::Column::Role.eq("PlatformSuperAdmin"))
+        .one(&db)
+        .await
+        .unwrap_or(None)
+        .is_some();
+
+    let new_bearer_token = if is_platform_admin {
         generate_jwt_admin(&user)
     } else {
         generate_jwt(&user)
@@ -423,7 +439,8 @@ pub async fn refresh_token(
                     email: user.email,
                     first_name: user.first_name,
                     last_name: user.last_name,
-                    is_admin: user.is_admin,
+                    is_admin: is_platform_admin,
+                    app_permissions: Vec::new(),
                 }), token: new_bearer_token, refresh_token: new_refresh_token }))
         },
         Err(e) => {

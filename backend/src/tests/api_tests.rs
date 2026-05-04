@@ -56,16 +56,11 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
     test_utils::initialize_database(&db).await;
 
     let rp_origin = url::Url::parse("http://localhost:5001").unwrap();
-    let webauthn = Arc::new(
-        WebauthnBuilder::new("localhost", &rp_origin)
-            .expect("Invalid WebAuthn config")
-            .rp_name("Atlas Platform Test")
-            .build()
-            .expect("Failed to build Webauthn")
-    );
+    let registry = Arc::new(crate::webauthn_registry::WebauthnRegistry::new(db.clone(), 100));
+    registry.seed("localhost", &rp_origin).await.unwrap();
     
     let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
-        webauthn,
+        registry,
         reg_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
         auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
     });
@@ -825,6 +820,7 @@ async fn test_inline_passkey_registration() {
                 .method("POST")
                 .uri("/api/passkeys/start-register")
                 .header("Authorization", format!("Bearer {}", token))
+                .header("Origin", "http://localhost:5001")
                 .header("Content-Type", "application/json")
                 .body(Body::empty())
                 .unwrap()

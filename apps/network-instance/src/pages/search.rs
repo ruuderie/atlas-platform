@@ -3,6 +3,8 @@ use leptos_router::hooks::use_query_map;
 use crate::app::{ListingModel, PaginatedListings};
 use crate::components::seo::Seo;
 use crate::components::search_ui::{SearchGrid, RefinementSidebar};
+use crate::components::login_modal::LoginModal;
+use crate::auth::AuthContext;
 
 #[server]
 pub async fn search_listings_from_api(query: String, category: Option<String>, page_str: String) -> Result<PaginatedListings<ListingModel>, ServerFnError> {
@@ -47,8 +49,32 @@ pub fn Search() -> impl IntoView {
     );
 
     let config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context must be available");
+    let auth = use_context::<AuthContext>().expect("AuthContext missing");
+    let (show_login, set_show_login) = create_signal(false);
+
+    let handle_save_search = move |_| {
+        if let Some(Ok(Some(u))) = auth.user.get() {
+            if u.app_permissions.contains(&"Subscriber".to_string()) {
+                // User is authorized, we would save search here
+                leptos::logging::log!("Search saved!");
+                return;
+            }
+        }
+        // Not authorized, show login modal
+        set_show_login.set(true);
+    };
 
     view! {
+        <LoginModal 
+            is_open=show_login 
+            on_close=move || set_show_login.set(false)
+            on_success=move || {
+                set_show_login.set(false);
+                leptos::logging::log!("User logged in successfully, proceed with saving search");
+                web_sys::window().unwrap().location().reload().unwrap();
+            }
+        />
+        
         <Seo title=format!("{} - Search Results", config.name) />
         
         <crate::components::layout::MainLayout>
@@ -67,6 +93,10 @@ pub fn Search() -> impl IntoView {
                                     <div class="hidden md:flex items-center gap-2 bg-surface-container-lowest px-5 py-3 rounded-lg text-sm shadow-sm">
                                         <span class="text-[#004289] font-extrabold text-lg">{res.total}</span>
                                         <span class="text-on-surface-variant font-medium">"Results Found"</span>
+                                        <button class="ml-4 flex items-center gap-1 text-[#004289] font-bold hover:underline" on:click=handle_save_search>
+                                            <span class="material-symbols-outlined text-[18px]">"notifications_active"</span>
+                                            "Save Alert"
+                                        </button>
                                     </div>
                                 }.into_any(),
                                 _ => view! { <span/> }.into_any(),

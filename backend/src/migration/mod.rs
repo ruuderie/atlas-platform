@@ -102,6 +102,9 @@ pub mod m20260430_000001_drop_anchor_legacy_tables;
 pub mod m20260501_000001_canonicalize_tenant_settings;
 pub mod m20260502_000001_seed_app_content_resume;
 
+pub mod m20260504_000001_create_user_app_permission;
+pub mod m20260504_000002_remove_is_admin_from_user;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -160,6 +163,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260417_000002_fix_buildwithruud_pages::Migration),
             // ONBOARDING SYSTEM — must follow tenant shift and app_instances table
             Box::new(m20260429_000001_create_onboarding_progress::Migration),
+            Box::new(m20260504_000001_create_user_app_permission::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

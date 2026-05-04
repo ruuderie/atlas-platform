@@ -1,5 +1,5 @@
 use sea_orm::{DatabaseConnection,ColumnTrait, EntityTrait, Set, QueryFilter};
-use crate::entities::user;
+use crate::entities::{user, user_account};
 use crate::auth::hash_password;
 use uuid::Uuid;
 use chrono::Utc;
@@ -32,7 +32,6 @@ pub async fn create_admin_user_if_not_exists(
             last_name: Set(std::env::var("ADMIN_LAST_NAME").unwrap()),
             email: Set(email.to_string()),
             password_hash: Set(hashed_password),
-            is_admin: Set(true),
             is_active: Set(true),
             phone: Set(std::env::var("ADMIN_PHONE").unwrap()),
             last_login: Set(None),
@@ -40,7 +39,19 @@ pub async fn create_admin_user_if_not_exists(
             updated_at: Set(Utc::now()),
         };
 
-        user::Entity::insert(new_admin).exec(db).await?;
+        let insert_res = user::Entity::insert(new_admin).exec(db).await?;
+        
+        let account = user_account::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            user_id: Set(insert_res.last_insert_id),
+            account_id: Set(Uuid::nil()), // Platform-level sentinel; no real account for super admin
+            role: Set(user_account::UserRole::PlatformSuperAdmin),
+            is_active: Set(true),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+        };
+        
+        user_account::Entity::insert(account).exec(db).await?;
         tracing::info!("Admin user created successfully");
     } else {
         println!("Admin Found");

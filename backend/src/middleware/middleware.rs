@@ -6,7 +6,7 @@ use axum::{
     http::{StatusCode, Request, Method},
     Extension,
 };
-use crate::entities::{user, session, user_account, profile, tenant};
+use crate::entities::{user, session, user_account, profile, tenant, user_app_permission};
 use sea_orm::{EntityTrait, DatabaseConnection, QueryFilter, ColumnTrait, Set};
 use uuid::Uuid;
 use chrono::Utc;
@@ -179,10 +179,11 @@ pub async fn auth_middleware(
     }
 
     tracing::debug!("[{}] Protected route - authenticating request", request_id);
-    
-    // Extract bearer token from request
-    let token = extract_token(&req);
-    tracing::debug!("[{}] Bearer token extracted: {}", request_id, token.is_some());
+
+    // Extract session token: cookie-first (HttpOnly, post-migration), Bearer fallback (transitional).
+    // Delegates to the shared helper in handlers::sessions so extraction logic stays in one place.
+    let token = crate::handlers::sessions::extract_session_token(req.headers());
+    tracing::debug!("[{}] Session token extracted (via cookie or Bearer): {}", request_id, token.is_some());
 
     // Validate session using the token
     let session = match validate_session(&db, token).await {
@@ -211,7 +212,17 @@ pub async fn auth_middleware(
     // Check admin access for admin routes
     if req.uri().path().starts_with("/api/admin") {
         tracing::debug!("[{}] Admin route access attempt", request_id);
-        if !user.is_admin {
+        
+        let is_platform_admin = match user_account::Entity::find()
+            .filter(user_account::Column::UserId.eq(user.id))
+            .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
+            .one(&db)
+            .await {
+                Ok(Some(_)) => true,
+                _ => false,
+            };
+
+        if !is_platform_admin {
             tracing::warn!("[{}] Non-admin user {} attempted to access admin route: {}", 
                 request_id, user.id, path);
             return Err(StatusCode::FORBIDDEN);
@@ -244,6 +255,23 @@ pub async fn auth_middleware(
         }
     };
     req.extensions_mut().insert(network_ids);
+
+    // Retrieve and insert user's app permissions into request extensions
+    tracing::debug!("[{}] Retrieving user app permissions", request_id);
+    match user_app_permission::Entity::find()
+        .filter(user_app_permission::Column::UserId.eq(user.id))
+        .all(&db)
+        .await {
+            Ok(permissions) => {
+                tracing::debug!("[{}] Retrieved {} app permissions for user", request_id, permissions.len());
+                req.extensions_mut().insert(permissions);
+            },
+            Err(e) => {
+                tracing::error!("[{}] Failed to get user app permissions: {:?}", request_id, e);
+                // Non-fatal, just continue without permissions
+                req.extensions_mut().insert(Vec::<user_app_permission::Model>::new());
+            }
+        };
 
     // Log the request
     tracing::debug!("[{}] Logging authenticated request", request_id);
@@ -294,27 +322,9 @@ fn is_public_route(path: &str) -> bool {
     is_public
 }
 
-// Extract bearer token from the request headers
-fn extract_token<B>(req: &Request<B>) -> Option<String> {
-    let token = req.headers()
-        .get(http::header::AUTHORIZATION)
-        .and_then(|header| header.to_str().ok())
-        .and_then(|auth_value| {
-            if auth_value.starts_with("Bearer ") {
-                Some(auth_value[7..].to_owned())
-            } else if auth_value.starts_with("bearer ") {
-                Some(auth_value[7..].to_owned())
-            } else {
-                None
-            }
-        });
-        
-    if token.is_none() {
-        tracing::debug!("No bearer token found in request");
-    }
-    
-    token
-}
+// extract_token removed — use crate::handlers::sessions::extract_session_token instead.
+// That function reads the `session` HttpOnly cookie first (preferred) and falls back
+// to the `Authorization: Bearer` header for transitional platform-admin support.
 
 // Validate the session using the provided token
 async fn validate_session(db: &DatabaseConnection, token: Option<String>) -> Result<session::Model, StatusCode> {

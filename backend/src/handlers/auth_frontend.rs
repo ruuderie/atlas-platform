@@ -120,7 +120,8 @@ pub async fn get_me(
         "last_name": current_user.last_name,
         "username": current_user.username,
         "is_active": current_user.is_active,
-        "is_admin": current_user.is_admin,
+        // is_admin is not stored on the user entity (removed during RBAC migration).
+        // Admin claims are embedded in the session JWT and read from session.is_admin.
     })))
 }
 

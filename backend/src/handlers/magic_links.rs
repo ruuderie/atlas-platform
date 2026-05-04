@@ -32,6 +32,8 @@ pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/magic-links/request", post(request_magic_link))
         .route("/magic-links/verify", post(verify_magic_link))
+        // Alias for the setup flow — exchanges a setup token for a temporary session
+        .route("/api/auth/setup/exchange", post(verify_magic_link))
 }
 
 pub async fn request_magic_link(

@@ -10,6 +10,7 @@ mod models;
 mod traits;
 mod config;
 mod services;
+mod webauthn_registry;
 pub mod atlas_apps;
 
 use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
@@ -38,6 +39,7 @@ use crate::middleware::{
 };
 use webauthn_rs::prelude::*;
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
+use crate::webauthn_registry::WebauthnRegistry;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
@@ -195,22 +197,25 @@ async fn main() {
         rp_origin.host_str().unwrap_or("localhost").to_string()
     });
     
-    let mut builder = WebauthnBuilder::new(&rp_id, &rp_origin)
-        .expect("Invalid WebAuthn config")
-        .rp_name("Atlas Platform");
-
+    let registry = Arc::new(WebauthnRegistry::new(conn.clone(), 10_000));
+    
+    // Seed primary platform origin
+    if let Err(e) = registry.seed(&rp_id, &rp_origin).await {
+        tracing::error!("Failed to seed WebauthnRegistry: {}", e);
+    }
+    
+    // Additional origins
     if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
         for origin in additional_origins.split(',') {
             if let Ok(parsed) = url::Url::parse(origin.trim()) {
-                builder = builder.append_allowed_origin(&parsed);
+                let add_rp_id = parsed.host_str().unwrap_or(&rp_id);
+                let _ = registry.seed(add_rp_id, &parsed).await;
             }
         }
     }
     
-    let webauthn = Arc::new(builder.build().expect("Failed to build Webauthn"));
-    
     let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {
-        webauthn,
+        registry,
         reg_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
         auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
     });

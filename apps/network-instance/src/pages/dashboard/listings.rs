@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::auth::get_auth_token;
+// get_auth_token removed
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DashboardListingModel {
@@ -23,13 +23,21 @@ pub struct CreateListingInput {
 }
 
 #[server]
-pub async fn fetch_my_listings_api(token: Option<String>) -> Result<Vec<DashboardListingModel>, ServerFnError> {
-    let active_token = if let Some(t) = token { t } else if let Some(t) = get_auth_token() { t } else { return Ok(vec![]); };
+pub async fn fetch_my_listings_api() -> Result<Vec<DashboardListingModel>, ServerFnError> {
+    use axum::http::request::Parts;
+    let active_token = if let Some(req_parts) = leptos::prelude::use_context::<Parts>() {
+        req_parts.headers.get("cookie").and_then(|v| v.to_str().ok()).and_then(|cookies| {
+            cookies.split(';').find_map(|part| {
+                let part = part.trim();
+                part.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
+    } else { None }.unwrap_or_default();
 
     let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.get(url)
-        .header("Authorization", format!("Bearer {}", active_token))
+        .header("Cookie", format!("session={}", active_token))
         .send()
         .await?;
     
@@ -41,13 +49,21 @@ pub async fn fetch_my_listings_api(token: Option<String>) -> Result<Vec<Dashboar
 }
 
 #[server]
-pub async fn create_listing_api(token: Option<String>, payload: CreateListingInput) -> Result<(), ServerFnError> {
-    let active_token = if let Some(t) = token { t } else if let Some(t) = get_auth_token() { t } else { return Err(ServerFnError::ServerError("Unauthorized".into())); };
+pub async fn create_listing_api(payload: CreateListingInput) -> Result<(), ServerFnError> {
+    use axum::http::request::Parts;
+    let active_token = if let Some(req_parts) = leptos::prelude::use_context::<Parts>() {
+        req_parts.headers.get("cookie").and_then(|v| v.to_str().ok()).and_then(|cookies| {
+            cookies.split(';').find_map(|part| {
+                let part = part.trim();
+                part.strip_prefix("session=").map(|t| t.to_string())
+            })
+        })
+    } else { None }.unwrap_or_default();
 
     let url = format!("{}/api/listings/my-listings", crate::get_api_base_url());
     let client = reqwest::Client::new();
     let res = client.post(url)
-        .header("Authorization", format!("Bearer {}", active_token))
+        .header("Cookie", format!("session={}", active_token))
         .json(&payload)
         .send()
         .await?;
@@ -65,14 +81,10 @@ pub fn DashboardListings() -> impl IntoView {
     let (trigger, set_trigger) = signal(0);
     let dir_config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context");
     
-    let token = get_auth_token();
-    let token2 = token.clone();
-    
     let listings_resource = Resource::new(
         move || trigger.get(),
         move |_| {
-            let t = token.clone();
-            async move { fetch_my_listings_api(t).await }
+            async move { fetch_my_listings_api().await }
         }
     );
 
@@ -108,10 +120,9 @@ pub fn DashboardListings() -> impl IntoView {
         
         // Use standard window.location to redirect just to guarantee full refresh
         // Alternatively to trigger the refresh via leptos task:
-        let token = token2.clone(); // Use token2 from the component's scope
         let trigger_refresh = set_trigger.clone(); // Use set_trigger for refresh
         leptos::task::spawn_local(async move {
-            match create_listing_api(token, payload).await {
+            match create_listing_api(payload).await {
                 Ok(_) => {
                     // Reset form
                     title.set("".to_string());

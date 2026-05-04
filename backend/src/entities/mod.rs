@@ -62,3 +62,4 @@ pub mod tenant_background_job;
 
 // ONBOARDING
 pub mod onboarding_progress;
+pub mod user_app_permission;

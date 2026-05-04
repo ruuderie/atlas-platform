@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 last_name: Set("User".to_string()),
                 phone: Set("".to_string()),
                 password_hash: Set(hashed_pass),
-                is_admin: Set(false),
+                // is_admin removed from user entity — admin status tracked via user_account role
                 is_active: Set(true),
                 last_login: Set(None),
                 created_at: Set(created_at),

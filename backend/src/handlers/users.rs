@@ -7,7 +7,7 @@ use crate::entities::{
     tenant::Entity as TenantEntity,
 };
 use axum::{
-    extract::{Extension, Json, Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router
+    extract::{Extension, Json, Path, State}, http::{StatusCode, header}, response::IntoResponse, routing::{get, post, put}, Router
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -61,7 +61,7 @@ pub async fn get_user_profile(
 pub async fn register_user(
     State(db): State<DatabaseConnection>,
     Json(user_data): Json<UserRegistration>,
-) -> Result<(StatusCode, Json<SessionResponse>), (StatusCode, String)> {
+) -> Result<axum::response::Response, (StatusCode, String)> {
     tracing::info!("Received registration request for email: {}", user_data.email);
 
     let tenant_id = user_data.tenant_id;
@@ -119,7 +119,6 @@ pub async fn register_user(
         phone: Set(user_data.phone),
         email: Set(email.clone()),
         password_hash: Set(hashed_password),
-        is_admin: Set(false),
         is_active: Set(true),
         last_login: Set(Some(Utc::now())),
         created_at: Set(Utc::now()),
@@ -228,7 +227,13 @@ pub async fn register_user(
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to auto-authenticate after registration".to_string()))?;
 
-    Ok((StatusCode::CREATED, Json(session_response)))
+    let cookie = crate::handlers::sessions::session_cookie_header(&session_response.token, 86_400);
+
+    Ok((
+        StatusCode::CREATED,
+        [(header::SET_COOKIE, cookie)],
+        Json(session_response)
+    ).into_response())
 }
 
 pub async fn login_user(
@@ -282,7 +287,13 @@ pub async fn login_user(
     println!("TEST LOG: from login_user and session created successfully for user: {}", user.id);
     tracing::info!("Session created from user handler successfully for user: {}", user.id);
     
-    Ok(Json(session_response))
+    let cookie = crate::handlers::sessions::session_cookie_header(&session_response.token, 86_400);
+
+    Ok((
+        StatusCode::OK,
+        [(header::SET_COOKIE, cookie)],
+        Json(session_response)
+    ).into_response())
 }
 
 

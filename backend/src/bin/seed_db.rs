@@ -233,13 +233,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             phone: Set(format!("555-010{}", i)),
             password_hash: Set(password_hash.clone()),
             last_login: Set(None),
-            is_admin: Set(i == 0),
+            // is_admin removed from user entity — admin status tracked via user_account role
             is_active: Set(true),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };
         u.insert(&db).await?;
-        if i == 0 { admin_user_id = user_id; }
+        if i == 0 {
+            admin_user_id = user_id;
+            // Grant PlatformSuperAdmin to the first seed user
+            let admin_role = user_account::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                user_id: Set(user_id),
+                account_id: Set(Uuid::nil()), // Platform sentinel
+                role: Set(user_account::UserRole::PlatformSuperAdmin),
+                is_active: Set(true),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+            admin_role.insert(&db).await?;
+        }
 
         // Account
         let acct_id = Uuid::new_v4();

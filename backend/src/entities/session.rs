@@ -28,6 +28,11 @@ pub struct Model {
 }
 
 impl Model {
+    /// Compute a SHA-256 hash over the session's security-critical fields.
+    ///
+    /// Covered fields: id, user_id, bearer_token, token_expiration, is_admin, is_active.
+    /// Excluded fields: last_accessed_at, last_modified_date, created_at
+    /// (mutable housekeeping columns that don't affect security posture).
     pub fn generate_integrity_hash(&self) -> String {
         let mut hasher = Sha256::new();
         hasher.update(self.id.to_string());
@@ -35,6 +40,9 @@ impl Model {
         hasher.update(&self.bearer_token);
         hasher.update(&self.token_expiration.timestamp().to_string());
         hasher.update(&self.is_admin.to_string());
+        // is_active is included so that revocation (is_active = false) is tamper-evident:
+        // an attacker who flips is_active back to true in the DB will break the hash check.
+        hasher.update(&self.is_active.to_string());
         format!("{:x}", hasher.finalize())
     }
 

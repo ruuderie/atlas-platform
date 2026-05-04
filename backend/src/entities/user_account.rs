@@ -27,6 +27,8 @@ pub enum UserRole {
     Admin,
     #[sea_orm(string_value = "Member")]
     Member,
+    #[sea_orm(string_value = "PlatformSuperAdmin")]
+    PlatformSuperAdmin,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

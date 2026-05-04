@@ -10,6 +10,7 @@ pub struct UserProfile {
     pub username: String,
     pub is_active: bool,
     pub is_admin: bool,
+    pub app_permissions: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -37,7 +38,7 @@ pub struct AuthContext {
 /// Falls back to http://127.0.0.1:8000 in development only.
 /// NOTE: ATLAS_API_URL must be set in production — the hardcoded fallback will not
 /// resolve in a containerised environment.
-fn api_base_url() -> String {
+pub fn api_base_url() -> String {
     #[cfg(feature = "ssr")]
     {
         std::env::var("ATLAS_API_URL")

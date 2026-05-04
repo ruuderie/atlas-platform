@@ -373,19 +373,73 @@ pub async fn toggle_admin(
     Extension(_current_session): Extension<session::Model>,
     Path(user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    // is_admin was removed from the user entity during the RBAC migration.
+    // Admin status is now represented by role='PlatformSuperAdmin' in user_account.
+    // Toggling admin = inserting or deleting that role record.
+    use sea_orm::ActiveModelTrait;
+    use crate::entities::user_account;
 
-    let mut user: user::ActiveModel = user::Entity::find_by_id(user_id)
+    let existing = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(user_id))
+        .filter(user_account::Column::Role.eq("PlatformSuperAdmin"))
         .one(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?
-        .into();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    user.is_admin = Set(!user.is_admin.unwrap());
+    if let Some(record) = existing {
+        // Currently admin — revoke
+        user_account::Entity::delete_by_id(record.id)
+            .exec(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        tracing::info!("Revoked PlatformSuperAdmin role from user {}", user_id);
+    } else {
+        // Find an existing account for this user to satisfy the FK constraint.
+        let existing_account = user_account::Entity::find()
+            .filter(user_account::Column::UserId.eq(user_id))
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let updated_user = user.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let account_id = match existing_account {
+            Some(ua) => ua.account_id,
+            None => {
+                // Create a platform-level account if the user has none
+                use crate::entities::account;
+                let platform_tenant = crate::entities::tenant::Entity::find()
+                    .one(&db)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                    .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+                let new_account = account::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    tenant_id: Set(platform_tenant.id),
+                    name: Set("Platform Super Admin Account".to_string()),
+                    is_active: Set(true),
+                    created_at: Set(chrono::Utc::now()),
+                    updated_at: Set(chrono::Utc::now()),
+                    ..Default::default()
+                }.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                new_account.id
+            }
+        };
 
-    Ok(Json(updated_user))
+        user_account::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            user_id: Set(user_id),
+            account_id: Set(account_id),
+            role: Set(user_account::UserRole::PlatformSuperAdmin),
+            is_active: Set(true),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+        }
+        .insert(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        tracing::info!("Granted PlatformSuperAdmin role to user {}", user_id);
+    }
+
+    Ok(StatusCode::OK)
 }
 
 pub async fn get_all_network_stats(
@@ -644,8 +698,9 @@ pub async fn get_user_statistics(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let total_admins = user::Entity::find()
-        .filter(user::Column::IsAdmin.eq(true))
+    // Admin count is now via user_account role, not user.is_admin field.
+    let total_admins = user_account::Entity::find()
+        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
         .count(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -817,8 +872,15 @@ pub async fn impersonate_user(
     Path(target_user_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
     
-    // 1. Strictly verify the caller is a global platform admin
-    if !current_user.is_admin {
+    // Verify the caller is a global platform admin via user_account role.
+    let is_caller_admin = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .filter(user_account::Column::Role.eq(crate::entities::user_account::UserRole::PlatformSuperAdmin))
+        .one(&db)
+        .await
+        .unwrap_or(None)
+        .is_some();
+    if !is_caller_admin {
         tracing::warn!("Non-admin user {} attempted to impersonate {}", current_user.id, target_user_id);
         return Err(StatusCode::FORBIDDEN);
     }
@@ -840,13 +902,15 @@ pub async fn impersonate_user(
     // 4. Return SessionResponse
     let response = SessionResponse {
         token,
-        refresh_token: "".to_string(), // Refresh tokens are generally not needed for impersonation
+        refresh_token: "".to_string(), // Refresh tokens are not issued for impersonation sessions
         user: Some(UserInfo {
             id: target_user.id,
             email: target_user.email,
             first_name: target_user.first_name,
             last_name: target_user.last_name,
-            is_admin: target_user.is_admin,
+            // Target user admin status from their user_account. False by default for impersonation safety.
+            is_admin: false,
+            app_permissions: Vec::new(),
         }),
     };
 

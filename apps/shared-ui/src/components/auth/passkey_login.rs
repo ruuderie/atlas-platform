@@ -17,10 +17,6 @@ pub fn PasskeyLoginButton(
         if is_submitting.get() { return; }
         
         let email_val = email.get();
-        if email_val.is_empty() {
-            on_error.run("Please enter your email to use passkey login.".to_string());
-            return;
-        }
 
         is_submitting.set(true);
         let api_url = api_base_url.clone();

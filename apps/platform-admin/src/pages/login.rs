@@ -168,6 +168,19 @@ pub fn Login() -> impl IntoView {
                                     >
                                         {move || if is_loading.get() { "Evaluating Node..." } else { "Continue" }}
                                     </Button>
+
+                                    <div class="relative flex items-center py-2">
+                                        <div class="flex-grow border-t border-outline-variant/30"></div>
+                                        <span class="flex-shrink-0 mx-4 text-on-surface-variant text-xs">"or"</span>
+                                        <div class="flex-grow border-t border-outline-variant/30"></div>
+                                    </div>
+
+                                    <PasskeyLoginButton 
+                                        api_base_url=crate::api::client::api_url("/api/passkeys")
+                                        email=RwSignal::new("".to_string())
+                                        on_success=handle_passkey_success.clone()
+                                        on_error=handle_passkey_error.clone()
+                                    />
                                 </div>
                             }.into_any(),
 

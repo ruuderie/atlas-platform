@@ -23,7 +23,6 @@ pub struct Model {
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub last_login: Option<DateTime<Utc>>,
     pub password_hash: String,
-    pub is_admin: bool,
     pub is_active: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
