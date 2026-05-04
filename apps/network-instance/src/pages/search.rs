@@ -50,7 +50,7 @@ pub fn Search() -> impl IntoView {
 
     let config = use_context::<crate::app::NetworkConfig>().expect("NetworkConfig context must be available");
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
-    let (show_login, set_show_login) = create_signal(false);
+    let (show_login, set_show_login) = signal(false);
 
     let handle_save_search = move |_| {
         if let Some(Ok(Some(u))) = auth.user.get() {

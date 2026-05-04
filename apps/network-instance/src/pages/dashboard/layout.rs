@@ -9,7 +9,7 @@ pub fn DashboardLayout() -> impl IntoView {
     let auth = use_context::<AuthContext>().expect("AuthContext missing");
     let network = use_context::<NetworkConfig>().expect("NetworkConfig missing");
     
-    let (show_login, set_show_login) = create_signal(false);
+    let (show_login, set_show_login) = signal(false);
 
     // Derived states
     let user_name = Signal::derive(move || {

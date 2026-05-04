@@ -15,7 +15,7 @@
  */
 use leptos::prelude::*;
 use leptos_router::components::Router;
-use leptos_meta::{provide_meta_context, Title, Stylesheet, Meta};
+use leptos_meta::{provide_meta_context, Title, Stylesheet};
 
 use serde::{Deserialize, Serialize};
 

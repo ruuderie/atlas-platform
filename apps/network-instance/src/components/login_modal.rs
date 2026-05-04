@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use crate::auth::api_base_url;
 
+#[allow(unused_variables)]
 #[component]
 pub fn LoginModal(
     /// Triggered when authentication succeeds so the parent can refresh state
@@ -11,11 +12,11 @@ pub fn LoginModal(
     /// Callback to close the modal
     #[prop(into)] on_close: Callback<(), ()>,
 ) -> impl IntoView {
-    let (use_email, set_use_email) = create_signal(false);
-    let (email_input, set_email_input) = create_signal(String::new());
-    let (is_loading, set_is_loading) = create_signal(false);
-    let (auth_message, set_auth_message) = create_signal(String::new());
-    let (is_error, set_is_error) = create_signal(false);
+    let (use_email, set_use_email) = signal(false);
+    let (email_input, set_email_input) = signal(String::new());
+    let (is_loading, set_is_loading) = signal(false);
+    let (auth_message, set_auth_message) = signal(String::new());
+    let (is_error, set_is_error) = signal(false);
 
     let handle_magic_link = move |_| {
         let email = email_input.get_untracked();
