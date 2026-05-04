@@ -6,6 +6,22 @@ use std::future::Future;
 use std::pin::Pin;
 use uuid::Uuid;
 
+// ──────────────────────────────────────────────────────────────────────────────
+// PERMISSION MODEL — READ BEFORE IMPLEMENTING A NEW APP
+// ──────────────────────────────────────────────────────────────────────────────
+// Each AtlasApp is responsible for defining its own permission enum.
+// Do NOT add app-specific variants to the global `TenantRole` enum in user_account.rs.
+//
+// The platform uses a two-layer model:
+//   Layer 1: TenantRole (PlatformSuperAdmin | Owner | Admin | Member) — stable, never changes
+//   Layer 2: App-specific permissions (each app owns its own enum) — stored in user_app_permission
+//
+// Owner/Admin roles implicitly bypass all app-level permission checks.
+// Member roles require explicit permission grants stored in user_app_permission.
+//
+// Full details: docs/auth_and_permissions.md
+// ──────────────────────────────────────────────────────────────────────────────
+
 /// Represents a dynamic asynchronous executor closure for background jobs.
 pub type JobExecutor = Box<
     dyn Fn(DatabaseConnection, uuid::Uuid, Option<serde_json::Value>) -> Pin<Box<dyn Future<Output = Result<(), String>> + Send>>

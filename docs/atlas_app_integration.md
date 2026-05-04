@@ -5,6 +5,9 @@ is the **only** sanctioned integration point — direct mutation of `api.rs` is 
 
 > See also: [`docs/architecture/platform_layer_map.md`](architecture/platform_layer_map.md)
 > for the full Tier 1 / Tier 2 / Tier 3 route ownership model.
+>
+> See also: [`docs/auth_and_permissions.md`](auth_and_permissions.md)
+> for authentication flows, the two-layer permission model, and how to define app-specific permissions.
 
 ---
 
