@@ -441,7 +441,13 @@ pub async fn get_dashboard_stats() -> Result<DashboardStats, ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
     let mempool: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM api_requests_log WHERE endpoint = 'mempool_api' AND created_at > NOW() - INTERVAL '24 hours'").fetch_one(&state.pool).await.unwrap_or(0);
-    let signups: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE tenant_id IS NOT DISTINCT FROM $1")
+    // users.tenant_id was removed in the RBAC migration (m20260504_000002_remove_is_admin_from_user).
+    // Count identities by joining user_account → account to resolve the tenant association.
+    let signups: i64 = sqlx::query_scalar(
+        "SELECT COUNT(DISTINCT ua.user_id) FROM user_account ua \
+         JOIN account a ON a.id = ua.account_id \
+         WHERE a.tenant_id IS NOT DISTINCT FROM $1"
+    )
         .bind(tenant.0)
         .fetch_one(&state.pool)
         .await
