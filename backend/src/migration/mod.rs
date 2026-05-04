@@ -104,6 +104,7 @@ pub mod m20260502_000001_seed_app_content_resume;
 
 pub mod m20260504_000001_create_user_app_permission;
 pub mod m20260504_000002_remove_is_admin_from_user;
+pub mod m20260504_000003_seed_platform_sentinel_account;
 
 pub struct Migrator;
 
@@ -164,6 +165,9 @@ impl MigratorTrait for Migrator {
             // ONBOARDING SYSTEM — must follow tenant shift and app_instances table
             Box::new(m20260429_000001_create_onboarding_progress::Migration),
             Box::new(m20260504_000001_create_user_app_permission::Migration),
+            // Seeds the nil-UUID platform sentinel tenant + account required by toggle_admin
+            // when granting PlatformSuperAdmin to a user with no existing user_account.
+            Box::new(m20260504_000003_seed_platform_sentinel_account::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
