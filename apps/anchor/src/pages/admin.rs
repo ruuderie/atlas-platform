@@ -1,10 +1,33 @@
 use leptos::*;
 
-
 use crate::auth::*;
 use crate::components::admin_modal::*;
 
-// WebAuthn JS imports removed
+/// Proxies a session-revocation request to the Atlas backend and clears the HttpOnly cookie.
+/// Must be a server function — `reqwest` and `atlas_client` are SSR-only and cannot be called
+/// from WASM directly.
+#[server(RevokeSession, "/api")]
+pub async fn revoke_session() -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use leptos_axum::ResponseOptions;
+        // Clear the HttpOnly session cookie immediately on the response.
+        let response = leptos::expect_context::<ResponseOptions>();
+        response.append_header(
+            axum::http::header::SET_COOKIE,
+            axum::http::HeaderValue::from_static(
+                "session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0",
+            ),
+        );
+        // Best-effort call to the backend to deactivate the session record.
+        let url = format!(
+            "{}/api/auth/session/revoke",
+            crate::atlas_client::get_atlas_api_url()
+        );
+        let _ = reqwest::Client::new().post(&url).send().await;
+    }
+    Ok(())
+}
 
 #[component]
 pub fn WebformsTable() -> impl IntoView {
@@ -326,17 +349,12 @@ pub fn Admin() -> impl IntoView {
                                     // Call the backend revoke endpoint so the server-side session
                                     // is deactivated and the HttpOnly cookie is cleared (Max-Age=0).
                                     // Resetting local state without this would leave the cookie live.
-                                    spawn_local(async move {
-                                        let url = format!(
-                                            "{}/api/auth/session/revoke",
-                                            crate::atlas_client::get_atlas_api_url()
-                                        );
-                                        let _ = reqwest::Client::new()
-                                            .post(&url)
-                                            .send()
-                                            .await;
-                                        // Always transition to No — even if the network call fails
-                                        // the user has expressed intent to leave this session.
+                                     spawn_local(async move {
+                                        // RevokeSession is a server function — it clears the
+                                        // HttpOnly cookie server-side and best-effort deactivates
+                                        // the session record in the backend.
+                                        let _ = revoke_session().await;
+                                        // Always transition to No regardless of network result.
                                         set_auth_state.set(AuthState::No);
                                     });
                                 }
