@@ -167,74 +167,69 @@ pub fn Nav() -> impl IntoView {
 
     view! {
         <>
-        <nav class=format!("fixed top-0 left-0 w-full flex justify-between items-center py-6 z-[60] {} {}",
-            if design.nav_layout == "floating-glass" { "bg-surface/80 backdrop-blur-[20px] shadow-sm" } else { "bg-surface shadow-[0_4px_24px_rgba(0,0,0,0.06)]" },
-            if design.container_strategy == "asymmetrical-gutters" { "px-4 md:px-[8.5rem]" } else { "px-4 md:px-12" }
+        // ── Fixed top nav bar ──────────────────────────────────────────────────
+        <nav class=format!("fixed top-0 left-0 w-full flex justify-between items-center py-4 z-[60] {} {}",
+            if design.nav_layout == "floating-glass" { "bg-surface/80 backdrop-blur-[20px] shadow-sm" } else { "bg-surface shadow-[0_2px_12px_rgba(0,0,0,0.08)]" },
+            if design.container_strategy == "asymmetrical-gutters" { "px-5 md:px-[8.5rem]" } else { "px-5 md:px-12" }
         )>
+            // Logo / site title
             <A href="/" class=format!("text-xl font-bold truncate relative z-[70] {} {}", &design.meta_font, if design.elevation_strategy == "tonal-shifts" { "text-primary" } else { "text-on-surface" })>
                 <Suspense fallback=move || view! { <span>"Portfolio"</span> }>
                     {move || settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or(crate::pages::landing::SiteSettings::default()).site_title}
                 </Suspense>
             </A>
+
+            // ── Desktop nav links (md+) ────────────────────────────────────────
             <div class="hidden md:flex items-center space-x-8">
-                <Suspense fallback=move || view! { <div class="w-24 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></div> }>
+                <Suspense fallback=move || view! { <div class="w-24 h-4 bg-outline-variant/30 animate-pulse rounded"></div> }>
                     {
-                        let root_class = format!("font-medium transition-colors uppercase {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface hover:text-primary" } else { "text-on-surface-variant hover:text-on-surface hover:bg-surface-container" });
+                        let root_class = format!("font-medium transition-colors uppercase text-sm tracking-wide {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface hover:text-primary" } else { "text-on-surface-variant hover:text-on-surface" });
                         move || {
-                        let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
-                        let root_class = root_class.clone();
-
-                        let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
-
-                        root_items.into_iter().map(|root| {
+                            let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
                             let root_class = root_class.clone();
-                            let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
+                            let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
-                            if children.is_empty() {
-                                view! {
-                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
-                                        {root.label.clone()}
-                                    </a>
-                                }.into_view()
-                            } else {
-                                view! {
-                                    <div class="relative group cursor-pointer text-slate-600 dark:text-slate-400 font-medium transition-colors uppercase flex items-center gap-1 z-50">
-                                        <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 block py-2 select-none">
+                            root_items.into_iter().map(|root| {
+                                let root_class = root_class.clone();
+                                let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
+
+                                if children.is_empty() {
+                                    view! {
+                                        <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
                                             {root.label.clone()}
                                         </a>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-
-                                        <div class="absolute top-full left-0 mt-0 w-48 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto">
-                                            {children.into_iter().map(|child| {
-                                                view! {
-                                                    <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
-                                                        {child.label.clone()}
-                                                    </a>
-                                                }
-                                            }).collect_view()}
+                                    }.into_view()
+                                } else {
+                                    view! {
+                                        <div class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50">
+                                            <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="hover:text-primary block py-2 select-none">
+                                                {root.label.clone()}
+                                            </a>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                            <div class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm">
+                                                {children.into_iter().map(|child| {
+                                                    view! {
+                                                        <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
+                                                            {child.label.clone()}
+                                                        </a>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
                                         </div>
-                                    </div>
-                                }.into_view()
-                            }
-                        }).collect_view()
-                    }}
+                                    }.into_view()
+                                }
+                            }).collect_view()
+                        }
+                    }
                 </Suspense>
             </div>
-            // Right side: hamburger (mobile) + admin icon + tenant widgets (desktop only)
-            <div class="flex items-center space-x-4 md:space-x-6 z-50">
-                // Hamburger — mobile only, rendered first so it's never obscured by widgets
-                <button
-                    on:click=move |_| set_mobile_menu_open.update(|o| *o = !*o)
-                    class="md:hidden text-primary focus:outline-none flex items-center justify-center p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                    <span class="material-symbols-outlined text-3xl">
-                        {move || if mobile_menu_open.get() { "close" } else { "menu" }}
-                    </span>
-                </button>
-                <a href="/admin" class="material-symbols-outlined text-primary cursor-pointer hover:opacity-80 transition-opacity hidden sm:block">"terminal"</a>
-                // Tenant-configured widgets — hidden on mobile to avoid hamburger collision
-                // Each WidgetShell dispatches to the correct renderer based on WidgetRenderer variant
-                <div class="hidden sm:flex items-center gap-2">
+
+            // ── Right side: admin icon + widgets (desktop) + hamburger (mobile) ─
+            <div class="flex items-center gap-2 md:gap-5 z-[70]">
+                // Admin terminal icon — desktop only
+                <a href="/admin" class="material-symbols-outlined text-[22px] text-on-surface-variant hover:text-primary cursor-pointer transition-colors hidden md:block">"terminal"</a>
+                // Tenant-configured nav widgets — desktop only
+                <div class="hidden md:flex items-center gap-2">
                     <Suspense fallback=move || view! { <span class="hidden"></span> }>
                         {move || {
                             nav_widgets().into_iter().map(|widget| {
@@ -243,55 +238,102 @@ pub fn Nav() -> impl IntoView {
                         }}
                     </Suspense>
                 </div>
+                // Hamburger button — mobile only
+                // z-[70] keeps it above the overlay (z-[55]) so the close icon is always tappable
+                <button
+                    id="mobile-menu-toggle"
+                    aria-label="Toggle navigation menu"
+                    aria-expanded=move || if mobile_menu_open.get() { "true" } else { "false" }
+                    aria-controls="mobile-menu-overlay"
+                    on:click=move |_| set_mobile_menu_open.update(|o| *o = !*o)
+                    class="md:hidden relative z-[70] flex items-center justify-center w-10 h-10 rounded-lg text-on-surface hover:bg-surface-container-high active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                    <span class="material-symbols-outlined text-[26px] leading-none select-none">
+                        {move || if mobile_menu_open.get() { "close" } else { "menu" }}
+                    </span>
+                </button>
             </div>
-
         </nav>
 
-        // Mobile Menu Overlay — z-[55] so it renders above page content but below the
-        // fixed nav bar (z-[60]), ensuring the close button remains accessible
+        // ── Mobile menu overlay ────────────────────────────────────────────────
+        // Slides in from the right edge. z-[55] keeps it above page content
+        // but below the nav bar (z-[60]) so the hamburger/close remains tappable.
         <div
-            class="fixed inset-0 bg-surface dark:bg-slate-900 z-[55] flex flex-col pt-32 px-6 transition-all duration-300 ease-in-out md:hidden"
-            style=move || if mobile_menu_open.get() { "transform: translateX(0); opacity: 1; pointer-events: auto;" } else { "transform: translateX(100%); opacity: 0; pointer-events: none;" }
+            id="mobile-menu-overlay"
+            role="dialog"
+            aria-label="Navigation menu"
+            aria-hidden=move || if mobile_menu_open.get() { "false" } else { "true" }
+            class="fixed inset-0 z-[55] md:hidden flex flex-col bg-surface"
+            style=move || if mobile_menu_open.get() {
+                "transform: translateX(0); opacity: 1; pointer-events: auto; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;"
+            } else {
+                "transform: translateX(100%); opacity: 0; pointer-events: none; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;"
+            }
         >
-            <div class="flex flex-col space-y-8 overflow-y-auto pb-24 h-full">
-                <Suspense fallback=move || view! { <div class="w-24 h-4 bg-slate-200 dark:bg-slate-700 animate-pulse rounded"></div> }>
-                    {move || {
-                        let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
+            // Scrollable content — top padding clears the fixed nav bar
+            <div class="flex flex-col flex-1 overflow-y-auto pt-20 px-6 pb-16">
+                // ── Nav links list ──────────────────────────────────────────
+                <Suspense fallback=move || view! {
+                    <div class="flex flex-col gap-4 pt-6 animate-pulse">
+                        <div class="h-9 w-36 bg-outline-variant/20 rounded"></div>
+                        <div class="h-9 w-28 bg-outline-variant/20 rounded"></div>
+                        <div class="h-9 w-32 bg-outline-variant/20 rounded"></div>
+                    </div>
+                }>
+                    <nav class="flex flex-col">
+                        {move || {
+                            let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
+                            let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
-                        let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
+                            root_items.into_iter().map(|root| {
+                                let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
 
-                        root_items.into_iter().map(|root| {
-                            let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
-
-                            if children.is_empty() {
-                                view! {
-                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) on:click=move |_| set_mobile_menu_open.set(false) class="text-3xl font-bold text-slate-800 dark:text-slate-100 uppercase hover:text-primary transition-colors">
-                                        {root.label.clone()}
-                                    </a>
-                                }.into_view()
-                            } else {
-                                view! {
-                                    <div class="flex flex-col space-y-3 pt-4">
-                                        <div class="text-2xl sm:text-3xl font-bold text-slate-400 dark:text-slate-500 uppercase bg-transparent w-full text-left">
+                                if children.is_empty() {
+                                    view! {
+                                        <a
+                                            href=root.href.clone().unwrap_or_else(|| "#".to_string())
+                                            on:click=move |_| set_mobile_menu_open.set(false)
+                                            class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0"
+                                        >
                                             {root.label.clone()}
+                                        </a>
+                                    }.into_view()
+                                } else {
+                                    view! {
+                                        <div class="flex flex-col border-b border-outline-variant/15">
+                                            // Non-clickable parent category header
+                                            <div class="py-4 text-2xl font-bold text-on-surface-variant uppercase">
+                                                {root.label.clone()}
+                                            </div>
+                                            // Children indented under parent
+                                            <div class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25">
+                                                {children.into_iter().map(|child| {
+                                                    view! {
+                                                        <a
+                                                            href=child.href.clone().unwrap_or_else(|| "#".to_string())
+                                                            on:click=move |_| set_mobile_menu_open.set(false)
+                                                            class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block"
+                                                        >
+                                                            {child.label.clone()}
+                                                        </a>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
                                         </div>
-                                        <div class="flex flex-col space-y-2 pl-4 border-l-2 border-slate-200 dark:border-slate-800">
-                                            {children.into_iter().map(|child| {
-                                                view! {
-                                                    <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) on:click=move |_| set_mobile_menu_open.set(false) class="text-xl font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors block py-4 border-b border-outline-variant/20 last:border-0 w-full text-left">
-                                                        {child.label.clone()}
-                                                    </a>
-                                                }
-                                            }).collect_view()}
-                                        </div>
-                                    </div>
-                                }.into_view()
-                            }
-                        }).collect_view()
-                    }}
+                                    }.into_view()
+                                }
+                            }).collect_view()
+                        }}
+                    </nav>
                 </Suspense>
-                <a href="/admin" on:click=move |_| set_mobile_menu_open.set(false) class="mt-8 flex items-center space-x-2 text-primary text-xl font-bold uppercase transition-opacity border p-4 border-outline-variant/30 text-center justify-center">
-                    <span class="material-symbols-outlined">"terminal"</span>
+
+                // ── Admin terminal shortcut ─────────────────────────────────
+                <a
+                    href="/admin"
+                    on:click=move |_| set_mobile_menu_open.set(false)
+                    class="mt-8 flex items-center justify-center gap-2 py-4 px-6 border border-outline-variant/40 text-primary text-sm font-bold uppercase tracking-widest hover:bg-surface-container transition-colors rounded-sm"
+                >
+                    <span class="material-symbols-outlined text-[18px]">"terminal"</span>
                     <span>"Admin Terminal"</span>
                 </a>
             </div>
