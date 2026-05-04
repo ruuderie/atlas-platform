@@ -95,7 +95,6 @@ pub fn Admin() -> impl IntoView {
     let (is_loading, set_is_loading) = create_signal(false);
     let (auth_error, set_auth_error) = create_signal(String::new());
 
-    let sys_init_res = create_resource(|| (), |_| is_system_initialized());
 
     let (modal_state, set_modal_state) = create_signal(ModalState::None);
     provide_context(modal_state);
@@ -137,22 +136,6 @@ pub fn Admin() -> impl IntoView {
         set_is_loading.set(false);
     });
 
-    let register_action = create_action(move |_: &()| async move {
-        // Registration is identical to login in a Magic Link system (creates user if new and allowed)
-        let uname = username.get_untracked();
-        if uname.is_empty() {
-            set_auth_error.set("Email is required.".to_string());
-            return;
-        }
-        set_is_loading.set(true);
-        set_auth_error.set(String::new());
-
-        match request_magic_link(uname.clone()).await {
-            Ok(_) => set_auth_error.set("Magic link sent to your email.".to_string()),
-            Err(e) => set_auth_error.set(format!("Registration failed: {:?}", e)),
-        }
-        set_is_loading.set(false);
-    });
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
@@ -184,26 +167,7 @@ pub fn Admin() -> impl IntoView {
                                             prop:value=username
                                             class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
                                         />
-                                    </div>                                    <Suspense fallback=move || view! { <div class="hidden"></div> }>
-                                        {move || {
-                                            if !sys_init_res.get().unwrap_or(Ok(true)).unwrap_or(true) {
-                                                view! {
-                                                    <div class="relative w-full group mt-6">
-                                                        <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Setup Token (First-Run Only)"</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="..."
-                                                            on:input=move |ev| set_setup_token.set(event_target_value(&ev))
-                                                            prop:value=setup_token
-                                                            class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
-                                                        />
-                                                    </div>
-                                                }.into_view()
-                                            } else {
-                                                view! { <div class="hidden"></div> }.into_view()
-                                            }
-                                        }}
-                                    </Suspense>
+                                    </div>
 
                                     <div class="space-y-4 pt-6">
                                         <Show when=move || !auth_error.get().is_empty()>
@@ -222,24 +186,6 @@ pub fn Admin() -> impl IntoView {
                                             </Show>
                                             <span class="inline-block translate-y-[1px]">"Send Magic Link"</span>
                                         </button>
-
-                                        <Suspense fallback=move || view! { <div class="hidden"></div> }>
-                                            {move || {
-                                                if !sys_init_res.get().unwrap_or(Ok(true)).unwrap_or(true) {
-                                                    view! {
-                                                        <button
-                                                            on:click=move |_| register_action.dispatch(())
-                                                            disabled=is_loading
-                                                            class="w-full border border-primary/20 text-primary py-4 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                        >
-                                                            "Register with Magic Link"
-                                                        </button>
-                                                    }.into_view()
-                                                } else {
-                                                    view! { <div class="hidden"></div> }.into_view()
-                                                }
-                                            }}
-                                        </Suspense>
                                     </div>
                                 </div>
                             </div>
