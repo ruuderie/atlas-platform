@@ -1,3 +1,8 @@
+// Leptos 0.8 generates deeply nested monomorphized view types.
+// The default rustc recursion limit (128) is insufficient to compute
+// their layouts — increase to 256 as recommended by the compiler error.
+#![recursion_limit = "256"]
+
 pub mod app;
 pub mod components;
 pub mod pages;
