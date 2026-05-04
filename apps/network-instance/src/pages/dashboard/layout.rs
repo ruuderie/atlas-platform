@@ -52,7 +52,8 @@ pub fn DashboardLayout() -> impl IntoView {
     });
 
     let handle_logout = move |_| {
-        crate::auth::clear_auth_token();
+        // Auth is cookie-based — the HttpOnly cookie is cleared by the backend.
+        // Navigate to home; the auth middleware will block any further dashboard access.
         web_sys::window().unwrap().location().set_href("/").unwrap();
     };
 

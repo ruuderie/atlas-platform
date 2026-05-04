@@ -1055,28 +1055,8 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
 pub fn App() -> impl IntoView {
     provide_meta_context();
     
-    #[cfg(feature = "hydrate")]
-    {
-        if let Some(window) = web_sys::window() {
-            if let Ok(search) = window.location().search() {
-                if let Ok(params) = web_sys::UrlSearchParams::new_with_str(&search) {
-                    if let Some(token) = params.get("impersonate_token") {
-                        crate::auth::set_auth_token(&token);
-                        
-                        // Clean the URL without reloading the page
-                        if let Some(history) = window.history().ok() {
-                            let pathname = window.location().pathname().unwrap_or_default();
-                            let _ = history.replace_state_with_url(
-                                &wasm_bindgen::JsValue::NULL,
-                                "",
-                                Some(&pathname),
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Note: impersonate_token URL param support removed — auth is cookie-based.
+    // The backend sets the HttpOnly session cookie on login; no client-side token handling needed.
     
     let host = get_host();
     

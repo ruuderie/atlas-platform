@@ -116,7 +116,7 @@ pub async fn fetch_current_user(
         let body: serde_json::Value = res.json().await?;
         if let Some(user) = body.get("user") {
             let profile: UserProfile = serde_json::from_value(user.clone())
-                .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+                .map_err(ServerFnError::from)?;
             return Ok(Some(profile));
         }
     }

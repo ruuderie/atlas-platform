@@ -2,7 +2,6 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
 use serde_json::json;
 
-use crate::auth::set_auth_token;
 use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
 
 #[component]
@@ -15,8 +14,9 @@ pub fn Login() -> impl IntoView {
     
     let _navigate = use_navigate();
 
-    let handle_passkey_success = move |token: String| {
-        set_auth_token(&token);
+    let handle_passkey_success = move |_token: String| {
+        // Auth is cookie-based — the backend already set the session cookie.
+        // Just navigate to the dashboard.
         window().location().set_href("/dashboard").unwrap();
     };
 
@@ -50,9 +50,8 @@ pub fn Login() -> impl IntoView {
                 Ok(res) => {
                     if res.status().is_success() {
                         if let Ok(json) = res.json::<serde_json::Value>().await {
-                            if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
-                                set_auth_token(token);
-                                // Refresh logic could go here or hard navigation
+                            if let Some(_token) = json.get("token").and_then(|t| t.as_str()) {
+                                // Cookie is set by the backend — navigate directly.
                                 window().location().set_href("/dashboard").unwrap();
                             } else {
                                 error.set("Invalid response from server".to_string());

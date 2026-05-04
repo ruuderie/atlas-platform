@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos_router::hooks::use_navigate;
 use serde_json::json;
 use crate::app::NetworkConfig;
 
@@ -54,9 +53,9 @@ pub fn Register() -> impl IntoView {
                 Ok(res) => {
                     if res.status().is_success() {
                         if let Ok(json) = res.json::<serde_json::Value>().await {
-                            if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
-                                crate::auth::set_auth_token(token);
-                                auth_token.set(token.to_string());
+                            if let Some(_token) = json.get("token").and_then(|t| t.as_str()) {
+                                // Auth is cookie-based — backend already set the session cookie.
+                                auth_token.set(_token.to_string());
                                 success.set(true);
                             } else {
                                 error.set("Invalid response from server".to_string());
