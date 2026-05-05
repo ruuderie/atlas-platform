@@ -147,17 +147,23 @@ pub fn Footer() -> impl IntoView {
                     {
                         let link_class = format!("font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface text-[0.75rem]" } else { "text-slate-500 dark:text-slate-400 text-[0.65rem]" });
                         move || {
-                        let items = footer_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
-                        let link_class = link_class.clone();
-                        items.into_iter().map(move |item| {
+                            let items = footer_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
                             let link_class = link_class.clone();
+                            let items_view = items.into_iter().map(move |item| {
+                                let link_class = link_class.clone();
+                                view! {
+                                    <a href=item.href.clone().unwrap_or_else(|| "#".to_string()) class=link_class>
+                                        {item.label.clone()}
+                                    </a>
+                                }
+                            }).collect_view();
                             view! {
-                                <a href=item.href.clone().unwrap_or_else(|| "#".to_string()) class=link_class>
-                                    {item.label.clone()}
-                                </a>
+                                <div class="contents">
+                                    {items_view}
+                                </div>
                             }
-                        }).collect_view()
-                    }}
+                        }
+                    }
                 </Suspense>
             </div>
 

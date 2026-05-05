@@ -239,9 +239,14 @@ pub fn Nav() -> impl IntoView {
                 <div class="hidden md:flex items-center gap-2">
                     <Suspense fallback=move || view! { <span class="hidden"></span> }>
                         {move || {
-                            nav_widgets().into_iter().map(|widget| {
+                            let widgets = nav_widgets().into_iter().map(|widget| {
                                 view! { <crate::components::widget_registry::WidgetShell widget=widget /> }
-                            }).collect_view()
+                            }).collect_view();
+                            view! {
+                                <div class="contents">
+                                    {widgets}
+                                </div>
+                            }
                         }}
                     </Suspense>
                 </div>
