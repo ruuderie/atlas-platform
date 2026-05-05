@@ -1215,66 +1215,71 @@ pub fn ResumeProfileForm(
                 <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider font-bold">"Assign Global Entries"</label>
                 <div class="text-xs text-outline mb-2">"Select which resume entries should be included in this profile."</div>
                 <Transition fallback=move || view! { <div class="text-xs text-outline">"Loading entries..."</div> }>
-                    <div class="grid grid-cols-1 gap-2">
-                        {move || match entries_res.get() {
-                            Some(Ok(entries)) => {
-                                entries.into_iter().map(|e| {
-                                    let eid = e.id;
-                                    let is_checked = move || active_entries.get().contains_key(&eid);
-                                    let c_str = e.category.to_string();
-                                    view! {
-                                        <div class="flex flex-col bg-surface border border-outline-variant/30 transition-colors">
-                                            <div class="flex items-center gap-3 p-3 hover:bg-surface-container-high">
-                                                <input
-                                                    type="checkbox"
-                                                    prop:checked=is_checked
-                                                    on:change=move |ev| toggle_entry(eid, event_target_checked(&ev))
-                                                    class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:ring-2"
-                                                />
-                                                <div class="flex flex-col flex-1">
-                                                    <span class="jetbrains text-xs font-bold text-on-surface uppercase tracking-wider">"[" {c_str} "] " {e.title.clone()}</span>
-                                                    <span class="text-[0.65rem] text-outline truncate">{e.subtitle.clone().unwrap_or_default()}</span>
+                    {move || {
+                        let res = entries_res.get();
+                        view! {
+                        <div class="grid grid-cols-1 gap-2">
+                            {match res {
+                                Some(Ok(entries)) => {
+                                    entries.into_iter().map(|e| {
+                                        let eid = e.id;
+                                        let is_checked = move || active_entries.get().contains_key(&eid);
+                                        let c_str = e.category.to_string();
+                                        view! {
+                                            <div class="flex flex-col bg-surface border border-outline-variant/30 transition-colors">
+                                                <div class="flex items-center gap-3 p-3 hover:bg-surface-container-high">
+                                                    <input
+                                                        type="checkbox"
+                                                        prop:checked=is_checked
+                                                        on:change=move |ev| toggle_entry(eid, event_target_checked(&ev))
+                                                        class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:ring-2"
+                                                    />
+                                                    <div class="flex flex-col flex-1">
+                                                        <span class="jetbrains text-xs font-bold text-on-surface uppercase tracking-wider">"[" {c_str} "] " {e.title.clone()}</span>
+                                                        <span class="text-[0.65rem] text-outline truncate">{e.subtitle.clone().unwrap_or_default()}</span>
+                                                    </div>
+                                                    <Show when=move || active_entries.get().contains_key(&eid)>
+                                                        <button
+                                                            type="button"
+                                                            on:click=move |_| toggle_expand(eid)
+                                                            class="text-[0.65rem] font-bold jetbrains uppercase px-2 py-1 bg-surface-container border border-outline-variant/50 hover:text-primary transition-colors cursor-pointer"
+                                                        >
+                                                            {move || if expanded_entries.get().contains(&eid) { "Hide Overrides" } else { "Edit Overrides" }}
+                                                        </button>
+                                                    </Show>
                                                 </div>
-                                                <Show when=move || active_entries.get().contains_key(&eid)>
-                                                    <button
-                                                        type="button"
-                                                        on:click=move |_| toggle_expand(eid)
-                                                        class="text-[0.65rem] font-bold jetbrains uppercase px-2 py-1 bg-surface-container border border-outline-variant/50 hover:text-primary transition-colors cursor-pointer"
-                                                    >
-                                                        {move || if expanded_entries.get().contains(&eid) { "Hide Overrides" } else { "Edit Overrides" }}
-                                                    </button>
-                                                </Show>
-                                            </div>
-                                            <Show when=move || expanded_entries.get().contains(&eid)>
-                                                <div class="p-4 border-t border-outline-variant/30 bg-surface-container-lowest grid grid-cols-1 gap-4">
-                                                    <div class="text-[0.65rem] text-secondary tracking-widest uppercase mb-2">"Leave blank to preserve absolute origin value"</div>
-                                                    <div class="grid grid-cols-2 gap-4">
-                                                        <div class="flex flex-col gap-1 col-span-2 md:col-span-1">
-                                                            <label class="jetbrains text-[0.6rem] uppercase text-outline">"Title Override"</label>
-                                                            <input type="text" prop:value=move || get_override(eid, "title") on:input=move |ev| update_override(eid, "title", event_target_value(&ev)) placeholder=e.title.clone() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
-                                                        </div>
-                                                        <div class="flex flex-col gap-1 col-span-2 md:col-span-1">
-                                                            <label class="jetbrains text-[0.6rem] uppercase text-outline">"Subtitle Override"</label>
-                                                            <input type="text" prop:value=move || get_override(eid, "subtitle") on:input=move |ev| update_override(eid, "subtitle", event_target_value(&ev)) placeholder=e.subtitle.clone().unwrap_or_default() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
-                                                        </div>
-                                                        <div class="flex flex-col gap-1 col-span-2">
-                                                            <label class="jetbrains text-[0.6rem] uppercase text-outline">"Date Range Override"</label>
-                                                            <input type="text" prop:value=move || get_override(eid, "date_range") on:input=move |ev| update_override(eid, "date_range", event_target_value(&ev)) placeholder=e.date_range.clone().unwrap_or_default() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
-                                                        </div>
-                                                        <div class="flex flex-col gap-1 col-span-2">
-                                                            <label class="jetbrains text-[0.6rem] uppercase text-outline">"Bullets Override (Newline separated)"</label>
-                                                            <textarea prop:value=move || get_override(eid, "bullets") on:input=move |ev| update_override(eid, "bullets", event_target_value(&ev)) rows="3" placeholder=e.bullets.clone().join("\n") class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full resize-y"></textarea>
+                                                <Show when=move || expanded_entries.get().contains(&eid)>
+                                                    <div class="p-4 border-t border-outline-variant/30 bg-surface-container-lowest grid grid-cols-1 gap-4">
+                                                        <div class="text-[0.65rem] text-secondary tracking-widest uppercase mb-2">"Leave blank to preserve absolute origin value"</div>
+                                                        <div class="grid grid-cols-2 gap-4">
+                                                            <div class="flex flex-col gap-1 col-span-2 md:col-span-1">
+                                                                <label class="jetbrains text-[0.6rem] uppercase text-outline">"Title Override"</label>
+                                                                <input type="text" prop:value=move || get_override(eid, "title") on:input=move |ev| update_override(eid, "title", event_target_value(&ev)) placeholder=e.title.clone() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
+                                                            </div>
+                                                            <div class="flex flex-col gap-1 col-span-2 md:col-span-1">
+                                                                <label class="jetbrains text-[0.6rem] uppercase text-outline">"Subtitle Override"</label>
+                                                                <input type="text" prop:value=move || get_override(eid, "subtitle") on:input=move |ev| update_override(eid, "subtitle", event_target_value(&ev)) placeholder=e.subtitle.clone().unwrap_or_default() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
+                                                            </div>
+                                                            <div class="flex flex-col gap-1 col-span-2">
+                                                                <label class="jetbrains text-[0.6rem] uppercase text-outline">"Date Range Override"</label>
+                                                                <input type="text" prop:value=move || get_override(eid, "date_range") on:input=move |ev| update_override(eid, "date_range", event_target_value(&ev)) placeholder=e.date_range.clone().unwrap_or_default() class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full" />
+                                                            </div>
+                                                            <div class="flex flex-col gap-1 col-span-2">
+                                                                <label class="jetbrains text-[0.6rem] uppercase text-outline">"Bullets Override (Newline separated)"</label>
+                                                                <textarea prop:value=move || get_override(eid, "bullets") on:input=move |ev| update_override(eid, "bullets", event_target_value(&ev)) rows="3" placeholder=e.bullets.clone().join("\n") class="bg-surface p-2 border border-outline-variant focus:border-primary focus:ring-0 text-xs jetbrains w-full resize-y"></textarea>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </Show>
-                                        </div>
-                                    }
-                                }).collect_view()
-                            },
-                            _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_view()
-                        }}
-                    </div>
+                                                </Show>
+                                            </div>
+                                        }
+                                    }).collect_view()
+                                },
+                                _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_view()
+                            }}
+                        </div>
+                        }.into_view()
+                    }}
                 </Transition>
             </div>
 
@@ -1952,31 +1957,36 @@ pub fn BaseResumeEntryForm(
                 <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider font-bold">"Assign to Profiles"</label>
                 <div class="text-xs text-outline mb-2">"Select which profiles should include this entry by default."</div>
                 <Transition fallback=move || view! { <div class="text-xs text-outline">"Loading profiles..."</div> }>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {move || match profiles_res.get() {
-                            Some(Ok(profiles)) => {
-                                profiles.into_iter().map(|p| {
-                                    let pid = p.id;
-                                    let is_checked = move || active_profiles.get().contains(&pid);
-                                    view! {
-                                        <div class="flex items-center gap-3 bg-surface p-3 border border-outline-variant/30 hover:bg-surface-container-high transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                prop:checked=is_checked
-                                                on:change=move |ev| toggle_profile(pid, event_target_checked(&ev))
-                                                class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:ring-2"
-                                            />
-                                            <div class="flex flex-col">
-                                                <span class="jetbrains text-xs font-bold text-on-surface uppercase tracking-wider">{p.name}</span>
-                                                <span class="text-[0.65rem] text-outline truncate">{p.target_role.unwrap_or_default()}</span>
+                    {move || {
+                        let res = profiles_res.get();
+                        view! {
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {match res {
+                                Some(Ok(profiles)) => {
+                                    profiles.into_iter().map(|p| {
+                                        let pid = p.id;
+                                        let is_checked = move || active_profiles.get().contains(&pid);
+                                        view! {
+                                            <div class="flex items-center gap-3 bg-surface p-3 border border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    prop:checked=is_checked
+                                                    on:change=move |ev| toggle_profile(pid, event_target_checked(&ev))
+                                                    class="w-4 h-4 text-primary bg-surface border-outline-variant focus:ring-primary focus:ring-2"
+                                                />
+                                                <div class="flex flex-col">
+                                                    <span class="jetbrains text-xs font-bold text-on-surface uppercase tracking-wider">{p.name}</span>
+                                                    <span class="text-[0.65rem] text-outline truncate">{p.target_role.unwrap_or_default()}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    }
-                                }).collect_view()
-                            },
-                            _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_view()
-                        }}
-                    </div>
+                                        }
+                                    }).collect_view()
+                                },
+                                _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_view()
+                            }}
+                        </div>
+                        }.into_view()
+                    }}
                 </Transition>
             </div>
 

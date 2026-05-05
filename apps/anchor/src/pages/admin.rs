@@ -501,7 +501,9 @@ fn PageHeaderTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = headers_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -512,7 +514,7 @@ fn PageHeaderTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match headers_resource.get() {
+                    {match res {
                         Some(Ok(headers)) => headers.into_iter().map(|h| {
                             let h_clone = h.clone();
                             view! {
@@ -532,7 +534,8 @@ fn PageHeaderTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -693,7 +696,9 @@ fn ResumeProfileTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING..."</div> }>
-            {move || view! {
+            {move || {
+                let res = items_res.get();
+                view! {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b-2 border-outline-variant/30">
@@ -703,7 +708,7 @@ fn ResumeProfileTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="jetbrains text-sm">
-                    {move || match items_res.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|item| {
                             let id_val = item.id;
                             let clone_item = item.clone();
@@ -787,7 +792,8 @@ fn ResumeProfileTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -952,7 +958,9 @@ fn LeadOptionTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING DATA..."</div> }>
-            {move || view! {
+            {move || {
+                let res = items_res.get();
+                view! {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b-2 border-outline-variant/30">
@@ -965,7 +973,7 @@ fn LeadOptionTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="jetbrains text-sm">
-                    {move || match items_res.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|item| {
                             let id_val = item.id;
                             let clone_item = item.clone();
@@ -1000,7 +1008,8 @@ fn LeadOptionTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1012,7 +1021,9 @@ fn MailingListTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = list_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1024,7 +1035,7 @@ fn MailingListTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match list_resource.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|i| view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 font-bold text-primary">{i.email}</td>
@@ -1055,7 +1066,8 @@ fn MailingListTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1070,7 +1082,9 @@ fn PostTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = posts_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1081,7 +1095,7 @@ fn PostTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match posts_resource.get() {
+                    {match res {
                         Some(Ok(posts)) => posts.into_iter().map(|p| {
                             let p_clone = p.clone();
                             let del_id = p.id.clone();
@@ -1120,7 +1134,8 @@ fn PostTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1134,7 +1149,9 @@ fn PasskeyTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = users_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1145,7 +1162,7 @@ fn PasskeyTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match users_resource.get() {
+                    {match res {
                         Some(Ok(users)) => users.into_iter().map(|u| view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">"#" {u.id}</td>
@@ -1174,7 +1191,8 @@ fn PasskeyTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1190,7 +1208,9 @@ pub fn LandingPageTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = pages_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1200,7 +1220,7 @@ pub fn LandingPageTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match pages_resource.get() {
+                    {match res {
                         Some(Ok(pages)) => pages.into_iter().map(|p| {
                             let p_clone = p.clone();
                             let p_clone_2 = p.clone();
@@ -1237,7 +1257,8 @@ pub fn LandingPageTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1253,7 +1274,9 @@ pub fn NavTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = nav_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1264,7 +1287,7 @@ pub fn NavTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match nav_resource.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|n| {
                             let n_clone = n.clone();
                             view! {
@@ -1304,7 +1327,8 @@ pub fn NavTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1320,7 +1344,9 @@ pub fn FooterTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = footer_resource.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1331,7 +1357,7 @@ pub fn FooterTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match footer_resource.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|n| {
                             let n_clone = n.clone();
                             view! {
@@ -1370,7 +1396,8 @@ pub fn FooterTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1386,7 +1413,9 @@ pub fn ServiceTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = data_res.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1395,7 +1424,7 @@ pub fn ServiceTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match data_res.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
@@ -1413,7 +1442,8 @@ pub fn ServiceTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1429,7 +1459,9 @@ pub fn CaseStudyTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = data_res.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1438,7 +1470,7 @@ pub fn CaseStudyTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match data_res.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
@@ -1456,7 +1488,8 @@ pub fn CaseStudyTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
@@ -1472,7 +1505,9 @@ pub fn HighlightTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || view! {
+            {move || {
+                let res = data_res.get();
+                view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1481,7 +1516,7 @@ pub fn HighlightTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {move || match data_res.get() {
+                    {match res {
                         Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
@@ -1499,7 +1534,8 @@ pub fn HighlightTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
-            }.into_view()}
+            }.into_view()
+            }}
         </Transition>
     }
 }
