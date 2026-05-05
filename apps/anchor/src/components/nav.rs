@@ -189,36 +189,43 @@ pub fn Nav() -> impl IntoView {
                             let root_class = root_class.clone();
                             let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
-                            root_items.into_iter().map(|root| {
-                                let root_class = root_class.clone();
-                                let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
+                            // Wrap in a stable single container — prevents Leptos 0.6 dyn_child
+                            // hydration panic caused by SSR emitting 0 children (resource pending)
+                            // while WASM hydrates with N children once the resource resolves.
+                            view! {
+                                <div class="flex items-center space-x-8">
+                                    {root_items.into_iter().map(|root| {
+                                        let root_class = root_class.clone();
+                                        let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
 
-                                if children.is_empty() {
-                                    view! {
-                                        <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
-                                            {root.label.clone()}
-                                        </a>
-                                    }.into_view()
-                                } else {
-                                    view! {
-                                        <div class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50">
-                                            <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="hover:text-primary block py-2 select-none">
-                                                {root.label.clone()}
-                                            </a>
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                                            <div class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm">
-                                                {children.into_iter().map(|child| {
-                                                    view! {
-                                                        <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
-                                                            {child.label.clone()}
-                                                        </a>
-                                                    }
-                                                }).collect_view()}
-                                            </div>
-                                        </div>
-                                    }.into_view()
-                                }
-                            }).collect_view()
+                                        if children.is_empty() {
+                                            view! {
+                                                <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
+                                                    {root.label.clone()}
+                                                </a>
+                                            }.into_view()
+                                        } else {
+                                            view! {
+                                                <div class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50">
+                                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="hover:text-primary block py-2 select-none">
+                                                        {root.label.clone()}
+                                                    </a>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                                    <div class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm">
+                                                        {children.into_iter().map(|child| {
+                                                            view! {
+                                                                <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
+                                                                    {child.label.clone()}
+                                                                </a>
+                                                            }
+                                                        }).collect_view()}
+                                                    </div>
+                                                </div>
+                                            }.into_view()
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }
                         }
                     }
                 </Suspense>
@@ -285,44 +292,47 @@ pub fn Nav() -> impl IntoView {
                             let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
                             let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
-                            root_items.into_iter().map(|root| {
-                                let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
+                            // Same stable-container fix as desktop — prevents dyn_child panic
+                            view! {
+                                <div class="flex flex-col">
+                                    {root_items.into_iter().map(|root| {
+                                        let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
 
-                                if children.is_empty() {
-                                    view! {
-                                        <a
-                                            href=root.href.clone().unwrap_or_else(|| "#".to_string())
-                                            on:click=move |_| set_mobile_menu_open.set(false)
-                                            class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0"
-                                        >
-                                            {root.label.clone()}
-                                        </a>
-                                    }.into_view()
-                                } else {
-                                    view! {
-                                        <div class="flex flex-col border-b border-outline-variant/15">
-                                            // Non-clickable parent category header
-                                            <div class="py-4 text-2xl font-bold text-on-surface-variant uppercase">
-                                                {root.label.clone()}
-                                            </div>
-                                            // Children indented under parent
-                                            <div class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25">
-                                                {children.into_iter().map(|child| {
-                                                    view! {
-                                                        <a
-                                                            href=child.href.clone().unwrap_or_else(|| "#".to_string())
-                                                            on:click=move |_| set_mobile_menu_open.set(false)
-                                                            class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block"
-                                                        >
-                                                            {child.label.clone()}
-                                                        </a>
-                                                    }
-                                                }).collect_view()}
-                                            </div>
-                                        </div>
-                                    }.into_view()
-                                }
-                            }).collect_view()
+                                        if children.is_empty() {
+                                            view! {
+                                                <a
+                                                    href=root.href.clone().unwrap_or_else(|| "#".to_string())
+                                                    on:click=move |_| set_mobile_menu_open.set(false)
+                                                    class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0"
+                                                >
+                                                    {root.label.clone()}
+                                                </a>
+                                            }.into_view()
+                                        } else {
+                                            view! {
+                                                <div class="flex flex-col border-b border-outline-variant/15">
+                                                    <div class="py-4 text-2xl font-bold text-on-surface-variant uppercase">
+                                                        {root.label.clone()}
+                                                    </div>
+                                                    <div class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25">
+                                                        {children.into_iter().map(|child| {
+                                                            view! {
+                                                                <a
+                                                                    href=child.href.clone().unwrap_or_else(|| "#".to_string())
+                                                                    on:click=move |_| set_mobile_menu_open.set(false)
+                                                                    class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block"
+                                                                >
+                                                                    {child.label.clone()}
+                                                                </a>
+                                                            }
+                                                        }).collect_view()}
+                                                    </div>
+                                                </div>
+                                            }.into_view()
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }
                         }}
                     </nav>
                 </Suspense>
