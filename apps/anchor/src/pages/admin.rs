@@ -501,6 +501,7 @@ fn PageHeaderTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -531,6 +532,7 @@ fn PageHeaderTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -691,6 +693,7 @@ fn ResumeProfileTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING..."</div> }>
+            {move || view! {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b-2 border-outline-variant/30">
@@ -784,6 +787,7 @@ fn ResumeProfileTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -948,6 +952,7 @@ fn LeadOptionTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING DATA..."</div> }>
+            {move || view! {
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b-2 border-outline-variant/30">
@@ -995,6 +1000,7 @@ fn LeadOptionTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1006,6 +1012,7 @@ fn MailingListTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1048,6 +1055,7 @@ fn MailingListTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1062,6 +1070,7 @@ fn PostTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1111,6 +1120,7 @@ fn PostTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1124,6 +1134,7 @@ fn PasskeyTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1163,6 +1174,7 @@ fn PasskeyTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1178,6 +1190,7 @@ pub fn LandingPageTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1224,6 +1237,7 @@ pub fn LandingPageTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1239,6 +1253,7 @@ pub fn NavTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1289,6 +1304,7 @@ pub fn NavTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1304,6 +1320,7 @@ pub fn FooterTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
@@ -1353,6 +1370,7 @@ pub fn FooterTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1368,6 +1386,7 @@ pub fn ServiceTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1394,6 +1413,7 @@ pub fn ServiceTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1409,6 +1429,7 @@ pub fn CaseStudyTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1435,6 +1456,7 @@ pub fn CaseStudyTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }
@@ -1450,6 +1472,7 @@ pub fn HighlightTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
+            {move || view! {
             <table class="w-full text-left jetbrains text-sm">
                 <thead><tr class="text-outline border-b border-outline-variant/30">
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
@@ -1476,6 +1499,7 @@ pub fn HighlightTable() -> impl IntoView {
                     }}
                 </tbody>
             </table>
+            }.into_view()}
         </Transition>
     }
 }

@@ -286,19 +286,21 @@ pub fn Nav() -> impl IntoView {
             <div class="flex flex-col flex-1 overflow-y-auto pt-20 px-6 pb-16">
                 // ── Nav links list ──────────────────────────────────────────
                 <Suspense fallback=move || view! {
-                    <div class="flex flex-col gap-4 pt-6 animate-pulse">
-                        <div class="h-9 w-36 bg-outline-variant/20 rounded"></div>
-                        <div class="h-9 w-28 bg-outline-variant/20 rounded"></div>
-                        <div class="h-9 w-32 bg-outline-variant/20 rounded"></div>
-                    </div>
-                }>
                     <nav class="flex flex-col">
-                        {move || {
-                            let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
-                            let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
+                        <div class="flex flex-col gap-4 pt-6 animate-pulse">
+                            <div class="h-9 w-36 bg-outline-variant/20 rounded"></div>
+                            <div class="h-9 w-28 bg-outline-variant/20 rounded"></div>
+                            <div class="h-9 w-32 bg-outline-variant/20 rounded"></div>
+                        </div>
+                    </nav>
+                }>
+                    {move || {
+                        let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
+                        let root_items: Vec<_> = items.iter().filter(|i| i.parent_id.is_none()).collect();
 
-                            // Same stable-container fix as desktop — prevents dyn_child panic
-                            view! {
+                        // Same stable-container fix as desktop — prevents dyn_child panic
+                        view! {
+                            <nav class="flex flex-col">
                                 <div class="flex flex-col">
                                     {root_items.into_iter().map(|root| {
                                         let children: Vec<_> = items.iter().filter(|i| i.parent_id == Some(root.id)).collect();
@@ -337,9 +339,9 @@ pub fn Nav() -> impl IntoView {
                                         }
                                     }).collect_view()}
                                 </div>
-                            }
-                        }}
-                    </nav>
+                            </nav>
+                        }
+                    }}
                 </Suspense>
 
                 // ── Admin terminal shortcut ─────────────────────────────────
