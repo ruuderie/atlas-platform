@@ -186,11 +186,20 @@ pub fn Admin() -> impl IntoView {
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
+            // Suspense is INSIDE <main> (not wrapping it) so there is only ever
+            // one <main> element in the DOM — the hydration walker never sees a
+            // structural mismatch. Leptos serializes auth_resource during SSR
+            // because it is read inside this Suspense boundary, so WASM picks up
+            // the resolved value immediately without a refetch.
+            <Suspense fallback=move || view! {
+                <div class="flex-1 flex justify-center items-center">
+                    <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
+                </div>
+            }>
             {move || match auth_state() {
-                // Pending: auth_resource not yet resolved.
-                // With create_resource + SSR serialization this arm is practically
-                // unreachable (the value is available before first WASM render),
-                // but is required for type completeness and acts as a safe fallback.
+                // Pending: Suspense fallback renders instead — this arm is kept
+                // only for type completeness and is practically unreachable once
+                // the SSR-serialized resource value is available on the WASM side.
                 AuthState::Pending => view! {
                     <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
@@ -456,6 +465,7 @@ pub fn Admin() -> impl IntoView {
                     </div>
                 }.into_view(),
             }}
+            </Suspense>
         </main>
     }
 }
