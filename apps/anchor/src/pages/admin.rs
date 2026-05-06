@@ -185,19 +185,12 @@ pub fn Admin() -> impl IntoView {
 
 
     view! {
-        // <Suspense> owns the loading spinner. While auth_resource is pending,
-        // the fallback shows. Once it resolves, the match arm below renders.
-        <Suspense fallback=move || view! {
-            <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
-                <div class="flex-1 flex justify-center items-center">
-                    <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
-                </div>
-            </main>
-        }>
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
             {move || match auth_state() {
-                // Pending arm is structurally required but the <Suspense> fallback
-                // renders before this closure is evaluated while loading.
+                // Pending: auth_resource not yet resolved.
+                // With create_resource + SSR serialization this arm is practically
+                // unreachable (the value is available before first WASM render),
+                // but is required for type completeness and acts as a safe fallback.
                 AuthState::Pending => view! {
                     <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
@@ -464,7 +457,6 @@ pub fn Admin() -> impl IntoView {
                 }.into_view(),
             }}
         </main>
-        </Suspense>
     }
 }
 
