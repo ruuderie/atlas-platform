@@ -28,8 +28,8 @@ pub struct GridBlockData {
 
 #[component]
 pub fn GridBlock(data: GridBlockData) -> impl IntoView {
-    let design = use_context::<crate::pages::landing::DesignConfig>()
-        .unwrap_or_default();
+    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+        .map(|s| s.get()).unwrap_or_default();
         
     view! {
         <section class=format!("py-16 md:py-24 bg-surface dark:bg-surface w-full {}", 

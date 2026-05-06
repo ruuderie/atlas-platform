@@ -20,8 +20,8 @@ pub struct HeroBlockData {
 
 #[component]
 pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
-    let design = use_context::<crate::pages::landing::DesignConfig>()
-        .unwrap_or_default();
+    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+        .map(|s| s.get()).unwrap_or_default();
     
     let layout_type = data.layout.unwrap_or_else(|| "standard".to_string());
 

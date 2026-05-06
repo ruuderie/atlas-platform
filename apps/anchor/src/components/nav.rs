@@ -149,8 +149,8 @@ pub async fn delete_nav_item(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[component]
 pub fn Nav() -> impl IntoView {
-    let design = use_context::<crate::pages::landing::DesignConfig>()
-        .unwrap_or_default();
+    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+        .map(|s| s.get()).unwrap_or_default();
         
     let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
     let nav_resource = create_resource(|| (), |_| get_nav_items());

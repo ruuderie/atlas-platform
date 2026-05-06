@@ -89,21 +89,24 @@ pub fn WebformsTable() -> impl IntoView {
     }
 }
 
-/// Three-state auth signal to prevent Leptos hydration mismatch.
-///
-/// The SSR pass renders `Pending` (a neutral skeleton) because the async
-/// session check hasn't run yet. The WASM hydrator also starts in `Pending`,
-/// so the server-rendered and client-rendered DOM always match at hydration
-/// time. The `create_effect` resolves to `Yes` or `No` immediately after
-/// WASM mounts, which triggers a clean reactive update — no `dyn_child`
-/// `unwrap()` on a `None` node.
+/// Returned by the `auth_resource` async block.
+/// Carries the magic-link flag through to view-layer derived closures.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+enum AuthStep {
+    /// Session validated (or magic link verified). `from_magic_link` triggers the
+    /// passkey-registration nudge shown immediately after a magic-link login.
+    Authenticated { from_magic_link: bool },
+    /// No valid session — render the login form.
+    Unauthenticated,
+}
+
+/// Three-state auth enum for the view match.
+/// `Pending` is only reached when the resource hasn't resolved yet;
+/// in practice the `<Suspense>` fallback covers that state.
 #[derive(Clone, PartialEq)]
 enum AuthState {
-    /// Initial state on both SSR and first WASM frame — renders a loading skeleton.
     Pending,
-    /// Session check resolved to unauthenticated — renders login form.
     No,
-    /// Session check resolved to authenticated — renders dashboard.
     Yes,
 }
 
@@ -111,41 +114,56 @@ enum AuthState {
 pub fn Admin() -> impl IntoView {
     let query = leptos_router::use_query_map();
 
-    // Start in Pending — identical on SSR and initial WASM state.
-    let (auth_state, set_auth_state) = create_signal(AuthState::Pending);
+    // ── Auth resource ─────────────────────────────────────────────────────────
+    // Uses create_resource (not create_effect + spawn_local) so it integrates
+    // directly with the Leptos reactive scheduler and resolves correctly even
+    // when the component mounts inside the outer App <Suspense>.
+    //
+    // Reactive key: the ?token= query param. If a magic-link token is present
+    // it is verified first; otherwise we fall through to session validation.
+    // The resource re-runs automatically if the URL query string changes.
+    let auth_resource = create_resource(
+        move || query.with(|q| q.get("token").cloned()),
+        |token| async move {
+            if let Some(t) = token {
+                if !t.is_empty() {
+                    // Magic link: verify token, set HttpOnly cookie server-side,
+                    // then treat as authenticated. Auto-login — no extra click.
+                    if verify_magic_link(t).await.is_ok() {
+                        return AuthStep::Authenticated { from_magic_link: true };
+                    }
+                }
+            }
+            match check_session().await {
+                Ok(true) => AuthStep::Authenticated { from_magic_link: false },
+                _        => AuthStep::Unauthenticated,
+            }
+        },
+    );
+
+    // Derived closures — read the resource; <Suspense> handles the None/pending case.
+    let auth_state    = move || match auth_resource.get() {
+        Some(AuthStep::Authenticated { .. }) => AuthState::Yes,
+        Some(AuthStep::Unauthenticated)      => AuthState::No,
+        None                                 => AuthState::Pending,
+    };
+    let show_passkey_nudge = move || matches!(
+        auth_resource.get(),
+        Some(AuthStep::Authenticated { from_magic_link: true })
+    );
+
     let (active_tab, set_active_tab) = create_signal("DASHBOARD");
     let (username, set_username) = create_signal(String::new());
-    let (setup_token, set_setup_token) = create_signal(String::new());
     let (is_loading, set_is_loading) = create_signal(false);
     let (auth_error, set_auth_error) = create_signal(String::new());
-
 
     let (modal_state, set_modal_state) = create_signal(ModalState::None);
     provide_context(modal_state);
     provide_context(set_modal_state);
 
-    let (refresh, set_refresh) = create_signal(0);
+    let (refresh, set_refresh) = create_signal(0i32);
     provide_context(refresh);
     provide_context(set_refresh);
-
-    let (show_passkey_nudge, set_show_passkey_nudge) = create_signal(false);
-
-    create_effect(move |_| {
-        spawn_local(async move {
-            let q = query.get();
-            if let Some(token) = q.get("token") {
-                if verify_magic_link(token.clone()).await.is_ok() {
-                    set_auth_state.set(AuthState::Yes);
-                    set_show_passkey_nudge.set(true);
-                    return;
-                }
-            }
-            match check_session().await {
-                Ok(true) => set_auth_state.set(AuthState::Yes),
-                _        => set_auth_state.set(AuthState::No),
-            }
-        });
-    });
 
     let login_action = create_action(move |_: &()| async move {
         let uname = username.get_untracked();
@@ -167,9 +185,19 @@ pub fn Admin() -> impl IntoView {
 
 
     view! {
+        // <Suspense> owns the loading spinner. While auth_resource is pending,
+        // the fallback shows. Once it resolves, the match arm below renders.
+        <Suspense fallback=move || view! {
+            <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
+                <div class="flex-1 flex justify-center items-center">
+                    <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
+                </div>
+            </main>
+        }>
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
-            {move || match auth_state.get() {
-                // ── Pending: identical on SSR and initial WASM frame ────────────
+            {move || match auth_state() {
+                // Pending arm is structurally required but the <Suspense> fallback
+                // renders before this closure is evaluated while loading.
                 AuthState::Pending => view! {
                     <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
@@ -346,16 +374,12 @@ pub fn Admin() -> impl IntoView {
 
                             <button
                                 on:click=move |_| {
-                                    // Call the backend revoke endpoint so the server-side session
-                                    // is deactivated and the HttpOnly cookie is cleared (Max-Age=0).
-                                    // Resetting local state without this would leave the cookie live.
-                                     spawn_local(async move {
-                                        // RevokeSession is a server function — it clears the
-                                        // HttpOnly cookie server-side and best-effort deactivates
-                                        // the session record in the backend.
+                                    spawn_local(async move {
+                                        // RevokeSession clears the HttpOnly cookie server-side.
                                         let _ = revoke_session().await;
-                                        // Always transition to No regardless of network result.
-                                        set_auth_state.set(AuthState::No);
+                                        // Refetch auth_resource — it will re-run check_session,
+                                        // find no valid cookie, and resolve to Unauthenticated.
+                                        auth_resource.refetch();
                                     });
                                 }
                                 class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
@@ -367,7 +391,7 @@ pub fn Admin() -> impl IntoView {
                         // Main Content Area
                         <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
                             <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
-                                <Show when=move || show_passkey_nudge.get()>
+                                <Show when=show_passkey_nudge>
                                     <PasskeyRegistrationNudge />
                                 </Show>
                                 // Header
@@ -440,6 +464,7 @@ pub fn Admin() -> impl IntoView {
                 }.into_view(),
             }}
         </main>
+        </Suspense>
     }
 }
 

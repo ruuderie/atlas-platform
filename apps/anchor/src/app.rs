@@ -92,6 +92,44 @@ pub fn App() -> impl IntoView {
 
     let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
 
+    // ── Reactive derived values with immediate defaults ───────────────────────
+    // These read settings_resource but provide sensible fallbacks, so the Router
+    // mounts immediately without waiting for settings to resolve.
+    let get_settings = move || {
+        settings_resource
+            .get()
+            .and_then(Result::ok)
+            .unwrap_or_default()
+    };
+
+    let theme_color = Signal::derive(move || {
+        get_settings()
+            .theme_primary_color
+            .unwrap_or_else(|| "var(--color-primary, #004c6c)".to_string())
+    });
+
+    // DesignConfig provided as a ReadSignal so it's reactive (updates when settings
+    // load from DB) and always available immediately with a sensible default.
+    // Consumers call: use_context::<ReadSignal<DesignConfig>>().map(|s| s.get())
+    let design_config_signal = create_rw_signal(crate::pages::landing::DesignConfig::default());
+    create_effect(move |_| {
+        if let Some(dc) = get_settings().design_config {
+            design_config_signal.set(dc);
+        }
+    });
+    provide_context(design_config_signal.read_only());
+
+    // Meta tag signals — reactive with fallbacks.
+    let title_sig = move || {
+        let s = get_settings();
+        if s.meta_title.is_empty() { "Ruud Salym Erie - Technical Architect".to_string() } else { s.meta_title }
+    };
+    let desc_sig = move || {
+        let s = get_settings();
+        if s.meta_description.is_empty() { "Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".to_string() } else { s.meta_description }
+    };
+    let og_image_sig = move || get_settings().og_image;
+
     view! {
         <Html lang="en"/>
         <Body class="text-on-surface selection:bg-secondary-container selection:text-on-secondary-container"/>
@@ -110,92 +148,72 @@ pub fn App() -> impl IntoView {
         </Script>
         <Stylesheet id="leptos" href="/pkg/anchor.css?v=2"/>
 
-        {
-            let title_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.meta_title).unwrap_or("Ruud Salym Erie - Technical Architect".into());
-            let desc_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.meta_description).unwrap_or("Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".into());
-            let og_image_sig = move || settings_resource.get().and_then(Result::ok).map(|s| s.og_image).unwrap_or("".into());
+        <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <Title text=title_sig/>
+        <Meta name="description" content=desc_sig/>
+        <Meta property="og:title" content=title_sig/>
+        <Meta property="og:description" content=desc_sig/>
+        <Meta property="og:type" content="website"/>
+        <Meta property="og:image" content=og_image_sig/>
+        <Meta name="twitter:card" content="summary_large_image"/>
+        <Meta name="twitter:title" content=title_sig/>
+        <Meta name="twitter:description" content=desc_sig/>
+        <Meta name="twitter:image" content=og_image_sig/>
 
-            view! {
-                <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-                <Title text=title_sig/>
-                <Meta name="description" content=desc_sig/>
-                <Meta property="og:title" content=title_sig/>
-                <Meta property="og:description" content=desc_sig/>
-                <Meta property="og:type" content="website"/>
-                <Meta property="og:image" content=og_image_sig/>
-                <Meta name="twitter:card" content="summary_large_image"/>
-                <Meta name="twitter:title" content=title_sig/>
-                <Meta name="twitter:description" content=desc_sig/>
-                <Meta name="twitter:image" content=og_image_sig/>
+        // ThemeProvider uses the reactive signal — updates when settings load
+        // but does NOT block the Router from mounting.
+        <crate::components::theme_provider::ThemeProvider primary_color=theme_color>
+            <Router>
+                <div class="flex flex-col min-h-screen">
+                    <Nav />
+                    {
+                        view! { <PageViewTracker /> }
+                    }
 
-                <Suspense fallback=move || view! { <span class="hidden"></span> }>
-                    {move || {
-                        let settings = settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or_default();
-                        let gcode = settings.google_analytics_id;
-                        if !gcode.is_empty() {
+                    // GA script — non-blocking, scoped Suspense, renders when ready.
+                    <Suspense fallback=move || view! { <span class="hidden"></span> }>
+                        {move || {
+                            let s = settings_resource.get().and_then(Result::ok)?;
+                            let gcode = s.google_analytics_id;
+                            if gcode.is_empty() { return None; }
                             let gurl = format!("https://www.googletagmanager.com/gtag/js?id={}", gcode);
                             let ascript = format!("window.dataLayer = window.dataLayer || []; function gtag(){{dataLayer.push(arguments);}} gtag('js', new Date()); gtag('config', '{}');", gcode);
-                            view! {
+                            Some(view! {
                                 <Script src=gurl />
                                 <Script>{ascript}</Script>
-                            }.into_view()
-                        } else {
-                            view! {}.into_view()
-                        }
-                    }}
-                </Suspense>
-            }
-        }
+                            })
+                        }}
+                    </Suspense>
 
-        <Suspense fallback=move || view! { <div class="min-h-screen bg-surface"></div> }>
-            {move || {
-                let settings = settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or_default();
-                
-                let theme_color = settings.theme_primary_color.clone().unwrap_or_else(|| "var(--color-primary, #004c6c)".to_string());
-                let design_config = settings.design_config.clone().unwrap_or_default();
-                
-                provide_context(design_config);
+                    <div class="flex-1 flex flex-col">
+                        <Routes>
+                            <Route path="/" view=DynamicHomeLanding/>
+                            <Route path="/legacy" view=Landing/>
+                            <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
+                            <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
+                            <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
+                            <Route path="/blog" view=Blog/>
+                            <Route path="/blog/:slug" view=BlogPost/>
+                            <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
+                            <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
+                            <Route path="/investments/bitcoin" view=BitcoinDashboard/>
+                            <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
+                            <Route path="/book" view=BookDiscovery/>
+                            <Route path="/terms" view=Terms/>
+                            <Route path="/privacy" view=Privacy/>
+                            <Route path="/p/*slug" view=DynamicLanding/>
+                            <Route path="/e/*slug" view=DynamicEntry/>
+                            <Route path="/setup" view=TenantOnboarding/>
+                            <Route path="/setup-passkey" view=SetupPasskey/>
+                            <Route path="/admin" view=Admin/>
+                            <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
+                        </Routes>
+                    </div>
+                    <Footer />
+                </div>
 
-                view! {
-                    <crate::components::theme_provider::ThemeProvider primary_color=move || theme_color.clone()>
-                        <Router>
-                            <div class="flex flex-col min-h-screen">
-                                <Nav />
-                                {
-                                    view! { <PageViewTracker /> }
-                                }
-                                <div class="flex-1 flex flex-col">
-                                    <Routes>
-                                        <Route path="/" view=DynamicHomeLanding/>
-                                        <Route path="/legacy" view=Landing/>
-                                        <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
-                                        <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
-                                        <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
-                                        <Route path="/blog" view=Blog/>
-                                        <Route path="/blog/:slug" view=BlogPost/>
-                                        <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
-                                        <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
-                                        <Route path="/investments/bitcoin" view=BitcoinDashboard/>
-                                        <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
-                                        <Route path="/book" view=BookDiscovery/>
-                                        <Route path="/terms" view=Terms/>
-                                        <Route path="/privacy" view=Privacy/>
-                                        <Route path="/p/*slug" view=DynamicLanding/>
-                                        <Route path="/e/*slug" view=DynamicEntry/>
-                                        <Route path="/setup" view=TenantOnboarding/>
-                                        <Route path="/setup-passkey" view=SetupPasskey/>
-                                        <Route path="/admin" view=Admin/>
-                                        <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
-                                    </Routes>
-                                </div>
-                                <Footer />
-                            </div>
-
-                        </Router>
-                    </crate::components::theme_provider::ThemeProvider>
-                }.into_view()
-            }}
-        </Suspense>
+            </Router>
+        </crate::components::theme_provider::ThemeProvider>
     }
 }
 
