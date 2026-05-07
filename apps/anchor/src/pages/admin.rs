@@ -251,11 +251,11 @@ pub fn Admin() -> impl IntoView {
                                             </button>
                                             <div id="passkey-message" class="text-sm text-center text-error font-medium h-4"></div>
 
-                                            <script>
+                                            <script inner_html=r#"
                                             // Dynamically load SimpleWebAuthn and bind the click listener inside
                                             // its onload callback — eliminates the setTimeout race on slow networks.
                                             // Uses same-origin /api paths since anchor is SSR on the same host.
-                                            "(function() {
+                                            (function() {
                                                 var existing = document.querySelector('script[data-simplewebauthn]');
                                                 var scriptEl = existing || document.createElement('script');
                                                 if (!existing) {
@@ -318,8 +318,8 @@ pub fn Admin() -> impl IntoView {
                                                 } else {
                                                     scriptEl.onload = bindBtn;
                                                 }
-                                            })();"
-                                            </script>
+                                            })();
+                                            "#></script>
 
                                             <div class="text-center pt-2">
                                                 <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(true)>
