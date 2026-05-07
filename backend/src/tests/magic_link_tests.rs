@@ -87,13 +87,13 @@ async fn test_magic_link_flow() {
         .unwrap();
     assert_eq!(ver_res.status(), StatusCode::OK);
 
-    // Validate that consuming a Magic Link natively ERADICATED the mock passkey
+    // Validate that consuming a regular Magic Link DOES NOT eradicate the mock passkey
     let count_after = passkey::Entity::find()
         .filter(passkey::Column::UserId.eq(token_model.user_id))
         .count(&db)
         .await
         .unwrap();
-    assert_eq!(count_after, 0, "The passkey was NOT safely purged after Magic Link verification");
+    assert_eq!(count_after, 1, "The passkey should NOT be purged after regular Magic Link verification");
 
     // 3. Test Expiration logic
     // Create an expired token manually
@@ -105,6 +105,8 @@ async fn test_magic_link_flow() {
         expires_at: Set(Utc::now() - Duration::minutes(30)), // Expired 30 mins ago
         is_used: Set(false),
         created_at: Set(Utc::now() - Duration::hours(1)),
+        is_setup_token: Set(false),
+        redirect_url: Set(None),
     }.insert(&db).await.unwrap();
 
     let ver_expired_res = app.clone()
@@ -135,6 +137,8 @@ async fn test_magic_link_flow() {
         expires_at: Set(Utc::now() + Duration::minutes(30)), // Valid
         is_used: Set(false),
         created_at: Set(Utc::now()),
+        is_setup_token: Set(false),
+        redirect_url: Set(None),
     }.insert(&db).await.unwrap();
 
     // Try consuming it inside Tenant 2
