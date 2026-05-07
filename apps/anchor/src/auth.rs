@@ -3,7 +3,9 @@ use leptos::*;
 // Replaced with platform backend auth proxies
 #[server(RequestMagicLink, "/api")]
 pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> {
-    // We will proxy to the centralized magic link route
+    // Proxy to the Atlas backend magic link route.
+    // Route registered in backend/src/handlers/magic_links.rs as /magic-links/request
+    // merged directly (no /api/auth prefix) in backend/src/api.rs.
     #[cfg(feature = "ssr")]
     {
         let payload = serde_json::json!({
@@ -27,6 +29,7 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
 
 #[server(VerifyMagicLink, "/api")]
 pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
+    // Route: /magic-links/verify (registered in magic_links::public_routes(), no /api/auth prefix)
     #[cfg(feature = "ssr")]
     {
         let payload = serde_json::json!({
