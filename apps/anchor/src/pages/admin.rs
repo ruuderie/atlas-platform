@@ -328,47 +328,49 @@ pub fn Admin() -> impl IntoView {
                                             </div>
                                         </div>
                                     }>
-                                        <div class="relative w-full group">
-                                            <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Identity Hash"</label>
-                                            <input
-                                                type="text"
-                                                placeholder="admin"
-                                                on:input=move |ev| set_username.set(event_target_value(&ev))
-                                                prop:value=username
-                                                class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
-                                            />
-                                        </div>
+                                        <div class="space-y-6">
+                                            <div class="relative w-full group">
+                                                <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Identity Hash"</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="admin"
+                                                    on:input=move |ev| set_username.set(event_target_value(&ev))
+                                                    prop:value=username
+                                                    class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
+                                                />
+                                            </div>
 
-                                        <div class="space-y-4 pt-6">
-                                            <Show when=move || !auth_error.get().is_empty()>
-                                                <div class="bg-error/10 border-l-4 border-error p-4 mb-4 text-error jetbrains text-sm font-medium">
-                                                    {move || auth_error.get()}
-                                                </div>
-                                            </Show>
-
-                                            <button
-                                                on:click=move |_| login_action.dispatch(())
-                                                disabled=move || { is_loading.get() || countdown.get() > 0 }
-                                                class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-                                            >
-                                                <Show when=move || is_loading.get()>
-                                                    <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                            <div class="space-y-4 pt-6">
+                                                <Show when=move || !auth_error.get().is_empty()>
+                                                    <div class="bg-error/10 border-l-4 border-error p-4 mb-4 text-error jetbrains text-sm font-medium">
+                                                        {move || auth_error.get()}
+                                                    </div>
                                                 </Show>
-                                                <span class="inline-block translate-y-[1px]">
-                                                    {move || if countdown.get() > 0 {
-                                                        format!("Resend in {}s", countdown.get())
-                                                    } else if auth_error.get() == "Magic link sent! Check your email." {
-                                                        "Resend Magic Link".to_string()
-                                                    } else {
-                                                        "Send Magic Link".to_string()
-                                                    }}
-                                                </span>
-                                            </button>
-                                            
-                                            <div class="text-center pt-2">
-                                                <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(false)>
-                                                    "← Back to Passkey"
+
+                                                <button
+                                                    on:click=move |_| login_action.dispatch(())
+                                                    disabled=move || { is_loading.get() || countdown.get() > 0 }
+                                                    class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+                                                >
+                                                    <Show when=move || is_loading.get()>
+                                                        <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                                    </Show>
+                                                    <span class="inline-block translate-y-[1px]">
+                                                        {move || if countdown.get() > 0 {
+                                                            format!("Resend in {}s", countdown.get())
+                                                        } else if auth_error.get() == "Magic link sent! Check your email." {
+                                                            "Resend Magic Link".to_string()
+                                                        } else {
+                                                            "Send Magic Link".to_string()
+                                                        }}
+                                                    </span>
                                                 </button>
+                                                
+                                                <div class="text-center pt-2">
+                                                    <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(false)>
+                                                        "← Back to Passkey"
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </Show>
