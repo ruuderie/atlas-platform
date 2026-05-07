@@ -4,21 +4,46 @@ use leptos::*;
 #[server(RequestMagicLink, "/api")]
 pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> {
     // Proxy to the Atlas backend magic link route.
-    // Route registered in backend/src/handlers/magic_links.rs as /magic-links/request
-    // merged directly (no /api/auth prefix) in backend/src/api.rs.
+    // Passes redirect_url derived from the current request's Host header so
+    // the email link points back to this app's /admin page — not the Atlas
+    // platform admin. The backend validates the host against app_domains.
     #[cfg(feature = "ssr")]
     {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        // Build redirect_url from the SSR request host (scheme inferred: https in prod, http for localhost)
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let host = headers
+            .get("host")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("localhost");
+        let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
+            "http"
+        } else {
+            "https"
+        };
+        let redirect_url = format!("{}://{}/admin", scheme, host);
+
         let payload = serde_json::json!({
             "email": email,
+            "redirect_url": redirect_url,
         });
-        
+
         let url = format!("{}/api/auth/magic-link/request", crate::atlas_client::get_atlas_api_url());
         let client = reqwest::Client::new();
         let res = client.post(&url).json(&payload).send().await;
 
         match res {
             Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
-            _ => Err(ServerFnError::ServerError("Failed to request magic link".into())),
+            Ok(r) => {
+                tracing::warn!("Magic link request failed: HTTP {}", r.status());
+                Err(ServerFnError::ServerError("Failed to request magic link".into()))
+            }
+            Err(e) => {
+                tracing::error!("Magic link request error: {:?}", e);
+                Err(ServerFnError::ServerError("Failed to request magic link".into()))
+            }
         }
     }
     #[cfg(not(feature = "ssr"))]
