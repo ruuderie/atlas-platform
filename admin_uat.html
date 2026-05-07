@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+            <html lang="en">
+                <head>
+                    <meta charset="utf-8"/>
+                    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                    <title>Ruud Salym Erie - Technical Architect</title><link id="leptos-link-1" href="https://fonts.googleapis.com" rel="preconnect" data-hk="0-0-0-5"/><link id="leptos-link-2" crossorigin="anonymous" href="https://fonts.gstatic.com" rel="preconnect" data-hk="0-0-0-7"/><link id="leptos-link-3" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" data-hk="0-0-0-9"/><link id="leptos-link-4" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" data-hk="0-0-0-11"/><script id="leptos-link-5" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" data-hk="0-0-0-13"></script><script id="leptos-link-6" data-hk="0-0-0-15">window.addEventListener('load', () => { mermaid.initialize({ startOnLoad: false, theme: 'dark' }); });window.renderMermaid = function() { setTimeout(function() { try { document.querySelectorAll('pre > code.language-mermaid').forEach(el => { let div = document.createElement('div'); div.className = 'mermaid'; div.textContent = el.textContent; el.parentElement.replaceWith(div); }); mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };</script><link id="leptos" href="/pkg/anchor.css?v=2" rel="stylesheet" data-hk="0-0-0-18"/><meta name="viewport" content="width=device-width, initial-scale=1.0" data-hk="0-0-0-21"/><meta name="description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-24"/><meta property="og:title" content="Ruud Salym Erie - Technical Architect" data-hk="0-0-0-26"/><meta property="og:description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-28"/><meta property="og:type" content="website" data-hk="0-0-0-30"/><meta property="og:image" content data-hk="0-0-0-32"/><meta name="twitter:card" content="summary_large_image" data-hk="0-0-0-34"/><meta name="twitter:title" content="Ruud Salym Erie - Technical Architect" data-hk="0-0-0-36"/><meta name="twitter:description" content="Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications." data-hk="0-0-0-38"/><meta name="twitter:image" content data-hk="0-0-0-40"/>
+                    <link rel="modulepreload" href="/pkg/anchor.js">
+                    <link rel="preload" href="/pkg/anchor.wasm" as="fetch" type="application/wasm" crossorigin="">
+                    <script type="module">
+                        function idle(c) {
+                            if ("requestIdleCallback" in window) {
+                                window.requestIdleCallback(c);
+                            } else {
+                                c();
+                            }
+                        }
+                        idle(() => {
+                            import('/pkg/anchor.js')
+                                .then(mod => {
+                                    mod.default('/pkg/anchor.wasm').then(() => mod.hydrate());
+                                })
+                        });
+                    </script>
+                    
+                </head><body class="text-on-surface selection:bg-secondary-container selection:text-on-secondary-container"><!--hk=0-0-0-3--><!--hk=0-0-0-4--><!--hk=0-0-0-6--><!--hk=0-0-0-8--><!--hk=0-0-0-10--><!--hk=0-0-0-12--><!--hk=0-0-0-14--><!--hk=0-0-0-17--><!--hk=0-0-0-19--><!--hk=0-0-0-22--><!--hk=0-0-0-23--><!--hk=0-0-0-25--><!--hk=0-0-0-27--><!--hk=0-0-0-29--><!--hk=0-0-0-31--><!--hk=0-0-0-33--><!--hk=0-0-0-35--><!--hk=0-0-0-37--><!--hk=0-0-0-39--><!--hk=0-0-0-41--><!--suspense-open-0-1-0-0--><span data-hk="0-1-0-1" class="hidden"></span><!--hk=0-1-0-1--><!--suspense-close-0-1-0-0--><!--hk=0-0-0-42--><!--hk=0-0-0-20--><!--suspense-open-0-3-0-0--><div data-hk="0-3-0-1" class="min-h-screen bg-surface"></div><!--hk=0-3-0-1--><!--suspense-close-0-3-0-0--><!--hk=0-2-0-1--><!--hk=0-0-0-2--><!--hk=0-0-0-1--><script>__LEPTOS_PENDING_RESOURCES = [{"idx":1,"version":1},{"idx":2,"version":1},{"idx":3,"version":1},{"idx":4,"version":1},{"idx":5,"version":1}];__LEPTOS_RESOLVED_RESOURCES = new Map();__LEPTOS_RESOURCE_RESOLVERS = new Map();__LEPTOS_LOCAL_ONLY = [];</script>
+                <template id="0-12-0-0f"><div data-hk="0-12-0-9" class="contents"><a href="/terms" data-hk="0-12-0-4" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/terms" data-hk="0-12-0-5" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/privacy" data-hk="0-12-0-6" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><a href="/privacy" data-hk="0-12-0-7" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><!--hk=0-12-0-8--></div><!--hk=0-12-0-3--><!--hk=0-12-0-2--><!--hk=0-12-0-1--></template>
+                <script>
+                    (function() { let id = "0-12-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-12-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-10-0-0f"><nav data-hk="0-10-0-4" class="flex flex-col"><div data-hk="0-10-0-5" class="flex flex-col"><div data-hk="0-10-0-6" class="flex flex-col border-b border-outline-variant/15"><div data-hk="0-10-0-7" class="py-4 text-2xl font-bold text-on-surface-variant uppercase">WORK</div><div data-hk="0-10-0-8" class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25"><a href="/resume" data-hk="0-10-0-9" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">EXPERIENCE</a><a href="/projects" data-hk="0-10-0-10" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">PROJECTS</a><!--hk=0-10-0-11--></div></div><a href="/services" data-hk="0-10-0-12" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">SERVICES</a><a href="/book" data-hk="0-10-0-13" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">BOOK DISCOVERY</a><a href="/blog" data-hk="0-10-0-14" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">BLOG</a><div data-hk="0-10-0-15" class="flex flex-col border-b border-outline-variant/15"><div data-hk="0-10-0-16" class="py-4 text-2xl font-bold text-on-surface-variant uppercase">INVESTMENTS</div><div data-hk="0-10-0-17" class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25"><a href="/investments/real-estate" data-hk="0-10-0-18" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-10-0-19" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">BITCOIN</a><!--hk=0-10-0-20--></div></div><!--hk=0-10-0-21--></div></nav><!--hk=0-10-0-3--><!--hk=0-10-0-2--><!--hk=0-10-0-1--></template>
+                <script>
+                    (function() { let id = "0-10-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-10-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-6-0-0f"><div data-hk="0-6-0-4" class="flex items-center space-x-8"><div data-hk="0-6-0-5" class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-6" class="hover:text-primary block py-2 select-none">WORK</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-7" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-8"></path></svg><div data-hk="0-6-0-9" class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm"><a href="/resume" data-hk="0-6-0-10" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">EXPERIENCE</a><a href="/projects" data-hk="0-6-0-11" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">PROJECTS</a><!--hk=0-6-0-12--></div></div><a href="/services" data-hk="0-6-0-13" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">SERVICES</a><a href="/book" data-hk="0-6-0-14" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">BOOK DISCOVERY</a><a href="/blog" data-hk="0-6-0-15" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">BLOG</a><div data-hk="0-6-0-16" class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-17" class="hover:text-primary block py-2 select-none">INVESTMENTS</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-18" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-19"></path></svg><div data-hk="0-6-0-20" class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm"><a href="/investments/real-estate" data-hk="0-6-0-21" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-6-0-22" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">BITCOIN</a><!--hk=0-6-0-23--></div></div><!--hk=0-6-0-24--></div><!--hk=0-6-0-3--><!--hk=0-6-0-2--><!--hk=0-6-0-1--></template>
+                <script>
+                    (function() { let id = "0-6-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-6-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-1-0-0f"><!--hk=0-1-0-4--><!--hk=0-1-0-3--><!--hk=0-1-0-2--><!--hk=0-1-0-1--></template>
+                <script>
+                    (function() { let id = "0-1-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-1-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-3-0-0f"><style id="atlas-platform-theme" data-hk="0-3-0-6"><!>:root { --color-primary: var(--color-primary, #004c6c); --brand-primary: var(--color-primary, #004c6c); }<!--hk=0-3-0-7--></style><div class="flex flex-col min-h-screen" data-hk="0-3-0-11"><nav data-hk="0-3-0-14" class=" fixed top-0 left-0 w-full flex justify-between items-center py-4 z-[60] bg-surface shadow-[0_2px_12px_rgba(0,0,0,0.08)] px-5 md:px-12"><a href="/"    data-hk="0-3-0-16" class=" text-xl font-bold truncate relative z-[70] font-mono text-on-surface"><!--suspense-open-0-4-0-0--><span data-hk="0-4-0-1">Portfolio</span><!--hk=0-4-0-1--><!--suspense-close-0-4-0-0--><!--hk=0-3-0-18--><!--hk=0-3-0-17--></a><!--hk=0-3-0-15--><div data-hk="0-5-0-1" class="hidden md:flex items-center space-x-8"><!--suspense-open-0-6-0-0--><div data-hk="0-6-0-1" class="w-24 h-4 bg-outline-variant/30 animate-pulse rounded"></div><!--hk=0-6-0-1--><!--suspense-close-0-6-0-0--><!--hk=0-5-0-2--></div><div data-hk="0-7-0-1" class="flex items-center gap-2 md:gap-5 z-[70]"><a href="/admin" data-hk="0-7-0-2" class="material-symbols-outlined text-[22px] text-on-surface-variant hover:text-primary cursor-pointer transition-colors hidden md:block">terminal</a><div data-hk="0-7-0-3" class="hidden md:flex items-center gap-2"><!--suspense-open-0-8-0-0--><span data-hk="0-8-0-1" class="hidden"></span><!--hk=0-8-0-1--><!--suspense-close-0-8-0-0--><!--hk=0-7-0-4--></div><button id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-menu-overlay" data-hk="0-9-0-1" class="md:hidden relative z-[70] flex items-center justify-center w-10 h-10 rounded-lg text-on-surface hover:bg-surface-container-high active:scale-95 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"><span data-hk="0-9-0-2" class="material-symbols-outlined text-[26px] leading-none select-none"><!>menu<!--hk=0-9-0-3--></span></button></div></nav><div id="mobile-menu-overlay" role="dialog" aria-label="Navigation menu" aria-hidden="true" data-hk="0-9-0-4" class="fixed inset-0 z-[55] md:hidden flex flex-col bg-surface" style=" transform: translateX(100%); opacity: 0; pointer-events: none; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;;"><div data-hk="0-9-0-5" class="flex flex-col flex-1 overflow-y-auto pt-20 px-6 pb-16"><!--suspense-open-0-10-0-0--><nav data-hk="0-10-0-1" class="flex flex-col"><div data-hk="0-10-0-2" class="flex flex-col gap-4 pt-6 animate-pulse"><div data-hk="0-10-0-3" class="h-9 w-36 bg-outline-variant/20 rounded"></div><div data-hk="0-10-0-4" class="h-9 w-28 bg-outline-variant/20 rounded"></div><div data-hk="0-10-0-5" class="h-9 w-32 bg-outline-variant/20 rounded"></div></div></nav><!--hk=0-10-0-1--><!--suspense-close-0-10-0-0--><!--hk=0-9-0-6--><a href="/admin" data-hk="0-11-0-1" class="mt-8 flex items-center justify-center gap-2 py-4 px-6 border border-outline-variant/40 text-primary text-sm font-bold uppercase tracking-widest hover:bg-surface-container transition-colors rounded-sm"><span data-hk="0-11-0-2" class="material-symbols-outlined text-[18px]">terminal</span><span data-hk="0-11-0-3">Admin Terminal</span></a></div></div><!--hk=0-3-0-13--><!--hk=0-3-0-12--><div data-hk="0-11-0-5" class="hidden"></div><!--hk=0-11-0-4--><div class="flex-1 flex flex-col" data-hk="0-11-0-6"><main data-hk="0-11-0-11" class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]"><div data-hk="0-11-0-13" class="flex-1 flex justify-center items-center"><span data-hk="0-11-0-14" class="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div><!--hk=0-11-0-12--></main><!--hk=0-11-0-10--><!--hk=0-11-0-9--><!--hk=0-11-0-7--></div><footer data-hk="0-11-0-16" class=" w-full border-t border-outline-variant/30 py-8 text-xs flex flex-col lg:flex-row flex-wrap justify-between items-center gap-8 lg:gap-6 mt-auto bg-surface-container-low px-6 lg:px-12 font-mono"><div data-hk="0-11-0-17" class="flex flex-col lg:flex-row items-center space-y-2 lg:space-y-0 lg:space-x-4 text-center"><span data-hk="0-11-0-18" class="break-words text-on-surface">© 2026 RUUD SALYM ERIE. ALL RIGHTS RESERVED.</span><span data-hk="0-11-0-19" class="hidden lg:inline text-on-surface-variant">|</span><span data-hk="0-11-0-20" class="text-surface-variant font-bold text-outline break-words">OPLYST INTERNATIONAL, LLC.</span></div><div data-hk="0-11-0-21" class="flex flex-wrap justify-center items-center gap-6"><!--suspense-open-0-12-0-0--><div data-hk="0-12-0-1" class="w-24 h-4 bg-outline-variant/20 animate-pulse rounded"></div><!--hk=0-12-0-1--><!--suspense-close-0-12-0-0--><!--hk=0-11-0-22--></div><div data-hk="0-13-0-1" class="flex flex-wrap items-center justify-center space-x-6"><!--suspense-open-0-14-0-0--><div data-hk="0-14-0-1"></div><!--hk=0-14-0-1--><!--suspense-close-0-14-0-0--><!--hk=0-13-0-2--></div><div data-hk="0-15-0-1" class="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-3 w-full lg:w-auto mt-4 lg:mt-0"><span data-hk="0-15-0-2" class="text-[0.65rem] tracking-widest uppercase text-on-surface-variant break-words text-center">Engineered natively in</span><a href="https://www.rust-lang.org/" target="_blank" rel="noopener noreferrer" data-hk="0-15-0-3" class="flex items-center opacity-70 hover:opacity-100 transition-opacity p-2 bg-surface-container hover:bg-surface-container-high rounded-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Rust_programming_language_black_logo.svg" alt="Rust Logo" data-hk="0-15-0-4" class="h-5 w-5 dark:invert"/><span data-hk="0-15-0-5" class="ml-2 font-bold text-on-surface tracking-widest">RUST</span></a></div></footer><!--hk=0-11-0-15--></div><!--hk=0-3-0-10--><!--hk=0-3-0-9--><!--hk=0-3-0-8--><!--hk=0-3-0-5--><!--hk=0-3-0-4--><!--hk=0-3-0-3--><!--hk=0-3-0-2--><!--hk=0-3-0-1--></template>
+                <script>
+                    (function() { let id = "0-3-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-3-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-14-0-0f"><div data-hk="0-14-0-4" class="flex items-center space-x-4"><a href="https://github.com/ruuderie" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-5" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-6" class="w-5 h-5"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" data-hk="0-14-0-7"></path></svg></a><a href="https://x.com/ruud_awakening" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-8" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-9" class="w-5 h-5"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" data-hk="0-14-0-10"></path></svg></a><a href="https://linkedin.com/in/ruudsalymerie" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-11" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-12" class="w-5 h-5"><path fill-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clip-rule="evenodd" data-hk="0-14-0-13"></path></svg></a></div><!--hk=0-14-0-3--><!--hk=0-14-0-2--><!--hk=0-14-0-1--></template>
+                <script>
+                    (function() { let id = "0-14-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-14-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-4-0-0f"><!>BuildWithRuud<!--hk=0-4-0-3--><!--hk=0-4-0-2--><!--hk=0-4-0-1--></template>
+                <script>
+                    (function() { let id = "0-4-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-4-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-8-0-0f"><div data-hk="0-10-0-2" class="contents"><!--suspense-open-0-9-0-0--><a href="#" data-hk="0-9-0-1" class="bg-surface border border-outline-variant/30 px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider opacity-50 block whitespace-nowrap"><div data-hk="0-9-0-2" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-9-0-3" class="text-[0.55rem] text-on-surface-variant uppercase font-medium">CURRENT BLOCK</span><div data-hk="0-9-0-4" class="mt-1 flex items-center text-on-surface"><span data-hk="0-9-0-5" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-9-0-6">...</span></div></div></a><!--hk=0-9-0-1--><!--suspense-close-0-9-0-0--><!--hk=0-8-0-6--><!--hk=0-8-0-5--><!--hk=0-8-0-4--><!--hk=0-10-0-1--></div><!--hk=0-8-0-3--><!--hk=0-8-0-2--><!--hk=0-8-0-1--></template>
+                <script>
+                    (function() { let id = "0-8-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-8-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                <script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":1,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":2,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":3,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":4,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":5,"version":1}, val);
+                  } })();
+              </script>
+                <template id="0-12-0-0f"><div data-hk="0-12-0-9" class="contents"><a href="/terms" data-hk="0-12-0-4" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/terms" data-hk="0-12-0-5" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Terms</a><a href="/privacy" data-hk="0-12-0-6" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><a href="/privacy" data-hk="0-12-0-7" class=" font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words text-slate-500 dark:text-slate-400 text-[0.65rem]">Privacy</a><!--hk=0-12-0-8--></div><!--hk=0-12-0-3--><!--hk=0-12-0-2--><!--hk=0-12-0-1--></template>
+                <script>
+                    (function() { let id = "0-12-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-12-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-9-0-0f"><a href="https://mempool.space/block/948099" target="_blank" rel="noopener noreferrer" data-hk="0-9-0-4" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap"><div data-hk="0-9-0-5" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-9-0-6" class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">CURRENT BLOCK</span><div data-hk="0-9-0-7" class="mt-1 flex items-center text-on-surface"><span data-hk="0-9-0-8" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-9-0-9">#948099</span></div></div></a><!--hk=0-9-0-3--><!--hk=0-9-0-2--><!--hk=0-9-0-1--></template>
+                <script>
+                    (function() { let id = "0-9-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-9-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-6-0-0f"><div data-hk="0-6-0-4" class="flex items-center space-x-8"><div data-hk="0-6-0-5" class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-6" class="hover:text-primary block py-2 select-none">WORK</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-7" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-8"></path></svg><div data-hk="0-6-0-9" class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm"><a href="/resume" data-hk="0-6-0-10" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">EXPERIENCE</a><a href="/projects" data-hk="0-6-0-11" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">PROJECTS</a><!--hk=0-6-0-12--></div></div><a href="/services" data-hk="0-6-0-13" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">SERVICES</a><a href="/book" data-hk="0-6-0-14" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">BOOK DISCOVERY</a><a href="/blog" data-hk="0-6-0-15" class=" font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant hover:text-on-surface">BLOG</a><div data-hk="0-6-0-16" class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50"><a href="#" data-hk="0-6-0-17" class="hover:text-primary block py-2 select-none">INVESTMENTS</a><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" data-hk="0-6-0-18" class="w-3 h-3 group-hover:rotate-180 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" data-hk="0-6-0-19"></path></svg><div data-hk="0-6-0-20" class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm"><a href="/investments/real-estate" data-hk="0-6-0-21" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-6-0-22" class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">BITCOIN</a><!--hk=0-6-0-23--></div></div><!--hk=0-6-0-24--></div><!--hk=0-6-0-3--><!--hk=0-6-0-2--><!--hk=0-6-0-1--></template>
+                <script>
+                    (function() { let id = "0-6-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-6-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-10-0-0f"><nav data-hk="0-10-0-4" class="flex flex-col"><div data-hk="0-10-0-5" class="flex flex-col"><div data-hk="0-10-0-6" class="flex flex-col border-b border-outline-variant/15"><div data-hk="0-10-0-7" class="py-4 text-2xl font-bold text-on-surface-variant uppercase">WORK</div><div data-hk="0-10-0-8" class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25"><a href="/resume" data-hk="0-10-0-9" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">EXPERIENCE</a><a href="/projects" data-hk="0-10-0-10" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">PROJECTS</a><!--hk=0-10-0-11--></div></div><a href="/services" data-hk="0-10-0-12" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">SERVICES</a><a href="/book" data-hk="0-10-0-13" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">BOOK DISCOVERY</a><a href="/blog" data-hk="0-10-0-14" class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0">BLOG</a><div data-hk="0-10-0-15" class="flex flex-col border-b border-outline-variant/15"><div data-hk="0-10-0-16" class="py-4 text-2xl font-bold text-on-surface-variant uppercase">INVESTMENTS</div><div data-hk="0-10-0-17" class="flex flex-col pl-4 mb-3 border-l-2 border-primary/25"><a href="/investments/real-estate" data-hk="0-10-0-18" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">REAL ESTATE</a><a href="/investments/bitcoin" data-hk="0-10-0-19" class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block">BITCOIN</a><!--hk=0-10-0-20--></div></div><!--hk=0-10-0-21--></div></nav><!--hk=0-10-0-3--><!--hk=0-10-0-2--><!--hk=0-10-0-1--></template>
+                <script>
+                    (function() { let id = "0-10-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-10-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-14-0-0f"><div data-hk="0-14-0-4" class="flex items-center space-x-4"><a href="https://github.com/ruuderie" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-5" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-6" class="w-5 h-5"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" data-hk="0-14-0-7"></path></svg></a><a href="https://x.com/ruud_awakening" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-8" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-9" class="w-5 h-5"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" data-hk="0-14-0-10"></path></svg></a><a href="https://linkedin.com/in/ruudsalymerie" target="_blank" rel="noopener noreferrer" data-hk="0-14-0-11" class="text-slate-400 hover:text-primary transition-colors"><svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-hk="0-14-0-12" class="w-5 h-5"><path fill-rule="evenodd" d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" clip-rule="evenodd" data-hk="0-14-0-13"></path></svg></a></div><!--hk=0-14-0-3--><!--hk=0-14-0-2--><!--hk=0-14-0-1--></template>
+                <script>
+                    (function() { let id = "0-14-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-14-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-8-0-0f"><div data-hk="0-10-0-2" class="contents"><!--suspense-open-0-9-0-0--><a href="#" data-hk="0-9-0-1" class="bg-surface border border-outline-variant/30 px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider opacity-50 block whitespace-nowrap"><div data-hk="0-9-0-2" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-9-0-3" class="text-[0.55rem] text-on-surface-variant uppercase font-medium">CURRENT BLOCK</span><div data-hk="0-9-0-4" class="mt-1 flex items-center text-on-surface"><span data-hk="0-9-0-5" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-9-0-6">...</span></div></div></a><!--hk=0-9-0-1--><!--suspense-close-0-9-0-0--><!--hk=0-8-0-6--><!--hk=0-8-0-5--><!--hk=0-8-0-4--><!--hk=0-10-0-1--></div><!--hk=0-8-0-3--><!--hk=0-8-0-2--><!--hk=0-8-0-1--></template>
+                <script>
+                    (function() { let id = "0-8-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-8-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                
+                <template id="0-4-0-0f"><!>BuildWithRuud<!--hk=0-4-0-3--><!--hk=0-4-0-2--><!--hk=0-4-0-1--></template>
+                <script>
+                    (function() { let id = "0-4-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-4-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                <script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":1,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":2,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":3,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":4,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":5,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":6,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":7,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":8,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":9,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":948099}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":10,"version":1}, val);
+                  } })();
+              </script>
+                <template id="0-9-0-0f"><a href="https://mempool.space/block/948099" target="_blank" rel="noopener noreferrer" data-hk="0-9-0-4" class="bg-surface border border-outline-variant/50 hover:border-[#f7931a]/50 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider hover:bg-surface-container-low transition-all block whitespace-nowrap"><div data-hk="0-9-0-5" class="flex flex-col items-center leading-none justify-center"><span data-hk="0-9-0-6" class="text-[0.55rem] text-on-surface-variant uppercase font-medium tracking-[0.1em]">CURRENT BLOCK</span><div data-hk="0-9-0-7" class="mt-1 flex items-center text-on-surface"><span data-hk="0-9-0-8" class="material-symbols-outlined text-[0.8rem] inline mr-1 text-[#f7931a] align-text-bottom">currency_bitcoin</span><span data-hk="0-9-0-9">#948099</span></div></div></a><!--hk=0-9-0-3--><!--hk=0-9-0-2--><!--hk=0-9-0-1--></template>
+                <script>
+                    (function() { let id = "0-9-0-0";
+                    let open = undefined;
+                    let close = undefined;
+                    let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_COMMENT);
+                    while(walker.nextNode()) {
+                         if(walker.currentNode.textContent == `suspense-open-${id}`) {
+                           open = walker.currentNode;
+                         } else if(walker.currentNode.textContent == `suspense-close-${id}`) {
+                           close = walker.currentNode;
+                         }
+                      }
+                    let range = new Range();
+                    range.setStartAfter(open);
+                    range.setEndBefore(close);
+                    range.deleteContents();
+                    let tpl = document.getElementById("0-9-0-0f");
+                    close.parentNode.insertBefore(tpl.content.cloneNode(true), close);})()
+                </script>
+                <script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":1,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":1,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":2,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":2,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":3,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":3,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":4,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":4,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":5,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":5,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":6,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":6,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":\"57049b94-002e-40db-bc5e-e4e7538e8ab0\",\"label\":\"EXPERIENCE\",\"href\":\"/resume\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":10,\"is_visible\":true},{\"id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"label\":\"WORK\",\"href\":\"#\",\"parent_id\":null,\"display_order\":10,\"is_visible\":true},{\"id\":\"61d2d0ad-aa94-42a2-8439-05de512504e6\",\"label\":\"REAL ESTATE\",\"href\":\"/investments/real-estate\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":10,\"is_visible\":true},{\"id\":\"bf377f87-9c40-477b-8276-ffecea3177ae\",\"label\":\"SERVICES\",\"href\":\"/services\",\"parent_id\":null,\"display_order\":15,\"is_visible\":true},{\"id\":\"7a801f49-b74c-477a-9878-ef56077c7e94\",\"label\":\"BITCOIN\",\"href\":\"/investments/bitcoin\",\"parent_id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"display_order\":20,\"is_visible\":true},{\"id\":\"ac15d740-4c01-4c3c-ac50-de62b66f52c1\",\"label\":\"PROJECTS\",\"href\":\"/projects\",\"parent_id\":\"1e96570e-ab4e-4298-80fa-0bc6ee047aee\",\"display_order\":20,\"is_visible\":true},{\"id\":\"fc8a2291-7974-4dc2-8e3e-556046d3011c\",\"label\":\"BOOK DISCOVERY\",\"href\":\"/book\",\"parent_id\":null,\"display_order\":25,\"is_visible\":true},{\"id\":\"f39be26f-d6f4-4350-bdfa-effa47d084a5\",\"label\":\"BLOG\",\"href\":\"/blog\",\"parent_id\":null,\"display_order\":30,\"is_visible\":true},{\"id\":\"97f04d76-dbf0-41b6-a923-ab1c9a2216b9\",\"label\":\"INVESTMENTS\",\"href\":\"#\",\"parent_id\":null,\"display_order\":40,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":7,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":7,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":[{\"id\":1,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":3,\"label\":\"Terms\",\"href\":\"/terms\",\"display_order\":10,\"is_visible\":true},{\"id\":2,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true},{\"id\":4,\"label\":\"Privacy\",\"href\":\"/privacy\",\"display_order\":20,\"is_visible\":true}]}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":8,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":8,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":{\"current_focus\":\"Technical Architect @ Hipten\",\"status\":\"Unavailable For New Projects\",\"hero_quote\":\"Vires in Numeris. Systems architecture is not defined by lines, but by cryptographic proofs and immutable data flows.\",\"hero_subtitle\":\"TECHNICAL ARCHITECT AND BACKEND ENGINEER // SPECIALIZING IN ENTERPRISE CLOUD SOLUTIONS, SALESFORCE, AND RUST APPLICATIONS.\",\"site_title\":\"BuildWithRuud\",\"lc_title\":\"Join My Newsletter\",\"lc_desc\":\"Get insights on AI, Salesforce, Rust, and Real Estate.\",\"lc_label\":\"Email Address\",\"lc_placeholder\":\"user@organization.domain\",\"lc_btn\":\"Subscribe\",\"lc_footer\":\"* Check your email to confirm your subscription.\",\"lc_endpoint\":\"/api/DownloadResume\",\"status_color\":\"#ff5449\",\"webhook_url\":\"\",\"admin_email\":\"ruud@oply.co\",\"google_analytics_id\":\"\",\"booking_url\":\"https://cal.com/ruuderie/15min\",\"terms_html\":\"# Terms of Service\\n\\nPlease review our terms.\",\"privacy_html\":\"# Privacy Policy\\n\\nWe respect your digital privacy.\",\"github_url\":\"https://github.com/ruuderie\",\"x_url\":\"https://x.com/ruud_awakening\",\"linkedin_url\":\"https://linkedin.com/in/ruudsalymerie\",\"b2b_enabled\":false,\"meta_title\":\"Ruud Salym Erie - Technical Architect\",\"meta_description\":\"Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.\",\"og_image\":\"\",\"theme_primary_color\":null,\"design_config\":null,\"widgets\":[{\"id\":\"bitcoin_block_clock\",\"name\":\"Bitcoin Block Clock\",\"renderer\":{\"renderer\":\"block_clock\"},\"data_source\":{\"source_type\":\"platform_table\",\"table\":\"bitcoin_blocks\",\"column\":\"height\",\"filter\":null},\"placement\":[\"nav\",\"landing\"],\"refresh_seconds\":600,\"enabled\":true}]}}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":9,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":9,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":948099}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":10,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":10,"version":1}, val);
+                  } })();
+              </script><script>
+                  (function() { let val = "{\"Ok\":948099}";
+                  if(__LEPTOS_RESOURCE_RESOLVERS.get({"idx":11,"version":1})) {
+                      __LEPTOS_RESOURCE_RESOLVERS.get({"idx":11,"version":1})(val)
+                  } else {
+                      __LEPTOS_RESOLVED_RESOURCES.set({"idx":11,"version":1}, val);
+                  } })();
+              </script></body></html>

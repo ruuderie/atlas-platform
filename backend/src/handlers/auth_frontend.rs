@@ -146,8 +146,20 @@ pub struct RequestMagicLinkPayload {
 
 pub async fn request_magic_link(
     State(db): State<DatabaseConnection>,
+    Extension(rate_limiter): Extension<crate::middleware::rate_limiter::RateLimiter>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<RequestMagicLinkPayload>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
+    let ip_address = headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown")
+        .to_string();
+
+    if let Err(status) = rate_limiter.check_auth_rate_limit(&ip_address, &payload.email).await {
+        return Err(status);
+    }
+
     let user_model = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
@@ -162,30 +174,47 @@ pub async fn request_magic_link(
     // app_domains. Unknown hosts get a 400 — no information about the user is
     // leaked at this point (validation happens before the user lookup result
     // is acted upon, but after a generic check so the response timing is uniform).
-    let validated_redirect_url: Option<String> = if let Some(ref url_str) = payload.redirect_url {
+    let validated_redirect_url_data = if let Some(ref url_str) = payload.redirect_url {
         match url::Url::parse(url_str) {
             Ok(parsed) => {
+                let scheme = parsed.scheme();
+                if scheme != "https" && scheme != "http" {
+                    tracing::warn!("Magic link request: redirect_url has non-http scheme '{}' — rejecting", scheme);
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+
                 let host = parsed.host_str().unwrap_or("").to_string();
                 if host.is_empty() {
                     tracing::warn!("Magic link request: redirect_url has no host: {}", url_str);
                     return Err(StatusCode::BAD_REQUEST);
                 }
-                let domain_exists = crate::entities::app_domain::Entity::find()
+                let domain_record = crate::entities::app_domain::Entity::find()
                     .filter(crate::entities::app_domain::Column::DomainName.eq(&host))
                     .one(&db)
                     .await
-                    .unwrap_or(None)
-                    .is_some();
+                    .unwrap_or(None);
 
-                if !domain_exists {
+                let is_dev = std::env::var("ENVIRONMENT").unwrap_or_default() == "development";
+                if domain_record.is_none() && !(is_dev && (host == "localhost" || host.starts_with("127."))) {
                     tracing::warn!(
                         "Magic link request: redirect_url host '{}' not in app_domains — rejecting",
                         host
                     );
                     return Err(StatusCode::BAD_REQUEST);
                 }
-                tracing::info!("Magic link request: redirect_url '{}' validated against app_domains", url_str);
-                Some(url_str.clone())
+
+                // Fetch tenant branding if domain is registered
+                let mut tenant_name = None;
+                if let Some(domain) = domain_record {
+                    if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
+                        if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
+                            tenant_name = Some(tenant.name);
+                        }
+                    }
+                }
+
+                tracing::info!("Magic link request: redirect_url '{}' validated against app_domains (or dev bypass)", url_str);
+                Some((url_str.clone(), tenant_name))
             }
             Err(e) => {
                 tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
@@ -194,6 +223,11 @@ pub async fn request_magic_link(
         }
     } else {
         None
+    };
+
+    let (validated_redirect_url, tenant_name_opt) = match validated_redirect_url_data {
+        Some((url, name_opt)) => (Some(url), name_opt),
+        None => (None, None),
     };
 
     if let Some(user_mod) = user_model {
@@ -211,6 +245,7 @@ pub async fn request_magic_link(
             is_used: Set(false),
             created_at: Set(Utc::now()),
             redirect_url: Set(validated_redirect_url.clone()),
+            is_setup_token: Set(false),
         };
 
         token_entity.insert(&db).await.map_err(|e| {
@@ -237,18 +272,21 @@ pub async fn request_magic_link(
             }
         };
 
-        tracing::info!("Dispatching magic link to {} → {}", user_mod.email, magic_link_url);
+        let token_preview = &token_str[..8];
+        tracing::info!("Dispatching magic link to {} (token: {}...) → {}", user_mod.email, token_preview, magic_link_url);
 
+        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
+        
         let email_payload = crate::handlers::communications::SendEmailPayload {
             tenant_id: Uuid::nil(),
             to_email: user_mod.email.clone(),
-            subject: "Your Secure Login Link".to_string(),
+            subject: format!("Sign in to {}", brand_name),
             body_html: format!(
-                "<h2>Secure Login</h2>\
+                "<h2>Sign in to {1}</h2>\
                 <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
                 <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
                 <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
-                magic_link_url
+                magic_link_url, brand_name
             ),
         };
 
@@ -326,11 +364,13 @@ pub async fn verify_magic_link(
     }
 
     // Mark as used
-    // Invalidate all existing passkeys for this user because they used a setup token
-    let _ = crate::entities::passkey::Entity::delete_many()
-        .filter(crate::entities::passkey::Column::UserId.eq(user_mod.id))
-        .exec(&db)
-        .await;
+    // Only wipe passkeys for first-time setup tokens, not regular magic link logins.
+    if magic_link.is_setup_token {
+        let _ = crate::entities::passkey::Entity::delete_many()
+            .filter(crate::entities::passkey::Column::UserId.eq(user_mod.id))
+            .exec(&db)
+            .await;
+    }
 
     let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
     ml_active.is_used = Set(true);

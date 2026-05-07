@@ -35,7 +35,6 @@ pub mod feeds;
 pub mod feed_items;
 pub mod communications;
 pub mod setup;
-pub mod magic_links;
 pub mod search;
 pub mod telemetry;
 pub mod audit_logs;

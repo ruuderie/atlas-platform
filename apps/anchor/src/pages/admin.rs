@@ -165,6 +165,8 @@ pub fn Admin() -> impl IntoView {
     provide_context(refresh);
     provide_context(set_refresh);
 
+    let (countdown, set_countdown) = create_signal(0);
+
     let login_action = create_action(move |_: &()| async move {
         let uname = username.get_untracked();
         if uname.is_empty() {
@@ -175,7 +177,28 @@ pub fn Admin() -> impl IntoView {
         set_auth_error.set(String::new());
 
         match request_magic_link(uname.clone()).await {
-            Ok(_) => set_auth_error.set("Magic link sent! Check your email.".to_string()),
+            Ok(_) => {
+                set_auth_error.set("Magic link sent! Check your email.".to_string());
+                set_countdown.set(60);
+                
+                // Start countdown timer
+                #[cfg(feature = "hydrate")]
+                spawn_local(async move {
+                    use leptos_dom::helpers::TimeoutHandle;
+                    use std::time::Duration;
+                    
+                    while countdown.get_untracked() > 0 {
+                        let (tx, rx) = futures::channel::oneshot::channel();
+                        let handle = set_timeout_with_handle(
+                            move || { let _ = tx.send(()); },
+                            Duration::from_secs(1)
+                        ).expect("failed to set timeout");
+                        
+                        rx.await.unwrap();
+                        set_countdown.update(|c| *c -= 1);
+                    }
+                });
+            },
             Err(e) => set_auth_error.set(format!("Login failed: {:?}", e)),
         }
         set_is_loading.set(false);
@@ -325,13 +348,21 @@ pub fn Admin() -> impl IntoView {
 
                                             <button
                                                 on:click=move |_| login_action.dispatch(())
-                                                disabled=is_loading
+                                                disabled=move || { is_loading.get() || countdown.get() > 0 }
                                                 class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
                                             >
                                                 <Show when=move || is_loading.get()>
                                                     <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
                                                 </Show>
-                                                <span class="inline-block translate-y-[1px]">"Send Magic Link"</span>
+                                                <span class="inline-block translate-y-[1px]">
+                                                    {move || if countdown.get() > 0 {
+                                                        format!("Resend in {}s", countdown.get())
+                                                    } else if auth_error.get() == "Magic link sent! Check your email." {
+                                                        "Resend Magic Link".to_string()
+                                                    } else {
+                                                        "Send Magic Link".to_string()
+                                                    }}
+                                                </span>
                                             </button>
                                             
                                             <div class="text-center pt-2">

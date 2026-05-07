@@ -7,9 +7,15 @@ use uuid::Uuid;
 const MAX_REQUESTS: u32 = 100;
 const WINDOW_SIZE: Duration = Duration::from_secs(60);
 
+const AUTH_MAX_IP_REQUESTS: u32 = 5;
+const AUTH_MAX_EMAIL_REQUESTS: u32 = 3;
+const AUTH_WINDOW_SIZE: Duration = Duration::from_secs(600); // 10 minutes
+
 #[derive(Clone)]
 pub struct RateLimiter {
     store: Arc<DashMap<String, (Instant, u32)>>,
+    auth_ip_store: Arc<DashMap<String, (Instant, u32)>>,
+    auth_email_store: Arc<DashMap<String, (Instant, u32)>>,
 }
 
 impl RateLimiter {
@@ -18,6 +24,8 @@ impl RateLimiter {
             MAX_REQUESTS, WINDOW_SIZE.as_secs());
         RateLimiter {
             store: Arc::new(DashMap::new()),
+            auth_ip_store: Arc::new(DashMap::new()),
+            auth_email_store: Arc::new(DashMap::new()),
         }
     }
 
@@ -88,6 +96,53 @@ impl RateLimiter {
                 self.cleanup_expired_entries();
             }
             
+            Err(StatusCode::TOO_MANY_REQUESTS)
+        }
+    }
+    
+    pub async fn check_auth_rate_limit(&self, ip: &str, email: &str) -> Result<(), StatusCode> {
+        let now = Instant::now();
+        let mut allow = true;
+
+        // Check IP limit
+        if let Some(mut entry) = self.auth_ip_store.get_mut(ip) {
+            let (window_start, count) = &mut *entry;
+            let elapsed = now.duration_since(*window_start);
+            if elapsed > AUTH_WINDOW_SIZE {
+                *window_start = now;
+                *count = 1;
+            } else {
+                *count += 1;
+                if *count > AUTH_MAX_IP_REQUESTS { allow = false; }
+            }
+        } else {
+            self.auth_ip_store.insert(ip.to_string(), (now, 1));
+        }
+
+        // Check Email limit
+        if let Some(mut entry) = self.auth_email_store.get_mut(email) {
+            let (window_start, count) = &mut *entry;
+            let elapsed = now.duration_since(*window_start);
+            if elapsed > AUTH_WINDOW_SIZE {
+                *window_start = now;
+                *count = 1;
+            } else {
+                *count += 1;
+                if *count > AUTH_MAX_EMAIL_REQUESTS { allow = false; }
+            }
+        } else {
+            self.auth_email_store.insert(email.to_string(), (now, 1));
+        }
+
+        if allow {
+            Ok(())
+        } else {
+            tracing::warn!("Auth rate limit exceeded for IP: {} or Email: {}", ip, email);
+            // Clean up occasionally
+            if rand::random::<u16>() % 100 == 0 {
+                self.auth_ip_store.retain(|_, (ws, _)| now.duration_since(*ws) <= AUTH_WINDOW_SIZE * 2);
+                self.auth_email_store.retain(|_, (ws, _)| now.duration_since(*ws) <= AUTH_WINDOW_SIZE * 2);
+            }
             Err(StatusCode::TOO_MANY_REQUESTS)
         }
     }

@@ -106,16 +106,19 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
         use axum_extra::extract::cookie::CookieJar;
         use leptos_axum::extract;
 
+        // Extract session cookie and forward to Atlas for validation.
         let headers = extract::<HeaderMap>().await.unwrap_or_default();
-        let cookies = CookieJar::from_headers(&headers);
-        let session_cookie = cookies.get("session");
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
 
-        // Checks that a session cookie is present. The HttpOnly cookie is issued
-        // and signed by the Atlas backend — a forged value will fail on any
-        // subsequent authenticated server-function call. Full backend token
-        // validation (Atlas /api/auth/session/me) will be added once that endpoint
-        // is confirmed stable and within an acceptable latency budget.
-        Ok(session_cookie.is_some())
+        let url = format!("{}/api/auth/session/validate", crate::atlas_client::get_atlas_api_url());
+        let client = reqwest::Client::new();
+        let res = client.get(&url).header("cookie", cookie_header).send().await;
+
+        match res {
+            Ok(r) if r.status().is_success() => Ok(true),
+            Ok(_) => Ok(false),
+            Err(_) => Ok(false), // Fail open to unauthenticated on network error
+        }
     }
     #[cfg(not(feature = "ssr"))]
     {
@@ -131,7 +134,7 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
             "token": token,
         });
         
-        let url = format!("{}/api/auth/setup/exchange", crate::atlas_client::get_atlas_api_url());
+        let url = format!("{}/api/auth/magic-link/verify", crate::atlas_client::get_atlas_api_url());
         let client = reqwest::Client::new();
         let res = client.post(&url).json(&payload).send().await;
 

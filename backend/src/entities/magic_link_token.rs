@@ -20,6 +20,7 @@ pub struct Model {
     /// NULL for platform-admin-originated tokens (no app context).
     #[sea_orm(nullable)]
     pub redirect_url: Option<String>,
+    pub is_setup_token: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

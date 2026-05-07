@@ -42,6 +42,7 @@ impl AuthService {
             is_used: Set(false),
             created_at: Set(Utc::now()),
             redirect_url: Set(None), // platform-level token — no app context
+            is_setup_token: Set(false),
         };
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {
@@ -87,6 +88,7 @@ impl AuthService {
             is_used: Set(false),
             created_at: Set(Utc::now()),
             redirect_url: Set(None), // setup token — no app context
+            is_setup_token: Set(true),
         };
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {

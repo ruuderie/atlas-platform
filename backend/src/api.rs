@@ -55,7 +55,6 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
-        .merge(magic_links::public_routes())
         .merge(crate::handlers::version::public_routes()) // GET /api/version
         .route("/health", get(health::health_check));
 
@@ -94,7 +93,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     // (including error responses from the auth middleware) carries X-Atlas-Version.
     Router::new()
         .merge(auth_routes)  // Keep auth routes at the root level
-        .merge(public_routes)
+        .merge(public_routes.layer(Extension(rate_limiter.clone())))
         .merge(
             authenticated_routes
                 .layer(axum::middleware::from_fn(
