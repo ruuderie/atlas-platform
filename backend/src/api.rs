@@ -17,7 +17,7 @@
  */
 use axum::{Router, Extension, routing::post, routing::get};
 use sea_orm::DatabaseConnection;
-use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup, magic_links};
+use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup};
 use crate::middleware::{auth_middleware, site_context_middleware};
 use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
