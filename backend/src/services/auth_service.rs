@@ -41,6 +41,7 @@ impl AuthService {
             expires_at: Set(expires_at),
             is_used: Set(false),
             created_at: Set(Utc::now()),
+            redirect_url: Set(None), // platform-level token — no app context
         };
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {
@@ -85,6 +86,7 @@ impl AuthService {
             expires_at: Set(expires_at),
             is_used: Set(false),
             created_at: Set(Utc::now()),
+            redirect_url: Set(None), // setup token — no app context
         };
 
         let inserted_token = new_token.insert(db).await.map_err(|e| {

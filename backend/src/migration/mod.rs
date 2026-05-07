@@ -105,6 +105,7 @@ pub mod m20260502_000001_seed_app_content_resume;
 pub mod m20260504_000001_create_user_app_permission;
 pub mod m20260504_000002_remove_is_admin_from_user;
 pub mod m20260504_000003_seed_platform_sentinel_account;
+pub mod m20260507_000001_add_redirect_url_to_magic_link;
 
 pub struct Migrator;
 
@@ -168,6 +169,8 @@ impl MigratorTrait for Migrator {
             // Seeds the nil-UUID platform sentinel tenant + account required by toggle_admin
             // when granting PlatformSuperAdmin to a user with no existing user_account.
             Box::new(m20260504_000003_seed_platform_sentinel_account::Migration),
+            // Adds redirect_url to magic_link_token for app-aware email link routing.
+            Box::new(m20260507_000001_add_redirect_url_to_magic_link::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

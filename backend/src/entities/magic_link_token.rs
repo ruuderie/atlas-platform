@@ -15,6 +15,11 @@ pub struct Model {
     pub is_used: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
+    /// The app-specific callback URL the magic link email should point to.
+    /// Validated against `app_domains` before being stored.
+    /// NULL for platform-admin-originated tokens (no app context).
+    #[sea_orm(nullable)]
+    pub redirect_url: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

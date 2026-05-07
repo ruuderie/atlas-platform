@@ -138,6 +138,10 @@ pub async fn webauthn_auth_start() -> Result<impl IntoResponse, StatusCode> {
 #[derive(Deserialize)]
 pub struct RequestMagicLinkPayload {
     pub email: String,
+    /// Optional callback URL the magic link email should direct the user to.
+    /// Must be a URL whose host is registered in `app_domains`.
+    /// When absent, falls back to `ADMIN_URL/verify-token/{token}` (platform-admin flow).
+    pub redirect_url: Option<String>,
 }
 
 pub async fn request_magic_link(
@@ -153,13 +157,52 @@ pub async fn request_magic_link(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
+    // ── Validate redirect_url against app_domains (open-redirect prevention) ──
+    // Parse the host from the supplied redirect_url and confirm it exists in
+    // app_domains. Unknown hosts get a 400 — no information about the user is
+    // leaked at this point (validation happens before the user lookup result
+    // is acted upon, but after a generic check so the response timing is uniform).
+    let validated_redirect_url: Option<String> = if let Some(ref url_str) = payload.redirect_url {
+        match url::Url::parse(url_str) {
+            Ok(parsed) => {
+                let host = parsed.host_str().unwrap_or("").to_string();
+                if host.is_empty() {
+                    tracing::warn!("Magic link request: redirect_url has no host: {}", url_str);
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                let domain_exists = crate::entities::app_domain::Entity::find()
+                    .filter(crate::entities::app_domain::Column::DomainName.eq(&host))
+                    .one(&db)
+                    .await
+                    .unwrap_or(None)
+                    .is_some();
+
+                if !domain_exists {
+                    tracing::warn!(
+                        "Magic link request: redirect_url host '{}' not in app_domains — rejecting",
+                        host
+                    );
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                tracing::info!("Magic link request: redirect_url '{}' validated against app_domains", url_str);
+                Some(url_str.clone())
+            }
+            Err(e) => {
+                tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
+                return Err(StatusCode::BAD_REQUEST);
+            }
+        }
+    } else {
+        None
+    };
+
     if let Some(user_mod) = user_model {
         let token_str: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
-            
+
         let token_entity = magic_link_token::ActiveModel {
             id: Set(Uuid::new_v4()),
             user_id: Set(user_mod.id),
@@ -167,32 +210,59 @@ pub async fn request_magic_link(
             expires_at: Set(Utc::now() + Duration::minutes(15)),
             is_used: Set(false),
             created_at: Set(Utc::now()),
+            redirect_url: Set(validated_redirect_url.clone()),
         };
-        
+
         token_entity.insert(&db).await.map_err(|e| {
             tracing::error!("Error saving magic link: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        tracing::info!("Mock Email logic: Send Token [{}] to User Email [{}]", token_str, user_mod.email);
-        
-        let frontend_url = std::env::var("ADMIN_URL").unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
-        let setup_link = format!("{}/verify-token/{}", frontend_url, token_str);
-        
+        // Build the magic link URL:
+        //   - App-originated: {redirect_url}?token={token}  (e.g. https://uat.buildwithruud.com/admin?token=xxx)
+        //   - Platform-admin:  {ADMIN_URL}/verify-token/{token}  (unchanged legacy behaviour)
+        let magic_link_url = match validated_redirect_url {
+            Some(ref base) => {
+                // Append ?token= correctly whether base already has query params or not
+                if base.contains('?') {
+                    format!("{}&token={}", base, token_str)
+                } else {
+                    format!("{}?token={}", base, token_str)
+                }
+            }
+            None => {
+                let admin_url = std::env::var("ADMIN_URL")
+                    .unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
+                format!("{}/verify-token/{}", admin_url, token_str)
+            }
+        };
+
+        tracing::info!("Dispatching magic link to {} → {}", user_mod.email, magic_link_url);
+
         let email_payload = crate::handlers::communications::SendEmailPayload {
             tenant_id: Uuid::nil(),
             to_email: user_mod.email.clone(),
-            subject: "Your Atlas Platform Setup Token".to_string(),
-            body_html: format!("<h2>Atlas Platform Access</h2><p>Click the link below to securely log in to your account and configure your device passkey:</p><br><a href=\"{0}\">{0}</a>", setup_link),
+            subject: "Your Secure Login Link".to_string(),
+            body_html: format!(
+                "<h2>Secure Login</h2>\
+                <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
+                <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
+                <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
+                magic_link_url
+            ),
         };
 
-        if let Err((status, msg)) = crate::handlers::communications::send_email_handler(State(db.clone()), Json(email_payload)).await {
-            tracing::error!("Failed to dispatch setup token email natively: {}", msg);
+        if let Err((status, msg)) = crate::handlers::communications::send_email_handler(
+            State(db.clone()),
+            Json(email_payload),
+        ).await {
+            tracing::error!("Failed to dispatch magic link email: {} {:?}", msg, status);
         } else {
-            tracing::info!("Successfully dispatched Setup Token routing to {}", user_mod.email);
+            tracing::info!("Magic link dispatched to {}", user_mod.email);
         }
     }
 
+    // Always return 200 — prevents email enumeration.
     Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))
 }
 
