@@ -1,5 +1,5 @@
-use leptos::*;
-use leptos_router::use_query_map;
+use leptos::prelude::*;
+use leptos_router::hooks::use_query_map;
 use crate::auth::exchange_setup_token;
 
 #[component]
@@ -21,7 +21,7 @@ pub fn SetupPasskey() -> impl IntoView {
         is_exchanging.set(true);
         error.set(None);
         
-        leptos::spawn_local(async move {
+        leptos::task::spawn_local(async move {
             match exchange_setup_token(t).await {
                 Ok(_) => {
                     is_authenticated.set(true);

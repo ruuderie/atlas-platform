@@ -31,7 +31,7 @@
 ///
 /// Scalability: Nav widgets are fetched in one server round-trip via get_site_settings().
 ///              External API results are cached server-side with per-widget TTL.
-use leptos::*;
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // ─── Renderer Types ───────────────────────────────────────────────────────────
@@ -515,7 +515,7 @@ pub fn BitcoinNavWidget() -> impl IntoView {
 
     let (tick, set_tick) = create_signal(0u32);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let handle = set_interval_with_handle(
             move || set_tick.update(|t| *t += 1),
             Duration::from_secs(60),
@@ -526,7 +526,7 @@ pub fn BitcoinNavWidget() -> impl IntoView {
         });
     });
 
-    let height_resource = create_resource(
+    let height_resource = Resource::new(
         move || tick.get(),
         |_| crate::components::nav::get_block_height(),
     );

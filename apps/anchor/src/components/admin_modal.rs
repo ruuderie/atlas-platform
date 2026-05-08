@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ModalState {
@@ -452,7 +452,7 @@ pub fn SettingsForm() -> impl IntoView {
     use crate::pages::landing::get_site_settings;
     let set_modal_state = expect_context::<WriteSignal<ModalState>>();
 
-    let settings_res = create_resource(|| (), |_| get_site_settings());
+    let settings_res = Resource::new(|| (), |_| get_site_settings());
 
     let (current_focus, set_current_focus) = create_signal(String::new());
     let (status, set_status) = create_signal(String::new());
@@ -481,14 +481,14 @@ pub fn SettingsForm() -> impl IntoView {
     let (meta_description, set_meta_description) = create_signal(String::new());
     let (og_image, set_og_image) = create_signal(String::new());
 
-    let smtp_res = create_resource(|| (), |_| crate::email::get_smtp_config());
+    let smtp_res = Resource::new(|| (), |_| crate::email::get_smtp_config());
     let (smtp_server, set_smtp_server) = create_signal(String::new());
     let (smtp_port, set_smtp_port) = create_signal(String::new());
     let (smtp_username, set_smtp_username) = create_signal(String::new());
     let (smtp_token, set_smtp_token) = create_signal(String::new());
     let (smtp_from, set_smtp_from) = create_signal(String::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(Ok(s)) = settings_res.get() {
             set_current_focus.set(s.current_focus);
             set_status.set(s.status);
@@ -900,8 +900,8 @@ pub fn ResumeProfileForm(
         });
     };
 
-    let entries_res = create_resource(move || (), |_| crate::resume_engine::get_all_base_entries());
-    let mapped_res = create_resource(
+    let entries_res = Resource::new(move || (), |_| crate::resume_engine::get_all_base_entries());
+    let mapped_res = Resource::new(
         move || (),
         move |_| async move {
             if let Some(id) = id_val {
@@ -917,7 +917,7 @@ pub fn ResumeProfileForm(
     let (expanded_entries, set_expanded_entries) =
         create_signal(std::collections::HashSet::<uuid::Uuid>::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
             let mut map = std::collections::HashMap::new();
             for m in mappings {
@@ -1507,7 +1507,7 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
     let (loading, set_loading) = create_signal(false);
 
     // Quick dropdown loader for parent
-    let parents_resource = create_resource(move || refresh.get(), |_| get_all_nav_items());
+    let parents_resource = Resource::new(move || refresh.get(), |_| get_all_nav_items());
 
     let save_action = create_action(move |_: &()| {
         let lbl = label.get_untracked();
@@ -1829,10 +1829,10 @@ pub fn BaseResumeEntryForm(
             .unwrap_or_default(),
     );
 
-    let profiles_res = create_resource(move || (), |_| crate::resume_engine::get_entry_collections());
+    let profiles_res = Resource::new(move || (), |_| crate::resume_engine::get_entry_collections());
 
     // Fetch mapped profiles for this entry
-    let mapped_res = create_resource(
+    let mapped_res = Resource::new(
         move || (),
         move |_| async move {
             if let Some(id) = id_val {
@@ -1845,7 +1845,7 @@ pub fn BaseResumeEntryForm(
 
     let (active_profiles, set_active_profiles) = create_signal(Vec::<uuid::Uuid>::new());
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
             set_active_profiles.set(mappings);
         }

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use crate::pages::landing::DesignConfig;
 
 /// Returns true if the current tenant has the Kami academic design system enabled.

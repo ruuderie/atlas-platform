@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SmtpConfig {

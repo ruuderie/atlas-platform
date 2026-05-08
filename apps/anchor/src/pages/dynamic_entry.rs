@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::components::{Router, Routes, Route, Redirect, A};
+use leptos_router::hooks::{use_params_map, use_query_map, use_location};
 use crate::resume_engine::get_single_tenant_entry;
 use crate::components::design_mode::use_kami_mode;
 use crate::utils::text::parse_rai;
@@ -9,7 +10,7 @@ pub fn DynamicEntry() -> impl IntoView {
     let params = use_params_map();
     let slug = move || params.with(|p| p.get("slug").cloned().unwrap_or_default());
 
-    let entry_resource = create_resource(
+    let entry_resource = Resource::new(
         move || slug(),
         |s| async move {
             if s.is_empty() {

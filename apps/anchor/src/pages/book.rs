@@ -1,11 +1,11 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
 use crate::pages::landing::get_site_settings;
 
 #[component]
 pub fn BookDiscovery() -> impl IntoView {
-    let settings_res = create_resource(|| (), |_| get_site_settings());
+    let settings_res = Resource::new(|| (), |_| get_site_settings());
 
     view! {
         <Title text="Book Discovery | Anchor" />

@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::components::{Router, Routes, Route, Redirect, A};
+use leptos_router::hooks::{use_params_map, use_query_map, use_location};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -367,7 +368,7 @@ pub fn DynamicLanding() -> impl IntoView {
         }
     });
 
-    let page_res = create_resource(move || slug(), |s| get_landing_page(s));
+    let page_res = Resource::new(move || slug(), |s| get_landing_page(s));
 
     // Block-based pages: render blocks full-bleed with no outer padding wrapper.
     // Each block is responsible for its own layout, padding, and background.
@@ -521,7 +522,7 @@ pub fn DynamicLanding() -> impl IntoView {
 /// Falls back to a clean Anchor platform placeholder when no page is configured yet.
 #[component]
 pub fn DynamicHomeLanding() -> impl IntoView {
-    let page_res = create_resource(|| "home".to_string(), |s| get_landing_page(s));
+    let page_res = Resource::new(|| "home".to_string(), |s| get_landing_page(s));
 
     // For block-based pages the Hero block itself is the first visual element (full-bleed).
     // We don't want the outer pt-32 padding eating into it. Instead, render blocks

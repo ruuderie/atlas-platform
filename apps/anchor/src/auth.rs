@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 // Replaced with platform backend auth proxies
 #[server(RequestMagicLink, "/api")]

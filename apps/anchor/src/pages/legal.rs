@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
 use crate::pages::landing::get_site_settings;
@@ -16,7 +16,7 @@ fn render_markdown(md: &str) -> String {
 
 #[component]
 pub fn Terms() -> impl IntoView {
-    let settings_res = create_resource(|| (), |_| get_site_settings());
+    let settings_res = Resource::new(|| (), |_| get_site_settings());
 
     view! {
         <Title text="Terms of Service | Anchor" />
@@ -51,7 +51,7 @@ pub fn Terms() -> impl IntoView {
 
 #[component]
 pub fn Privacy() -> impl IntoView {
-    let settings_res = create_resource(|| (), |_| get_site_settings());
+    let settings_res = Resource::new(|| (), |_| get_site_settings());
 
     view! {
         <Title text="Privacy Policy | Anchor" />

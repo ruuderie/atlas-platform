@@ -1,5 +1,5 @@
 use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
-use leptos::*;
+use leptos::prelude::*;
 
 #[server(GetProjects, "/api")]
 pub async fn get_projects() -> Result<Vec<ContentNode>, ServerFnError> {
@@ -91,7 +91,7 @@ pub async fn get_projects() -> Result<Vec<ContentNode>, ServerFnError> {
 
 #[component]
 pub fn Projects() -> impl IntoView {
-    let projs_resource = create_resource(
+    let projs_resource = Resource::new(
         || (),
         |_| async move { get_projects().await.unwrap_or_else(|_| vec![]) },
     );

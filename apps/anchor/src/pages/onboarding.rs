@@ -1,5 +1,5 @@
-use leptos::*;
-use leptos_router::use_query_map;
+use leptos::prelude::*;
+use leptos_router::hooks::use_query_map;
 use serde::{Deserialize, Serialize};
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ pub fn TenantOnboarding() -> impl IntoView {
     let token = move || query.with(|q| q.get("token").cloned().unwrap_or_default());
     let app_instance_id = move || query.with(|q| q.get("app").cloned().unwrap_or_default());
 
-    let status_resource = create_resource(
+    let status_resource = Resource::new(
         move || (app_instance_id(), token()),
         |(ai, tok)| async move { get_onboarding_status(ai, tok).await },
     );
@@ -253,7 +253,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                 });
 
                                                 // Advance when the action succeeds
-                                                create_effect(move |_| {
+                                                Effect::new(move |_| {
                                                     if let Some(Ok(_)) = complete_action.value().get() {
                                                         let new_idx = (current_step_index.get() + 1).min(total);
                                                         current_step_index.set(new_idx);

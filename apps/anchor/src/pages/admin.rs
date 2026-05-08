@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -110,9 +110,201 @@ enum AuthState {
     Yes,
 }
 
+/// Self-contained login UI rendered when the session is unauthenticated.
+///
+/// Owns its own reactive signals (`use_email`, `username`, loading/error/countdown)
+/// so that toggling between passkey and email flows is fully isolated from the
+/// outer `Admin` auth-state match closure.
+///
+/// # Why `move || if` instead of `<Show>`
+/// During SSR, `use_email` is `false` → only the passkey branch is emitted into HTML.
+/// `<Show fallback=...>` cannot insert the email-form nodes post-hydration because
+/// those nodes were never part of the SSR output — Leptos 0.6's hydration cursor
+/// panics or silently fails reconciling them.  A `move || if/else` expression is a
+/// single `dyn_child` slot: Leptos replaces the entire slot's content on each toggle,
+/// which works correctly whether or not both branches were rendered during SSR.
+#[component]
+fn LoginPanel() -> impl IntoView {
+    let (use_email, set_use_email)     = create_signal(false);
+    let (username, set_username)       = create_signal(String::new());
+    let (is_loading, set_is_loading)   = create_signal(false);
+    let (auth_error, set_auth_error)   = create_signal(String::new());
+    let (countdown, set_countdown)     = create_signal(0i32);
+
+    let login_action = create_action(move |_: &()| async move {
+        let uname = username.get_untracked();
+        if uname.is_empty() {
+            set_auth_error.set("Email is required.".to_string());
+            return;
+        }
+        set_is_loading.set(true);
+        set_auth_error.set(String::new());
+        match request_magic_link(uname).await {
+            Ok(_) => {
+                set_auth_error.set("Magic link sent! Check your email.".to_string());
+                set_countdown.set(60);
+                #[cfg(feature = "hydrate")]
+                spawn_local(async move {
+                    use std::time::Duration;
+                    while countdown.get_untracked() > 0 {
+                        let (tx, rx) = futures::channel::oneshot::channel::<()>();
+                        set_timeout_with_handle(
+                            move || { let _ = tx.send(()); },
+                            Duration::from_secs(1),
+                        ).expect("failed to set timeout");
+                        rx.await.unwrap();
+                        set_countdown.update(|c| *c -= 1);
+                    }
+                });
+            }
+            Err(e) => set_auth_error.set(format!("Login failed: {:?}", e)),
+        }
+        set_is_loading.set(false);
+    });
+
+    view! {
+        <div class="flex-1 flex justify-center items-center">
+            <div class="w-full max-w-lg bg-surface-container-highest p-1 blueprint-overlay">
+                <div class="bg-surface-container-lowest p-12">
+                    <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-6">
+                        <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">
+                            "SECURE_ZONE // 0xAUTH"
+                        </span>
+                    </div>
+                    <h2 class="text-4xl font-extrabold text-primary mb-8 tracking-tight">"SYSTEM_CMS"</h2>
+                    <div class="space-y-12">
+                        // dyn_child if/else: Leptos replaces the whole slot on toggle —
+                        // both branches are hydration-safe regardless of which was SSR'd.
+                        {move || if use_email.get() {
+                            view! {
+                                <div class="space-y-6">
+                                    <div class="relative w-full group">
+                                        <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">
+                                            "Email Address"
+                                        </label>
+                                        <input
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            on:input=move |ev| set_username.set(event_target_value(&ev))
+                                            prop:value=username
+                                            class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
+                                        />
+                                    </div>
+                                    <div class="space-y-4 pt-2">
+                                        <Show when=move || !auth_error.get().is_empty()>
+                                            <div class="bg-error/10 border-l-4 border-error p-4 text-error jetbrains text-sm font-medium">
+                                                {move || auth_error.get()}
+                                            </div>
+                                        </Show>
+                                        <button
+                                            on:click=move |_| login_action.dispatch(())
+                                            disabled=move || is_loading.get() || (countdown.get() > 0)
+                                            class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+                                        >
+                                            <Show when=move || is_loading.get()>
+                                                <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                            </Show>
+                                            <span class="inline-block translate-y-[1px]">
+                                                {move || if countdown.get() > 0 {
+                                                    format!("Resend in {}s", countdown.get())
+                                                } else if auth_error.get() == "Magic link sent! Check your email." {
+                                                    "Resend Magic Link".to_string()
+                                                } else {
+                                                    "Send Magic Link".to_string()
+                                                }}
+                                            </span>
+                                        </button>
+                                        <div class="text-center pt-2">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
+                                                on:click=move |_| { set_use_email.set(false); set_auth_error.set(String::new()); }
+                                            >
+                                                "\u{2190} Back to Passkey"
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            }.into_view()
+                        } else {
+                            view! {
+                                <div class="space-y-6">
+                                    <button
+                                        id="login-passkey-btn"
+                                        class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors flex items-center justify-center gap-3"
+                                    >
+                                        <span class="material-symbols-outlined text-base">"passkey"</span>
+                                        <span class="inline-block translate-y-[1px]">"Sign In with Passkey"</span>
+                                    </button>
+                                    <div id="passkey-message" class="text-sm text-center text-error font-medium h-4"></div>
+                                    <script inner_html=r#"
+                                    (function() {
+                                        var existing = document.querySelector('script[data-simplewebauthn]');
+                                        var scriptEl = existing || document.createElement('script');
+                                        if (!existing) {
+                                            scriptEl.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
+                                            scriptEl.setAttribute('data-simplewebauthn', 'true');
+                                            document.head.appendChild(scriptEl);
+                                        }
+                                        function bindBtn() {
+                                            var btn = document.getElementById('login-passkey-btn');
+                                            var msg = document.getElementById('passkey-message');
+                                            if (!btn || btn.dataset.bound) return;
+                                            btn.dataset.bound = 'true';
+                                            btn.addEventListener('click', async function() {
+                                                try {
+                                                    btn.disabled = true; msg.innerText = 'Initiating...';
+                                                    var startRes = await fetch('/api/passkeys/start-login', {
+                                                        method: 'POST', headers: {'Content-Type':'application/json'},
+                                                        body: JSON.stringify({ email: '' })
+                                                    });
+                                                    if (!startRes.ok) throw new Error('Failed to start login');
+                                                    var options = await startRes.json();
+                                                    msg.innerText = 'Please follow browser prompts...';
+                                                    var credential = await window.SimpleWebAuthnBrowser.startAuthentication(options);
+                                                    msg.innerText = 'Verifying...';
+                                                    var finishRes = await fetch('/api/passkeys/finish-login', {
+                                                        method: 'POST', headers: {'Content-Type':'application/json'},
+                                                        body: JSON.stringify(credential)
+                                                    });
+                                                    if (finishRes.ok) {
+                                                        msg.innerText = 'Success! Redirecting...';
+                                                        msg.className = 'text-sm text-center text-green-500 font-medium h-4';
+                                                        window.location.reload();
+                                                    } else { throw new Error(await finishRes.text()); }
+                                                } catch(err) {
+                                                    console.error(err);
+                                                    msg.innerText = err.message || 'Login failed';
+                                                    msg.className = 'text-sm text-center text-error font-medium h-4';
+                                                } finally { btn.disabled = false; }
+                                            });
+                                        }
+                                        if (existing && window.SimpleWebAuthnBrowser) { bindBtn(); }
+                                        else { scriptEl.onload = bindBtn; }
+                                    })();
+                                    "#></script>
+                                    <div class="text-center pt-2">
+                                        <button
+                                            type="button"
+                                            class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
+                                            on:click=move |_| set_use_email.set(true)
+                                        >
+                                            "Use Email Instead"
+                                        </button>
+                                    </div>
+                                </div>
+                            }.into_view()
+                        }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
 #[component]
 pub fn Admin() -> impl IntoView {
-    let query = leptos_router::use_query_map();
+    let query = use_query_map();
 
     // ── Auth resource ─────────────────────────────────────────────────────────
     // Uses create_resource (not create_effect + spawn_local) so it integrates
@@ -122,7 +314,7 @@ pub fn Admin() -> impl IntoView {
     // Reactive key: the ?token= query param. If a magic-link token is present
     // it is verified first; otherwise we fall through to session validation.
     // The resource re-runs automatically if the URL query string changes.
-    let auth_resource = create_resource(
+    let auth_resource = Resource::new(
         move || query.with(|q| q.get("token").cloned()),
         |token| async move {
             if let Some(t) = token {
@@ -153,9 +345,6 @@ pub fn Admin() -> impl IntoView {
     );
 
     let (active_tab, set_active_tab) = create_signal("DASHBOARD");
-    let (username, set_username) = create_signal(String::new());
-    let (is_loading, set_is_loading) = create_signal(false);
-    let (auth_error, set_auth_error) = create_signal(String::new());
 
     let (modal_state, set_modal_state) = create_signal(ModalState::None);
     provide_context(modal_state);
@@ -165,46 +354,6 @@ pub fn Admin() -> impl IntoView {
     provide_context(refresh);
     provide_context(set_refresh);
 
-    let (countdown, set_countdown) = create_signal(0);
-
-    let login_action = create_action(move |_: &()| async move {
-        let uname = username.get_untracked();
-        if uname.is_empty() {
-            set_auth_error.set("Email is required.".to_string());
-            return;
-        }
-        set_is_loading.set(true);
-        set_auth_error.set(String::new());
-
-        match request_magic_link(uname.clone()).await {
-            Ok(_) => {
-                set_auth_error.set("Magic link sent! Check your email.".to_string());
-                set_countdown.set(60);
-                
-                // Start countdown timer
-                #[cfg(feature = "hydrate")]
-                spawn_local(async move {
-                    use leptos_dom::helpers::TimeoutHandle;
-                    use std::time::Duration;
-                    
-                    while countdown.get_untracked() > 0 {
-                        let (tx, rx) = futures::channel::oneshot::channel();
-                        let handle = set_timeout_with_handle(
-                            move || { let _ = tx.send(()); },
-                            Duration::from_secs(1)
-                        ).expect("failed to set timeout");
-                        
-                        rx.await.unwrap();
-                        set_countdown.update(|c| *c -= 1);
-                    }
-                });
-            },
-            Err(e) => set_auth_error.set(format!("Login failed: {:?}", e)),
-        }
-        set_is_loading.set(false);
-    });
-
-    let (use_email, set_use_email) = create_signal(false);
 
 
     view! {
@@ -230,154 +379,11 @@ pub fn Admin() -> impl IntoView {
                 }.into_view(),
 
                 // ── Unauthenticated ─────────────────────────────────────────────
+                // LoginPanel owns all auth-form signals in its own component scope,
+                // so the reactive toggle between passkey and email views is fully
+                // isolated from this outer auth-state match closure.
                 AuthState::No => view! {
-                    <div class="flex-1 flex justify-center items-center">
-                        <div class="w-full max-w-lg bg-surface-container-highest p-1 lg:p-1 blueprint-overlay">
-                            <div class="bg-surface-container-lowest p-12">
-                                <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-6">
-                                    <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">"SECURE_ZONE // 0xAUTH"</span>
-                                </div>
-                                <h2 class="text-4xl font-extrabold text-primary mb-8 tracking-tight">"SYSTEM_CMS"</h2>
-
-                                <div class="space-y-12">
-                                    <Show when=move || use_email.get() fallback=move || view! {
-                                        <div class="space-y-6">
-                                            <button
-                                                id="login-passkey-btn"
-                                                class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors flex items-center justify-center gap-3"
-                                            >
-                                                <span class="material-symbols-outlined text-base">"passkey"</span>
-                                                <span class="inline-block translate-y-[1px]">"Sign In with Passkey"</span>
-                                            </button>
-                                            <div id="passkey-message" class="text-sm text-center text-error font-medium h-4"></div>
-
-                                            <script inner_html=r#"
-                                            // Dynamically load SimpleWebAuthn and bind the click listener inside
-                                            // its onload callback — eliminates the setTimeout race on slow networks.
-                                            // Uses same-origin /api paths since anchor is SSR on the same host.
-                                            (function() {
-                                                var existing = document.querySelector('script[data-simplewebauthn]');
-                                                var scriptEl = existing || document.createElement('script');
-                                                if (!existing) {
-                                                    scriptEl.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
-                                                    scriptEl.setAttribute('data-simplewebauthn', 'true');
-                                                    document.head.appendChild(scriptEl);
-                                                }
-
-                                                function bindBtn() {
-                                                    var btn = document.getElementById('login-passkey-btn');
-                                                    var msg = document.getElementById('passkey-message');
-                                                    if (!btn || btn.dataset.bound) return;
-                                                    btn.dataset.bound = 'true';
-                                                    btn.addEventListener('click', async function() {
-                                                        try {
-                                                            btn.disabled = true;
-                                                            msg.innerText = 'Initiating...';
-
-                                                            // Empty email triggers the discoverable-credentials
-                                                            // (usernameless) WebAuthn flow — the authenticator
-                                                            // presents stored passkeys for this RP origin.
-                                                            var startRes = await fetch('/api/passkeys/start-login', {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ email: '' })
-                                                            });
-                                                            if (!startRes.ok) throw new Error('Failed to start login');
-                                                            var options = await startRes.json();
-
-                                                            msg.innerText = 'Please follow browser prompts...';
-                                                            var startAuthentication = window.SimpleWebAuthnBrowser.startAuthentication;
-                                                            var credential = await startAuthentication(options);
-
-                                                            msg.innerText = 'Verifying...';
-                                                            var finishRes = await fetch('/api/passkeys/finish-login', {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify(credential)
-                                                            });
-
-                                                            if (finishRes.ok) {
-                                                                msg.innerText = 'Success! Redirecting...';
-                                                                msg.className = 'text-sm text-center text-green-500 font-medium h-4';
-                                                                window.location.reload();
-                                                            } else {
-                                                                throw new Error(await finishRes.text());
-                                                            }
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                            msg.innerText = err.message || 'Login failed';
-                                                            msg.className = 'text-sm text-center text-error font-medium h-4';
-                                                        } finally {
-                                                            btn.disabled = false;
-                                                        }
-                                                    });
-                                                }
-
-                                                if (existing && window.SimpleWebAuthnBrowser) {
-                                                    bindBtn();
-                                                } else {
-                                                    scriptEl.onload = bindBtn;
-                                                }
-                                            })();
-                                            "#></script>
-
-                                            <div class="text-center pt-2">
-                                                <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(true)>
-                                                    "Use Email Instead"
-                                                </button>
-                                            </div>
-                                        </div>
-                                    }>
-                                        <div class="space-y-6">
-                                            <div class="relative w-full group">
-                                                <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">"Identity Hash"</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="admin"
-                                                    on:input=move |ev| set_username.set(event_target_value(&ev))
-                                                    prop:value=username
-                                                    class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
-                                                />
-                                            </div>
-
-                                            <div class="space-y-4 pt-6">
-                                                <Show when=move || !auth_error.get().is_empty()>
-                                                    <div class="bg-error/10 border-l-4 border-error p-4 mb-4 text-error jetbrains text-sm font-medium">
-                                                        {move || auth_error.get()}
-                                                    </div>
-                                                </Show>
-
-                                                <button
-                                                    on:click=move |_| login_action.dispatch(())
-                                                    disabled=move || { is_loading.get() || countdown.get() > 0 }
-                                                    class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-                                                >
-                                                    <Show when=move || is_loading.get()>
-                                                        <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
-                                                    </Show>
-                                                    <span class="inline-block translate-y-[1px]">
-                                                        {move || if countdown.get() > 0 {
-                                                            format!("Resend in {}s", countdown.get())
-                                                        } else if auth_error.get() == "Magic link sent! Check your email." {
-                                                            "Resend Magic Link".to_string()
-                                                        } else {
-                                                            "Send Magic Link".to_string()
-                                                        }}
-                                                    </span>
-                                                </button>
-                                                
-                                                <div class="text-center pt-2">
-                                                    <button type="button" class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest" on:click=move |_| set_use_email.set(false)>
-                                                        "← Back to Passkey"
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Show>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <LoginPanel />
                 }.into_view(),
 
                 // ── Authenticated ───────────────────────────────────────────────
@@ -557,7 +563,7 @@ fn PageHeaderTable() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let headers_resource = create_resource(move || refresh.get(), |_| get_all_page_headers());
+    let headers_resource = Resource::new(move || refresh.get(), |_| get_all_page_headers());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -603,7 +609,7 @@ fn PageHeaderTable() -> impl IntoView {
 #[component]
 fn DashboardView() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
-    let stats_resource = create_resource(move || refresh.get(), |_| get_dashboard_stats());
+    let stats_resource = Resource::new(move || refresh.get(), |_| get_dashboard_stats());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"COMPILING_TELEMETRY..."</div> }>
@@ -637,7 +643,7 @@ fn DashboardView() -> impl IntoView {
 #[component]
 fn SettingsReadView() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
-    let settings_res = create_resource(
+    let settings_res = Resource::new(
         move || refresh.get(),
         |_| crate::pages::landing::get_site_settings(),
     );
@@ -752,7 +758,7 @@ fn ResumeProfileTable() -> impl IntoView {
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
 
-    let items_res = create_resource(move || refresh.get(), |_| get_entry_collections());
+    let items_res = Resource::new(move || refresh.get(), |_| get_entry_collections());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING..."</div> }>
@@ -866,7 +872,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
 
-    let items_res = create_resource(move || refresh.get(), |_| get_all_base_entries());
+    let items_res = Resource::new(move || refresh.get(), |_| get_all_base_entries());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING DATA..."</div> }>
@@ -1014,7 +1020,7 @@ fn LeadOptionTable() -> impl IntoView {
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
 
-    let items_res = create_resource(move || refresh.get(), |_| get_all_lead_options());
+    let items_res = Resource::new(move || refresh.get(), |_| get_all_lead_options());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING DATA..."</div> }>
@@ -1077,7 +1083,7 @@ fn LeadOptionTable() -> impl IntoView {
 #[component]
 fn MailingListTable() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
-    let list_resource = create_resource(move || refresh.get(), |_| get_mailing_list());
+    let list_resource = Resource::new(move || refresh.get(), |_| get_mailing_list());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1138,7 +1144,7 @@ fn PostTable() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state = expect_context::<WriteSignal<ModalState>>();
-    let posts_resource = create_resource(move || refresh.get(), |_| get_posts());
+    let posts_resource = Resource::new(move || refresh.get(), |_| get_posts());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1205,7 +1211,7 @@ fn PasskeyTable() -> impl IntoView {
     use crate::auth::get_users;
     let refresh = expect_context::<ReadSignal<i32>>();
     let set_refresh = expect_context::<WriteSignal<i32>>();
-    let users_resource = create_resource(move || refresh.get(), |_| get_users());
+    let users_resource = Resource::new(move || refresh.get(), |_| get_users());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1264,7 +1270,7 @@ pub fn LandingPageTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let pages_resource = create_resource(move || refresh.get(), |_| get_all_landing_pages());
+    let pages_resource = Resource::new(move || refresh.get(), |_| get_all_landing_pages());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1330,7 +1336,7 @@ pub fn NavTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let nav_resource = create_resource(move || refresh.get(), |_| get_all_nav_items());
+    let nav_resource = Resource::new(move || refresh.get(), |_| get_all_nav_items());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1400,7 +1406,7 @@ pub fn FooterTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let footer_resource = create_resource(move || refresh.get(), |_| get_all_footer_items());
+    let footer_resource = Resource::new(move || refresh.get(), |_| get_all_footer_items());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1469,7 +1475,7 @@ pub fn ServiceTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let data_res = create_resource(move || refresh.get(), |_| get_services(false));
+    let data_res = Resource::new(move || refresh.get(), |_| get_services(false));
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1515,7 +1521,7 @@ pub fn CaseStudyTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let data_res = create_resource(move || refresh.get(), |_| get_case_studies(false));
+    let data_res = Resource::new(move || refresh.get(), |_| get_case_studies(false));
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
@@ -1561,7 +1567,7 @@ pub fn HighlightTable() -> impl IntoView {
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let set_modal_state =
         expect_context::<WriteSignal<crate::components::admin_modal::ModalState>>();
-    let data_res = create_resource(move || refresh.get(), |_| get_highlights(false));
+    let data_res = Resource::new(move || refresh.get(), |_| get_highlights(false));
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>

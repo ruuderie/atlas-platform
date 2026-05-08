@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -53,7 +53,7 @@ pub async fn get_bitcoin_blocks(limit: i64) -> Result<Vec<BitcoinBlockRecord>, S
 
 #[component]
 pub fn BitcoinDashboard() -> impl IntoView {
-    let blocks_resource = create_resource(|| (), |_| get_bitcoin_blocks(15));
+    let blocks_resource = Resource::new(|| (), |_| get_bitcoin_blocks(15));
 
     view! {
         <Title text="Bitcoin // The Mechanical Reality"/>

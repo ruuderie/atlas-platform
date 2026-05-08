@@ -10,12 +10,15 @@
  * Future work requires refactoring this app to implement the `AtlasApp` trait 
  * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
  * instead of manually merging them globally.
+ * instead of manually merging them globally. 
  * 
  * See the full integration protocol at: `docs/atlas_app_integration.md`
  */
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::components::{Router, Routes, Route, Redirect};
+use leptos_router::hooks::use_location;
+use leptos_router::path;
 
 use crate::components::footer::Footer;
 use crate::components::nav::Nav;
@@ -90,7 +93,7 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
+    let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
 
     // ── Reactive derived values with immediate defaults ───────────────────────
     // These read settings_resource but provide sensible fallbacks, so the Router
@@ -111,8 +114,8 @@ pub fn App() -> impl IntoView {
     // DesignConfig provided as a ReadSignal so it's reactive (updates when settings
     // load from DB) and always available immediately with a sensible default.
     // Consumers call: use_context::<ReadSignal<DesignConfig>>().map(|s| s.get())
-    let design_config_signal = create_rw_signal(crate::pages::landing::DesignConfig::default());
-    create_effect(move |_| {
+    let design_config_signal = RwSignal::new(crate::pages::landing::DesignConfig::default());
+    Effect::new(move |_| {
         if let Some(dc) = get_settings().design_config {
             design_config_signal.set(dc);
         }
@@ -186,27 +189,26 @@ pub fn App() -> impl IntoView {
                     </Suspense>
 
                     <div class="flex-1 flex flex-col">
-                        <Routes>
-                            <Route path="/" view=DynamicHomeLanding/>
-                            <Route path="/legacy" view=Landing/>
-                            <Route path="/resume" view=|| view! { <Redirect path="/p/resume" /> }/>
-                            <Route path="/work" view=|| view! { <Redirect path="/p/resume" /> }/>
-                            <Route path="/projects" view=|| view! { <Redirect path="/p/projects" /> }/>
-                            <Route path="/blog" view=Blog/>
-                            <Route path="/blog/:slug" view=BlogPost/>
-                            <Route path="/certifications" view=|| view! { <Redirect path="/p/certifications" /> }/>
-                            <Route path="/investments/real-estate" view=|| view! { <Redirect path="/p/real-estate-ventures" /> }/>
-                            <Route path="/investments/bitcoin" view=BitcoinDashboard/>
-                            <Route path="/services" view=|| view! { <Redirect path="/p/consulting" /> }/>
-                            <Route path="/book" view=BookDiscovery/>
-                            <Route path="/terms" view=Terms/>
-                            <Route path="/privacy" view=Privacy/>
-                            <Route path="/p/*slug" view=DynamicLanding/>
-                            <Route path="/e/*slug" view=DynamicEntry/>
-                            <Route path="/setup" view=TenantOnboarding/>
-                            <Route path="/setup-passkey" view=SetupPasskey/>
-                            <Route path="/admin" view=Admin/>
-                            <Route path="/*any" view=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }/>
+                        <Routes fallback=|| view! { <div class="pt-32 px-[8.5rem]">"Not Found"</div> }>
+                            <Route path=path!("/") view=DynamicHomeLanding/>
+                            <Route path=path!("/legacy") view=Landing/>
+                            <Route path=path!("/resume") view=|| view! { <Redirect path="/p/resume"/> }/>
+                            <Route path=path!("/work") view=|| view! { <Redirect path="/p/resume"/> }/>
+                            <Route path=path!("/projects") view=|| view! { <Redirect path="/p/projects"/> }/>
+                            <Route path=path!("/blog") view=Blog/>
+                            <Route path=path!("/blog/:slug") view=BlogPost/>
+                            <Route path=path!("/certifications") view=|| view! { <Redirect path="/p/certifications"/> }/>
+                            <Route path=path!("/investments/real-estate") view=|| view! { <Redirect path="/p/real-estate-ventures"/> }/>
+                            <Route path=path!("/investments/bitcoin") view=BitcoinDashboard/>
+                            <Route path=path!("/services") view=|| view! { <Redirect path="/p/consulting"/> }/>
+                            <Route path=path!("/book") view=BookDiscovery/>
+                            <Route path=path!("/terms") view=Terms/>
+                            <Route path=path!("/privacy") view=Privacy/>
+                            <Route path=path!("/p/*slug") view=DynamicLanding/>
+                            <Route path=path!("/e/*slug") view=DynamicEntry/>
+                            <Route path=path!("/setup") view=TenantOnboarding/>
+                            <Route path=path!("/setup-passkey") view=SetupPasskey/>
+                            <Route path=path!("/admin") view=Admin/>
                         </Routes>
                     </div>
                     <Footer />
@@ -220,9 +222,9 @@ pub fn App() -> impl IntoView {
 #[component]
 pub fn PageViewTracker() -> impl IntoView {
     let location = use_location();
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let path = location.pathname.get();
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let _ = record_page_view(path).await;
         });
     });

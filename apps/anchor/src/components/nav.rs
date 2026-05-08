@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_router::A;
 
 #[server(GetBlockHeight, "/api")]
@@ -152,8 +152,8 @@ pub fn Nav() -> impl IntoView {
     let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
         
-    let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
-    let nav_resource = create_resource(|| (), |_| get_nav_items());
+    let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
+    let nav_resource = Resource::new(|| (), |_| get_nav_items());
     let (mobile_menu_open, set_mobile_menu_open) = create_signal(false);
 
     // Derive nav-placement widgets reactively from settings

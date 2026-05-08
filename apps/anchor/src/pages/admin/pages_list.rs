@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use crate::atlas_client::fetch_atlas_data;
 use serde::{Deserialize, Serialize};
 

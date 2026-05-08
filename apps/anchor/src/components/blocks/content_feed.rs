@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use crate::components::design_mode::use_kami_mode;
 
@@ -51,7 +51,7 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
     let config = store_value(data.config.clone());
     let fallback_items = data.items.clone();
 
-    let entries_resource = create_resource(
+    let entries_resource = Resource::new(
         move || source.clone(),
         move |src| {
             let fallback = fallback_items.clone();

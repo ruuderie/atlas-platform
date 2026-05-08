@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct FooterItemRecord {
@@ -127,8 +127,8 @@ pub fn Footer() -> impl IntoView {
     let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
         
-    let footer_resource = create_resource(|| (), |_| get_footer_items());
-    let settings_resource = create_resource(|| (), |_| crate::pages::landing::get_site_settings());
+    let footer_resource = Resource::new(|| (), |_| get_footer_items());
+    let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
 
     view! {
         <footer class=format!("w-full border-t border-outline-variant/30 py-8 text-xs flex flex-col lg:flex-row flex-wrap justify-between items-center gap-8 lg:gap-6 mt-auto {} {} {}",

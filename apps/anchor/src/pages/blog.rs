@@ -1,5 +1,6 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::components::{Router, Routes, Route, Redirect, A};
+use leptos_router::hooks::{use_params_map, use_query_map, use_location};
 use crate::components::design_mode::use_kami_mode;
 use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
 
@@ -531,7 +532,7 @@ pub async fn submit_download_lead(
 
 #[component]
 pub fn Blog() -> impl IntoView {
-    let posts_resource = create_resource(
+    let posts_resource = Resource::new(
         || (),
         |_| async move { get_posts().await.unwrap_or_else(|_| vec![]) },
     );
@@ -564,7 +565,7 @@ pub fn BlogPost() -> impl IntoView {
     let params = use_params_map();
     let slug = move || params.with(|p| p.get("slug").cloned().unwrap_or_default());
 
-    let post_resource = create_resource(slug, |s| async move {
+    let post_resource = Resource::new(slug, |s| async move {
         get_post_by_slug(s).await.unwrap_or(None)
     });
 
@@ -790,7 +791,7 @@ fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
 #[component]
 fn BlogPdfCta(slug: String) -> impl IntoView {
     let slug_clone = slug.clone();
-    let config_resource = create_resource(
+    let config_resource = Resource::new(
         move || slug.clone(),
         |s| async move { get_blog_pdf_config(s).await.unwrap_or(None) },
     );

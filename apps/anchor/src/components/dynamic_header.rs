@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PageHeaderData {
@@ -114,7 +114,7 @@ pub fn DynamicPageHeader(
     route_path: String,
     #[prop(default = "secondary".to_string())] badge_color: String,
 ) -> impl IntoView {
-    let header_resource = create_resource(move || route_path.clone(), |r| get_page_header(r));
+    let header_resource = Resource::new(move || route_path.clone(), |r| get_page_header(r));
 
     let badge_classes = match badge_color.as_str() {
         "primary" => "text-on-primary bg-primary",

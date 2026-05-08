@@ -1,5 +1,5 @@
 use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
-use leptos::*;
+use leptos::prelude::*;
 
 #[server(GetCertifications, "/api")]
 pub async fn get_certifications() -> Result<Vec<ContentNode>, ServerFnError> {
@@ -52,7 +52,7 @@ pub async fn get_certifications() -> Result<Vec<ContentNode>, ServerFnError> {
 
 #[component]
 pub fn Certifications() -> impl IntoView {
-    let certs_resource = create_resource(
+    let certs_resource = Resource::new(
         || (),
         |_| async move { get_certifications().await.unwrap_or_else(|_| vec![]) },
     );

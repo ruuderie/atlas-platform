@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 
 use crate::b2b::{get_case_studies, get_highlights, get_services};
@@ -15,9 +15,9 @@ pub fn Services() -> impl IntoView {
         pulldown_cmark::html::push_html(&mut html_output, parser);
         html_output
     }
-    let services_res = create_resource(|| (), |_| get_services(true));
-    let case_studies_res = create_resource(|| (), |_| get_case_studies(true));
-    let settings_res = create_resource(|| (), |_| get_site_settings());
+    let services_res = Resource::new(|| (), |_| get_services(true));
+    let case_studies_res = Resource::new(|| (), |_| get_case_studies(true));
+    let settings_res = Resource::new(|| (), |_| get_site_settings());
 
     view! {
         <Transition fallback=move || view! { <div class="min-h-screen pt-32 pb-24 px-6 md:px-12 flex justify-center items-center jetbrains text-outline">"Authenticating Protocol..."</div> }>
@@ -169,7 +169,7 @@ pub fn Services() -> impl IntoView {
 
 #[component]
 pub fn HighlightsGallery() -> impl IntoView {
-    let highlights_res = create_resource(|| (), |_| get_highlights(true));
+    let highlights_res = Resource::new(|| (), |_| get_highlights(true));
 
     view! {
         <section class="py-16 overflow-hidden">

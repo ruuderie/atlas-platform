@@ -4,7 +4,7 @@ async fn main() {
     use anchor::app::*;
     use anchor::state::AppState;
     use axum::Router;
-    use leptos::*;
+    use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use sqlx::PgPool;
     use tower_http::services::ServeDir;
@@ -34,14 +34,9 @@ async fn main() {
     let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
 
     let app = Router::new()
-        // Export the open metrics endpoint
         .route(
             "/metrics",
             axum::routing::get(|| async move { metric_handle.render() }),
-        )
-        .route(
-            "/api/*fn_name",
-            axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
         )
         .route(
             "/robots.txt",

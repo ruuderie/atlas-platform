@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -154,7 +154,7 @@ pub fn Resume() -> impl IntoView {
         }
     });
 
-    let profiles_resource = create_resource(
+    let profiles_resource = Resource::new(
         || (),
         |_| async move {
             crate::resume_engine::get_entry_collections()
@@ -169,7 +169,7 @@ pub fn Resume() -> impl IntoView {
     let (lead_email, set_lead_email) = create_signal(String::new());
 
     // Automatically select the first PUBLIC profile on load
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(mut profiles) = profiles_resource.get() {
             profiles.retain(|p| p.is_public);
             if !profiles.is_empty() && active_profile_id.get_untracked().is_none() {
@@ -178,7 +178,7 @@ pub fn Resume() -> impl IntoView {
         }
     });
 
-    let profile_data_resource = create_resource(
+    let profile_data_resource = Resource::new(
         move || active_profile_id.get(),
         |id_opt| async move {
             crate::resume_engine::get_tenant_entries(id_opt)
