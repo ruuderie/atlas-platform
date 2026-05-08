@@ -98,7 +98,7 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
     view! {
         <section class="py-16 w-full">
             <div class="container mx-auto px-4 max-w-6xl">
-                {if let Some(ref title) = data.config.section_title {
+                {if let Some(title) = data.config.section_title {
                     view! {
                         <h2 class="text-3xl font-bold text-on-surface mb-8">
                             {title}

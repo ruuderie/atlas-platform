@@ -37,7 +37,7 @@ pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
     view! {
         <section class="py-12 md:py-16 w-full">
             <div class="container mx-auto px-4 max-w-3xl">
-                {if let Some(ref title) = data.config.section_title {
+                {if let Some(title) = data.config.section_title {
                     view! {
                         <h2 class="text-3xl font-bold text-on-surface mb-8 text-center md:text-left">
                             {title}

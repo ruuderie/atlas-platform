@@ -31,8 +31,7 @@ pub fn BookDiscovery() -> impl IntoView {
                                         src=bu
                                         width="100%"
                                         height="100%"
-                                        attr:frameborder="0"
-                                        class="w-full h-full"
+                                        class="w-full h-full border-0"
                                     ></iframe>
                                 </div>
                             }.into_any()

@@ -90,7 +90,7 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
             view! {
                 <section class="py-16 w-full bg-[#f5f4ed]">
                     <div class="container mx-auto px-4 max-w-3xl">
-                        {if let Some(ref title) = data.config.section_title {
+                        {if let Some(title) = data.config.section_title {
                             view! {
                                 <div class="mb-10">
                                     <div class="jetbrains text-[0.6rem] uppercase tracking-[0.25em] text-[#6b6a64] mb-2">{title}</div>
@@ -119,7 +119,7 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
             view! {
                 <section class="py-12 md:py-16 w-full">
                     <div class="container mx-auto px-4 max-w-4xl">
-                        {if let Some(ref title) = data.config.section_title {
+                        {if let Some(title) = data.config.section_title {
                             view! {
                                 <h2 class="text-3xl font-bold text-on-surface mb-8">
                                     {title}
