@@ -130,11 +130,14 @@ pub fn Footer() -> impl IntoView {
     let footer_resource = Resource::new(|| (), |_| get_footer_items());
     let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
 
+    let footer_bg = if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-lowest" } else { "bg-surface-container-low" }.to_string();
+    let footer_px = if design.container_strategy == "asymmetrical-gutters" { "px-6 lg:px-[8.5rem]" } else { "px-6 lg:px-12" }.to_string();
+    let footer_font = design.meta_font.clone();
+    let link_is_tonal = design.elevation_strategy == "tonal-shifts";
+
     view! {
         <footer class=format!("w-full border-t border-outline-variant/30 py-8 text-xs flex flex-col lg:flex-row flex-wrap justify-between items-center gap-8 lg:gap-6 mt-auto {} {} {}",
-            if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-lowest" } else { "bg-surface-container-low" },
-            if design.container_strategy == "asymmetrical-gutters" { "px-6 lg:px-[8.5rem]" } else { "px-6 lg:px-12" },
-            &design.meta_font
+            footer_bg, footer_px, footer_font
         )>
             <div class="flex flex-col lg:flex-row items-center space-y-2 lg:space-y-0 lg:space-x-4 text-center">
                 <span class="break-words text-on-surface">"© 2026 RUUD SALYM ERIE. ALL RIGHTS RESERVED."</span>
@@ -145,7 +148,7 @@ pub fn Footer() -> impl IntoView {
             <div class="flex flex-wrap justify-center items-center gap-6">
                 <Suspense fallback=move || view! { <div class="w-24 h-4 bg-outline-variant/20 animate-pulse rounded"></div> }>
                     {
-                        let link_class = format!("font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface text-[0.75rem]" } else { "text-slate-500 dark:text-slate-400 text-[0.65rem]" });
+                        let link_class = format!("font-medium hover:text-primary transition-colors tracking-widest uppercase text-center whitespace-normal break-words {}", if link_is_tonal { "text-on-surface text-[0.75rem]" } else { "text-slate-500 dark:text-slate-400 text-[0.65rem]" });
                         move || {
                             let items = footer_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
                             let link_class = link_class.clone();

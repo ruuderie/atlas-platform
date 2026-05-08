@@ -77,7 +77,8 @@ fn KamiProfileHeader(data: ProfileHeaderBlockData) -> impl IntoView {
                                 view! { <span class="flex items-center gap-1">"📍 " {location}</span> }.into_any()
                             } else { view! {}.into_any() }}
                             {if let Some(email) = data.contact.email.clone() {
-                                view! { <a href=format!("mailto:{}", email) class="hover:text-[#1B365D] transition-colors">{email}</a> }.into_any()
+                                let email_display = email.clone();
+                                view! { <a href=format!("mailto:{}", email) class="hover:text-[#1B365D] transition-colors">{email_display}</a> }.into_any()
                             } else { view! {}.into_any() }}
                             {if let Some(github) = data.contact.github_url.clone() {
                                 view! { <a href={github} target="_blank" class="hover:text-[#1B365D] transition-colors underline">"GitHub"</a> }.into_any()
@@ -149,7 +150,8 @@ fn DefaultProfileHeader(data: ProfileHeaderBlockData) -> impl IntoView {
                                         view! { <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[1rem]">"location_on"</span>{location}</span> }.into_any()
                                     } else { view! {}.into_any() }}
                                     {if let Some(email) = data.contact.email {
-                                        view! { <a href=format!("mailto:{}", email) class="flex items-center gap-1.5 hover:text-primary transition-colors"><span class="material-symbols-outlined text-[1rem]">"mail"</span>{email}</a> }.into_any()
+                                        let email_display = email.clone();
+                                        view! { <a href=format!("mailto:{}", email) class="flex items-center gap-1.5 hover:text-primary transition-colors"><span class="material-symbols-outlined text-[1rem]">"mail"</span>{email_display}</a> }.into_any()
                                     } else { view! {}.into_any() }}
                                     {if let Some(github) = data.contact.github_url {
                                         view! { <a href={github} target="_blank" class="flex items-center gap-1.5 hover:text-primary transition-colors hover:underline">"GitHub"</a> }.into_any()

@@ -58,12 +58,15 @@ pub fn ContentFeed(
                             })}
                             <h2 class="text-3xl font-extrabold text-primary mb-2">{node.title}</h2>
                             
-                            {node.link_url.clone().map(|url| view! {
-                                <a href=url.clone() target="_blank" rel="noopener noreferrer" class="text-sm font-label text-outline hover:text-secondary hover:underline transition-colors flex items-center gap-2 mb-6 w-fit cursor-pointer">
-                                    <span class="material-symbols-outlined text-sm">"link"</span>
-                                    {url}
-                                </a>
-                            })}
+                            {node.link_url.clone().map(|url| {
+                let url_display = url.clone();
+                view! {
+                    <a href=url target="_blank" rel="noopener noreferrer" class="text-sm font-label text-outline hover:text-secondary hover:underline transition-colors flex items-center gap-2 mb-6 w-fit cursor-pointer">
+                        <span class="material-symbols-outlined text-sm">"link"</span>
+                        {url_display}
+                    </a>
+                }
+            })}
                             
                             {node.subtitle.clone().map(|sub| view! {
                                 <p class="text-lg font-bold text-on-surface mb-6">{sub}</p>

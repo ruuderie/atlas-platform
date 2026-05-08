@@ -1,5 +1,5 @@
 use axum::extract::FromRef;
-use leptos_axum::LeptosOptions;
+use leptos_config::LeptosOptions;
 use sqlx::PgPool;
 use uuid::Uuid;
 

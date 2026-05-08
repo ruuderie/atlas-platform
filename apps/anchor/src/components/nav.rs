@@ -173,17 +173,17 @@ pub fn Nav() -> impl IntoView {
             if design.container_strategy == "asymmetrical-gutters" { "px-5 md:px-[8.5rem]" } else { "px-5 md:px-12" }
         )>
             // Logo / site title
-            <A href="/" class=format!("text-xl font-bold truncate relative z-[70] {} {}", &design.meta_font, if design.elevation_strategy == "tonal-shifts" { "text-primary" } else { "text-on-surface" })>
+            <a href="/" class=format!("text-xl font-bold truncate relative z-[70] {} {}", &design.meta_font, if design.elevation_strategy == "tonal-shifts" { "text-primary" } else { "text-on-surface" })>
                 <Suspense fallback=move || view! { <span>"Portfolio"</span> }>
                     {move || settings_resource.get().unwrap_or(Ok(crate::pages::landing::SiteSettings::default())).unwrap_or(crate::pages::landing::SiteSettings::default()).site_title}
                 </Suspense>
-            </A>
+            </a>
 
             // ── Desktop nav links (md+) ────────────────────────────────────────
             <div class="hidden md:flex items-center space-x-8">
                 <Suspense fallback=move || view! { <div class="w-24 h-4 bg-outline-variant/30 animate-pulse rounded"></div> }>
                     {
-                        let root_class = format!("font-medium transition-colors uppercase text-sm tracking-wide {}", if &design.elevation_strategy == "tonal-shifts" { "text-on-surface hover:text-primary" } else { "text-on-surface-variant hover:text-on-surface" });
+                        let root_class = format!("font-medium transition-colors uppercase text-sm tracking-wide {}", if design.elevation_strategy == "tonal-shifts" { "text-on-surface hover:text-primary" } else { "text-on-surface-variant hover:text-on-surface" });
                         move || {
                             let items = nav_resource.get().unwrap_or(Ok(vec![])).unwrap_or_default();
                             let root_class = root_class.clone();

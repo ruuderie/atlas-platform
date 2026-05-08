@@ -35,10 +35,6 @@ pub fn Terms() -> impl IntoView {
                                 prose-li:text-on-surface-variant"
                                 inner_html=html
                             >
-                                {
-                                    #[cfg(target_arch = "wasm32")]
-                                    let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
-                                }
                             </article>
                         }.into_any()
                     },
@@ -70,10 +66,6 @@ pub fn Privacy() -> impl IntoView {
                                 prose-li:text-on-surface-variant"
                                 inner_html=html
                             >
-                                {
-                                    #[cfg(target_arch = "wasm32")]
-                                    let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
-                                }
                             </article>
                         }.into_any()
                     },

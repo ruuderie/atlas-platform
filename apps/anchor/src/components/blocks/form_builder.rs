@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use leptos_router::components::{ActionForm, A};
+
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -83,12 +83,11 @@ pub async fn submit_dynamic_form(
 
 #[component]
 pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
-    let submit_action = ServerAction::<SubmitDynamicForm>::new();
-    let value = submit_action.value();
-    let pending = submit_action.pending();
-    
+    let (value, set_value) = signal::<Option<Result<(), leptos::prelude::ServerFnError>>>(None);
+    let (pending, set_pending) = signal(false);
+
     let btn_text = data.submit_button_text.clone().unwrap_or_else(|| "Submit".to_string());
-    
+
     view! {
         <section class=data.container_classes.clone().unwrap_or_else(|| "py-16 bg-surface-container-low w-full container mx-auto px-4 max-w-3xl".to_string())>
             <div class=if data.container_classes.is_some() { "w-full" } else { "bg-surface border border-outline-variant/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden" }>
@@ -109,7 +108,7 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                 } else { view!{}.into_any() }}
                     
                     <Show
-                        when=move || value.with(|v| v.is_some())
+                        when=move || value.get().is_some()
                         fallback={
                             let data_for_fallback = data.clone();
                             let btn_text_for_fallback = btn_text.clone();
@@ -120,7 +119,19 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                 let (payload_map, set_payload_map) = signal(std::collections::HashMap::<String, String>::new());
                                 
                                 view! {
-                                    <ActionForm action=submit_action class=data.form_classes.clone().unwrap_or_else(|| "flex flex-col gap-6".to_string())>
+                                <form
+                                    class=data.form_classes.clone().unwrap_or_else(|| "flex flex-col gap-6".to_string())
+                                    on:submit=move |ev| {
+                                        ev.prevent_default();
+                                        let form_id = data.form_id.clone();
+                                        let payload = serde_json::to_string(&payload_map.get()).unwrap_or_default();
+                                        let set_v = set_value; let set_p = set_pending;
+                                        leptos::task::spawn_local(async move {
+                                            set_p.set(true); let result = submit_dynamic_form(form_id, payload).await; set_p.set(false);
+                                            set_v.set(Some(result));
+                                        });
+                                    }
+                                >
                                         <input type="hidden" name="form_id" value=data.form_id.clone() />
                                         <input type="hidden" name="payload" value=move || serde_json::to_string(&payload_map.get()).unwrap_or_default() />
                                         
@@ -175,7 +186,7 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                         </Show>
                                         {btn_text.clone()}
                                     </button>
-                                </ActionForm>
+                                </form>
                             }.into_any()
                         }}
                     >
