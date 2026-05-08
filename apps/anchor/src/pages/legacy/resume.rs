@@ -200,7 +200,7 @@ pub fn Resume() -> impl IntoView {
             return;
         }
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let _ = crate::pages::dynamic_landing::handle_dynamic_lead(
                 "resume_download".to_string(),
                 email,

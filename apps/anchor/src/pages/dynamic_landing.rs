@@ -436,12 +436,12 @@ pub fn DynamicLanding() -> impl IntoView {
                             <main class="pt-32 pb-24 px-4 md:px-[8.5rem]">
                                 <section class="w-full max-w-4xl mx-auto items-start px-6 md:px-8">
                                     <div class="inline-block bg-surface-container-high px-3 py-1 jetbrains text-[0.625rem] font-medium tracking-widest text-on-surface-variant mb-8 uppercase">
-                                        {&page.title}
+                                        {page.title.clone()}
                                     </div>
                                     <h1 class="text-5xl md:text-[5rem] leading-[0.9] font-extrabold tracking-[-0.04em] text-primary mb-8 uppercase" inner_html=page.hero_title.clone()>
                                     </h1>
                                     <p class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-8">
-                                        {&page.hero_subtitle}
+                                        {page.hero_subtitle.clone()}
                                     </p>
 
                                     {if !page.lead_capture_title.is_empty() {
@@ -459,10 +459,10 @@ pub fn DynamicLanding() -> impl IntoView {
                                                 <div class="space-y-8">
                                                     <div class="space-y-2">
                                                         <h3 class="text-2xl font-bold tracking-tight text-on-surface">
-                                                            {&page.lead_capture_title}
+                                                            {page.lead_capture_title.clone()}
                                                         </h3>
                                                         <p class="text-on-surface-variant">
-                                                            {&page.lead_capture_desc}
+                                                            {page.lead_capture_desc.clone()}
                                                         </p>
                                                     </div>
                                                     <div class="space-y-4 w-full bg-transparent border-0 outline-none">
@@ -497,7 +497,7 @@ pub fn DynamicLanding() -> impl IntoView {
 
                                                         <div class="pt-4">
                                                             <button on:click=move |_| submit_action.dispatch(()) class="w-full bg-primary text-on-primary py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors rounded-none outline-none border-none shadow-none">
-                                                                {&page.lead_capture_btn}
+                                                                {page.lead_capture_btn.clone()}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -578,7 +578,7 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                                         inner_html=page.hero_title.clone()>
                                     </h1>
                                     <p class="text-xl md:text-2xl font-medium tracking-tight text-on-surface-variant leading-relaxed mb-12">
-                                        {&page.hero_subtitle}
+                                        {page.hero_subtitle.clone()}
                                     </p>
                                 </section>
                             </main>

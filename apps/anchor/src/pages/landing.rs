@@ -128,7 +128,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             .await
         {
             Ok(rows) => {
-                tracing::info!("[get_site_settings] tenant={} rows={}", tenant_id, rows.len());
+                leptos::logging::log!("[get_site_settings] tenant={} rows={}", tenant_id, rows.len());
                 for row in rows {
                     let key: String = row.get("key");
                     let val: String = row.get("value");
@@ -166,7 +166,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             Err(e) => {
                 // Log the error explicitly so we can diagnose UAT failures.
                 // Fall through with defaults — do not propagate as a hard error.
-                tracing::error!("[get_site_settings] DB error querying tenant_setting: {:?}", e);
+                leptos::logging::error!("[get_site_settings] DB error querying tenant_setting: {:?}", e);
             }
         }
 
@@ -239,7 +239,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
                 }
             }
             Err(e) => {
-                tracing::warn!("[get_site_settings] Backend API unavailable ({}), using tenant_setting data only", e);
+                leptos::logging::warn!("[get_site_settings] Backend API unavailable ({}), using tenant_setting data only", e);
             }
         }
     }

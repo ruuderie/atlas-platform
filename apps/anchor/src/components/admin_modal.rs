@@ -194,7 +194,7 @@ pub fn PostForm(
         let p_email = { let e = pdf_notify_email.get_untracked(); if e.is_empty() { None } else { Some(e) } };
 
         set_save_error.set(None); // clear prior error
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let result = if is_edit {
                 crate::pages::blog::update_post(
                     current_id.clone(), s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
@@ -399,7 +399,7 @@ pub fn PasskeyForm() -> impl IntoView {
         set_is_loading.set(true);
         set_auth_error.set(String::new());
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             match crate::auth::request_magic_link(uname.clone()).await {
                 Ok(_) => {
                     set_refresh.set(refresh.get_untracked() + 1);
@@ -560,7 +560,7 @@ pub fn SettingsForm() -> impl IntoView {
         let stoken = smtp_token.get_untracked();
         let sfrom = smtp_from.get_untracked();
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let _ = crate::pages::landing::update_site_settings(
                 cf, st, hq, hs, sttl, lt, ld, ll, lp, lb, lf, le, sc, wu, ae, gai, bu, th, ph, gu,
                 xu, lu, b2b, mt, md, og,
@@ -1069,7 +1069,7 @@ pub fn ResumeProfileForm(
         let co =
             serde_json::to_value(category_order.get_untracked()).unwrap_or(serde_json::json!([]));
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = crate::resume_engine::update_resume_profile(
                     id_val.clone().unwrap(), n, fnm, obj, p_pub, tr, ce, cp, clo, cli, cv, co, ae,
@@ -1350,7 +1350,7 @@ pub fn LandingPageForm(
         let hs = hero_subtitle.get_untracked();
         let dbj = dynamic_blocks_json.get_untracked();
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = crate::pages::dynamic_landing::update_landing_page(
                     old_slug_val, s, t, d, ht, hs, dbj
@@ -1438,7 +1438,7 @@ pub fn MailingListForm(
         let e = email.get_untracked();
         let lt = list_type.get_untracked();
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let _ = crate::pages::dynamic_landing::handle_dynamic_lead(lt, e, vec![]).await;
             set_refresh.set(refresh.get_untracked() + 1);
             set_modal_state.set(ModalState::None);
@@ -1899,7 +1899,7 @@ pub fn BaseResumeEntryForm(
             serde_json::from_str(&md_str).ok()
         };
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = update_base_entry(id_val.clone().unwrap(), cat_val, t, sub, dr, b, md, profs).await;
             } else {
@@ -2060,7 +2060,7 @@ pub fn ServiceForm(initial_item: Option<crate::b2b::ServiceRecord>) -> impl Into
         let iv = is_visible.get_untracked();
         let ord = display_order.get_untracked().parse::<i32>().unwrap_or(0);
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = update_service(id_val, t, desc, deliv_vec, pr_opt, iv, ord).await;
             } else {
@@ -2166,7 +2166,7 @@ pub fn CaseStudyForm(initial_item: Option<crate::b2b::CaseStudyRecord>) -> impl 
         let iv = is_visible.get_untracked();
         let ord = display_order.get_untracked().parse::<i32>().unwrap_or(0);
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = update_case_study(id_val, cn, prob, sol, roi, iv, ord).await;
             } else {
@@ -2273,7 +2273,7 @@ pub fn HighlightForm(initial_item: Option<crate::b2b::HighlightRecord>) -> impl 
         let iv = is_visible.get_untracked();
         let ord = display_order.get_untracked().parse::<i32>().unwrap_or(0);
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = update_highlight(id_val, t, u, iu_opt, d_opt, iv, ord).await;
             } else {
@@ -2370,7 +2370,7 @@ pub fn PageHeaderForm(
         let s = subtitle.get_untracked();
         let s_opt = if s.is_empty() { None } else { Some(s) };
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             if let Ok(_) =
                 crate::components::dynamic_header::update_page_header(rp, bt_opt, t, s_opt).await
             {
@@ -2446,7 +2446,7 @@ pub fn LeadOptionForm(
         let ia = is_active.get_untracked();
         let ord = display_order.get_untracked();
 
-        spawn_local(async move {
+        leptos::task::spawn_local(async move {
             let _ = crate::pages::landing::upsert_lead_option(id_val, pk, l, ia, ord).await;
             set_refresh.set(refresh.get_untracked() + 1);
             set_modal_state.set(ModalState::None);

@@ -66,8 +66,8 @@ pub fn Services() -> impl IntoView {
                                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                         {items.into_iter().map(|item| view! {
                                             <div class="bg-surface-container-low p-8 border border-outline-variant/20 hover:border-primary/50 transition-colors group flex flex-col h-full">
-                                                <h3 class="font-bold text-2xl mb-4 text-on-surface group-hover:text-primary transition-colors">{&item.title}</h3>
-                                                <p class="text-on-surface-variant lg:text-lg mb-8 flex-1 leading-relaxed">{&item.description}</p>
+                                                <h3 class="font-bold text-2xl mb-4 text-on-surface group-hover:text-primary transition-colors">{item.title.clone()}</h3>
+                                                <p class="text-on-surface-variant lg:text-lg mb-8 flex-1 leading-relaxed">{item.description.clone()}</p>
 
                                                 <div class="space-y-4 mb-8">
                                                     <div class="font-label text-xs uppercase tracking-widest text-secondary font-bold">"Deliverables"</div>
@@ -117,7 +117,7 @@ pub fn Services() -> impl IntoView {
                                         {items.into_iter().map(|item| view! {
                                             <div class="flex flex-col gap-6">
                                                 <div class="inline-block bg-primary/10 text-primary px-4 py-1 font-jetbrains text-[0.65rem] uppercase tracking-widest font-bold self-start">
-                                                    {&item.client_name}
+                                                    {item.client_name.clone()}
                                                 </div>
                                                 <div class="space-y-6">
                                                     <div>
@@ -140,7 +140,7 @@ pub fn Services() -> impl IntoView {
                                                     </div>
                                                     <div class="bg-surface p-4 border-l-4 border-tertiary">
                                                         <h4 class="font-bold text-on-surface mb-1 text-sm">"Impact"</h4>
-                                                        <p class="text-tertiary font-medium text-sm">{&item.roi_impact}</p>
+                                                        <p class="text-tertiary font-medium text-sm">{item.roi_impact.clone()}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -196,7 +196,7 @@ pub fn HighlightsGallery() -> impl IntoView {
                                                     </div>
                                                 })}
                                                 <div class="p-6 flex flex-col flex-1">
-                                                    <h3 class="font-bold text-lg mb-2 text-on-surface group-hover:text-primary transition-colors">{&item.title}</h3>
+                                                    <h3 class="font-bold text-lg mb-2 text-on-surface group-hover:text-primary transition-colors">{item.title.clone()}</h3>
                                                     {item.description.clone().map(|d| view! {
                                                         <p class="text-on-surface-variant text-sm leading-relaxed mb-4 flex-1">{d}</p>
                                                     })}

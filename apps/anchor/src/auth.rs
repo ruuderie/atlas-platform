@@ -37,11 +37,11 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
         match res {
             Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
             Ok(r) => {
-                tracing::warn!("Magic link request failed: HTTP {}", r.status());
+                leptos::logging::warn!("Magic link request failed: HTTP {}", r.status());
                 Err(ServerFnError::ServerError("Failed to request magic link".into()))
             }
             Err(e) => {
-                tracing::error!("Magic link request error: {:?}", e);
+                leptos::logging::error!("Magic link request error: {:?}", e);
                 Err(ServerFnError::ServerError("Failed to request magic link".into()))
             }
         }

@@ -144,7 +144,7 @@ fn LoginPanel() -> impl IntoView {
                 set_auth_error.set("Magic link sent! Check your email.".to_string());
                 set_countdown.set(60);
                 #[cfg(feature = "hydrate")]
-                spawn_local(async move {
+                leptos::task::spawn_local(async move {
                     use std::time::Duration;
                     while countdown.get_untracked() > 0 {
                         let (tx, rx) = futures::channel::oneshot::channel::<()>();
@@ -415,7 +415,7 @@ pub fn Admin() -> impl IntoView {
 
                             <button
                                 on:click=move |_| {
-                                    spawn_local(async move {
+                                    leptos::task::spawn_local(async move {
                                         // RevokeSession clears the HttpOnly cookie server-side.
                                         let _ = revoke_session().await;
                                         // Refetch auth_resource — it will re-run check_session,
@@ -662,76 +662,76 @@ fn SettingsReadView() -> impl IntoView {
                         // Hero
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline-variant uppercase tracking-widest text-xs">"CURRENT FOCUS"</div>
-                            <div class="col-span-2 text-on-surface font-medium">{&s.current_focus}</div>
+                            <div class="col-span-2 text-on-surface font-medium">{s.current_focus.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline-variant uppercase tracking-widest text-xs">"STATUS"</div>
-                            <div class="col-span-2 text-on-surface font-medium"><div class="inline-flex items-center gap-2"><div class="w-2 h-2 rounded-full" style=format!("background-color: {};", s.status_color)></div>{&s.status}</div></div>
+                            <div class="col-span-2 text-on-surface font-medium"><div class="inline-flex items-center gap-2"><div class="w-2 h-2 rounded-full" style=format!("background-color: {};", s.status_color)></div>{s.status.clone()}</div></div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline-variant uppercase tracking-widest text-xs">"SUBTITLE"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.hero_subtitle}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.hero_subtitle.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline-variant uppercase tracking-widest text-xs">"QUOTE"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.hero_quote}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.hero_quote.clone()}</div>
                         </div>
 
                         // Global
                         <div class="grid grid-cols-3 py-2 border-b border-primary/20 hover:bg-surface-container/30 mt-4">
                             <div class="text-primary uppercase tracking-widest text-xs">"SITE TITLE"</div>
-                            <div class="col-span-2 text-on-surface font-bold">{&s.site_title}</div>
+                            <div class="col-span-2 text-on-surface font-bold">{s.site_title.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-primary uppercase tracking-widest text-xs">"WEBHOOK URL"</div>
-                            <div class="col-span-2 text-on-surface font-mono text-xs">{&s.webhook_url}</div>
+                            <div class="col-span-2 text-on-surface font-mono text-xs">{s.webhook_url.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-primary uppercase tracking-widest text-xs">"ADMIN NOTIFICATION"</div>
-                            <div class="col-span-2 text-on-surface font-mono text-xs">{&s.admin_email}</div>
+                            <div class="col-span-2 text-on-surface font-mono text-xs">{s.admin_email.clone()}</div>
                         </div>
 
                         // Lead Capture
                         <div class="grid grid-cols-3 py-2 border-b border-secondary/20 hover:bg-surface-container/30 mt-4">
                             <div class="text-secondary uppercase tracking-widest text-xs">"LC TITLE"</div>
-                            <div class="col-span-2 text-on-surface font-medium">{&s.lc_title}</div>
+                            <div class="col-span-2 text-on-surface font-medium">{s.lc_title.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-secondary uppercase tracking-widest text-xs">"LC DESC"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.lc_desc}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.lc_desc.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-secondary uppercase tracking-widest text-xs">"LC BTN"</div>
-                            <div class="col-span-2 text-on-surface font-medium">{&s.lc_btn}</div>
+                            <div class="col-span-2 text-on-surface font-medium">{s.lc_btn.clone()}</div>
                         </div>
 
 
                         // Landing Pages Settings
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30 mt-4">
                             <div class="text-outline uppercase tracking-widest text-xs">"BOOKING URL"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.booking_url}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.booking_url.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30 mt-4">
                             <div class="text-outline uppercase tracking-widest text-xs">"TERMS HTML (MD)"</div>
-                            <div class="col-span-2 text-on-surface font-mono text-xs truncate max-h-24 overflow-hidden">{&s.terms_html}</div>
+                            <div class="col-span-2 text-on-surface font-mono text-xs truncate max-h-24 overflow-hidden">{s.terms_html.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30 mt-4">
                             <div class="text-outline uppercase tracking-widest text-xs">"PRIVACY HTML (MD)"</div>
-                            <div class="col-span-2 text-on-surface font-mono text-xs truncate max-h-24 overflow-hidden">{&s.privacy_html}</div>
+                            <div class="col-span-2 text-on-surface font-mono text-xs truncate max-h-24 overflow-hidden">{s.privacy_html.clone()}</div>
                         </div>
 
                         // Social Media Links
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30 mt-4">
                             <div class="text-outline uppercase tracking-widest text-xs">"GITHUB URL"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.github_url}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.github_url.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline uppercase tracking-widest text-xs">"X (TWITTER) URL"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.x_url}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.x_url.clone()}</div>
                         </div>
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
                             <div class="text-outline uppercase tracking-widest text-xs">"LINKEDIN URL"</div>
-                            <div class="col-span-2 text-on-surface font-medium truncate">{&s.linkedin_url}</div>
+                            <div class="col-span-2 text-on-surface font-medium truncate">{s.linkedin_url.clone()}</div>
                         </div>
 
                         // Global B2B Settings
@@ -781,11 +781,11 @@ fn ResumeProfileTable() -> impl IntoView {
                             view! {
                                 <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
                                     <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
-                                    <td class="py-4 font-bold text-on-surface">{&item.name}</td>
+                                    <td class="py-4 font-bold text-on-surface">{item.name.clone()}</td>
                                     <td class="py-4 text-right space-x-4">
                                         <button
                                             on:click=move |_| {
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(bytes) = download_resume(id_val).await {
                                                         use web_sys::js_sys::{Array, Uint8Array};
                                                         use web_sys::{Blob, BlobPropertyBag, Url};
@@ -811,7 +811,7 @@ fn ResumeProfileTable() -> impl IntoView {
                                         >"[PREVIEW]"</button>
                                         <button
                                             on:click=move |_| {
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(bytes) = download_resume(id_val).await {
                                                         use web_sys::js_sys::{Array, Uint8Array};
                                                         use web_sys::{Blob, BlobPropertyBag, Url};
@@ -843,7 +843,7 @@ fn ResumeProfileTable() -> impl IntoView {
                                         <button on:click=move |_| set_modal_state.set(crate::components::admin_modal::ModalState::Profile(Some(clone_item.clone()))) class="text-secondary hover:text-on-secondary-fixed-variant font-medium tracking-wide">"[EDIT]"</button>
                                         <button
                                             on:click=move |_| {
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     let _ = delete_resume_profile(id_val).await;
                                                     set_refresh.set(refresh.get_untracked() + 1);
                                                 });
@@ -928,12 +928,12 @@ fn BaseResumeEntryTable() -> impl IntoView {
                                                     view! {
                                                         <tr class="border-b border-outline-variant/10 hover:bg-surface-container/50 transition-colors">
                                                             <td class="py-4 text-outline-variant font-medium">{id_val.to_string()}</td>
-                                                            <td class="py-4 font-bold text-on-surface truncate">{&item.title}</td>
+                                                            <td class="py-4 font-bold text-on-surface truncate">{item.title.clone()}</td>
                                                             <td class="py-4 text-right space-x-4">
                                                                 <button on:click=move |_| set_modal_state.set(crate::components::admin_modal::ModalState::BaseEntry(Some(clone_item.clone()), Some(clone_item.category))) class="text-secondary hover:text-on-secondary-fixed-variant font-medium tracking-wide">"[EDIT]"</button>
                                                                 <button
                                                                     on:click=move |_| {
-                                                                        spawn_local(async move {
+                                                                        leptos::task::spawn_local(async move {
                                                                             let _ = delete_base_entry(id_val).await;
                                                                             set_refresh.set(refresh.get_untracked() + 1);
                                                                         });
@@ -1059,7 +1059,7 @@ fn LeadOptionTable() -> impl IntoView {
                                         <button on:click=move |_| set_modal_state.set(crate::components::admin_modal::ModalState::LeadOption(Some(clone_item.clone()))) class="text-secondary hover:text-on-secondary-fixed-variant font-medium tracking-wide">"[EDIT]"</button>
                                         <button
                                             on:click=move |_| {
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     let _ = delete_lead_option(id_val).await;
                                                     set_refresh.set(refresh.get_untracked() + 1);
                                                 });
@@ -1114,7 +1114,7 @@ fn MailingListTable() -> impl IntoView {
                                             on:click=move |_| {
                                                 let id = i.id;
                                                 let r = refresh;
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = delete_mailing_list(id).await {
                                                         expect_context::<WriteSignal<i32>>().set(r.get_untracked() + 1);
                                                     }
@@ -1181,7 +1181,7 @@ fn PostTable() -> impl IntoView {
                                         <button
                                             on:click=move |_| {
                                                 let target_id = del_id.clone();
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = crate::pages::blog::delete_post(target_id).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
@@ -1239,7 +1239,7 @@ fn PasskeyTable() -> impl IntoView {
                                         <button
                                             on:click=move |_| {
                                                 let id = u.id;
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = crate::auth::delete_user(id).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
@@ -1305,7 +1305,7 @@ pub fn LandingPageTable() -> impl IntoView {
                                         <button
                                             on:click=move |_| {
                                                 let target_slug = p_clone_2.slug.clone();
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = delete_landing_page(target_slug).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
@@ -1375,7 +1375,7 @@ pub fn NavTable() -> impl IntoView {
                                         <button
                                             on:click=move |_| {
                                                 let id = n.id;
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = delete_nav_item(id).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
@@ -1444,7 +1444,7 @@ pub fn FooterTable() -> impl IntoView {
                                         <button
                                             on:click=move |_| {
                                                 let id = n.id;
-                                                spawn_local(async move {
+                                                leptos::task::spawn_local(async move {
                                                     if let Ok(_) = delete_footer_item(id).await {
                                                         set_refresh.set(refresh.get_untracked() + 1);
                                                     }
