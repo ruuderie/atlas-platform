@@ -1103,11 +1103,14 @@ fn MailingListTable() -> impl IntoView {
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
                     {match res {
-                        Some(Ok(items)) => items.into_iter().map(|i| view! {
+                        Some(Ok(items)) => items.into_iter().map(|i| {
+                            let prefs_title = i.preferences.clone();
+                            let prefs_text = i.preferences;
+                            view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 font-bold text-primary">{i.email}</td>
                                 <td class="py-4 px-4 text-on-surface">{i.list_type}</td>
-                                <td class="py-4 px-4 text-outline truncate max-w-[200px]" title={let p = i.preferences.clone(); p}>{i.preferences}</td>
+                                <td class="py-4 px-4 text-outline truncate max-w-[200px]" title=prefs_title>{prefs_text}</td>
                                 <td class="py-4 px-4 text-outline-variant">{i.created_at}</td>
                                 <td class="py-4 px-4">
                                     <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1128,6 +1131,7 @@ fn MailingListTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
+                            }
                         }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}

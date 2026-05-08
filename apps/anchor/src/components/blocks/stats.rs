@@ -44,7 +44,7 @@ pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
     let items_to_render = data.items.clone();
     let section_title = data.config.section_title.clone();
     let display = data.config.display.clone();
-    let columns = columns;
+    let columns = data.config.columns;
     let config_for_items = data.config.clone();
 
     view! {

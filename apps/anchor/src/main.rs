@@ -5,11 +5,12 @@ async fn main() {
     use anchor::state::AppState;
     use axum::Router;
     use leptos::prelude::*;
+    use leptos::context::provide_context;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use sqlx::PgPool;
     use tower_http::services::ServeDir;
 
-    let conf = get_configuration(None).await.unwrap();
+    let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
@@ -77,7 +78,7 @@ async fn main() {
             routes,
             {
                 let app_state = app_state.clone();
-                move || leptos::provide_context(app_state.clone())
+                move || provide_context(app_state.clone())
             },
             move || view! { <App/> },
         )

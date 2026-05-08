@@ -182,7 +182,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             Ok(inst_json) => {
                 // The backend response is the AppInstance model with settings merged in.
                 // Fields: { id, tenant_id, app_type, settings: { ...merged JSONB + tenant_setting KV... } }
-                let s = inst_json.get("settings").unwrap_or_else(|| serde_json::json!({}));
+                let s = inst_json.get("settings").cloned().unwrap_or_else(|| serde_json::json!({}));
 
                 // design_config — only set if not already populated by tenant_setting
                 if settings.design_config.is_none() {
@@ -607,7 +607,7 @@ pub fn Landing() -> impl IntoView {
                                                             <span class="jetbrains text-sm text-on-surface group-hover:text-primary transition-colors">{opt.label}</span>
                                                         </label>
                                                         }
-                                                    }).collect::<Vec<_>>(),
+                                                    }).collect::<Vec<_>>().into_any(),
                                                     _ => view! { <div>"No options available."</div> }.into_any(),
                                                 }}
                                                 </Transition>
@@ -616,7 +616,7 @@ pub fn Landing() -> impl IntoView {
                                     }}
                                 </Suspense>
                                 <div class="space-y-4">
-                                    <button on:click=move |_| submit_action.dispatch(()) class="w-full bg-secondary text-on-primary py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-on-secondary-fixed-variant transition-colors rounded-none outline-none border-none shadow-none">
+                                    <button on:click=move |_| { submit_action.dispatch(()); } class="w-full bg-secondary text-on-primary py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-on-secondary-fixed-variant transition-colors rounded-none outline-none border-none shadow-none">
                                         <Suspense fallback=move || view! { <span>"EXECUTE..."</span> }>
                                             {move || settings_resource.get().unwrap_or(Ok(SiteSettings::default())).unwrap_or(SiteSettings::default()).lc_btn}
                                         </Suspense>

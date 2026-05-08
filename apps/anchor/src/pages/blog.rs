@@ -937,7 +937,7 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                                         </button>
                                         <button
                                             id="pdf-lead-submit"
-                                            on:click=move |_| submit_action.dispatch(())
+                                            on:click=move |_| { submit_action.dispatch(()); }
                                             disabled=submitting
                                             class="jetbrains text-[0.65rem] uppercase tracking-widest px-6 py-3 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors disabled:opacity-50">
                                             {move || if submitting.get() { "⏳ Sending..." } else { "↓ Send & Download" }}

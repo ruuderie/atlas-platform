@@ -1622,7 +1622,7 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
                     "Cancel"
                 </button>
                 <button
-                    on:click=move |_| save_action.dispatch(())
+                    on:click=move |_| { save_action.dispatch(()); }
                     class="bg-primary text-on-primary px-8 py-3 jetbrains text-xs font-bold tracking-widest uppercase hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     disabled=loading
                 >
@@ -1754,7 +1754,7 @@ pub fn FooterItemForm(
                     "Cancel"
                 </button>
                 <button
-                    on:click=move |_| save_action.dispatch(())
+                    on:click=move |_| { save_action.dispatch(()); }
                     class="bg-primary text-on-primary px-8 py-3 jetbrains text-xs font-bold tracking-widest uppercase hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     disabled=loading
                 >

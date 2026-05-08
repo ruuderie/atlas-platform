@@ -496,7 +496,7 @@ pub fn DynamicLanding() -> impl IntoView {
                                                         </Show>
 
                                                         <div class="pt-4">
-                                                            <button on:click=move |_| submit_action.dispatch(()) class="w-full bg-primary text-on-primary py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors rounded-none outline-none border-none shadow-none">
+                                                            <button on:click=move |_| { submit_action.dispatch(()); } class="w-full bg-primary text-on-primary py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors rounded-none outline-none border-none shadow-none">
                                                                 {page.lead_capture_btn.clone()}
                                                             </button>
                                                         </div>
