@@ -5,7 +5,7 @@ use crate::auth::exchange_setup_token;
 #[component]
 pub fn SetupPasskey() -> impl IntoView {
     let query = use_query_map();
-    let token = move || query.with(|q| q.get("token").cloned().unwrap_or_default());
+    let token = move || query.with(|q| q.get("token").unwrap_or_default());
     
     let is_exchanging = RwSignal::new(false);
     let error = RwSignal::new(Option::<String>::None);
@@ -118,7 +118,7 @@ pub fn SetupPasskey() -> impl IntoView {
                                 "Continue to Dashboard"
                             </a>
                         </div>
-                    }.into_view()
+                    }.into_any()
                 } else {
                     view! {
                         <div class="text-center mb-8">
@@ -142,14 +142,14 @@ pub fn SetupPasskey() -> impl IntoView {
                                 on:click=setup
                             >
                                 {move || if is_exchanging.get() {
-                                    view! { <span class="material-symbols-outlined animate-spin">"progress_activity"</span> }.into_view()
+                                    view! { <span class="material-symbols-outlined animate-spin">"progress_activity"</span> }.into_any()
                                 } else {
-                                    view! { <span class="material-symbols-outlined">"arrow_forward"</span> }.into_view()
+                                    view! { <span class="material-symbols-outlined">"arrow_forward"</span> }.into_any()
                                 }}
                                 {move || if is_exchanging.get() { "Verifying..." } else { "Begin Setup" }}
                             </button>
                         </div>
-                    }.into_view()
+                    }.into_any()
                 }}
             </div>
         </div>

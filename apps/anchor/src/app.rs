@@ -134,7 +134,7 @@ pub fn App() -> impl IntoView {
     let og_image_sig = move || get_settings().og_image;
 
     view! {
-        <Html lang="en"/>
+        <Html attr:lang="en"/>
         <Body class="text-on-surface selection:bg-secondary-container selection:text-on-secondary-container"/>
         <Link rel="preconnect" href="https://fonts.googleapis.com" />
         <Link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />

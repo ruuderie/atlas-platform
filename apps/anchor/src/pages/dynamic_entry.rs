@@ -8,7 +8,7 @@ use crate::utils::text::parse_rai;
 #[component]
 pub fn DynamicEntry() -> impl IntoView {
     let params = use_params_map();
-    let slug = move || params.with(|p| p.get("slug").cloned().unwrap_or_default());
+    let slug = move || params.with(|p| p.get("slug").unwrap_or_default());
 
     let entry_resource = Resource::new(
         move || slug(),
@@ -31,13 +31,13 @@ pub fn DynamicEntry() -> impl IntoView {
                             <div class="max-w-3xl mx-auto px-4 pt-12 text-[#6b6a64] jetbrains text-xs uppercase animate-pulse">"Loading..."</div>
                         }>
                             {move || match entry_resource.get() {
-                                None => view! { <div /> }.into_view(),
+                                None => view! { <div /> }.into_any(),
                                 Some(None) => view! {
                                     <div class="max-w-3xl mx-auto px-4 pt-12 text-center">
                                         <p class="font-display text-[#504e49] mb-6">"Entry not found."</p>
                                         <a href="/p/projects" class="jetbrains text-[0.65rem] uppercase tracking-widest text-[#1B365D] underline">"← Back to Projects"</a>
                                     </div>
-                                }.into_view(),
+                                }.into_any(),
                                 Some(Some(entry)) => {
                                     let cover_image = entry.metadata.as_ref()
                                         .and_then(|m| m.get("cover_image_url").and_then(|v| v.as_str()).map(|s| s.to_string()));
@@ -61,8 +61,8 @@ pub fn DynamicEntry() -> impl IntoView {
                                                         <div class="w-full h-52 overflow-hidden mb-10">
                                                             <img src={img} alt={entry.title.clone()} class="w-full h-full object-cover" />
                                                         </div>
-                                                    }.into_view()
-                                                } else { view! {}.into_view() }}
+                                                    }.into_any()
+                                                } else { view! {}.into_any() }}
 
                                                 // Header
                                                 <header class="text-center mb-12 pb-10 border-b border-[#1B365D]/20">
@@ -77,8 +77,8 @@ pub fn DynamicEntry() -> impl IntoView {
                                                             <p class="font-display text-base text-[#504e49] italic leading-relaxed max-w-xl mx-auto">
                                                                 {sub}
                                                             </p>
-                                                        }.into_view()
-                                                    } else { view! {}.into_view() }}
+                                                        }.into_any()
+                                                    } else { view! {}.into_any() }}
                                                 </header>
 
                                                 // Bullets with R/A/I label rendering
@@ -96,35 +96,35 @@ pub fn DynamicEntry() -> impl IntoView {
                                                                                 <span class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#1B365D] font-bold mt-[0.2rem] shrink-0 w-14 text-right">
                                                                                     {lbl}":"
                                                                                 </span>
-                                                                            }.into_view()
+                                                                            }.into_any()
                                                                         } else {
                                                                             view! {
                                                                                 <span class="text-[#1B365D]/30 mt-[0.25rem] shrink-0">"—"</span>
-                                                                            }.into_view()
+                                                                            }.into_any()
                                                                         }}
                                                                         <span>{rest}</span>
                                                                     </li>
                                                                 }
-                                                            }).collect_view()}
+                                                            }).collect::<Vec<_>>()}
                                                         </ul>
-                                                    }.into_view()
-                                                } else { view! {}.into_view() }}
+                                                    }.into_any()
+                                                } else { view! {}.into_any() }}
 
                                             </article>
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </Suspense>
                     </main>
-                }.into_view()
+                }.into_any()
             } else {
                 // ── Material 3 dark (existing) ─────────────────────────────────
                 view! {
                     <main class="pt-32 pb-24 min-h-screen bg-surface">
                         <Suspense fallback=move || view! { <div class="flex justify-center py-20 text-on-surface-variant animate-pulse font-mono tracking-wider">"Loading..."</div> }>
                             {move || match entry_resource.get() {
-                                None => view! { <div class="flex justify-center py-20 text-on-surface-variant animate-pulse font-mono tracking-wider">"Loading..."</div> }.into_view(),
+                                None => view! { <div class="flex justify-center py-20 text-on-surface-variant animate-pulse font-mono tracking-wider">"Loading..."</div> }.into_any(),
                                 Some(None) => view! {
                                     <div class="container mx-auto px-4 max-w-4xl text-center py-20">
                                         <h1 class="text-4xl font-black text-on-surface mb-4">"Entry Not Found"</h1>
@@ -134,7 +134,7 @@ pub fn DynamicEntry() -> impl IntoView {
                                             "Back to Projects"
                                         </a>
                                     </div>
-                                }.into_view(),
+                                }.into_any(),
                                 Some(Some(entry)) => {
                                     let cover_image = entry.metadata.as_ref()
                                         .and_then(|m| m.get("cover_image_url").and_then(|v| v.as_str()).map(|s| s.to_string()));
@@ -146,8 +146,8 @@ pub fn DynamicEntry() -> impl IntoView {
                                                     <div class="w-full h-64 md:h-96 rounded-3xl overflow-hidden mb-12 shadow-lg border border-outline-variant/30">
                                                         <img src={img} class="w-full h-full object-cover" alt={entry.title.clone()} />
                                                     </div>
-                                                }.into_view()
-                                            } else { view! {}.into_view() }}
+                                                }.into_any()
+                                            } else { view! {}.into_any() }}
 
                                             <header class="mb-12">
                                                 <div class="flex items-center gap-3 mb-4">
@@ -155,8 +155,8 @@ pub fn DynamicEntry() -> impl IntoView {
                                                         {entry.category.to_string()}
                                                     </span>
                                                     {if let Some(date) = entry.date_range.clone().or(entry.published_at.clone()) {
-                                                        view! { <span class="text-sm font-semibold text-on-surface-variant">{date}</span> }.into_view()
-                                                    } else { view! {}.into_view() }}
+                                                        view! { <span class="text-sm font-semibold text-on-surface-variant">{date}</span> }.into_any()
+                                                    } else { view! {}.into_any() }}
                                                 </div>
 
                                                 <h1 class="text-5xl md:text-6xl font-black text-on-surface tracking-tight mb-6 leading-tight">
@@ -164,18 +164,18 @@ pub fn DynamicEntry() -> impl IntoView {
                                                 </h1>
 
                                                 {if let Some(sub) = entry.subtitle.clone() {
-                                                    view! { <p class="text-xl md:text-2xl text-on-surface-variant font-light leading-relaxed">{sub}</p> }.into_view()
-                                                } else { view! {}.into_view() }}
+                                                    view! { <p class="text-xl md:text-2xl text-on-surface-variant font-light leading-relaxed">{sub}</p> }.into_any()
+                                                } else { view! {}.into_any() }}
                                             </header>
 
                                             <div class="prose prose-lg prose-on-surface max-w-none">
                                                 {if !entry.bullets.is_empty() {
                                                     view! {
                                                         <ul>
-                                                            {entry.bullets.into_iter().map(|b| view! { <li>{b}</li> }).collect_view()}
+                                                            {entry.bullets.into_iter().map(|b| view! { <li>{b}</li> }).collect::<Vec<_>>()}
                                                         </ul>
-                                                    }.into_view()
-                                                } else { view! {}.into_view() }}
+                                                    }.into_any()
+                                                } else { view! {}.into_any() }}
                                             </div>
 
                                             <div class="mt-16 pt-8 border-t border-outline-variant/50">
@@ -185,12 +185,12 @@ pub fn DynamicEntry() -> impl IntoView {
                                                 </a>
                                             </div>
                                         </article>
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </Suspense>
                     </main>
-                }.into_view()
+                }.into_any()
             }
         }}
     }

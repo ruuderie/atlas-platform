@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_router::A;
+use leptos_router::components::A;
 
 #[server(GetBlockHeight, "/api")]
 pub async fn get_block_height() -> Result<Option<u64>, ServerFnError> {
@@ -149,12 +149,12 @@ pub async fn delete_nav_item(id: uuid::Uuid) -> Result<(), ServerFnError> {
 
 #[component]
 pub fn Nav() -> impl IntoView {
-    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+    let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
         
     let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
     let nav_resource = Resource::new(|| (), |_| get_nav_items());
-    let (mobile_menu_open, set_mobile_menu_open) = create_signal(false);
+    let (mobile_menu_open, set_mobile_menu_open) = signal(false);
 
     // Derive nav-placement widgets reactively from settings
     let nav_widgets = move || {
@@ -203,7 +203,7 @@ pub fn Nav() -> impl IntoView {
                                                 <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
                                                     {root.label.clone()}
                                                 </a>
-                                            }.into_view()
+                                            }.into_any()
                                         } else {
                                             view! {
                                                 <div class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50">
@@ -218,12 +218,12 @@ pub fn Nav() -> impl IntoView {
                                                                     {child.label.clone()}
                                                                 </a>
                                                             }
-                                                        }).collect_view()}
+                                                        }).collect::<Vec<_>>()}
                                                     </div>
                                                 </div>
-                                            }.into_view()
+                                            }.into_any()
                                         }
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
                             }
                         }
@@ -241,7 +241,7 @@ pub fn Nav() -> impl IntoView {
                         {move || {
                             let widgets = nav_widgets().into_iter().map(|widget| {
                                 view! { <crate::components::widget_registry::WidgetShell widget=widget /> }
-                            }).collect_view();
+                            }).collect::<Vec<_>>();
                             view! {
                                 <div class="contents">
                                     {widgets}
@@ -314,7 +314,7 @@ pub fn Nav() -> impl IntoView {
                                                 >
                                                     {root.label.clone()}
                                                 </a>
-                                            }.into_view()
+                                            }.into_any()
                                         } else {
                                             view! {
                                                 <div class="flex flex-col border-b border-outline-variant/15">
@@ -332,12 +332,12 @@ pub fn Nav() -> impl IntoView {
                                                                     {child.label.clone()}
                                                                 </a>
                                                             }
-                                                        }).collect_view()}
+                                                        }).collect::<Vec<_>>()}
                                                     </div>
                                                 </div>
-                                            }.into_view()
+                                            }.into_any()
                                         }
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
                             </nav>
                         }

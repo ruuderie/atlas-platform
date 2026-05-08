@@ -182,7 +182,7 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             Ok(inst_json) => {
                 // The backend response is the AppInstance model with settings merged in.
                 // Fields: { id, tenant_id, app_type, settings: { ...merged JSONB + tenant_setting KV... } }
-                let s = inst_json.get("settings").cloned().unwrap_or_else(|| serde_json::json!({}));
+                let s = inst_json.get("settings").unwrap_or_else(|| serde_json::json!({}));
 
                 // design_config — only set if not already populated by tenant_setting
                 if settings.design_config.is_none() {
@@ -446,12 +446,12 @@ pub fn Landing() -> impl IntoView {
     let settings_resource = Resource::new(|| (), |_| get_site_settings());
     let stats_resource = Resource::new(|| (), |_| crate::components::nav::get_bitcoin_stats());
 
-    let (email, set_email) = create_signal(String::new());
+    let (email, set_email) = signal(String::new());
     let (selected_options, set_selected_options) =
-        create_signal(std::collections::HashSet::<String>::new());
-    let (submitted, set_submitted) = create_signal(false);
+        signal(std::collections::HashSet::<String>::new());
+    let (submitted, set_submitted) = signal(false);
 
-    let submit_action = create_action(move |_: &()| {
+    let submit_action = Action::new(move |_: &()| {
         let e = email.get_untracked();
         let opts: Vec<String> = selected_options.get_untracked().into_iter().collect();
         async move {
@@ -559,7 +559,7 @@ pub fn Landing() -> impl IntoView {
                                 <h2 class="text-3xl font-extrabold tracking-tight text-primary">"REQUEST LOGGED"</h2>
                                 <p class="text-on-surface-variant font-medium">"Your selections have been securely transmitted."</p>
                             </div>
-                        }.into_view()
+                        }.into_any()
                     } else {
                         view! {
                             <div class="text-center space-y-4">
@@ -607,8 +607,8 @@ pub fn Landing() -> impl IntoView {
                                                             <span class="jetbrains text-sm text-on-surface group-hover:text-primary transition-colors">{opt.label}</span>
                                                         </label>
                                                         }
-                                                    }).collect_view(),
-                                                    _ => view! { <div>"No options available."</div> }.into_view(),
+                                                    }).collect::<Vec<_>>(),
+                                                    _ => view! { <div>"No options available."</div> }.into_any(),
                                                 }}
                                                 </Transition>
                                             </div>
@@ -628,7 +628,7 @@ pub fn Landing() -> impl IntoView {
                                     </p>
                                 </div>
                             </div>
-                        }.into_view()
+                        }.into_any()
                     }}
                 </div>
             </section>

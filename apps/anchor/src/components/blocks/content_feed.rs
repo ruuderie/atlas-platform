@@ -103,8 +103,8 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                         <h2 class="text-3xl font-bold text-on-surface mb-8">
                             {title}
                         </h2>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
 
                 <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading content..."</div> }>
                     {move || {
@@ -116,7 +116,7 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                                 <div class="p-12 border border-outline-variant border-dashed rounded-2xl bg-surface-container-lowest flex items-center justify-center text-on-surface-variant">
                                     "No content available."
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         } else {
                             let is_kami = use_kami_mode() || cfg.layout == "kami_cards";
                             if is_kami {
@@ -124,9 +124,9 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {items_to_render.into_iter().map(|item| {
                                             view! { <KamiFeedItemView item=item config=cfg.clone() /> }
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             } else {
                                 view! {
                                     <div class={match cfg.layout.as_str() {
@@ -135,9 +135,9 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                                     }}>
                                         {items_to_render.into_iter().map(|item| {
                                             view! { <FeedItemView item=item config=cfg.clone() /> }
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             }
                         }
                     }}
@@ -158,34 +158,34 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                         <div class="w-full sm:w-48 h-48 sm:h-auto shrink-0 rounded-xl overflow-hidden bg-surface-container-high relative z-10 pointer-events-none">
                             <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
                 
                 <div class="flex flex-col flex-grow justify-center py-2 relative z-10 pointer-events-none">
                     {if config.show_date {
                         if let Some(date) = item.published_at {
-                            view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_view()
-                        } else { view! {}.into_view() }
-                    } else { view! {}.into_view() }}
+                            view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_any()
+                        } else { view! {}.into_any() }
+                    } else { view! {}.into_any() }}
                     
                     <h3 class="text-2xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight mb-3">
                         {item.title}
                     </h3>
                             
                     {if let Some(excerpt) = item.excerpt {
-                        view! { <p class="text-on-surface-variant text-base line-clamp-2 md:line-clamp-3 mb-4">{excerpt}</p> }.into_view()
-                    } else { view! {}.into_view() }}
+                        view! { <p class="text-on-surface-variant text-base line-clamp-2 md:line-clamp-3 mb-4">{excerpt}</p> }.into_any()
+                    } else { view! {}.into_any() }}
                     
                     {if config.show_tags && !item.tags.is_empty() {
                         view! {
                             <div class="flex flex-wrap gap-2 mt-auto">
-                                {item.tags.into_iter().map(|tag| view! { <span class="text-xs bg-surface-container px-2.5 py-1 rounded-md text-on-surface-variant">{tag}</span> }).collect_view()}
+                                {item.tags.into_iter().map(|tag| view! { <span class="text-xs bg-surface-container px-2.5 py-1 rounded-md text-on-surface-variant">{tag}</span> }).collect::<Vec<_>>()}
                             </div>
-                        }.into_view()
-                    } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }}
                 </div>
             </article>
-        }.into_view(),
+        }.into_any(),
         _ => view! {
             <article class="group relative flex flex-col bg-surface border border-outline-variant/30 rounded-3xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
                 <a href=format!("/e/{}", item.slug) class="absolute inset-0 z-0"></a>
@@ -194,34 +194,34 @@ fn FeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl IntoVi
                         <div class="w-full h-56 bg-surface-container-high overflow-hidden relative z-10 pointer-events-none">
                             <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
                 
                 <div class="p-6 flex flex-col flex-grow relative z-10 pointer-events-none">
                     {if config.show_date {
                         if let Some(date) = item.published_at {
-                            view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_view()
-                        } else { view! {}.into_view() }
-                    } else { view! {}.into_view() }}
+                            view! { <div class="text-xs font-semibold text-primary uppercase tracking-wider mb-2">{date}</div> }.into_any()
+                        } else { view! {}.into_any() }
+                    } else { view! {}.into_any() }}
                     
                     <h3 class="text-xl font-bold text-on-surface group-hover:text-primary transition-colors leading-tight mb-3">
                         {item.title}
                     </h3>
                     
                     {if let Some(excerpt) = item.excerpt {
-                        view! { <p class="text-on-surface-variant text-sm line-clamp-3 mb-4">{excerpt}</p> }.into_view()
-                    } else { view! {}.into_view() }}
+                        view! { <p class="text-on-surface-variant text-sm line-clamp-3 mb-4">{excerpt}</p> }.into_any()
+                    } else { view! {}.into_any() }}
                     
                     {if config.show_tags && !item.tags.is_empty() {
                         view! {
                             <div class="flex flex-wrap gap-2 mt-auto pt-4 border-t border-outline-variant/50">
-                                {item.tags.into_iter().map(|tag| view! { <span class="text-xs font-medium text-on-surface-variant">{tag}</span> }).collect_view()}
+                                {item.tags.into_iter().map(|tag| view! { <span class="text-xs font-medium text-on-surface-variant">{tag}</span> }).collect::<Vec<_>>()}
                             </div>
-                        }.into_view()
-                    } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }}
                 </div>
             </article>
-        }.into_view() // "cards"
+        }.into_any() // "cards"
     }
 }
 
@@ -237,16 +237,16 @@ fn KamiFeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl In
                         <div class="w-full h-40 overflow-hidden mb-5">
                             <img src={img} alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
 
                 {if config.show_date {
                     if let Some(date) = item.published_at {
                         view! {
                             <div class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#6b6a64] mb-2">{date}</div>
-                        }.into_view()
-                    } else { view! {}.into_view() }
-                } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }
+                } else { view! {}.into_any() }}
 
                 <h3 class="font-display text-base font-bold text-[#1B365D] leading-snug mb-2 group-hover:text-[#2a4d87] transition-colors">
                     {item.title}
@@ -255,8 +255,8 @@ fn KamiFeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl In
                 {if let Some(excerpt) = item.excerpt {
                     view! {
                         <p class="text-[#504e49] text-sm leading-relaxed mb-4 line-clamp-3">{excerpt}</p>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
 
                 {if config.show_tags && !item.tags.is_empty() {
                     view! {
@@ -265,10 +265,10 @@ fn KamiFeedItemView(item: ContentFeedItem, config: ContentFeedConfig) -> impl In
                                 <span class="border border-[#1B365D]/20 text-[#1B365D] px-2 py-0.5 jetbrains text-[0.55rem] uppercase tracking-wider">
                                     {tag}
                                 </span>
-                            }).collect_view()}
+                            }).collect::<Vec<_>>()}
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
             </article>
         </a>
     }

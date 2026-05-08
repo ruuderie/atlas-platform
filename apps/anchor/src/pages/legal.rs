@@ -40,9 +40,9 @@ pub fn Terms() -> impl IntoView {
                                     let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
                                 }
                             </article>
-                        }.into_view()
+                        }.into_any()
                     },
-                    _ => view! { <div class="text-error">"Failed to load terms."</div> }.into_view()
+                    _ => view! { <div class="text-error">"Failed to load terms."</div> }.into_any()
                 }}
             </Transition>
         </main>
@@ -75,9 +75,9 @@ pub fn Privacy() -> impl IntoView {
                                     let _ = js_sys::eval("if(window.renderMermaid) window.renderMermaid();");
                                 }
                             </article>
-                        }.into_view()
+                        }.into_any()
                     },
-                    _ => view! { <div class="text-error">"Failed to load privacy policy."</div> }.into_view()
+                    _ => view! { <div class="text-error">"Failed to load privacy policy."</div> }.into_any()
                 }}
             </Transition>
         </main>

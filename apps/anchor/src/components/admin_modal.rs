@@ -80,10 +80,10 @@ pub fn AdminEditorModal() -> impl IntoView {
                         <div class="space-y-8">
                             {move || match modal_state.get() {
                                 ModalState::Post(post) => {
-                view! { <PostForm initial_post=post.clone() /> }.into_view()
+                view! { <PostForm initial_post=post.clone() /> }.into_any()
             },
             ModalState::Profile(prof) => {
-                view! { <ResumeProfileForm initial_profile=prof.clone() /> }.into_view()
+                view! { <ResumeProfileForm initial_profile=prof.clone() /> }.into_any()
             },
             ModalState::BaseEntry(entry, default_cat) => {
                 let cat_clone = default_cat.clone();
@@ -92,20 +92,20 @@ pub fn AdminEditorModal() -> impl IntoView {
                         initial_entry=entry.clone()
                         default_category=cat_clone
                     />
-                }.into_view()
+                }.into_any()
             },
-                                ModalState::LandingPage(p) => view! { <LandingPageForm initial_page=p /> }.into_view(),
-                                ModalState::MailingList(r) => view! { <MailingListForm initial_record=r /> }.into_view(),
-                                ModalState::NavItem(n) => view! { <NavItemForm initial_item=n /> }.into_view(),
-                                ModalState::FooterItem(f) => view! { <FooterItemForm initial_item=f /> }.into_view(),
-                                ModalState::PageHeader(h) => view! { <PageHeaderForm initial_item=h /> }.into_view(),
-                                ModalState::Service(s) => view! { <ServiceForm initial_item=s /> }.into_view(),
-                                ModalState::CaseStudy(c) => view! { <CaseStudyForm initial_item=c /> }.into_view(),
-                                ModalState::Highlight(h) => view! { <HighlightForm initial_item=h /> }.into_view(),
-                                ModalState::LeadOption(h) => view! { <LeadOptionForm initial_item=h /> }.into_view(),
-                                ModalState::Passkey => view! { <PasskeyForm /> }.into_view(),
-                                ModalState::Settings => view! { <SettingsForm /> }.into_view(),
-                                ModalState::None => view! { <div/> }.into_view(),
+                                ModalState::LandingPage(p) => view! { <LandingPageForm initial_page=p /> }.into_any(),
+                                ModalState::MailingList(r) => view! { <MailingListForm initial_record=r /> }.into_any(),
+                                ModalState::NavItem(n) => view! { <NavItemForm initial_item=n /> }.into_any(),
+                                ModalState::FooterItem(f) => view! { <FooterItemForm initial_item=f /> }.into_any(),
+                                ModalState::PageHeader(h) => view! { <PageHeaderForm initial_item=h /> }.into_any(),
+                                ModalState::Service(s) => view! { <ServiceForm initial_item=s /> }.into_any(),
+                                ModalState::CaseStudy(c) => view! { <CaseStudyForm initial_item=c /> }.into_any(),
+                                ModalState::Highlight(h) => view! { <HighlightForm initial_item=h /> }.into_any(),
+                                ModalState::LeadOption(h) => view! { <LeadOptionForm initial_item=h /> }.into_any(),
+                                ModalState::Passkey => view! { <PasskeyForm /> }.into_any(),
+                                ModalState::Settings => view! { <SettingsForm /> }.into_any(),
+                                ModalState::None => view! { <div/> }.into_any(),
                             }}
                         </div>
 
@@ -134,37 +134,37 @@ pub fn PostForm(
         .map(|p| p.id.clone())
         .unwrap_or_default();
 
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_post
             .as_ref()
             .map(|p| p.title.clone())
             .unwrap_or_default(),
     );
-    let (slug, set_slug) = create_signal(
+    let (slug, set_slug) = signal(
         initial_post
             .as_ref()
             .and_then(|p| p.subtitle.clone())
             .unwrap_or_default(),
     );
-    let (tags, set_tags) = create_signal(
+    let (tags, set_tags) = signal(
         initial_post
             .as_ref()
             .map(|p| p.tags.join(", "))
             .unwrap_or_default(),
     );
-    let (content, set_content) = create_signal(
+    let (content, set_content) = signal(
         initial_post
             .as_ref()
             .and_then(|p| p.markdown.clone())
             .unwrap_or_default(),
     );
 
-    let (pdf_attachment_url, set_pdf_attachment_url) = create_signal(String::new());
-    let (pdf_generate, set_pdf_generate) = create_signal(false);
-    let (pdf_require_lead, set_pdf_require_lead) = create_signal(false);
-    let (pdf_cta_label, set_pdf_cta_label) = create_signal(String::new());
-    let (pdf_notify_email, set_pdf_notify_email) = create_signal(String::new());
-    let (pdf_upload_status, set_pdf_upload_status) = create_signal(String::new());
+    let (pdf_attachment_url, set_pdf_attachment_url) = signal(String::new());
+    let (pdf_generate, set_pdf_generate) = signal(false);
+    let (pdf_require_lead, set_pdf_require_lead) = signal(false);
+    let (pdf_cta_label, set_pdf_cta_label) = signal(String::new());
+    let (pdf_notify_email, set_pdf_notify_email) = signal(String::new());
+    let (pdf_upload_status, set_pdf_upload_status) = signal(String::new());
 
     let on_upload_click = move |_| {
         set_pdf_upload_status.set("URL generation not implemented in this snippet".to_string());
@@ -385,9 +385,9 @@ pub fn PasskeyForm() -> impl IntoView {
     #[allow(unused_variables)]
     let refresh = expect_context::<ReadSignal<i32>>();
 
-    let (username, set_username) = create_signal(String::new());
-    let (is_loading, set_is_loading) = create_signal(false);
-    let (auth_error, set_auth_error) = create_signal(String::new());
+    let (username, set_username) = signal(String::new());
+    let (is_loading, set_is_loading) = signal(false);
+    let (auth_error, set_auth_error) = signal(String::new());
 
     let save = move |_| {
         let uname = username.get_untracked();
@@ -454,39 +454,39 @@ pub fn SettingsForm() -> impl IntoView {
 
     let settings_res = Resource::new(|| (), |_| get_site_settings());
 
-    let (current_focus, set_current_focus) = create_signal(String::new());
-    let (status, set_status) = create_signal(String::new());
-    let (hero_quote, set_hero_quote) = create_signal(String::new());
-    let (hero_subtitle, set_hero_subtitle) = create_signal(String::new());
-    let (site_title, set_site_title) = create_signal(String::new());
-    let (lc_title, set_lc_title) = create_signal(String::new());
-    let (lc_desc, set_lc_desc) = create_signal(String::new());
-    let (lc_label, set_lc_label) = create_signal(String::new());
-    let (lc_placeholder, set_lc_placeholder) = create_signal(String::new());
-    let (lc_btn, set_lc_btn) = create_signal(String::new());
-    let (lc_footer, set_lc_footer) = create_signal(String::new());
-    let (lc_endpoint, set_lc_endpoint) = create_signal(String::new());
-    let (status_color, set_status_color) = create_signal(String::new());
-    let (webhook_url, set_webhook_url) = create_signal(String::new());
-    let (admin_email, set_admin_email) = create_signal(String::new());
-    let (google_analytics_id, set_google_analytics_id) = create_signal(String::new());
-    let (booking_url, set_booking_url) = create_signal(String::new());
-    let (terms_html, set_terms_html) = create_signal(String::new());
-    let (privacy_html, set_privacy_html) = create_signal(String::new());
-    let (github_url, set_github_url) = create_signal(String::new());
-    let (x_url, set_x_url) = create_signal(String::new());
-    let (linkedin_url, set_linkedin_url) = create_signal(String::new());
-    let (b2b_enabled, set_b2b_enabled) = create_signal(true);
-    let (meta_title, set_meta_title) = create_signal(String::new());
-    let (meta_description, set_meta_description) = create_signal(String::new());
-    let (og_image, set_og_image) = create_signal(String::new());
+    let (current_focus, set_current_focus) = signal(String::new());
+    let (status, set_status) = signal(String::new());
+    let (hero_quote, set_hero_quote) = signal(String::new());
+    let (hero_subtitle, set_hero_subtitle) = signal(String::new());
+    let (site_title, set_site_title) = signal(String::new());
+    let (lc_title, set_lc_title) = signal(String::new());
+    let (lc_desc, set_lc_desc) = signal(String::new());
+    let (lc_label, set_lc_label) = signal(String::new());
+    let (lc_placeholder, set_lc_placeholder) = signal(String::new());
+    let (lc_btn, set_lc_btn) = signal(String::new());
+    let (lc_footer, set_lc_footer) = signal(String::new());
+    let (lc_endpoint, set_lc_endpoint) = signal(String::new());
+    let (status_color, set_status_color) = signal(String::new());
+    let (webhook_url, set_webhook_url) = signal(String::new());
+    let (admin_email, set_admin_email) = signal(String::new());
+    let (google_analytics_id, set_google_analytics_id) = signal(String::new());
+    let (booking_url, set_booking_url) = signal(String::new());
+    let (terms_html, set_terms_html) = signal(String::new());
+    let (privacy_html, set_privacy_html) = signal(String::new());
+    let (github_url, set_github_url) = signal(String::new());
+    let (x_url, set_x_url) = signal(String::new());
+    let (linkedin_url, set_linkedin_url) = signal(String::new());
+    let (b2b_enabled, set_b2b_enabled) = signal(true);
+    let (meta_title, set_meta_title) = signal(String::new());
+    let (meta_description, set_meta_description) = signal(String::new());
+    let (og_image, set_og_image) = signal(String::new());
 
     let smtp_res = Resource::new(|| (), |_| crate::email::get_smtp_config());
-    let (smtp_server, set_smtp_server) = create_signal(String::new());
-    let (smtp_port, set_smtp_port) = create_signal(String::new());
-    let (smtp_username, set_smtp_username) = create_signal(String::new());
-    let (smtp_token, set_smtp_token) = create_signal(String::new());
-    let (smtp_from, set_smtp_from) = create_signal(String::new());
+    let (smtp_server, set_smtp_server) = signal(String::new());
+    let (smtp_port, set_smtp_port) = signal(String::new());
+    let (smtp_username, set_smtp_username) = signal(String::new());
+    let (smtp_token, set_smtp_token) = signal(String::new());
+    let (smtp_from, set_smtp_from) = signal(String::new());
 
     Effect::new(move |_| {
         if let Some(Ok(s)) = settings_res.get() {
@@ -787,56 +787,56 @@ pub fn ResumeProfileForm(
     let is_edit = initial_profile.is_some();
     let id_val = initial_profile.as_ref().map(|p| p.id);
 
-    let (name, set_name) = create_signal(
+    let (name, set_name) = signal(
         initial_profile
             .as_ref()
             .map(|p| p.name.clone())
             .unwrap_or_default(),
     );
-    let (full_name, set_full_name) = create_signal(
+    let (full_name, set_full_name) = signal(
         initial_profile
             .as_ref()
             .map(|p| p.full_name.clone())
             .unwrap_or_default(),
     );
-    let (objective, set_objective) = create_signal(
+    let (objective, set_objective) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.objective.clone())
             .unwrap_or_default(),
     );
-    let (is_public, set_is_public) = create_signal(
+    let (is_public, set_is_public) = signal(
         initial_profile
             .as_ref()
             .map(|p| p.is_public)
             .unwrap_or(false),
     );
 
-    let (target_role, set_target_role) = create_signal(
+    let (target_role, set_target_role) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.target_role.clone())
             .unwrap_or_default(),
     );
-    let (contact_email, set_contact_email) = create_signal(
+    let (contact_email, set_contact_email) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.contact_email.clone())
             .unwrap_or_default(),
     );
-    let (contact_phone, set_contact_phone) = create_signal(
+    let (contact_phone, set_contact_phone) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.contact_phone.clone())
             .unwrap_or_default(),
     );
-    let (contact_location, set_contact_location) = create_signal(
+    let (contact_location, set_contact_location) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.contact_location.clone())
             .unwrap_or_default(),
     );
-    let (contact_link, set_contact_link) = create_signal(
+    let (contact_link, set_contact_link) = signal(
         initial_profile
             .as_ref()
             .and_then(|p| p.contact_link.clone())
@@ -851,15 +851,15 @@ pub fn ResumeProfileForm(
             .unwrap_or(true)
     };
 
-    let (work_vis, set_work_vis) = create_signal(get_vis("work"));
-    let (education_vis, set_education_vis) = create_signal(get_vis("education"));
-    let (certification_vis, set_certification_vis) = create_signal(get_vis("certification"));
-    let (skill_vis, set_skill_vis) = create_signal(get_vis("skill"));
-    let (project_vis, set_project_vis) = create_signal(get_vis("project"));
-    let (language_vis, set_language_vis) = create_signal(get_vis("language"));
-    let (volunteer_vis, set_volunteer_vis) = create_signal(get_vis("volunteer"));
-    let (extracurricular_vis, set_extracurricular_vis) = create_signal(get_vis("extracurricular"));
-    let (hobby_vis, set_hobby_vis) = create_signal(get_vis("hobby"));
+    let (work_vis, set_work_vis) = signal(get_vis("work"));
+    let (education_vis, set_education_vis) = signal(get_vis("education"));
+    let (certification_vis, set_certification_vis) = signal(get_vis("certification"));
+    let (skill_vis, set_skill_vis) = signal(get_vis("skill"));
+    let (project_vis, set_project_vis) = signal(get_vis("project"));
+    let (language_vis, set_language_vis) = signal(get_vis("language"));
+    let (volunteer_vis, set_volunteer_vis) = signal(get_vis("volunteer"));
+    let (extracurricular_vis, set_extracurricular_vis) = signal(get_vis("extracurricular"));
+    let (hobby_vis, set_hobby_vis) = signal(get_vis("hobby"));
 
     let default_order = vec![
         "work".to_string(),
@@ -882,7 +882,7 @@ pub fn ResumeProfileForm(
         })
         .unwrap_or(default_order);
 
-    let (category_order, set_category_order) = create_signal(initial_order);
+    let (category_order, set_category_order) = signal(initial_order);
 
     let move_up = move |idx: usize| {
         if idx > 0 {
@@ -913,9 +913,9 @@ pub fn ResumeProfileForm(
     );
 
     let (active_entries, set_active_entries) =
-        create_signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
+        signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
     let (expanded_entries, set_expanded_entries) =
-        create_signal(std::collections::HashSet::<uuid::Uuid>::new());
+        signal(std::collections::HashSet::<uuid::Uuid>::new());
 
     Effect::new(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -1207,7 +1207,7 @@ pub fn ResumeProfileForm(
                                 </div>
                             </div>
                         }
-                    }).collect_view()}
+                    }).collect::<Vec<_>>()}
                 </div>
             </div>
 
@@ -1273,12 +1273,12 @@ pub fn ResumeProfileForm(
                                                 </Show>
                                             </div>
                                         }
-                                    }).collect_view()
+                                    }).collect::<Vec<_>>()
                                 },
-                                _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_view()
+                                _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_any()
                             }}
                         </div>
-                        }.into_view()
+                        }.into_any()
                     }}
                 </Transition>
             </div>
@@ -1304,37 +1304,37 @@ pub fn LandingPageForm(
     let is_edit = initial_page.is_some();
     let id_val = initial_page.as_ref().map(|p| p.id).unwrap_or(0);
 
-    let (slug, set_slug) = create_signal(
+    let (slug, set_slug) = signal(
         initial_page
             .as_ref()
             .map(|p| p.slug.clone())
             .unwrap_or_default(),
     );
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_page
             .as_ref()
             .map(|p| p.title.clone())
             .unwrap_or_default(),
     );
-    let (description, set_description) = create_signal(
+    let (description, set_description) = signal(
         initial_page
             .as_ref()
             .map(|p| p.description.clone())
             .unwrap_or_default(),
     );
-    let (hero_title, set_hero_title) = create_signal(
+    let (hero_title, set_hero_title) = signal(
         initial_page
             .as_ref()
             .map(|p| p.hero_title.clone())
             .unwrap_or_default(),
     );
-    let (hero_subtitle, set_hero_subtitle) = create_signal(
+    let (hero_subtitle, set_hero_subtitle) = signal(
         initial_page
             .as_ref()
             .map(|p| p.hero_subtitle.clone())
             .unwrap_or_default(),
     );
-    let (dynamic_blocks_json, set_dynamic_blocks_json) = create_signal(
+    let (dynamic_blocks_json, set_dynamic_blocks_json) = signal(
         initial_page
             .as_ref()
             .map(|p| p.dynamic_blocks_json.clone())
@@ -1421,13 +1421,13 @@ pub fn MailingListForm(
     let set_refresh = expect_context::<WriteSignal<i32>>();
     let refresh = expect_context::<ReadSignal<i32>>();
 
-    let (email, set_email) = create_signal(
+    let (email, set_email) = signal(
         initial_record
             .as_ref()
             .map(|r| r.email.clone())
             .unwrap_or_default(),
     );
-    let (list_type, set_list_type) = create_signal(
+    let (list_type, set_list_type) = signal(
         initial_record
             .as_ref()
             .map(|r| r.list_type.clone())
@@ -1476,40 +1476,40 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or_default();
 
-    let (label, set_label) = create_signal(
+    let (label, set_label) = signal(
         initial_item
             .as_ref()
             .map(|p| p.label.clone())
             .unwrap_or_default(),
     );
-    let (href, set_href) = create_signal(
+    let (href, set_href) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.href.clone())
             .unwrap_or_default(),
     );
-    let (parent_id_str, set_parent_id_str) = create_signal(
+    let (parent_id_str, set_parent_id_str) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.parent_id)
             .map(|id| id.to_string())
             .unwrap_or_default(),
     );
-    let (display_order, set_display_order) = create_signal(
+    let (display_order, set_display_order) = signal(
         initial_item
             .as_ref()
             .map(|p| p.display_order.to_string())
             .unwrap_or_else(|| "0".to_string()),
     );
     let (is_visible, set_is_visible) =
-        create_signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
+        signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
 
-    let (loading, set_loading) = create_signal(false);
+    let (loading, set_loading) = signal(false);
 
     // Quick dropdown loader for parent
     let parents_resource = Resource::new(move || refresh.get(), |_| get_all_nav_items());
 
-    let save_action = create_action(move |_: &()| {
+    let save_action = Action::new(move |_: &()| {
         let lbl = label.get_untracked();
         let hr = href.get_untracked();
         let pid_str = parent_id_str.get_untracked();
@@ -1591,8 +1591,8 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
                                             {format!("{} (ID: {})", i.label, i.id)}
                                         </option>
                                     }
-                            }).collect_view(),
-                            _ => view! { <option disabled=true>"ERROR"</option> }.into_view()
+                            }).collect::<Vec<_>>(),
+                            _ => view! { <option disabled=true>"ERROR"</option> }.into_any()
                         }}
                     </Suspense>
                 </select>
@@ -1651,30 +1651,30 @@ pub fn FooterItemForm(
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(0);
 
-    let (label, set_label) = create_signal(
+    let (label, set_label) = signal(
         initial_item
             .as_ref()
             .map(|p| p.label.clone())
             .unwrap_or_default(),
     );
-    let (href, set_href) = create_signal(
+    let (href, set_href) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.href.clone())
             .unwrap_or_default(),
     );
-    let (display_order, set_display_order) = create_signal(
+    let (display_order, set_display_order) = signal(
         initial_item
             .as_ref()
             .map(|p| p.display_order.to_string())
             .unwrap_or_else(|| "0".to_string()),
     );
     let (is_visible, set_is_visible) =
-        create_signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
+        signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
 
-    let (loading, set_loading) = create_signal(false);
+    let (loading, set_loading) = signal(false);
 
-    let save_action = create_action(move |_: &()| {
+    let save_action = Action::new(move |_: &()| {
         let lbl = label.get_untracked();
         let hr = href.get_untracked();
         let ord_str = display_order.get_untracked();
@@ -1784,7 +1784,7 @@ pub fn BaseResumeEntryForm(
     let is_edit = initial_entry.is_some();
     let id_val = initial_entry.as_ref().map(|e| e.id);
 
-    let (category_str, set_category_str) = create_signal(
+    let (category_str, set_category_str) = signal(
         initial_entry
             .as_ref()
             .map(|e| e.category.to_string())
@@ -1794,31 +1794,31 @@ pub fn BaseResumeEntryForm(
                     .unwrap_or_else(|| "Work".to_string())
             }),
     );
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_entry
             .as_ref()
             .map(|e| e.title.clone())
             .unwrap_or_default(),
     );
-    let (subtitle, set_subtitle) = create_signal(
+    let (subtitle, set_subtitle) = signal(
         initial_entry
             .as_ref()
             .and_then(|e| e.subtitle.clone())
             .unwrap_or_default(),
     );
-    let (date_range, set_date_range) = create_signal(
+    let (date_range, set_date_range) = signal(
         initial_entry
             .as_ref()
             .and_then(|e| e.date_range.clone())
             .unwrap_or_default(),
     );
-    let (bullets_str, set_bullets_str) = create_signal(
+    let (bullets_str, set_bullets_str) = signal(
         initial_entry
             .as_ref()
             .map(|e| e.bullets.join("\n"))
             .unwrap_or_default(),
     );
-    let (metadata_str, set_metadata_str) = create_signal(
+    let (metadata_str, set_metadata_str) = signal(
         initial_entry
             .as_ref()
             .and_then(|e| {
@@ -1843,7 +1843,7 @@ pub fn BaseResumeEntryForm(
         },
     );
 
-    let (active_profiles, set_active_profiles) = create_signal(Vec::<uuid::Uuid>::new());
+    let (active_profiles, set_active_profiles) = signal(Vec::<uuid::Uuid>::new());
 
     Effect::new(move |_| {
         if let Some(Ok(mappings)) = mapped_res.get() {
@@ -1980,12 +1980,12 @@ pub fn BaseResumeEntryForm(
                                                 </div>
                                             </div>
                                         }
-                                    }).collect_view()
+                                    }).collect::<Vec<_>>()
                                 },
-                                _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_view()
+                                _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_any()
                             }}
                         </div>
-                        }.into_view()
+                        }.into_any()
                     }}
                 </Transition>
             </div>
@@ -2010,13 +2010,13 @@ pub fn ServiceForm(initial_item: Option<crate::b2b::ServiceRecord>) -> impl Into
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_item
             .as_ref()
             .map(|p| p.title.clone())
             .unwrap_or_default(),
     );
-    let (description, set_description) = create_signal(
+    let (description, set_description) = signal(
         initial_item
             .as_ref()
             .map(|p| p.description.clone())
@@ -2033,17 +2033,17 @@ pub fn ServiceForm(initial_item: Option<crate::b2b::ServiceRecord>) -> impl Into
     } else {
         default_deliverables
     };
-    let (deliverables_str, set_deliverables_str) = create_signal(initial_deliverables);
+    let (deliverables_str, set_deliverables_str) = signal(initial_deliverables);
 
-    let (price_range, set_price_range) = create_signal(
+    let (price_range, set_price_range) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.price_range.clone())
             .unwrap_or_default(),
     );
     let (is_visible, set_is_visible) =
-        create_signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
-    let (display_order, set_display_order) = create_signal(
+        signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
+    let (display_order, set_display_order) = signal(
         initial_item
             .as_ref()
             .map(|p| p.display_order.to_string())
@@ -2125,33 +2125,33 @@ pub fn CaseStudyForm(initial_item: Option<crate::b2b::CaseStudyRecord>) -> impl 
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
-    let (client_name, set_client_name) = create_signal(
+    let (client_name, set_client_name) = signal(
         initial_item
             .as_ref()
             .map(|p| p.client_name.clone())
             .unwrap_or_default(),
     );
-    let (problem, set_problem) = create_signal(
+    let (problem, set_problem) = signal(
         initial_item
             .as_ref()
             .map(|p| p.problem.clone())
             .unwrap_or_default(),
     );
-    let (solution, set_solution) = create_signal(
+    let (solution, set_solution) = signal(
         initial_item
             .as_ref()
             .map(|p| p.solution.clone())
             .unwrap_or_default(),
     );
-    let (roi_impact, set_roi_impact) = create_signal(
+    let (roi_impact, set_roi_impact) = signal(
         initial_item
             .as_ref()
             .map(|p| p.roi_impact.clone())
             .unwrap_or_default(),
     );
     let (is_visible, set_is_visible) =
-        create_signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
-    let (display_order, set_display_order) = create_signal(
+        signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
+    let (display_order, set_display_order) = signal(
         initial_item
             .as_ref()
             .map(|p| p.display_order.to_string())
@@ -2230,33 +2230,33 @@ pub fn HighlightForm(initial_item: Option<crate::b2b::HighlightRecord>) -> impl 
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
 
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_item
             .as_ref()
             .map(|p| p.title.clone())
             .unwrap_or_default(),
     );
-    let (url, set_url) = create_signal(
+    let (url, set_url) = signal(
         initial_item
             .as_ref()
             .map(|p| p.url.clone())
             .unwrap_or_default(),
     );
-    let (description, set_description) = create_signal(
+    let (description, set_description) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.description.clone())
             .unwrap_or_default(),
     );
-    let (image_url, set_image_url) = create_signal(
+    let (image_url, set_image_url) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.image_url.clone())
             .unwrap_or_default(),
     );
     let (is_visible, set_is_visible) =
-        create_signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
-    let (display_order, set_display_order) = create_signal(
+        signal(initial_item.as_ref().map(|p| p.is_visible).unwrap_or(true));
+    let (display_order, set_display_order) = signal(
         initial_item
             .as_ref()
             .map(|p| p.display_order.to_string())
@@ -2337,25 +2337,25 @@ pub fn PageHeaderForm(
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let (route_path, set_route_path) = create_signal(
+    let (route_path, set_route_path) = signal(
         initial_item
             .as_ref()
             .map(|p| p.route_path.clone())
             .unwrap_or_default(),
     );
-    let (badge_text, set_badge_text) = create_signal(
+    let (badge_text, set_badge_text) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.badge_text.clone())
             .unwrap_or_default(),
     );
-    let (title, set_title) = create_signal(
+    let (title, set_title) = signal(
         initial_item
             .as_ref()
             .map(|p| p.title.clone())
             .unwrap_or_default(),
     );
-    let (subtitle, set_subtitle) = create_signal(
+    let (subtitle, set_subtitle) = signal(
         initial_item
             .as_ref()
             .and_then(|p| p.subtitle.clone())
@@ -2423,22 +2423,22 @@ pub fn LeadOptionForm(
     let is_edit = initial_item.is_some();
     let id_val = initial_item.as_ref().map(|o| o.id);
 
-    let (value_key, set_value_key) = create_signal(
+    let (value_key, set_value_key) = signal(
         initial_item
             .as_ref()
             .map(|o| o.value_key.clone())
             .unwrap_or_default(),
     );
-    let (label, set_label) = create_signal(
+    let (label, set_label) = signal(
         initial_item
             .as_ref()
             .map(|o| o.label.clone())
             .unwrap_or_default(),
     );
     let (is_active, set_is_active) =
-        create_signal(initial_item.as_ref().map(|o| o.is_active).unwrap_or(true));
+        signal(initial_item.as_ref().map(|o| o.is_active).unwrap_or(true));
     let (display_order, set_display_order) =
-        create_signal(initial_item.as_ref().map(|o| o.display_order).unwrap_or(10));
+        signal(initial_item.as_ref().map(|o| o.display_order).unwrap_or(10));
 
     let save = move |_| {
         let pk = value_key.get_untracked();

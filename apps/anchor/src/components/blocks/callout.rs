@@ -15,7 +15,7 @@ pub struct CalloutBlockData {
 
 #[component]
 pub fn CalloutBlock(data: CalloutBlockData) -> impl IntoView {
-    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+    let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
         
     view! {

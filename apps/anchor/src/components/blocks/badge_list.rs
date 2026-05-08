@@ -88,9 +88,9 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                         <h2 class="text-3xl font-bold text-on-surface mb-8 text-center md:text-left">
                             {title}
                         </h2>
-                    }.into_view()
+                    }.into_any()
                 } else {
-                    view! {}.into_view()
+                    view! {}.into_any()
                 }}
 
                 <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading badges..."</div> }>
@@ -103,7 +103,7 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                                 <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
                                     "No badges found."
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         } else {
                             view! {
                                 <div class={match cfg.display.as_str() {
@@ -115,9 +115,9 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                                 }}>
                                     {items_to_render.into_iter().map(|item| {
                                         view! { <BadgeItemView item=item config=cfg.clone() /> }
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     }}
                 </Suspense>
@@ -132,20 +132,20 @@ fn BadgeItemView(item: BadgeItem, config: BadgeListConfig) -> impl IntoView {
         "logo-grid" => view! {
             <div class="flex flex-col items-center justify-center p-4 hover:scale-110 transition-transform cursor-pointer grayscale hover:grayscale-0" title={item.title.clone()}>
                 {if let Some(img) = item.icon_url {
-                    view! { <img src={img} alt={item.title.clone()} class="h-12 md:h-16 w-auto object-contain" /> }.into_view()
+                    view! { <img src={img} alt={item.title.clone()} class="h-12 md:h-16 w-auto object-contain" /> }.into_any()
                 } else {
-                    view! { <span class="font-bold font-mono text-xl">{item.title.clone()}</span> }.into_view()
+                    view! { <span class="font-bold font-mono text-xl">{item.title.clone()}</span> }.into_any()
                 }}
             </div>
-        }.into_view(),
+        }.into_any(),
         "list" => view! {
             <div class="inline-flex items-center space-x-2 bg-surface-container-high border border-outline/20 px-4 py-2 rounded-full text-on-surface hover:bg-primary hover:text-on-primary transition-colors cursor-default shadow-sm hover:shadow">
                 {if let Some(img) = item.icon_url {
-                    view! { <img src={img} alt="" class="h-4 w-4 object-contain brightness-0 invert" /> }.into_view() // Assume icons are white when hovered, otherwise complex CSS needed
-                } else { view! {}.into_view() }}
+                    view! { <img src={img} alt="" class="h-4 w-4 object-contain brightness-0 invert" /> }.into_any() // Assume icons are white when hovered, otherwise complex CSS needed
+                } else { view! {}.into_any() }}
                 <span class="font-medium text-sm whitespace-nowrap">{item.title}</span>
             </div>
-        }.into_view(),
+        }.into_any(),
         _ => view! {
             <div class="flex items-center p-4 bg-surface-container-low border border-outline-variant hover:border-primary/50 transition-colors rounded-xl shadow-sm h-full group">
                 {if let Some(img) = item.icon_url {
@@ -153,21 +153,21 @@ fn BadgeItemView(item: BadgeItem, config: BadgeListConfig) -> impl IntoView {
                         <div class="bg-surface p-3 rounded-lg border border-outline-variant/50 mr-4 shadow-sm group-hover:shadow transition-shadow">
                             <img src={img} alt="" class="h-8 w-8 object-contain" />
                         </div>
-                    }.into_view()
+                    }.into_any()
                 } else { 
                     view! {
                         <div class="bg-primary/10 text-primary p-3 rounded-lg mr-4 h-14 w-14 flex items-center justify-center font-bold text-xl group-hover:bg-primary group-hover:text-on-primary transition-colors">
                             {item.title.chars().next().unwrap_or('?').to_uppercase().to_string()}
                         </div>
-                    }.into_view()
+                    }.into_any()
                 }}
                 <div>
                     <h3 class="font-bold text-on-surface text-base leading-tight group-hover:text-primary transition-colors">{item.title}</h3>
                     {if let Some(sub) = item.subtitle {
-                        view! { <div class="text-xs text-on-surface-variant mt-1">{sub}</div> }.into_view()
-                    } else { view! {}.into_view() }}
+                        view! { <div class="text-xs text-on-surface-variant mt-1">{sub}</div> }.into_any()
+                    } else { view! {}.into_any() }}
                 </div>
             </div>
-        }.into_view() // "badge"
+        }.into_any() // "badge"
     }
 }

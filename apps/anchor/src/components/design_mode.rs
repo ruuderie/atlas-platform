@@ -5,7 +5,7 @@ use crate::pages::landing::DesignConfig;
 /// Reads from the `DesignConfig` context provided by `App()`.
 /// Defaults to `false` for all tenants where `kami_mode` is not explicitly set.
 pub fn use_kami_mode() -> bool {
-    use_context::<leptos::ReadSignal<DesignConfig>>()
+    use_context::<ReadSignal<DesignConfig>>()
         .map(|s| s.get().kami_mode)
         .unwrap_or(false)
 }

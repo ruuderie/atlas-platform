@@ -119,17 +119,17 @@ fn StepDot(is_complete: bool, is_current: bool) -> impl IntoView {
 pub fn TenantOnboarding() -> impl IntoView {
     let query = use_query_map();
 
-    let token = move || query.with(|q| q.get("token").cloned().unwrap_or_default());
-    let app_instance_id = move || query.with(|q| q.get("app").cloned().unwrap_or_default());
+    let token = move || query.with(|q| q.get("token").unwrap_or_default());
+    let app_instance_id = move || query.with(|q| q.get("app").unwrap_or_default());
 
     let status_resource = Resource::new(
         move || (app_instance_id(), token()),
         |(ai, tok)| async move { get_onboarding_status(ai, tok).await },
     );
 
-    let current_step_index = create_rw_signal(0usize);
-    let (action_error, set_action_error) = create_signal(Option::<String>::None);
-    let (completing, set_completing) = create_signal(false);
+    let current_step_index = RwSignal::new(0usize);
+    let (action_error, set_action_error) = signal(Option::<String>::None);
+    let (completing, set_completing) = signal(false);
 
     view! {
         <leptos_meta::Title text="App Setup — Onboarding Wizard" />
@@ -155,13 +155,13 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                 is_current=(i == current)
                                             />
                                         }
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
                                 <span class="text-sm text-gray-500">
                                     {format!("{} / {} complete", done, total)}
                                 </span>
                             </div>
-                        }.into_view()
+                        }.into_any()
                     })}
                 </Transition>
             </div>
@@ -185,11 +185,11 @@ pub fn TenantOnboarding() -> impl IntoView {
                                     <h1 class="text-xl font-bold text-gray-900">"Invalid Setup Link"</h1>
                                     <p class="text-gray-500 mt-2">"This link is invalid or has expired. Please contact your platform administrator for a new setup link."</p>
                                 </div>
-                            }.into_view();
+                            }.into_any();
                         }
 
                         match status_resource.get() {
-                            None => view! { <div></div> }.into_view(),
+                            None => view! { <div></div> }.into_any(),
                             Some(Err(e)) => view! {
                                 <div class="w-full max-w-md text-center bg-white rounded-2xl shadow p-10">
                                     <div class="text-5xl mb-4">"⚠️"</div>
@@ -197,7 +197,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                     <p class="text-gray-500 mt-2">{e.to_string()}</p>
                                     <p class="text-xs text-gray-400 mt-2">"Your setup link may have expired."</p>
                                 </div>
-                            }.into_view(),
+                            }.into_any(),
                             Some(Ok(status)) => {
                                 if status.is_ready {
                                     return view! {
@@ -211,7 +211,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                 "✓ All required steps complete"
                                             </div>
                                         </div>
-                                    }.into_view();
+                                    }.into_any();
                                 }
 
                                 let steps = status.steps.clone();
@@ -224,7 +224,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                 }
 
                                 let current = current_step_index.get().min(total.saturating_sub(1));
-                                let current_step = steps.get(current).cloned();
+                                let current_step = steps.get(current);
 
                                 let ai_clone = ai.clone();
                                 let tok_clone = tok.clone();
@@ -237,13 +237,13 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                     <div class="text-5xl">"✓"</div>
                                                     <p class="text-gray-600">"All steps reviewed!"</p>
                                                 </div>
-                                            }.into_view(),
+                                            }.into_any(),
                                             Some(step) => {
                                                 let step_id = step.id.clone();
                                                 let ai_s = ai_clone.clone();
                                                 let tok_s = tok_clone.clone();
 
-                                                let complete_action = create_action(move |_: &()| {
+                                                let complete_action = Action::new(move |_: &()| {
                                                     let ai = ai_s.clone();
                                                     let sid = step_id.clone();
                                                     let tok = tok_s.clone();
@@ -295,25 +295,25 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                             {match step.id.as_str() {
                                                                 "identity" => view! {
                                                                     <p>"Contact your platform administrator to set your site name and branding, or log into your admin dashboard to update it under Settings → Identity."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 "domain" => view! {
                                                                     <p>"Provide your domain name to your platform administrator. Make sure your DNS A record points to the platform IP before confirming."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 "design" => view! {
                                                                     <p>"Your admin can configure colors and typography in Settings → Design. Once done, confirm below."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 "first_page" => view! {
                                                                     <p>"Your platform admin will create your initial home page. You'll be able to edit it in the CMS after setup is complete."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 "categories" => view! {
                                                                     <p>"Categories organize your listings. Your admin will set these up. Once they're ready, confirm below."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 "first_template" => view! {
                                                                     <p>"A listing template has been selected for your network. Confirm once you've reviewed it with your admin."</p>
-                                                                }.into_view(),
+                                                                }.into_any(),
                                                                 _ => view! {
                                                                     <p>"Please coordinate with your platform administrator to complete this step, then confirm below."</p>
-                                                                }.into_view()
+                                                                }.into_any()
                                                             }}
                                                         </div>
 
@@ -337,7 +337,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                                     >
                                                                         {move || if completing.get() { "Confirming..." } else { "Confirm & Continue →" }}
                                                                     </button>
-                                                                }.into_view()
+                                                                }.into_any()
                                                             })}
                                                             {step.is_complete.then(|| view! {
                                                                 <button
@@ -353,7 +353,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                                             })}
                                                         </div>
                                                     </div>
-                                                }.into_view()
+                                                }.into_any()
                                             }
                                         }}
 
@@ -375,7 +375,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                             </span>
                                         </div>
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             }
                         }
                     }}

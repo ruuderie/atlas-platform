@@ -59,7 +59,7 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
         .into_iter()
         .map(|row| {
             let payload: serde_json::Value = row.get("payload");
-            let meta: Option<serde_json::Value> = payload.get("metadata").cloned();
+            let meta: Option<serde_json::Value> = payload.get("metadata");
             let company = meta
                 .as_ref()
                 .and_then(|m| m.get("company"))
@@ -123,7 +123,7 @@ pub async fn get_jobs() -> Result<Vec<JobRecord>, ServerFnError> {
 
 #[component]
 pub fn Resume() -> impl IntoView {
-    let download_pdf = create_action(|id: &uuid::Uuid| {
+    let download_pdf = Action::new(|id: &uuid::Uuid| {
         let profile_id = *id;
         use crate::resume_engine::download_resume;
         async move {
@@ -163,10 +163,10 @@ pub fn Resume() -> impl IntoView {
         },
     );
 
-    let (active_profile_id, set_active_profile_id) = create_signal(None::<uuid::Uuid>);
-    let (show_modal, set_show_modal) = create_signal(false);
-    let (lead_name, set_lead_name) = create_signal(String::new());
-    let (lead_email, set_lead_email) = create_signal(String::new());
+    let (active_profile_id, set_active_profile_id) = signal(None::<uuid::Uuid>);
+    let (show_modal, set_show_modal) = signal(false);
+    let (lead_name, set_lead_name) = signal(String::new());
+    let (lead_email, set_lead_email) = signal(String::new());
 
     // Automatically select the first PUBLIC profile on load
     Effect::new(move |_| {
@@ -238,7 +238,7 @@ pub fn Resume() -> impl IntoView {
                         let all_profiles = profiles_resource.get().unwrap_or_default();
                         let profiles: Vec<_> = all_profiles.into_iter().filter(|p| p.is_public).collect();
                         if profiles.is_empty() {
-                            view! { <div class="text-sm jetbrains text-outline">"No public profiles available."</div> }.into_view()
+                            view! { <div class="text-sm jetbrains text-outline">"No public profiles available."</div> }.into_any()
                         } else {
                             view! {
                                 <div class="flex flex-col md:flex-row gap-4 items-start md:items-center">
@@ -258,10 +258,10 @@ pub fn Resume() -> impl IntoView {
                                             >
                                                 {p.name}
                                             </option>
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </select>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     }}
                 </Suspense>
@@ -330,7 +330,7 @@ pub fn Resume() -> impl IntoView {
                                     .collect();
 
                                 if cat_entries.is_empty() {
-                                    view! { <div class="hidden"></div> }.into_view()
+                                    view! { <div class="hidden"></div> }.into_any()
                                 } else {
                                     view! {
                                         <div class="block">
@@ -345,24 +345,24 @@ pub fn Resume() -> impl IntoView {
                                                         <div class="md:col-span-9 bg-surface-container p-6 md:p-8 blueprint-overlay shadow-none border-0 ring-0 hover:bg-surface-container-high transition-colors">
                                                             <h3 class="text-xl md:text-2xl font-bold text-primary mb-1">{entry.title}</h3>
                                                             {match entry.subtitle {
-                                                                Some(sub) => view! { <div class="text-secondary font-medium mb-6">{sub}</div> }.into_view(),
-                                                                None => view! { <div class="mb-6"></div> }.into_view()
+                                                                Some(sub) => view! { <div class="text-secondary font-medium mb-6">{sub}</div> }.into_any(),
+                                                                None => view! { <div class="mb-6"></div> }.into_any()
                                                             }}
                                                             <ul class="text-on-surface-variant leading-relaxed text-sm space-y-3 list-none p-0 m-0">
                                                                 {entry.bullets.into_iter().map(|b| view! {
                                                                     <li class="relative pl-4 before:content-['>'] before:absolute before:-left-1 before:text-secondary before:font-bold">
                                                                         {b}
                                                                     </li>
-                                                                }).collect_view()}
+                                                                }).collect::<Vec<_>>()}
                                                             </ul>
                                                         </div>
                                                     </section>
-                                                }).collect_view()}
+                                                }).collect::<Vec<_>>()}
                                             </div>
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 }
-                            }).collect_view()}
+                            }).collect::<Vec<_>>()}
                         </div>
                     }
                 }}

@@ -543,14 +543,14 @@ pub fn Blog() -> impl IntoView {
                 {move || {
                     let posts = posts_resource.get().unwrap_or_default();
                     if use_kami_mode() {
-                        view! { <KamiBlogIndex posts=posts /> }.into_view()
+                        view! { <KamiBlogIndex posts=posts /> }.into_any()
                     } else {
                         view! {
                             <div class="px-4 md:px-[8.5rem]">
                                 <crate::components::dynamic_header::DynamicPageHeader route_path="/blog".to_string() badge_color="primary".to_string() />
                                 <ContentFeed nodes=posts layout=LayoutMode::List />
                             </div>
-                        }.into_view()
+                        }.into_any()
                     }
                 }}
             </Suspense>
@@ -563,7 +563,7 @@ pub fn Blog() -> impl IntoView {
 #[component]
 pub fn BlogPost() -> impl IntoView {
     let params = use_params_map();
-    let slug = move || params.with(|p| p.get("slug").cloned().unwrap_or_default());
+    let slug = move || params.with(|p| p.get("slug").unwrap_or_default());
 
     let post_resource = Resource::new(slug, |s| async move {
         get_post_by_slug(s).await.unwrap_or(None)
@@ -583,13 +583,13 @@ pub fn BlogPost() -> impl IntoView {
             }>
                 {move || {
                     match post_resource.get() {
-                        None => view! { <div /> }.into_view(),
+                        None => view! { <div /> }.into_any(),
                         Some(None) => view! {
                             <div class="max-w-3xl mx-auto px-6 pt-12 text-on-surface-variant">
                                 "Post not found."
                                 <a href="/blog" class="ml-4 text-secondary underline">"← Back to blog"</a>
                             </div>
-                        }.into_view(),
+                        }.into_any(),
                         Some(Some(post)) => {
                             let content_format = post.content_format.clone();
                             let html = render_post_html(&post);
@@ -628,7 +628,7 @@ pub fn BlogPost() -> impl IntoView {
                                                     <span class="bg-[#1B365D]/8 border border-[#1B365D]/20 text-[#1B365D] px-3 py-1 jetbrains text-[0.6rem] uppercase font-bold tracking-wider">
                                                         {tag}
                                                     </span>
-                                                }).collect_view()}
+                                                }).collect::<Vec<_>>()}
                                             </div>
                                         </header>
 
@@ -685,14 +685,14 @@ pub fn BlogPost() -> impl IntoView {
                                                     } \
                                                 });"
                                             </script>
-                                        }.into_view()
+                                        }.into_any()
                                     } else {
-                                        view! { <span /> }.into_view()
+                                        view! { <span /> }.into_any()
                                     }}
 
                                     </article>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     }
                 }}
@@ -772,13 +772,13 @@ fn KamiBlogIndex(posts: Vec<ContentNode>) -> impl IntoView {
                                             <span class="border border-[#1B365D]/20 text-[#1B365D] px-2 py-0.5 jetbrains text-[0.55rem] uppercase tracking-wider">
                                                 {tag}
                                             </span>
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
                                 })}
                             </article>
                         </a>
                     }
-                }).collect_view()}
+                }).collect::<Vec<_>>()}
             </div>
         </div>
     }
@@ -797,20 +797,20 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
     );
 
     // Lead capture state
-    let (show_modal, set_show_modal) = create_signal(false);
-    let (lead_name, set_lead_name) = create_signal(String::new());
-    let (lead_email, set_lead_email) = create_signal(String::new());
-    let (submitting, set_submitting) = create_signal(false);
-    let (download_token, set_download_token) = create_signal(Option::<String>::None);
+    let (show_modal, set_show_modal) = signal(false);
+    let (lead_name, set_lead_name) = signal(String::new());
+    let (lead_email, set_lead_email) = signal(String::new());
+    let (submitting, set_submitting) = signal(false);
+    let (download_token, set_download_token) = signal(Option::<String>::None);
     // Store the submitted email so it can be appended to the download URL
     // for HMAC verification on the server (passed as plain ?email= param).
-    let (submitted_email, set_submitted_email) = create_signal(String::new());
+    let (submitted_email, set_submitted_email) = signal(String::new());
 
     let slug_for_submit = slug_clone.clone();
     // Store slug in a StoredValue so multiple Fn closures can each call .get_value()
     // without consuming the String (which would make the outer closure FnOnce).
     let slug_store = store_value(slug_clone);
-    let submit_action = create_action(move |_: &()| {
+    let submit_action = Action::new(move |_: &()| {
         let slug = slug_for_submit.clone();
         let email = lead_email.get_untracked();
         let name_str = lead_name.get_untracked();
@@ -833,10 +833,10 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
         <Suspense fallback=move || view! {}>
             {move || {
                 let cfg = config_resource.get().and_then(|c| c);
-                let Some(cfg) = cfg else { return view! {}.into_view(); };
+                let Some(cfg) = cfg else { return view! {}.into_any(); };
 
                 let has_pdf = cfg.pdf_attachment_url.is_some() || cfg.pdf_generate_from_content;
-                if !has_pdf { return view! {}.into_view(); }
+                if !has_pdf { return view! {}.into_any(); }
 
                 let label = cfg.pdf_lead_capture_label.clone().unwrap_or_else(|| "Download PDF".to_string());
                 let requires_lead = cfg.pdf_require_lead_capture;
@@ -874,7 +874,7 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                                            class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
                                             "↓ Download"
                                         </a>
-                                    }.into_view()
+                                    }.into_any()
                                 } else if requires_lead {
                                     view! {
                                         <button
@@ -883,7 +883,7 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                                             class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
                                             {label.clone()}
                                         </button>
-                                    }.into_view()
+                                    }.into_any()
                                 } else {
                                     let href = format!("/api/blog/{}/pdf", slug_dl);
                                     view! {
@@ -891,7 +891,7 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                                            class="jetbrains text-[0.65rem] uppercase tracking-widest px-5 py-2.5 bg-[#1B365D] text-[#f5f4ed] hover:bg-[#2a4d87] transition-colors whitespace-nowrap">
                                             {label.clone()}
                                         </a>
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </div>
@@ -947,7 +947,7 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
                             </div>
                         })}
                     </div>
-                }.into_view()
+                }.into_any()
             }}
         </Suspense>
     }

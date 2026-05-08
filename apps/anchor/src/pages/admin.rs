@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_query_map;
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -125,13 +126,13 @@ enum AuthState {
 /// which works correctly whether or not both branches were rendered during SSR.
 #[component]
 fn LoginPanel() -> impl IntoView {
-    let (use_email, set_use_email)     = create_signal(false);
-    let (username, set_username)       = create_signal(String::new());
-    let (is_loading, set_is_loading)   = create_signal(false);
-    let (auth_error, set_auth_error)   = create_signal(String::new());
-    let (countdown, set_countdown)     = create_signal(0i32);
+    let (use_email, set_use_email)     = signal(false);
+    let (username, set_username)       = signal(String::new());
+    let (is_loading, set_is_loading)   = signal(false);
+    let (auth_error, set_auth_error)   = signal(String::new());
+    let (countdown, set_countdown)     = signal(0i32);
 
-    let login_action = create_action(move |_: &()| async move {
+    let login_action = Action::new(move |_: &()| async move {
         let uname = username.get_untracked();
         if uname.is_empty() {
             set_auth_error.set("Email is required.".to_string());
@@ -225,7 +226,7 @@ fn LoginPanel() -> impl IntoView {
                                         </div>
                                     </div>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         } else {
                             view! {
                                 <div class="space-y-6">
@@ -293,7 +294,7 @@ fn LoginPanel() -> impl IntoView {
                                         </button>
                                     </div>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }}
                     </div>
                 </div>
@@ -315,7 +316,7 @@ pub fn Admin() -> impl IntoView {
     // it is verified first; otherwise we fall through to session validation.
     // The resource re-runs automatically if the URL query string changes.
     let auth_resource = Resource::new(
-        move || query.with(|q| q.get("token").cloned()),
+        move || query.with(|q| q.get("token")),
         |token| async move {
             if let Some(t) = token {
                 if !t.is_empty() {
@@ -344,13 +345,13 @@ pub fn Admin() -> impl IntoView {
         Some(AuthStep::Authenticated { from_magic_link: true })
     );
 
-    let (active_tab, set_active_tab) = create_signal("DASHBOARD");
+    let (active_tab, set_active_tab) = signal("DASHBOARD");
 
-    let (modal_state, set_modal_state) = create_signal(ModalState::None);
+    let (modal_state, set_modal_state) = signal(ModalState::None);
     provide_context(modal_state);
     provide_context(set_modal_state);
 
-    let (refresh, set_refresh) = create_signal(0i32);
+    let (refresh, set_refresh) = signal(0i32);
     provide_context(refresh);
     provide_context(set_refresh);
 
@@ -376,7 +377,7 @@ pub fn Admin() -> impl IntoView {
                     <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
                     </div>
-                }.into_view(),
+                }.into_any(),
 
                 // ── Unauthenticated ─────────────────────────────────────────────
                 // LoginPanel owns all auth-form signals in its own component scope,
@@ -384,7 +385,7 @@ pub fn Admin() -> impl IntoView {
                 // isolated from this outer auth-state match closure.
                 AuthState::No => view! {
                     <LoginPanel />
-                }.into_view(),
+                }.into_any(),
 
                 // ── Authenticated ───────────────────────────────────────────────
                 AuthState::Yes => view! {
@@ -410,7 +411,7 @@ pub fn Admin() -> impl IntoView {
                                                 </button>
                                             }
                                         }
-                                    ).collect_view()}
+                                    ).collect::<Vec<_>>()}
                                 </div>
 
                             <button
@@ -475,34 +476,34 @@ pub fn Admin() -> impl IntoView {
                                 // Datagrid View
                                 <div class="flex-1 overflow-x-auto">
                                     {move || match active_tab.get() {
-                                        "DASHBOARD" => view! { <DashboardView /> }.into_view(),
-                                        "WEBFORMS" => view! { <WebformsTable /> }.into_view(),
-                                        "SERVICES" => view! { <ServiceTable /> }.into_view(),
-                                        "CASE STUDIES" => view! { <CaseStudyTable /> }.into_view(),
-                                        "HIGHLIGHTS" => view! { <HighlightTable /> }.into_view(),
-                                        "MAILING LIST" => view! { <MailingListTable /> }.into_view(),
-                                        "LEAD OPTIONS" => view! { <LeadOptionTable /> }.into_view(),
-                                        "NAVIGATION" => view! { <NavTable /> }.into_view(),
-                                        "FOOTER" => view! { <FooterTable /> }.into_view(),
-                                        "PAGE HEADERS" => view! { <PageHeaderTable /> }.into_view(),
-                                        "SETTINGS" => view! { <SettingsReadView /> }.into_view(),
-                                        "BLOG" => view! { <PostTable /> }.into_view(),
-                                        "RESUME PROFILES" => view! { <ResumeProfileTable /> }.into_view(),
-                                        "RESUME ENTRIES" => view! { <BaseResumeEntryTable /> }.into_view(),
-                                        "LANDING PAGES" => view! { <LandingPageTable /> }.into_view(),
-                                        "SECURITY" => view! { <PasskeyTable /> }.into_view(),
+                                        "DASHBOARD" => view! { <DashboardView /> }.into_any(),
+                                        "WEBFORMS" => view! { <WebformsTable /> }.into_any(),
+                                        "SERVICES" => view! { <ServiceTable /> }.into_any(),
+                                        "CASE STUDIES" => view! { <CaseStudyTable /> }.into_any(),
+                                        "HIGHLIGHTS" => view! { <HighlightTable /> }.into_any(),
+                                        "MAILING LIST" => view! { <MailingListTable /> }.into_any(),
+                                        "LEAD OPTIONS" => view! { <LeadOptionTable /> }.into_any(),
+                                        "NAVIGATION" => view! { <NavTable /> }.into_any(),
+                                        "FOOTER" => view! { <FooterTable /> }.into_any(),
+                                        "PAGE HEADERS" => view! { <PageHeaderTable /> }.into_any(),
+                                        "SETTINGS" => view! { <SettingsReadView /> }.into_any(),
+                                        "BLOG" => view! { <PostTable /> }.into_any(),
+                                        "RESUME PROFILES" => view! { <ResumeProfileTable /> }.into_any(),
+                                        "RESUME ENTRIES" => view! { <BaseResumeEntryTable /> }.into_any(),
+                                        "LANDING PAGES" => view! { <LandingPageTable /> }.into_any(),
+                                        "SECURITY" => view! { <PasskeyTable /> }.into_any(),
                                         _ => view! {
                                             <div class="h-64 flex items-center justify-center border-2 border-dashed border-outline-variant text-outline">
                                                 <span class="jetbrains text-sm">"MODULE_OFFLINE"</span>
                                             </div>
-                                        }.into_view(),
+                                        }.into_any(),
                                     }}
                                 </div>
                             </div>
                             <AdminEditorModal />
                         </section>
                     </div>
-                }.into_view(),
+                }.into_any(),
             }}
             </Suspense>
         </main>
@@ -595,12 +596,12 @@ fn PageHeaderTable() -> impl IntoView {
                                 </td>
                             </tr>
                             }
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -633,8 +634,8 @@ fn DashboardView() -> impl IntoView {
                             <span class="text-5xl font-extrabold text-on-surface">{stats.total_signups}</span>
                         </div>
                     </div>
-                }.into_view(),
-                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_view()
+                }.into_any(),
+                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
             }}
         </Transition>
     }
@@ -743,8 +744,8 @@ fn SettingsReadView() -> impl IntoView {
                         </div>
 
                     </div>
-                }.into_view(),
-                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_view()
+                }.into_any(),
+                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
             }}
         </Transition>
     }
@@ -853,12 +854,12 @@ fn ResumeProfileTable() -> impl IntoView {
                                     </td>
                                 </tr>
                             }
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -879,7 +880,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
             {move || match items_res.get() {
                 Some(Ok(items)) => {
                     if items.is_empty() {
-                        view! { <div class="py-8 text-center text-outline-variant">"NO ENTRIES IN DATABASE"</div> }.into_view()
+                        view! { <div class="py-8 text-center text-outline-variant">"NO ENTRIES IN DATABASE"</div> }.into_any()
                     } else {
                         let categories = vec![
                             ResumeCategory::Work,
@@ -896,7 +897,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
                         categories.into_iter().map(|cat| {
                             let cat_items: Vec<_> = items.iter().filter(|i| i.category == cat).cloned().collect();
                             if cat_items.is_empty() {
-                                view! { <div class="hidden"></div> }.into_view()
+                                view! { <div class="hidden"></div> }.into_any()
                             } else {
                                 let category_str = cat.to_string();
                                 view! {
@@ -943,16 +944,16 @@ fn BaseResumeEntryTable() -> impl IntoView {
                                                             </td>
                                                         </tr>
                                                     }
-                                                }).collect_view()}
+                                                }).collect::<Vec<_>>()}
                                             </tbody>
                                         </table>
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             }
-                        }).collect_view()
+                        }).collect::<Vec<_>>()
                     }
                 },
-                _ => view! { <div class="py-8 text-center text-error">"ERR_NO_DATA"</div> }.into_view(),
+                _ => view! { <div class="py-8 text-center text-error">"ERR_NO_DATA"</div> }.into_any(),
             }}
         </Transition>
     }
@@ -1069,12 +1070,12 @@ fn LeadOptionTable() -> impl IntoView {
                                     </td>
                                 </tr>
                             }
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="6" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="6" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1127,12 +1128,12 @@ fn MailingListTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1195,12 +1196,12 @@ fn PostTable() -> impl IntoView {
                                 </td>
                             </tr>
                             }
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1252,12 +1253,12 @@ fn PasskeyTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1318,12 +1319,12 @@ pub fn LandingPageTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1388,12 +1389,12 @@ pub fn NavTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1457,12 +1458,12 @@ pub fn FooterTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1503,12 +1504,12 @@ pub fn ServiceTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1549,12 +1550,12 @@ pub fn CaseStudyTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1595,12 +1596,12 @@ pub fn HighlightTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect_view(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_view(),
+                        }}).collect::<Vec<_>>(),
+                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
-            }.into_view()
+            }.into_any()
             }}
         </Transition>
     }
@@ -1608,7 +1609,7 @@ pub fn HighlightTable() -> impl IntoView {
 
 #[component]
 fn PasskeyRegistrationNudge() -> impl IntoView {
-    let (is_hidden, set_is_hidden) = create_signal(false);
+    let (is_hidden, set_is_hidden) = signal(false);
     
     view! {
         <Show when=move || !is_hidden.get()>

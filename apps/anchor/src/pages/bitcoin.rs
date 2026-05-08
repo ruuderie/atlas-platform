@@ -96,7 +96,7 @@ pub fn BitcoinDashboard() -> impl IntoView {
                                 <div class="p-8 text-center text-on-surface-variant font-mono bg-surface-container rounded-sm border border-outline-variant">
                                     "No blocks synchronized yet. The system is initializing."
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         } else {
                             let latest = blocks[0].clone();
                             let difficulty_trillions = latest.difficulty / 1_000_000_000_000.0;
@@ -145,9 +145,9 @@ pub fn BitcoinDashboard() -> impl IntoView {
                                                                 <td class="py-4 pr-6 font-mono">
                                                                     <div class="flex items-center">
                                                                         {if is_latest {
-                                                                            view! { <span class="w-1.5 h-1.5 rounded-full bg-primary mr-2 shadow-sm"></span> }.into_view()
+                                                                            view! { <span class="w-1.5 h-1.5 rounded-full bg-primary mr-2 shadow-sm"></span> }.into_any()
                                                                         } else {
-                                                                            view! { <span class="w-1.5 h-1.5 rounded-full bg-outline-variant mr-2"></span> }.into_view()
+                                                                            view! { <span class="w-1.5 h-1.5 rounded-full bg-outline-variant mr-2"></span> }.into_any()
                                                                         }}
                                                                         <span class=if is_latest { "text-primary font-bold" } else { "text-on-surface" }>
                                                                             {block.height}
@@ -170,13 +170,13 @@ pub fn BitcoinDashboard() -> impl IntoView {
                                                                 </td>
                                                             </tr>
                                                         }
-                                                    }).collect_view()}
+                                                    }).collect::<Vec<_>>()}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     }}
                 </Suspense>

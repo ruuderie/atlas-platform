@@ -32,7 +32,7 @@ pub fn Services() -> impl IntoView {
                                 <p class="text-xl text-outline-variant font-medium leading-relaxed max-w-2xl mb-12">"The requested operations protocol is currently offline or does not exist."</p>
                                 <a href="/" class="bg-surface text-on-surface border border-outline-variant font-bold jetbrains uppercase tracking-widest px-8 py-4 hover:bg-surface-container transition-colors">"RETURN TO BASE"</a>
                             </main>
-                        }.into_view()
+                        }.into_any()
                     } else {
                         view! {
                             <Title text="Services & Consulting | Anchor" />
@@ -60,7 +60,7 @@ pub fn Services() -> impl IntoView {
                     {move || match services_res.get() {
                         Some(Ok(items)) => {
                             if items.is_empty() {
-                                view! { <div class="text-center text-outline">"Services are currently being updated. Check back soon."</div> }.into_view()
+                                view! { <div class="text-center text-outline">"Services are currently being updated. Check back soon."</div> }.into_any()
                             } else {
                                 view! {
                                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -77,7 +77,7 @@ pub fn Services() -> impl IntoView {
                                                                 <span class="material-symbols-outlined text-[1rem] text-primary shrink-0 mt-0.5">"check_circle"</span>
                                                                 <span class="leading-relaxed">{d}</span>
                                                             </li>
-                                                        }).collect_view()}
+                                                        }).collect::<Vec<_>>()}
                                                     </ul>
                                                 </div>
 
@@ -87,12 +87,12 @@ pub fn Services() -> impl IntoView {
                                                     </div>
                                                 })}
                                             </div>
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             }
                         },
-                        _ => view! { <div class="text-error">"Failed to load services"</div> }.into_view(),
+                        _ => view! { <div class="text-error">"Failed to load services"</div> }.into_any(),
                     }}
                 </Transition>
             </section>
@@ -110,7 +110,7 @@ pub fn Services() -> impl IntoView {
                     {move || match case_studies_res.get() {
                         Some(Ok(items)) => {
                             if items.is_empty() {
-                                view! { <div class="text-center text-outline italic">"Select case studies available upon request."</div> }.into_view()
+                                view! { <div class="text-center text-outline italic">"Select case studies available upon request."</div> }.into_any()
                             } else {
                                 view! {
                                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
@@ -144,12 +144,12 @@ pub fn Services() -> impl IntoView {
                                                     </div>
                                                 </div>
                                             </div>
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
-                                }.into_view()
+                                }.into_any()
                             }
                         },
-                        _ => view! { <div class="text-error">"Failed to load case studies"</div> }.into_view(),
+                        _ => view! { <div class="text-error">"Failed to load case studies"</div> }.into_any(),
                     }}
                 </Transition>
             </section>
@@ -158,10 +158,10 @@ pub fn Services() -> impl IntoView {
             <HighlightsGallery />
 
         </main>
-                        }.into_view()
+                        }.into_any()
                     }
                 },
-                _ => view! { <div class="text-error mt-32 px-12">"System Failure"</div> }.into_view()
+                _ => view! { <div class="text-error mt-32 px-12">"System Failure"</div> }.into_any()
             }}
         </Transition>
     }
@@ -182,7 +182,7 @@ pub fn HighlightsGallery() -> impl IntoView {
                 {move || match highlights_res.get() {
                     Some(Ok(items)) => {
                         if items.is_empty() {
-                            view! { <div class="hidden"></div> }.into_view()
+                            view! { <div class="hidden"></div> }.into_any()
                         } else {
                             view! {
                                 <div class="flex overflow-x-auto gap-6 pb-8 snap-x pl-2 pr-6 hide-scrollbar">
@@ -214,16 +214,16 @@ pub fn HighlightsGallery() -> impl IntoView {
                                         };
 
                                         if has_link {
-                                            view! { <a href=item.url target="_blank" rel="noopener noreferrer" class="block h-full cursor-pointer">{content}</a> }.into_view()
+                                            view! { <a href=item.url target="_blank" rel="noopener noreferrer" class="block h-full cursor-pointer">{content}</a> }.into_any()
                                         } else {
-                                            view! { <div class="block h-full">{content}</div> }.into_view()
+                                            view! { <div class="block h-full">{content}</div> }.into_any()
                                         }
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     },
-                    _ => view! { <div class="text-error px-6">"Failed to load highlights"</div> }.into_view()
+                    _ => view! { <div class="text-error px-6">"Failed to load highlights"</div> }.into_any()
                 }}
             </Transition>
 

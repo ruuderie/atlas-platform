@@ -75,7 +75,7 @@ pub fn ContentFeed(
                                         <div class="bg-surface-container-highest px-3 py-1 text-xs font-bold text-on-surface jetbrains uppercase border-b border-r border-outline-variant/50">
                                             {tag}
                                         </div>
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </div>
                             })}
 
@@ -85,14 +85,14 @@ pub fn ContentFeed(
                                         <li class="relative pl-5 before:content-['//'] before:absolute before:-left-1 before:text-secondary before:font-bold before:jetbrains">
                                             {b}
                                         </li>
-                                    }).collect_view()}
+                                    }).collect::<Vec<_>>()}
                                 </ul>
                             })}
                         </article>
                     }
-                }).collect_view()}
+                }).collect::<Vec<_>>()}
             </div>
-        }.into_view(),
+        }.into_any(),
         LayoutMode::List => view! {
             <div class="space-y-12 max-w-4xl">
                 {nodes.into_iter().map(|node| {
@@ -157,7 +157,7 @@ pub fn ContentFeed(
                             <div class="flex flex-wrap gap-4 mt-4">
                                 {node.tags.into_iter().map(|tag| view! {
                                     <span class="bg-surface-container-highest px-3 py-1 jetbrains text-[0.65rem] font-bold text-on-surface-variant uppercase">{tag}</span>
-                                }).collect_view()}
+                                }).collect::<Vec<_>>()}
                             </div>
                         </article>
                     };
@@ -165,13 +165,13 @@ pub fn ContentFeed(
                     if let Some(href) = link {
                         view! {
                             <a href=href class="block no-underline outline-none">{card}</a>
-                        }.into_view()
+                        }.into_any()
                     } else {
-                        card.into_view()
+                        card.into_any()
                     }
-                }).collect_view()}
+                }).collect::<Vec<_>>()}
             </div>
-        }.into_view(),
+        }.into_any(),
         LayoutMode::Carousel => view! {
             <div class="flex overflow-x-auto gap-6 pb-8 snap-x pl-2 pr-6 max-w-6xl hide-scrollbar-custom">
                 {nodes.into_iter().enumerate().map(|(idx, node)| {
@@ -212,16 +212,16 @@ pub fn ContentFeed(
                             <a href=node.link_url.clone().unwrap() target="_blank" rel="noopener noreferrer" class="block cursor-pointer outline-none">
                                 {content}
                             </a>
-                        }.into_view()
+                        }.into_any()
                     } else {
-                        view! { <div class="block outline-none">{content}</div> }.into_view()
+                        view! { <div class="block outline-none">{content}</div> }.into_any()
                     }
-                }).collect_view()}
+                }).collect::<Vec<_>>()}
                 <style>
                     ".hide-scrollbar-custom::-webkit-scrollbar { display: none; }
                      .hide-scrollbar-custom { -ms-overflow-style: none; scrollbar-width: none; }"
                 </style>
             </div>
-        }.into_view(),
+        }.into_any(),
     }
 }

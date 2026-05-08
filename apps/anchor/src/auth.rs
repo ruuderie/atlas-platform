@@ -70,7 +70,7 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                 let data: serde_json::Value = r.json().await.unwrap_or_default();
                 if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
                     use leptos_axum::ResponseOptions;
-                    let response = leptos::expect_context::<ResponseOptions>();
+                    let response = expect_context::<ResponseOptions>();
                     let header_val = format!(
                         "session={}; HttpOnly; Path=/; SameSite=Strict",
                         session_token
@@ -143,7 +143,7 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
                 let data: serde_json::Value = r.json().await.unwrap_or_default();
                 if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
                     use leptos_axum::ResponseOptions;
-                    let response = leptos::expect_context::<ResponseOptions>();
+                    let response = expect_context::<ResponseOptions>();
                     let header_val = format!(
                         "session={}; HttpOnly; Path=/; SameSite=Strict",
                         session_token

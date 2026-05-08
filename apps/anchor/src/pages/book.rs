@@ -23,7 +23,7 @@ pub fn BookDiscovery() -> impl IntoView {
                     Some(Ok(settings)) => {
                         let bu = settings.booking_url;
                         if bu.is_empty() {
-                            view! { <div class="text-error bg-error-container text-on-error-container p-6 w-full max-w-2xl text-center">"Booking is currently unavailable. Please reach out via email."</div> }.into_view()
+                            view! { <div class="text-error bg-error-container text-on-error-container p-6 w-full max-w-2xl text-center">"Booking is currently unavailable. Please reach out via email."</div> }.into_any()
                         } else {
                             view! {
                                 <div class="w-full max-w-4xl bg-surface-container-low rounded-3xl overflow-hidden border border-outline-variant/30 shadow-xl h-[700px]">
@@ -31,14 +31,14 @@ pub fn BookDiscovery() -> impl IntoView {
                                         src=bu
                                         width="100%"
                                         height="100%"
-                                        frameborder="0"
+                                        attr:frameborder="0"
                                         class="w-full h-full"
                                     ></iframe>
                                 </div>
-                            }.into_view()
+                            }.into_any()
                         }
                     },
-                    _ => view! { <div class="text-error">"Failed to load booking configuration."</div> }.into_view()
+                    _ => view! { <div class="text-error">"Failed to load booking configuration."</div> }.into_any()
                 }}
             </Transition>
         </main>

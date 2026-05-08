@@ -28,7 +28,7 @@ pub struct GridBlockData {
 
 #[component]
 pub fn GridBlock(data: GridBlockData) -> impl IntoView {
-    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+    let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
         
     view! {
@@ -45,8 +45,8 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
                         design.heading_font
                     )>
                         {data.section_title.clone().unwrap()}
-                    </h2> }.into_view()
-                } else { view!{}.into_view() }}
+                    </h2> }.into_any()
+                } else { view!{}.into_any() }}
 
                 <div class=format!("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 {}", 
                     if design.container_strategy == "asymmetrical-gutters" { "gap-12" } else { "gap-8" }
@@ -62,8 +62,8 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
                                 {if item.image_url.is_some() && !item.image_url.clone().unwrap_or_default().is_empty() {
                                     view!{ <div class="w-full h-48 overflow-hidden bg-surface-container-high">
                                         <img src=item.image_url.clone().unwrap() alt=item.title.clone() class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                    </div> }.into_view()
-                                } else { view!{}.into_view() }}
+                                    </div> }.into_any()
+                                } else { view!{}.into_any() }}
                                 <div class="p-8">
                                     <h3 class=format!("text-2xl font-bold text-primary dark:text-on-surface mb-4 group-hover:text-primary transition-colors {}", design.heading_font)>
                                         {item.title.clone()}
@@ -71,15 +71,15 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
                                     {if item.icon.is_some() && !item.icon.clone().unwrap_or_default().is_empty() {
                                         view!{ <div class=format!("mb-6 inline-block px-3 py-1 bg-secondary-container/20 text-secondary {} {}", design.meta_font, design.border_radius_base)>
                                             <span class="text-sm">{item.icon.clone().unwrap()}</span>
-                                        </div> }.into_view()
-                                    } else { view!{}.into_view() }}
+                                        </div> }.into_any()
+                                    } else { view!{}.into_any() }}
                                     <p class=format!("text-lg text-on-surface-variant leading-relaxed {}", design.body_font)>
                                         {item.description.clone()}
                                     </p>
                                 </div>
                             </a>
                         }
-                    }).collect_view()}
+                    }).collect::<Vec<_>>()}
                 </div>
             </div>
         </section>

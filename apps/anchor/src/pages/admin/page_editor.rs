@@ -6,8 +6,8 @@ pub fn PageEditor(
     #[prop(into)] on_cancel: Callback<()>,
     #[prop(into)] on_save: Callback<(String, String)>,
 ) -> impl IntoView {
-    let (current_slug, set_current_slug) = create_signal(slug.clone());
-    let (payload, set_payload) = create_signal(String::from("[\n  \n]"));
+    let (current_slug, set_current_slug) = signal(slug.clone());
+    let (payload, set_payload) = signal(String::from("[\n  \n]"));
 
     view! {
         <div class="space-y-6">

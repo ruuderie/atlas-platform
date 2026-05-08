@@ -96,8 +96,8 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                                     <div class="jetbrains text-[0.6rem] uppercase tracking-[0.25em] text-[#6b6a64] mb-2">{title}</div>
                                     <div class="w-12 h-px bg-[#1B365D]/30"></div>
                                 </div>
-                            }.into_view()
-                        } else { view! {}.into_view() }}
+                            }.into_any()
+                        } else { view! {}.into_any() }}
 
                         <Suspense fallback=move || view! { <div class="text-[#6b6a64] jetbrains text-xs uppercase animate-pulse">"Loading..."</div> }>
                             {move || {
@@ -106,14 +106,14 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                                     <div class="space-y-12">
                                         {items_to_render.into_iter().map(|item| {
                                             view! { <KamiTimelineItemView item=item show_bullets=config.get_value().show_bullets show_date=config.get_value().show_date_range /> }
-                                        }).collect_view()}
+                                        }).collect::<Vec<_>>()}
                                     </div>
                                 }
                             }}
                         </Suspense>
                     </div>
                 </section>
-            }.into_view()
+            }.into_any()
         } else {
             // ── Material 3 dark (existing) ────────────────────────────────────
             view! {
@@ -124,9 +124,9 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                                 <h2 class="text-3xl font-bold text-on-surface mb-8">
                                     {title}
                                 </h2>
-                            }.into_view()
+                            }.into_any()
                         } else {
-                            view! {}.into_view()
+                            view! {}.into_any()
                         }}
 
                         <Suspense fallback=move || view! { <div class="text-sm font-bold uppercase tracking-wider text-outline animate-pulse">"Loading timeline..."</div> }>
@@ -139,7 +139,7 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                                         <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
                                             "No timeline items found."
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 } else {
                                     view! {
                                         <div class={match cfg.layout.as_str() {
@@ -151,15 +151,15 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                                                 view! {
                                                     <TimelineItemView item=item config=cfg.clone() />
                                                 }
-                                            }).collect_view()}
+                                            }).collect::<Vec<_>>()}
                                         </div>
-                                    }.into_view()
+                                    }.into_any()
                                 }
                             }}
                         </Suspense>
                     </div>
                 </section>
-            }.into_view()
+            }.into_any()
         }}
     }
 }
@@ -171,45 +171,45 @@ fn TimelineItemView(item: TimelineItem, config: TimelineBlockConfig) -> impl Int
             <div class="bg-surface border border-outline-variant hover:border-primary/50 transition-colors rounded-xl p-6 shadow-sm">
                 <h3 class="text-xl font-bold text-on-surface mb-1">{item.title}</h3>
                 {if let Some(sub) = item.subtitle {
-                    view! { <div class="text-primary font-medium text-sm mb-3">{sub}</div> }.into_view()
-                } else { view! {}.into_view() }}
+                    view! { <div class="text-primary font-medium text-sm mb-3">{sub}</div> }.into_any()
+                } else { view! {}.into_any() }}
                 
                 {if config.show_date_range {
                     if let Some(dates) = item.date_range {
                         view! {
                             <div class="text-xs text-on-surface-variant uppercase tracking-wider mb-4">{dates}</div>
-                        }.into_view()
-                    } else { view! {}.into_view() }
-                } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }
+                } else { view! {}.into_any() }}
 
                 {if config.show_bullets && !item.bullets.is_empty() {
                     view! {
                         <ul class="text-on-surface-variant text-sm space-y-2 !list-none pl-0">
-                            {item.bullets.into_iter().map(|b| view! { <li><span class="text-primary mr-2">"•"</span>{b}</li> }).collect_view()}
+                            {item.bullets.into_iter().map(|b| view! { <li><span class="text-primary mr-2">"•"</span>{b}</li> }).collect::<Vec<_>>()}
                         </ul>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
             </div>
-        }.into_view(),
+        }.into_any(),
         "compact" => view! {
             <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between py-3 border-b border-outline-variant/30 last:border-0 hover:bg-surface-container/30 px-4 -mx-4 rounded">
                 <div class="flex-grow">
                     <h3 class="text-lg font-bold text-on-surface flex items-center gap-2">
                         {item.title}
                         {if let Some(sub) = item.subtitle {
-                            view! { <span class="font-normal text-on-surface-variant text-base">"— "{sub}</span> }.into_view()
-                        } else { view! {}.into_view() }}
+                            view! { <span class="font-normal text-on-surface-variant text-base">"— "{sub}</span> }.into_any()
+                        } else { view! {}.into_any() }}
                     </h3>
                 </div>
                 {if config.show_date_range {
                     if let Some(dates) = item.date_range {
                         view! {
                             <div class="text-sm font-medium text-on-surface-variant whitespace-nowrap mt-1 sm:mt-0 opacity-80">{dates}</div>
-                        }.into_view()
-                    } else { view! {}.into_view() }
-                } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }
+                } else { view! {}.into_any() }}
             </div>
-        }.into_view(),
+        }.into_any(),
         _ => view! {
             <div class="relative">
                 <div class="absolute -left-[41px] top-1 h-5 w-5 rounded-full border-4 border-surface bg-primary shadow-sm z-10" />
@@ -217,8 +217,8 @@ fn TimelineItemView(item: TimelineItem, config: TimelineBlockConfig) -> impl Int
                     <div>
                         <h3 class="text-2xl font-bold text-on-surface">{item.title}</h3>
                         {if let Some(sub) = item.subtitle {
-                            view! { <div class="text-primary font-medium text-lg tracking-wide">{sub}</div> }.into_view()
-                        } else { view! {}.into_view() }}
+                            view! { <div class="text-primary font-medium text-lg tracking-wide">{sub}</div> }.into_any()
+                        } else { view! {}.into_any() }}
                     </div>
                     {if config.show_date_range {
                         if let Some(dates) = item.date_range {
@@ -226,21 +226,21 @@ fn TimelineItemView(item: TimelineItem, config: TimelineBlockConfig) -> impl Int
                                 <div class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider bg-surface-container px-3 py-1 rounded-full w-fit mt-2 md:mt-0 border border-outline-variant/40">
                                     {dates}
                                 </div>
-                            }.into_view()
-                        } else { view! {}.into_view() }
-                    } else { view! {}.into_view() }}
+                            }.into_any()
+                        } else { view! {}.into_any() }
+                    } else { view! {}.into_any() }}
                 </div>
                 {if config.show_bullets && !item.bullets.is_empty() {
                     view! {
                         <div class="prose prose-on-surface max-w-none prose-p:my-1 prose-li:my-1 mt-4 text-on-surface-variant">
                             <ul>
-                                {item.bullets.into_iter().map(|b| view! { <li>{b}</li> }).collect_view()}
+                                {item.bullets.into_iter().map(|b| view! { <li>{b}</li> }).collect::<Vec<_>>()}
                             </ul>
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
             </div>
-        }.into_view() // "detailed"
+        }.into_any() // "detailed"
     }
 }
 
@@ -260,8 +260,8 @@ fn KamiTimelineItemView(item: TimelineItem, show_bullets: bool, show_date: bool)
                             <div class="jetbrains text-xs text-[#6b6a64] uppercase tracking-wider mt-0.5">
                                 {sub}
                             </div>
-                        }.into_view()
-                    } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }}
                 </div>
                 {if show_date {
                     if let Some(dates) = item.date_range {
@@ -269,9 +269,9 @@ fn KamiTimelineItemView(item: TimelineItem, show_bullets: bool, show_date: bool)
                             <span class="jetbrains text-[0.6rem] uppercase tracking-widest text-[#6b6a64] whitespace-nowrap">
                                 {dates}
                             </span>
-                        }.into_view()
-                    } else { view! {}.into_view() }
-                } else { view! {}.into_view() }}
+                        }.into_any()
+                    } else { view! {}.into_any() }
+                } else { view! {}.into_any() }}
             </div>
 
             // Bullets — detect Role/Action/Impact prefix and render as aligned label+text
@@ -289,19 +289,19 @@ fn KamiTimelineItemView(item: TimelineItem, show_bullets: bool, show_date: bool)
                                             <span class="jetbrains text-[0.58rem] uppercase tracking-widest text-[#1B365D] font-bold mt-[0.2rem] shrink-0 w-14 text-right">
                                                 {lbl}":"
                                             </span>
-                                        }.into_view()
+                                        }.into_any()
                                     } else {
                                         view! {
                                             <span class="text-[#1B365D]/40 mt-[0.3rem] shrink-0">"—"</span>
-                                        }.into_view()
+                                        }.into_any()
                                     }}
                                     <span>{rest}</span>
                                 </li>
                             }
-                        }).collect_view()}
+                        }).collect::<Vec<_>>()}
                     </ul>
-                }.into_view()
-            } else { view! {}.into_view() }}
+                }.into_any()
+            } else { view! {}.into_any() }}
         </div>
     }
 }

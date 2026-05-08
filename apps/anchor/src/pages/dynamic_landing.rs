@@ -351,14 +351,14 @@ pub async fn handle_dynamic_lead(
 #[component]
 pub fn DynamicLanding() -> impl IntoView {
     let params = use_params_map();
-    let slug = move || params.with(|p| p.get("slug").cloned().unwrap_or_default());
+    let slug = move || params.with(|p| p.get("slug").unwrap_or_default());
 
-    let (email, set_email) = create_signal(String::new());
+    let (email, set_email) = signal(String::new());
     let (selected_options, set_selected_options) =
-        create_signal(std::collections::HashSet::<String>::new());
-    let (submitted, set_submitted) = create_signal(false);
+        signal(std::collections::HashSet::<String>::new());
+    let (submitted, set_submitted) = signal(false);
 
-    let submit_action = create_action(move |_: &()| {
+    let submit_action = Action::new(move |_: &()| {
         let e = email.get_untracked();
         let s = slug();
         let opts: Vec<String> = selected_options.get_untracked().into_iter().collect();
@@ -406,26 +406,26 @@ pub fn DynamicLanding() -> impl IntoView {
                             <main>
                                 // Nav spacer: only needed when the page doesn't open with a Hero block
                                 {if !first_is_hero {
-                                    view! { <div class="pt-24"></div> }.into_view()
+                                    view! { <div class="pt-24"></div> }.into_any()
                                 } else {
-                                    view! {}.into_view()
+                                    view! {}.into_any()
                                 }}
                                 {parsed_blocks.into_iter().map(|block| match block {
-                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_view(),
-                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_view(),
-                                }).collect_view()}
+                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data /> }.into_any(),
+                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_any(),
+                                }).collect::<Vec<_>>()}
                             </main>
-                        }.into_view()
+                        }.into_any()
                     } else {
                         // Legacy page with hero_title/hero_subtitle — keep the padded wrapper
                         let options_map: std::collections::HashMap<String, String> = serde_json::from_str(&page.options_json).unwrap_or_default();
@@ -453,7 +453,7 @@ pub fn DynamicLanding() -> impl IntoView {
                                                     <h2 class="text-3xl font-extrabold tracking-tight text-primary">"CONNECTION ESTABLISHED"</h2>
                                                     <p class="text-on-surface-variant font-medium">"Your selections have been securely transmitted."</p>
                                                 </div>
-                                            }.into_view()
+                                            }.into_any()
                                         } else {
                                             view! {
                                                 <div class="space-y-8">
@@ -491,7 +491,7 @@ pub fn DynamicLanding() -> impl IntoView {
                                                                         <span class="jetbrains text-sm text-on-surface group-hover:text-primary transition-colors">{label}</span>
                                                                     </label>
                                                                     }
-                                                                }).collect_view())}
+                                                                }).collect::<Vec<_>>())}
                                                             </div>
                                                         </Show>
 
@@ -502,17 +502,17 @@ pub fn DynamicLanding() -> impl IntoView {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            }.into_view()
+                                            }.into_any()
                                         }}
-                                        </div> }.into_view()
-                                    } else { view!{}.into_view() }}
+                                        </div> }.into_any()
+                                    } else { view!{}.into_any() }}
                                 </section>
                             </main>
-                        }.into_view()
+                        }.into_any()
                     }
                 },
-                Some(Ok(None)) | Some(Err(_)) => view! { <div class="text-center pt-24 jetbrains text-error">"PAGE NOT FOUND"</div> }.into_view(),
-                None => view! { <div/> }.into_view()
+                Some(Ok(None)) | Some(Err(_)) => view! { <div class="text-center pt-24 jetbrains text-error">"PAGE NOT FOUND"</div> }.into_any(),
+                None => view! { <div/> }.into_any()
             }}
         </Suspense>
     }
@@ -554,21 +554,21 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                         view! {
                             <main>
                                 {parsed_blocks.into_iter().map(|block| match block {
-                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_view(),
-                                    DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_view(),
-                                }).collect_view()}
+                                    DynamicBlock::Hero(data) => view! { <HeroBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Grid(data) => view! { <GridBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::RichText(data) => view! { <RichTextBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Callout(data) => view! { <CalloutBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::FormBuilder(data) => view! { <FormBuilderBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Timeline(data) => view! { <TimelineBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::BadgeList(data) => view! { <BadgeListBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::ContentFeed(data) => view! { <ContentFeedBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::ProfileHeader(data) => view! { <ProfileHeaderBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Stats(data) => view! { <StatsBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::Accordion(data) => view! { <AccordionBlock data=data.clone() /> }.into_any(),
+                                    DynamicBlock::RawHtml(data) => view! { <RawHtmlBlock data=data.clone() /> }.into_any(),
+                                }).collect::<Vec<_>>()}
                             </main>
-                        }.into_view()
+                        }.into_any()
                     } else {
                         // Legacy page with hero_title/hero_subtitle in hero_payload
                         view! {
@@ -582,7 +582,7 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                                     </p>
                                 </section>
                             </main>
-                        }.into_view()
+                        }.into_any()
                     }
                 },
                 // No CMS page configured — show neutral Anchor platform placeholder
@@ -604,8 +604,8 @@ pub fn DynamicHomeLanding() -> impl IntoView {
                             </div>
                         </section>
                     </main>
-                }.into_view(),
-                None => view! { <div/> }.into_view(),
+                }.into_any(),
+                None => view! { <div/> }.into_any(),
             }}
         </Suspense>
     }

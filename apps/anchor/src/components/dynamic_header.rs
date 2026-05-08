@@ -139,7 +139,7 @@ pub fn DynamicPageHeader(
                                     <div class=format!("px-3 py-1 jetbrains text-[0.625rem] font-bold tracking-widest uppercase mb-8 {}", badge_classes)>
                                         {bt}
                                     </div>
-                                }.into_view())
+                                }.into_any())
                             } else { None }
                         } else { None }}
                         <h1 class="text-4xl md:text-6xl font-extrabold tracking-[-0.02em] text-primary mb-6 uppercase">
@@ -151,7 +151,7 @@ pub fn DynamicPageHeader(
                                     <p class="text-lg md:text-xl text-on-surface-variant font-medium tracking-tight max-w-3xl leading-relaxed">
                                         {st}
                                     </p>
-                                }.into_view())
+                                }.into_any())
                             } else { None }
                         } else { None }}
                     </header>

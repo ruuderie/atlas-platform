@@ -321,7 +321,7 @@ impl SsrfSafeResolver {
 
 #[cfg(feature = "ssr")]
 impl reqwest::dns::Resolve for SsrfSafeResolver {
-    fn resolve(&self, name: hyper::client::connect::dns::Name) -> reqwest::dns::Resolving {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         let name_str = name.as_str().to_string();
 
         Box::pin(async move {
@@ -496,13 +496,13 @@ pub fn validate_platform_table(table: &str) -> Result<(), String> {
 pub fn WidgetShell(widget: WidgetInstance) -> impl IntoView {
     match widget.renderer {
         WidgetRenderer::BlockClock => {
-            view! { <BitcoinNavWidget /> }.into_view()
+            view! { <BitcoinNavWidget /> }.into_any()
         }
         WidgetRenderer::StatCard { label, unit } => {
-            view! { <StatCardWidget label=label unit=unit source=widget.data_source /> }.into_view()
+            view! { <StatCardWidget label=label unit=unit source=widget.data_source /> }.into_any()
         }
         // Future renderers: TickerTape, LiveChart, CustomHtml
-        _ => view! {}.into_view(),
+        _ => view! {}.into_any(),
     }
 }
 
@@ -513,7 +513,7 @@ pub fn WidgetShell(widget: WidgetInstance) -> impl IntoView {
 pub fn BitcoinNavWidget() -> impl IntoView {
     use std::time::Duration;
 
-    let (tick, set_tick) = create_signal(0u32);
+    let (tick, set_tick) = signal(0u32);
 
     Effect::new(move |_| {
         let handle = set_interval_with_handle(
@@ -558,7 +558,7 @@ pub fn BitcoinNavWidget() -> impl IntoView {
                                 </div>
                             </div>
                         </a>
-                    }.into_view()
+                    }.into_any()
                 } else {
                     view! {
                         <a href="#" class="bg-surface border border-[#f7931a]/30 shadow-sm px-6 py-2 jetbrains text-[0.65rem] font-bold tracking-wider animate-pulse block whitespace-nowrap">
@@ -570,7 +570,7 @@ pub fn BitcoinNavWidget() -> impl IntoView {
                                 </div>
                             </div>
                         </a>
-                    }.into_view()
+                    }.into_any()
                 }
             }}
         </Suspense>

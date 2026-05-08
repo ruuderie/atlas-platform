@@ -42,9 +42,9 @@ pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
                         <h2 class="text-3xl font-bold text-on-surface mb-8 text-center md:text-left">
                             {title}
                         </h2>
-                    }.into_view()
+                    }.into_any()
                 } else {
-                    view! {}.into_view()
+                    view! {}.into_any()
                 }}
 
                 <div class="space-y-4">
@@ -60,8 +60,8 @@ pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
                                             {item.title}
                                         </h3>
                                         {if let Some(badge) = item.badge {
-                                            view! { <span class="px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-primary/10 text-primary">{badge}</span> }.into_view()
-                                        } else { view! {}.into_view() }}
+                                            view! { <span class="px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide bg-primary/10 text-primary">{badge}</span> }.into_any()
+                                        } else { view! {}.into_any() }}
                                     </div>
                                     <span class="material-symbols-outlined text-on-surface-variant group-open:rotate-180 transition-transform duration-300">
                                         "expand_more"
@@ -73,7 +73,7 @@ pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
                                 </div>
                             </details>
                         }
-                    }).collect_view()}
+                    }).collect::<Vec<_>>()}
                 </div>
             </div>
         </section>

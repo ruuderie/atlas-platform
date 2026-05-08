@@ -20,7 +20,7 @@ pub struct HeroBlockData {
 
 #[component]
 pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
-    let design = use_context::<leptos::ReadSignal<crate::pages::landing::DesignConfig>>()
+    let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
         .map(|s| s.get()).unwrap_or_default();
     
     let layout_type = data.layout.unwrap_or_else(|| "standard".to_string());
@@ -35,8 +35,8 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
                     {if !data.subtitle.is_empty() {
                         view!{ <p class=format!("text-xl md:text-2xl text-on-surface-variant mt-4 mx-auto {}", design.body_font)>
                             {data.subtitle.clone()}
-                        </p> }.into_view()
-                    } else { view!{}.into_view() }}
+                        </p> }.into_any()
+                    } else { view!{}.into_any() }}
 
                     {if data.cta_text.is_some() && !data.cta_text.clone().unwrap_or_default().is_empty() {
                         view!{ <div class="mt-10">
@@ -44,11 +44,11 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
                                class=format!("inline-block bg-primary hover:bg-primary-container text-white font-bold transition-colors duration-300 text-lg shadow-sm {} {} {}", design.button_padding, design.border_radius_base, design.heading_font)>
                                 {data.cta_text.clone().unwrap()}
                             </a>
-                        </div> }.into_view()
-                    } else { view!{}.into_view() }}
+                        </div> }.into_any()
+                    } else { view!{}.into_any() }}
                 </div>
             </section>
-        }.into_view()
+        }.into_any()
     } else {
         // Corporate / Default full-bleed layout
         let bg_style = match data.background_image_url {
@@ -62,11 +62,11 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
             ) style=bg_style>
 
                 {if design.background_pattern == "blueprint-grid" {
-                    view! { <div class="absolute inset-0 bg-[#f8fafa] z-0" style="background-image: radial-gradient(var(--color-outline-variant, #bfc7cf) 0.5px, transparent 0.5px); background-size: 40px 40px; opacity: 0.3;"></div> }.into_view()
+                    view! { <div class="absolute inset-0 bg-[#f8fafa] z-0" style="background-image: radial-gradient(var(--color-outline-variant, #bfc7cf) 0.5px, transparent 0.5px); background-size: 40px 40px; opacity: 0.3;"></div> }.into_any()
                 } else if design.background_pattern == "radial-glow" {
-                    view! { <div class="absolute inset-0 z-0 opacity-80" style="background: radial-gradient(circle at center, var(--color-primary-container) 0%, var(--color-primary) 100%);"></div> }.into_view()
+                    view! { <div class="absolute inset-0 z-0 opacity-80" style="background: radial-gradient(circle at center, var(--color-primary-container) 0%, var(--color-primary) 100%);"></div> }.into_any()
                 } else {
-                    view! { <div class="absolute inset-0 bg-black bg-opacity-60 z-0"></div> }.into_view()
+                    view! { <div class="absolute inset-0 bg-black bg-opacity-60 z-0"></div> }.into_any()
                 }}
                 
                 <div class=format!("relative z-10 w-full flex flex-col {}", 
@@ -85,8 +85,8 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
                             design.body_font
                         )>
                             {data.subtitle.clone()}
-                        </p> }.into_view()
-                    } else { view!{}.into_view() }}
+                        </p> }.into_any()
+                    } else { view!{}.into_any() }}
 
                     {if data.cta_text.is_some() && !data.cta_text.clone().unwrap_or_default().is_empty() {
                         view!{ <div class="mt-10">
@@ -99,10 +99,10 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
                                )>
                                 {data.cta_text.clone().unwrap()}
                             </a>
-                        </div> }.into_view()
-                    } else { view!{}.into_view() }}
+                        </div> }.into_any()
+                    } else { view!{}.into_any() }}
                 </div>
             </section>
-        }.into_view()
+        }.into_any()
     }
 }

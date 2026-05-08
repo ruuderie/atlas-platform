@@ -51,15 +51,15 @@ pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
                         <h2 class="text-3xl font-bold text-on-surface mb-8 text-center">
                             {title}
                         </h2>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
 
                 {if items_to_render.is_empty() {
                     view! {
                         <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
                             "No metrics available."
                         </div>
-                    }.into_view()
+                    }.into_any()
                 } else {
                     view! {
                         <div class={match data.config.display.as_str() {
@@ -69,9 +69,9 @@ pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
                         }}>
                             {items_to_render.into_iter().map(|item| {
                                 view! { <StatItemView item=item config=data.config.clone() /> }
-                            }).collect_view()}
+                            }).collect::<Vec<_>>()}
                         </div>
-                    }.into_view()
+                    }.into_any()
                 }}
             </div>
         </section>
@@ -86,8 +86,8 @@ fn StatItemView(item: StatItem, config: StatsConfig) -> impl IntoView {
                 <span class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider">{item.label}</span>
                 <span class="text-xl md:text-2xl font-black text-on-surface tabular-nums">{item.value}</span>
                 {if let Some(unit) = item.unit {
-                    view! { <span class="text-primary font-bold text-sm">{unit}</span> }.into_view()
-                } else { view! {}.into_view() }}
+                    view! { <span class="text-primary font-bold text-sm">{unit}</span> }.into_any()
+                } else { view! {}.into_any() }}
                 {if let Some(trend) = item.trend {
                     let trend_icon = match trend.as_str() {
                         "up" => "trending_up",
@@ -99,21 +99,21 @@ fn StatItemView(item: StatItem, config: StatsConfig) -> impl IntoView {
                         "down" => "text-red-500",
                         _ => "text-gray-400"
                     };
-                    view! { <span class=format!("material-symbols-outlined text-sm {}", trend_color)>{trend_icon}</span> }.into_view()
-                } else { view! {}.into_view() }}
+                    view! { <span class=format!("material-symbols-outlined text-sm {}", trend_color)>{trend_icon}</span> }.into_any()
+                } else { view! {}.into_any() }}
             </div>
-        }.into_view(),
+        }.into_any(),
         _ => view! {
             <div class="bg-surface border border-outline-variant rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
                 {if let Some(icon) = item.icon {
-                    view! { <span class="material-symbols-outlined text-4xl text-primary/80 mb-4">{icon}</span> }.into_view()
-                } else { view! {}.into_view() }}
+                    view! { <span class="material-symbols-outlined text-4xl text-primary/80 mb-4">{icon}</span> }.into_any()
+                } else { view! {}.into_any() }}
                 
                 <div class="flex items-baseline justify-center gap-1 mb-2">
                     <span class="text-4xl md:text-5xl font-black text-on-surface tabular-nums tracking-tight">{item.value}</span>
                     {if let Some(unit) = item.unit {
-                        view! { <span class="text-xl font-bold text-primary ml-1">{unit}</span> }.into_view()
-                    } else { view! {}.into_view() }}
+                        view! { <span class="text-xl font-bold text-primary ml-1">{unit}</span> }.into_any()
+                    } else { view! {}.into_any() }}
                 </div>
                 
                 <h3 class="text-sm md:text-base font-semibold text-on-surface-variant">{item.label}</h3>
@@ -134,9 +134,9 @@ fn StatItemView(item: StatItem, config: StatsConfig) -> impl IntoView {
                             <span class="material-symbols-outlined text-[10px]">{trend_icon}</span>
                             <span>{trend.to_uppercase()}</span>
                         </div>
-                    }.into_view()
-                } else { view! {}.into_view() }}
+                    }.into_any()
+                } else { view! {}.into_any() }}
             </div>
-        }.into_view() // "metric"
+        }.into_any() // "metric"
     }
 }
