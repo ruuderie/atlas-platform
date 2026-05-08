@@ -596,7 +596,7 @@ fn PageHeaderTable() -> impl IntoView {
                                 </td>
                             </tr>
                             }
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -854,7 +854,7 @@ fn ResumeProfileTable() -> impl IntoView {
                                     </td>
                                 </tr>
                             }
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1070,7 +1070,7 @@ fn LeadOptionTable() -> impl IntoView {
                                     </td>
                                 </tr>
                             }
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="6" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1128,7 +1128,7 @@ fn MailingListTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1196,7 +1196,7 @@ fn PostTable() -> impl IntoView {
                                 </td>
                             </tr>
                             }
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1253,7 +1253,7 @@ fn PasskeyTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }).collect::<Vec<_>>(),
+                        }).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1319,7 +1319,7 @@ pub fn LandingPageTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1389,7 +1389,7 @@ pub fn NavTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1458,7 +1458,7 @@ pub fn FooterTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1504,7 +1504,7 @@ pub fn ServiceTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1550,7 +1550,7 @@ pub fn CaseStudyTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
@@ -1596,7 +1596,7 @@ pub fn HighlightTable() -> impl IntoView {
                                     </div>
                                 </td>
                             </tr>
-                        }}).collect::<Vec<_>>(),
+                        }}).collect::<Vec<_>>().into_any(),
                         _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>

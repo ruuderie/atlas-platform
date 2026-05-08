@@ -173,7 +173,7 @@ pub fn PostForm(
     let post_id_sv = store_value(id_val.clone());
     // Error surfacing: captures server function failures so the user is
     // notified inline instead of the modal silently closing on DB errors.
-    let (save_error, set_save_error) = create_signal::<Option<String>>(None);
+    let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let save = move |_| {
         let t = title.get_untracked();
@@ -1273,7 +1273,7 @@ pub fn ResumeProfileForm(
                                                 </Show>
                                             </div>
                                         }
-                                    }).collect::<Vec<_>>()
+                                    }).collect::<Vec<_>>().into_any()
                                 },
                                 _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_any()
                             }}
@@ -1591,7 +1591,7 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
                                             {format!("{} (ID: {})", i.label, i.id)}
                                         </option>
                                     }
-                            }).collect::<Vec<_>>(),
+                            }).collect::<Vec<_>>().into_any(),
                             _ => view! { <option disabled=true>"ERROR"</option> }.into_any()
                         }}
                     </Suspense>
@@ -1980,7 +1980,7 @@ pub fn BaseResumeEntryForm(
                                                 </div>
                                             </div>
                                         }
-                                    }).collect::<Vec<_>>()
+                                    }).collect::<Vec<_>>().into_any()
                                 },
                                 _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_any()
                             }}
