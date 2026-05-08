@@ -176,8 +176,8 @@ pub async fn get_tenant_entries(
                 is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
                 slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 published_at: None,
-                metadata: payload.get("metadata"),
-                overrides: payload.get("overrides"),
+                metadata: payload.get("metadata").cloned(),
+                overrides: payload.get("overrides").cloned(),
             }
         })
         .collect();
@@ -226,7 +226,7 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
                 subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 bullets,
-                metadata: payload.get("metadata"),
+                metadata: payload.get("metadata").cloned(),
             }
         })
         .collect();
@@ -804,8 +804,8 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
                 is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
                 slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 published_at: None,
-                metadata: payload.get("metadata"),
-                overrides: payload.get("overrides"),
+                metadata: payload.get("metadata").cloned(),
+                overrides: payload.get("overrides").cloned(),
             }
         })
         .collect();
@@ -910,8 +910,8 @@ pub async fn get_single_tenant_entry(
             is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
             slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
             published_at: None,
-            metadata: payload.get("metadata"),
-            overrides: payload.get("overrides"),
+            metadata: payload.get("metadata").cloned(),
+            overrides: payload.get("overrides").cloned(),
         }))
     } else {
         Ok(None)

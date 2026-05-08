@@ -198,7 +198,7 @@ fn LoginPanel() -> impl IntoView {
                                             </div>
                                         </Show>
                                         <button
-                                            on:click=move |_| login_action.dispatch(())
+                                            on:click=move |_| { login_action.dispatch(()); }
                                             disabled=move || is_loading.get() || (countdown.get() > 0)
                                             class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
                                         >
@@ -950,7 +950,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
                                     </div>
                                 }.into_any()
                             }
-                        }).collect::<Vec<_>>()
+                        }).collect::<Vec<_>>().into_any()
                     }
                 },
                 _ => view! { <div class="py-8 text-center text-error">"ERR_NO_DATA"</div> }.into_any(),
@@ -1107,7 +1107,7 @@ fn MailingListTable() -> impl IntoView {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 font-bold text-primary">{i.email}</td>
                                 <td class="py-4 px-4 text-on-surface">{i.list_type}</td>
-                                <td class="py-4 px-4 text-outline truncate max-w-[200px]" title=i.preferences.clone()>{i.preferences}</td>
+                                <td class="py-4 px-4 text-outline truncate max-w-[200px]" title={let p = i.preferences.clone(); p}>{i.preferences}</td>
                                 <td class="py-4 px-4 text-outline-variant">{i.created_at}</td>
                                 <td class="py-4 px-4">
                                     <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -42,11 +42,15 @@ pub struct StatItem {
 #[component]
 pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
     let items_to_render = data.items.clone();
+    let section_title = data.config.section_title.clone();
+    let display = data.config.display.clone();
+    let columns = columns;
+    let config_for_items = data.config.clone();
 
     view! {
         <section class="py-12 md:py-16 w-full">
             <div class="container mx-auto px-4 max-w-6xl">
-                {if let Some(title) = data.config.section_title {
+                {if let Some(title) = section_title {
                     view! {
                         <h2 class="text-3xl font-bold text-on-surface mb-8 text-center">
                             {title}
@@ -62,13 +66,13 @@ pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
                     }.into_any()
                 } else {
                     view! {
-                        <div class={match data.config.display.as_str() {
+                        <div class={match display.as_str() {
                             "ticker" => "flex flex-wrap items-center justify-center gap-6 md:gap-10".to_string(),
                             _ => format!("grid grid-cols-2 lg:grid-cols-{} gap-4 md:gap-8", 
-                                std::cmp::min(data.config.columns, 4)), // metric layout default
+                                std::cmp::min(columns, 4)), // metric layout default
                         }}>
                             {items_to_render.into_iter().map(|item| {
-                                view! { <StatItemView item=item config=data.config.clone() /> }
+                                view! { <StatItemView item=item config=config_for_items.clone() /> }
                             }).collect::<Vec<_>>()}
                         </div>
                     }.into_any()

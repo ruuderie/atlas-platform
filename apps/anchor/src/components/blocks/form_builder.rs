@@ -171,7 +171,7 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                                         view! {
                                                             <select on:change=on_change required=req class=format!("{} appearance-none", f_class.clone())>
                                                                 <option value="" disabled selected>"Select an option"</option>
-                                                                {options.into_iter().map(|opt| view! { <option value=opt.clone()>{opt}</option> }).collect::<Vec<_>>()}
+                                                                {options.into_iter().map(|opt| { let opt_display = opt.clone(); view! { <option value=opt>{opt_display}</option> } }).collect::<Vec<_>>()}
                                                             </select>
                                                         }.into_any()
                                                     }
