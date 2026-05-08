@@ -115,8 +115,8 @@ pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError
                 contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
                 contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                category_visibility: payload.get("category_visibility").unwrap_or(serde_json::json!({})),
-                category_order: payload.get("category_order").unwrap_or(serde_json::json!([])),
+                category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
+                category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
             }
         })
         .collect();
@@ -761,8 +761,8 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
         contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
         contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
         contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        category_visibility: payload.get("category_visibility").unwrap_or(serde_json::json!({})),
-        category_order: payload.get("category_order").unwrap_or(serde_json::json!([])),
+        category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
+        category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
     };
 
     let entries_rows = sqlx::query("SELECT id, title, display_order, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_entry' ORDER BY display_order ASC")

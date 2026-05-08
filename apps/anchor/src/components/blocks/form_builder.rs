@@ -83,7 +83,7 @@ pub async fn submit_dynamic_form(
 
 #[component]
 pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
-    let submit_action = create_server_action::<SubmitDynamicForm>();
+    let submit_action = ServerAction::<SubmitDynamicForm>::new();
     let value = submit_action.value();
     let pending = submit_action.pending();
     

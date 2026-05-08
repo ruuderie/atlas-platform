@@ -140,7 +140,7 @@ pub fn Resume() -> impl IntoView {
 
                 if let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &props) {
                     if let Ok(url) = Url::create_object_url_with_blob(&blob) {
-                        let document = leptos::document();
+                        let document = web_sys::window().unwrap().document().unwrap();
                         if let Ok(a) = document.create_element("a") {
                             let _ = a.set_attribute("href", &url);
                             let _ = a.set_attribute("download", "ruuderie_cv.pdf");
