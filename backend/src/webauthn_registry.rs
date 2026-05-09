@@ -119,8 +119,18 @@ impl WebauthnRegistry {
             Err(_) => return false,
         };
 
+        // Generate all possible base domains to support subdomain matching.
+        // e.g. "uat.buildwithruud.com" -> ["uat.buildwithruud.com", "buildwithruud.com"]
+        let mut possible_domains = vec![host.clone()];
+        let parts: Vec<&str> = host.split('.').collect();
+        if parts.len() > 2 {
+            for i in 1..parts.len() - 1 {
+                possible_domains.push(parts[i..].join("."));
+            }
+        }
+
         match app_domain::Entity::find()
-            .filter(app_domain::Column::DomainName.eq(host))
+            .filter(app_domain::Column::DomainName.is_in(possible_domains))
             .one(&self.db)
             .await
         {

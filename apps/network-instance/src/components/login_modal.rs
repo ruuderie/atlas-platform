@@ -82,7 +82,8 @@ pub fn LoginModal(
                             <p class="text-on-surface-variant text-sm">"Sign in to manage your account and alerts."</p>
                         </div>
 
-                        <Show when=move || use_email.get() fallback=move || view! {
+                        {move || if !use_email.get() {
+                            view! {
                             <div class="space-y-4">
                                 <button
                                     id="network-login-passkey-btn"
@@ -138,10 +139,10 @@ pub fn LoginModal(
                                                     headers: {{ 'Content-Type': 'application/json' }},
                                                     body: JSON.stringify({{ email: '' }})
                                                 }});
-                                                if (!startRes.ok) {
+                                                if (!startRes.ok) {{
                                                     var errText = await startRes.text();
                                                     throw new Error('Failed to start login: ' + errText);
-                                                }
+                                                }}
                                                 var options = await startRes.json();
 
                                                 msg.innerText = 'Please follow browser prompts...';
@@ -154,10 +155,10 @@ pub fn LoginModal(
                                                     headers: {{ 'Content-Type': 'application/json' }},
                                                     body: JSON.stringify({{ email: '', response: credential }})
                                                 }});
-                                                if (!finishRes.ok) {
+                                                if (!finishRes.ok) {{
                                                     var errText = await finishRes.text();
                                                     throw new Error('Verification failed: ' + errText);
-                                                }
+                                                }}
 
                                                 msg.style.color = 'green';
                                                 msg.innerText = 'Success! Reloading...';
@@ -180,7 +181,9 @@ pub fn LoginModal(
                                 ", api_base_url())}
                                 </script>
                             </div>
-                        }>
+                            }.into_any()
+                        } else {
+                            view! {
                             <div class="space-y-4">
                                 <div class="space-y-2">
                                     <label class="text-sm font-bold text-on-surface">"Email Address"</label>
@@ -216,7 +219,8 @@ pub fn LoginModal(
                                     "Back to Passkey"
                                 </button>
                             </div>
-                        </Show>
+                            }.into_any()
+                        }}
                     </div>
                 </div>
             </div>
