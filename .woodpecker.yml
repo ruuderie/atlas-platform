@@ -347,3 +347,5 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
+
+# Trigger full pipeline run
