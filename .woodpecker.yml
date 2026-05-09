@@ -191,11 +191,21 @@ steps:
           PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
             -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
 
-          # Inject the commit SHA into base manifests so kubectl apply deploys the exact image
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
+          # Inject the commit SHA only into manifests whose service was actually built this run.
+          # The scoped publish steps above only push images for changed services — patching
+          # all manifests unconditionally causes ImagePullBackOff for unbuilt images.
+          CHANGED_PROD=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          if echo "$CHANGED_PROD" | grep -q "\.woodpecker\.yml"; then
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
+          else
+            echo "$CHANGED_PROD" | grep -qE "^backend/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml || true
+            echo "$CHANGED_PROD" | grep -qE "^apps/platform-admin/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml || true
+            echo "$CHANGED_PROD" | grep -qE "^apps/network-instance/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml || true
+            echo "$CHANGED_PROD" | grep -qE "^apps/anchor/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml || true
+          fi
 
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
@@ -221,11 +231,19 @@ steps:
             fi
           done
 
-          # Inject the commit SHA into base manifests so kubectl apply deploys the exact image
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
-          sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
+          # Inject the commit SHA only into manifests whose service was actually built this run.
+          CHANGED_UAT=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          if echo "$CHANGED_UAT" | grep -q "\.woodpecker\.yml"; then
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
+            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
+          else
+            echo "$CHANGED_UAT" | grep -qE "^backend/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml || true
+            echo "$CHANGED_UAT" | grep -qE "^apps/platform-admin/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml || true
+            echo "$CHANGED_UAT" | grep -qE "^apps/network-instance/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml || true
+            echo "$CHANGED_UAT" | grep -qE "^apps/anchor/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml || true
+          fi
 
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
