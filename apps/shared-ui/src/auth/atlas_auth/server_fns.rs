@@ -75,7 +75,8 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
 pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> {
     let url = format!("{}/api/auth/magic-link/request", get_atlas_api_url());
     let payload = serde_json::json!({ "email": email });
-    let req = reqwest::Client::new().post(&url).json(&payload);
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().post(&url).json(&payload);
     #[cfg(target_arch = "wasm32")]
     {
         req = req.fetch_credentials_include();
@@ -131,7 +132,8 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
 pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
     let url = format!("{}/api/auth/magic-link/verify", get_atlas_api_url());
     let payload = serde_json::json!({ "token": token });
-    let req = reqwest::Client::new().post(&url).json(&payload);
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().post(&url).json(&payload);
     #[cfg(target_arch = "wasm32")]
     {
         req = req.fetch_credentials_include();
@@ -173,7 +175,8 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
 pub async fn check_session() -> Result<bool, ServerFnError> {
     let url = format!("{}/api/auth/session/validate", get_atlas_api_url());
-    let req = reqwest::Client::new().get(&url);
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().get(&url);
     #[cfg(target_arch = "wasm32")]
     {
         req = req.fetch_credentials_include();
@@ -208,7 +211,8 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
 pub async fn revoke_session() -> Result<(), ServerFnError> {
     let url = format!("{}/api/auth/session/revoke", get_atlas_api_url());
-    let req = reqwest::Client::new().post(&url);
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().post(&url);
     #[cfg(target_arch = "wasm32")]
     {
         req = req.fetch_credentials_include();

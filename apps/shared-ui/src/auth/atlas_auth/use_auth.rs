@@ -13,7 +13,10 @@ pub struct AtlasAuthState {
     pub from_magic_link: RwSignal<bool>,
     pub dispatch_login:  Action<(), ()>,
     pub dispatch_logout: Action<(), ()>,
+    #[cfg(any(feature = "ssr", feature = "hydrate"))]
     pub auth_resource:   Resource<Result<bool, ServerFnError>>,
+    #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+    pub auth_resource:   LocalResource<Result<bool, ServerFnError>>,
 }
 
 pub fn use_atlas_auth() -> AtlasAuthState {
@@ -25,9 +28,12 @@ pub fn use_atlas_auth() -> AtlasAuthState {
     let countdown = RwSignal::new(0i32);
     let from_magic_link = RwSignal::new(false);
 
+    #[cfg(any(feature = "ssr", feature = "hydrate"))]
     let auth_resource = Resource::new(|| (), |_| check_session());
+    #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+    let auth_resource = LocalResource::new(|| check_session());
 
-    let dispatch_login = Action::new(move |_: &()| {
+    let dispatch_login_fn = move |_: &()| {
         let email_val = email.get_untracked();
         async move {
             if email_val.is_empty() {
@@ -61,15 +67,25 @@ pub fn use_atlas_auth() -> AtlasAuthState {
             }
             is_loading.set(false);
         }
-    });
+    };
 
-    let dispatch_logout = Action::new(move |_: &()| {
+    #[cfg(any(feature = "ssr", feature = "hydrate"))]
+    let dispatch_login = Action::new(dispatch_login_fn);
+    #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+    let dispatch_login = Action::new_local(dispatch_login_fn);
+
+    let dispatch_logout_fn = move |_: &()| {
         async move {
             let _ = revoke_session().await;
             auth_state.set(AuthState::Unauthenticated);
             // In a real app we might redirect to login, but setting unauthenticated is a good start.
         }
-    });
+    };
+
+    #[cfg(any(feature = "ssr", feature = "hydrate"))]
+    let dispatch_logout = Action::new(dispatch_logout_fn);
+    #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+    let dispatch_logout = Action::new_local(dispatch_logout_fn);
 
     AtlasAuthState {
         auth_state,
