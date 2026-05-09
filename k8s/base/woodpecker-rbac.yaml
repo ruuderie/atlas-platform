@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: woodpecker-deployer
+  namespace: atlas-platform
+  annotations:
+    # This ServiceAccount is used exclusively by the Woodpecker CI pipeline
+    # for scoped deployment operations. It has NO cluster-wide access.
+    purpose: "CI/CD pipeline deployments — atlas-platform namespace only"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: woodpecker-deployer
+  namespace: atlas-platform
+rules:
+  # Required to run `kubectl set image` and `kubectl rollout status`
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch", "update"]
+  # Required to `kubectl rollout status` (watches ReplicaSets)
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  # Required to tail pod logs on rollout failure
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: woodpecker-deployer
+  namespace: atlas-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: woodpecker-deployer
+subjects:
+  - kind: ServiceAccount
+    name: woodpecker-deployer
+    namespace: atlas-platform
+---
+# Long-lived token for the ServiceAccount.
+# After applying: kubectl get secret woodpecker-deployer-token -n atlas-platform -o jsonpath='{.data.token}' | base64 -d
+# Store the decoded token as the Woodpecker CI secret: KUBE_DEPLOY_TOKEN
+# Store the CA cert as: KUBE_DEPLOY_CA (base64 value from .data['ca.crt'])
+apiVersion: v1
+kind: Secret
+metadata:
+  name: woodpecker-deployer-token
+  namespace: atlas-platform
+  annotations:
+    kubernetes.io/service-account.name: woodpecker-deployer
+type: kubernetes.io/service-account-token

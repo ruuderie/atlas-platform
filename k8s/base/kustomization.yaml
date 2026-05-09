@@ -7,3 +7,4 @@ resources:
   - platform-admin.yaml
   - network-instance.yaml
   - anchor-app.yaml
+  - woodpecker-rbac.yaml
