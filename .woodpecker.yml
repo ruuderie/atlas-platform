@@ -191,22 +191,9 @@ steps:
           PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
             -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
 
-          # Inject the commit SHA only into manifests whose service was actually built this run.
-          # The scoped publish steps above only push images for changed services — patching
-          # all manifests unconditionally causes ImagePullBackOff for unbuilt images.
-          CHANGED_PROD=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
-          if echo "$CHANGED_PROD" | grep -q "\.woodpecker\.yml"; then
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
-          else
-            echo "$CHANGED_PROD" | grep -qE "^backend/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml || true
-            echo "$CHANGED_PROD" | grep -qE "^apps/platform-admin/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml || true
-            echo "$CHANGED_PROD" | grep -qE "^apps/network-instance/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml || true
-            echo "$CHANGED_PROD" | grep -qE "^apps/anchor/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml || true
-          fi
-
+          # Apply kustomize overlay — this updates config/secrets/ingress.
+          # Image tags are NOT managed by kustomize; we use kubectl set image below
+          # so only services that were actually built in this pipeline run get updated.
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/prod/config.yaml
@@ -216,7 +203,6 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/prod/config.yaml
-
           kubectl apply -k k8s/overlays/prod
           OVERLAY="prod"
         else
@@ -231,20 +217,8 @@ steps:
             fi
           done
 
-          # Inject the commit SHA only into manifests whose service was actually built this run.
-          CHANGED_UAT=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
-          if echo "$CHANGED_UAT" | grep -q "\.woodpecker\.yml"; then
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml
-            sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml
-          else
-            echo "$CHANGED_UAT" | grep -qE "^backend/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/backend.yaml || true
-            echo "$CHANGED_UAT" | grep -qE "^apps/platform-admin/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/platform-admin.yaml || true
-            echo "$CHANGED_UAT" | grep -qE "^apps/network-instance/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/network-instance.yaml || true
-            echo "$CHANGED_UAT" | grep -qE "^apps/anchor/" && sed -i "s|ATLAS_IMAGE_TAG|$SHORT_SHA|g" k8s/base/anchor-app.yaml || true
-          fi
-
+          # Apply kustomize overlay — updates config/secrets/ingress only.
+          # Image tags are managed below via kubectl set image, scoped to built services.
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
@@ -254,7 +228,6 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
-
           kubectl apply -k k8s/overlays/uat
           OVERLAY="uat"
         fi
@@ -279,30 +252,46 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        # Detect pipeline-wide change (woodpecker.yml itself) → restart all
-        if echo "$CHANGED" | grep -q "\.woodpecker\.yml"; then
-          echo "Pipeline config changed — rolling out all services."
-          rollout_service backend
-          rollout_service platform-admin
-          rollout_service network-instance
-          rollout_service anchor-app
+        REGISTRY="ghcr.io/ruuderie"
+
+        # Helper: set image then wait for rollout
+        update_service() {
+          local DEPLOY=$1
+          local IMAGE=$2
+          echo "==> Updating $DEPLOY to $IMAGE"
+          kubectl set image deployment/$DEPLOY ${DEPLOY/-app/}-app=$IMAGE -n atlas-platform 2>/dev/null \
+            || kubectl set image deployment/$DEPLOY $DEPLOY=$IMAGE -n atlas-platform 2>/dev/null \
+            || kubectl set image deployment/$DEPLOY $(kubectl get deployment/$DEPLOY -n atlas-platform -o jsonpath='{.spec.template.spec.containers[0].name}')=$IMAGE -n atlas-platform
+          kubectl rollout status deployment/$DEPLOY -n atlas-platform --timeout=180s || {
+            echo "===== LOGS: $DEPLOY ====="
+            kubectl logs -n atlas-platform -l app=$DEPLOY --tail=100 --all-containers=true
+            exit 1
+          }
+          echo "==> $DEPLOY is live on $SHORT_SHA ✓"
+        }
+
+        # Detect pipeline-wide change (woodpecker.yml itself) → only rollout, don't set image
+        # (no new images were built for a pipeline-only change)
+        if echo "$CHANGED" | grep -q "\.woodpecker\.yml" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
+          echo "Pipeline config only change — applying config/secrets, no image updates needed."
         else
-          # Service-scoped rollouts — only restart what changed
+          # Service-scoped image updates — only push new image for services that were rebuilt
           if echo "$CHANGED" | grep -qE "^backend/"; then
-            rollout_service backend
+            update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
           fi
           if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
-            rollout_service platform-admin
+            update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
           fi
           if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
-            rollout_service network-instance
+            update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
           fi
           if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
-            rollout_service anchor-app
+            update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
           fi
         fi
 
         echo "Deployment complete. Commit $SHORT_SHA is live."
+
 
   # ── Notifications ───────────────────────────────────────────────────────────
   notify_discord:

@@ -16,7 +16,7 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: platform-admin
-        image: ghcr.io/ruuderie/platform-admin:ATLAS_IMAGE_TAG
+        image: ghcr.io/ruuderie/platform-admin:4cc773dc
         imagePullPolicy: Always
         ports:
         - containerPort: 80 
