@@ -187,7 +187,10 @@ steps:
           --user=woodpecker-deployer \
           --namespace=atlas-platform
         kubectl config use-context atlas
-        kubectl cluster-info
+        # Verify connectivity — cluster-info requires kube-system access we don't have.
+        # get namespace atlas-platform is permitted by our Role and proves the API is reachable.
+        kubectl get namespace atlas-platform
+        echo "✓ Connected to K8s API as woodpecker-deployer (atlas-platform scope only)"
         echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
 
         # Short SHA used for image tagging (matches publish steps above)
