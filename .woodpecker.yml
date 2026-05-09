@@ -50,7 +50,6 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
@@ -99,7 +98,6 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
@@ -124,7 +122,6 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
