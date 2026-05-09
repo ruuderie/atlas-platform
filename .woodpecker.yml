@@ -167,29 +167,41 @@ steps:
       KUBE_SERVER:
         from_secret: KUBE_SERVER
     commands:
-      - set -euo pipefail
-      # Build a kubeconfig from the scoped ServiceAccount token — no cluster-admin access
-      - mkdir -p /tmp/kube
-      - echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
       - |
-        kubectl config set-cluster atlas \
-          --server="$KUBE_SERVER" \
-          --certificate-authority=/tmp/kube/ca.crt
-        kubectl config set-credentials woodpecker-deployer \
-          --token="$KUBE_DEPLOY_TOKEN"
-        kubectl config set-context atlas \
-          --cluster=atlas --user=woodpecker-deployer \
-          --namespace=atlas-platform
-        kubectl config use-context atlas
-      - export KUBECONFIG=/root/.kube/config
-      - kubectl cluster-info
-      - echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
+        set -euo pipefail
 
-      # Short SHA used for image tagging (matches publish steps above)
-      - SHORT_SHA="${CI_COMMIT_SHA:0:8}"
-      - echo "Deploying images tagged :$SHORT_SHA"
+        # ── Build scoped kubeconfig from ServiceAccount token ──────────────────
+        # Write it directly — avoids kubectl config subshell scope issues.
+        mkdir -p /tmp/kube
+        echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
+        cat > /tmp/kube/config << KUBEEOF
+        apiVersion: v1
+        kind: Config
+        clusters:
+        - name: atlas
+          cluster:
+            server: ${KUBE_SERVER}
+            certificate-authority: /tmp/kube/ca.crt
+        users:
+        - name: woodpecker-deployer
+          user:
+            token: ${KUBE_DEPLOY_TOKEN}
+        contexts:
+        - name: atlas
+          context:
+            cluster: atlas
+            user: woodpecker-deployer
+            namespace: atlas-platform
+        current-context: atlas
+        KUBEEOF
+        export KUBECONFIG=/tmp/kube/config
+        kubectl cluster-info
+        echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
 
-      - |
+        # Short SHA used for image tagging (matches publish steps above)
+        SHORT_SHA="${CI_COMMIT_SHA:0:8}"
+        echo "Deploying images tagged :$SHORT_SHA"
+
         if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
           echo "Deploying to PROD environment..."
 
@@ -206,9 +218,7 @@ steps:
           PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
             -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
 
-          # Apply kustomize overlay — this updates config/secrets/ingress.
-          # Image tags are NOT managed by kustomize; we use kubectl set image below
-          # so only services that were actually built in this pipeline run get updated.
+          # Apply kustomize overlay — updates config/secrets/ingress only.
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
           sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/prod/config.yaml
@@ -233,7 +243,6 @@ steps:
           done
 
           # Apply kustomize overlay — updates config/secrets/ingress only.
-          # Image tags are managed below via kubectl set image, scoped to built services.
           sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
           sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
           sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
@@ -247,18 +256,13 @@ steps:
           OVERLAY="uat"
         fi
 
-      # ── Scoped rollout: only update pods whose source changed ───────────────
-      # ── Scoped rollout: use Woodpecker's native CI_COMMIT_CHANGED_FILES ──────
-      # CI_COMMIT_CHANGED_FILES is populated by Woodpecker from the webhook
-      # payload — no git history needed, works correctly on shallow clones.
-      # Values are comma-separated; we convert to newlines for grep compatibility.
-      - |
-        # Normalise: comma-separated → newline-separated for grep
+        # ── Scoped rollout: use Woodpecker's native CI_COMMIT_CHANGED_FILES ────
+        # Comma-separated → newline-separated for grep compatibility.
         CHANGED=$(echo "${CI_COMMIT_CHANGED_FILES:-}" | tr ',' '\n')
         echo "Changed paths:"
         echo "$CHANGED"
 
-        # Helper: wait for a deployment rollout to complete and tail logs on failure
+        # Helper: wait for rollout, tail logs on failure
         rollout_service() {
           local DEPLOY=$1
           echo "==> Verifying rollout: $DEPLOY"
@@ -288,15 +292,14 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        # If CI_COMMIT_CHANGED_FILES is empty (e.g. manual trigger), update all
-        # services that were built (publish steps are still path-gated so only
-        # built images will actually exist in GHCR at this SHA).
+        # If CI_COMMIT_CHANGED_FILES is empty (manual trigger) — update all services.
+        # publish steps are path-gated so only built images exist in GHCR at this SHA.
         if [ -z "$CHANGED" ]; then
           echo "No changed files info available — updating all services."
-          update_service backend         "$REGISTRY/atlas-backend:$SHORT_SHA"
-          update_service platform-admin  "$REGISTRY/platform-admin:$SHORT_SHA"
+          update_service backend          "$REGISTRY/atlas-backend:$SHORT_SHA"
+          update_service platform-admin   "$REGISTRY/platform-admin:$SHORT_SHA"
           update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-          update_service anchor-app      "$REGISTRY/anchor-app:$SHORT_SHA"
+          update_service anchor-app       "$REGISTRY/anchor-app:$SHORT_SHA"
         else
           # Detect pipeline-config-only change → no new images built, skip image updates
           if echo "$CHANGED" | grep -q "\.woodpecker\.yml" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
