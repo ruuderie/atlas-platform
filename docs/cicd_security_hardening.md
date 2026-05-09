@@ -36,7 +36,94 @@ The CI pipeline should only be able to do exactly what it needs to deploy:
 
 ---
 
-## Phase 1 — Scoped ServiceAccount (DONE)
+## Impact on New Projects
+
+The `woodpecker-deployer` ServiceAccount is **namespace-scoped** — it can only touch resources
+inside `atlas-platform`. How this affects you depends on what kind of new project you're launching.
+
+### New app within `atlas-platform` (most common case)
+
+If you're adding another microservice to the existing Atlas Platform (following `adding_a_new_app.md`),
+**no changes are needed here**. The Role grants access to *all* deployments in the `atlas-platform`
+namespace, not a named list. New services are automatically covered.
+
+### Entirely new project in a new namespace (separate product)
+
+If you launch a new product that lives in its own Kubernetes namespace (e.g., `oply-property`,
+`oply-finance`, or a new SaaS tenant infrastructure), the `woodpecker-deployer` token **will not
+have access** to that namespace. The deploy step will get a `403 Forbidden` from the K8s API.
+
+**What to do:** For each new project namespace, apply a mirror of `k8s/base/woodpecker-rbac.yaml`
+with the namespace changed:
+
+```bash
+# Replace <new-namespace> with your actual namespace
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: woodpecker-deployer
+  namespace: <new-namespace>
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: woodpecker-deployer
+  namespace: <new-namespace>
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: woodpecker-deployer
+  namespace: <new-namespace>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: woodpecker-deployer
+subjects:
+  - kind: ServiceAccount
+    name: woodpecker-deployer
+    namespace: <new-namespace>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: woodpecker-deployer-token
+  namespace: <new-namespace>
+  annotations:
+    kubernetes.io/service-account.name: woodpecker-deployer
+type: kubernetes.io/service-account-token
+EOF
+```
+
+Then extract the new token and add it as a **separate Woodpecker CI secret** (e.g.,
+`KUBE_DEPLOY_TOKEN_OPLY_PROPERTY`). Each project's pipeline uses its own scoped token.
+
+> **This is intentional.** A pipeline for project A should never be able to roll out or restart
+> pods in project B. The scoping enforces that boundary automatically.
+
+### The current state (before Phase 1 wiring is complete)
+
+Until the `.woodpecker.yml` volume-mount swap is done (see Phase 1 → "How to wire" below),
+the pipeline still uses the cluster-admin kubeconfig for everything. The ServiceAccount and RBAC
+are provisioned and ready — wiring them in is the remaining step.
+
+New projects launched **before** the wiring is complete are unaffected by the RBAC (the admin
+kubeconfig still works for all namespaces). New projects launched **after** will need their own
+ServiceAccount per the pattern above.
+
+---
+
 
 > **Status: Implemented.** Applied to the live cluster on 2026-05-09.
 > Manifest committed to `k8s/base/woodpecker-rbac.yaml`.
