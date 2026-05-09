@@ -191,8 +191,16 @@ steps:
         # Verify connectivity — cluster-info requires kube-system access we don't have.
         # get namespace atlas-platform is permitted by our Role and proves the API is reachable.
         kubectl get namespace atlas-platform
-        echo "✓ Connected to K8s API as woodpecker-deployer (atlas-platform scope only)"
+        echo "✓ Connected to K8s API as woodpecker-deployer"
         echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
+
+        # Set target namespace based on branch
+        if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+          NAMESPACE="atlas-dev"
+        else
+          NAMESPACE="atlas-platform"
+        fi
+        echo "Target namespace: $NAMESPACE"
 
         # Short SHA used for image tagging (matches publish steps above)
         SHORT_SHA="${CI_COMMIT_SHA:0:8}"
@@ -290,9 +298,9 @@ steps:
         rollout_service() {
           local DEPLOY=$1
           echo "==> Verifying rollout: $DEPLOY"
-          kubectl rollout status deployment/$DEPLOY -n atlas-platform --timeout=180s || {
+          kubectl rollout status deployment/$DEPLOY -n $NAMESPACE --timeout=180s || {
             echo "===== LOGS: $DEPLOY ====="
-            kubectl logs -n atlas-platform -l app=$DEPLOY --tail=100 --all-containers=true
+            kubectl logs -n $NAMESPACE -l app=$DEPLOY --tail=100 --all-containers=true
             exit 1
           }
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
@@ -305,12 +313,12 @@ steps:
           local DEPLOY=$1
           local IMAGE=$2
           echo "==> Updating $DEPLOY to $IMAGE"
-          kubectl set image deployment/$DEPLOY ${DEPLOY/-app/}-app=$IMAGE -n atlas-platform 2>/dev/null \
-            || kubectl set image deployment/$DEPLOY $DEPLOY=$IMAGE -n atlas-platform 2>/dev/null \
-            || kubectl set image deployment/$DEPLOY $(kubectl get deployment/$DEPLOY -n atlas-platform -o jsonpath='{.spec.template.spec.containers[0].name}')=$IMAGE -n atlas-platform
-          kubectl rollout status deployment/$DEPLOY -n atlas-platform --timeout=180s || {
+          kubectl set image deployment/$DEPLOY ${DEPLOY/-app/}-app=$IMAGE -n $NAMESPACE 2>/dev/null \
+            || kubectl set image deployment/$DEPLOY $DEPLOY=$IMAGE -n $NAMESPACE 2>/dev/null \
+            || kubectl set image deployment/$DEPLOY $(kubectl get deployment/$DEPLOY -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$IMAGE -n $NAMESPACE
+          kubectl rollout status deployment/$DEPLOY -n $NAMESPACE --timeout=180s || {
             echo "===== LOGS: $DEPLOY ====="
-            kubectl logs -n atlas-platform -l app=$DEPLOY --tail=100 --all-containers=true
+            kubectl logs -n $NAMESPACE -l app=$DEPLOY --tail=100 --all-containers=true
             exit 1
           }
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
