@@ -141,8 +141,6 @@ steps:
   # this pipeline run, not a racy :latest that may still be uploading.
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
-    volumes:
-      - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
     environment:
       ATLAS_INIT_TOKEN:
         from_secret: ATLAS_INIT_TOKEN
@@ -162,11 +160,28 @@ steps:
         from_secret: SMTP_USERNAME
       SMTP_FROM:
         from_secret: SMTP_FROM
+      KUBE_DEPLOY_TOKEN:
+        from_secret: KUBE_DEPLOY_TOKEN
+      KUBE_DEPLOY_CA:
+        from_secret: KUBE_DEPLOY_CA
+      KUBE_SERVER:
+        from_secret: KUBE_SERVER
     commands:
       - set -euo pipefail
-      - export KUBECONFIG=/tmp/kubeconfig.yaml
-      - cp /kubeconfig.yaml /tmp/kubeconfig.yaml
-      - sed -i 's/127.0.0.1/host.docker.internal/g' /tmp/kubeconfig.yaml
+      # Build a kubeconfig from the scoped ServiceAccount token — no cluster-admin access
+      - mkdir -p /tmp/kube
+      - echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
+      - |
+        kubectl config set-cluster atlas \
+          --server="$KUBE_SERVER" \
+          --certificate-authority=/tmp/kube/ca.crt
+        kubectl config set-credentials woodpecker-deployer \
+          --token="$KUBE_DEPLOY_TOKEN"
+        kubectl config set-context atlas \
+          --cluster=atlas --user=woodpecker-deployer \
+          --namespace=atlas-platform
+        kubectl config use-context atlas
+      - export KUBECONFIG=/root/.kube/config
       - kubectl cluster-info
       - echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
 
