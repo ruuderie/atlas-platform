@@ -3,8 +3,8 @@ when:
     branch:
       - uat
       - dev
-      - main
-      - master
+      # main/master intentionally excluded — production not yet enabled.
+      # Add them back here when atlas-prod is ready to go live.
 
 services:
   database:
@@ -186,107 +186,92 @@ steps:
         kubectl config set-context atlas \
           --cluster=atlas \
           --user=woodpecker-deployer \
-          --namespace=atlas-platform
+          --namespace=atlas-uat
         kubectl config use-context atlas
-        # Verify connectivity — cluster-info requires kube-system access we don't have.
-        # get namespace atlas-platform is permitted by our Role and proves the API is reachable.
-        kubectl get namespace atlas-platform
-        echo "✓ Connected to K8s API as woodpecker-deployer"
-        echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
 
-        # Set target namespace based on branch
-        if [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-          NAMESPACE="atlas-dev"
-        else
-          NAMESPACE="atlas-platform"
-        fi
-        echo "Target namespace: $NAMESPACE"
+        # ── Strict branch → namespace gate ────────────────────────────────────
+        # Only explicitly listed branches may deploy. Anything else fails loudly.
+        case "$CI_COMMIT_BRANCH" in
+          uat)          NAMESPACE="atlas-uat" ;;
+          dev)          NAMESPACE="atlas-dev" ;;
+          main|master)
+            echo "ERROR: Production deployment is not yet enabled."
+            echo "To enable: add main/master to the global 'when: branch:' trigger"
+            echo "and create the atlas-prod namespace + overlay first."
+            exit 1
+            ;;
+          *)
+            echo "ERROR: Branch '$CI_COMMIT_BRANCH' is not authorised to deploy."
+            exit 1
+            ;;
+        esac
+        echo "Branch: $CI_COMMIT_BRANCH → Namespace: $NAMESPACE"
+
+        # Verify connectivity against the target namespace
+        kubectl get namespace "$NAMESPACE"
+        echo "✓ Connected to K8s API — target: $NAMESPACE"
+        echo "Push branch: $CI_COMMIT_BRANCH | commit: $CI_COMMIT_SHA"
 
         # Short SHA used for image tagging (matches publish steps above)
         SHORT_SHA="${CI_COMMIT_SHA:0:8}"
         echo "Deploying images tagged :$SHORT_SHA"
 
-        if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "master" ]; then
-          echo "Deploying to PROD environment..."
+        case "$CI_COMMIT_BRANCH" in
+          uat)
+            echo "Deploying to UAT (atlas-uat)..."
 
-          # Validate all required secrets exist before touching prod
-          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
-            secret_value=$(printenv "$secret_name" || echo "")
-            if [ -z "$secret_value" ]; then
-              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Prod deployment aborted."
-              exit 1
-            fi
-          done
+            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+              secret_value=$(printenv "$secret_name" || echo "")
+              if [ -z "$secret_value" ]; then
+                echo "FATAL ERROR: CI Secret '$secret_name' missing! UAT deployment aborted."
+                exit 1
+              fi
+            done
 
-          # Ensure atlas_prod database exists on the host (idempotent)
-          PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
-            -c "SELECT 'CREATE DATABASE atlas_prod OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_prod')\gexec" || true
+            sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
+            sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
+            kubectl apply -k k8s/overlays/uat
+            ;;
 
-          # Apply kustomize overlay — updates config/secrets/ingress only.
-          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/prod/backend-patch.yaml
-          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/prod/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/prod/config.yaml
-          kubectl apply -k k8s/overlays/prod
-          OVERLAY="prod"
-        elif [ "$CI_COMMIT_BRANCH" = "dev" ]; then
-          echo "Deploying to DEV environment (dev.buildwithruud.com / dev.atlas.oply.co)..."
+          dev)
+            echo "Deploying to DEV (atlas-dev / dev.buildwithruud.com)..."
 
-          # Ensure atlas_dev database exists (idempotent)
-          PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
-            -c "SELECT 'CREATE DATABASE atlas_dev OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_dev')\gexec" || true
+            PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
+              -c "SELECT 'CREATE DATABASE atlas_dev OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_dev')\gexec" || true
 
-          # Validate secrets
-          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
-            secret_value=$(printenv "$secret_name" || echo "")
-            if [ -z "$secret_value" ]; then
-              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Dev deployment aborted."
-              exit 1
-            fi
-          done
+            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+              secret_value=$(printenv "$secret_name" || echo "")
+              if [ -z "$secret_value" ]; then
+                echo "FATAL ERROR: CI Secret '$secret_name' missing! Dev deployment aborted."
+                exit 1
+              fi
+            done
 
-          # Apply dev overlay — uses atlas_dev DB and dev.* domains
-          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/dev/backend-patch.yaml
-          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/dev/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
-          kubectl apply -k k8s/overlays/dev
-          OVERLAY="dev"
-        else
-          echo "Deploying to UAT environment..."
+            sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/dev/backend-patch.yaml
+            sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
+            kubectl apply -k k8s/overlays/dev
+            ;;
 
-          # Strictly validate existence of required secrets so CI fails loudly
-          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
-            secret_value=$(printenv "$secret_name" || echo "")
-            if [ -z "$secret_value" ]; then
-              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Deployment aborted."
-              exit 1
-            fi
-          done
-
-          # Apply kustomize overlay — updates config/secrets/ingress only.
-          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/uat/backend-patch.yaml
-          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
-          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
-          kubectl apply -k k8s/overlays/uat
-          OVERLAY="uat"
-        fi
+          # Unreachable due to gate above — kept as belt-and-suspenders
+          *)
+            echo "ERROR: Branch '$CI_COMMIT_BRANCH' is not authorised to deploy."
+            exit 1
+            ;;
+        esac
 
         # ── Scoped rollout: use Woodpecker's native CI_COMMIT_CHANGED_FILES ────
         # Comma-separated → newline-separated for grep compatibility.

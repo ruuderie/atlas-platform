@@ -16,7 +16,7 @@ data:
   ADMIN_USER: "admin@oply.co"
   CREATE_ADMIN_ON_STARTUP: "true"
   API_URL: "https://api.dev.atlas.oply.co"
-  ATLAS_API_URL: "http://backend.atlas-platform.svc.cluster.local:8000"
+  ATLAS_API_URL: "http://backend.atlas-dev.svc.cluster.local:8000"
   FRONTEND_URL: "https://network.dev.atlas.oply.co"
   ADMIN_URL: "https://dev.atlas.oply.co"
   ADDITIONAL_ALLOWED_ORIGINS: "https://dev.buildwithruud.com"

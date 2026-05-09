@@ -2,39 +2,31 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: woodpecker-deployer
-  namespace: atlas-platform
+  # namespace is set by each overlay's namespace: transformer
   annotations:
-    # This ServiceAccount is used exclusively by the Woodpecker CI pipeline
-    # for scoped deployment operations. It has NO cluster-wide access.
-    purpose: "CI/CD pipeline deployments — atlas-platform namespace only"
+    purpose: "CI/CD pipeline deployments — scoped to the overlay namespace only"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: woodpecker-deployer
-  namespace: atlas-platform
+  # namespace is set by each overlay's namespace: transformer
 rules:
-  # Required to run `kubectl set image` and `kubectl rollout status`
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "patch", "update"]
-  # Required to `kubectl rollout status` (watches ReplicaSets)
   - apiGroups: ["apps"]
     resources: ["replicasets"]
     verbs: ["get", "list"]
-  # Required to tail pod logs on rollout failure
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list"]
-  # Required for `kubectl apply -k` (ConfigMaps, Secrets, Services)
   - apiGroups: [""]
     resources: ["configmaps", "secrets", "services"]
     verbs: ["get", "list", "create", "update", "patch"]
-  # Required for `kubectl apply -k` (Ingress rules)
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
     verbs: ["get", "list", "create", "update", "patch"]
-  # Required to verify namespace exists at startup
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get"]
@@ -43,7 +35,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: woodpecker-deployer
-  namespace: atlas-platform
+  # namespace is set by each overlay's namespace: transformer
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -51,17 +43,20 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: woodpecker-deployer
-    namespace: atlas-platform
+    # Kustomize namespace transformer does NOT rewrite subjects[].namespace.
+    # This must match the namespace where the SA lives (atlas-uat).
+    # For cross-namespace bindings (e.g. atlas-dev), this is patched server-side.
+    namespace: atlas-uat
 ---
-# Long-lived token for the ServiceAccount.
-# After applying: kubectl get secret woodpecker-deployer-token -n atlas-platform -o jsonpath='{.data.token}' | base64 -d
-# Store the decoded token as the Woodpecker CI secret: KUBE_DEPLOY_TOKEN
-# Store the CA cert as: KUBE_DEPLOY_CA (base64 value from .data['ca.crt'])
+# Long-lived token — after applying to a new namespace:
+# kubectl get secret woodpecker-deployer-token -n <ns> -o jsonpath='{.data.token}' | base64 -d
+# Store as Woodpecker CI secret: KUBE_DEPLOY_TOKEN
+# Store CA as: KUBE_DEPLOY_CA
 apiVersion: v1
 kind: Secret
 metadata:
   name: woodpecker-deployer-token
-  namespace: atlas-platform
+  # namespace is set by each overlay's namespace: transformer
   annotations:
     kubernetes.io/service-account.name: woodpecker-deployer
 type: kubernetes.io/service-account-token
