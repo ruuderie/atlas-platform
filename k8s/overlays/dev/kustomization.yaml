@@ -5,7 +5,7 @@ namespace: atlas-dev
 
 resources:
   - ../../base
-  - namespace.yaml
+  # namespace.yaml applied once by admin — not managed by CI
   - ingress.yaml
   - config.yaml
 
