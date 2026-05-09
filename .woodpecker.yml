@@ -171,30 +171,22 @@ steps:
         set -euo pipefail
 
         # ── Build scoped kubeconfig from ServiceAccount token ──────────────────
-        # Write it directly — avoids kubectl config subshell scope issues.
+        # Set KUBECONFIG first so kubectl config set-* writes to our file, not ~/.kube/config.
+        # --embed-certs=true bakes the CA into the file so path references aren't needed.
         mkdir -p /tmp/kube
-        echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
-        cat > /tmp/kube/config << KUBEEOF
-        apiVersion: v1
-        kind: Config
-        clusters:
-        - name: atlas
-          cluster:
-            server: ${KUBE_SERVER}
-            certificate-authority: /tmp/kube/ca.crt
-        users:
-        - name: woodpecker-deployer
-          user:
-            token: ${KUBE_DEPLOY_TOKEN}
-        contexts:
-        - name: atlas
-          context:
-            cluster: atlas
-            user: woodpecker-deployer
-            namespace: atlas-platform
-        current-context: atlas
-        KUBEEOF
         export KUBECONFIG=/tmp/kube/config
+        echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
+        kubectl config set-cluster atlas \
+          --server="$KUBE_SERVER" \
+          --certificate-authority=/tmp/kube/ca.crt \
+          --embed-certs=true
+        kubectl config set-credentials woodpecker-deployer \
+          --token="$KUBE_DEPLOY_TOKEN"
+        kubectl config set-context atlas \
+          --cluster=atlas \
+          --user=woodpecker-deployer \
+          --namespace=atlas-platform
+        kubectl config use-context atlas
         kubectl cluster-info
         echo "Push branch is $CI_COMMIT_BRANCH, commit is $CI_COMMIT_SHA"
 
