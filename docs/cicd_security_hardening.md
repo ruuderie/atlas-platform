@@ -1,14 +1,11 @@
 # CI/CD Security Hardening: Woodpecker → Kubernetes RBAC
 
-This document covers the full security roadmap for locking down how the Woodpecker CI pipeline
-interacts with the K3s cluster. It is split into two phases: what is **done now** (Phase 1) and
-what to do when the platform scales to a point where the investment is justified (Phase 2).
+This document covers the full security architecture for the Woodpecker CI pipeline's interaction
+with the K3s cluster. It reflects the **current live state** as of 2026-05-09.
 
 ---
 
-## Why This Matters
-
-### The Current Problem (Pre-Phase 1)
+## What Was Wrong (Before Hardening)
 
 The Woodpecker deploy step mounted the host's K3s admin kubeconfig directly:
 
@@ -18,316 +15,234 @@ volumes:
 ```
 
 That file contains a **cluster-admin certificate** — the highest privilege level in Kubernetes.
-Every single pipeline run, every step container, had the ability to:
-
-- Delete any namespace, including `kube-system`
-- Read all Secrets across the entire cluster (database passwords, SMTP tokens, Sealed Secret keys)
-- Modify RBAC rules to escalate further
-
-If someone pushed malicious code that got merged to `uat`, or if the Woodpecker agent itself was
-compromised, the blast radius was the entire cluster and every secret in it.
-
-### What Good Looks Like
-
-The CI pipeline should only be able to do exactly what it needs to deploy:
-- `patch` and `get` `deployments` in `atlas-platform`
-- `get` and `list` `pods` and `replicasets` in `atlas-platform` (for rollout status)
-- Nothing else. Anywhere.
+Every pipeline run had the ability to delete any namespace, read all secrets cluster-wide, and
+modify RBAC to escalate further. A compromised `uat` push would have been a full cluster breach.
 
 ---
 
-## Impact on New Projects
+## Current Architecture (Phase 1 — Live)
 
-The `woodpecker-deployer` ServiceAccount is **namespace-scoped** — it can only touch resources
-inside `atlas-platform`. How this affects you depends on what kind of new project you're launching.
+### ServiceAccount model
 
-### New app within `atlas-platform` (most common case)
+A `woodpecker-deployer` ServiceAccount lives in `atlas-uat` namespace. It is the **single identity**
+used by the CI pipeline for all deployments. It has cross-namespace access via RoleBindings in
+each environment namespace — but only the verbs it actually needs.
 
-If you're adding another microservice to the existing Atlas Platform (following `adding_a_new_app.md`),
-**no changes are needed here**. The Role grants access to *all* deployments in the `atlas-platform`
-namespace, not a named list. New services are automatically covered.
-
-### Entirely new project in a new namespace (separate product)
-
-If you launch a new product that lives in its own Kubernetes namespace (e.g., `oply-property`,
-`oply-finance`, or a new SaaS tenant infrastructure), the `woodpecker-deployer` token **will not
-have access** to that namespace. The deploy step will get a `403 Forbidden` from the K8s API.
-
-**What to do:** For each new project namespace, apply a mirror of `k8s/base/woodpecker-rbac.yaml`
-with the namespace changed:
-
-```bash
-# Replace <new-namespace> with your actual namespace
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: woodpecker-deployer
-  namespace: <new-namespace>
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: woodpecker-deployer
-  namespace: <new-namespace>
-rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["get", "list", "patch", "update"]
-  - apiGroups: ["apps"]
-    resources: ["replicasets"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["pods", "pods/log"]
-    verbs: ["get", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: woodpecker-deployer
-  namespace: <new-namespace>
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: woodpecker-deployer
-subjects:
-  - kind: ServiceAccount
-    name: woodpecker-deployer
-    namespace: <new-namespace>
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: woodpecker-deployer-token
-  namespace: <new-namespace>
-  annotations:
-    kubernetes.io/service-account.name: woodpecker-deployer
-type: kubernetes.io/service-account-token
-EOF
+```
+atlas-uat   ← woodpecker-deployer SA lives here
+atlas-dev   ← RoleBinding grants atlas-uat SA access here
+atlas-prod  ← (when provisioned) same pattern
 ```
 
-Then extract the new token and add it as a **separate Woodpecker CI secret** (e.g.,
-`KUBE_DEPLOY_TOKEN_OPLY_PROPERTY`). Each project's pipeline uses its own scoped token.
-
-> **This is intentional.** A pipeline for project A should never be able to roll out or restart
-> pods in project B. The scoping enforces that boundary automatically.
-
-### The current state (before Phase 1 wiring is complete)
-
-Until the `.woodpecker.yml` volume-mount swap is done (see Phase 1 → "How to wire" below),
-the pipeline still uses the cluster-admin kubeconfig for everything. The ServiceAccount and RBAC
-are provisioned and ready — wiring them in is the remaining step.
-
-New projects launched **before** the wiring is complete are unaffected by the RBAC (the admin
-kubeconfig still works for all namespaces). New projects launched **after** will need their own
-ServiceAccount per the pattern above.
-
----
-
-
-> **Status: Implemented.** Applied to the live cluster on 2026-05-09.
-> Manifest committed to `k8s/base/woodpecker-rbac.yaml`.
-
-### What was done
-
-Created a `woodpecker-deployer` ServiceAccount in the `atlas-platform` namespace with a tightly
-scoped Role:
+### Role permissions (per namespace)
 
 ```yaml
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "list", "patch", "update"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
   - apiGroups: ["apps"]
     resources: ["replicasets"]
     verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "services"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get"]
 ```
 
-Verified with `kubectl auth can-i`:
+### Verified RBAC boundaries
 
 | Action | Allowed? |
 |---|---|
-| `patch deployments` in `atlas-platform` | ✅ Yes |
-| `delete namespaces` | ❌ No |
+| `patch deployments` in `atlas-uat` | ✅ Yes |
+| `patch deployments` in `atlas-dev` | ✅ Yes |
 | `get secrets` in `kube-system` | ❌ No |
-| `get secrets` in `atlas-platform` | ❌ No |
+| `delete namespaces` | ❌ No |
+| `get/patch roles` or `rolebindings` | ❌ No |
+| `create serviceaccounts` | ❌ No |
 
-### How to wire the pipeline to use this token (TODO)
+### Pipeline kubeconfig construction
 
-The pipeline still uses the volume-mounted kubeconfig. To fully activate Phase 1:
+The pipeline builds an ephemeral kubeconfig at runtime from three Woodpecker CI secrets:
 
-1. Extract the token and CA from the cluster:
-   ```bash
-   # Token
-   kubectl get secret woodpecker-deployer-token -n atlas-platform \
-     -o jsonpath='{.data.token}' | base64 -d
+```bash
+mkdir -p /tmp/kube
+export KUBECONFIG=/tmp/kube/config
+echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
+kubectl config set-cluster atlas \
+  --server="$KUBE_SERVER" \
+  --certificate-authority=/tmp/kube/ca.crt \
+  --embed-certs=true
+kubectl config set-credentials woodpecker-deployer \
+  --token="$KUBE_DEPLOY_TOKEN"
+kubectl config set-context atlas \
+  --cluster=atlas --user=woodpecker-deployer \
+  --namespace=atlas-uat
+kubectl config use-context atlas
+```
 
-   # CA cert (already base64-encoded, store as-is)
-   kubectl get secret woodpecker-deployer-token -n atlas-platform \
-     -o jsonpath='{.data.ca\.crt}'
+No host files mounted. No cluster-admin credentials. The token is scoped to exactly what the
+pipeline needs and nothing more.
 
-   # Server (use the public IP, not 127.0.0.1)
-   # Value: https://69.164.248.38:6443
-   ```
+### Strict branch → namespace gate
 
-2. Add three new Woodpecker CI secrets at `ci.oply.co`:
-   - `KUBE_DEPLOY_TOKEN` — the decoded bearer token
-   - `KUBE_DEPLOY_CA` — the base64-encoded CA cert
-   - `KUBE_SERVER` — `https://69.164.248.38:6443`
+The deploy step enforces a hard mapping — any unlisted branch fails immediately:
 
-3. Replace the volume mount in `.woodpecker.yml`'s `deploy_platform_k8s` step:
+```bash
+case "$CI_COMMIT_BRANCH" in
+  uat)          NAMESPACE="atlas-uat" ;;
+  dev)          NAMESPACE="atlas-dev" ;;
+  main|master)
+    echo "ERROR: Production deployment is not yet enabled."
+    exit 1
+    ;;
+  *)
+    echo "ERROR: Branch '$CI_COMMIT_BRANCH' is not authorised to deploy."
+    exit 1
+    ;;
+esac
+```
 
-   ```yaml
-   # Remove this:
-   volumes:
-     - /etc/rancher/k3s/k3s.yaml:/kubeconfig.yaml:ro
+Additionally, `main` and `master` are **excluded from the global pipeline trigger** in
+`.woodpecker.yml`, so the deploy step never runs at all on those branches until production
+is explicitly enabled.
 
-   # Add this to the commands block instead:
-   - |
-     mkdir -p /tmp/kube
-     echo "${KUBE_DEPLOY_CA}" | base64 -d > /tmp/kube/ca.crt
-     kubectl config set-cluster atlas \
-       --server="${KUBE_SERVER}" \
-       --certificate-authority=/tmp/kube/ca.crt
-     kubectl config set-credentials woodpecker-deployer \
-       --token="${KUBE_DEPLOY_TOKEN}"
-     kubectl config set-context atlas \
-       --cluster=atlas --user=woodpecker-deployer \
-       --namespace=atlas-platform
-     kubectl config use-context atlas
-     export KUBECONFIG=/root/.kube/config
-   ```
+### What the CI pipeline does NOT manage
 
-4. Add the three secrets to the `environment:` block of `deploy_platform_k8s`:
-   ```yaml
-   environment:
-     KUBE_DEPLOY_TOKEN:
-       from_secret: KUBE_DEPLOY_TOKEN
-     KUBE_DEPLOY_CA:
-       from_secret: KUBE_DEPLOY_CA
-     KUBE_SERVER:
-       from_secret: KUBE_SERVER
-   ```
+These resources are applied **once by a cluster admin** and are never touched by CI:
 
-> **Note:** The `kubectl apply -k` step that applies config/secrets still needs broader access
-> (it reads/writes ConfigMaps and Secrets). Until Phase 2, keep a **separate restricted secret**
-> for that step or accept that config-apply still uses the admin kubeconfig for now. The image
-> rollout step is the higher-risk operation.
+| Resource | Why admin-only |
+|---|---|
+| `Namespace` (`atlas-uat`, `atlas-dev`) | SA lacks permission to patch namespaces |
+| `ServiceAccount` / `Role` / `RoleBinding` | CI managing its own RBAC is a security anti-pattern |
+| `ghcr-login-secret` | Registry credentials — rotated out-of-band |
+| `cloudflare-edge-secrets` | API tokens — managed out-of-band |
+
+The kustomize overlays intentionally exclude these resources. The CI SA only manages:
+ConfigMaps, Secrets (app-secrets only), Services, Deployments, and Ingresses.
+
+---
+
+## Environment Namespace Map
+
+| Branch | Namespace | Database | Status |
+|---|---|---|---|
+| `uat` | `atlas-uat` | `atlas_uat` | ✅ Active |
+| `dev` | `atlas-dev` | `atlas_dev` | ✅ Active |
+| `main`/`master` | `atlas-prod` *(not yet created)* | `atlas_prod` | 🔒 Blocked — not live |
+
+### Admin prerequisites for each namespace
+
+When provisioning a new environment namespace (run once, by a human with cluster-admin):
+
+```bash
+# 1. Create namespace
+kubectl create namespace <ns>
+
+# 2. Copy pull secret
+kubectl get secret ghcr-login-secret -n atlas-uat -o json \
+  | sed 's/"namespace": "atlas-uat"/"namespace": "<ns>"/' \
+  | kubectl create -f -
+
+# 3. Apply RBAC (SA lives in atlas-uat, RoleBinding grants cross-namespace access)
+kubectl apply -f k8s/base/woodpecker-rbac.yaml   # with namespace: <ns> in kustomize
+```
+
+The `KUBE_DEPLOY_TOKEN` Woodpecker secret does not change — the same SA token from
+`atlas-uat` covers all namespaces it has RoleBindings in.
+
+---
+
+## Impact on New Projects
+
+The `woodpecker-deployer` SA is **namespace-scoped**. A new product in its own namespace
+gets a `403 Forbidden` until a RoleBinding is applied there.
+
+For a new project namespace, apply the same RBAC pattern (Role + RoleBinding referencing
+the `atlas-uat` SA). No new token is needed — the existing `KUBE_DEPLOY_TOKEN` will work
+once the RoleBinding exists.
+
+> **This is intentional.** A pipeline for project A should never be able to roll out pods
+> in project B's namespace. The scoping enforces that boundary automatically.
 
 ---
 
 ## Phase 2 — Full Kubernetes Backend for the Woodpecker Agent
 
 > **Status: Future work. Implement when any of these are true:**
-> - The platform moves to multi-node K3s (i.e., worker nodes are added)
-> - CI build times become a bottleneck and you want parallel job scheduling across nodes
-> - You need per-pipeline resource quotas (e.g., cap WASM builds to 8 CPU / 16GB RAM)
+> - The platform moves to multi-node K3s (worker nodes added)
+> - CI build times become a bottleneck requiring parallel scheduling
+> - Per-pipeline resource quotas are needed (e.g., cap WASM builds to 8 CPU)
 > - A security audit requires zero host-level access for CI workloads
-> - The team grows and you need namespace-isolated CI environments per team
-
-### What it means
 
 Currently the Woodpecker agent is a **systemd service on the bare-metal host** (`WOODPECKER_BACKEND = "docker"`).
-Each pipeline step runs as a container via Podman on the host.
+Each pipeline step runs as a Podman container on the host.
 
 With the Kubernetes backend (`WOODPECKER_BACKEND = "kubernetes"`), the agent submits each
-pipeline **step as a Kubernetes Job**. Steps run as pods inside the cluster with a proper
-`ServiceAccount`, not as host-privileged Podman containers.
+pipeline step as a Kubernetes Job. Steps run as pods with a proper ServiceAccount.
 
-### Benefits vs. current setup
-
-| | Docker Backend (current) | Kubernetes Backend (future) |
-|---|---|---|
-| Steps run as | Podman containers on host | K8s Jobs (pods) |
-| K8s access | Mounted host kubeconfig (cluster-admin) | ServiceAccount token (scoped) |
-| Resource limits | None enforced | CPU/Memory quotas via K8s LimitRange |
-| Parallelism | Sequential on one host | Scheduled across all nodes |
-| Privileged builds | Via Podman socket | Via `securityContext.privileged: true` on Job pod |
-| Audit trail | Woodpecker logs only | Woodpecker logs + K8s audit log |
-
-### Changes required
-
-#### In NixForge `flake.nix`
+### Changes required in NixForge `flake.nix`
 
 ```nix
-# Current agent config (lines ~703-714)
+# Current agent config
 services.woodpecker-agents.agents."dagger-runner" = {
   environment = {
     WOODPECKER_SERVER = "127.0.0.1:9000";
-    WOODPECKER_BACKEND = "docker";                          # ← change
-    DOCKER_HOST = "unix:///run/podman/podman.sock";         # ← remove
+    WOODPECKER_BACKEND = "docker";                         # ← change
+    DOCKER_HOST = "unix:///run/podman/podman.sock";        # ← remove
     WOODPECKER_HEALTHCHECK_ADDR = ":3001";
   };
-  extraGroups = [ "podman" ];                              # ← remove
+  extraGroups = [ "podman" ];                             # ← remove
 };
 
 # Target agent config
 services.woodpecker-agents.agents."dagger-runner" = {
   environment = {
     WOODPECKER_SERVER = "127.0.0.1:9000";
-    WOODPECKER_BACKEND = "kubernetes";                     # ← new
-    WOODPECKER_BACKEND_K8S_NAMESPACE = "woodpecker-agents"; # ← new
-    WOODPECKER_BACKEND_K8S_STORAGE_CLASS = "";             # ← use emptyDir
+    WOODPECKER_BACKEND = "kubernetes";                    # ← new
+    WOODPECKER_BACKEND_K8S_NAMESPACE = "woodpecker-agents";
+    WOODPECKER_BACKEND_K8S_STORAGE_CLASS = "";            # use emptyDir
     WOODPECKER_BACKEND_K8S_PULL_SECRET_NAMES = "ghcr-login-secret";
     WOODPECKER_BACKEND_K8S_PRIVILEGED_PLUGINS = "woodpeckerci/plugin-docker-buildx";
     WOODPECKER_HEALTHCHECK_ADDR = ":3001";
-    KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";             # ← agent needs this to submit Jobs
+    KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";            # agent needs this to submit Jobs
   };
 };
 ```
 
-#### New K8s manifests required
-
-1. **`woodpecker-agents` namespace** — isolated from `atlas-platform`
-2. **`ServiceAccount` + `Role` for agent** — ability to create/delete Jobs, Pods in `woodpecker-agents`
-3. **`ghcr-login-secret`** in `woodpecker-agents` — so step pods can pull private images
-4. **`LimitRange`** in `woodpecker-agents` — cap CPU/memory per step pod
-
-#### One gotcha: Docker-in-Docker for image builds
-
-The `woodpeckerci/plugin-docker-buildx` steps need **privileged mode** to run Docker inside the
-pod. K3s must have `--allow-privileged=true` (it does by default) and the Job pod spec must set:
-
-```yaml
-securityContext:
-  privileged: true
-```
-
-Woodpecker handles this automatically for plugins listed in `WOODPECKER_BACKEND_K8S_PRIVILEGED_PLUGINS`.
-
-#### Deployment steps (when the time comes)
+### Deployment steps (when the time comes)
 
 1. Deploy NixForge change: `colmena apply --on manager`
 2. Apply new K8s manifests: `kubectl apply -k k8s/ci/`
-3. Verify the agent reconnects and submits a test Job: `kubectl get jobs -n woodpecker-agents -w`
+3. Verify the agent reconnects: `kubectl get jobs -n woodpecker-agents -w`
 4. Validate a full pipeline run completes successfully
-5. Remove the `k3s.yaml` volume mount from `.woodpecker.yml` (agent now uses its own ServiceAccount)
 
 ---
 
-## Reliability Improvements (Separate from Security)
-
-These changes directly reduce the "go check the git hash and SSH to verify" toil:
+## Reliability Improvements
 
 | Improvement | Status | Effect |
 |---|---|---|
-| `CI_COMMIT_CHANGED_FILES` in pipeline | ✅ Done | Pipeline correctly scopes which pods update per push — no more stale deployments or `ImagePullBackOff` |
-| Stable image tags in base manifests | ✅ Done | Manifests always contain real pullable SHAs, never placeholder strings |
-| Version chip in platform-admin sidebar | ✅ Done (pending build) | Shows running SHA + colour-coded UAT/PROD/DEV badge without SSH |
-| Scoped ServiceAccount | ✅ Done (RBAC) | Security only — no direct reliability impact |
-| Full K8s backend | ⏳ Future | Security + parallelism — no direct reliability impact |
-
-The version chip is the direct answer to the "which version is live" question. Once the
-`platform-admin` build ships, you'll see the exact 8-char SHA and environment name in the sidebar
-footer on every page of the admin. No SSH required.
+| Scoped ServiceAccount token (no host kubeconfig mount) | ✅ Done | Eliminates cluster-admin blast radius |
+| Strict branch → namespace gate | ✅ Done | Only `uat`/`dev` branches can deploy; `main` explicitly blocked |
+| Scoped image rollout (path-gated) | ✅ Done | Only services with changed source files get new images; config-only commits skip rollouts |
+| Isolated namespaces per environment | ✅ Done | UAT (`atlas-uat`) and DEV (`atlas-dev`) are fully isolated; deploying dev cannot affect UAT |
+| Version chip in platform-admin sidebar | ✅ Done (pending build) | Shows running SHA + environment badge without SSH |
+| Full K8s backend for agent | ⏳ Future | Security + parallelism |
 
 ---
 
 ## Related Documentation
 
 - [`adding_a_new_app.md`](./adding_a_new_app.md) — checklist for adding new services to the pipeline
-- [`deployment_environments.md`](./deployment_environments.md) — UAT vs prod environment config
-- [NixForge `flake.nix`](../../NixForge/flake.nix) — bare-metal server configuration (Woodpecker server + agent)
+- [`deployment_environments.md`](./deployment_environments.md) — environment config reference
+- [NixForge `flake.nix`](../../NixForge/flake.nix) — bare-metal server config (Woodpecker server + agent, PostgreSQL databases)
+- [`k8s/base/woodpecker-rbac.yaml`](../k8s/base/woodpecker-rbac.yaml) — RBAC manifest (admin-applied, not managed by CI)
