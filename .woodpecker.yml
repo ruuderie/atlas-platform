@@ -2,6 +2,7 @@ when:
   - event: [push]
     branch:
       - uat
+      - dev
       - main
       - master
 
@@ -49,6 +50,7 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
@@ -97,6 +99,7 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
@@ -121,6 +124,7 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - TRUNK_TOOLS_WASM_OPT=${CI_COMMIT_BRANCH == 'dev' ? 'false' : 'true'}
       username:
         from_secret: docker_username
       password:
@@ -225,6 +229,34 @@ steps:
           sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/prod/config.yaml
           kubectl apply -k k8s/overlays/prod
           OVERLAY="prod"
+        elif [ "$CI_COMMIT_BRANCH" = "dev" ]; then
+          echo "Deploying to DEV environment (dev.buildwithruud.com / dev.atlas.oply.co)..."
+
+          # Ensure atlas_dev database exists (idempotent)
+          PGPASSWORD="$DB_PASSWORD" psql -h 10.42.0.1 -U "$DB_USER" -d postgres \
+            -c "SELECT 'CREATE DATABASE atlas_dev OWNER $DB_USER' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname='atlas_dev')\gexec" || true
+
+          # Validate secrets
+          for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
+            secret_value=$(printenv "$secret_name" || echo "")
+            if [ -z "$secret_value" ]; then
+              echo "FATAL ERROR: CI Secret '$secret_name' is empty or missing! Dev deployment aborted."
+              exit 1
+            fi
+          done
+
+          # Apply dev overlay — uses atlas_dev DB and dev.* domains
+          sed -i "s|REPLACE_WITH_CI_TOKEN|$ATLAS_INIT_TOKEN|g" k8s/overlays/dev/backend-patch.yaml
+          sed -i "s|REPLACE_WITH_DB_USER|$DB_USER|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_DB_PASSWORD|$DB_PASSWORD|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_ADMIN_PASSWORD|$ADMIN_PASSWORD|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_TOKEN|$SMTP_TOKEN|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_SERVER|$SMTP_SERVER|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_PORT|$SMTP_PORT|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/dev/config.yaml
+          sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
+          kubectl apply -k k8s/overlays/dev
+          OVERLAY="dev"
         else
           echo "Deploying to UAT environment..."
 

@@ -1,0 +1,58 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: atlas-ingress-dev
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: "nginx"
+  tls:
+  - hosts:
+    - dev.atlas.oply.co
+    - api.dev.atlas.oply.co
+    - network.dev.atlas.oply.co
+    secretName: dev-atlas-tls
+  - hosts:
+    - dev.buildwithruud.com
+    secretName: dev-bwr-tls
+  rules:
+  - host: dev.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-admin
+            port:
+              number: 80
+  - host: api.dev.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend
+            port:
+              number: 8000
+  - host: dev.buildwithruud.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: anchor-app
+            port:
+              number: 80
+  - host: network.dev.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: network-instance
+            port:
+              number: 80

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+      - name: backend
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        - secretRef:
+            name: cloudflare-edge-secrets
+        env:
+        - name: ATLAS_INIT_TOKEN
+          value: "REPLACE_WITH_CI_TOKEN"
