@@ -126,41 +126,61 @@ enum AuthState {
 /// which works correctly whether or not both branches were rendered during SSR.
 #[component]
 fn LoginPanel() -> impl IntoView {
-    let (use_email, set_use_email)     = signal(false);
-    let (username, set_username)       = signal(String::new());
-    let (is_loading, set_is_loading)   = signal(false);
-    let (auth_error, set_auth_error)   = signal(String::new());
-    let (countdown, set_countdown)     = signal(0i32);
+    let auth = shared_ui::auth::atlas_auth::use_atlas_auth();
+    
+    // We need a local passkey message state since we are moving from the vanilla script
+    let (passkey_msg, set_passkey_msg) = signal(String::new());
+    let (passkey_error, set_passkey_error) = signal(false);
 
-    let login_action = Action::new(move |_: &()| async move {
-        let uname = username.get_untracked();
-        if uname.is_empty() {
-            set_auth_error.set("Email is required.".to_string());
-            return;
-        }
-        set_is_loading.set(true);
-        set_auth_error.set(String::new());
-        match request_magic_link(uname).await {
-            Ok(_) => {
-                set_auth_error.set("Magic link sent! Check your email.".to_string());
-                set_countdown.set(60);
-                #[cfg(feature = "hydrate")]
-                leptos::task::spawn_local(async move {
-                    use std::time::Duration;
-                    while countdown.get_untracked() > 0 {
-                        let (tx, rx) = futures::channel::oneshot::channel::<()>();
-                        set_timeout_with_handle(
-                            move || { let _ = tx.send(()); },
-                            Duration::from_secs(1),
-                        ).expect("failed to set timeout");
-                        rx.await.unwrap();
-                        set_countdown.update(|c| *c -= 1);
-                    }
-                });
+    let passkey_action = Action::new_local(move |_: &()| async move {
+        set_passkey_msg.set("Initiating...".to_string());
+        set_passkey_error.set(false);
+        
+        let start_res = gloo_net::http::Request::post("/api/passkeys/start-login")
+            .json(&serde_json::json!({ "email": "" }))
+            .unwrap()
+            .send()
+            .await;
+            
+        let options = match start_res {
+            Ok(res) if res.ok() => res.json::<serde_json::Value>().await.unwrap_or_default(),
+            _ => {
+                set_passkey_msg.set("Failed to start login".to_string());
+                set_passkey_error.set(true);
+                return;
             }
-            Err(e) => set_auth_error.set(format!("Login failed: {:?}", e)),
+        };
+        
+        set_passkey_msg.set("Please follow browser prompts...".to_string());
+        
+        match shared_ui::auth::passkey::start_authentication(&options).await {
+            Ok(credential) => {
+                set_passkey_msg.set("Verifying...".to_string());
+                let finish_res = gloo_net::http::Request::post("/api/passkeys/finish-login")
+                    .json(&credential)
+                    .unwrap()
+                    .send()
+                    .await;
+                    
+                match finish_res {
+                    Ok(res) if res.ok() => {
+                        set_passkey_msg.set("Success! Redirecting...".to_string());
+                        set_passkey_error.set(false);
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.location().reload();
+                        }
+                    }
+                    _ => {
+                        set_passkey_msg.set("Verification failed".to_string());
+                        set_passkey_error.set(true);
+                    }
+                }
+            }
+            Err(e) => {
+                set_passkey_msg.set(e);
+                set_passkey_error.set(true);
+            }
         }
-        set_is_loading.set(false);
     });
 
     view! {
@@ -174,9 +194,7 @@ fn LoginPanel() -> impl IntoView {
                     </div>
                     <h2 class="text-4xl font-extrabold text-primary mb-8 tracking-tight">"SYSTEM_CMS"</h2>
                     <div class="space-y-12">
-                        // dyn_child if/else: Leptos replaces the whole slot on toggle —
-                        // both branches are hydration-safe regardless of which was SSR'd.
-                        {move || if use_email.get() {
+                        {move || if auth.use_email.get() {
                             view! {
                                 <div class="space-y-6">
                                     <div class="relative w-full group">
@@ -186,29 +204,29 @@ fn LoginPanel() -> impl IntoView {
                                         <input
                                             type="email"
                                             placeholder="you@example.com"
-                                            on:input=move |ev| set_username.set(event_target_value(&ev))
-                                            prop:value=username
+                                            on:input=move |ev| auth.email.set(event_target_value(&ev))
+                                            prop:value=auth.email
                                             class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
                                         />
                                     </div>
                                     <div class="space-y-4 pt-2">
-                                        <Show when=move || !auth_error.get().is_empty()>
+                                        <Show when=move || auth.error.get().is_some()>
                                             <div class="bg-error/10 border-l-4 border-error p-4 text-error jetbrains text-sm font-medium">
-                                                {move || auth_error.get()}
+                                                {move || auth.error.get().unwrap_or_default()}
                                             </div>
                                         </Show>
                                         <button
-                                            on:click=move |_| { login_action.dispatch(()); }
-                                            disabled=move || is_loading.get() || (countdown.get() > 0)
+                                            on:click=move |_| { auth.dispatch_login.dispatch(()); }
+                                            disabled=move || auth.is_loading.get() || (auth.countdown.get() > 0)
                                             class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
                                         >
-                                            <Show when=move || is_loading.get()>
+                                            <Show when=move || auth.is_loading.get()>
                                                 <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
                                             </Show>
                                             <span class="inline-block translate-y-[1px]">
-                                                {move || if countdown.get() > 0 {
-                                                    format!("Resend in {}s", countdown.get())
-                                                } else if auth_error.get() == "Magic link sent! Check your email." {
+                                                {move || if auth.countdown.get() > 0 {
+                                                    format!("Resend in {}s", auth.countdown.get())
+                                                } else if auth.error.get() == Some("Magic link sent! Check your email.".to_string()) {
                                                     "Resend Magic Link".to_string()
                                                 } else {
                                                     "Send Magic Link".to_string()
@@ -219,7 +237,7 @@ fn LoginPanel() -> impl IntoView {
                                             <button
                                                 type="button"
                                                 class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
-                                                on:click=move |_| { set_use_email.set(false); set_auth_error.set(String::new()); }
+                                                on:click=move |_| { auth.use_email.set(false); auth.error.set(None); }
                                             >
                                                 "\u{2190} Back to Passkey"
                                             </button>
@@ -232,63 +250,31 @@ fn LoginPanel() -> impl IntoView {
                                 <div class="space-y-6">
                                     <button
                                         id="login-passkey-btn"
-                                        class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container transition-colors flex items-center justify-center gap-3"
+                                        on:click=move |_| { passkey_action.dispatch(()); }
+                                        disabled=move || passkey_action.pending().get()
+                                        class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 transition-colors flex items-center justify-center gap-3"
                                     >
                                         <span class="material-symbols-outlined text-base">"passkey"</span>
                                         <span class="inline-block translate-y-[1px]">"Sign In with Passkey"</span>
                                     </button>
-                                    <div id="passkey-message" class="text-sm text-center text-error font-medium h-4"></div>
-                                    <script inner_html=r#"
-                                    (function() {
-                                        var existing = document.querySelector('script[data-simplewebauthn]');
-                                        var scriptEl = existing || document.createElement('script');
-                                        if (!existing) {
-                                            scriptEl.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
-                                            scriptEl.setAttribute('data-simplewebauthn', 'true');
-                                            document.head.appendChild(scriptEl);
+                                    <div 
+                                        id="passkey-message" 
+                                        class=move || {
+                                            let base = "text-sm text-center font-medium h-4";
+                                            if passkey_error.get() {
+                                                format!("{} text-error", base)
+                                            } else {
+                                                format!("{} text-primary", base)
+                                            }
                                         }
-                                        function bindBtn() {
-                                            var btn = document.getElementById('login-passkey-btn');
-                                            var msg = document.getElementById('passkey-message');
-                                            if (!btn || btn.dataset.bound) return;
-                                            btn.dataset.bound = 'true';
-                                            btn.addEventListener('click', async function() {
-                                                try {
-                                                    btn.disabled = true; msg.innerText = 'Initiating...';
-                                                    var startRes = await fetch('/api/passkeys/start-login', {
-                                                        method: 'POST', headers: {'Content-Type':'application/json'},
-                                                        body: JSON.stringify({ email: '' })
-                                                    });
-                                                    if (!startRes.ok) throw new Error('Failed to start login');
-                                                    var options = await startRes.json();
-                                                    msg.innerText = 'Please follow browser prompts...';
-                                                    var credential = await window.SimpleWebAuthnBrowser.startAuthentication(options);
-                                                    msg.innerText = 'Verifying...';
-                                                    var finishRes = await fetch('/api/passkeys/finish-login', {
-                                                        method: 'POST', headers: {'Content-Type':'application/json'},
-                                                        body: JSON.stringify(credential)
-                                                    });
-                                                    if (finishRes.ok) {
-                                                        msg.innerText = 'Success! Redirecting...';
-                                                        msg.className = 'text-sm text-center text-green-500 font-medium h-4';
-                                                        window.location.reload();
-                                                    } else { throw new Error(await finishRes.text()); }
-                                                } catch(err) {
-                                                    console.error(err);
-                                                    msg.innerText = err.message || 'Login failed';
-                                                    msg.className = 'text-sm text-center text-error font-medium h-4';
-                                                } finally { btn.disabled = false; }
-                                            });
-                                        }
-                                        if (existing && window.SimpleWebAuthnBrowser) { bindBtn(); }
-                                        else { scriptEl.onload = bindBtn; }
-                                    })();
-                                    "#></script>
+                                    >
+                                        {move || passkey_msg.get()}
+                                    </div>
                                     <div class="text-center pt-2">
                                         <button
                                             type="button"
                                             class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
-                                            on:click=move |_| set_use_email.set(true)
+                                            on:click=move |_| auth.use_email.set(true)
                                         >
                                             "Use Email Instead"
                                         </button>

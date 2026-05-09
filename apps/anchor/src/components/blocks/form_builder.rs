@@ -136,7 +136,7 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                         <input type="hidden" name="payload" value=move || serde_json::to_string(&payload_map.get()).unwrap_or_default() />
                                         
                                         {data.fields.clone().into_iter().map(|field| {
-                                            let field_name_clone = field.name.clone();
+                                            let _field_name_clone = field.name.clone();
                                             let field_name_input = field.name.clone();
                                             let req = field.required;
                                             

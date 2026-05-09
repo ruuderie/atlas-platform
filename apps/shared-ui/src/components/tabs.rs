@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::components::ui::tabs::{Tabs as RustUITabs, TabsList};
+use crate::components::ui::tabs::Tabs as RustUITabs;
 
 #[component]
 pub fn Tabs(

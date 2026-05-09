@@ -1302,7 +1302,7 @@ pub fn LandingPageForm(
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_page.is_some();
-    let id_val = initial_page.as_ref().map(|p| p.id).unwrap_or(0);
+    let _id_val = initial_page.as_ref().map(|p| p.id).unwrap_or(0);
 
     let (slug, set_slug) = signal(
         initial_page

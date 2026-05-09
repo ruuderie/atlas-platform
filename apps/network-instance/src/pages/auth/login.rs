@@ -1,17 +1,13 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
-use serde_json::json;
-
+use shared_ui::auth::atlas_auth::use_atlas_auth;
 use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
+use shared_ui::components::ui::button::Button;
+use shared_ui::components::ui::input::{Input, InputType};
 
 #[component]
 pub fn Login() -> impl IntoView {
-    let email = RwSignal::new("".to_string());
-    let password = RwSignal::new("".to_string());
-    let error = RwSignal::new("".to_string());
-    let is_submitting = RwSignal::new(false);
-    let show_password = RwSignal::new(false);
-    
+    let auth = use_atlas_auth();
     let _navigate = use_navigate();
 
     let handle_passkey_success = move |_token: String| {
@@ -21,56 +17,7 @@ pub fn Login() -> impl IntoView {
     };
 
     let handle_passkey_error = move |err: String| {
-        error.set(err);
-    };
-
-    let handle_login = move |ev: leptos::ev::SubmitEvent| {
-        ev.prevent_default();
-        if is_submitting.get() { return; }
-        
-        error.set("".to_string());
-        if email.get().is_empty() || password.get().is_empty() {
-            error.set("Please enter your email and password.".to_string());
-            return;
-        }
-
-        is_submitting.set(true);
-        let email_val = email.get();
-        let pass_val = password.get();
-
-        leptos::task::spawn_local(async move {
-            let client = reqwest::Client::new();
-            let url = format!("{}/api/auth/login", crate::get_api_base_url());
-            let payload = json!({
-                "email": email_val,
-                "password": pass_val,
-            });
-
-            match client.post(url).json(&payload).send().await {
-                Ok(res) => {
-                    if res.status().is_success() {
-                        if let Ok(json) = res.json::<serde_json::Value>().await {
-                            if let Some(_token) = json.get("token").and_then(|t| t.as_str()) {
-                                // Cookie is set by the backend — navigate directly.
-                                window().location().set_href("/dashboard").unwrap();
-                            } else {
-                                error.set("Invalid response from server".to_string());
-                            }
-                        }
-                    } else {
-                        if res.status() == reqwest::StatusCode::UNAUTHORIZED {
-                            error.set("Invalid email or password.".to_string());
-                        } else {
-                            error.set("Failed to login. Please try again.".to_string());
-                        }
-                    }
-                }
-                Err(_) => {
-                    error.set("Network error. Could not reach server.".to_string());
-                }
-            }
-            is_submitting.set(false);
-        });
+        auth.error.set(Some(err));
     };
 
     view! {
@@ -88,74 +35,81 @@ pub fn Login() -> impl IntoView {
                     </div>
                     
                     <div class="mt-8 space-y-6">
-                        {move || if !error.get().is_empty() {
-                            view! {
-                                <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-xl text-sm font-medium animate-slide-up">
-                                    {error.get()}
-                                </div>
-                            }.into_any()
-                        } else { view! { <span/> }.into_any() }}
+                        {move || auth.error.get().map(|msg| view! {
+                            <div class="bg-error/10 border border-error/20 text-error px-4 py-3 rounded-xl text-sm font-medium animate-slide-up">
+                                {msg}
+                            </div>
+                        })}
 
-                        <div>
-                            <label for="email-address" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">"Email address"</label>
-                            <input id="email-address" name="email" type="email" autocomplete="email"
-                                class="appearance-none block w-full px-4 py-3 border border-outline-variant/50 rounded-xl placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-[#004289] focus:border-transparent transition-all sm:text-sm font-medium text-on-surface bg-surface-container-lowest mb-4"
-                                placeholder="name@company.com"
-                                prop:value=move || email.get()
-                                on:input=move |ev| email.set(event_target_value(&ev))
-                            />
-                        </div>
-
-                        {move || if !show_password.get() {
-                            view! {
-                                <div class="animate-fade-scale space-y-4">
-                                    <PasskeyLoginButton 
-                                        api_base_url=crate::get_api_base_url() + "/api/auth/passkeys"
-                                        email=email
-                                        on_success=handle_passkey_success
-                                        on_error=handle_passkey_error
-                                    />
-                                    <div class="text-center pt-2">
-                                        <button type="button" class="text-sm font-bold text-on-surface-variant hover:text-[#004289] transition-colors" on:click=move |_| { show_password.set(true); error.set("".to_string()); }>
-                                            "Sign in with password instead"
-                                        </button>
-                                    </div>
-                                </div>
-                            }.into_any()
-                        } else {
-                            view! {
-                                <div class="animate-fade-scale">
-                                    <form class="space-y-4" on:submit=handle_login>
-                                        <div>
-                                            <div class="flex items-center justify-between mb-2">
-                                                <label for="password" class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Password"</label>
-                                                <a href="#" class="text-xs font-bold text-slate-800 hover:underline">"Forgot password?"</a>
-                                            </div>
-                                            <input id="password" name="password" type="password" autocomplete="current-password"
+                        <div class="space-y-4 min-h-[140px]">
+                            {move || if auth.use_email.get() {
+                                view! {
+                                    <div class="animate-fade-scale space-y-4">
+                                        <div class="space-y-1.5">
+                                            <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Email address"</label>
+                                            <input type="email"
                                                 class="appearance-none block w-full px-4 py-3 border border-outline-variant/50 rounded-xl placeholder-outline-variant focus:outline-none focus:ring-2 focus:ring-[#004289] focus:border-transparent transition-all sm:text-sm font-medium text-on-surface bg-surface-container-lowest"
-                                                placeholder="••••••••"
-                                                prop:value=move || password.get()
-                                                on:input=move |ev| password.set(event_target_value(&ev))
+                                                placeholder="name@company.com"
+                                                prop:value=move || auth.email.get()
+                                                on:input=move |ev| auth.email.set(event_target_value(&ev))
                                             />
                                         </div>
+                                        <button 
+                                            class="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all disabled:opacity-70 shadow-sm"
+                                            on:click=move |_| { auth.dispatch_login.dispatch(()); } 
+                                            disabled=move || auth.email.get().is_empty() || auth.is_loading.get() || (auth.countdown.get() > 0)
+                                        >
+                                            {move || if auth.is_loading.get() { 
+                                                "Sending...".to_string() 
+                                            } else if auth.countdown.get() > 0 {
+                                                format!("Resend in {}s", auth.countdown.get())
+                                            } else if auth.error.get() == Some("Magic link sent! Check your email.".to_string()) {
+                                                "Resend Magic Link".to_string()
+                                            } else { 
+                                                "Send Magic Link".to_string() 
+                                            }}
+                                        </button>
 
-                                        <div>
-                                            <button type="submit" disabled=move || is_submitting.get()
-                                                class="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all disabled:opacity-70 shadow-sm"
+                                        <div class="text-center pt-2">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
+                                                on:click=move |_| { auth.use_email.set(false); auth.error.set(None); }
                                             >
-                                                {move || if is_submitting.get() { "Signing in..." } else { "Sign in" }}
+                                                "\u{2190} Back to Passkey"
                                             </button>
                                         </div>
-                                    </form>
-                                    <div class="text-center pt-6">
-                                        <button type="button" class="text-sm font-bold text-on-surface-variant hover:text-[#004289] transition-colors flex items-center justify-center gap-1 mx-auto" on:click=move |_| { show_password.set(false); error.set("".to_string()); }>
-                                            <span class="material-symbols-outlined text-[16px]">"arrow_back"</span>
-                                            "Use a passkey instead"
-                                        </button>
                                     </div>
-                                </div>
-                            }.into_any()
-                        }}
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="animate-fade-scale space-y-4">
+                                        <div class="text-center pb-2">
+                                            <p class="text-sm font-medium text-on-surface-variant">
+                                                "Biometric Authentication"
+                                            </p>
+                                        </div>
+                                        <div class="py-2">
+                                            <PasskeyLoginButton 
+                                                api_base_url=crate::get_api_base_url() + "/api/auth/passkeys"
+                                                email=RwSignal::new("".to_string())
+                                                on_success=handle_passkey_success.clone()
+                                                on_error=handle_passkey_error.clone()
+                                            />
+                                        </div>
+                                        <div class="text-center pt-2">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-bold text-outline hover:text-[#004289] transition-colors uppercase tracking-widest"
+                                                on:click=move |_| auth.use_email.set(true)
+                                            >
+                                                "Use Email Instead"
+                                            </button>
+                                        </div>
+                                    </div>
+                                }.into_any()
+                            }}
+                        </div>
                         
                         <div class="text-center mt-6">
                             <p class="text-sm text-on-surface-variant font-medium">

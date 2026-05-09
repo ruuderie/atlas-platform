@@ -28,7 +28,10 @@ js-sys = "0.3.97"
 
 [features]
 csr = ["leptos/csr"]
-hydrate = ["leptos/hydrate"]
+hydrate = [
+    "leptos/hydrate",
+    "shared-ui/hydrate",
+]
 ssr = [
     "dep:axum",
     "dep:tokio",
@@ -36,6 +39,7 @@ ssr = [
     "dep:tower",
     "dep:tower-http",
     "leptos/ssr",
+    "shared-ui/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",
 ]

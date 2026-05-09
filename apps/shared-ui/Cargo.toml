@@ -7,7 +7,7 @@ edition = "2024"
 console_error_panic_hook = "0.1.7"
 heck = "0.5.0"
 icons = { version = "0.18.0", features = ["leptos"] }
-leptos = { version = "0.8.17", features = ["csr"] }
+leptos = { version = "0.8.17" }
 leptos_router = "0.8.12"
 leptos_ui = "0.3.21"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -22,7 +22,16 @@ web-sys = { version = "0.3.77", features = ["Window", "Document", "HtmlElement",
 wasm-bindgen-futures = "0.4.64"
 serde-wasm-bindgen = "0.6.5"
 reqwest = { version = "0.13.2", features = ["json"] }
+leptos_axum = { version = "0.8", optional = true }
+axum = { version = "0.8", optional = true }
+futures = "0.3"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.49"
 
+[features]
+leptos_axum = ["dep:leptos_axum"]
+axum = ["dep:axum"]
+ssr = ["leptos/ssr", "leptos_axum", "axum"]
+hydrate = ["leptos/hydrate"]
+csr = ["leptos/csr"]

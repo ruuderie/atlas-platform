@@ -932,7 +932,7 @@ mod tests {
     #[test]
     fn test_generate_latex_string_formats_correctly() {
         let profile = ResumeProfile {
-            id: 1,
+            id: uuid::Uuid::new_v4(),
             name: "Internal Name".into(),
             full_name: "John Doe".into(),
             objective: Some("Software Dev".into()),
@@ -946,8 +946,8 @@ mod tests {
             category_order: serde_json::json!(["work"]),
         };
         let entries = vec![ResumeEntry {
-            id: 1,
-            profile_id: 1,
+            id: uuid::Uuid::new_v4(),
+            profile_id: uuid::Uuid::new_v4(),
             category: ResumeCategory::Work,
             title: "Developer".into(),
             subtitle: Some("Tech Corp".into()),
@@ -972,7 +972,7 @@ mod tests {
     #[test]
     fn test_generate_latex_string_filters_and_masks() {
         let profile = ResumeProfile {
-            id: 1,
+            id: uuid::Uuid::new_v4(),
             name: "Internal Name".into(),
             full_name: "Jane Doe".into(),
             objective: Some("Hidden Test".into()),
@@ -987,8 +987,8 @@ mod tests {
         };
         let entries = vec![
             ResumeEntry {
-                id: 1,
-                profile_id: 1,
+                id: uuid::Uuid::new_v4(),
+                profile_id: uuid::Uuid::new_v4(),
                 category: ResumeCategory::Work,
                 title: "Hidden Job".into(),
                 subtitle: None,
@@ -1002,8 +1002,8 @@ mod tests {
                 slug: None,
             },
             ResumeEntry {
-                id: 2,
-                profile_id: 1,
+                id: uuid::Uuid::new_v4(),
+                profile_id: uuid::Uuid::new_v4(),
                 category: ResumeCategory::Education,
                 title: "Hidden Education".into(),
                 subtitle: None,
@@ -1027,7 +1027,7 @@ mod tests {
     #[test]
     fn test_generate_latex_kami_tokens() {
         let profile = ResumeProfile {
-            id: 1,
+            id: uuid::Uuid::new_v4(),
             name: "Kami Profile".into(),
             full_name: "Kami User".into(),
             objective: Some("Design test".into()),
@@ -1041,8 +1041,8 @@ mod tests {
             category_order: serde_json::json!(["skill"]),
         };
         let entries = vec![ResumeEntry {
-            id: 1,
-            profile_id: 1,
+            id: uuid::Uuid::new_v4(),
+            profile_id: uuid::Uuid::new_v4(),
             category: ResumeCategory::Skill,
             title: "Rust".into(),
             subtitle: None,

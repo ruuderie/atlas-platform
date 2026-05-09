@@ -1,6 +1,5 @@
 use leptos::prelude::*;
-use leptos_router::components::{Router, Routes, Route, Redirect, A};
-use leptos_router::hooks::{use_params_map, use_query_map, use_location};
+use leptos_router::hooks::use_params_map;
 use crate::components::design_mode::use_kami_mode;
 use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
 
@@ -636,7 +635,7 @@ pub fn BlogPost() -> impl IntoView {
                                         // BlogPdfCta checks the post payload for PDF config and renders
                                         // either a direct download link or a lead-gate modal.
                                         {
-                                            let pdf_url = post.markdown.as_deref()
+                                            let _pdf_url = post.markdown.as_deref()
                                                 .map(|_| "") // placeholder — pdf_attachment_url from payload below
                                                 .unwrap_or("");
                                             // Extract PDF config from payload stored in subtitle field (slug)

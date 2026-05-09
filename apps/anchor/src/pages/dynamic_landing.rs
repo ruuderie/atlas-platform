@@ -1,6 +1,5 @@
 use leptos::prelude::*;
-use leptos_router::components::{Router, Routes, Route, Redirect, A};
-use leptos_router::hooks::{use_params_map, use_query_map, use_location};
+use leptos_router::hooks::use_params_map;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

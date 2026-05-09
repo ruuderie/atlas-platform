@@ -164,16 +164,28 @@ pub async fn fetch_my_accounts(
 
 #[component]
 pub fn AuthProvider(children: Children) -> impl IntoView {
+    let auth_state = shared_ui::auth::atlas_auth::use_atlas_auth();
+    
     // Token param is None — auth is fully cookie-based now.
     // The server functions read the session cookie from the request context.
     let user_resource = Resource::new(
-        || (),
-        move |_| async move { fetch_current_user(None).await },
+        move || auth_state.auth_resource.get(),
+        move |session_status| async move { 
+            match session_status {
+                Some(Ok(true)) => fetch_current_user(None).await,
+                _ => Ok(None)
+            }
+        },
     );
 
     let accounts_resource = Resource::new(
-        || (),
-        move |_| async move { fetch_my_accounts(None).await },
+        move || auth_state.auth_resource.get(),
+        move |session_status| async move { 
+            match session_status {
+                Some(Ok(true)) => fetch_my_accounts(None).await,
+                _ => Ok(vec![])
+            }
+        },
     );
 
     let is_logged_in = Signal::derive(move || {
@@ -187,6 +199,7 @@ pub fn AuthProvider(children: Children) -> impl IntoView {
     };
 
     provide_context(auth_context);
+    provide_context(auth_state);
 
     children()
 }

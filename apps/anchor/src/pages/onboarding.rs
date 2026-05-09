@@ -152,7 +152,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                         view! {
                                             <StepDot
                                                 is_complete=step.is_complete
-                                                is_current=(i == current)
+                                                is_current=i == current 
                                             />
                                         }
                                     }).collect::<Vec<_>>()}

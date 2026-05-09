@@ -5,29 +5,18 @@ use shared_ui::components::ui::input::{Input, InputType};
 use crate::api::models::UserInfo;
 use crate::api::setup::{get_setup_status, purge_admin};
 use shared_ui::components::auth::passkey_login::PasskeyLoginButton;
-
-#[derive(Clone, PartialEq)]
-enum LoginState {
-    EmailEntry,
-    PasskeyPrompt,
-    SendingToken,
-    SetupTokenSent,
-}
+use shared_ui::auth::atlas_auth::use_atlas_auth;
 
 #[component]
 pub fn Login() -> impl IntoView {
-    let email = RwSignal::new("".to_string());
-    let login_state = RwSignal::new(LoginState::EmailEntry);
-    let error_message = RwSignal::new(None::<String>);
-    let is_loading = RwSignal::new(false);
+    let auth = use_atlas_auth();
     let set_user = use_context::<WriteSignal<Option<UserInfo>>>().expect("set_user context");
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-
     let navigate = use_navigate();
-    let navigate_pk = navigate.clone();
+    let is_purging = RwSignal::new(false);
+    
+    // Setup status check
     let navigate_setup = navigate.clone();
-
-    // Check if system needs setup
     leptos::task::spawn_local(async move {
         if let Ok(status) = get_setup_status().await {
             if status.needs_setup {
@@ -36,64 +25,14 @@ pub fn Login() -> impl IntoView {
         }
     });
 
-    let handle_check_flow = Callback::new(move |_| {
-        error_message.set(None);
-        is_loading.set(true);
-        let current_email = email.get();
-
-        leptos::task::spawn_local(async move {
-            let flow_url = crate::api::client::api_url(&format!("/api/auth/flow/{}", urlencoding::encode(&current_email)));
-            match crate::api::client::api_request::<serde_json::Value>(reqwest::Client::new().get(&flow_url)).await {
-                Ok(res) => {
-                    if let Some(true) = res.get("has_passkey").and_then(|v| v.as_bool()) {
-                        login_state.set(LoginState::PasskeyPrompt);
-                    } else {
-                        // Force a setup token bypass
-                        login_state.set(LoginState::SendingToken);
-                    }
-                }
-                Err(_) => {
-                    error_message.set(Some("User lookup failed. Try again.".to_string()));
-                }
-            }
-            is_loading.set(false);
-        });
-    });
-
-    let handle_send_recovery = Callback::new(move |_| {
-        error_message.set(None);
-        is_loading.set(true);
-        login_state.set(LoginState::SendingToken);
-    });
-
-    Effect::new(move |_| {
-        if login_state.get() == LoginState::SendingToken {
-            let current_email = email.get();
-            leptos::task::spawn_local(async move {
-                let req_url = crate::api::client::api_url("/api/auth/magic-link/request");
-                if let Err(_) = crate::api::client::api_request::<serde_json::Value>(
-                    reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "email": current_email }))
-                ).await {
-                    error_message.set(Some("Failed to dispatch Setup Token. Check infrastructure routing.".to_string()));
-                    login_state.set(LoginState::EmailEntry);
-                } else {
-                    login_state.set(LoginState::SetupTokenSent);
-                }
-                is_loading.set(false);
-            });
-        }
-    });
-
     let set_user_pk = set_user.clone();
+    let navigate_pk = navigate.clone();
     let toast_pk = toast.clone();
-    
     let handle_passkey_success = Callback::new(move |_token: String| {
         let set_user = set_user_pk.clone();
         let navigate = navigate_pk.clone();
         let toast = toast_pk.clone();
         leptos::task::spawn_local(async move {
-            // Session cookie was set by the backend as HttpOnly on finish-login.
-            // No client-side token storage needed — validate_session reads the cookie.
             if let Ok(user) = crate::api::auth::validate_session().await {
                 set_user.set(Some(user));
                 navigate("/", Default::default());
@@ -104,23 +43,21 @@ pub fn Login() -> impl IntoView {
     });
 
     let handle_passkey_error = Callback::new(move |err: String| {
-        error_message.set(Some(err));
+        auth.error.set(Some(err));
     });
 
     let navigate_purge = navigate.clone();
     let toast_purge = toast.clone();
     let handle_purge_admin = Callback::new(move |_| {
-        is_loading.set(true);
+        is_purging.set(true);
         let navigate = navigate_purge.clone();
         let toast = toast_purge.clone();
         leptos::task::spawn_local(async move {
             match purge_admin().await {
-                Ok(_) => {
-                    navigate("/setup", Default::default());
-                }
+                Ok(_) => { navigate("/setup", Default::default()); }
                 Err(e) => {
                     toast.message.set(Some(e.clone()));
-                    is_loading.set(false);
+                    is_purging.set(false);
                 }
             }
         });
@@ -128,9 +65,7 @@ pub fn Login() -> impl IntoView {
 
     view! {
         <div class="relative flex items-center justify-center min-h-screen bg-surface font-sans overflow-hidden">
-            // Grid background
             <div class="absolute inset-0 opacity-50" style="background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='24'%3E%3Crect x='0' y='0' width='1' height='24' fill='%232b468020'/%3E%3Crect x='0' y='0' width='14' height='1' fill='%232b468020'/%3E%3C/svg%3E\");background-size:14px 24px;"></div>
-            // Glow
             <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/20 rounded-full blur-[100px] pointer-events-none"></div>
 
             <div class="relative z-10 w-full max-w-md p-6">
@@ -143,93 +78,78 @@ pub fn Login() -> impl IntoView {
                 </div>
 
                 <div class="p-8 rounded-2xl bg-surface-container/30 border border-outline-variant/10 shadow-2xl backdrop-blur-xl space-y-6">
-                    {move || error_message.get().map(|msg| view! {
+                    {move || auth.error.get().map(|msg| view! {
                         <div class="p-3 bg-error-container/30 text-error text-xs rounded border border-error/20 mb-4 animate-slide-up">
                             {msg}
                         </div>
                     })}
 
                     <div class="space-y-4 min-h-[140px]">
-                        {move || match login_state.get() {
-                            LoginState::EmailEntry => view! {
+                        {move || if auth.use_email.get() {
+                            view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <div class="space-y-1.5">
                                         <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Email / Node ID"</label>
                                         <Input 
                                             r#type=InputType::Email 
                                             placeholder="operator@foundry.local".to_string() 
-                                            bind_value=email 
+                                            bind_value=auth.email 
                                         />
                                     </div>
                                     <Button 
                                         class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
-                                        on:click=move |ev| handle_check_flow.run(ev) 
-                                        attr:disabled=move || email.get().is_empty()
+                                        on:click=move |_| { auth.dispatch_login.dispatch(()); } 
+                                        attr:disabled=move || auth.email.get().is_empty() || auth.is_loading.get() || (auth.countdown.get() > 0)
                                     >
-                                        {move || if is_loading.get() { "Evaluating Node..." } else { "Continue" }}
+                                        {move || if auth.is_loading.get() { 
+                                            "Evaluating Node...".to_string() 
+                                        } else if auth.countdown.get() > 0 {
+                                            format!("Resend in {}s", auth.countdown.get())
+                                        } else if auth.error.get() == Some("Magic link sent! Check your email.".to_string()) {
+                                            "Resend Magic Link".to_string()
+                                        } else { 
+                                            "Send Magic Link".to_string() 
+                                        }}
                                     </Button>
 
-                                    <div class="relative flex items-center py-2">
-                                        <div class="flex-grow border-t border-outline-variant/30"></div>
-                                        <span class="flex-shrink-0 mx-4 text-on-surface-variant text-xs">"or"</span>
-                                        <div class="flex-grow border-t border-outline-variant/30"></div>
+                                    <div class="text-center pt-2">
+                                        <button
+                                            type="button"
+                                            class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
+                                            on:click=move |_| { auth.use_email.set(false); auth.error.set(None); }
+                                        >
+                                            "\u{2190} Back to Passkey"
+                                        </button>
                                     </div>
-
-                                    <PasskeyLoginButton 
-                                        api_base_url=crate::api::client::api_url("/api/passkeys")
-                                        email=RwSignal::new("".to_string())
-                                        on_success=handle_passkey_success.clone()
-                                        on_error=handle_passkey_error.clone()
-                                    />
                                 </div>
-                            }.into_any(),
-
-                            LoginState::PasskeyPrompt => view! {
+                            }.into_any()
+                        } else {
+                            view! {
                                 <div class="animate-fade-scale space-y-4">
                                     <div class="text-center pb-2">
                                         <p class="text-sm font-medium text-on-surface-variant">
-                                            "Biometrics found for "
-                                            <span class="text-on-surface font-bold">{email.get()}</span>
+                                            "Biometric Authentication"
                                         </p>
                                     </div>
                                     <div class="py-2">
                                         <PasskeyLoginButton 
                                             api_base_url=crate::api::client::api_url("/api/passkeys")
-                                            email=email
-                                            on_success=handle_passkey_success
-                                            on_error=handle_passkey_error
+                                            email=RwSignal::new("".to_string())
+                                            on_success=handle_passkey_success.clone()
+                                            on_error=handle_passkey_error.clone()
                                         />
                                     </div>
                                     <div class="text-center pt-2">
-                                        <button type="button" class="text-xs font-bold text-on-surface-variant hover:text-primary transition-colors underline" on:click=move |ev| handle_send_recovery.run(ev)>
-                                            "Device lost? Send a Session Recovery Token"
+                                        <button
+                                            type="button"
+                                            class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
+                                            on:click=move |_| auth.use_email.set(true)
+                                        >
+                                            "Use Email Instead"
                                         </button>
                                     </div>
                                 </div>
-                            }.into_any(),
-
-                            LoginState::SendingToken => view! {
-                                <div class="animate-fade-scale space-y-4 flex flex-col items-center justify-center py-6">
-                                    <span class="material-symbols-outlined text-4xl text-primary animate-spin">"sync"</span>
-                                    <p class="text-sm text-on-surface-variant mt-4 font-medium animate-pulse">"Establishing secure email relay..."</p>
-                                </div>
-                            }.into_any(),
-
-                            LoginState::SetupTokenSent => view! {
-                                <div class="animate-fade-scale space-y-4 flex flex-col items-center justify-center text-center py-4">
-                                    <div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-2">
-                                        <span class="material-symbols-outlined text-3xl text-primary block">"mail"</span>
-                                    </div>
-                                    <h3 class="text-lg font-bold text-on-surface">"Transmission Sent"</h3>
-                                    <p class="text-sm text-on-surface-variant">"A single-use Setup Token has been dispatched to "</p>
-                                    <p class="text-sm text-primary font-bold">{email.get()}</p>
-                                    <p class="text-xs text-on-surface-variant mt-4 opacity-75">"Check your inbox to authenticate and strictly configure a new physical passkey."</p>
-                                    
-                                    <button class="mt-6 text-xs text-on-surface-variant underline hover:text-primary" on:click=move |_| { error_message.set(None); login_state.set(LoginState::EmailEntry); }>
-                                        "Return to Email Input"
-                                    </button>
-                                </div>
-                            }.into_any(),
+                            }.into_any()
                         }}
                     </div>
 
@@ -238,8 +158,9 @@ pub fn Login() -> impl IntoView {
                             variant=shared_ui::components::ui::button::ButtonVariant::Outline
                             class="w-full bg-error-container/10 border-error/30 text-error hover:bg-error-container/30 hover:text-error transition-all".to_string() 
                             on:click=move |ev| handle_purge_admin.run(ev) 
+                            attr:disabled=move || is_purging.get()
                         >
-                            "Purge Admin (Dev)"
+                            {move || if is_purging.get() { "Purging..." } else { "Purge Admin (Dev)" }}
                         </Button>
                     </div>
                 </div>

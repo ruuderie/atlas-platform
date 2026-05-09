@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use leptos_router::components::A;
 
 #[server(GetBlockHeight, "/api")]
 pub async fn get_block_height() -> Result<Option<u64>, ServerFnError> {

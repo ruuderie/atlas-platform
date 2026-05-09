@@ -49,11 +49,13 @@ sha2 = { version = "0.10", optional = true }
 urlencoding = { version = "2.1", optional = true }
 printpdf = { version = "0.7", optional = true }
 futures = "0.3"
+gloo-net = "0.6.0"
 
 
 [features]
 hydrate = [
     "leptos/hydrate",
+    "shared-ui/hydrate",
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
@@ -63,6 +65,7 @@ ssr = [
     "dep:tokio",
     "dep:leptos_axum",
     "leptos/ssr",
+    "shared-ui/ssr",
     "dep:sqlx",
     "dep:reqwest",
     "dep:webauthn-rs",

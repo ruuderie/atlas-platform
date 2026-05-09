@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use reqwest::Client;
-use serde_json::json;
 use crate::auth::passkey::start_registration;
 
 #[component]

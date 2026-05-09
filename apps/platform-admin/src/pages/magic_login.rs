@@ -27,14 +27,9 @@ pub fn MagicLogin() -> impl IntoView {
         let set_user_task_inner = set_user_task.clone();
 
         leptos::task::spawn_local(async move {
-            let req_url = crate::api::client::api_url("/api/auth/magic-link/verify");
-            match crate::api::client::api_request::<crate::api::models::SessionResponse>(
-                reqwest::Client::new().post(&req_url).json(&serde_json::json!({ "token": t }))
-            ).await {
-                Ok(res) => {
-                    // Set token and save user
-                    crate::api::client::set_auth_token(&res.token);
-                    if let Some(user_info) = res.user.clone() {
+            match shared_ui::auth::atlas_auth::server_fns::verify_magic_link(t).await {
+                Ok(_) => {
+                    if let Ok(user_info) = crate::api::auth::validate_session().await {
                         set_user_task_inner.set(Some(user_info.clone()));
                         
                         // Check if they need passkey setup
@@ -48,7 +43,6 @@ pub fn MagicLogin() -> impl IntoView {
                                 nav("/settings?register_passkey=true", Default::default());
                             }
                         } else {
-                            // Fallback to Dashboard if flow inspection fails
                             nav("/", Default::default());
                         }
                     } else {
