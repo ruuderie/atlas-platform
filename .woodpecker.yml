@@ -307,18 +307,21 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        # If CI_COMMIT_CHANGED_FILES is empty (manual trigger) — update all services.
-        # publish steps are path-gated so only built images exist in GHCR at this SHA.
+        # ── Scoped image rollout ────────────────────────────────────────────────
+        # CI_COMMIT_CHANGED_FILES drives which services get a new image.
+        # If it's empty (e.g. config-only commit, merge commit, first push to branch)
+        # we do NOT blindly update all services — the images for this SHA may not
+        # exist in GHCR (publish steps are path-gated and were skipped).
+        # The kubectl apply -k above already updated all config/secrets.
         if [ -z "$CHANGED" ]; then
-          echo "No changed files info available — updating all services."
-          update_service backend          "$REGISTRY/atlas-backend:$SHORT_SHA"
-          update_service platform-admin   "$REGISTRY/platform-admin:$SHORT_SHA"
-          update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-          update_service anchor-app       "$REGISTRY/anchor-app:$SHORT_SHA"
+          echo "ℹ CI_COMMIT_CHANGED_FILES is empty — config/secrets applied, image rollouts skipped."
+          echo "  Reason: no source files changed in this commit, so no images were built."
+          echo "  To force a full image update: re-trigger the pipeline from the Woodpecker UI"
+          echo "  on a commit that touches backend/ or apps/."
         else
           # Detect pipeline-config-only change → no new images built, skip image updates
-          if echo "$CHANGED" | grep -q "\.woodpecker\.yml" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
-            echo "Pipeline config only change — applying config/secrets, no image updates needed."
+          if echo "$CHANGED" | grep -qE "(\.woodpecker\.yml|k8s/)" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
+            echo "Config/infra-only change — config and secrets applied, no image updates needed."
           else
             # Service-scoped image updates — only for services rebuilt in this run
             if echo "$CHANGED" | grep -qE "^backend/"; then
