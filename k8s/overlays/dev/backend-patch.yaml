@@ -12,8 +12,7 @@ spec:
             name: app-config
         - secretRef:
             name: app-secrets
-        - secretRef:
-            name: cloudflare-edge-secrets
+        # cloudflare-edge-secrets is not present in atlas-dev
         env:
         - name: ATLAS_INIT_TOKEN
           value: "REPLACE_WITH_CI_TOKEN"

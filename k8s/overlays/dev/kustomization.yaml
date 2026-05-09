@@ -11,10 +11,4 @@ resources:
 
 patches:
   - path: platform-admin-patch.yaml
-  - target:
-      kind: Deployment
-      name: backend
-    patch: |-
-      - op: remove
-        path: /spec/template/spec/containers/0/envFrom/2
   - path: backend-patch.yaml
