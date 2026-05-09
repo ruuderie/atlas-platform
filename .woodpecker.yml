@@ -233,12 +233,15 @@ steps:
         fi
 
       # ── Scoped rollout: only update pods whose source changed ───────────────
-      # git diff against the previous commit to determine which services need
-      # a rollout. For .woodpecker.yml changes (pipeline infra), update all services
-      # since any step could have been modified.
+      # ── Scoped rollout: use Woodpecker's native CI_COMMIT_CHANGED_FILES ──────
+      # CI_COMMIT_CHANGED_FILES is populated by Woodpecker from the webhook
+      # payload — no git history needed, works correctly on shallow clones.
+      # Values are comma-separated; we convert to newlines for grep compatibility.
       - |
-        CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
-        echo "Changed paths: $CHANGED"
+        # Normalise: comma-separated → newline-separated for grep
+        CHANGED=$(echo "${CI_COMMIT_CHANGED_FILES:-}" | tr ',' '\n')
+        echo "Changed paths:"
+        echo "$CHANGED"
 
         # Helper: wait for a deployment rollout to complete and tail logs on failure
         rollout_service() {
@@ -270,23 +273,33 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        # Detect pipeline-wide change (woodpecker.yml itself) → only rollout, don't set image
-        # (no new images were built for a pipeline-only change)
-        if echo "$CHANGED" | grep -q "\.woodpecker\.yml" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
-          echo "Pipeline config only change — applying config/secrets, no image updates needed."
+        # If CI_COMMIT_CHANGED_FILES is empty (e.g. manual trigger), update all
+        # services that were built (publish steps are still path-gated so only
+        # built images will actually exist in GHCR at this SHA).
+        if [ -z "$CHANGED" ]; then
+          echo "No changed files info available — updating all services."
+          update_service backend         "$REGISTRY/atlas-backend:$SHORT_SHA"
+          update_service platform-admin  "$REGISTRY/platform-admin:$SHORT_SHA"
+          update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
+          update_service anchor-app      "$REGISTRY/anchor-app:$SHORT_SHA"
         else
-          # Service-scoped image updates — only push new image for services that were rebuilt
-          if echo "$CHANGED" | grep -qE "^backend/"; then
-            update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
-          fi
-          if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
-            update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-          fi
-          if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
-            update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-          fi
-          if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
-            update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
+          # Detect pipeline-config-only change → no new images built, skip image updates
+          if echo "$CHANGED" | grep -q "\.woodpecker\.yml" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
+            echo "Pipeline config only change — applying config/secrets, no image updates needed."
+          else
+            # Service-scoped image updates — only for services rebuilt in this run
+            if echo "$CHANGED" | grep -qE "^backend/"; then
+              update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
+            fi
+            if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
+              update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
+            fi
+            if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
+              update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
+            fi
+            if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
+              update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
+            fi
           fi
         fi
 

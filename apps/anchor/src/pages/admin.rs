@@ -1,4 +1,4 @@
-// Build: trigger rebuild to ship Leptos hydration fix for login modal toggle.
+// Build: ship Leptos hydration fix; pipeline now uses CI_COMMIT_CHANGED_FILES.
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
