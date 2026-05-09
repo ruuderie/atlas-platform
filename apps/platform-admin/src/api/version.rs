@@ -6,6 +6,7 @@ pub struct VersionInfo {
     pub version: String,
     pub build_sha: String,
     pub build_date: String,
+    pub environment: String,
 }
 
 /// `GET /api/version` — no auth required.

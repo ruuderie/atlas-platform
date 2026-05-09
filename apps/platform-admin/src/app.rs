@@ -325,17 +325,35 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
                         // Version chip — fetched once on mount
                         <Suspense fallback=|| ()>
-                            {move || version_res.get().map(|v| view! {
-                                <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 flex items-center justify-between">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
-                                        <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
-                                        <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
+                            {move || version_res.get().map(|v| {
+                                let env_label = v.environment.clone();
+                                let env_color = match env_label.as_str() {
+                                    "prod" => "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+                                    "uat"  => "text-amber-400 bg-amber-400/10 border-amber-400/20",
+                                    _      => "text-sky-400 bg-sky-400/10 border-sky-400/20",
+                                };
+                                view! {
+                                    <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 space-y-1.5">
+                                        // Environment badge
+                                        <div class=format!("inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest {}", env_color)>
+                                            <span class="material-symbols-outlined text-[10px]">
+                                                {if env_label == "prod" { "verified" } else { "science" }}
+                                            </span>
+                                            {env_label.to_uppercase()}
+                                        </div>
+                                        // Version + SHA
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
+                                                <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
+                                                <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
+                                            </div>
+                                            <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
+                                                {v.build_sha.chars().take(7).collect::<String>()}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
-                                        {v.build_sha.chars().take(7).collect::<String>()}
-                                    </span>
-                                </div>
+                                }
                             })}
                         </Suspense>
                         <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">

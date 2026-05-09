@@ -35,6 +35,7 @@ pub struct VersionResponse {
     pub version: &'static str,
     pub build_sha: &'static str,
     pub build_date: &'static str,
+    pub environment: String,
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -45,10 +46,12 @@ pub struct VersionResponse {
 /// Used by platform-admin, health monitors, and multi-tenant drift detection
 /// (via the `X-Atlas-Version` response header on every request).
 pub async fn get_version() -> Json<VersionResponse> {
+    let environment = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "dev".to_string());
     Json(VersionResponse {
         version: ATLAS_VERSION,
         build_sha: ATLAS_BUILD_SHA,
         build_date: ATLAS_BUILD_DATE,
+        environment,
     })
 }
 
