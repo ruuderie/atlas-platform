@@ -1,0 +1,231 @@
+# Adding a New Application to the Atlas Platform
+
+This document is the definitive checklist for integrating a new frontend application (Leptos/WASM or otherwise) into the Atlas Platform's CI/CD pipeline and Kubernetes infrastructure. Follow every step in order. Skipping any step will result in broken deployments or `ImagePullBackOff` errors.
+
+---
+
+## Overview of the Moving Parts
+
+Every application in the platform is registered in **five places**:
+
+1. `apps/<your-app>/Dockerfile` — how to build the image
+2. `k8s/base/<your-app>.yaml` — the Kubernetes Deployment + Service manifest
+3. `k8s/base/kustomization.yaml` — registers the manifest with Kustomize
+4. `k8s/overlays/uat/ingress.yaml` + `k8s/overlays/prod/ingress.yaml` — routes a domain to the service
+5. `.woodpecker.yml` — builds, pushes, and deploys the image in CI
+
+If any of these are missing, the deployment will silently fail or the app will be unreachable.
+
+---
+
+## Step 1: Create the Dockerfile
+
+Create `apps/<your-app>/Dockerfile`. Use an existing app as a reference:
+
+- **Leptos SSR app** → copy `apps/anchor/Dockerfile`
+- **Leptos CSR/WASM app** → copy `apps/platform-admin/Dockerfile`
+- **Network-facing app** → copy `apps/network-instance/Dockerfile`
+
+The Dockerfile must accept two optional build args that the pipeline injects automatically:
+
+```dockerfile
+ARG ATLAS_BUILD_SHA=dev
+ARG ATLAS_BUILD_DATE=unknown
+```
+
+---
+
+## Step 2: Create the Kubernetes Base Manifest
+
+Create `k8s/base/<your-app>.yaml`. This file defines the Deployment and Service. Use this template:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <your-app>            # kebab-case, e.g. "my-app"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: <your-app>
+  template:
+    metadata:
+      labels:
+        app: <your-app>
+    spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
+      containers:
+      - name: <your-app>      # must match the deployment name exactly
+        image: ghcr.io/ruuderie/<your-app>:<stable-sha>
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        env:
+        - name: DATABASE_URL
+          value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
+        ports:
+        - containerPort: <port>   # the port your app listens on
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: <your-app>
+spec:
+  selector:
+    app: <your-app>
+  ports:
+  - port: 80
+    targetPort: <port>
+```
+
+> **Critical:** The `image:` field must contain a **real, pullable SHA tag** — never the placeholder string `ATLAS_IMAGE_TAG`. Set it to the SHA of the first image you push manually (see Step 5). The pipeline will update it automatically after that using `kubectl set image`.
+
+---
+
+## Step 3: Register with Kustomize
+
+Add your manifest to `k8s/base/kustomization.yaml`:
+
+```yaml
+resources:
+  - namespace.yaml
+  - backend.yaml
+  - platform-admin.yaml
+  - network-instance.yaml
+  - anchor-app.yaml
+  - <your-app>.yaml     # ← add this line
+```
+
+---
+
+## Step 4: Add Ingress Rules
+
+Add a routing rule for your app's domain in both overlays:
+
+**`k8s/overlays/uat/ingress.yaml`** — add under `spec.rules`:
+```yaml
+- host: uat.<your-tenant-domain>.com
+  http:
+    paths:
+    - path: /
+      pathType: Prefix
+      backend:
+        service:
+          name: <your-app>
+          port:
+            number: 80
+```
+
+**`k8s/overlays/prod/ingress.yaml`** — same block without the `uat.` prefix.
+
+Also add the domain to `spec.tls[0].hosts` in both ingress files for automatic SSL via cert-manager.
+
+---
+
+## Step 5: Push a First Image Manually
+
+Before the pipeline can deploy your app, a real image must exist in GHCR. Build and push it once manually so the base manifest has a valid tag to start from:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t ghcr.io/ruuderie/<your-app>:<short-sha> \
+  -t ghcr.io/ruuderie/<your-app>:latest \
+  --push \
+  -f apps/<your-app>/Dockerfile .
+```
+
+Then update the `image:` field in `k8s/base/<your-app>.yaml` to `ghcr.io/ruuderie/<your-app>:<short-sha>` and commit it.
+
+> This is a one-time bootstrap step. After this, all future image updates are handled automatically by the Woodpecker pipeline.
+
+---
+
+## Step 6: Register in the Woodpecker Pipeline
+
+Add two blocks to `.woodpecker.yml`:
+
+### 6a — Publish step (builds and pushes the Docker image)
+
+Add this after the last `publish_*` step and **before** `deploy_platform_k8s`:
+
+```yaml
+  publish_<your_app>:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/<your-app>
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/<your-app>/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      path:
+        - 'apps/<your-app>/**'
+        - '.woodpecker.yml'
+```
+
+> **Note on `context`:** Most apps use `.` (repo root) as the Docker build context because they import from `apps/shared-ui`. Only `backend` uses `backend` as context. Check your Dockerfile's `COPY` statements to confirm which context you need.
+
+### 6b — Deploy wiring (updates the running pod image)
+
+Inside the `deploy_platform_k8s` step's scoped rollout block, add a condition for your app in **both** the UAT and prod branches:
+
+```yaml
+          if echo "$CHANGED" | grep -qE "^apps/<your-app>/"; then
+            update_service <your-app> "$REGISTRY/<your-app>:$SHORT_SHA"
+          fi
+```
+
+This must be added in the final `if/else` block in `commands:`, alongside the existing conditions for `backend`, `platform-admin`, `network-instance`, and `anchor-app`.
+
+---
+
+## How the Pipeline Deploys Images (Architecture Note)
+
+The pipeline uses a **`kubectl set image` strategy** — not manifest substitution. This is intentional and important:
+
+- `kubectl apply -k` is called first to apply config changes (ConfigMaps, Secrets, Ingress rules).
+- `kubectl set image` is then called **only for services whose source code changed** in this commit, using the exact `$SHORT_SHA` that was built and pushed.
+- Services whose source did not change are **not touched** — their existing running pod image is left as-is.
+
+This means a `.woodpecker.yml`-only change (e.g., updating pipeline logic) will apply config/secrets but will **not** roll out any pods, because no new images were built.
+
+> **Why this matters:** The old approach used `sed` to substitute `ATLAS_IMAGE_TAG` in base manifests before `kubectl apply`. This caused `ImagePullBackOff` whenever the tag substitution ran for a service that wasn't rebuilt in that pipeline run — K8s would try to pull a non-existent image. The current approach eliminates this entirely.
+
+---
+
+## Checklist Summary
+
+| Step | What | Where |
+|------|------|-------|
+| 1 | Create `Dockerfile` | `apps/<your-app>/Dockerfile` |
+| 2 | Create K8s manifest with real image tag | `k8s/base/<your-app>.yaml` |
+| 3 | Register in Kustomize | `k8s/base/kustomization.yaml` |
+| 4 | Add ingress rules (UAT + prod) | `k8s/overlays/uat/ingress.yaml`, `k8s/overlays/prod/ingress.yaml` |
+| 5 | Push first image manually to GHCR | (one-time bootstrap) |
+| 6a | Add `publish_*` step | `.woodpecker.yml` |
+| 6b | Add `update_service` call in deploy step | `.woodpecker.yml` |
+
+---
+
+## Related Documentation
+
+- [`deployment_environments.md`](./deployment_environments.md) — UAT vs. prod environment config, secrets management, Kustomize overlays
+- [`architecture.md`](./architecture.md) — overall platform architecture
+- [`apps_walkthrough.md`](./apps_walkthrough.md) — existing app descriptions and conventions
