@@ -144,8 +144,14 @@ fn LoginPanel() -> impl IntoView {
             
         let options = match start_res {
             Ok(res) if res.ok() => res.json::<serde_json::Value>().await.unwrap_or_default(),
-            _ => {
-                set_passkey_msg.set("Failed to start login".to_string());
+            Ok(res) => {
+                let text = res.text().await.unwrap_or_default();
+                set_passkey_msg.set(format!("Failed to start login: {}", text));
+                set_passkey_error.set(true);
+                return;
+            }
+            Err(_) => {
+                set_passkey_msg.set("Network error during login start".to_string());
                 set_passkey_error.set(true);
                 return;
             }
@@ -164,14 +170,16 @@ fn LoginPanel() -> impl IntoView {
                     
                 match finish_res {
                     Ok(res) if res.ok() => {
-                        set_passkey_msg.set("Success! Redirecting...".to_string());
-                        set_passkey_error.set(false);
-                        if let Some(window) = web_sys::window() {
-                            let _ = window.location().reload();
-                        }
+                        set_passkey_msg.set("Success! Reloading...".to_string());
+                        let _ = web_sys::window().unwrap().location().reload();
                     }
-                    _ => {
-                        set_passkey_msg.set("Verification failed".to_string());
+                    Ok(res) => {
+                        let text = res.text().await.unwrap_or_default();
+                        set_passkey_msg.set(format!("Verification failed: {}", text));
+                        set_passkey_error.set(true);
+                    }
+                    Err(_) => {
+                        set_passkey_msg.set("Network error during verification".to_string());
                         set_passkey_error.set(true);
                     }
                 }

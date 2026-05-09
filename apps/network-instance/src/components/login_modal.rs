@@ -138,7 +138,10 @@ pub fn LoginModal(
                                                     headers: {{ 'Content-Type': 'application/json' }},
                                                     body: JSON.stringify({{ email: '' }})
                                                 }});
-                                                if (!startRes.ok) throw new Error('Failed to start login');
+                                                if (!startRes.ok) {
+                                                    var errText = await startRes.text();
+                                                    throw new Error('Failed to start login: ' + errText);
+                                                }
                                                 var options = await startRes.json();
 
                                                 msg.innerText = 'Please follow browser prompts...';
@@ -151,7 +154,10 @@ pub fn LoginModal(
                                                     headers: {{ 'Content-Type': 'application/json' }},
                                                     body: JSON.stringify({{ email: '', response: credential }})
                                                 }});
-                                                if (!finishRes.ok) throw new Error('Verification failed');
+                                                if (!finishRes.ok) {
+                                                    var errText = await finishRes.text();
+                                                    throw new Error('Verification failed: ' + errText);
+                                                }
 
                                                 msg.style.color = 'green';
                                                 msg.innerText = 'Success! Reloading...';
