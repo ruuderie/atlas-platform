@@ -17,7 +17,7 @@ async fn main() {
 
     // Initialize Database
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://ruud_admin:R3sUm3_S3cUr3@localhost:5432/anchor".into());
+        .expect("DATABASE_URL must be set");
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to PostgreSQL");
