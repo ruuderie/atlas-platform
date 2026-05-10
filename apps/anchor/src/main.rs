@@ -40,6 +40,11 @@ async fn main() {
             axum::routing::get(|| async move { metric_handle.render() }),
         )
         .route(
+            "/api/{*fn_name}",
+            axum::routing::get(leptos_axum::handle_server_fns)
+                .post(leptos_axum::handle_server_fns),
+        )
+        .route(
             "/robots.txt",
             axum::routing::get({
                 let site_root = site_root.clone();
@@ -64,10 +69,6 @@ async fn main() {
                 }
             }),
         )
-        // ── Kami PDF delivery ──────────────────────────────────────────────
-        // Serves pre-uploaded R2 attachments or generates Kami-branded PDFs
-        // on the fly from post markdown. Token validation required when
-        // pdf_require_lead_capture is set on the post payload.
         .route(
             "/api/blog/{slug}/pdf",
             axum::routing::get(anchor::handlers::blog_pdf::blog_pdf::blog_pdf_handler),
@@ -80,8 +81,12 @@ async fn main() {
                 let app_state = app_state.clone();
                 move || provide_context(app_state.clone())
             },
-            move || view! { <App/> },
+            {
+                let leptos_options = leptos_options.clone();
+                move || shell(leptos_options.clone())
+            },
         )
+        .fallback(leptos_axum::file_and_error_handler(shell))
         .layer(prometheus_layer)
         .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
         .layer(axum::Extension(app_state.clone()))
@@ -92,6 +97,28 @@ async fn main() {
     axum::serve(listener, app.into_make_service())
         .await
         .unwrap();
+}
+
+#[cfg(feature = "ssr")]
+pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
+    use leptos::prelude::*;
+    use leptos_meta::MetaTags;
+
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options />
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }
 }
 
 #[cfg(feature = "ssr")]
