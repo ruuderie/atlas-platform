@@ -93,7 +93,7 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
+    let settings_resource = LocalResource::new(|| crate::pages::landing::get_site_settings());
 
     // ── Reactive derived values with immediate defaults ───────────────────────
     // These read settings_resource but provide sensible fallbacks, so the Router
@@ -101,7 +101,7 @@ pub fn App() -> impl IntoView {
     let get_settings = move || {
         settings_resource
             .get()
-            .and_then(Result::ok)
+            .and_then(|g| g.as_deref().ok().cloned())
             .unwrap_or_default()
     };
 
@@ -176,7 +176,7 @@ pub fn App() -> impl IntoView {
                     // GA script — non-blocking, scoped Suspense, renders when ready.
                     <Suspense fallback=move || view! { <span class="hidden"></span> }>
                         {move || {
-                            let s = settings_resource.get().and_then(Result::ok)?;
+                            let s = settings_resource.get().and_then(|g| g.as_deref().ok().cloned())?;
                             let gcode = s.google_analytics_id;
                             if gcode.is_empty() { return None; }
                             let gurl = format!("https://www.googletagmanager.com/gtag/js?id={}", gcode);
