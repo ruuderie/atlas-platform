@@ -40,8 +40,13 @@ RUN npx tailwindcss -i style/main.css -o target/tmp/tailwind.css
 RUN sed -i 's/tailwind-input-file = "style\/main.css"/style-file = "target\/tmp\/tailwind.css"/' Cargo.toml
 RUN sed -i '/tailwind-config-file/d' Cargo.toml
 
-# Build the app
-RUN cargo leptos build --release -vv
+# Build the app — release for prod/uat, debug for dev (much faster iteration)
+ARG BUILD_PROFILE=release
+RUN if [ "$BUILD_PROFILE" = "release" ]; then \
+      cargo leptos build --release -vv; \
+    else \
+      cargo leptos build -vv; \
+    fi
 
 # Runtime Environment
 FROM debian:bookworm-slim AS runner
@@ -60,7 +65,8 @@ RUN apt-get update -y \
   && apt-get clean \
   && rm -f /var/lib/apt/lists/*_*
 
-COPY --from=builder /app/apps/target/release/anchor /app/
+ARG BUILD_PROFILE=release
+COPY --from=builder /app/apps/target/${BUILD_PROFILE}/anchor /app/
 COPY --from=builder /app/apps/target/site /app/site
 COPY --from=builder /app/apps/anchor/Cargo.toml /app/
 COPY --from=builder /app/apps/anchor/migrations /app/migrations

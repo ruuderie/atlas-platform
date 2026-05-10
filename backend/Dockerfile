@@ -16,16 +16,19 @@ CMD ["cargo", "run"]
 
 # Build stage
 FROM base AS builder
-COPY Cargo.toml Cargo.lock ./
-# Create a dummy main.rs to cache dependencies
+ARG BUILD_PROFILE=release
 RUN mkdir -p src && \
     echo "fn main() {println!(\"Dummy main\");}" > src/main.rs && \
-    cargo build --release && \
+    if [ "$BUILD_PROFILE" = "release" ]; then cargo build --release; else cargo build; fi && \
     rm -rf src
 # Copy the actual source code
 COPY . .
-# Build the application with nightly features
-RUN cargo build --release
+# Build the application
+RUN if [ "$BUILD_PROFILE" = "release" ]; then \
+      cargo build --release; \
+    else \
+      cargo build; \
+    fi
 
 # Production stage
 FROM debian:bookworm-slim AS production
@@ -36,7 +39,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* && \
     useradd -m appuser
 WORKDIR /app
-COPY --from=builder /app/target/release/atlas_backend .
+ARG BUILD_PROFILE=release
+COPY --from=builder /app/target/${BUILD_PROFILE}/atlas_backend .
 USER appuser
 EXPOSE 8000
 ENV RUST_LOG=info

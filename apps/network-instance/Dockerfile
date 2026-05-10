@@ -18,7 +18,12 @@ FROM base AS builder
 RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
 COPY . .
 WORKDIR /app/apps/network-instance
-RUN cargo leptos build --release
+ARG BUILD_PROFILE=release
+RUN if [ "$BUILD_PROFILE" = "release" ]; then \
+      cargo leptos build --release; \
+    else \
+      cargo leptos build; \
+    fi
 
 # Production stage
 FROM debian:bookworm-slim AS production
@@ -29,7 +34,8 @@ RUN apt-get update && apt-get install -y \
     useradd -m appuser
 WORKDIR /app
 # Copy the compiled binary
-COPY --from=builder /app/apps/target/release/atlas_network_instance /app/network-instance
+ARG BUILD_PROFILE=release
+COPY --from=builder /app/apps/target/${BUILD_PROFILE}/atlas_network_instance /app/network-instance
 # Copy the built site
 COPY --from=builder /app/apps/target/site /app/site
 # Set env var so leptos knows where to find the site root

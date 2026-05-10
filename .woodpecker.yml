@@ -35,7 +35,8 @@ steps:
   # The deploy step uses the SHA tag for the rollout so Kubernetes always pins
   # the exact commit that this pipeline built.
 
-  publish_platform_admin:
+  # platform-admin — debug on dev, release on uat
+  publish_platform_admin_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -50,16 +51,47 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=debug
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
+      branch: dev
       path:
         - 'apps/platform-admin/**'
+        - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
-  publish_backend:
+  publish_platform_admin_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/platform-admin
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/platform-admin/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'apps/platform-admin/**'
+        - 'apps/shared-ui/**'
+        - '.woodpecker.yml'
+
+  # backend — debug on dev, release on uat
+  publish_backend_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -74,16 +106,45 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=debug
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
+      branch: dev
       path:
         - 'backend/**'
         - '.woodpecker.yml'
 
-  publish_network_instance:
+  publish_backend_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/atlas-backend
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: backend
+      dockerfile: backend/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'backend/**'
+        - '.woodpecker.yml'
+
+  # network-instance — debug on dev, release on uat
+  publish_network_instance_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -98,16 +159,47 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=debug
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
+      branch: dev
       path:
         - 'apps/network-instance/**'
+        - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
-  publish_anchor:
+  publish_network_instance_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/network-instance
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/network-instance/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'apps/network-instance/**'
+        - 'apps/shared-ui/**'
+        - '.woodpecker.yml'
+
+  # anchor — debug on dev, release on uat
+  publish_anchor_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -122,13 +214,43 @@ steps:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=debug
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
+      branch: dev
       path:
         - 'apps/anchor/**'
+        - 'apps/shared-ui/**'
+        - '.woodpecker.yml'
+
+  publish_anchor_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/anchor-app
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/anchor/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'apps/anchor/**'
+        - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
   # ── Unified CD Deployment ───────────────────────────────────────────────────

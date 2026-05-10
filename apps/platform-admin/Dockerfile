@@ -20,7 +20,12 @@ RUN cargo install trunk && rustup target add wasm32-unknown-unknown
 COPY . .
 WORKDIR /app/apps/platform-admin
 # Build the application with Trunk
-RUN trunk build --release
+ARG BUILD_PROFILE=release
+RUN if [ "$BUILD_PROFILE" = "release" ]; then \
+      trunk build --release; \
+    else \
+      trunk build; \
+    fi
 
 # Production stage
 FROM nginx:alpine AS production
