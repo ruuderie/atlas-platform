@@ -9,6 +9,9 @@ async fn main() {
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use sqlx::PgPool;
     use tower_http::services::ServeDir;
+    use tower_http::set_header::SetResponseHeaderLayer;
+    use axum::http::{header, HeaderValue};
+    use tower::ServiceBuilder;
 
     let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
@@ -73,7 +76,19 @@ async fn main() {
             "/api/blog/{slug}/pdf",
             axum::routing::get(anchor::handlers::blog_pdf::blog_pdf::blog_pdf_handler),
         )
-        .nest_service("/pkg", ServeDir::new(format!("{}/pkg", site_root)))
+        // /pkg assets (JS, WASM, CSS) must never be served stale.
+        // Cache-Control: no-store forces the browser to re-fetch on every
+        // navigation, which is the only reliable solution when file names
+        // are stable across builds (no content-hash in filename).
+        .nest_service(
+            "/pkg",
+            ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-store"),
+                ))
+                .service(ServeDir::new(format!("{}/pkg", site_root))),
+        )
         .leptos_routes_with_context(
             &app_state,
             routes,
