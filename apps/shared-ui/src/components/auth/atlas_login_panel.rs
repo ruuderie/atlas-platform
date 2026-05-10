@@ -27,7 +27,7 @@ pub fn AtlasLoginPanel(
     // We do NOT navigate on tab switch — that causes a full SSR round-trip,
     // remounting the component and causing layout/font/position shift.
     let initial_email_mode = query.with(|q| q.get("mode").as_deref() == Some("email"));
-    let (email_mode, set_email_mode) = signal(initial_email_mode);
+    let email_mode = RwSignal::new(initial_email_mode);
 
     // Passkey callbacks
     let on_auth = on_authenticated.clone();
@@ -86,32 +86,32 @@ pub fn AtlasLoginPanel(
                 <div style="display: flex; gap: 8px; margin-bottom: 32px;">
                     <button
                         type="button"
-                        on:click=move |_| set_email_mode.set(false)
+                        on:click=move |_| email_mode.set(false)
                         style=move || format!(
                             "display: inline-block; padding: 6px 14px; border-radius: 4px; \
                              font-size: 12px; font-weight: 500; text-decoration: none; \
                              border: none; cursor: pointer; \
                              transition: background 0.15s, color 0.15s; {}",
-                            if !email_mode() { "background: #1B365D; color: #faf9f5;" }
-                            else             { "background: #e8e6dc; color: #3d3d3a;" }
+                            if !email_mode.get() { "background: #1B365D; color: #faf9f5;" }
+                            else                  { "background: #e8e6dc; color: #3d3d3a;" }
                         )
                     >"Passkey"</button>
                     <button
                         type="button"
-                        on:click=move |_| set_email_mode.set(true)
+                        on:click=move |_| email_mode.set(true)
                         style=move || format!(
                             "display: inline-block; padding: 6px 14px; border-radius: 4px; \
                              font-size: 12px; font-weight: 500; text-decoration: none; \
                              border: none; cursor: pointer; \
                              transition: background 0.15s, color 0.15s; {}",
-                            if email_mode()  { "background: #1B365D; color: #faf9f5;" }
-                            else             { "background: #e8e6dc; color: #3d3d3a;" }
+                            if email_mode.get()  { "background: #1B365D; color: #faf9f5;" }
+                            else                  { "background: #e8e6dc; color: #3d3d3a;" }
                         )
                     >"Magic Link"</button>
                 </div>
 
                 // ── Email / Magic Link flow ───────────────────────────────────
-                {move || if email_mode() {
+                {move || if email_mode.get() {
                     view! {
                         <div>
                             {move || if ml_sent_sig.get() {
