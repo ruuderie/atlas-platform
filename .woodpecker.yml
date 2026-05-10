@@ -527,3 +527,4 @@ steps:
         event: [push]
 
 # Trigger full pipeline run
+# Trigger full platform build
