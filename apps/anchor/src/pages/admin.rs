@@ -124,42 +124,50 @@ enum AuthState {
 /// those nodes were never part of the SSR output — Leptos 0.6's hydration cursor
 /// panics or silently fails reconciling them.  A `move || if/else` expression is a
 /// single `dyn_child` slot: Leptos replaces the entire slot's content on each toggle,
-/// which works correctly whether or not both branches were rendered during SSR.
-#[component]
+/// which works correctly whether or not both branches were rendered duri#[component]
 fn LoginPanel() -> impl IntoView {
     let auth = shared_ui::auth::atlas_auth::use_atlas_auth();
-    
-    // We need a local passkey message state since we are moving from the vanilla script
+    let query = use_query_map();
+
+    // Drive the email/passkey toggle via ?mode=email so it survives SSR without WASM.
+    // This means the email form is rendered server-side and is immediately visible —
+    // no WASM hydration required to see it.
+    let email_mode = move || query.with(|q| q.get("mode").as_deref() == Some("email"));
+
+    // Local passkey feedback signals (passkey flow is client-only, always needs WASM)
     let (passkey_msg, set_passkey_msg) = signal(String::new());
     let (passkey_error, set_passkey_error) = signal(false);
+
+    // Track whether magic link was sent successfully so we can show confirmation state
+    let (link_sent, set_link_sent) = signal(false);
 
     let passkey_action = Action::new_local(move |_: &()| async move {
         set_passkey_msg.set("Initiating...".to_string());
         set_passkey_error.set(false);
-        
+
         let start_res = gloo_net::http::Request::post("/api/passkeys/start-login")
             .json(&serde_json::json!({ "email": "" }))
             .unwrap()
             .send()
             .await;
-            
+
         let options = match start_res {
             Ok(res) if res.ok() => res.json::<serde_json::Value>().await.unwrap_or_default(),
             Ok(res) => {
                 let text = res.text().await.unwrap_or_default();
-                set_passkey_msg.set(format!("Failed to start login: {}", text));
+                set_passkey_msg.set(format!("Failed: {}", text));
                 set_passkey_error.set(true);
                 return;
             }
             Err(_) => {
-                set_passkey_msg.set("Network error during login start".to_string());
+                set_passkey_msg.set("Network error — check your connection.".to_string());
                 set_passkey_error.set(true);
                 return;
             }
         };
-        
-        set_passkey_msg.set("Please follow browser prompts...".to_string());
-        
+
+        set_passkey_msg.set("Follow the browser prompt...".to_string());
+
         match shared_ui::auth::passkey::start_authentication(&options).await {
             Ok(credential) => {
                 set_passkey_msg.set("Verifying...".to_string());
@@ -168,10 +176,10 @@ fn LoginPanel() -> impl IntoView {
                     .unwrap()
                     .send()
                     .await;
-                    
+
                 match finish_res {
                     Ok(res) if res.ok() => {
-                        set_passkey_msg.set("Success! Reloading...".to_string());
+                        set_passkey_msg.set("Authenticated. Loading...".to_string());
                         let _ = web_sys::window().unwrap().location().reload();
                     }
                     Ok(res) => {
@@ -180,7 +188,7 @@ fn LoginPanel() -> impl IntoView {
                         set_passkey_error.set(true);
                     }
                     Err(_) => {
-                        set_passkey_msg.set("Network error during verification".to_string());
+                        set_passkey_msg.set("Network error during verification.".to_string());
                         set_passkey_error.set(true);
                     }
                 }
@@ -192,111 +200,219 @@ fn LoginPanel() -> impl IntoView {
         }
     });
 
+    // Watch auth.error to detect successful magic link send
+    // auth.error is set to "Magic link sent! Check your email." on success
+    let magic_link_sent = move || {
+        link_sent.get()
+            || auth.error.get().as_deref() == Some("Magic link sent! Check your email.")
+    };
+
     view! {
-        <div class="flex-1 flex justify-center items-center">
+        <div class="flex-1 flex justify-center items-center py-12">
             <div class="w-full max-w-lg bg-surface-container-highest p-1 blueprint-overlay">
                 <div class="bg-surface-container-lowest p-12">
+
+                    // Header
                     <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-6">
                         <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">
                             "SECURE_ZONE // 0xAUTH"
                         </span>
                     </div>
-                    <h2 class="text-4xl font-extrabold text-primary mb-8 tracking-tight">"SYSTEM_CMS"</h2>
-                    <div class="space-y-12">
-                        {move || if auth.use_email.get() {
-                            view! {
-                                <div class="space-y-6">
-                                    <div class="relative w-full group">
-                                        <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block mb-2">
-                                            "Email Address"
-                                        </label>
-                                        <input
-                                            type="email"
-                                            placeholder="you@example.com"
-                                            on:input=move |ev| auth.email.set(event_target_value(&ev))
-                                            prop:value=auth.email
-                                            class="w-full bg-transparent border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/50"
-                                        />
-                                    </div>
-                                    <div class="space-y-4 pt-2">
-                                        <Show when=move || auth.error.get().is_some()>
-                                            <div class="bg-error/10 border-l-4 border-error p-4 text-error jetbrains text-sm font-medium">
-                                                {move || auth.error.get().unwrap_or_default()}
-                                            </div>
-                                        </Show>
-                                        <button
-                                            on:click=move |_| { auth.dispatch_login.dispatch(()); }
-                                            disabled=move || auth.is_loading.get() || (auth.countdown.get() > 0)
-                                            class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-                                        >
-                                            <Show when=move || auth.is_loading.get()>
-                                                <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
-                                            </Show>
-                                            <span class="inline-block translate-y-[1px]">
-                                                {move || if auth.countdown.get() > 0 {
-                                                    format!("Resend in {}s", auth.countdown.get())
-                                                } else if auth.error.get() == Some("Magic link sent! Check your email.".to_string()) {
-                                                    "Resend Magic Link".to_string()
-                                                } else {
-                                                    "Send Magic Link".to_string()
-                                                }}
-                                            </span>
-                                        </button>
-                                        <div class="text-center pt-2">
+                    <h2 class="text-4xl font-extrabold text-primary mb-2 tracking-tight">"SYSTEM_CMS"</h2>
+
+                    // Mode indicator — always visible so the user knows which flow they're in
+                    <div class="flex items-center gap-3 mb-10">
+                        <a
+                            href="/admin"
+                            class=move || format!(
+                                "text-[0.65rem] jetbrains font-bold uppercase tracking-widest px-3 py-1 border transition-colors {}",
+                                if !email_mode() {
+                                    "border-primary text-primary bg-primary/10"
+                                } else {
+                                    "border-outline-variant text-outline hover:border-primary hover:text-primary"
+                                }
+                            )
+                        >
+                            "Passkey"
+                        </a>
+                        <a
+                            href="/admin?mode=email"
+                            class=move || format!(
+                                "text-[0.65rem] jetbrains font-bold uppercase tracking-widest px-3 py-1 border transition-colors {}",
+                                if email_mode() {
+                                    "border-primary text-primary bg-primary/10"
+                                } else {
+                                    "border-outline-variant text-outline hover:border-primary hover:text-primary"
+                                }
+                            )
+                        >
+                            "Magic Link"
+                        </a>
+                    </div>
+
+                    // ── Email / Magic Link flow ────────────────────────────────────────
+                    // Rendered server-side (href navigation, not client signal) so it works
+                    // immediately without waiting for WASM to hydrate.
+                    {move || if email_mode() {
+                        view! {
+                            <div class="space-y-6">
+                                {move || if magic_link_sent() {
+                                    // ── Confirmation state ─────────────────────────────
+                                    view! {
+                                        <div class="border border-primary/30 bg-primary/5 p-8 text-center space-y-4">
+                                            <span class="material-symbols-outlined text-4xl text-primary block">"mark_email_read"</span>
+                                            <p class="text-on-surface font-bold jetbrains text-sm tracking-wide">"CHECK YOUR INBOX"</p>
+                                            <p class="text-on-surface-variant text-sm leading-relaxed">
+                                                "A login link has been sent to "
+                                                <span class="text-primary font-bold">{move || auth.email.get()}</span>
+                                                ". Click the link in the email to sign in."
+                                            </p>
+                                            <p class="text-outline text-xs jetbrains mt-2">
+                                                "Link expires in 15 minutes. Check your spam folder if it doesn't arrive."
+                                            </p>
                                             <button
                                                 type="button"
-                                                class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
-                                                on:click=move |_| { auth.use_email.set(false); auth.error.set(None); }
+                                                on:click=move |_| {
+                                                    auth.error.set(None);
+                                                    set_link_sent.set(false);
+                                                }
+                                                class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest mt-4 inline-block"
                                             >
-                                                "\u{2190} Back to Passkey"
+                                                "← Try a different email"
                                             </button>
                                         </div>
-                                    </div>
+                                    }.into_any()
+                                } else {
+                                    // ── Input state ───────────────────────────────────
+                                    view! {
+                                        <div class="space-y-6">
+                                            <div class="space-y-2">
+                                                <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block">
+                                                    "Email Address"
+                                                </label>
+                                                <input
+                                                    id="magic-link-email"
+                                                    type="email"
+                                                    placeholder="admin@yourdomain.com"
+                                                    autofocus
+                                                    on:input=move |ev| auth.email.set(event_target_value(&ev))
+                                                    prop:value=auth.email
+                                                    class="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary focus:outline-none px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/40"
+                                                />
+                                                <p class="text-outline text-xs jetbrains">
+                                                    "We'll send a one-time sign-in link to this address."
+                                                </p>
+                                            </div>
+
+                                            // Error / info feedback
+                                            {move || auth.error.get().map(|e| {
+                                                let is_info = e.contains("sent") || e.contains("Check");
+                                                view! {
+                                                    <div class=move || format!(
+                                                        "border-l-4 p-4 text-sm jetbrains font-medium {}",
+                                                        if is_info { "border-primary bg-primary/5 text-primary" }
+                                                        else { "border-error bg-error/10 text-error" }
+                                                    )>
+                                                        {e}
+                                                    </div>
+                                                }
+                                            })}
+
+                                            <button
+                                                on:click=move |_| { auth.dispatch_login.dispatch(()); }
+                                                disabled=move || {
+                                                    auth.is_loading.get()
+                                                    || auth.countdown.get() > 0
+                                                    || auth.email.get().is_empty()
+                                                }
+                                                class="w-full bg-primary text-white py-5 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
+                                            >
+                                                {move || if auth.is_loading.get() {
+                                                    view! {
+                                                        <span class="flex items-center gap-3">
+                                                            <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                                            "Sending..."
+                                                        </span>
+                                                    }.into_any()
+                                                } else if auth.countdown.get() > 0 {
+                                                    view! {
+                                                        <span>{format!("Resend in {}s", auth.countdown.get())}</span>
+                                                    }.into_any()
+                                                } else {
+                                                    view! {
+                                                        <span class="flex items-center gap-2">
+                                                            <span class="material-symbols-outlined text-base">"send"</span>
+                                                            "Send Magic Link"
+                                                        </span>
+                                                    }.into_any()
+                                                }}
+                                            </button>
+                                        </div>
+                                    }.into_any()
+                                }}
+                            </div>
+                        }.into_any()
+
+                    // ── Passkey flow ───────────────────────────────────────────────────
+                    } else {
+                        view! {
+                            <div class="space-y-6">
+                                <p class="text-on-surface-variant text-sm leading-relaxed">
+                                    "Use a registered passkey (Face ID, Touch ID, or hardware key) to authenticate instantly — no password required."
+                                </p>
+                                <button
+                                    id="login-passkey-btn"
+                                    on:click=move |_| { passkey_action.dispatch(()); }
+                                    disabled=move || passkey_action.pending().get()
+                                    class="w-full bg-primary text-white py-5 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 transition-colors flex items-center justify-center gap-3"
+                                >
+                                    {move || if passkey_action.pending().get() {
+                                        view! {
+                                            <span class="flex items-center gap-3">
+                                                <span class="material-symbols-outlined animate-spin text-base">"progress_activity"</span>
+                                                {move || if passkey_msg.get().is_empty() { "Waiting...".to_string() } else { passkey_msg.get() }}
+                                            </span>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <span class="flex items-center gap-3">
+                                                <span class="material-symbols-outlined text-base">"passkey"</span>
+                                                "Sign In with Passkey"
+                                            </span>
+                                        }.into_any()
+                                    }}
+                                </button>
+
+                                // Passkey status / error feedback
+                                {move || {
+                                    let msg = passkey_msg.get();
+                                    if !msg.is_empty() && !passkey_action.pending().get() {
+                                        view! {
+                                            <div class=move || format!(
+                                                "border-l-4 p-4 text-sm jetbrains font-medium {}",
+                                                if passkey_error.get() { "border-error bg-error/10 text-error" }
+                                                else { "border-primary bg-primary/5 text-primary" }
+                                            )>
+                                                {msg}
+                                            </div>
+                                        }.into_any()
+                                    } else {
+                                        view! { <div></div> }.into_any()
+                                    }
+                                }}
+
+                                // No passkey? Explanation of what to do
+                                <div class="border-t border-outline-variant/30 pt-4 text-center space-y-1">
+                                    <p class="text-outline text-xs jetbrains">"Don't have a passkey registered yet?"</p>
+                                    <p class="text-outline text-xs jetbrains">"Sign in with a magic link first, then register one from Security settings."</p>
                                 </div>
-                            }.into_any()
-                        } else {
-                            view! {
-                                <div class="space-y-6">
-                                    <button
-                                        id="login-passkey-btn"
-                                        on:click=move |_| { passkey_action.dispatch(()); }
-                                        disabled=move || passkey_action.pending().get()
-                                        class="w-full bg-primary text-white py-6 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-50 transition-colors flex items-center justify-center gap-3"
-                                    >
-                                        <span class="material-symbols-outlined text-base">"passkey"</span>
-                                        <span class="inline-block translate-y-[1px]">"Sign In with Passkey"</span>
-                                    </button>
-                                    <div 
-                                        id="passkey-message" 
-                                        class=move || {
-                                            let base = "text-sm text-center font-medium h-4";
-                                            if passkey_error.get() {
-                                                format!("{} text-error", base)
-                                            } else {
-                                                format!("{} text-primary", base)
-                                            }
-                                        }
-                                    >
-                                        {move || passkey_msg.get()}
-                                    </div>
-                                    <div class="text-center pt-2">
-                                        <button
-                                            type="button"
-                                            class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest"
-                                            on:click=move |_| auth.use_email.set(true)
-                                        >
-                                            "Use Email Instead"
-                                        </button>
-                                    </div>
-                                </div>
-                            }.into_any()
-                        }}
-                    </div>
+                            </div>
+                        }.into_any()
+                    }}
                 </div>
             </div>
         </div>
     }
-}
 
 #[component]
 pub fn Admin() -> impl IntoView {
