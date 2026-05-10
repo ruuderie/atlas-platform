@@ -384,4 +384,4 @@ pub fn AtlasLoginPanel(
 }
 
 // Kami design system applied — parchment/ivory/ink-blue palette, inline SVG passkey icon.
-// This comment exists so the deploy trigger commit has a legible diff.
+// Re-trigger: fix CI_PIPELINE_FILES bracket stripping so kubectl set image is actually called.

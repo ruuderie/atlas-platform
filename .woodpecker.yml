@@ -394,8 +394,9 @@ steps:
         esac
 
         # ── Scoped rollout: use Woodpecker's native CI_PIPELINE_FILES ────
-        # Comma-separated → newline-separated for grep compatibility.
-        CHANGED=$(echo "${CI_PIPELINE_FILES:-}" | tr ',' '\n')
+        # Woodpecker wraps the value in square brackets: [apps/foo/bar.rs]
+        # Strip them before splitting so ^apps/ grep patterns match correctly.
+        CHANGED=$(echo "${CI_PIPELINE_FILES:-}" | tr -d '[]' | tr ',' '\n')
         echo "Changed paths:"
         echo "$CHANGED"
 
