@@ -209,6 +209,34 @@ When implementing a new `AtlasApp`, define its permission enum following the pat
 
 ## Authentication Flows
 
+### Canonical Login UI: `AtlasLoginPanel`
+
+All Atlas platform apps use a single shared login component from `shared-ui`:
+
+```rust
+use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
+
+// Minimal usage — just pass an app title:
+view! { <AtlasLoginPanel app_title="MY APP" /> }
+
+// With a custom on_authenticated callback (e.g. for modal flows):
+view! {
+    <AtlasLoginPanel
+        app_title="NETWORK"
+        on_authenticated=Callback::new(|_| navigate("/dashboard", Default::default()))
+    />
+}
+```
+
+**Do not re-implement the login form in individual apps.** Bug fixes, UX improvements, and
+security hardening to the login flow only need to happen in one place.
+
+Mode switching between passkey and magic link is driven by `?mode=email` in the URL — not a
+client-side signal. This means the email form is SSR-rendered and visible immediately without
+waiting for WASM to hydrate. It also means the URL is shareable and bookmarkable.
+
+---
+
 ### Flow 1: Passkey Login (Primary)
 
 Used by: all apps, all user types.
@@ -356,6 +384,8 @@ planned for the file-sharing and property management apps.
 | Add a `is_admin: bool` flag to any entity | Use `TenantRole::Admin` via `user_account` |
 | Call `is_system_initialized()` for gating UI | It's permanently stubbed `Ok(true)` — remove it |
 | Use passwords | This platform does not support passwords. Use passkeys + magic links. |
+| Implement a custom login form in a new app | Use `<AtlasLoginPanel>` from `shared-ui` |
+| Use a JS signal to toggle login mode | Use `?mode=email` URL param — SSR-safe, bookmarkable |
 
 ---
 

@@ -26,11 +26,31 @@ Create `apps/<your-app>/Dockerfile`. Use an existing app as a reference:
 - **Leptos CSR/WASM app** → copy `apps/platform-admin/Dockerfile`
 - **Network-facing app** → copy `apps/network-instance/Dockerfile`
 
-The Dockerfile must accept two optional build args that the pipeline injects automatically:
+The Dockerfile must accept these build args that the pipeline injects automatically:
 
 ```dockerfile
 ARG ATLAS_BUILD_SHA=dev
 ARG ATLAS_BUILD_DATE=unknown
+# Controls build optimization. Pipeline passes 'debug' on dev branch, 'release' on uat.
+# Defaults to release so local docker builds are always optimized.
+ARG BUILD_PROFILE=release
+```
+
+Use `BUILD_PROFILE` to gate the release flag in your build command:
+
+```dockerfile
+RUN if [ "$BUILD_PROFILE" = "release" ]; then \
+      cargo leptos build --release; \
+    else \
+      cargo leptos build; \
+    fi
+```
+
+And use it in the `COPY` stage to pick the correct binary path:
+
+```dockerfile
+ARG BUILD_PROFILE=release
+COPY --from=builder /app/apps/target/${BUILD_PROFILE}/my-app /app/
 ```
 
 ---
@@ -150,12 +170,13 @@ Then update the `image:` field in `k8s/base/<your-app>.yaml` to `ghcr.io/ruuderi
 
 Add two blocks to `.woodpecker.yml`:
 
-### 6a — Publish step (builds and pushes the Docker image)
+### 6a — Publish steps (builds and pushes the Docker image)
 
-Add this after the last `publish_*` step and **before** `deploy_platform_k8s`:
+Publish steps are **split by branch** so dev gets a fast debug build and uat gets an optimized release build. Add both variants after the last `publish_*_uat` step and **before** `deploy_platform_k8s`:
 
 ```yaml
-  publish_<your_app>:
+  # dev branch — debug build (fast iteration)
+  publish_<your_app>_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
     settings:
@@ -170,13 +191,44 @@ Add this after the last `publish_*` step and **before** `deploy_platform_k8s`:
       build_args:
         - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
         - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=debug
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
     when:
+      branch: dev
       path:
         - 'apps/<your-app>/**'
+        - 'apps/shared-ui/**'   # shared-ui changes rebuild all dependent apps
+        - '.woodpecker.yml'
+
+  # uat branch — release build (optimized)
+  publish_<your_app>_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/<your-app>
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/<your-app>/Dockerfile
+      build_args:
+        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
+        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
+        - BUILD_PROFILE=release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'apps/<your-app>/**'
+        - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 ```
 
@@ -214,12 +266,12 @@ This means a `.woodpecker.yml`-only change (e.g., updating pipeline logic) will 
 
 | Step | What | Where |
 |------|------|-------|
-| 1 | Create `Dockerfile` | `apps/<your-app>/Dockerfile` |
+| 1 | Create `Dockerfile` with `BUILD_PROFILE` arg | `apps/<your-app>/Dockerfile` |
 | 2 | Create K8s manifest with real image tag | `k8s/base/<your-app>.yaml` |
 | 3 | Register in Kustomize | `k8s/base/kustomization.yaml` |
 | 4 | Add ingress rules (UAT + prod) | `k8s/overlays/uat/ingress.yaml`, `k8s/overlays/prod/ingress.yaml` |
 | 5 | Push first image manually to GHCR | (one-time bootstrap) |
-| 6a | Add `publish_*` step | `.woodpecker.yml` |
+| 6a | Add `publish_<app>_dev` + `publish_<app>_uat` steps | `.woodpecker.yml` |
 | 6b | Add `update_service` call in deploy step | `.woodpecker.yml` |
 
 ---
