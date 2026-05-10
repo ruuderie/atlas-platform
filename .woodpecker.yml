@@ -49,9 +49,9 @@ steps:
       context: .
       dockerfile: apps/platform-admin/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=debug
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: debug
       username:
         from_secret: docker_username
       password:
@@ -76,9 +76,9 @@ steps:
       context: .
       dockerfile: apps/platform-admin/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=release
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
       username:
         from_secret: docker_username
       password:
@@ -104,9 +104,9 @@ steps:
       context: backend
       dockerfile: backend/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=debug
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: debug
       username:
         from_secret: docker_username
       password:
@@ -130,9 +130,9 @@ steps:
       context: backend
       dockerfile: backend/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=release
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
       username:
         from_secret: docker_username
       password:
@@ -157,9 +157,9 @@ steps:
       context: .
       dockerfile: apps/network-instance/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=debug
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: debug
       username:
         from_secret: docker_username
       password:
@@ -184,9 +184,9 @@ steps:
       context: .
       dockerfile: apps/network-instance/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=release
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
       username:
         from_secret: docker_username
       password:
@@ -212,9 +212,9 @@ steps:
       context: .
       dockerfile: apps/anchor/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=debug
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: debug
       username:
         from_secret: docker_username
       password:
@@ -239,9 +239,9 @@ steps:
       context: .
       dockerfile: apps/anchor/Dockerfile
       build_args:
-        - ATLAS_BUILD_SHA=${CI_COMMIT_SHA}
-        - ATLAS_BUILD_DATE=${CI_PIPELINE_CREATED}
-        - BUILD_PROFILE=release
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
       username:
         from_secret: docker_username
       password:
