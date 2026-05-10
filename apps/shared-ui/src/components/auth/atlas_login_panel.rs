@@ -4,47 +4,48 @@ use leptos_router::hooks::use_query_map;
 use crate::auth::atlas_auth::use_atlas_auth;
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
-/// Platform-standard login panel — handles both passkey and magic link flows.
+/// Platform-standard login panel — Kami design system.
+///
+/// Uses the Kami neutral vocabulary (parchment base, ivory card, ink-blue #1B365D accent,
+/// warm serif typography) so the component looks at home in any Atlas platform app without
+/// carrying the visual fingerprint of any single app.
 ///
 /// # Usage
 /// ```rust
-/// <AtlasLoginPanel
-///     app_title="SYSTEM_CMS"
-///     on_authenticated=Callback::new(|_| { /* navigate or reload */ })
-/// />
+/// // Minimal — just the title:
+/// view! { <AtlasLoginPanel app_title="Atlas Admin" /> }
+///
+/// // With callback for modal flows:
+/// view! {
+///     <AtlasLoginPanel
+///         app_title="Network"
+///         on_authenticated=Callback::new(|_| { /* navigate or reload */ })
+///     />
+/// }
 /// ```
 ///
-/// Mode switching is driven by `?mode=email` in the URL so the email form
-/// is SSR-rendered and immediately visible without waiting for WASM to hydrate.
-///
-/// # Props
-/// - `app_title`       — displayed above the mode tabs (e.g. "SYSTEM_CMS", "ATLAS ADMIN")
-/// - `on_authenticated` — called after a successful passkey login. Magic link logins
-///                        redirect via the `?token=` query param handled by the parent page.
+/// Mode switching is driven by `?mode=email` in the URL — SSR-rendered, no WASM required.
 #[component]
 pub fn AtlasLoginPanel(
-    /// Short all-caps label shown as the panel heading.
-    #[prop(into, default = "ATLAS".into())]
+    /// Title shown in the panel heading. Any casing is fine.
+    #[prop(into, default = "Atlas".into())]
     app_title: String,
-    /// Called when passkey authentication completes successfully. Typically reloads
-    /// the page or navigates to the authenticated view.
+    /// Called after a successful passkey login. Defaults to `window.location.reload()`.
     #[prop(into, optional)]
     on_authenticated: Option<Callback<()>>,
 ) -> impl IntoView {
     let auth = use_atlas_auth();
     let query = use_query_map();
 
-    // URL-param–driven mode: ?mode=email → magic link form is SSR-rendered immediately.
-    // No WASM hydration required to see the email input — the form is in the HTML.
+    // URL-param mode: ?mode=email → email form is SSR-rendered immediately.
     let email_mode = move || query.with(|q| q.get("mode").as_deref() == Some("email"));
 
-    // Passkey callbacks — delegate to PasskeyLoginButton
+    // Passkey callbacks
     let on_auth = on_authenticated.clone();
     let handle_passkey_success = Callback::new(move |_token: String| {
         if let Some(cb) = &on_auth {
             cb.run(());
         } else {
-            // Default: reload so the parent page's auth_resource re-checks the session
             let _ = web_sys::window().unwrap().location().reload();
         }
     });
@@ -53,195 +54,330 @@ pub fn AtlasLoginPanel(
         auth.error.set(Some(err));
     });
 
-    // Successful magic link send — read the dedicated typed signal, not auth.error
     let magic_link_sent = move || auth.magic_link_sent.get();
 
     view! {
-        <div class="flex-1 flex justify-center items-center py-12">
-            <div class="w-full max-w-lg bg-surface-container-highest p-1 blueprint-overlay">
-                <div class="bg-surface-container-lowest p-12">
+        // Kami: parchment page base, centered column, generous breathing room
+        <div style="
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f4ed;
+            padding: 48px 16px;
+            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+        ">
+            // Kami card: ivory background, 0.5pt border, 8pt radius, whisper shadow
+            <div style="
+                width: 100%;
+                max-width: 420px;
+                background: #faf9f5;
+                border: 1px solid #e8e6dc;
+                border-radius: 8px;
+                padding: 48px 40px;
+                box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+            ">
 
-                    // ── Header ───────────────────────────────────────────────────────
-                    <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-6">
-                        <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">
-                            "SECURE_ZONE // 0xAUTH"
-                        </span>
-                    </div>
-                    <h2 class="text-4xl font-extrabold text-primary mb-2 tracking-tight">
+                // ── Header ────────────────────────────────────────────────────
+                // Kami: brand left-bar is the signature structural move
+                <div style="
+                    border-left: 3px solid #1B365D;
+                    border-radius: 2px;
+                    padding-left: 10px;
+                    margin-bottom: 32px;
+                ">
+                    <p style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                        color: #6b6a64;
+                        margin: 0 0 4px 0;
+                        font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+                    ">
+                        "Secure Login"
+                    </p>
+                    // Kami: serif 500, headline line-height 1.2
+                    <h1 style="
+                        font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                        font-size: 26px;
+                        font-weight: 500;
+                        line-height: 1.2;
+                        color: #141413;
+                        margin: 0;
+                    ">
                         {app_title.clone()}
-                    </h2>
-
-                    // ── Mode tabs ─────────────────────────────────────────────────────
-                    // Plain <a> links — work before WASM loads, update the URL, and
-                    // cause the SSR to re-render the correct form on navigation.
-                    <div class="flex items-center gap-3 mb-10">
-                        <a
-                            href="?"
-                            class=move || format!(
-                                "text-[0.65rem] jetbrains font-bold uppercase tracking-widest px-3 py-1 border transition-colors {}",
-                                if !email_mode() {
-                                    "border-primary text-primary bg-primary/10"
-                                } else {
-                                    "border-outline-variant text-outline hover:border-primary hover:text-primary"
-                                }
-                            )
-                        >
-                            "Passkey"
-                        </a>
-                        <a
-                            href="?mode=email"
-                            class=move || format!(
-                                "text-[0.65rem] jetbrains font-bold uppercase tracking-widest px-3 py-1 border transition-colors {}",
-                                if email_mode() {
-                                    "border-primary text-primary bg-primary/10"
-                                } else {
-                                    "border-outline-variant text-outline hover:border-primary hover:text-primary"
-                                }
-                            )
-                        >
-                            "Magic Link"
-                        </a>
-                    </div>
-
-                    // ── Email / Magic Link flow ───────────────────────────────────────
-                    {move || if email_mode() {
-                        view! {
-                            <div class="space-y-6">
-                                {move || if magic_link_sent() {
-                                    // ── Post-send confirmation ────────────────────────
-                                    view! {
-                                        <div class="border border-primary/30 bg-primary/5 p-8 text-center space-y-4">
-                                            <span class="material-symbols-outlined text-4xl text-primary block">
-                                                "mark_email_read"
-                                            </span>
-                                            <p class="text-on-surface font-bold jetbrains text-sm tracking-wide">
-                                                "CHECK YOUR INBOX"
-                                            </p>
-                                            <p class="text-on-surface-variant text-sm leading-relaxed">
-                                                "A login link has been sent to "
-                                                <span class="text-primary font-bold">
-                                                    {move || auth.email.get()}
-                                                </span>
-                                                ". Click the link in the email to sign in."
-                                            </p>
-                                            <p class="text-outline text-xs jetbrains">
-                                                "Link expires in 15 minutes. Check your spam folder if it doesn't arrive."
-                                            </p>
-                                            <button
-                                                type="button"
-                                                on:click=move |_| {
-                                                    auth.magic_link_sent.set(false);
-                                                    auth.error.set(None);
-                                                }
-                                                class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest mt-4 inline-block"
-                                            >
-                                                "← Try a different email"
-                                            </button>
-                                        </div>
-                                    }.into_any()
-                                } else {
-                                    // ── Email input ───────────────────────────────────
-                                    view! {
-                                        <div class="space-y-6">
-                                            <div class="space-y-2">
-                                                <label class="jetbrains text-[0.65rem] uppercase tracking-[0.1em] text-outline text-left block">
-                                                    "Email Address"
-                                                </label>
-                                                <input
-                                                    id="atlas-magic-link-email"
-                                                    type="email"
-                                                    placeholder="admin@yourdomain.com"
-                                                    on:input=move |ev| auth.email.set(event_target_value(&ev))
-                                                    prop:value=auth.email
-                                                    class="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary focus:outline-none px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/40"
-                                                />
-                                                <p class="text-outline text-xs jetbrains">
-                                                    "We'll send a one-time sign-in link to this address."
-                                                </p>
-                                            </div>
-
-                                            // Error feedback — only shown on actual errors, never on success
-                                            {move || auth.error.get().map(|e| {
-                                                view! {
-                                                    <div class="border-l-4 border-error bg-error/10 p-4 text-sm jetbrains font-medium text-error">
-                                                        {e}
-                                                    </div>
-                                                }
-                                            })}
-
-                                            <button
-                                                on:click=move |_| { auth.dispatch_login.dispatch(()); }
-                                                disabled=move || {
-                                                    auth.is_loading.get()
-                                                    || auth.countdown.get() > 0
-                                                    || auth.email.get().is_empty()
-                                                }
-                                                class="w-full bg-primary text-white py-5 jetbrains font-bold text-sm tracking-[0.2em] uppercase hover:bg-primary-container disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-3"
-                                            >
-                                                {move || if auth.is_loading.get() {
-                                                    view! {
-                                                        <span class="flex items-center gap-3">
-                                                            <span class="material-symbols-outlined animate-spin text-base">
-                                                                "progress_activity"
-                                                            </span>
-                                                            "Sending..."
-                                                        </span>
-                                                    }.into_any()
-                                                } else if auth.countdown.get() > 0 {
-                                                    view! {
-                                                        <span>
-                                                            {format!("Resend in {}s", auth.countdown.get())}
-                                                        </span>
-                                                    }.into_any()
-                                                } else {
-                                                    view! {
-                                                        <span class="flex items-center gap-2">
-                                                            <span class="material-symbols-outlined text-base">"send"</span>
-                                                            "Send Magic Link"
-                                                        </span>
-                                                    }.into_any()
-                                                }}
-                                            </button>
-                                        </div>
-                                    }.into_any()
-                                }}
-                            </div>
-                        }.into_any()
-
-                    // ── Passkey flow ──────────────────────────────────────────────────
-                    } else {
-                        view! {
-                            <div class="space-y-6">
-                                <p class="text-on-surface-variant text-sm leading-relaxed">
-                                    "Use a registered passkey (Face ID, Touch ID, or hardware key) to authenticate instantly — no password required."
-                                </p>
-
-                                // Error feedback (routed here by handle_passkey_error callback)
-                                {move || auth.error.get().map(|e| view! {
-                                    <div class="border-l-4 border-error bg-error/10 p-4 text-error text-sm jetbrains font-medium">
-                                        {e}
-                                    </div>
-                                })}
-
-                                <PasskeyLoginButton
-                                    api_base_url="/api/passkeys".to_string()
-                                    email=RwSignal::new("".to_string())
-                                    on_success=handle_passkey_success
-                                    on_error=handle_passkey_error
-                                />
-
-                                <div class="border-t border-outline-variant/30 pt-4 text-center space-y-1">
-                                    <p class="text-outline text-xs jetbrains">
-                                        "Don't have a passkey registered yet?"
-                                    </p>
-                                    <p class="text-outline text-xs jetbrains">
-                                        "Sign in with a magic link first, then register one from Security settings."
-                                    </p>
-                                </div>
-                            </div>
-                        }.into_any()
-                    }}
+                    </h1>
                 </div>
+
+                // ── Mode tabs ─────────────────────────────────────────────────
+                // Kami: warm-sand secondary, brand fill for active
+                <div style="display: flex; gap: 8px; margin-bottom: 32px;">
+                    <a
+                        href="?"
+                        style=move || format!(
+                            "display: inline-block; padding: 6px 14px; border-radius: 4px; \
+                             font-size: 12px; font-weight: 500; text-decoration: none; \
+                             transition: background 0.15s, color 0.15s; \
+                             font-family: Charter, Georgia, Palatino, 'Times New Roman', serif; \
+                             {}",
+                            if !email_mode() {
+                                "background: #1B365D; color: #faf9f5;"
+                            } else {
+                                "background: #e8e6dc; color: #3d3d3a;"
+                            }
+                        )
+                    >
+                        "Passkey"
+                    </a>
+                    <a
+                        href="?mode=email"
+                        style=move || format!(
+                            "display: inline-block; padding: 6px 14px; border-radius: 4px; \
+                             font-size: 12px; font-weight: 500; text-decoration: none; \
+                             transition: background 0.15s, color 0.15s; \
+                             font-family: Charter, Georgia, Palatino, 'Times New Roman', serif; \
+                             {}",
+                            if email_mode() {
+                                "background: #1B365D; color: #faf9f5;"
+                            } else {
+                                "background: #e8e6dc; color: #3d3d3a;"
+                            }
+                        )
+                    >
+                        "Magic Link"
+                    </a>
+                </div>
+
+                // ── Email / Magic Link flow ────────────────────────────────────
+                {move || if email_mode() {
+                    view! {
+                        <div>
+                            {move || if magic_link_sent() {
+                                // ── Post-send confirmation ────────────────────
+                                // Kami: brand left-bar, ivory tint, olive body text
+                                view! {
+                                    <div style="
+                                        border-left: 3px solid #1B365D;
+                                        border-radius: 2px;
+                                        background: #EEF2F7;
+                                        padding: 20px 20px 20px 18px;
+                                    ">
+                                        <p style="
+                                            font-size: 13px;
+                                            font-weight: 500;
+                                            color: #1B365D;
+                                            margin: 0 0 8px 0;
+                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                        ">
+                                            "Check your inbox"
+                                        </p>
+                                        <p style="
+                                            font-size: 13px;
+                                            color: #504e49;
+                                            line-height: 1.55;
+                                            margin: 0 0 4px 0;
+                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                        ">
+                                            "A sign-in link was sent to "
+                                            <span style="color: #1B365D; font-weight: 500;">
+                                                {move || auth.email.get()}
+                                            </span>
+                                            "."
+                                        </p>
+                                        <p style="
+                                            font-size: 12px;
+                                            color: #6b6a64;
+                                            margin: 0 0 16px 0;
+                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                        ">
+                                            "Expires in 15 minutes. Check spam if it doesn't arrive."
+                                        </p>
+                                        <button
+                                            type="button"
+                                            on:click=move |_| {
+                                                auth.magic_link_sent.set(false);
+                                                auth.error.set(None);
+                                            }
+                                            style="
+                                                background: none; border: none; cursor: pointer; padding: 0;
+                                                font-size: 12px; color: #6b6a64;
+                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                                text-decoration: underline;
+                                                text-underline-offset: 2px;
+                                                transition: color 0.15s;
+                                            "
+                                        >
+                                            "← Try a different email"
+                                        </button>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                // ── Email input ───────────────────────────────
+                                view! {
+                                    <div>
+                                        // Label — Kami label: 9pt, 600, uppercase, stone
+                                        <label
+                                            for="atlas-magic-link-email"
+                                            style="
+                                                display: block;
+                                                font-size: 11px;
+                                                font-weight: 600;
+                                                letter-spacing: 0.06em;
+                                                text-transform: uppercase;
+                                                color: #6b6a64;
+                                                margin-bottom: 8px;
+                                                font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+                                            "
+                                        >
+                                            "Email address"
+                                        </label>
+
+                                        // Input — Kami: ivory bg, warm border, 8pt radius
+                                        <input
+                                            id="atlas-magic-link-email"
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            on:input=move |ev| auth.email.set(event_target_value(&ev))
+                                            prop:value=auth.email
+                                            style="
+                                                display: block;
+                                                width: 100%;
+                                                box-sizing: border-box;
+                                                background: #faf9f5;
+                                                border: 1px solid #e8e6dc;
+                                                border-radius: 6px;
+                                                padding: 10px 12px;
+                                                font-size: 14px;
+                                                color: #141413;
+                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                                outline: none;
+                                                transition: border-color 0.15s;
+                                                margin-bottom: 8px;
+                                            "
+                                        />
+
+                                        <p style="
+                                            font-size: 12px;
+                                            color: #6b6a64;
+                                            margin: 0 0 20px 0;
+                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                            line-height: 1.45;
+                                        ">
+                                            "We'll send a one-time sign-in link to this address."
+                                        </p>
+
+                                        // Error — Kami: brand left-bar variant with error tint
+                                        {move || auth.error.get().map(|e| view! {
+                                            <div style="
+                                                border-left: 3px solid #c0392b;
+                                                border-radius: 2px;
+                                                background: #fdf3f2;
+                                                padding: 10px 12px 10px 14px;
+                                                margin-bottom: 16px;
+                                                font-size: 13px;
+                                                color: #922b21;
+                                                line-height: 1.45;
+                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                            ">
+                                                {e}
+                                            </div>
+                                        })}
+
+                                        // Primary CTA — Kami: brand fill + ivory text
+                                        <button
+                                            on:click=move |_| { auth.dispatch_login.dispatch(()); }
+                                            disabled=move || {
+                                                auth.is_loading.get()
+                                                || auth.countdown.get() > 0
+                                                || auth.email.get().is_empty()
+                                            }
+                                            style="
+                                                display: block;
+                                                width: 100%;
+                                                background: #1B365D;
+                                                color: #faf9f5;
+                                                border: none;
+                                                border-radius: 6px;
+                                                padding: 12px 20px;
+                                                font-size: 14px;
+                                                font-weight: 500;
+                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                                cursor: pointer;
+                                                transition: background 0.15s, opacity 0.15s;
+                                                text-align: center;
+                                            "
+                                        >
+                                            {move || if auth.is_loading.get() {
+                                                "Sending…".to_string()
+                                            } else if auth.countdown.get() > 0 {
+                                                format!("Resend in {}s", auth.countdown.get())
+                                            } else {
+                                                "Send sign-in link".to_string()
+                                            }}
+                                        </button>
+                                    </div>
+                                }.into_any()
+                            }}
+                        </div>
+                    }.into_any()
+
+                // ── Passkey flow ───────────────────────────────────────────────
+                } else {
+                    view! {
+                        <div>
+                            <p style="
+                                font-size: 14px;
+                                color: #504e49;
+                                line-height: 1.55;
+                                margin: 0 0 24px 0;
+                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                            ">
+                                "Use a registered passkey — Face ID, Touch ID, or a hardware key — to sign in instantly without a password."
+                            </p>
+
+                            // Passkey error — same brand left-bar error treatment
+                            {move || auth.error.get().map(|e| view! {
+                                <div style="
+                                    border-left: 3px solid #c0392b;
+                                    border-radius: 2px;
+                                    background: #fdf3f2;
+                                    padding: 10px 12px 10px 14px;
+                                    margin-bottom: 16px;
+                                    font-size: 13px;
+                                    color: #922b21;
+                                    line-height: 1.45;
+                                    font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                                ">
+                                    {e}
+                                </div>
+                            })}
+
+                            <PasskeyLoginButton
+                                api_base_url="/api/passkeys".to_string()
+                                email=RwSignal::new("".to_string())
+                                on_success=handle_passkey_success
+                                on_error=handle_passkey_error
+                            />
+
+                            // Divider — Kami: 0.5pt warm dotted
+                            <div style="
+                                border-top: 1px solid #e8e6dc;
+                                margin: 24px 0 16px;
+                            "/>
+
+                            <p style="
+                                font-size: 12px;
+                                color: #6b6a64;
+                                line-height: 1.55;
+                                margin: 0;
+                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
+                            ">
+                                "Don't have a passkey yet? Sign in with a magic link first, then register one from your security settings."
+                            </p>
+                        </div>
+                    }.into_any()
+                }}
             </div>
         </div>
     }
