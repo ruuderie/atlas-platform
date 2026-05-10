@@ -103,7 +103,7 @@ site-pkg-dir = "pkg"
 
 # Hash output filenames so browsers always fetch the latest build and
 # never serve stale JS/WASM from cache after a deployment.
-hash_files = true
+hash-files = true
 
 
 # [Optional] The source CSS file.
