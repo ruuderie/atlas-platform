@@ -101,7 +101,7 @@ pub fn App() -> impl IntoView {
     let get_settings = move || {
         settings_resource
             .get()
-            .and_then(|g| g.as_deref().ok().cloned())
+            .and_then(|g| g.as_ref().ok().cloned())
             .unwrap_or_default()
     };
 
@@ -176,7 +176,7 @@ pub fn App() -> impl IntoView {
                     // GA script — non-blocking, scoped Suspense, renders when ready.
                     <Suspense fallback=move || view! { <span class="hidden"></span> }>
                         {move || {
-                            let s = settings_resource.get().and_then(|g| g.as_deref().ok().cloned())?;
+                            let s = settings_resource.get().and_then(|g| g.as_ref().ok().cloned())?;
                             let gcode = s.google_analytics_id;
                             if gcode.is_empty() { return None; }
                             let gurl = format!("https://www.googletagmanager.com/gtag/js?id={}", gcode);
