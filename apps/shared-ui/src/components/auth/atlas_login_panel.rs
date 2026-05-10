@@ -382,4 +382,6 @@ pub fn AtlasLoginPanel(
         </div>
     }
 }
- 
+
+// Kami design system applied — parchment/ivory/ink-blue palette, inline SVG passkey icon.
+// This comment exists so the deploy trigger commit has a legible diff.
