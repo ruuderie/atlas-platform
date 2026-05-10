@@ -4,19 +4,23 @@ use super::server_fns::*;
 
 #[derive(Clone)]
 pub struct AtlasAuthState {
-    pub auth_state:      RwSignal<AuthState>,
-    pub use_email:       RwSignal<bool>,
-    pub email:           RwSignal<String>,
-    pub is_loading:      RwSignal<bool>,
-    pub error:           RwSignal<Option<String>>,
-    pub countdown:       RwSignal<i32>,
-    pub from_magic_link: RwSignal<bool>,
-    pub dispatch_login:  Action<(), ()>,
-    pub dispatch_logout: Action<(), ()>,
+    pub auth_state:       RwSignal<AuthState>,
+    pub use_email:        RwSignal<bool>,
+    pub email:            RwSignal<String>,
+    pub is_loading:       RwSignal<bool>,
+    /// True after a magic link has been successfully dispatched.
+    /// Distinct from `error` — this is a positive outcome signal.
+    pub magic_link_sent:  RwSignal<bool>,
+    /// Set when an error occurs. Never set on success.
+    pub error:            RwSignal<Option<String>>,
+    pub countdown:        RwSignal<i32>,
+    pub from_magic_link:  RwSignal<bool>,
+    pub dispatch_login:   Action<(), ()>,
+    pub dispatch_logout:  Action<(), ()>,
     #[cfg(any(feature = "ssr", feature = "hydrate"))]
-    pub auth_resource:   Resource<Result<bool, ServerFnError>>,
+    pub auth_resource:    Resource<Result<bool, ServerFnError>>,
     #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
-    pub auth_resource:   LocalResource<Result<bool, ServerFnError>>,
+    pub auth_resource:    LocalResource<Result<bool, ServerFnError>>,
 }
 
 pub fn use_atlas_auth() -> AtlasAuthState {
@@ -25,6 +29,7 @@ pub fn use_atlas_auth() -> AtlasAuthState {
     let email = RwSignal::new(String::new());
     let is_loading = RwSignal::new(false);
     let error = RwSignal::new(None);
+    let magic_link_sent = RwSignal::new(false);
     let countdown = RwSignal::new(0i32);
     let from_magic_link = RwSignal::new(false);
 
@@ -45,7 +50,9 @@ pub fn use_atlas_auth() -> AtlasAuthState {
             
             match request_magic_link(email_val).await {
                 Ok(_) => {
-                    error.set(Some("Magic link sent! Check your email.".to_string()));
+                    // Success — set the dedicated signal, never touch error.
+                    magic_link_sent.set(true);
+                    error.set(None);
                     countdown.set(60);
                     #[cfg(feature = "hydrate")]
                     leptos::task::spawn_local(async move {
@@ -62,7 +69,9 @@ pub fn use_atlas_auth() -> AtlasAuthState {
                     });
                 }
                 Err(e) => {
-                    error.set(Some(format!("Login failed: {:?}", e)));
+                    // Log the internal error but show a generic message — never expose ServerFnError internals.
+                    leptos::logging::error!("Magic link request error: {:?}", e);
+                    error.set(Some("Unable to send login link. Please try again.".to_string()));
                 }
             }
             is_loading.set(false);
@@ -92,6 +101,7 @@ pub fn use_atlas_auth() -> AtlasAuthState {
         use_email,
         email,
         is_loading,
+        magic_link_sent,
         error,
         countdown,
         from_magic_link,

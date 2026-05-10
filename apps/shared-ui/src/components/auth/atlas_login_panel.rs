@@ -53,9 +53,8 @@ pub fn AtlasLoginPanel(
         auth.error.set(Some(err));
     });
 
-    // Successful magic link send: backend sets auth.error to this specific string
-    let magic_link_sent =
-        move || auth.error.get().as_deref() == Some("Magic link sent! Check your email.");
+    // Successful magic link send — read the dedicated typed signal, not auth.error
+    let magic_link_sent = move || auth.magic_link_sent.get();
 
     view! {
         <div class="flex-1 flex justify-center items-center py-12">
@@ -130,7 +129,10 @@ pub fn AtlasLoginPanel(
                                             </p>
                                             <button
                                                 type="button"
-                                                on:click=move |_| { auth.error.set(None); }
+                                                on:click=move |_| {
+                                                    auth.magic_link_sent.set(false);
+                                                    auth.error.set(None);
+                                                }
                                                 class="text-xs font-bold text-outline hover:text-primary transition-colors uppercase tracking-widest mt-4 inline-block"
                                             >
                                                 "← Try a different email"
@@ -159,15 +161,10 @@ pub fn AtlasLoginPanel(
                                                 </p>
                                             </div>
 
-                                            // Feedback — error (red) or info (blue) based on content
+                                            // Error feedback — only shown on actual errors, never on success
                                             {move || auth.error.get().map(|e| {
-                                                let is_info = e.contains("sent") || e.contains("Check");
                                                 view! {
-                                                    <div class=move || format!(
-                                                        "border-l-4 p-4 text-sm jetbrains font-medium {}",
-                                                        if is_info { "border-primary bg-primary/5 text-primary" }
-                                                        else { "border-error bg-error/10 text-error" }
-                                                    )>
+                                                    <div class="border-l-4 border-error bg-error/10 p-4 text-sm jetbrains font-medium text-error">
                                                         {e}
                                                     </div>
                                                 }
