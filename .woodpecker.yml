@@ -467,6 +467,7 @@ steps:
             fi
           fi
         fi
+      fi
 
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
