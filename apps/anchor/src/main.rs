@@ -69,7 +69,7 @@ async fn main() {
         // on the fly from post markdown. Token validation required when
         // pdf_require_lead_capture is set on the post payload.
         .route(
-            "/api/blog/:slug/pdf",
+            "/api/blog/{slug}/pdf",
             axum::routing::get(anchor::handlers::blog_pdf::blog_pdf::blog_pdf_handler),
         )
         .nest_service("/pkg", ServeDir::new(format!("{}/pkg", site_root)))

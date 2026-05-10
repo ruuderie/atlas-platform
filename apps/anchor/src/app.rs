@@ -196,7 +196,7 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/work") view=|| view! { <Redirect path="/p/resume"/> }/>
                             <Route path=path!("/projects") view=|| view! { <Redirect path="/p/projects"/> }/>
                             <Route path=path!("/blog") view=Blog/>
-                            <Route path=path!("/blog/:slug") view=BlogPost/>
+                            <Route path=path!("/blog/{slug}") view=BlogPost/>
                             <Route path=path!("/certifications") view=|| view! { <Redirect path="/p/certifications"/> }/>
                             <Route path=path!("/investments/real-estate") view=|| view! { <Redirect path="/p/real-estate-ventures"/> }/>
                             <Route path=path!("/investments/bitcoin") view=BitcoinDashboard/>
