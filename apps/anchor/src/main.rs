@@ -86,6 +86,7 @@ async fn main() {
                 move || shell(leptos_options.clone())
             },
         )
+        .fallback(leptos_axum::file_and_error_handler::<anchor::state::AppState, _>(shell))
         .layer(prometheus_layer)
         .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
         .layer(axum::Extension(app_state.clone()))
