@@ -17,6 +17,7 @@ CMD ["cargo", "run"]
 # Build stage
 FROM base AS builder
 ARG BUILD_PROFILE=release
+COPY Cargo.toml Cargo.lock ./
 RUN mkdir -p src && \
     echo "fn main() {println!(\"Dummy main\");}" > src/main.rs && \
     if [ "$BUILD_PROFILE" = "release" ]; then cargo build --release; else cargo build; fi && \
