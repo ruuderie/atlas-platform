@@ -32,7 +32,8 @@ pub fn PasskeyLoginButton(
                 Ok(res) if res.status().is_success() => res,
                 Ok(res) => {
                     let text = res.text().await.unwrap_or_default();
-                    on_error.run(format!("No passkeys found: {}", text));
+                    leptos::logging::warn!("Passkey start-login failed: {}", text);
+                    on_error.run("No passkeys found for this account. Try signing in with a magic link.".to_string());
                     is_submitting.set(false);
                     return;
                 }
@@ -81,9 +82,10 @@ pub fn PasskeyLoginButton(
                 }
                 Ok(res) => {
                     let text = res.text().await.unwrap_or_default();
-                    on_error.run(format!("Passkey auth failed: {}", text));
+                    leptos::logging::warn!("Passkey finish-login failed: {}", text);
+                    on_error.run("Passkey verification failed. Please try again.".to_string());
                 }
-                Err(_) => on_error.run("Network error during verification.".to_string()),
+                Err(_) => on_error.run("Network error during verification. Please check your connection.".to_string()),
             }
             
             is_submitting.set(false);

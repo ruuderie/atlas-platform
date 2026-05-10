@@ -151,7 +151,6 @@ pub fn AtlasLoginPanel(
                                                     id="atlas-magic-link-email"
                                                     type="email"
                                                     placeholder="admin@yourdomain.com"
-                                                    autofocus
                                                     on:input=move |ev| auth.email.set(event_target_value(&ev))
                                                     prop:value=auth.email
                                                     class="w-full bg-transparent border-b-2 border-outline-variant focus:border-primary focus:outline-none px-0 py-4 jetbrains text-lg text-on-surface transition-all placeholder:text-outline-variant/40"
