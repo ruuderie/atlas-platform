@@ -86,7 +86,6 @@ async fn main() {
                 move || shell(leptos_options.clone())
             },
         )
-        .fallback(leptos_axum::file_and_error_handler(shell))
         .layer(prometheus_layer)
         .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
         .layer(axum::Extension(app_state.clone()))
@@ -103,6 +102,8 @@ async fn main() {
 pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
     use leptos::prelude::*;
     use leptos_meta::MetaTags;
+
+    use anchor::app::App;
 
     view! {
         <!DOCTYPE html>
