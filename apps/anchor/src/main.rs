@@ -187,5 +187,8 @@ async fn extract_tenant_header(
 }
 
 #[cfg(not(feature = "ssr"))]
-fn main() {}
+pub fn main() {
+    // no client-side main function
+}
+
 // Trigger build
