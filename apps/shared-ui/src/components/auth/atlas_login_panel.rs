@@ -6,22 +6,13 @@ use crate::components::auth::passkey_login::PasskeyLoginButton;
 
 /// Platform-standard login panel — Kami design system.
 ///
-/// Uses the Kami neutral vocabulary (parchment base, ivory card, ink-blue #1B365D accent,
-/// warm serif typography) so the component looks at home in any Atlas platform app without
-/// carrying the visual fingerprint of any single app.
+/// Uses the Kami neutral vocabulary (parchment base, ivory card, ink-blue #1B365D accent)
+/// with typography inherited from the host application so it is visually consistent
+/// regardless of which Atlas app embeds it.
 ///
 /// # Usage
 /// ```rust
-/// // Minimal — just the title:
 /// view! { <AtlasLoginPanel app_title="Atlas Admin" /> }
-///
-/// // With callback for modal flows:
-/// view! {
-///     <AtlasLoginPanel
-///         app_title="Network"
-///         on_authenticated=Callback::new(|_| { /* navigate or reload */ })
-///     />
-/// }
 /// ```
 ///
 /// Mode switching is driven by `?mode=email` in the URL — SSR-rendered, no WASM required.
@@ -57,7 +48,7 @@ pub fn AtlasLoginPanel(
     let magic_link_sent = move || auth.magic_link_sent.get();
 
     view! {
-        // Kami: parchment page base, centered column, generous breathing room
+        // Outer: inherit font-family from host app so the panel feels native
         <div style="
             min-height: 100vh;
             display: flex;
@@ -65,9 +56,8 @@ pub fn AtlasLoginPanel(
             justify-content: center;
             background: #f5f4ed;
             padding: 48px 16px;
-            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
         ">
-            // Kami card: ivory background, 0.5pt border, 8pt radius, whisper shadow
+            // Card
             <div style="
                 width: 100%;
                 max-width: 420px;
@@ -79,7 +69,6 @@ pub fn AtlasLoginPanel(
             ">
 
                 // ── Header ────────────────────────────────────────────────────
-                // Kami: brand left-bar is the signature structural move
                 <div style="
                     border-left: 3px solid #1B365D;
                     border-radius: 2px;
@@ -93,13 +82,10 @@ pub fn AtlasLoginPanel(
                         text-transform: uppercase;
                         color: #6b6a64;
                         margin: 0 0 4px 0;
-                        font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
                     ">
                         "Secure Login"
                     </p>
-                    // Kami: serif 500, headline line-height 1.2
                     <h1 style="
-                        font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                         font-size: 26px;
                         font-weight: 500;
                         line-height: 1.2;
@@ -111,7 +97,6 @@ pub fn AtlasLoginPanel(
                 </div>
 
                 // ── Mode tabs ─────────────────────────────────────────────────
-                // Kami: warm-sand secondary, brand fill for active
                 <div style="display: flex; gap: 8px; margin-bottom: 32px;">
                     <a
                         href="?"
@@ -119,7 +104,6 @@ pub fn AtlasLoginPanel(
                             "display: inline-block; padding: 6px 14px; border-radius: 4px; \
                              font-size: 12px; font-weight: 500; text-decoration: none; \
                              transition: background 0.15s, color 0.15s; \
-                             font-family: Charter, Georgia, Palatino, 'Times New Roman', serif; \
                              {}",
                             if !email_mode() {
                                 "background: #1B365D; color: #faf9f5;"
@@ -136,7 +120,6 @@ pub fn AtlasLoginPanel(
                             "display: inline-block; padding: 6px 14px; border-radius: 4px; \
                              font-size: 12px; font-weight: 500; text-decoration: none; \
                              transition: background 0.15s, color 0.15s; \
-                             font-family: Charter, Georgia, Palatino, 'Times New Roman', serif; \
                              {}",
                             if email_mode() {
                                 "background: #1B365D; color: #faf9f5;"
@@ -155,7 +138,6 @@ pub fn AtlasLoginPanel(
                         <div>
                             {move || if magic_link_sent() {
                                 // ── Post-send confirmation ────────────────────
-                                // Kami: brand left-bar, ivory tint, olive body text
                                 view! {
                                     <div style="
                                         border-left: 3px solid #1B365D;
@@ -165,10 +147,9 @@ pub fn AtlasLoginPanel(
                                     ">
                                         <p style="
                                             font-size: 13px;
-                                            font-weight: 500;
+                                            font-weight: 600;
                                             color: #1B365D;
                                             margin: 0 0 8px 0;
-                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                         ">
                                             "Check your inbox"
                                         </p>
@@ -177,7 +158,6 @@ pub fn AtlasLoginPanel(
                                             color: #504e49;
                                             line-height: 1.55;
                                             margin: 0 0 4px 0;
-                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                         ">
                                             "A sign-in link was sent to "
                                             <span style="color: #1B365D; font-weight: 500;">
@@ -189,7 +169,6 @@ pub fn AtlasLoginPanel(
                                             font-size: 12px;
                                             color: #6b6a64;
                                             margin: 0 0 16px 0;
-                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                         ">
                                             "Expires in 15 minutes. Check spam if it doesn't arrive."
                                         </p>
@@ -202,7 +181,6 @@ pub fn AtlasLoginPanel(
                                             style="
                                                 background: none; border: none; cursor: pointer; padding: 0;
                                                 font-size: 12px; color: #6b6a64;
-                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                                 text-decoration: underline;
                                                 text-underline-offset: 2px;
                                                 transition: color 0.15s;
@@ -216,7 +194,6 @@ pub fn AtlasLoginPanel(
                                 // ── Email input ───────────────────────────────
                                 view! {
                                     <div>
-                                        // Label — Kami label: 9pt, 600, uppercase, stone
                                         <label
                                             for="atlas-magic-link-email"
                                             style="
@@ -227,13 +204,11 @@ pub fn AtlasLoginPanel(
                                                 text-transform: uppercase;
                                                 color: #6b6a64;
                                                 margin-bottom: 8px;
-                                                font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
                                             "
                                         >
                                             "Email address"
                                         </label>
 
-                                        // Input — Kami: ivory bg, warm border, 8pt radius
                                         <input
                                             id="atlas-magic-link-email"
                                             type="email"
@@ -250,7 +225,6 @@ pub fn AtlasLoginPanel(
                                                 padding: 10px 12px;
                                                 font-size: 14px;
                                                 color: #141413;
-                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                                 outline: none;
                                                 transition: border-color 0.15s;
                                                 margin-bottom: 8px;
@@ -261,13 +235,12 @@ pub fn AtlasLoginPanel(
                                             font-size: 12px;
                                             color: #6b6a64;
                                             margin: 0 0 20px 0;
-                                            font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                             line-height: 1.45;
                                         ">
                                             "We'll send a one-time sign-in link to this address."
                                         </p>
 
-                                        // Error — Kami: brand left-bar variant with error tint
+                                        // Error state
                                         {move || auth.error.get().map(|e| view! {
                                             <div style="
                                                 border-left: 3px solid #c0392b;
@@ -278,22 +251,26 @@ pub fn AtlasLoginPanel(
                                                 font-size: 13px;
                                                 color: #922b21;
                                                 line-height: 1.45;
-                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                             ">
                                                 {e}
                                             </div>
                                         })}
 
-                                        // Primary CTA — Kami: brand fill + ivory text
+                                        // CTA button with loading spinner
                                         <button
+                                            id="atlas-send-link-btn"
+                                            type="button"
                                             on:click=move |_| { auth.dispatch_login.dispatch(()); }
                                             disabled=move || {
                                                 auth.is_loading.get()
                                                 || auth.countdown.get() > 0
                                                 || auth.email.get().is_empty()
                                             }
-                                            style="
-                                                display: block;
+                                            style=move || format!("
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                gap: 8px;
                                                 width: 100%;
                                                 background: #1B365D;
                                                 color: #faf9f5;
@@ -302,12 +279,36 @@ pub fn AtlasLoginPanel(
                                                 padding: 12px 20px;
                                                 font-size: 14px;
                                                 font-weight: 500;
-                                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
-                                                cursor: pointer;
+                                                cursor: {};
                                                 transition: background 0.15s, opacity 0.15s;
                                                 text-align: center;
-                                            "
+                                                opacity: {};
+                                            ",
+                                            if auth.is_loading.get() || auth.countdown.get() > 0 || auth.email.get().is_empty() {
+                                                "not-allowed"
+                                            } else {
+                                                "pointer"
+                                            },
+                                            if auth.is_loading.get() || auth.countdown.get() > 0 || auth.email.get().is_empty() {
+                                                "0.6"
+                                            } else {
+                                                "1"
+                                            })
                                         >
+                                            // Spinner shown while loading
+                                            {move || if auth.is_loading.get() {
+                                                view! {
+                                                    <svg
+                                                        width="14" height="14"
+                                                        viewBox="0 0 24 24"
+                                                        style="animation: atlas-spin 0.8s linear infinite; flex-shrink: 0;"
+                                                    >
+                                                        <circle cx="12" cy="12" r="10" fill="none" stroke="#faf9f5" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/>
+                                                    </svg>
+                                                }.into_any()
+                                            } else {
+                                                view! { <span/> }.into_any()
+                                            }}
                                             {move || if auth.is_loading.get() {
                                                 "Sending…".to_string()
                                             } else if auth.countdown.get() > 0 {
@@ -316,6 +317,11 @@ pub fn AtlasLoginPanel(
                                                 "Send sign-in link".to_string()
                                             }}
                                         </button>
+
+                                        // Spinner keyframe injected once
+                                        <style>
+                                            "@keyframes atlas-spin { to { transform: rotate(360deg); } }"
+                                        </style>
                                     </div>
                                 }.into_any()
                             }}
@@ -331,12 +337,11 @@ pub fn AtlasLoginPanel(
                                 color: #504e49;
                                 line-height: 1.55;
                                 margin: 0 0 24px 0;
-                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                             ">
                                 "Use a registered passkey — Face ID, Touch ID, or a hardware key — to sign in instantly without a password."
                             </p>
 
-                            // Passkey error — same brand left-bar error treatment
+                            // Passkey error
                             {move || auth.error.get().map(|e| view! {
                                 <div style="
                                     border-left: 3px solid #c0392b;
@@ -347,7 +352,6 @@ pub fn AtlasLoginPanel(
                                     font-size: 13px;
                                     color: #922b21;
                                     line-height: 1.45;
-                                    font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                                 ">
                                     {e}
                                 </div>
@@ -360,7 +364,7 @@ pub fn AtlasLoginPanel(
                                 on_error=handle_passkey_error
                             />
 
-                            // Divider — Kami: 0.5pt warm dotted
+                            // Divider
                             <div style="
                                 border-top: 1px solid #e8e6dc;
                                 margin: 24px 0 16px;
@@ -371,7 +375,6 @@ pub fn AtlasLoginPanel(
                                 color: #6b6a64;
                                 line-height: 1.55;
                                 margin: 0;
-                                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                             ">
                                 "Don't have a passkey yet? Sign in with a magic link first, then register one from your security settings."
                             </p>
@@ -382,6 +385,3 @@ pub fn AtlasLoginPanel(
         </div>
     }
 }
-
-// Kami design system applied — parchment/ivory/ink-blue palette, inline SVG passkey icon.
-// Re-trigger: fix CI_PIPELINE_FILES bracket stripping so kubectl set image is actually called.
