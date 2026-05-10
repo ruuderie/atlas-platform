@@ -445,29 +445,29 @@ steps:
           if echo "$CHANGED" | grep -qE "(\.woodpecker\.yml|k8s/)" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
             echo "Config/infra-only change — config and secrets applied, no image updates needed."
           else
-          # Service-scoped image updates — only for services rebuilt in this run
-          if echo "$CHANGED" | grep -qE "^backend/"; then
-            update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
-          fi
-          
-          # If shared-ui changed, we need to roll out all three frontend apps
-          if echo "$CHANGED" | grep -qE "^apps/shared-ui/"; then
-            update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-            update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-            update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
-          else
-            if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
+            # Service-scoped image updates — only for services rebuilt in this run
+            if echo "$CHANGED" | grep -qE "^backend/"; then
+              update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
+            fi
+            
+            # If shared-ui changed, we need to roll out all three frontend apps
+            if echo "$CHANGED" | grep -qE "^apps/shared-ui/"; then
               update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-            fi
-            if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
               update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-            fi
-            if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
               update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
+            else
+              if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
+                update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
+              fi
+              if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
+                update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
+              fi
+              if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
+                update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
+              fi
             fi
           fi
         fi
-      fi
 
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
