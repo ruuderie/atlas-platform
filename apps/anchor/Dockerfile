@@ -67,7 +67,7 @@ RUN apt-get update -y \
 
 ARG BUILD_PROFILE=release
 COPY --from=builder /app/apps/target/${BUILD_PROFILE}/anchor /app/
-COPY --from=builder /app/apps/anchor/target/site /app/site
+COPY --from=builder /app/apps/target/site /app/site
 COPY --from=builder /app/apps/anchor/Cargo.toml /app/
 COPY --from=builder /app/apps/anchor/migrations /app/migrations
 
