@@ -1,6 +1,6 @@
 use axum::{
     extract::{State, Query, Extension, Json},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
     Router,
@@ -313,7 +313,7 @@ pub struct VerifyMagicLinkPayload {
 pub async fn verify_magic_link(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<VerifyMagicLinkPayload>,
-) -> Result<(StatusCode, Json<crate::models::session::SessionResponse>), (StatusCode, String)> {
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     let magic_link_opt = magic_link_token::Entity::find()
         .filter(magic_link_token::Column::Token.eq(&payload.token))
         .filter(magic_link_token::Column::IsUsed.eq(false))
@@ -380,7 +380,17 @@ pub async fn verify_magic_link(
     let session_response = crate::handlers::sessions::create_session_for_user(&db, &user_mod)
         .await
         .map_err(|e| (e, "Failed to create session".to_string()))?;
-    
-    Ok((StatusCode::OK, Json(session_response)))
+
+    // CRITICAL: SessionResponse.token is #[serde(skip_serializing)] so it is never
+    // present in the JSON body. The frontend reads the Set-Cookie header — do NOT
+    // change this to a JSON field without a security review.
+    use crate::handlers::sessions::session_cookie_header;
+    let cookie = session_cookie_header(&session_response.token, 86_400); // 24 h
+
+    Ok((
+        StatusCode::OK,
+        [(header::SET_COOKIE, cookie)],
+        Json(session_response),
+    ).into_response())
 }
 

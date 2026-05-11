@@ -87,6 +87,18 @@ async fn test_magic_link_flow() {
         .unwrap();
     assert_eq!(ver_res.status(), StatusCode::OK);
 
+    // REGRESSION: SessionResponse.token is #[serde(skip_serializing)] so the JSON body
+    // never contains the session token. The response MUST carry a Set-Cookie header —
+    // without it the browser has no way to receive the session and every verification
+    // appears as "expired" to the end-user even though the backend marked the token used.
+    let set_cookie = ver_res.headers().get("set-cookie")
+        .expect("verify_magic_link must respond with a Set-Cookie header")
+        .to_str()
+        .expect("Set-Cookie header must be valid UTF-8");
+    assert!(set_cookie.contains("session="), "Set-Cookie must set the 'session' cookie");
+    assert!(set_cookie.contains("HttpOnly"), "session cookie must be HttpOnly");
+    assert!(set_cookie.contains("SameSite=Strict"), "session cookie must have SameSite=Strict");
+
     // Validate that consuming a regular Magic Link DOES NOT eradicate the mock passkey
     let count_after = passkey::Entity::find()
         .filter(passkey::Column::UserId.eq(token_model.user_id))
