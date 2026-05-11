@@ -116,9 +116,22 @@ fn token_view(
                                 "If you didn't use this link, your account is secure \u{2014} \
                                  magic links can only be activated once."
                             </p>
-                            <a href="/admin" style="display:block;width:100%;box-sizing:border-box;background:#1B365D;color:#faf9f5;border-radius:6px;padding:12px 20px;font-size:14px;font-weight:500;text-align:center;text-decoration:none;">
+                            // Use a button + window.location.replace instead of an <a href>.
+                            // Leptos router intercepts same-origin <a> clicks as client-side
+                            // navigations, which keeps the component mounted with stale has_token=true
+                            // and the expired card stays on screen. A hard reload via
+                            // window.location.replace fully remounts the component from scratch.
+                            <button type="button"
+                                on:click=move |_| {
+                                    #[cfg(feature = "hydrate")]
+                                    if let Some(w) = web_sys::window() {
+                                        let _ = w.location().replace("/admin?mode=email");
+                                    }
+                                }
+                                style="display:block;width:100%;box-sizing:border-box;background:#1B365D;color:#faf9f5;border:none;border-radius:6px;padding:12px 20px;font-size:14px;font-weight:500;text-align:center;cursor:pointer;"
+                            >
                                 "Request a new sign-in link"
-                            </a>
+                            </button>
                         </div>
                     </div>
                 }.into_any(),
@@ -137,7 +150,11 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
     let error_sig      = auth.error;
     let dispatch_login = auth.dispatch_login;
 
-    let email_mode = RwSignal::new(false);
+    // Default to email/magic-link tab when arriving via ?mode=email — e.g. after a
+    // hard-reload from the "Request a new sign-in link" button on the expired-token card.
+    let query = use_query_map();
+    let initial_email_mode = query.with(|q| q.get("mode").as_deref() == Some("email"));
+    let email_mode = RwSignal::new(initial_email_mode);
 
     let on_pk = on_authenticated.clone();
     let handle_passkey_success = Callback::new(move |_: String| {
@@ -204,7 +221,20 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                                     <div style="border-left:3px solid #c0392b;background:#fdf3f2;padding:10px 12px 10px 14px;margin-bottom:16px;font-size:13px;color:#922b21;line-height:1.45;">{e}</div>
                                 })}
                                 <button id="atlas-send-link-btn" type="button"
-                                    on:click=move |_| { let _ = dispatch_login.dispatch(()); }
+                                    on:click=move |_| {
+                                        // Synchronous guard: re-check signal state before dispatching.
+                                        // prop:disabled prevents NEW clicks, but events already queued
+                                        // in the browser event loop can still fire before the DOM
+                                        // reflects the disabled state. Checking the signal value
+                                        // (not the DOM property) closes this race window.
+                                        if is_loading_sig.get_untracked()
+                                            || countdown_sig.get_untracked() != 0
+                                            || email_sig.get_untracked().trim().is_empty()
+                                        {
+                                            return;
+                                        }
+                                        let _ = dispatch_login.dispatch(());
+                                    }
                                     prop:disabled=move || is_loading_sig.get() || (countdown_sig.get() != 0) || email_sig.get().trim().is_empty()
                                     style=move || format!(
                                         "display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:#1B365D;color:#faf9f5;border:none;border-radius:6px;padding:12px 20px;font-size:14px;font-weight:500;cursor:{};opacity:{};transition:opacity .15s;",
