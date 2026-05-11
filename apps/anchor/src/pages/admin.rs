@@ -93,33 +93,20 @@ pub fn WebformsTable() -> impl IntoView {
 }
 
 /// Returned by the `auth_resource` async block.
-/// Carries the magic-link flag through to view-layer derived closures.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 enum AuthStep {
-    /// Session validated (or magic link verified). `from_magic_link` triggers the
-    /// passkey-registration nudge shown immediately after a magic-link login.
-    Authenticated { from_magic_link: bool },
-    /// No valid session — render the login form.
+    Authenticated,
     Unauthenticated,
-    /// A token was present but verification failed (expired / already used).
-    TokenFailed,
 }
 
-/// Three-state auth enum for the view match.
 #[derive(Clone, PartialEq)]
-enum AuthState {
-    Pending,
-    No,
-    Yes,
-    /// Token provided but rejected — show a specific error, not the login form.
-    TokenFailed,
-}
+enum AuthState { Pending, Yes, No }
 
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
-/// All auth logic lives in shared-ui and is reused across every Atlas platform app.
+/// Token verification, expired-link UI, URL cleanup — all owned by the panel.
 #[component]
 fn LoginPanel() -> impl IntoView {
-    view! { <AtlasLoginPanel app_title="SYSTEM_CMS" /> }
+    view! { <AtlasLoginPanel app_title="SYSTEM_CMS" success_path="/admin" /> }
 }
 
 #[component]
@@ -134,47 +121,22 @@ pub fn Admin() -> impl IntoView {
     // Reactive key: the ?token= query param. If a magic-link token is present
     // it is verified first; otherwise we fall through to session validation.
     // The resource re-runs automatically if the URL query string changes.
-    let has_token = move || query.with(|q| q.get("token").is_some_and(|t| !t.is_empty()));
-
     let auth_resource = Resource::new(
-        move || query.with(|q| q.get("token")),
-        |token| async move {
-            if let Some(t) = token {
-                if !t.is_empty() {
-                    // Token present — verify it. Do NOT fall through to check_session
-                    // on failure: the user needs a clear error, not a silent login form.
-                    return match verify_magic_link(t).await {
-                        Ok(_) => AuthStep::Authenticated { from_magic_link: true },
-                        Err(_) => AuthStep::TokenFailed,
-                    };
-                }
-            }
+        || (),
+        |_| async move {
             match check_session().await {
-                Ok(true) => AuthStep::Authenticated { from_magic_link: false },
+                Ok(true) => AuthStep::Authenticated,
                 _        => AuthStep::Unauthenticated,
             }
         },
     );
 
     let auth_state = move || match auth_resource.get() {
-        Some(AuthStep::Authenticated { .. }) => AuthState::Yes,
-        Some(AuthStep::Unauthenticated)      => AuthState::No,
-        Some(AuthStep::TokenFailed)          => AuthState::TokenFailed,
-        None                                 => AuthState::Pending,
+        Some(AuthStep::Authenticated) => AuthState::Yes,
+        Some(AuthStep::Unauthenticated) => AuthState::No,
+        None => AuthState::Pending,
     };
-    let show_passkey_nudge = move || matches!(
-        auth_resource.get(),
-        Some(AuthStep::Authenticated { from_magic_link: true })
-    );
-
-    // After a magic-link login, replace the URL with /admin (no ?token=)
-    // so the token can't be replayed from the address bar or browser history.
-    let navigate = leptos_router::hooks::use_navigate();
-    Effect::new(move |_| {
-        if matches!(auth_resource.get(), Some(AuthStep::Authenticated { from_magic_link: true })) {
-            navigate("/admin", leptos_router::NavigateOptions { replace: true, ..Default::default() });
-        }
-    });
+    let show_passkey_nudge = RwSignal::new(false);
 
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
@@ -196,19 +158,8 @@ pub fn Admin() -> impl IntoView {
             // because it is read inside this Suspense boundary, so WASM picks up
             // the resolved value immediately without a refetch.
         <Suspense fallback=move || view! {
-            <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;">
-                <div style="text-align:center;">
-                    <svg width="32" height="32" viewBox="0 0 24 24"
-                        style="animation:atlas-spin 0.8s linear infinite;margin:0 auto 16px;">
-                        <circle cx="12" cy="12" r="10" fill="none"
-                            stroke="#1B365D" stroke-width="3"
-                            stroke-dasharray="31.4" stroke-dashoffset="10"/>
-                    </svg>
-                    <style>"@keyframes atlas-spin { to { transform: rotate(360deg); } }"</style>
-                    <p style="font-size:13px;color:#6b6a64;margin:0;">
-                        {move || if has_token() { "Verifying sign-in link…" } else { "Loading…" }}
-                    </p>
-                </div>
+            <div class="flex-1 flex justify-center items-center">
+                <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
             </div>
         }>
             {move || match auth_state() {
@@ -218,42 +169,6 @@ pub fn Admin() -> impl IntoView {
                     </div>
                 }.into_any(),
 
-                // ── Token invalid / expired ──────────────────────────────────────
-                AuthState::TokenFailed => view! {
-                    <div style="
-                        min-height: 100vh; display: flex; align-items: center;
-                        justify-content: center; background: #f5f4ed; padding: 48px 16px;
-                    ">
-                        <div style="
-                            width: 100%; max-width: 420px; background: #faf9f5;
-                            border: 1px solid #e8e6dc; border-radius: 8px;
-                            padding: 48px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.05);
-                        ">
-                            <div style="border-left: 3px solid #c0392b; border-radius: 2px; padding-left: 10px; margin-bottom: 24px;">
-                                <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#922b21;margin:0 0 4px 0;">"Sign-in link invalid"</p>
-                                <h1 style="font-size:22px;font-weight:500;color:#141413;margin:0;">"This link has expired"</h1>
-                            </div>
-                            <p style="font-size:14px;color:#504e49;line-height:1.6;margin:0 0 8px 0;">
-                                "Sign-in links are single-use and expire after 15 minutes. \
-                                 This link has already been used or is no longer valid."
-                            </p>
-                            <p style="font-size:13px;color:#6b6a64;line-height:1.55;margin:0 0 28px 0;">
-                                "If you didn't use this link, your account is secure — \
-                                 magic links can only be activated once."
-                            </p>
-                            <a
-                                href="/admin"
-                                style="
-                                    display: block; width: 100%; box-sizing: border-box;
-                                    background: #1B365D; color: #faf9f5; border: none;
-                                    border-radius: 6px; padding: 12px 20px;
-                                    font-size: 14px; font-weight: 500; text-align: center;
-                                    text-decoration: none; cursor: pointer;
-                                "
-                            >"Request a new sign-in link"</a>
-                        </div>
-                    </div>
-                }.into_any(),
 
                 // ── Unauthenticated ─────────────────────────────────────────────
                 AuthState::No => view! {
