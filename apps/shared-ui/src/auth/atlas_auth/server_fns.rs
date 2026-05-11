@@ -111,21 +111,25 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
 
         match res {
             Ok(r) if r.status().is_success() => {
-                let data: serde_json::Value = r.json().await.unwrap_or_default();
-                if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
+                // SessionResponse.token is #[serde(skip_serializing)] — it is NEVER in
+                // the JSON body, so reading data.get("token") always returned None and
+                // every verification silently became TokenFailed while the token was
+                // already marked is_used=true on the backend.
+                // The backend now sets a Set-Cookie header; we proxy it to the browser.
+                let cookie = r.headers()
+                    .get("set-cookie")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string());
+                if let Some(cookie_val) = cookie {
                     use leptos_axum::ResponseOptions;
                     let response = expect_context::<ResponseOptions>();
-                    let header_val = format!(
-                        "session={}; HttpOnly; Path=/; SameSite=Strict{}",
-                        session_token, secure_flag
-                    );
                     response.append_header(
                         axum::http::header::SET_COOKIE,
-                        axum::http::HeaderValue::from_str(&header_val).unwrap(),
+                        axum::http::HeaderValue::from_str(&cookie_val).unwrap(),
                     );
                     return Ok("SUCCESS".to_string());
                 }
-                Err(ServerFnError::ServerError("Invalid response format".into()))
+                Err(ServerFnError::ServerError("No session cookie in verify response".into()))
             },
             _ => Err(ServerFnError::ServerError("Failed to verify magic link".into())),
         }
