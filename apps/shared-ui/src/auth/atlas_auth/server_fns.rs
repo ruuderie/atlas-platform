@@ -43,6 +43,7 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
             "https"
         };
         let redirect_url = format!("{}://{}/admin", scheme, host);
+        let secure_flag = if scheme == "https" { "; Secure" } else { "" };
 
         let payload = serde_json::json!({
             "email": email,
@@ -93,10 +94,17 @@ pub async fn request_magic_link(email: String) -> Result<String, ServerFnError> 
 pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        let payload = serde_json::json!({
-            "token": token,
-        });
-        
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let host = headers
+            .get("host")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("localhost");
+        let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+        let secure_flag = if is_https { "; Secure" } else { "" };
+
+        let payload = serde_json::json!({ "token": token });
         let url = format!("{}/api/auth/magic-link/verify", get_atlas_api_url());
         let client = reqwest::Client::new();
         let res = client.post(&url).json(&payload).send().await;
@@ -108,8 +116,8 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                     use leptos_axum::ResponseOptions;
                     let response = expect_context::<ResponseOptions>();
                     let header_val = format!(
-                        "session={}; HttpOnly; Path=/; SameSite=Strict",
-                        session_token
+                        "session={}; HttpOnly; Path=/; SameSite=Strict{}",
+                        session_token, secure_flag
                     );
                     response.append_header(
                         axum::http::header::SET_COOKIE,

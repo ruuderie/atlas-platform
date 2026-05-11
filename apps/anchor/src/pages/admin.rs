@@ -101,16 +101,18 @@ enum AuthStep {
     Authenticated { from_magic_link: bool },
     /// No valid session — render the login form.
     Unauthenticated,
+    /// A token was present but verification failed (expired / already used).
+    TokenFailed,
 }
 
 /// Three-state auth enum for the view match.
-/// `Pending` is only reached when the resource hasn't resolved yet;
-/// in practice the `<Suspense>` fallback covers that state.
 #[derive(Clone, PartialEq)]
 enum AuthState {
     Pending,
     No,
     Yes,
+    /// Token provided but rejected — show a specific error, not the login form.
+    TokenFailed,
 }
 
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
@@ -132,16 +134,19 @@ pub fn Admin() -> impl IntoView {
     // Reactive key: the ?token= query param. If a magic-link token is present
     // it is verified first; otherwise we fall through to session validation.
     // The resource re-runs automatically if the URL query string changes.
+    let has_token = move || query.with(|q| q.get("token").is_some_and(|t| !t.is_empty()));
+
     let auth_resource = Resource::new(
         move || query.with(|q| q.get("token")),
         |token| async move {
             if let Some(t) = token {
                 if !t.is_empty() {
-                    // Magic link: verify token, set HttpOnly cookie server-side,
-                    // then treat as authenticated. Auto-login — no extra click.
-                    if verify_magic_link(t).await.is_ok() {
-                        return AuthStep::Authenticated { from_magic_link: true };
-                    }
+                    // Token present — verify it. Do NOT fall through to check_session
+                    // on failure: the user needs a clear error, not a silent login form.
+                    return match verify_magic_link(t).await {
+                        Ok(_) => AuthStep::Authenticated { from_magic_link: true },
+                        Err(_) => AuthStep::TokenFailed,
+                    };
                 }
             }
             match check_session().await {
@@ -151,16 +156,25 @@ pub fn Admin() -> impl IntoView {
         },
     );
 
-    // Derived closures — read the resource; <Suspense> handles the None/pending case.
-    let auth_state    = move || match auth_resource.get() {
+    let auth_state = move || match auth_resource.get() {
         Some(AuthStep::Authenticated { .. }) => AuthState::Yes,
         Some(AuthStep::Unauthenticated)      => AuthState::No,
+        Some(AuthStep::TokenFailed)          => AuthState::TokenFailed,
         None                                 => AuthState::Pending,
     };
     let show_passkey_nudge = move || matches!(
         auth_resource.get(),
         Some(AuthStep::Authenticated { from_magic_link: true })
     );
+
+    // After a magic-link login, replace the URL with /admin (no ?token=)
+    // so the token can't be replayed from the address bar or browser history.
+    let navigate = leptos_router::hooks::use_navigate();
+    Effect::new(move |_| {
+        if matches!(auth_resource.get(), Some(AuthStep::Authenticated { from_magic_link: true })) {
+            navigate("/admin", leptos_router::NavigateOptions { replace: true, ..Default::default() });
+        }
+    });
 
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
@@ -181,25 +195,67 @@ pub fn Admin() -> impl IntoView {
             // structural mismatch. Leptos serializes auth_resource during SSR
             // because it is read inside this Suspense boundary, so WASM picks up
             // the resolved value immediately without a refetch.
-            <Suspense fallback=move || view! {
-                <div class="flex-1 flex justify-center items-center">
-                    <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
+        <Suspense fallback=move || view! {
+            <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;">
+                <div style="text-align:center;">
+                    <svg width="32" height="32" viewBox="0 0 24 24"
+                        style="animation:atlas-spin 0.8s linear infinite;margin:0 auto 16px;">
+                        <circle cx="12" cy="12" r="10" fill="none"
+                            stroke="#1B365D" stroke-width="3"
+                            stroke-dasharray="31.4" stroke-dashoffset="10"/>
+                    </svg>
+                    <style>"@keyframes atlas-spin { to { transform: rotate(360deg); } }"</style>
+                    <p style="font-size:13px;color:#6b6a64;margin:0;">
+                        {move || if has_token() { "Verifying sign-in link…" } else { "Loading…" }}
+                    </p>
                 </div>
-            }>
+            </div>
+        }>
             {move || match auth_state() {
-                // Pending: Suspense fallback renders instead — this arm is kept
-                // only for type completeness and is practically unreachable once
-                // the SSR-serialized resource value is available on the WASM side.
                 AuthState::Pending => view! {
                     <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
                     </div>
                 }.into_any(),
 
+                // ── Token invalid / expired ──────────────────────────────────────
+                AuthState::TokenFailed => view! {
+                    <div style="
+                        min-height: 100vh; display: flex; align-items: center;
+                        justify-content: center; background: #f5f4ed; padding: 48px 16px;
+                    ">
+                        <div style="
+                            width: 100%; max-width: 420px; background: #faf9f5;
+                            border: 1px solid #e8e6dc; border-radius: 8px;
+                            padding: 48px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+                        ">
+                            <div style="border-left: 3px solid #c0392b; border-radius: 2px; padding-left: 10px; margin-bottom: 24px;">
+                                <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#922b21;margin:0 0 4px 0;">"Sign-in link invalid"</p>
+                                <h1 style="font-size:22px;font-weight:500;color:#141413;margin:0;">"This link has expired"</h1>
+                            </div>
+                            <p style="font-size:14px;color:#504e49;line-height:1.6;margin:0 0 8px 0;">
+                                "Sign-in links are single-use and expire after 15 minutes. \
+                                 This link has already been used or is no longer valid."
+                            </p>
+                            <p style="font-size:13px;color:#6b6a64;line-height:1.55;margin:0 0 28px 0;">
+                                "If you didn't use this link, your account is secure — \
+                                 magic links can only be activated once."
+                            </p>
+                            <a
+                                href="/admin"
+                                style="
+                                    display: block; width: 100%; box-sizing: border-box;
+                                    background: #1B365D; color: #faf9f5; border: none;
+                                    border-radius: 6px; padding: 12px 20px;
+                                    font-size: 14px; font-weight: 500; text-align: center;
+                                    text-decoration: none; cursor: pointer;
+                                "
+                            >"Request a new sign-in link"</a>
+                        </div>
+                    </div>
+                }.into_any(),
+
                 // ── Unauthenticated ─────────────────────────────────────────────
-                // LoginPanel owns all auth-form signals in its own component scope,
-                // so the reactive toggle between passkey and email views is fully
-                // isolated from this outer auth-state match closure.
                 AuthState::No => view! {
                     <LoginPanel />
                 }.into_any(),
