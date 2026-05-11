@@ -40,17 +40,20 @@ pub fn use_atlas_auth() -> AtlasAuthState {
 
     let dispatch_login_fn = move |_: &()| {
         let email_val = email.get_untracked();
-        async move {
-            if email_val.is_empty() {
-                error.set(Some("Email is required.".to_string()));
-                return;
-            }
+        // Validate and set loading state SYNCHRONOUSLY before the async block.
+        // This disables the button on the very next reactive tick, closing
+        // the race window that caused two emails to be sent on a slow network.
+        let valid = !email_val.trim().is_empty();
+        if valid {
             is_loading.set(true);
             error.set(None);
-            
+        } else {
+            error.set(Some("Email is required.".to_string()));
+        }
+        async move {
+            if !valid { return; }
             match request_magic_link(email_val).await {
                 Ok(_) => {
-                    // Success — set the dedicated signal, never touch error.
                     magic_link_sent.set(true);
                     error.set(None);
                     countdown.set(60);
@@ -69,7 +72,6 @@ pub fn use_atlas_auth() -> AtlasAuthState {
                     });
                 }
                 Err(e) => {
-                    // Log the internal error but show a generic message — never expose ServerFnError internals.
                     leptos::logging::error!("Magic link request error: {:?}", e);
                     error.set(Some("Unable to send login link. Please try again.".to_string()));
                 }

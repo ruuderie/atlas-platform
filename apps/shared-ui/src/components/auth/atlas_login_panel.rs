@@ -36,25 +36,18 @@ fn token_view(
     success_path: String,
     on_authenticated: Option<Callback<()>>,
 ) -> impl IntoView {
-    #[cfg(any(feature = "ssr", feature = "hydrate"))]
-    let resource = Resource::new(
-        move || token.clone(),
-        |t| async move {
-            match t {
-                Some(tok) if !tok.is_empty() => match verify_magic_link(tok).await {
-                    Ok(_)  => TokenState::Success,
-                    Err(_) => TokenState::Failed,
-                },
-                _ => TokenState::None,
-            }
-        },
-    );
-    #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+    // IMPORTANT: Use LocalResource (client-only) — NOT Resource.
+    // Resource::new runs during SSR, which would consume the single-use token
+    // server-side before WASM loads. If the session cookie then fails to stick
+    // (e.g. browser rejects it without the Secure flag on first response),
+    // the token is gone and the next click shows "already expired".
+    // LocalResource skips SSR entirely: the Suspense fallback shows on first
+    // load, WASM verifies the token, sets the cookie, and navigates cleanly.
     let resource = LocalResource::new(move || {
-        let t = token.clone();
+        let tok = token.clone();
         async move {
-            match t {
-                Some(tok) if !tok.is_empty() => match verify_magic_link(tok).await {
+            match tok {
+                Some(t) if !t.is_empty() => match verify_magic_link(t).await {
                     Ok(_)  => TokenState::Success,
                     Err(_) => TokenState::Failed,
                 },
