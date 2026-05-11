@@ -103,11 +103,6 @@ site-root = "target/site"
 # Defaults to pkg
 site-pkg-dir = "pkg"
 
-# Hash output filenames so browsers always fetch the latest build and
-# never serve stale JS/WASM from cache after a deployment.
-hash-files = true
-
-
 # [Optional] The source CSS file.
 tailwind-input-file = "style/main.css"
 tailwind-config-file = "tailwind.config.js"
