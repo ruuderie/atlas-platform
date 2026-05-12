@@ -231,6 +231,36 @@ pub async fn request_magic_link(
     };
 
     if let Some(user_mod) = user_model {
+        // ── Idempotency guard ────────────────────────────────────────────────
+        // If a valid, unused token for this user already exists that was created
+        // within the last 60 seconds, reuse it rather than inserting a second token
+        // and firing another email.  This prevents duplicate emails when two HTTP
+        // requests reach the handler from the same user action (e.g. a network
+        // retry, an in-flight browser double-dispatch before the countdown UI
+        // kicks in, or a load-balancer quirk).
+        use sea_orm::QueryOrder;
+        let recent_cutoff = Utc::now() - Duration::seconds(60);
+        let existing_token = magic_link_token::Entity::find()
+            .filter(magic_link_token::Column::UserId.eq(user_mod.id))
+            .filter(magic_link_token::Column::IsUsed.eq(false))
+            .filter(magic_link_token::Column::CreatedAt.gte(recent_cutoff))
+            .filter(magic_link_token::Column::ExpiresAt.gt(Utc::now()))
+            .order_by_desc(magic_link_token::Column::CreatedAt)
+            .one(&db)
+            .await
+            .unwrap_or(None);
+
+        if let Some(existing) = existing_token {
+            tracing::warn!(
+                "Idempotency: skipping duplicate magic link for {} — token {}... created <60s ago is still valid",
+                user_mod.email,
+                &existing.token[..8]
+            );
+            // Return 200 — the email they already received is still valid.
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
+        // ── End idempotency guard ────────────────────────────────────────────
+
         let token_str: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
