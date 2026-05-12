@@ -56,13 +56,28 @@ fn token_view(
         }
     });
 
-    let navigate  = leptos_router::hooks::use_navigate();
-    let clean     = success_path.clone();
-    let on_ok     = on_authenticated.clone();
+    // CRITICAL: use window.location.replace NOT leptos_router navigate.
+    //
+    // navigate() is a client-side navigation — the Admin component stays mounted
+    // and its auth_resource (keyed on `|| ()`) never re-runs. auth_state stays
+    // AuthState::No → the dashboard never renders, even though the session cookie
+    // is now set.
+    //
+    // window.location.replace() forces a full page reload. The server runs a fresh
+    // check_session() with the new HttpOnly session cookie in the request, the
+    // resource resolves to Authenticated, and the dashboard renders.
+    //
+    // The on_authenticated callback (if any) still fires first so callers can
+    // perform any synchronous side-effects before the navigation happens.
+    let clean2 = success_path.clone();
+    let on_ok  = on_authenticated.clone();
     Effect::new(move |_| {
         if matches!(resource.get(), Some(TokenState::Success)) {
-            navigate(&clean, leptos_router::NavigateOptions { replace: true, ..Default::default() });
             if let Some(cb) = &on_ok { cb.run(()); }
+            #[cfg(feature = "hydrate")]
+            if let Some(w) = web_sys::window() {
+                let _ = w.location().replace(&clean2);
+            }
         }
     });
 
