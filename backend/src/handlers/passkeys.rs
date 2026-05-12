@@ -2,11 +2,11 @@ use axum::{
     extract::{Extension, Json},
     http::{StatusCode, header},
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use axum_extra::extract::cookie::CookieJar;
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, PaginatorTrait};
 use webauthn_rs::prelude::*;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -34,6 +34,21 @@ pub fn authenticated_routes() -> Router<sea_orm::DatabaseConnection> {
     Router::new()
         .route("/api/passkeys/start-register", post(register_start))
         .route("/api/passkeys/finish-register", post(register_finish))
+        .route("/api/passkeys/has-passkey", get(has_passkey))
+}
+
+/// Returns whether the currently-authenticated user has at least one passkey registered.
+/// Used by the dashboard to decide whether to show the passkey registration nudge.
+pub async fn has_passkey(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+) -> Json<serde_json::Value> {
+    let count = passkey::Entity::find()
+        .filter(passkey::Column::UserId.eq(user.id))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+    Json(serde_json::json!({ "has_passkey": count > 0 }))
 }
 
 pub async fn register_start(

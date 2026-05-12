@@ -158,6 +158,35 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
 }
 
 #[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(CheckHasPasskey, "/api")]
+pub async fn check_has_passkey() -> Result<bool, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+
+        let url = format!("{}/api/passkeys/has-passkey", get_atlas_api_url());
+        let client = reqwest::Client::new();
+        match client.get(&url).header("cookie", cookie_header).send().await {
+            Ok(r) if r.status().is_success() => {
+                let val: serde_json::Value = r.json().await.unwrap_or_default();
+                Ok(val["has_passkey"].as_bool().unwrap_or(true))
+            }
+            // If the call fails (unauthenticated or network error), assume has passkey
+            // so we don't nag users we can't verify.
+            _ => Ok(true),
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(true)
+    }
+}
+
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
 #[server(CheckSession, "/api")]
 pub async fn check_session() -> Result<bool, ServerFnError> {
     #[cfg(feature = "ssr")]

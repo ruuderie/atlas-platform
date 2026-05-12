@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 
 pub use shared_ui::auth::atlas_auth::{
-    check_session, request_magic_link, revoke_session, verify_magic_link,
+    check_has_passkey, check_session, request_magic_link, revoke_session, verify_magic_link,
 };
 
 #[server(IsSystemInitialized, "/api")]

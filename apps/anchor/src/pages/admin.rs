@@ -138,6 +138,20 @@ pub fn Admin() -> impl IntoView {
     };
     let show_passkey_nudge = RwSignal::new(false);
 
+    // After the page loads client-side, check whether the authenticated user has
+    // any passkeys registered. If not, show the registration nudge banner.
+    // LocalResource is intentionally client-only — the check requires a live
+    // session cookie which is only available after the browser hydrates.
+    let passkey_check = LocalResource::new(move || async move {
+        let has: bool = check_has_passkey().await.unwrap_or(true);
+        has
+    });
+    Effect::new(move |_| {
+        if let Some(false) = passkey_check.get() {
+            show_passkey_nudge.set(true);
+        }
+    });
+
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
     let (modal_state, set_modal_state) = signal(ModalState::None);
@@ -1440,6 +1454,7 @@ fn PasskeyRegistrationNudge() -> impl IntoView {
                             
                             const startRes = await fetch('/api/passkeys/start-register', {
                                 method: 'POST',
+                                credentials: 'include',
                                 headers: { 'Content-Type': 'application/json' }
                             });
                             if (!startRes.ok) throw new Error('Failed to start registration');
@@ -1452,9 +1467,11 @@ fn PasskeyRegistrationNudge() -> impl IntoView {
                             msg.innerText = 'Verifying...';
                             const finishRes = await fetch('/api/passkeys/finish-register', {
                                 method: 'POST',
+                                credentials: 'include',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(credential)
                             });
+
                             
                             if (finishRes.ok) {
                                 msg.innerText = 'Passkey registered successfully!';
