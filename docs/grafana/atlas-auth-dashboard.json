@@ -1,12 +1,12 @@
 {
   "dashboard": {
-    "title": "Atlas Platform — Auth, Passkeys & Frontend Health",
-    "uid": "atlas-auth-v2",
-    "tags": ["atlas", "auth", "passkeys", "frontend"],
+    "title": "Atlas Platform — Auth, Passkeys & Frontend Health (Per-Tenant)",
+    "uid": "atlas-auth-v3",
+    "tags": ["atlas", "auth", "passkeys", "frontend", "tenant"],
     "time": { "from": "now-6h", "to": "now" },
     "panels": [
       {
-        "title": "Magic Link Requests (per tenant)",
+        "title": "Magic Link Requests by Tenant",
         "type": "timeseries",
         "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
         "targets": [
@@ -17,77 +17,70 @@
         ]
       },
       {
-        "title": "Duplicate Magic Links Prevented",
-        "type": "stat",
+        "title": "Duplicate Prevention Rate by Tenant",
+        "type": "timeseries",
         "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "sum(magic_link_duplicates_prevented_total)"
+            "expr": "rate(magic_link_duplicates_prevented_total[5m])",
+            "legendFormat": "{{tenant_id}}"
           }
         ]
       },
       {
-        "title": "Auth Success Rate (5m)",
+        "title": "Auth Success Rate by Tenant",
         "type": "timeseries",
         "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "sum(rate(auth_requests_total{status=\"success\"}[5m])) / clamp_max(sum(rate(auth_requests_total[5m])), 1)"
+            "expr": "sum by (tenant_id) (rate(auth_requests_total{status=\"success\"}[5m])) / clamp_max(sum by (tenant_id) (rate(auth_requests_total[5m])), 1)"
           }
         ]
       },
       {
-        "title": "Auth Latency P95",
+        "title": "Auth Latency P95 by Tenant",
         "type": "timeseries",
         "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "histogram_quantile(0.95, sum(rate(auth_request_duration_seconds_bucket[5m])) by (le, action))"
+            "expr": "histogram_quantile(0.95, sum by (tenant_id, le) (rate(auth_request_duration_seconds_bucket[5m])))"
           }
         ]
       },
-
       {
-        "title": "Passkey Registration Funnel",
+        "title": "Passkey Registration Started by Tenant",
         "type": "timeseries",
         "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
         "targets": [
           {
             "expr": "rate(passkey_registration_started_total[5m])",
-            "legendFormat": "Started"
-          },
-          {
-            "expr": "rate(passkey_registration_success_total[5m])",
-            "legendFormat": "Completed"
+            "legendFormat": "{{tenant_id}}"
           }
         ]
       },
       {
-        "title": "Passkey Adoption Rate (7d)",
-        "type": "stat",
+        "title": "Passkey Registration Success Rate by Tenant",
+        "type": "timeseries",
         "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "sum(passkey_registration_success_total[7d]) / clamp_max(sum(passkey_registration_started_total[7d]), 1)"
+            "expr": "sum by (tenant_id) (passkey_registration_success_total[7d]) / clamp_max(sum by (tenant_id) (passkey_registration_started_total[7d]), 1)"
           }
-        ],
-        "options": {
-          "colorMode": "value",
-          "graphMode": "area"
-        }
+        ]
       },
       {
-        "title": "Passkey Authentication Success Rate",
+        "title": "Passkey Auth Success by Tenant",
         "type": "timeseries",
         "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "rate(passkey_auth_success_total[5m])"
+            "expr": "rate(passkey_auth_success_total[5m])",
+            "legendFormat": "{{tenant_id}}"
           }
         ]
       },
       {
-        "title": "Frontend Hydration Panics (Leptos)",
+        "title": "Frontend Hydration Panics (All Tenants)",
         "type": "timeseries",
         "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
         "targets": [
@@ -97,19 +90,14 @@
         ]
       },
       {
-        "title": "Auth Health Check Summary",
-        "type": "stat",
-        "gridPos": { "x": 0, "y": 32, "w": 24, "h": 6 },
+        "title": "Auth Health by Tenant (SLO Summary)",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
         "targets": [
           {
-            "expr": "auth_health_success_rate"
+            "expr": "sum by (tenant_id) (auth_requests_total{status=\"success\"}[5m]) / sum by (tenant_id) (auth_requests_total[5m])"
           }
-        ],
-        "options": {
-          "colorMode": "value",
-          "graphMode": "area",
-          "justifyMode": "center"
-        }
+        ]
       }
     ]
   }
