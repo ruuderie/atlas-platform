@@ -23,6 +23,28 @@ lazy_static! {
         Opts::new("auth_request_duration_seconds", "Latency of auth operations"),
         &["action"]
     ).unwrap();
+
+    // === PASSKEY METRICS ===
+    pub static ref PASSKEY_REGISTRATION_STARTED: CounterVec = CounterVec::new(
+        Opts::new("passkey_registration_started_total", "Number of passkey registration flows started"),
+        &["tenant_id"]
+    ).unwrap();
+
+    pub static ref PASSKEY_REGISTRATION_SUCCESS: CounterVec = CounterVec::new(
+        Opts::new("passkey_registration_success_total", "Number of successful passkey registrations"),
+        &["tenant_id"]
+    ).unwrap();
+
+    pub static ref PASSKEY_AUTH_SUCCESS: CounterVec = CounterVec::new(
+        Opts::new("passkey_auth_success_total", "Number of successful passkey authentications"),
+        &["tenant_id"]
+    ).unwrap();
+
+    // === FRONTEND HYDRATION PANICS ===
+    pub static ref FRONTEND_HYDRATION_PANICS: CounterVec = CounterVec::new(
+        Opts::new("frontend_hydration_panics_total", "Number of detected Leptos hydration panics (from frontend error reporting)"),
+        &["component"]
+    ).unwrap();
 }
 
 pub fn register_metrics() {
@@ -30,6 +52,10 @@ pub fn register_metrics() {
     REGISTRY.register(Box::new(MAGIC_LINK_DUPLICATES_PREVENTED.clone())).unwrap();
     REGISTRY.register(Box::new(AUTH_REQUESTS.clone())).unwrap();
     REGISTRY.register(Box::new(AUTH_LATENCY.clone())).unwrap();
+    REGISTRY.register(Box::new(PASSKEY_REGISTRATION_STARTED.clone())).unwrap();
+    REGISTRY.register(Box::new(PASSKEY_REGISTRATION_SUCCESS.clone())).unwrap();
+    REGISTRY.register(Box::new(PASSKEY_AUTH_SUCCESS.clone())).unwrap();
+    REGISTRY.register(Box::new(FRONTEND_HYDRATION_PANICS.clone())).unwrap();
 }
 
 pub fn metrics_handler() -> String {
