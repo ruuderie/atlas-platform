@@ -107,6 +107,7 @@ pub mod m20260504_000002_remove_is_admin_from_user;
 pub mod m20260504_000003_seed_platform_sentinel_account;
 pub mod m20260507_000001_add_redirect_url_to_magic_link;
 pub mod m20260507_000002_add_is_setup_to_magic_link;
+pub mod m20260513_000001_add_dev_domain_buildwithruud;
 
 pub struct Migrator;
 
@@ -174,6 +175,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260507_000001_add_redirect_url_to_magic_link::Migration),
             // Adds is_setup_token to distinguish between first login and regular magic links.
             Box::new(m20260507_000002_add_is_setup_to_magic_link::Migration),
+            // Registers dev.buildwithruud.com in app_domains so the tenant-resolution
+            // middleware resolves TenantContext from the Host header on fresh sessions.
+            Box::new(m20260513_000001_add_dev_domain_buildwithruud::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

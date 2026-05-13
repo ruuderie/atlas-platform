@@ -26,7 +26,10 @@ pub async fn get_services(public_only: bool) -> Result<Vec<ServiceRecord>, Serve
         "SELECT id, title, payload->>'description' as description, payload->'deliverables' as deliverables, payload->>'price_range' as price_range, (status = 'published') as is_visible, display_order FROM app_content WHERE collection_type = 'service' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY display_order ASC"
     };
 
-    let rows = sqlx::query(query_str).fetch_all(&state.pool).await?;
+    let rows = sqlx::query(query_str)
+        .bind(tenant.0)
+        .fetch_all(&state.pool)
+        .await?;
 
     let items = rows
         .into_iter()
@@ -169,7 +172,10 @@ pub async fn get_case_studies(public_only: bool) -> Result<Vec<CaseStudyRecord>,
         "SELECT id, payload->>'client_name' as client_name, payload->>'problem' as problem, payload->>'solution' as solution, payload->>'roi_impact' as roi_impact, (status = 'published') as is_visible, display_order FROM app_content WHERE collection_type = 'case_study' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY display_order ASC"
     };
 
-    let rows = sqlx::query(query_str).fetch_all(&state.pool).await?;
+    let rows = sqlx::query(query_str)
+        .bind(tenant.0)
+        .fetch_all(&state.pool)
+        .await?;
     let items = rows
         .into_iter()
         .map(|row| CaseStudyRecord {
@@ -298,7 +304,10 @@ pub async fn get_highlights(public_only: bool) -> Result<Vec<HighlightRecord>, S
         "SELECT id, title, payload->>'url' as url, payload->>'image_url' as image_url, payload->>'description' as description, (status = 'published') as is_visible, display_order FROM app_content WHERE collection_type = 'highlight' AND tenant_id IS NOT DISTINCT FROM $1 ORDER BY display_order ASC"
     };
 
-    let rows = sqlx::query(query_str).fetch_all(&state.pool).await?;
+    let rows = sqlx::query(query_str)
+        .bind(tenant.0)
+        .fetch_all(&state.pool)
+        .await?;
     let items = rows
         .into_iter()
         .map(|row| HighlightRecord {

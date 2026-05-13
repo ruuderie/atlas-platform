@@ -241,29 +241,36 @@ pub async fn request_magic_link(
     };
 
     if let Some(user_mod) = user_model {
-        // ── Idempotency guard ────────────────────────────────────────────────
-        // If a valid, unused token for this user already exists that was created
-        // within the last 60 seconds, reuse it rather than inserting a second token
-        // and firing another email.  This prevents duplicate emails when two HTTP
-        // requests reach the handler from the same user action (e.g. a network
-        // retry, an in-flight browser double-dispatch before the countdown UI
-        // kicks in, or a load-balancer quirk).
-        
-        static EMAIL_RATE_LIMITER: Lazy<Cache<String, bool>> = Lazy::new(|| {
-            Cache::builder()
-                .time_to_live(StdDuration::from_secs(60))
-                .build()
-        });
+        // ── Idempotency guard (database-level) ──────────────────────────────
+        // Use a PostgreSQL advisory lock keyed on the user's id to prevent
+        // concurrent requests from both passing the token-existence check and
+        // sending duplicate emails. pg_try_advisory_lock is non-blocking:
+        // the second concurrent request fails to acquire the lock and bails
+        // immediately.
+        let lock_key: i64 = user_mod.id.as_u128() as i64;
+        let lock_acquired: bool = sea_orm::ConnectionTrait::query_one(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DbBackend::Postgres,
+                "SELECT pg_try_advisory_lock($1)",
+                [lock_key.into()],
+            ),
+        )
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.try_get_by_index::<bool>(0).ok())
+        .unwrap_or(false);
 
-        // 1. Check in-memory lock to prevent race conditions on concurrent requests
-        if EMAIL_RATE_LIMITER.contains_key(&user_mod.email) {
+        if !lock_acquired {
             tracing::warn!(
-                "Idempotency: skipping duplicate magic link for {} (in-memory lock active)",
+                "Idempotency: concurrent magic link request blocked by advisory lock for {}",
                 user_mod.email
             );
             return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
         }
 
+        // Advisory lock acquired — check DB for a recent token before creating a new one.
         use sea_orm::QueryOrder;
         let recent_cutoff = Utc::now() - chrono::Duration::seconds(60);
         let existing_token = magic_link_token::Entity::find()
@@ -353,9 +360,16 @@ pub async fn request_magic_link(
             tracing::error!("Failed to dispatch magic link email: {} {:?}", msg, status);
         } else {
             tracing::info!("Magic link dispatched to {}", user_mod.email);
-            // 2. Set in-memory lock now that we've dispatched
-            EMAIL_RATE_LIMITER.insert(user_mod.email.clone(), true).await;
         }
+        // Release the advisory lock regardless of outcome.
+        let _ = sea_orm::ConnectionTrait::query_one(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DbBackend::Postgres,
+                "SELECT pg_advisory_unlock($1)",
+                [lock_key.into()],
+            ),
+        ).await;
     }
 
     // Always return 200 — prevents email enumeration.
