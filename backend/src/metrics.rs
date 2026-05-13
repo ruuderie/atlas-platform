@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use prometheus::{CounterVec, HistogramVec, Opts, Registry};
+use prometheus::{CounterVec, HistogramOpts, HistogramVec, Opts, Registry};
 
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
@@ -20,7 +20,7 @@ lazy_static! {
     ).unwrap();
 
     pub static ref AUTH_LATENCY: HistogramVec = HistogramVec::new(
-        Opts::new("auth_request_duration_seconds", "Latency of auth operations"),
+        HistogramOpts::new("auth_request_duration_seconds", "Latency of auth operations"),
         &["tenant_id", "app_instance_id", "action"]
     ).unwrap();
 

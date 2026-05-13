@@ -16,7 +16,7 @@ pub mod metrics;
 
 use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
-use axum::middleware::from_fn_with_state;
+use axum::middleware::{from_fn, from_fn_with_state};
 use axum::{
     Router,
     Extension,
@@ -235,7 +235,7 @@ async fn main() {
         .merge(create_router(conn.clone()))
         .route("/metrics", get(metrics_endpoint))
         .layer(cors)
-        .layer(request_id_middleware)                    // NEW: request_id for correlation
+        .layer(from_fn(request_id_middleware))           // request_id for correlation
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
