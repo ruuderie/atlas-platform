@@ -13,10 +13,9 @@ use crate::models::user::UserLogin;
 use axum::extract::State;
 use serde::Deserialize;
 use std::time::Instant;
+use crate::metrics;
 
 /// Builds the `Set-Cookie` header value for the session token.
-/// HttpOnly; Secure; SameSite=Strict — never readable by JavaScript.
-/// Call this on every auth success endpoint (passkey login, magic link verify).
 pub fn session_cookie_header(token: &str, max_age_secs: i64) -> String {
     format!(
         "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age={}",
@@ -29,12 +28,8 @@ pub fn clear_session_cookie_header() -> String {
     "session=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0".to_string()
 }
 
-/// Extracts the session token from either:
-///   1. `Authorization: Bearer <token>` header (platform-admin legacy, transitional)
-///   2. `session` HttpOnly cookie (all apps post-migration)
-/// Cookie takes priority when both are present.
+/// Extracts the session token from either cookie or Authorization header.
 pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
-    // 1. Cookie (preferred — JS-inaccessible)
     if let Some(cookie_header) = headers.get(header::COOKIE) {
         if let Ok(cookie_str) = cookie_header.to_str() {
             for part in cookie_str.split(';') {
@@ -47,7 +42,6 @@ pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
             }
         }
     }
-    // 2. Bearer header (transitional fallback)
     if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
         if let Ok(auth_str) = auth_header.to_str() {
             if let Some(token) = auth_str.strip_prefix("Bearer ") {
@@ -150,7 +144,6 @@ pub async fn create_session_for_user(
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
 
-    // Determine admin status via user_account role
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
         .filter(crate::entities::user_account::Column::Role.eq(
@@ -161,7 +154,6 @@ pub async fn create_session_for_user(
         .unwrap_or(None)
         .is_some();
 
-    // Generate tokens
     let bearer_token = if is_platform_admin {
         generate_jwt_admin(user)
     } else {
@@ -176,7 +168,6 @@ pub async fn create_session_for_user(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Create session model
     let token_expiration = Utc::now() + Duration::hours(1);
     let refresh_token_expiration = Utc::now() + Duration::days(7);
     
@@ -195,7 +186,6 @@ pub async fn create_session_for_user(
         integrity_hash: Set(String::new()),
     };
 
-    // Generate integrity hash
     let integrity_hash = {
         let temp_model = session::Model {
             id: new_session.id.clone().unwrap(),
@@ -216,13 +206,11 @@ pub async fn create_session_for_user(
 
     new_session.integrity_hash = Set(integrity_hash);
 
-    // Insert session
     new_session.insert(db).await.map_err(|e| {
         tracing::error!("Session creation failed: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Fetch app-level permissions
     let app_permissions: Vec<crate::models::session::AppPermission> =
         crate::entities::user_app_permission::Entity::find()
             .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
@@ -268,23 +256,17 @@ pub async fn validate_session(
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
 
-    tracing::info!("Validating session");
-
     let token = extract_session_token(&headers).ok_or_else(|| {
         tracing::warn!("No session cookie or Authorization header found");
         StatusCode::UNAUTHORIZED
     })?;
     
-    tracing::info!("Querying database for session with token");
     let session = match session::Entity::find()
         .filter(session::Column::BearerToken.eq(token.clone()))
         .one(&db)
         .await
     {
-        Ok(Some(session)) => {
-            tracing::info!("Session found: {}", session.id);
-            session
-        },
+        Ok(Some(session)) => session,
         Ok(None) => {
             tracing::warn!("No session found for token");
             return Err(StatusCode::UNAUTHORIZED);
@@ -295,23 +277,11 @@ pub async fn validate_session(
         }
     };
 
-    if !session.is_active {
-        tracing::warn!("Session is inactive");
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    
-    if !session.verify_integrity() {
-        tracing::warn!("Session failed integrity check");
+    if !session.is_active || !session.verify_integrity() || session.token_expiration < Utc::now() {
+        tracing::warn!("Session invalid or expired");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    if session.token_expiration < Utc::now() {
-        tracing::warn!("Session has expired at {}, current time is {}", 
-                      session.token_expiration, Utc::now());
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    // Update last_accessed_at
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -331,8 +301,6 @@ pub async fn validate_session(
     }))
 }
 
-/// Revokes the current session and clears the HttpOnly cookie.
-/// Called by all apps on logout.
 pub async fn revoke_session(
     Extension(db): Extension<DatabaseConnection>,
     headers: HeaderMap,
@@ -407,8 +375,6 @@ pub async fn refresh_token(
     let request_id = uuid::Uuid::new_v4();
 
     let refresh_token = payload.refresh_token;
-    tracing::info!("Refreshing token with refresh_token: {}", 
-                  refresh_token.chars().take(10).collect::<String>() + "...");
     
     let session = match session::Entity::find()
         .filter(session::Column::RefreshToken.eq(refresh_token))
