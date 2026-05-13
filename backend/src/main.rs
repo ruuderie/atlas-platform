@@ -37,7 +37,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::middleware::{
     request_logger::RequestLogger,
     rate_limiter::RateLimiter,
-    middleware::log_request_middleware
+    middleware::log_request_middleware,
+    request_id::request_id_middleware,
 };
 use webauthn_rs::prelude::*;
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
@@ -234,11 +235,11 @@ async fn main() {
         .merge(create_router(conn.clone()))
         .route("/metrics", get(metrics_endpoint))
         .layer(cors)
+        .layer(request_id_middleware)                    // NEW: request_id for correlation
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_request(|request: &Request<_>, _span: &tracing::Span| {
-                    // Log every single request that hits the server
                     tracing::info!(
                         "RAW REQUEST: method={}, uri={}, headers={:?}",
                         request.method(),
