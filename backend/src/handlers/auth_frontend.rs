@@ -19,6 +19,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use crate::entities::{app_domain, magic_link_token, tenant, user, app_instance, account, user_account};
 use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
+use crate::metrics;  // Prometheus metrics
 
 static MAGIC_LINK_REQUEST_CACHE: Lazy<Cache<String, bool>> = Lazy::new(|| {
     Cache::builder()
@@ -101,7 +102,6 @@ pub async fn verify_email(
     State(_db): State<DatabaseConnection>,
     Query(_query): Query<VerifyEmailQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Stub for email verification logic
     Ok((StatusCode::OK, Json(json!({"message": "Email verified successfully"}))))
 }
 
@@ -200,6 +200,13 @@ pub async fn request_magic_link(
         .unwrap_or("unknown")
         .to_string();
 
+    // Extract app_instance_id from header or resolve from domain
+    let app_instance_id = headers
+        .get("x-app-instance-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
     if let Err(status) = rate_limiter.check_auth_rate_limit(&ip, &payload.email).await {
         tracing::warn!(
             event = "magic_link.rate_limited",
@@ -250,7 +257,9 @@ pub async fn request_magic_link(
                 }
 
                 let mut tenant_name = None;
+                let mut resolved_app_instance_id = app_instance_id.clone();
                 if let Some(domain) = domain_record {
+                    resolved_app_instance_id = domain.app_instance_id.to_string();
                     if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
                         if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
                             tenant_name = Some(tenant.name);
@@ -258,7 +267,7 @@ pub async fn request_magic_link(
                     }
                 }
 
-                Some((url_str.clone(), tenant_name))
+                Some((url_str.clone(), tenant_name, resolved_app_instance_id))
             }
             Err(e) => {
                 tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
@@ -269,9 +278,9 @@ pub async fn request_magic_link(
         None
     };
 
-    let (validated_redirect_url, tenant_name_opt) = match validated_redirect_url_data {
-        Some((url, name_opt)) => (Some(url), name_opt),
-        None => (None, None),
+    let (validated_redirect_url, tenant_name_opt, final_app_instance_id) = match validated_redirect_url_data {
+        Some((url, name_opt, app_id)) => (Some(url), name_opt, app_id),
+        None => (None, None, app_instance_id),
     };
 
     if let Some(user_mod) = user_model {
@@ -322,6 +331,11 @@ pub async fn request_magic_link(
                 duration_ms = start.elapsed().as_millis(),
                 status = "blocked"
             );
+
+            metrics::MAGIC_LINK_DUPLICATES_PREVENTED
+                .with_label_values(&["unknown", &final_app_instance_id])
+                .inc();
+
             return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
         }
 
@@ -348,9 +362,14 @@ pub async fn request_magic_link(
             email = %user_mod.email,
             ip = %ip,
             user_agent = %user_agent,
+            app_instance_id = %final_app_instance_id,
             duration_ms = start.elapsed().as_millis(),
             status = "success"
         );
+
+        metrics::MAGIC_LINK_REQUESTS
+            .with_label_values(&["unknown", &final_app_instance_id, "success"])
+            .inc();
 
         let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
         
@@ -420,8 +439,8 @@ pub async fn verify_magic_link(
             user_id = %magic_link.user_id,
             reason = "token_expired",
             duration_ms = start.elapsed().as_millis()
-        );
-        return Err((StatusCode::UNAUTHORIZED, "Token has expired".to_string()));
+            );
+            return Err((StatusCode::UNAUTHORIZED, "Token has expired".to_string()));
     }
 
     let user_mod = user::Entity::find_by_id(magic_link.user_id)
@@ -496,4 +515,3 @@ pub async fn verify_magic_link(
         Json(session_response),
     ).into_response())
 }
-
