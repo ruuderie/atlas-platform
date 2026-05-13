@@ -3,8 +3,6 @@ when:
     branch:
       - uat
       - dev
-      # main/master intentionally excluded — production not yet enabled.
-      # Add them back here when atlas-prod is ready to go live.
 
 services:
   database:
@@ -15,18 +13,39 @@ services:
       POSTGRES_DB: oplydbtest
 
 steps:
+  # ── Optimized Test Step (Staff Engineer Best Practice) ─────────────────────
   test_workspace:
-    image: rust:slim
+    image: rust:1.85-slim
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
+      CARGO_INCREMENTAL: "1"
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
     commands:
-      - apt-get update && apt-get install -y pkg-config libssl-dev postgresql-client
+      - apt-get update && apt-get install -y pkg-config libssl-dev postgresql-client mold
       - |
         echo "Waiting for database to initialize..."
         until pg_isready -h database -p 5432 -U postgres; do
           sleep 2
         done
-      - cd backend && cargo test --workspace -j 1 -- --test-threads=1
+
+      # Restore cargo and target cache (major speed improvement)
+      - |
+        mkdir -p /cache/cargo /cache/target
+        if [ -d /cache/cargo ]; then
+          cp -r /cache/cargo $CARGO_HOME 2>/dev/null || true
+        fi
+        if [ -d /cache/target ]; then
+          cp -r /cache/target ./target 2>/dev/null || true
+        fi
+
+      # Run tests with full parallelism
+      - cd backend && cargo test --workspace -j $(nproc) -- --test-threads=$(nproc)
+
+      # Save cache for next run
+      - |
+        cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
+        cp -r ./target /cache/target 2>/dev/null || true
 
   # ── Docker Build & Push ─────────────────────────────────────────────────────
   publish_platform_admin_dev:
@@ -432,7 +451,7 @@ steps:
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
 
-  # ── Notifications (Best Practice: Clear status + context) ─────────────────────
+  # ── Notifications (Best Practice) ───────────────────────────────────────────
   notify_discord:
     image: appleboy/drone-discord
     failure: ignore
@@ -498,7 +517,6 @@ steps:
       - status: [success, failure]
         event: [push]
 
-  # ── Workspace Cleanup ───────────────────────────────────────────────────────
   cleanup_workspace:
     image: alpine
     commands:
@@ -506,5 +524,3 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
-
-# Trigger full pipeline run
