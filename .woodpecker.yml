@@ -24,7 +24,7 @@ steps:
   # Expected improvement: From ~10-15 min → 3-6 min on subsequent runs
   # ═══════════════════════════════════════════════════════════════════════════
   test_workspace:
-    image: rust:1.86-slim   # Upgraded from 1.85 due to dependency requirements
+    image: rust:1.91-slim   # Upgraded to support aws-smithy-* and time crates (require 1.88+)
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
       CARGO_INCREMENTAL: "1"
