@@ -2,6 +2,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
+use shared_ui::auth::atlas_auth::check_has_passkey;
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -458,6 +459,7 @@ fn SettingsReadView() -> impl IntoView {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING SETTINGS..."</div> }>
             {move || match settings_res.get() {
                 Some(Ok(s)) => view! {
+                    <div class="space-y-0">
                     <div class="grid grid-cols-3 border-b-2 border-outline-variant/30 pb-2 mb-4">
                         <div class="font-label text-[0.65rem] uppercase tracking-widest text-outline">"KEY"</div>
                         <div class="col-span-2 font-label text-[0.65rem] uppercase tracking-widest text-outline">"VALUE"</div>
@@ -545,8 +547,7 @@ fn SettingsReadView() -> impl IntoView {
                                 {if s.b2b_enabled { "ENABLED (PUBLIC)" } else { "STEALTH (HIDDEN)" }}
                             </div>
                         </div>
-
-                    </div>
+                </div>
                 }.into_any(),
                 _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
             }}
@@ -1224,10 +1225,8 @@ pub fn FooterTable() -> impl IntoView {
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
                         <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
-                        <th class="py-4 px-4 font-bold text-primary">
-                            {n.label.clone()}
-                        </th>
-                        <th class="py-4 px-4 text-outline">{n.href.unwrap_or_else(|| "DROPDOWN [null]".to_string())}</th>
+                        <th class="py-4 px-4 font-bold text-primary">"Label"</th>
+                        <th class="py-4 px-4 text-outline">"Link / Dropdown"</th>
                         <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                     </tr>
                 </thead>
