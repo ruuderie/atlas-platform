@@ -57,6 +57,8 @@ hex = "0.4.3"
 subtle = "2.6"   # constant-time comparisons for token validation
 aws-sdk-s3 = "1.129.0"
 aws-config = "1.8.15"
+prometheus = "0.13"
+lazy_static = "1.4"
 [dev-dependencies]
 axum-test = "20.0.0"
 http-body-util = "0.1.3"
