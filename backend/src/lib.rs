@@ -15,3 +15,4 @@ pub mod traits;
 pub mod config;
 pub mod services;
 pub mod atlas_apps;
+pub mod metrics;
