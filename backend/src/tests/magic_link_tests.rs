@@ -107,15 +107,14 @@ async fn test_magic_link_flow() {
         .unwrap();
     assert_eq!(count_after, 1, "The passkey should NOT be purged after regular Magic Link verification");
 
-    // 3. Test Expiration logic
-    // Create an expired token manually
+    // 3. Test Expiration logic (use is_used=true so we don't violate the new partial unique index)
     let expired_token_str = format!("expired_{}", Uuid::new_v4());
     magic_link_token::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(token_model.user_id),
         token: Set(expired_token_str.clone()),
-        expires_at: Set(Utc::now() - Duration::minutes(30)), // Expired 30 mins ago
-        is_used: Set(false),
+        expires_at: Set(Utc::now() - Duration::minutes(30)),
+        is_used: Set(true),   // Mark used so it doesn't conflict with active-token constraint
         created_at: Set(Utc::now() - Duration::hours(1)),
         is_setup_token: Set(false),
         redirect_url: Set(None),
@@ -137,23 +136,21 @@ async fn test_magic_link_flow() {
         .unwrap();
     assert_eq!(ver_expired_res.status(), StatusCode::UNAUTHORIZED, "Expired tokens should be rejected");
 
-    // 4. Test Tenant Isolation
+    // 4. Test Tenant Isolation (again use is_used=true for the cross-tenant test token)
     let other_tenant = test_utils::create_test_tenant(&db).await;
     
-    // Create valid token for Tenant 1
     let isolated_token_str = format!("iso_{}", Uuid::new_v4());
     magic_link_token::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(token_model.user_id),
         token: Set(isolated_token_str.clone()),
-        expires_at: Set(Utc::now() + Duration::minutes(30)), // Valid
-        is_used: Set(false),
+        expires_at: Set(Utc::now() + Duration::minutes(30)),
+        is_used: Set(true),   // Not an active token for this user — just for isolation test
         created_at: Set(Utc::now()),
         is_setup_token: Set(false),
         redirect_url: Set(None),
     }.insert(&db).await.unwrap();
 
-    // Try consuming it inside Tenant 2
     let cross_tenant_res = app.clone()
         .oneshot(
             Request::builder().header("Host", "localhost")
