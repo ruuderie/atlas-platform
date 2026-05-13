@@ -11,10 +11,12 @@ use webauthn_rs::prelude::*;
 use std::sync::Arc;
 use uuid::Uuid;
 use moka::future::Cache;
+use std::time::Instant;
 use crate::entities::{user, passkey};
 use crate::auth::generate_jwt;
 use crate::handlers::sessions::session_cookie_header;
 use crate::webauthn_registry::WebauthnRegistry;
+use crate::metrics;  // Prometheus metrics
 
 pub struct WebauthnStateRaw {
     pub registry: Arc<WebauthnRegistry>,
@@ -43,11 +45,23 @@ pub async fn has_passkey(
     Extension(db): Extension<DatabaseConnection>,
     Extension(user): Extension<user::Model>,
 ) -> Json<serde_json::Value> {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let count = passkey::Entity::find()
         .filter(passkey::Column::UserId.eq(user.id))
         .count(&db)
         .await
         .unwrap_or(0);
+
+    tracing::info!(
+        event = "passkey.has_passkey.checked",
+        request_id = %request_id,
+        user_id = %user.id,
+        duration_ms = start.elapsed().as_millis(),
+        has_passkey = count > 0
+    );
+
     Json(serde_json::json!({ "has_passkey": count > 0 }))
 }
 
@@ -57,7 +71,9 @@ pub async fn register_start(
     Extension(user): Extension<user::Model>,
     headers: axum::http::HeaderMap,
 ) -> Result<Json<CreationChallengeResponse>, (StatusCode, String)> {
-    
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
         .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
@@ -82,13 +98,6 @@ pub async fn register_start(
         exclude_credentials
     ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to start registration: {:?}", e)))?;
 
-    // Enable discoverable credentials (resident key) by mutating the response.
-    // If authenticator_selection is None (device has no authenticator selection
-    // preference) we initialise the field rather than silently skipping — R4 fix.
-    //
-    // Both branches use map_err(|e| ...)? rather than .ok() so that any
-    // schema rename in webauthn-rs surfaces as a hard handler error instead
-    // of silently dropping the resident key requirement.
     match ccr.public_key.authenticator_selection {
         Some(ref mut sel) => {
             sel.require_resident_key = true;
@@ -99,7 +108,6 @@ pub async fn register_start(
                 ))?;
         }
         None => {
-            // Build a minimal AuthenticatorSelectionCriteria requiring resident key.
             ccr.public_key.authenticator_selection =
                 Some(serde_json::from_value(serde_json::json!({
                     "requireResidentKey": true,
@@ -108,11 +116,24 @@ pub async fn register_start(
                 .map_err(|e| (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Failed to build AuthenticatorSelectionCriteria: {e}"),
-                ))?);
+                ))?;
         }
     }
     
     state.reg_state.insert(user.id, reg_state).await;
+
+    // Increment Prometheus metric
+    metrics::PASSKEY_REGISTRATION_STARTED
+        .with_label_values(&[&user.id.to_string()])
+        .inc();
+
+    tracing::info!(
+        event = "passkey.registration.started",
+        request_id = %request_id,
+        user_id = %user.id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
 
     Ok(Json(ccr))
 }
@@ -124,7 +145,9 @@ pub async fn register_finish(
     headers: axum::http::HeaderMap,
     Json(reg): Json<RegisterPublicKeyCredential>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
         .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
@@ -138,18 +161,12 @@ pub async fn register_finish(
     let passkey_reg = webauthn.finish_passkey_registration(&reg, &reg_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Registration failed: {:?}", e)))?;
         
-    // In webauthn-rs 0.5.4, passkey_reg is a Passkey object that we can store.
-    
     let credential_id = passkey_reg.cred_id().clone();
     
     passkey::ActiveModel {
         id: Set(Uuid::new_v4()),
         user_id: Set(user.id),
         credential_id: Set(credential_id.to_vec()),
-        // Store whole passkey via serde json or extract pub key
-        // Store the full Passkey struct as JSON. The column is named `public_key` for
-        // historical reasons but contains the complete webauthn-rs Passkey object, which
-        // is needed to reconstruct credentials on the authentication path.
         public_key: Set(
             serde_json::to_vec(&passkey_reg)
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialise passkey: {e}")))?
@@ -162,7 +179,20 @@ pub async fn register_finish(
     }.insert(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     
     state.reg_state.invalidate(&user.id).await;
-    
+
+    // Increment Prometheus metric
+    metrics::PASSKEY_REGISTRATION_SUCCESS
+        .with_label_values(&[&user.id.to_string()])
+        .inc();
+
+    tracing::info!(
+        event = "passkey.registration.success",
+        request_id = %request_id,
+        user_id = %user.id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
+
     Ok(Json(serde_json::json!({"status": "ok"})))
 }
 
@@ -177,7 +207,9 @@ pub async fn login_start(
     headers: axum::http::HeaderMap,
     Json(req): Json<LoginStartRequest>,
 ) -> Result<Response, (StatusCode, String)> {
-    
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
         .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
@@ -186,7 +218,7 @@ pub async fn login_start(
         .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
 
     let credentials = if req.email.trim().is_empty() {
-        vec![] // Empty triggers discoverable credentials prompt
+        vec![]
     } else {
         let user = user::Entity::find()
             .filter(user::Column::Email.eq(req.email.trim()))
@@ -213,14 +245,18 @@ pub async fn login_start(
     let session_id = Uuid::new_v4();
     state.auth_state.insert(session_id, auth_state).await;
 
-    // R3 fix: add Secure flag to passkey_session cookie so it is only sent over
-    // HTTPS. Without Secure, the challenge-binding cookie can be observed over
-    // plaintext HTTP, enabling a challenge-replay on a downgraded connection.
     let cookie = format!(
         "passkey_session={}; Path=/api/passkeys; HttpOnly; Secure; Max-Age=300; SameSite=Strict",
         session_id
     );
     
+    tracing::info!(
+        event = "passkey.auth.started",
+        request_id = %request_id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
+
     Ok((
         StatusCode::OK,
         [(header::SET_COOKIE, cookie)],
@@ -241,7 +277,9 @@ pub async fn login_finish(
     headers: axum::http::HeaderMap,
     Json(req): Json<LoginFinishRequest>,
 ) -> Result<Response, (StatusCode, String)> {
-    
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
         .ok_or((StatusCode::BAD_REQUEST, "Missing or invalid Origin header".to_string()))?;
@@ -256,8 +294,6 @@ pub async fn login_finish(
     let auth_state = state.auth_state.get(&session_id).await
         .ok_or((StatusCode::BAD_REQUEST, "Auth state not found".to_string()))?;
 
-    // Consume the one-time auth state immediately — invalidate on all code paths below.
-    // If authentication fails for any reason, the challenge must not be reusable.
     state.auth_state.invalidate(&session_id).await;
 
     let auth_result = webauthn.finish_passkey_authentication(&req.response, &auth_state)
@@ -278,10 +314,22 @@ pub async fn login_finish(
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create session".to_string()))?;
 
-    // Set HttpOnly session cookie (24h) so frontends don't need localStorage/Bearer tokens.
     let cookie = session_cookie_header(&session_response.token, 86_400);
     let clear_pk_session = "passkey_session=; Path=/api/passkeys; HttpOnly; Max-Age=0";
     
+    // Increment Prometheus metric for successful passkey auth
+    metrics::PASSKEY_AUTH_SUCCESS
+        .with_label_values(&[&user.id.to_string()])
+        .inc();
+
+    tracing::info!(
+        event = "passkey.auth.success",
+        request_id = %request_id,
+        user_id = %user.id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
+
     Ok((
         StatusCode::OK,
         [
