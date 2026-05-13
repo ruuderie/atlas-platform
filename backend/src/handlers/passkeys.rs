@@ -105,7 +105,7 @@ pub async fn register_start(
     match ccr.public_key.authenticator_selection {
         Some(ref mut sel) => {
             sel.require_resident_key = true;
-            sel.resident_key = serde_json::from_value::<ResidentKeyRequirement>(serde_json::json!("required"))
+            sel.resident_key = serde_json::from_value::<webauthn_rs::prelude::ResidentKeyRequirement>(serde_json::json!("required"))
                 .map_err(|e| (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Failed to set resident_key on existing authenticator_selection: {e}"),
@@ -113,7 +113,7 @@ pub async fn register_start(
         }
         None => {
             ccr.public_key.authenticator_selection =
-                Some(serde_json::from_value::<AuthenticatorSelectionCriteria>(serde_json::json!({
+                Some(serde_json::from_value::<webauthn_rs::prelude::AuthenticatorSelectionCriteria>(serde_json::json!({
                     "requireResidentKey": true,
                     "residentKey": "required"
                 })))
