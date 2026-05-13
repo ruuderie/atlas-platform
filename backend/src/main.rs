@@ -12,7 +12,7 @@ mod config;
 mod services;
 mod webauthn_registry;
 pub mod atlas_apps;
-mod metrics;
+pub mod metrics;
 
 use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
