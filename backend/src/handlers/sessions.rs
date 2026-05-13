@@ -324,7 +324,7 @@ pub async fn revoke_session(
         };
         let new_hash = revoked_model.generate_integrity_hash();
 
-        let mut active: session::ActiveModel = sess.into();
+        let mut active: session::ActiveModel = sess.clone().into();
         active.is_active = Set(false);
         active.integrity_hash = Set(new_hash);
         let _ = active.update(&db).await;
