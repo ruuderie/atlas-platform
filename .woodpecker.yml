@@ -24,7 +24,7 @@ steps:
   # Expected improvement: From ~10-15 min → 3-6 min on subsequent runs
   # ═══════════════════════════════════════════════════════════════════════════
   test_workspace:
-    image: rust:1.85-slim
+    image: rust:1.86-slim   # Upgraded from 1.85 due to dependency requirements
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
       CARGO_INCREMENTAL: "1"
@@ -332,7 +332,6 @@ steps:
             exit 1
             ;;
         esac
-        echo "Branch: $CI_COMMIT_BRANCH → Namespace: $NAMESPACE"
 
         kubectl get namespace "$NAMESPACE"
         echo "✓ Connected to K8s API — target: $NAMESPACE"
