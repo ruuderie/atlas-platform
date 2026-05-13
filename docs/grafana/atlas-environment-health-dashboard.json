@@ -1,0 +1,72 @@
+{
+  "dashboard": {
+    "title": "Atlas Platform — Environment & App Instance Health",
+    "uid": "atlas-env-v1",
+    "tags": ["atlas", "environments", "app-instance", "dev-uat-prod"],
+    "time": { "from": "now-24h", "to": "now" },
+    "panels": [
+      {
+        "title": "Magic Link Requests by App Instance",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(magic_link_requests_total[5m])",
+            "legendFormat": "{{app_instance_id}}"
+          }
+        ]
+      },
+      {
+        "title": "Auth Success Rate by Environment",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum by (app_instance_id) (rate(auth_requests_total{status=\"success\"}[5m])) / clamp_max(sum by (app_instance_id) (rate(auth_requests_total[5m])), 1)"
+          }
+        ]
+      },
+      {
+        "title": "Passkey Adoption Rate by App Instance",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum by (app_instance_id) (passkey_registration_success_total[7d]) / clamp_max(sum by (app_instance_id) (passkey_registration_started_total[7d]), 1)"
+          }
+        ]
+      },
+      {
+        "title": "Frontend Hydration Panics by Environment",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(frontend_hydration_panics_total[5m])",
+            "legendFormat": "{{app_instance_id}}"
+          }
+        ]
+      },
+      {
+        "title": "Environment Health Overview (Table)",
+        "type": "table",
+        "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+        "targets": [
+          {
+            "expr": "sum by (app_instance_id) (auth_requests_total[5m])"
+          }
+        ]
+      },
+      {
+        "title": "Dev vs UAT vs Prod - Auth Latency Comparison",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 26, "w": 24, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (app_instance_id, le) (rate(auth_request_duration_seconds_bucket[5m])))"
+          }
+        ]
+      }
+    ]
+  }
+}
