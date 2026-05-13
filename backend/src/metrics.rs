@@ -6,44 +6,44 @@ lazy_static! {
 
     pub static ref MAGIC_LINK_REQUESTS: CounterVec = CounterVec::new(
         Opts::new("magic_link_requests_total", "Total number of magic link requests"),
-        &["tenant_id", "status"]
+        &["tenant_id", "app_instance_id", "status"]
     ).unwrap();
 
     pub static ref MAGIC_LINK_DUPLICATES_PREVENTED: CounterVec = CounterVec::new(
-        Opts::new("magic_link_duplicates_prevented_total", "Number of duplicate magic link requests prevented by the partial unique index"),
-        &["tenant_id"]
+        Opts::new("magic_link_duplicates_prevented_total", "Number of duplicate magic link requests prevented"),
+        &["tenant_id", "app_instance_id"]
     ).unwrap();
 
     pub static ref AUTH_REQUESTS: CounterVec = CounterVec::new(
-        Opts::new("auth_requests_total", "Total auth-related requests (magic link, verify, session)"),
-        &["action", "status"]
+        Opts::new("auth_requests_total", "Total auth-related requests"),
+        &["tenant_id", "app_instance_id", "action", "status"]
     ).unwrap();
 
     pub static ref AUTH_LATENCY: HistogramVec = HistogramVec::new(
         Opts::new("auth_request_duration_seconds", "Latency of auth operations"),
-        &["action"]
+        &["tenant_id", "app_instance_id", "action"]
     ).unwrap();
 
     // === PASSKEY METRICS ===
     pub static ref PASSKEY_REGISTRATION_STARTED: CounterVec = CounterVec::new(
         Opts::new("passkey_registration_started_total", "Number of passkey registration flows started"),
-        &["tenant_id"]
+        &["tenant_id", "app_instance_id"]
     ).unwrap();
 
     pub static ref PASSKEY_REGISTRATION_SUCCESS: CounterVec = CounterVec::new(
         Opts::new("passkey_registration_success_total", "Number of successful passkey registrations"),
-        &["tenant_id"]
+        &["tenant_id", "app_instance_id"]
     ).unwrap();
 
     pub static ref PASSKEY_AUTH_SUCCESS: CounterVec = CounterVec::new(
         Opts::new("passkey_auth_success_total", "Number of successful passkey authentications"),
-        &["tenant_id"]
+        &["tenant_id", "app_instance_id"]
     ).unwrap();
 
     // === FRONTEND HYDRATION PANICS ===
     pub static ref FRONTEND_HYDRATION_PANICS: CounterVec = CounterVec::new(
-        Opts::new("frontend_hydration_panics_total", "Number of detected Leptos hydration panics (from frontend error reporting)"),
-        &["component"]
+        Opts::new("frontend_hydration_panics_total", "Number of detected Leptos hydration panics"),
+        &["tenant_id", "app_instance_id", "component"]
     ).unwrap();
 }
 
