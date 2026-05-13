@@ -12,6 +12,7 @@ mod config;
 mod services;
 mod webauthn_registry;
 pub mod atlas_apps;
+mod metrics;
 
 use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
 use axum::body::Body;
@@ -19,6 +20,7 @@ use axum::middleware::from_fn_with_state;
 use axum::{
     Router,
     Extension,
+    routing::get,
 };
 use tower_http::cors::CorsLayer;
 use tower::ServiceBuilder;
@@ -87,6 +89,11 @@ fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
         ])
         .allow_credentials(true)
 }
+
+async fn metrics_endpoint() -> String {
+    crate::metrics::metrics_handler()
+}
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
@@ -96,6 +103,9 @@ async fn main() {
         .with(tracing_subscriber::EnvFilter::new(rust_log))
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // Register Prometheus metrics
+    crate::metrics::register_metrics();
 
     // Determine database URL based on environment
     let database_url = if std::env::var("USE_LOCAL_DB").unwrap_or_else(|_| "false".to_string()) == "true" {
@@ -222,6 +232,7 @@ async fn main() {
 
     let app = Router::new()
         .merge(create_router(conn.clone()))
+        .route("/metrics", get(metrics_endpoint))
         .layer(cors)
         .layer(
             TraceLayer::new_for_http()
