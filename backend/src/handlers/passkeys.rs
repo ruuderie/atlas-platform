@@ -112,15 +112,16 @@ pub async fn register_start(
                 ))?;
         }
         None => {
-            ccr.public_key.authenticator_selection =
-                Some(serde_json::from_value(serde_json::json!({
+            ccr.public_key.authenticator_selection = Some(
+                serde_json::from_value(serde_json::json!({
                     "requireResidentKey": true,
                     "residentKey": "required"
-                })))
+                }))
                 .map_err(|e| (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("Failed to build AuthenticatorSelectionCriteria: {e}"),
-                ))?;
+                ))?
+            );
         }
     }
     
