@@ -76,45 +76,55 @@ pub struct NavItemRecord {
 
 #[server(GetNavItems, "/api")]
 pub async fn get_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
+    use crate::atlas_client::fetch_atlas_data;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
-    
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
+
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
-        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await {
+        if let Ok(menus) =
+            fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await
+        {
             return Ok(menus);
         }
     }
-    
+
     Ok(vec![])
 }
 
 #[server(GetAllNavItems, "/api")]
 pub async fn get_all_nav_items() -> Result<Vec<NavItemRecord>, ServerFnError> {
+    use crate::atlas_client::fetch_atlas_data;
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::atlas_client::fetch_atlas_data;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/menus/{}/tree/header", tenant_id);
-        if let Ok(menus) = fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await {
+        if let Ok(menus) =
+            fetch_atlas_data::<Vec<NavItemRecord>>(&endpoint, Some(tenant_id), host).await
+        {
             return Ok(menus);
         }
     }
-    
+
     Ok(vec![])
 }
 
@@ -149,8 +159,9 @@ pub async fn delete_nav_item(id: uuid::Uuid) -> Result<(), ServerFnError> {
 #[component]
 pub fn Nav() -> impl IntoView {
     let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
-        .map(|s| s.get_untracked()).unwrap_or_default();
-        
+        .map(|s| s.get_untracked())
+        .unwrap_or_default();
+
     let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
     let nav_resource = Resource::new(|| (), |_| get_nav_items());
     let (mobile_menu_open, set_mobile_menu_open) = signal(false);
@@ -160,7 +171,12 @@ pub fn Nav() -> impl IntoView {
         settings_resource
             .get()
             .and_then(|r| r.ok())
-            .map(|s| s.widgets.into_iter().filter(|w| w.is_nav_widget()).collect::<Vec<_>>())
+            .map(|s| {
+                s.widgets
+                    .into_iter()
+                    .filter(|w| w.is_nav_widget())
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default()
     };
 

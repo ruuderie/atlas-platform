@@ -20,7 +20,7 @@ pub async fn get_bitcoin_blocks(limit: i64) -> Result<Vec<BitcoinBlockRecord>, S
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    
+
     let tenant_id = tenant.0.unwrap_or_default();
 
     let rows = sqlx::query(

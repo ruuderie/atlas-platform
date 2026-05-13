@@ -1,7 +1,6 @@
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum FieldType {
@@ -46,38 +45,38 @@ pub struct FormBuilderData {
 }
 
 #[server(SubmitDynamicForm, "/api")]
-pub async fn submit_dynamic_form(
-    form_id: String,
-    payload: String,
-) -> Result<(), ServerFnError> {
+pub async fn submit_dynamic_form(form_id: String, payload: String) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tenant_id = tenant.0.unwrap_or_default();
-    
+
     // Parse payload as JSON map
-    let parsed_payload: std::collections::HashMap<String, String> = serde_json::from_str(&payload).unwrap_or_default();
-    
+    let parsed_payload: std::collections::HashMap<String, String> =
+        serde_json::from_str(&payload).unwrap_or_default();
+
     // Fetch tenant admin email from site settings
-    let admin_email: String = sqlx::query_scalar("SELECT value FROM site_settings WHERE key = 'admin_email' AND tenant_id = $1")
-        .bind(tenant_id)
-        .fetch_optional(&state.pool)
-        .await?
-        .unwrap_or_default();
-        
+    let admin_email: String = sqlx::query_scalar(
+        "SELECT value FROM site_settings WHERE key = 'admin_email' AND tenant_id = $1",
+    )
+    .bind(tenant_id)
+    .fetch_optional(&state.pool)
+    .await?
+    .unwrap_or_default();
+
     if !admin_email.is_empty() {
         let subject = format!("New Form Submission: {}", form_id);
-        
+
         let mut body = format!("<h3>New submission for form: {}</h3><br/><ul>", form_id);
         for (k, v) in parsed_payload.iter() {
             body.push_str(&format!("<li><strong>{}</strong>: {}</li>", k, v));
         }
         body.push_str("</ul>");
-        
+
         let _ = crate::email::send_email(admin_email, subject, body).await;
     }
-    
+
     Ok(())
 }
 
@@ -86,7 +85,10 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
     let (value, set_value) = signal::<Option<Result<(), leptos::prelude::ServerFnError>>>(None);
     let (pending, set_pending) = signal(false);
 
-    let btn_text = data.submit_button_text.clone().unwrap_or_else(|| "Submit".to_string());
+    let btn_text = data
+        .submit_button_text
+        .clone()
+        .unwrap_or_else(|| "Submit".to_string());
 
     view! {
         <section class=data.container_classes.clone().unwrap_or_else(|| "py-16 bg-surface-container-low w-full container mx-auto px-4 max-w-3xl".to_string())>
@@ -94,19 +96,19 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                 {if data.container_classes.is_none() {
                     view!{ <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary to-secondary"></div> }.into_any()
                 } else { view!{}.into_any() }}
-                
+
                 {if !data.title.is_empty() {
                     view!{ <h2 class="text-3xl font-black text-on-surface mb-4 text-center tracking-tight">
                         {data.title.clone()}
                     </h2> }.into_any()
                 } else { view!{}.into_any() }}
-                
+
                 {if data.description.is_some() && !data.description.clone().unwrap_or_default().is_empty() {
                     view!{ <p class="text-center text-on-surface-variant text-lg mb-10 font-light">
                         {data.description.clone().unwrap()}
                     </p> }.into_any()
                 } else { view!{}.into_any() }}
-                    
+
                     <Show
                         when=move || value.get().is_some()
                         fallback={
@@ -115,9 +117,9 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                             move || {
                                 let data = data_for_fallback.clone();
                                 let btn_text = btn_text_for_fallback.clone();
-                                
+
                                 let (payload_map, set_payload_map) = signal(std::collections::HashMap::<String, String>::new());
-                                
+
                                 view! {
                                 <form
                                     class=data.form_classes.clone().unwrap_or_else(|| "flex flex-col gap-6".to_string())
@@ -134,22 +136,22 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                 >
                                         <input type="hidden" name="form_id" value=data.form_id.clone() />
                                         <input type="hidden" name="payload" value=move || serde_json::to_string(&payload_map.get()).unwrap_or_default() />
-                                        
+
                                         {data.fields.clone().into_iter().map(|field| {
                                             let _field_name_clone = field.name.clone();
                                             let field_name_input = field.name.clone();
                                             let req = field.required;
-                                            
+
                                             let f_class = field.custom_classes.clone().unwrap_or_else(|| "w-full bg-surface-container px-4 py-3 rounded-xl border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all".to_string());
                                             let l_class = field.label_classes.clone().unwrap_or_else(|| "text-sm font-bold text-on-surface uppercase tracking-wider".to_string());
-                                        
+
                                         let on_input = move |ev: leptos::ev::Event| {
                                             let val = event_target_value(&ev);
                                             set_payload_map.update(|m| {
                                                 m.insert(field_name_input.clone(), val);
                                             });
                                         };
-                                        
+
                                         view! {
                                             <div class="flex flex-col gap-2 relative w-full group">
                                                 <label class=l_class>
@@ -179,7 +181,7 @@ pub fn FormBuilderBlock(data: FormBuilderData) -> impl IntoView {
                                             </div>
                                         }
                                     }).collect::<Vec<_>>()}
-                                    
+
                                     <button type="submit" disabled=move || pending.get() class=data.button_classes.clone().unwrap_or_else(|| "mt-4 w-full py-4 rounded-xl font-bold text-lg bg-primary text-on-primary hover:bg-primary/90 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2".to_string())>
                                         <Show when=move || pending.get() fallback=|| view! { <span></span> }>
                                             <span class="material-symbols-outlined animate-spin">"progress_activity"</span>
@@ -235,11 +237,11 @@ mod tests {
         assert_eq!(data.title, "Contact Us");
         assert_eq!(data.submit_button_text.unwrap(), "Send");
         assert_eq!(data.fields.len(), 2);
-        
+
         assert_eq!(data.fields[0].name, "email");
         assert_eq!(data.fields[0].field_type, FieldType::Email);
         assert!(data.fields[0].required);
-        
+
         assert_eq!(data.fields[1].name, "interest");
         assert_eq!(data.fields[1].field_type, FieldType::Select);
         assert!(!data.fields[1].required);

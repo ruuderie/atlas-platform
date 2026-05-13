@@ -21,8 +21,9 @@ pub struct HeroBlockData {
 #[component]
 pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
     let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
-        .map(|s| s.get()).unwrap_or_default();
-    
+        .map(|s| s.get())
+        .unwrap_or_default();
+
     let layout_type = data.layout.unwrap_or_else(|| "standard".to_string());
 
     if layout_type == "minimal" {
@@ -52,7 +53,10 @@ pub fn HeroBlock(data: HeroBlockData) -> impl IntoView {
     } else {
         // Corporate / Default full-bleed layout
         let bg_style = match data.background_image_url {
-            Some(url) if !url.is_empty() => format!("background-image: url('{}'); background-size: cover; background-position: center;", url),
+            Some(url) if !url.is_empty() => format!(
+                "background-image: url('{}'); background-size: cover; background-position: center;",
+                url
+            ),
             _ => "background-color: var(--color-surface, #000000);".to_string(), // fallback
         };
 

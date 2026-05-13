@@ -18,13 +18,17 @@ pub struct BadgeListConfig {
     #[serde(default = "default_3")]
     pub columns: u32,
     #[serde(default = "default_badge")]
-    pub display: String,                   // "badge" | "list" | "logo-grid"
+    pub display: String, // "badge" | "list" | "logo-grid"
     #[serde(default)]
     pub section_title: Option<String>,
 }
 
-fn default_3() -> u32 { 3 }
-fn default_badge() -> String { "badge".to_string() }
+fn default_3() -> u32 {
+    3
+}
+fn default_badge() -> String {
+    "badge".to_string()
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct BadgeItem {
@@ -50,14 +54,21 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
             async move {
                 if src == "tenant_entries" {
                     if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
-                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let filter_cat = config
+                            .get_value()
+                            .filter_category
+                            .clone()
+                            .unwrap_or_default();
                         let mapped: Vec<BadgeItem> = entries
                             .into_iter()
-                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .filter(|e| {
+                                filter_cat.is_empty() || e.category.to_string() == filter_cat
+                            })
                             .map(|e| {
                                 let mut icon_url = None;
                                 if let Some(meta) = &e.metadata {
-                                    if let Some(img) = meta.get("icon_url").and_then(|v| v.as_str()) {
+                                    if let Some(img) = meta.get("icon_url").and_then(|v| v.as_str())
+                                    {
                                         icon_url = Some(img.to_string());
                                     }
                                 }
@@ -77,7 +88,7 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                 }
                 fallback
             }
-        }
+        },
     );
 
     view! {
@@ -97,7 +108,7 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                     {move || {
                         let items_to_render = entries_resource.get().unwrap_or_default();
                         let cfg = config.get_value();
-                        
+
                         if items_to_render.is_empty() {
                             view! {
                                 <div class="p-8 border border-outline-variant rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
@@ -109,8 +120,8 @@ pub fn BadgeListBlock(data: BadgeListBlockData) -> impl IntoView {
                                 <div class={match cfg.display.as_str() {
                                     "logo-grid" => "flex flex-wrap items-center justify-center gap-8 md:gap-12 opacity-80".to_string(),
                                     "list" => "flex flex-wrap gap-3".to_string(),
-                                    _ => format!("grid grid-cols-2 md:grid-cols-{} lg:grid-cols-{} gap-4", 
-                                        std::cmp::min(cfg.columns, 4), 
+                                    _ => format!("grid grid-cols-2 md:grid-cols-{} lg:grid-cols-{} gap-4",
+                                        std::cmp::min(cfg.columns, 4),
                                         cfg.columns),
                                 }}>
                                     {items_to_render.into_iter().map(|item| {

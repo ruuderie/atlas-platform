@@ -108,6 +108,7 @@ pub mod m20260504_000003_seed_platform_sentinel_account;
 pub mod m20260507_000001_add_redirect_url_to_magic_link;
 pub mod m20260507_000002_add_is_setup_to_magic_link;
 pub mod m20260513_000001_add_dev_domain_buildwithruud;
+pub mod m20260513_000002_unique_active_magic_link_per_user;
 
 pub struct Migrator;
 
@@ -178,6 +179,9 @@ impl MigratorTrait for Migrator {
             // Registers dev.buildwithruud.com in app_domains so the tenant-resolution
             // middleware resolves TenantContext from the Host header on fresh sessions.
             Box::new(m20260513_000001_add_dev_domain_buildwithruud::Migration),
+            // Unique active magic link per user
+            Box::new(m20260513_000002_unique_active_magic_link_per_user::Migration),
+
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

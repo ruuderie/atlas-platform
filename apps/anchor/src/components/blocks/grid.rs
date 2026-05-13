@@ -29,17 +29,18 @@ pub struct GridBlockData {
 #[component]
 pub fn GridBlock(data: GridBlockData) -> impl IntoView {
     let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
-        .map(|s| s.get()).unwrap_or_default();
-        
+        .map(|s| s.get())
+        .unwrap_or_default();
+
     view! {
-        <section class=format!("py-16 md:py-24 bg-surface dark:bg-surface w-full {}", 
+        <section class=format!("py-16 md:py-24 bg-surface dark:bg-surface w-full {}",
             if design.container_strategy == "asymmetrical-gutters" { "px-[8.5rem]" } else { "px-4" }
         )>
-            <div class=format!("mx-auto {}", 
+            <div class=format!("mx-auto {}",
                 if design.container_strategy == "asymmetrical-gutters" { "max-w-none" } else { "container max-w-7xl" }
             )>
                 {if data.section_title.is_some() && !data.section_title.clone().unwrap_or_default().is_empty() {
-                    view!{ <h2 class=format!("text-3xl md:text-5xl font-bold text-primary dark:text-primary mb-16 {} {} {}", 
+                    view!{ <h2 class=format!("text-3xl md:text-5xl font-bold text-primary dark:text-primary mb-16 {} {} {}",
                         if design.container_strategy == "asymmetrical-gutters" { "text-left tracking-tighter" } else { "text-center tracking-tight" },
                         if design.background_pattern == "blueprint-grid" { "border-b-2 border-primary inline-block pb-4" } else { "" },
                         design.heading_font
@@ -48,13 +49,13 @@ pub fn GridBlock(data: GridBlockData) -> impl IntoView {
                     </h2> }.into_any()
                 } else { view!{}.into_any() }}
 
-                <div class=format!("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 {}", 
+                <div class=format!("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 {}",
                     if design.container_strategy == "asymmetrical-gutters" { "gap-12" } else { "gap-8" }
                 )>
                     {data.items.into_iter().map(|item| {
                         view! {
-                            <a href=item.link_url.clone().unwrap_or_else(|| "#".to_string()) 
-                               class=format!("group block h-full overflow-hidden transition-all duration-300 {} {} {}", 
+                            <a href=item.link_url.clone().unwrap_or_else(|| "#".to_string())
+                               class=format!("group block h-full overflow-hidden transition-all duration-300 {} {} {}",
                                    if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-low hover:bg-surface-container-highest" } else { "bg-surface-container hover:bg-surface-container-high" },
                                    if design.elevation_strategy == "flat-ghost" { "border-none" } else { "border border-outline-variant/30 hover:border-primary hover:shadow-2xl transform hover:-translate-y-1" },
                                    design.border_radius_base

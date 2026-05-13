@@ -87,7 +87,9 @@ pub mod blog_pdf {
 
         if requires_lead {
             let tok = token.ok_or_else(|| "Token required".to_string())?;
-            let em  = email.as_deref().ok_or_else(|| "Email required for token verification".to_string())?;
+            let em = email
+                .as_deref()
+                .ok_or_else(|| "Email required for token verification".to_string())?;
             validate_token(&tok, &post_id.to_string(), em, &state)?;
         }
 
@@ -106,11 +108,7 @@ pub mod blog_pdf {
             let bytes = fetch_remote_pdf(&url)
                 .await
                 .map_err(|e| format!("Failed to fetch PDF: {e}"))?;
-            let name = url
-                .rsplit('/')
-                .next()
-                .unwrap_or("download.pdf")
-                .to_string();
+            let name = url.rsplit('/').next().unwrap_or("download.pdf").to_string();
             (bytes, name)
         } else if generate_from_content {
             // On-the-fly LaTeX → PDF generation
@@ -176,8 +174,7 @@ pub mod blog_pdf {
         let secret =
             std::env::var("ADMIN_PASSWORD").unwrap_or_else(|_| "fallback-secret".to_string());
 
-        let incoming =
-            base64::decode(token).map_err(|_| "Invalid token encoding".to_string())?;
+        let incoming = base64::decode(token).map_err(|_| "Invalid token encoding".to_string())?;
         // HMAC-SHA256 output is always 32 bytes; anything else is structurally invalid.
         if incoming.len() != 32 {
             return Err("Invalid token length".to_string());
@@ -191,8 +188,8 @@ pub mod blog_pdf {
 
         for bucket in [now_bucket, now_bucket.saturating_sub(1)] {
             let message = format!("{}:{}:{}", post_id, email, bucket);
-            let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
-                .map_err(|e| e.to_string())?;
+            let mut mac =
+                Hmac::<Sha256>::new_from_slice(secret.as_bytes()).map_err(|e| e.to_string())?;
             mac.update(message.as_bytes());
             // `verify_slice` is constant-time — no timing oracle.
             if mac.verify_slice(&incoming).is_ok() {
@@ -213,11 +210,7 @@ pub mod blog_pdf {
         // the socket — no rebinding window between the two checks.
         let client = crate::components::widget_registry::build_ssrf_safe_client()?;
 
-        let response = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
+        let response = client.get(url).send().await.map_err(|e| e.to_string())?;
 
         if !response.status().is_success() {
             return Err(format!("Remote PDF returned HTTP {}", response.status()));
@@ -391,7 +384,13 @@ pub mod blog_pdf {
             let lines = wrap_text(text, 15);
             assert_eq!(
                 lines,
-                vec!["This is a very", "long text that", "needs to be", "wrapped", "properly."]
+                vec![
+                    "This is a very",
+                    "long text that",
+                    "needs to be",
+                    "wrapped",
+                    "properly."
+                ]
             );
         }
 

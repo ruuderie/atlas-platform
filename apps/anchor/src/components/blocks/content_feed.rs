@@ -1,10 +1,10 @@
+use crate::components::design_mode::use_kami_mode;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::design_mode::use_kami_mode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ContentFeedBlockData {
-    pub source: String,                    // "tenant_pages" | "tenant_entries" | "static"
+    pub source: String, // "tenant_pages" | "tenant_entries" | "static"
     pub config: ContentFeedConfig,
     #[serde(default)]
     pub items: Vec<ContentFeedItem>,
@@ -19,7 +19,7 @@ pub struct ContentFeedConfig {
     #[serde(default = "default_10")]
     pub page_size: u32,
     #[serde(default = "default_cards")]
-    pub layout: String,                    // "cards" | "list" | "kami_cards"
+    pub layout: String, // "cards" | "list" | "kami_cards"
     #[serde(default)]
     pub show_tags: bool,
     #[serde(default)]
@@ -28,8 +28,12 @@ pub struct ContentFeedConfig {
     pub section_title: Option<String>,
 }
 
-fn default_10() -> u32 { 10 }
-fn default_cards() -> String { "cards".to_string() }
+fn default_10() -> u32 {
+    10
+}
+fn default_cards() -> String {
+    "cards".to_string()
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct ContentFeedItem {
@@ -58,19 +62,30 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
             async move {
                 if src == "tenant_entries" || src == "tenant_pages" {
                     if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
-                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let filter_cat = config
+                            .get_value()
+                            .filter_category
+                            .clone()
+                            .unwrap_or_default();
                         let mapped: Vec<ContentFeedItem> = entries
                             .into_iter()
-                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .filter(|e| {
+                                filter_cat.is_empty() || e.category.to_string() == filter_cat
+                            })
                             .map(|e| {
                                 let mut tags = Vec::new();
                                 let mut cover_image_url = None;
-                                
+
                                 if let Some(meta) = e.metadata {
                                     if let Some(t) = meta.get("tags").and_then(|v| v.as_array()) {
-                                        tags = t.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect();
+                                        tags = t
+                                            .iter()
+                                            .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                                            .collect();
                                     }
-                                    if let Some(img) = meta.get("cover_image_url").and_then(|v| v.as_str()) {
+                                    if let Some(img) =
+                                        meta.get("cover_image_url").and_then(|v| v.as_str())
+                                    {
                                         cover_image_url = Some(img.to_string());
                                     }
                                 }
@@ -92,7 +107,7 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                 }
                 fallback
             }
-        }
+        },
     );
 
     view! {
@@ -110,7 +125,7 @@ pub fn ContentFeedBlock(data: ContentFeedBlockData) -> impl IntoView {
                     {move || {
                         let items_to_render = entries_resource.get().unwrap_or_default();
                         let cfg = config.get_value();
-                        
+
                         if items_to_render.is_empty() {
                             view! {
                                 <div class="p-12 border border-outline-variant border-dashed rounded-2xl bg-surface-container-lowest flex items-center justify-center text-on-surface-variant">

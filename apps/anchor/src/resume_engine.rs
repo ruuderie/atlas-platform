@@ -94,7 +94,7 @@ pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    
+
     let rows = sqlx::query("SELECT id, title, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_profile' ORDER BY created_at ASC")
         .bind(tenant_id)
         .fetch_all(&state.pool)
@@ -103,20 +103,56 @@ pub async fn get_entry_collections() -> Result<Vec<ResumeProfile>, ServerFnError
     let profiles = rows
         .into_iter()
         .map(|row| {
-            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
+            let payload: serde_json::Value =
+                row.try_get("payload").unwrap_or(serde_json::json!({}));
             ResumeProfile {
                 id: row.get("id"),
-                name: payload.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                full_name: payload.get("full_name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                objective: payload.get("objective").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                is_public: payload.get("is_public").and_then(|v| v.as_bool()).unwrap_or(false),
-                target_role: payload.get("target_role").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                contact_email: payload.get("contact_email").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
-                category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
+                name: payload
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                full_name: payload
+                    .get("full_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default()
+                    .to_string(),
+                objective: payload
+                    .get("objective")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                is_public: payload
+                    .get("is_public")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                target_role: payload
+                    .get("target_role")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                contact_email: payload
+                    .get("contact_email")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                contact_phone: payload
+                    .get("contact_phone")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                contact_location: payload
+                    .get("contact_location")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                contact_link: payload
+                    .get("contact_link")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                category_visibility: payload
+                    .get("category_visibility")
+                    .cloned()
+                    .unwrap_or(serde_json::json!({})),
+                category_order: payload
+                    .get("category_order")
+                    .cloned()
+                    .unwrap_or(serde_json::json!([])),
             }
         })
         .collect();
@@ -143,9 +179,13 @@ pub async fn get_tenant_entries(
     let items = rows
         .into_iter()
         .map(|row| {
-            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
-            
-            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let payload: serde_json::Value =
+                row.try_get("payload").unwrap_or(serde_json::json!({}));
+
+            let category_str = payload
+                .get("category")
+                .and_then(|v| v.as_str())
+                .unwrap_or("work");
             let category = match category_str {
                 "work" => ResumeCategory::Work,
                 "education" => ResumeCategory::Education,
@@ -159,9 +199,14 @@ pub async fn get_tenant_entries(
                 _ => ResumeCategory::Work,
             };
 
-            let bullets: Vec<String> = payload.get("bullets")
+            let bullets: Vec<String> = payload
+                .get("bullets")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default();
 
             ResumeEntry {
@@ -169,12 +214,24 @@ pub async fn get_tenant_entries(
                 profile_id: profile_id.unwrap_or_else(uuid::Uuid::nil),
                 category,
                 title: row.get("title"),
-                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                subtitle: payload
+                    .get("subtitle")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                date_range: payload
+                    .get("date_range")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 bullets,
                 display_order: row.try_get("display_order").unwrap_or(0),
-                is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
-                slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                is_visible: payload
+                    .get("is_visible")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+                slug: payload
+                    .get("slug")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 published_at: None,
                 metadata: payload.get("metadata").cloned(),
                 overrides: payload.get("overrides").cloned(),
@@ -198,9 +255,13 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
     let items = rows
         .into_iter()
         .map(|row| {
-            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
-            
-            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let payload: serde_json::Value =
+                row.try_get("payload").unwrap_or(serde_json::json!({}));
+
+            let category_str = payload
+                .get("category")
+                .and_then(|v| v.as_str())
+                .unwrap_or("work");
             let category = match category_str {
                 "work" => ResumeCategory::Work,
                 "education" => ResumeCategory::Education,
@@ -214,17 +275,28 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
                 _ => ResumeCategory::Work,
             };
 
-            let bullets: Vec<String> = payload.get("bullets")
+            let bullets: Vec<String> = payload
+                .get("bullets")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default();
 
             BaseResumeEntry {
                 id: row.get("id"),
                 category,
                 title: row.get("title"),
-                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                subtitle: payload
+                    .get("subtitle")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                date_range: payload
+                    .get("date_range")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 bullets,
                 metadata: payload.get("metadata").cloned(),
             }
@@ -234,9 +306,10 @@ pub async fn get_all_base_entries() -> Result<Vec<BaseResumeEntry>, ServerFnErro
     Ok(items)
 }
 
-
 #[server(GetEntryProfileMappings, "/api")]
-pub async fn get_entry_profile_mappings(entry_id: uuid::Uuid) -> Result<Vec<uuid::Uuid>, ServerFnError> {
+pub async fn get_entry_profile_mappings(
+    entry_id: uuid::Uuid,
+) -> Result<Vec<uuid::Uuid>, ServerFnError> {
     Ok(vec![])
 }
 
@@ -728,8 +801,6 @@ pub fn generate_latex_string(profile: &ResumeProfile, entries: &[ResumeEntry]) -
     tex_content
 }
 
-
-
 #[server(DownloadResume, "/api")]
 pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFnError> {
     use axum::Extension;
@@ -747,22 +818,59 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
         .await
         .map_err(|_| -> ServerFnError { ServerFnError::ServerError("Profile not found".into()) })?;
 
-    let payload: serde_json::Value = profile_row.try_get("payload").unwrap_or(serde_json::json!({}));
+    let payload: serde_json::Value = profile_row
+        .try_get("payload")
+        .unwrap_or(serde_json::json!({}));
     let tenant_id: uuid::Uuid = profile_row.get("tenant_id");
 
     let profile = ResumeProfile {
         id: profile_row.get("id"),
-        name: payload.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-        full_name: payload.get("full_name").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-        objective: payload.get("objective").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        is_public: payload.get("is_public").and_then(|v| v.as_bool()).unwrap_or(false),
-        target_role: payload.get("target_role").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        contact_email: payload.get("contact_email").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        contact_phone: payload.get("contact_phone").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        contact_location: payload.get("contact_location").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        contact_link: payload.get("contact_link").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        category_visibility: payload.get("category_visibility").cloned().unwrap_or(serde_json::json!({})),
-        category_order: payload.get("category_order").cloned().unwrap_or(serde_json::json!([])),
+        name: payload
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        full_name: payload
+            .get("full_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string(),
+        objective: payload
+            .get("objective")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        is_public: payload
+            .get("is_public")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        target_role: payload
+            .get("target_role")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        contact_email: payload
+            .get("contact_email")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        contact_phone: payload
+            .get("contact_phone")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        contact_location: payload
+            .get("contact_location")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        contact_link: payload
+            .get("contact_link")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        category_visibility: payload
+            .get("category_visibility")
+            .cloned()
+            .unwrap_or(serde_json::json!({})),
+        category_order: payload
+            .get("category_order")
+            .cloned()
+            .unwrap_or(serde_json::json!([])),
     };
 
     let entries_rows = sqlx::query("SELECT id, title, display_order, payload FROM app_content WHERE tenant_id = $1 AND collection_type = 'resume_entry' ORDER BY display_order ASC")
@@ -771,9 +879,13 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
     let entries: Vec<ResumeEntry> = entries_rows
         .into_iter()
         .map(|row| {
-            let payload: serde_json::Value = row.try_get("payload").unwrap_or(serde_json::json!({}));
-            
-            let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+            let payload: serde_json::Value =
+                row.try_get("payload").unwrap_or(serde_json::json!({}));
+
+            let category_str = payload
+                .get("category")
+                .and_then(|v| v.as_str())
+                .unwrap_or("work");
             let category = match category_str {
                 "work" => ResumeCategory::Work,
                 "education" => ResumeCategory::Education,
@@ -787,9 +899,14 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
                 _ => ResumeCategory::Work,
             };
 
-            let bullets: Vec<String> = payload.get("bullets")
+            let bullets: Vec<String> = payload
+                .get("bullets")
                 .and_then(|v| v.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default();
 
             ResumeEntry {
@@ -797,12 +914,24 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
                 profile_id,
                 category,
                 title: row.get("title"),
-                subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                subtitle: payload
+                    .get("subtitle")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                date_range: payload
+                    .get("date_range")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 bullets,
                 display_order: row.try_get("display_order").unwrap_or(0),
-                is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
-                slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                is_visible: payload
+                    .get("is_visible")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+                slug: payload
+                    .get("slug")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 published_at: None,
                 metadata: payload.get("metadata").cloned(),
                 overrides: payload.get("overrides").cloned(),
@@ -859,13 +988,11 @@ pub async fn download_resume(profile_id: uuid::Uuid) -> Result<Vec<u8>, ServerFn
 }
 
 #[server(GetSingleTenantEntry, "/api")]
-pub async fn get_single_tenant_entry(
-    slug: String,
-) -> Result<Option<ResumeEntry>, ServerFnError> {
+pub async fn get_single_tenant_entry(slug: String) -> Result<Option<ResumeEntry>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
-    
+
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tenant_id = tenant.0.unwrap_or_default();
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
@@ -878,8 +1005,11 @@ pub async fn get_single_tenant_entry(
 
     if let Some(r) = row {
         let payload: serde_json::Value = r.try_get("payload").unwrap_or(serde_json::json!({}));
-        
-        let category_str = payload.get("category").and_then(|v| v.as_str()).unwrap_or("work");
+
+        let category_str = payload
+            .get("category")
+            .and_then(|v| v.as_str())
+            .unwrap_or("work");
         let category = match category_str {
             "work" => ResumeCategory::Work,
             "education" => ResumeCategory::Education,
@@ -893,9 +1023,14 @@ pub async fn get_single_tenant_entry(
             _ => ResumeCategory::Work,
         };
 
-        let bullets: Vec<String> = payload.get("bullets")
+        let bullets: Vec<String> = payload
+            .get("bullets")
             .and_then(|v| v.as_array())
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
             .unwrap_or_default();
 
         Ok(Some(ResumeEntry {
@@ -903,12 +1038,24 @@ pub async fn get_single_tenant_entry(
             profile_id: uuid::Uuid::nil(),
             category,
             title: r.get("title"),
-            subtitle: payload.get("subtitle").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            date_range: payload.get("date_range").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            subtitle: payload
+                .get("subtitle")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            date_range: payload
+                .get("date_range")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             bullets,
             display_order: r.try_get("display_order").unwrap_or(0),
-            is_visible: payload.get("is_visible").and_then(|v| v.as_bool()).unwrap_or(true),
-            slug: payload.get("slug").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            is_visible: payload
+                .get("is_visible")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true),
+            slug: payload
+                .get("slug")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             published_at: None,
             metadata: payload.get("metadata").cloned(),
             overrides: payload.get("overrides").cloned(),

@@ -187,22 +187,52 @@ pub fn PostForm(
             .collect();
         let current_id = post_id_sv.get_value();
 
-        let p_url = { let u = pdf_attachment_url.get_untracked(); if u.is_empty() { None } else { Some(u) } };
+        let p_url = {
+            let u = pdf_attachment_url.get_untracked();
+            if u.is_empty() {
+                None
+            } else {
+                Some(u)
+            }
+        };
         let p_gen = pdf_generate.get_untracked();
         let p_lead = pdf_require_lead.get_untracked();
-        let p_label = { let l = pdf_cta_label.get_untracked(); if l.is_empty() { None } else { Some(l) } };
-        let p_email = { let e = pdf_notify_email.get_untracked(); if e.is_empty() { None } else { Some(e) } };
+        let p_label = {
+            let l = pdf_cta_label.get_untracked();
+            if l.is_empty() {
+                None
+            } else {
+                Some(l)
+            }
+        };
+        let p_email = {
+            let e = pdf_notify_email.get_untracked();
+            if e.is_empty() {
+                None
+            } else {
+                Some(e)
+            }
+        };
 
         set_save_error.set(None); // clear prior error
         leptos::task::spawn_local(async move {
             let result = if is_edit {
                 crate::pages::blog::update_post(
-                    current_id.clone(), s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
-                ).await
+                    current_id.clone(),
+                    s,
+                    t,
+                    c,
+                    tg,
+                    p_url,
+                    p_gen,
+                    p_lead,
+                    p_label,
+                    p_email,
+                )
+                .await
             } else {
-                crate::pages::blog::add_post(
-                    s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email
-                ).await
+                crate::pages::blog::add_post(s, t, c, tg, p_url, p_gen, p_lead, p_label, p_email)
+                    .await
             };
             match result {
                 Ok(_) => {
@@ -409,7 +439,7 @@ pub fn PasskeyForm() -> impl IntoView {
             }
             set_is_loading.set(false);
         });
-// End of spawn_local
+        // End of spawn_local
     };
 
     view! {
@@ -912,8 +942,10 @@ pub fn ResumeProfileForm(
         },
     );
 
-    let (active_entries, set_active_entries) =
-        signal(std::collections::HashMap::<uuid::Uuid, Option<serde_json::Value>>::new());
+    let (active_entries, set_active_entries) = signal(std::collections::HashMap::<
+        uuid::Uuid,
+        Option<serde_json::Value>,
+    >::new());
     let (expanded_entries, set_expanded_entries) =
         signal(std::collections::HashSet::<uuid::Uuid>::new());
 
@@ -1072,7 +1104,19 @@ pub fn ResumeProfileForm(
         leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = crate::resume_engine::update_resume_profile(
-                    id_val.clone().unwrap(), n, fnm, obj, p_pub, tr, ce, cp, clo, cli, cv, co, ae,
+                    id_val.clone().unwrap(),
+                    n,
+                    fnm,
+                    obj,
+                    p_pub,
+                    tr,
+                    ce,
+                    cp,
+                    clo,
+                    cli,
+                    cv,
+                    co,
+                    ae,
                 )
                 .await;
             } else {
@@ -1342,7 +1386,10 @@ pub fn LandingPageForm(
     );
 
     let save = move |_| {
-        let old_slug_val = initial_page.as_ref().map(|p| p.slug.clone()).unwrap_or_default();
+        let old_slug_val = initial_page
+            .as_ref()
+            .map(|p| p.slug.clone())
+            .unwrap_or_default();
         let s = slug.get_untracked();
         let t = title.get_untracked();
         let d = description.get_untracked();
@@ -1353,14 +1400,17 @@ pub fn LandingPageForm(
         leptos::task::spawn_local(async move {
             if is_edit {
                 let _ = crate::pages::dynamic_landing::update_landing_page(
-                    old_slug_val, s, t, d, ht, hs, dbj
+                    old_slug_val,
+                    s,
+                    t,
+                    d,
+                    ht,
+                    hs,
+                    dbj,
                 )
                 .await;
             } else {
-                let _ = crate::pages::dynamic_landing::add_landing_page(
-                    s, t, d, ht, hs, dbj
-                )
-                .await;
+                let _ = crate::pages::dynamic_landing::add_landing_page(s, t, d, ht, hs, dbj).await;
             }
             set_refresh.set(refresh.get_untracked() + 1);
             set_modal_state.set(ModalState::None);
@@ -1829,7 +1879,10 @@ pub fn BaseResumeEntryForm(
             .unwrap_or_default(),
     );
 
-    let profiles_res = Resource::new(move || (), |_| crate::resume_engine::get_entry_collections());
+    let profiles_res = Resource::new(
+        move || (),
+        |_| crate::resume_engine::get_entry_collections(),
+    );
 
     // Fetch mapped profiles for this entry
     let mapped_res = Resource::new(
@@ -1901,7 +1954,9 @@ pub fn BaseResumeEntryForm(
 
         leptos::task::spawn_local(async move {
             if is_edit {
-                let _ = update_base_entry(id_val.clone().unwrap(), cat_val, t, sub, dr, b, md, profs).await;
+                let _ =
+                    update_base_entry(id_val.clone().unwrap(), cat_val, t, sub, dr, b, md, profs)
+                        .await;
             } else {
                 let _ = add_base_entry(cat_val, t, sub, dr, b, md, profs).await;
             }
@@ -2008,7 +2063,10 @@ pub fn ServiceForm(initial_item: Option<crate::b2b::ServiceRecord>) -> impl Into
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
+    let id_val = initial_item
+        .as_ref()
+        .map(|p| p.id)
+        .unwrap_or(uuid::Uuid::nil());
 
     let (title, set_title) = signal(
         initial_item
@@ -2123,7 +2181,10 @@ pub fn CaseStudyForm(initial_item: Option<crate::b2b::CaseStudyRecord>) -> impl 
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
+    let id_val = initial_item
+        .as_ref()
+        .map(|p| p.id)
+        .unwrap_or(uuid::Uuid::nil());
 
     let (client_name, set_client_name) = signal(
         initial_item
@@ -2228,7 +2289,10 @@ pub fn HighlightForm(initial_item: Option<crate::b2b::HighlightRecord>) -> impl 
     let refresh = expect_context::<ReadSignal<i32>>();
 
     let is_edit = initial_item.is_some();
-    let id_val = initial_item.as_ref().map(|p| p.id).unwrap_or(uuid::Uuid::nil());
+    let id_val = initial_item
+        .as_ref()
+        .map(|p| p.id)
+        .unwrap_or(uuid::Uuid::nil());
 
     let (title, set_title) = signal(
         initial_item

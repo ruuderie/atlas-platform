@@ -42,19 +42,20 @@ pub async fn get_onboarding_status(
         token,
     );
     let client = reqwest::Client::new();
-    let res = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
+    let res = client.get(&url).send().await.map_err(|e| {
+        ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string())
+    })?;
     if res.status().is_success() {
-        res.json::<OnboardingStatusResponse>()
-            .await
-            .map_err(|e| ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string()))
+        res.json::<OnboardingStatusResponse>().await.map_err(|e| {
+            ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })
     } else {
-        Err(ServerFnError::<server_fn::error::NoCustomError>::ServerError(
-            format!("HTTP {}", res.status()),
-        ))
+        Err(
+            ServerFnError::<server_fn::error::NoCustomError>::ServerError(format!(
+                "HTTP {}",
+                res.status()
+            )),
+        )
     }
 }
 
@@ -78,13 +79,18 @@ pub async fn complete_onboarding_step(
         .header("Authorization", format!("Bearer {}", token))
         .send()
         .await
-        .map_err(|e| ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
+        .map_err(|e| {
+            ServerFnError::<server_fn::error::NoCustomError>::ServerError(e.to_string())
+        })?;
     if res.status().is_success() || res.status().as_u16() == 204 {
         Ok(())
     } else {
-        Err(ServerFnError::<server_fn::error::NoCustomError>::ServerError(
-            format!("HTTP {}", res.status()),
-        ))
+        Err(
+            ServerFnError::<server_fn::error::NoCustomError>::ServerError(format!(
+                "HTTP {}",
+                res.status()
+            )),
+        )
     }
 }
 
@@ -152,7 +158,7 @@ pub fn TenantOnboarding() -> impl IntoView {
                                         view! {
                                             <StepDot
                                                 is_complete=step.is_complete
-                                                is_current=i == current 
+                                                is_current=i == current
                                             />
                                         }
                                     }).collect::<Vec<_>>()}

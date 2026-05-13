@@ -1,8 +1,8 @@
+use crate::components::design_mode::use_kami_mode;
+use crate::resume_engine::get_single_tenant_entry;
+use crate::utils::text::parse_rai;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use crate::resume_engine::get_single_tenant_entry;
-use crate::components::design_mode::use_kami_mode;
-use crate::utils::text::parse_rai;
 
 #[component]
 pub fn DynamicEntry() -> impl IntoView {

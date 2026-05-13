@@ -12,12 +12,14 @@ pub struct AccordionConfig {
     #[serde(default)]
     pub section_title: Option<String>,
     #[serde(default = "default_single")]
-    pub mode: String,                      // "single" | "multi"
+    pub mode: String, // "single" | "multi"
     #[serde(default)]
     pub default_open_index: Option<u32>,
 }
 
-fn default_single() -> String { "single".to_string() }
+fn default_single() -> String {
+    "single".to_string()
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AccordionItem {
@@ -30,10 +32,10 @@ pub struct AccordionItem {
 #[component]
 pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
     // Note: State logic for single/multi expand should theoretically use signals.
-    // For Phase 2 we implement the view structure with standard HTML 'details/summary' pattern 
+    // For Phase 2 we implement the view structure with standard HTML 'details/summary' pattern
     // which gives native accordion functionality without Leptos JS interop overhead.
     // Standard HTML <details> doesn't support generic 'single' mode without JS, but is extremely lightweight.
-    
+
     view! {
         <section class="py-12 md:py-16 w-full">
             <div class="container mx-auto px-4 max-w-3xl">
@@ -51,7 +53,7 @@ pub fn AccordionBlock(data: AccordionBlockData) -> impl IntoView {
                     {data.items.into_iter().enumerate().map(|(idx, item)| {
                         // Native details/summary element
                         let is_open = data.config.default_open_index == Some(idx as u32);
-                        
+
                         view! {
                             <details class="group bg-surface border border-outline-variant rounded-xl overflow-hidden shadow-sm" open=is_open>
                                 <summary class="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-surface-container-lowest transition-colors outline-none focus:ring-2 focus:ring-primary focus:ring-inset">

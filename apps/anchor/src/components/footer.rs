@@ -125,13 +125,24 @@ pub async fn delete_footer_item(id: i32) -> Result<(), ServerFnError> {
 #[component]
 pub fn Footer() -> impl IntoView {
     let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
-        .map(|s| s.get_untracked()).unwrap_or_default();
-        
+        .map(|s| s.get_untracked())
+        .unwrap_or_default();
+
     let footer_resource = Resource::new(|| (), |_| get_footer_items());
     let settings_resource = Resource::new(|| (), |_| crate::pages::landing::get_site_settings());
 
-    let footer_bg = if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-lowest" } else { "bg-surface-container-low" }.to_string();
-    let footer_px = if design.container_strategy == "asymmetrical-gutters" { "px-6 lg:px-[8.5rem]" } else { "px-6 lg:px-12" }.to_string();
+    let footer_bg = if design.elevation_strategy == "tonal-shifts" {
+        "bg-surface-container-lowest"
+    } else {
+        "bg-surface-container-low"
+    }
+    .to_string();
+    let footer_px = if design.container_strategy == "asymmetrical-gutters" {
+        "px-6 lg:px-[8.5rem]"
+    } else {
+        "px-6 lg:px-12"
+    }
+    .to_string();
     let footer_font = design.meta_font.clone();
     let link_is_tonal = design.elevation_strategy == "tonal-shifts";
 
@@ -229,7 +240,7 @@ pub fn Footer() -> impl IntoView {
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
-    
+
     wasm_bindgen_test_configure!(run_in_browser);
 
     #[wasm_bindgen_test]

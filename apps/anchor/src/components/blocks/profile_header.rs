@@ -1,6 +1,6 @@
+use crate::components::design_mode::use_kami_mode;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::design_mode::use_kami_mode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProfileHeaderBlockData {
@@ -19,12 +19,18 @@ pub struct ProfileHeaderBlockData {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct ProfileContact {
-    #[serde(default)] pub email: Option<String>,
-    #[serde(default)] pub phone: Option<String>,
-    #[serde(default)] pub location: Option<String>,
-    #[serde(default)] pub github_url: Option<String>,
-    #[serde(default)] pub linkedin_url: Option<String>,
-    #[serde(default)] pub website_url: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub phone: Option<String>,
+    #[serde(default)]
+    pub location: Option<String>,
+    #[serde(default)]
+    pub github_url: Option<String>,
+    #[serde(default)]
+    pub linkedin_url: Option<String>,
+    #[serde(default)]
+    pub website_url: Option<String>,
 }
 
 // ── Public dispatcher ──────────────────────────────────────────────────────

@@ -1,14 +1,14 @@
+use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
+use crate::components::design_mode::use_kami_mode;
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use crate::components::design_mode::use_kami_mode;
-use crate::components::content_feed::{ContentFeed, ContentNode, LayoutMode};
 
 #[server(GetPosts, "/api")]
 pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
+    use crate::utils::text::markdown_excerpt;
     use axum::Extension;
     use leptos_axum::extract;
     use sqlx::Row;
-    use crate::utils::text::markdown_excerpt;
 
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
@@ -26,12 +26,30 @@ pub async fn get_posts() -> Result<Vec<ContentNode>, ServerFnError> {
             let id: uuid::Uuid = row.get("id");
             let payload: serde_json::Value = row.get("payload");
 
-            let slug = payload.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let content = payload.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let tags: Vec<String> = payload.get("tags").and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            let slug = payload
+                .get("slug")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let content = payload
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let tags: Vec<String> = payload
+                .get("tags")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default();
-            let content_format = payload.get("content_format").and_then(|v| v.as_str()).unwrap_or("markdown").to_string();
+            let content_format = payload
+                .get("content_format")
+                .and_then(|v| v.as_str())
+                .unwrap_or("markdown")
+                .to_string();
             let link_url = format!("/blog/{}", slug);
 
             // Compute excerpt on the server so WASM clients receive a plain string.
@@ -74,21 +92,35 @@ pub async fn get_post_by_slug(slug: String) -> Result<Option<ContentNode>, Serve
     let row = sqlx::query(
         "SELECT id, title, to_char(created_at, 'YYYY.MM.DD') as created_at, payload \
          FROM app_content WHERE collection_type = 'blog_post' \
-         AND tenant_id IS NOT DISTINCT FROM $1 AND payload->>'slug' = $2 LIMIT 1"
+         AND tenant_id IS NOT DISTINCT FROM $1 AND payload->>'slug' = $2 LIMIT 1",
     )
-        .bind(tenant.0)
-        .bind(&slug)
-        .fetch_optional(&state.pool)
-        .await?;
+    .bind(tenant.0)
+    .bind(&slug)
+    .fetch_optional(&state.pool)
+    .await?;
 
     Ok(row.map(|row| {
         let id: uuid::Uuid = row.get("id");
         let payload: serde_json::Value = row.get("payload");
-        let content = payload.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let tags: Vec<String> = payload.get("tags").and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        let content = payload
+            .get("content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let tags: Vec<String> = payload
+            .get("tags")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
             .unwrap_or_default();
-        let content_format = payload.get("content_format").and_then(|v| v.as_str()).unwrap_or("markdown").to_string();
+        let content_format = payload
+            .get("content_format")
+            .and_then(|v| v.as_str())
+            .unwrap_or("markdown")
+            .to_string();
 
         ContentNode {
             id: id.to_string(),
@@ -259,11 +291,26 @@ pub async fn get_blog_pdf_config(slug: String) -> Result<Option<BlogPdfConfig>, 
     Ok(row.map(|row| {
         let payload: serde_json::Value = row.get("payload");
         BlogPdfConfig {
-            pdf_attachment_url: payload.get("pdf_attachment_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            pdf_generate_from_content: payload.get("pdf_generate_from_content").and_then(|v| v.as_bool()).unwrap_or(false),
-            pdf_require_lead_capture: payload.get("pdf_require_lead_capture").and_then(|v| v.as_bool()).unwrap_or(false),
-            pdf_lead_capture_label: payload.get("pdf_lead_capture_label").and_then(|v| v.as_str()).map(|s| s.to_string()),
-            pdf_lead_notification_email: payload.get("pdf_lead_notification_email").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            pdf_attachment_url: payload
+                .get("pdf_attachment_url")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            pdf_generate_from_content: payload
+                .get("pdf_generate_from_content")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            pdf_require_lead_capture: payload
+                .get("pdf_require_lead_capture")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            pdf_lead_capture_label: payload
+                .get("pdf_lead_capture_label")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            pdf_lead_notification_email: payload
+                .get("pdf_lead_notification_email")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
         }
     }))
 }
@@ -315,36 +362,56 @@ pub async fn save_blog_pdf_settings(
 pub async fn get_r2_presigned_upload_url(filename: String) -> Result<String, ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
-    use leptos_axum::extract;
     use hmac::{Hmac, Mac};
-    use sha2::{Sha256, Digest};
+    use leptos_axum::extract;
+    use sha2::{Digest, Sha256};
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    let tenant_id = tenant.0.map(|id| id.to_string()).unwrap_or_else(|| "global".to_string());
+    let tenant_id = tenant
+        .0
+        .map(|id| id.to_string())
+        .unwrap_or_else(|| "global".to_string());
 
     let access_key = match std::env::var("R2_ACCESS_KEY_ID") {
         Ok(v) => v,
-        Err(_) => return Err(ServerFnError::ServerError("R2_ACCESS_KEY_ID not configured".into())),
+        Err(_) => {
+            return Err(ServerFnError::ServerError(
+                "R2_ACCESS_KEY_ID not configured".into(),
+            ))
+        }
     };
     let secret_key = match std::env::var("R2_SECRET_ACCESS_KEY") {
         Ok(v) => v,
-        Err(_) => return Err(ServerFnError::ServerError("R2_SECRET_ACCESS_KEY not configured".into())),
+        Err(_) => {
+            return Err(ServerFnError::ServerError(
+                "R2_SECRET_ACCESS_KEY not configured".into(),
+            ))
+        }
     };
     let endpoint = match std::env::var("R2_ENDPOINT") {
         Ok(v) => v,
-        Err(_) => return Err(ServerFnError::ServerError("R2_ENDPOINT not configured".into())),
+        Err(_) => {
+            return Err(ServerFnError::ServerError(
+                "R2_ENDPOINT not configured".into(),
+            ))
+        }
     };
     let bucket = match std::env::var("R2_VAULT_BUCKET") {
         Ok(v) => v,
-        Err(_) => return Err(ServerFnError::ServerError("R2_VAULT_BUCKET not configured".into())),
+        Err(_) => {
+            return Err(ServerFnError::ServerError(
+                "R2_VAULT_BUCKET not configured".into(),
+            ))
+        }
     };
 
     // Sanitize filename
-    let safe_name: String = filename.chars()
+    let safe_name: String = filename
+        .chars()
         .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect();
     let object_key = format!("{}/pdf-attachments/{}", tenant_id, safe_name);
@@ -356,11 +423,20 @@ pub async fn get_r2_presigned_upload_url(filename: String) -> Result<String, Ser
     let region = "auto";
     let service = "s3";
     let expires = "900"; // 15 minutes
-    let credential = format!("{}/{}/{}/{}/aws4_request", access_key, date_str, region, service);
+    let credential = format!(
+        "{}/{}/{}/{}/aws4_request",
+        access_key, date_str, region, service
+    );
 
     // URL-encode the object key
-    let encoded_key: String = object_key.split('/').map(|s| urlencoding::encode(s).into_owned()).collect::<Vec<_>>().join("/");
-    let host = endpoint.trim_start_matches("https://").trim_start_matches("http://");
+    let encoded_key: String = object_key
+        .split('/')
+        .map(|s| urlencoding::encode(s).into_owned())
+        .collect::<Vec<_>>()
+        .join("/");
+    let host = endpoint
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
     let url_path = format!("/{}/{}", bucket, encoded_key);
 
     // Canonical query string (params must be sorted)
@@ -393,7 +469,10 @@ pub async fn get_r2_presigned_upload_url(filename: String) -> Result<String, Ser
     let signing_key = hmac_sign(
         &hmac_sign(
             &hmac_sign(
-                &hmac_sign(format!("AWS4{}", secret_key).as_bytes(), date_str.as_bytes()),
+                &hmac_sign(
+                    format!("AWS4{}", secret_key).as_bytes(),
+                    date_str.as_bytes(),
+                ),
                 region.as_bytes(),
             ),
             service.as_bytes(),
@@ -431,8 +510,8 @@ pub async fn submit_download_lead(
     name: Option<String>,
 ) -> Result<DownloadTokenResponse, ServerFnError> {
     use axum::Extension;
-    use leptos_axum::extract;
     use hmac::{Hmac, Mac};
+    use leptos_axum::extract;
     use sha2::Sha256;
 
     if email.is_empty() || !email.contains('@') {
@@ -513,7 +592,8 @@ pub async fn submit_download_lead(
     let bucket_ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs() / 300; // 5-minute window
+        .as_secs()
+        / 300; // 5-minute window
 
     let message = format!("{}:{}:{}", post_id, email, bucket_ts);
     let mut mac = match Hmac::<Sha256>::new_from_slice(secret.as_bytes()) {
@@ -525,7 +605,6 @@ pub async fn submit_download_lead(
 
     Ok(DownloadTokenResponse { token })
 }
-
 
 // ─── Blog list page ───────────────────────────────────────────────────────────
 
@@ -704,8 +783,10 @@ fn render_post_html(post: &ContentNode) -> String {
     if let Some(md) = &post.markdown {
         match post.content_format.as_str() {
             "latex" => {
-                format!("<div class='katex-content'><pre class='katex-source'>{}</pre></div>",
-                    html_escape::encode_text(md))
+                format!(
+                    "<div class='katex-content'><pre class='katex-source'>{}</pre></div>",
+                    html_escape::encode_text(md)
+                )
             }
             // mdlatex and markdown both go through pulldown_cmark;
             _ => {
@@ -813,7 +894,11 @@ fn BlogPdfCta(slug: String) -> impl IntoView {
         let slug = slug_for_submit.clone();
         let email = lead_email.get_untracked();
         let name_str = lead_name.get_untracked();
-        let name = if name_str.is_empty() { None } else { Some(name_str) };
+        let name = if name_str.is_empty() {
+            None
+        } else {
+            Some(name_str)
+        };
         async move {
             set_submitting.set(true);
             match submit_download_lead(slug, email.clone(), name).await {

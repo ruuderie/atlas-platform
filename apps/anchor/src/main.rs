@@ -3,15 +3,15 @@
 async fn main() {
     use anchor::app::*;
     use anchor::state::AppState;
+    use axum::http::{header, HeaderValue};
     use axum::Router;
-    use leptos::prelude::*;
     use leptos::context::provide_context;
+    use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use sqlx::PgPool;
+    use tower::ServiceBuilder;
     use tower_http::services::ServeDir;
     use tower_http::set_header::SetResponseHeaderLayer;
-    use axum::http::{header, HeaderValue};
-    use tower::ServiceBuilder;
 
     let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
@@ -19,8 +19,7 @@ async fn main() {
     let routes = generate_route_list(App);
 
     // Initialize Database
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to PostgreSQL");
@@ -44,8 +43,7 @@ async fn main() {
         )
         .route(
             "/api/{*fn_name}",
-            axum::routing::get(leptos_axum::handle_server_fns)
-                .post(leptos_axum::handle_server_fns),
+            axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
         )
         .route(
             "/robots.txt",
@@ -101,9 +99,15 @@ async fn main() {
                 move || shell(leptos_options.clone())
             },
         )
-        .fallback(leptos_axum::file_and_error_handler::<anchor::state::AppState, _>(shell))
+        .fallback(leptos_axum::file_and_error_handler::<
+            anchor::state::AppState,
+            _,
+        >(shell))
         .layer(prometheus_layer)
-        .layer(axum::middleware::from_fn_with_state(app_state.clone(), extract_tenant_header))
+        .layer(axum::middleware::from_fn_with_state(
+            app_state.clone(),
+            extract_tenant_header,
+        ))
         .layer(axum::Extension(app_state.clone()))
         .with_state(app_state);
 
@@ -145,15 +149,18 @@ async fn extract_tenant_header(
     mut req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, axum::http::StatusCode> {
-    use uuid::Uuid;
     use anchor::state::TenantContext;
     use std::str::FromStr;
+    use uuid::Uuid;
 
-    let mut tenant_id = if let Some(tenant_str) = headers.get("x-tenant-id").and_then(|h: &axum::http::HeaderValue| h.to_str().ok()) {
+    let mut tenant_id = if let Some(tenant_str) = headers
+        .get("x-tenant-id")
+        .and_then(|h: &axum::http::HeaderValue| h.to_str().ok())
+    {
         if tenant_str.eq_ignore_ascii_case("null") || tenant_str.is_empty() {
-             None
+            None
         } else {
-             Uuid::from_str(tenant_str).ok()
+            Uuid::from_str(tenant_str).ok()
         }
     } else {
         None
@@ -168,7 +175,7 @@ async fn extract_tenant_header(
                  FROM app_domains ad 
                  JOIN app_instances ai ON ad.app_instance_id = ai.id 
                  JOIN tenant t ON ai.tenant_id = t.id 
-                 WHERE ad.domain_name = $1"
+                 WHERE ad.domain_name = $1",
             )
             .bind(domain)
             .fetch_optional(&state.pool)
@@ -187,7 +194,7 @@ async fn extract_tenant_header(
     if tenant_id.is_none() {
         match std::env::var("DEFAULT_TENANT_ID") {
             Ok(val) => tenant_id = Uuid::from_str(&val).ok(),
-            Err(_) => {},
+            Err(_) => {}
         }
     }
 

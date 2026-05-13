@@ -1,5 +1,5 @@
-use leptos::prelude::*;
 use crate::components::widget_registry::WidgetInstance;
+use leptos::prelude::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -100,7 +100,8 @@ impl Default for SiteSettings {
             linkedin_url: "".into(),
             b2b_enabled: false,
             meta_title: "Anchor — Powered by Atlas Platform".into(),
-            meta_description: "A dynamic, multi-tenant CMS site built on the Atlas Platform.".into(),
+            meta_description: "A dynamic, multi-tenant CMS site built on the Atlas Platform."
+                .into(),
             og_image: "".into(),
             theme_primary_color: None,
             design_config: None,
@@ -128,7 +129,11 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             .await
         {
             Ok(rows) => {
-                leptos::logging::log!("[get_site_settings] tenant={} rows={}", tenant_id, rows.len());
+                leptos::logging::log!(
+                    "[get_site_settings] tenant={} rows={}",
+                    tenant_id,
+                    rows.len()
+                );
                 for row in rows {
                     let key: String = row.get("key");
                     let val: String = row.get("value");
@@ -166,7 +171,10 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
             Err(e) => {
                 // Log the error explicitly so we can diagnose UAT failures.
                 // Fall through with defaults — do not propagate as a hard error.
-                leptos::logging::error!("[get_site_settings] DB error querying tenant_setting: {:?}", e);
+                leptos::logging::error!(
+                    "[get_site_settings] DB error querying tenant_setting: {:?}",
+                    e
+                );
             }
         }
 
@@ -175,14 +183,26 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
         // stored in tenant_setting (they live in the JSONB blob on app_instances).
         // The backend /api/app-instances/{tenant_id}/{app_type} merges both sources.
         let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-        let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+        let host = headers
+            .get(axum::http::header::HOST)
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
         let endpoint = format!("/api/app-instances/{}/anchor", tenant_id);
 
-        match crate::atlas_client::fetch_atlas_data::<serde_json::Value>(&endpoint, Some(tenant_id), host).await {
+        match crate::atlas_client::fetch_atlas_data::<serde_json::Value>(
+            &endpoint,
+            Some(tenant_id),
+            host,
+        )
+        .await
+        {
             Ok(inst_json) => {
                 // The backend response is the AppInstance model with settings merged in.
                 // Fields: { id, tenant_id, app_type, settings: { ...merged JSONB + tenant_setting KV... } }
-                let s = inst_json.get("settings").cloned().unwrap_or_else(|| serde_json::json!({}));
+                let s = inst_json
+                    .get("settings")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({}));
 
                 // design_config — only set if not already populated by tenant_setting
                 if settings.design_config.is_none() {
@@ -201,7 +221,10 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
                 // widgets array — allows nav-registered widgets like BitcoinBlockClock
                 if settings.widgets.is_empty() {
                     if let Some(ws) = s.get("widgets") {
-                        if let Ok(widget_list) = serde_json::from_value::<Vec<crate::components::widget_registry::WidgetInstance>>(ws.clone()) {
+                        if let Ok(widget_list) = serde_json::from_value::<
+                            Vec<crate::components::widget_registry::WidgetInstance>,
+                        >(ws.clone())
+                        {
                             settings.widgets = widget_list;
                         }
                     }
@@ -212,29 +235,45 @@ pub async fn get_site_settings() -> Result<SiteSettings, ServerFnError> {
                 // app_instances.settings before the canonicalize migration ran.
                 if settings.site_title == "ANCHOR PLATFORM" {
                     if let Some(v) = s.get("site_title").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.site_title = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.site_title = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("current_focus").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.current_focus = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.current_focus = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("status").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.status = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.status = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("hero_quote").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.hero_quote = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.hero_quote = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("hero_subtitle").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.hero_subtitle = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.hero_subtitle = v.to_string();
+                        }
                     }
                     // LC fields
                     if let Some(v) = s.get("lead_capture_title").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.lc_title = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.lc_title = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("lead_capture_btn").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.lc_btn = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.lc_btn = v.to_string();
+                        }
                     }
                     if let Some(v) = s.get("lead_capture_desc").and_then(|v| v.as_str()) {
-                        if !v.is_empty() { settings.lc_desc = v.to_string(); }
+                        if !v.is_empty() {
+                            settings.lc_desc = v.to_string();
+                        }
                     }
                 }
             }
@@ -361,7 +400,7 @@ pub async fn update_site_settings(
         .bind(tid)
         .execute(&state.pool)
         .await?;
-        
+
     sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'google_analytics_id', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(google_analytics_id).bind(tid).execute(&state.pool).await?;
     sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'booking_url', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(booking_url).bind(tid).execute(&state.pool).await?;
     sqlx::query("INSERT INTO tenant_setting (id, tenant_id, key, value, updated_at, created_at) VALUES (gen_random_uuid(), $2, 'terms_html', $1, NOW(), NOW()) ON CONFLICT (tenant_id, key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()").bind(terms_html).bind(tid).execute(&state.pool).await?;
@@ -750,10 +789,12 @@ pub async fn delete_lead_option(id: i32) -> Result<(), ServerFnError> {
     }
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    sqlx::query("DELETE FROM lead_capture_options WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2")
-        .bind(id)
-        .bind(tenant.0)
-        .execute(&state.pool)
-        .await?;
+    sqlx::query(
+        "DELETE FROM lead_capture_options WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2",
+    )
+    .bind(id)
+    .bind(tenant.0)
+    .execute(&state.pool)
+    .await?;
     Ok(())
 }

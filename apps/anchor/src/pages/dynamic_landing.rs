@@ -18,18 +18,18 @@ pub struct LandingPageRecord {
 }
 
 use crate::components::blocks::{
+    accordion::{AccordionBlock, AccordionBlockData},
+    badge_list::{BadgeListBlock, BadgeListBlockData},
     callout::{CalloutBlock, CalloutBlockData},
+    content_feed::{ContentFeedBlock, ContentFeedBlockData},
     form_builder::{FormBuilderBlock, FormBuilderData},
     grid::{GridBlock, GridBlockData},
     hero::{HeroBlock, HeroBlockData},
-    rich_text::{RichTextBlock, RichTextData},
-    timeline::{TimelineBlock, TimelineBlockData},
-    badge_list::{BadgeListBlock, BadgeListBlockData},
-    content_feed::{ContentFeedBlock, ContentFeedBlockData},
     profile_header::{ProfileHeaderBlock, ProfileHeaderBlockData},
-    stats::{StatsBlock, StatsBlockData},
-    accordion::{AccordionBlock, AccordionBlockData},
     raw_html::{RawHtmlBlock, RawHtmlData},
+    rich_text::{RichTextBlock, RichTextData},
+    stats::{StatsBlock, StatsBlockData},
+    timeline::{TimelineBlock, TimelineBlockData},
 };
 
 // DynamicBlock represents one block entry in a blocks_payload array.
@@ -55,13 +55,13 @@ pub enum DynamicBlock {
 impl<'de> serde::Deserialize<'de> for DynamicBlock {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         // Deserialize the outer object as a raw map so we can read the key name first
-        let map = serde_json::Map::deserialize(deserializer)
-            .map_err(serde::de::Error::custom)?;
+        let map = serde_json::Map::deserialize(deserializer).map_err(serde::de::Error::custom)?;
 
         if map.len() != 1 {
-            return Err(serde::de::Error::custom(
-                format!("DynamicBlock must have exactly one key, got {}", map.len())
-            ));
+            return Err(serde::de::Error::custom(format!(
+                "DynamicBlock must have exactly one key, got {}",
+                map.len()
+            )));
         }
 
         let (key, value) = map.into_iter().next().unwrap();
@@ -109,8 +109,7 @@ impl<'de> serde::Deserialize<'de> for DynamicBlock {
                     .map_err(serde::de::Error::custom)?,
             )),
             "RawHtml" => Ok(DynamicBlock::RawHtml(
-                serde_json::from_value::<RawHtmlData>(value)
-                    .map_err(serde::de::Error::custom)?,
+                serde_json::from_value::<RawHtmlData>(value).map_err(serde::de::Error::custom)?,
             )),
             unknown => Err(serde::de::Error::custom(format!(
                 "Unknown block type key: '{}'",
@@ -120,20 +119,22 @@ impl<'de> serde::Deserialize<'de> for DynamicBlock {
     }
 }
 
-
 #[server(GetLandingPage, "/api")]
 pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>, ServerFnError> {
+    use crate::atlas_client::fetch_atlas_data;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/pages/{}/{}", tenant_id, slug);
-        
+
         #[derive(serde::Deserialize)]
         struct AppPageResp {
             title: String,
@@ -141,22 +142,26 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
             hero_payload: Option<serde_json::Value>,
             blocks_payload: Option<serde_json::Value>,
         }
-        
+
         if let Ok(page) = fetch_atlas_data::<AppPageResp>(&endpoint, Some(tenant_id), host).await {
             let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
             // blocks_payload IS the blocks array directly (e.g. [{"Hero":{...}}, {"Grid":{...}}])
             let blocks_payload = page.blocks_payload.unwrap_or(serde_json::json!([]));
             // For CMS pages using the block engine, the full array is passed as dynamic_blocks_json.
             // hero_title/subtitle fall back to the legacy hero_payload fields for old-style pages.
-            let dynamic_blocks_json = serde_json::to_string(&blocks_payload).unwrap_or_else(|_| "[]".to_string());
-            
+            let dynamic_blocks_json =
+                serde_json::to_string(&blocks_payload).unwrap_or_else(|_| "[]".to_string());
+
             return Ok(Some(LandingPageRecord {
                 id: 0,
                 slug,
                 title: page.title,
                 description: page.description,
                 hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
-                hero_subtitle: hero["hero_subtitle"].as_str().unwrap_or_default().to_string(),
+                hero_subtitle: hero["hero_subtitle"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string(),
                 lead_capture_title: String::new(),
                 lead_capture_desc: String::new(),
                 lead_capture_btn: String::new(),
@@ -171,17 +176,20 @@ pub async fn get_landing_page(slug: String) -> Result<Option<LandingPageRecord>,
 
 #[server(GetAllLandingPages, "/api")]
 pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnError> {
+    use crate::atlas_client::fetch_atlas_data;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::atlas_client::fetch_atlas_data;
 
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let headers = extract::<axum::http::HeaderMap>().await.unwrap_or_default();
-    let host = headers.get(axum::http::header::HOST).and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|s| s.to_string());
 
     if let Some(tenant_id) = tenant.0 {
         let endpoint = format!("/api/public/pages/{}", tenant_id);
-        
+
         #[derive(serde::Deserialize)]
         struct AppPageResp {
             slug: String,
@@ -190,26 +198,43 @@ pub async fn get_all_landing_pages() -> Result<Vec<LandingPageRecord>, ServerFnE
             hero_payload: Option<serde_json::Value>,
             blocks_payload: Option<serde_json::Value>,
         }
-        
-        if let Ok(pages) = fetch_atlas_data::<Vec<AppPageResp>>(&endpoint, Some(tenant_id), host).await {
-            let mapped = pages.into_iter().map(|page| {
-                let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
-                let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
-                
-                LandingPageRecord {
-                    id: 0,
-                    slug: page.slug,
-                    title: page.title,
-                    description: page.description,
-                    hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
-                    hero_subtitle: hero["hero_subtitle"].as_str().unwrap_or_default().to_string(),
-                    lead_capture_title: blocks["lead_capture_title"].as_str().unwrap_or_default().to_string(),
-                    lead_capture_desc: blocks["lead_capture_desc"].as_str().unwrap_or_default().to_string(),
-                    lead_capture_btn: blocks["lead_capture_btn"].as_str().unwrap_or("Submit").to_string(),
-                    options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
-                    dynamic_blocks_json: blocks["dynamic_blocks"].to_string(),
-                }
-            }).collect();
+
+        if let Ok(pages) =
+            fetch_atlas_data::<Vec<AppPageResp>>(&endpoint, Some(tenant_id), host).await
+        {
+            let mapped = pages
+                .into_iter()
+                .map(|page| {
+                    let hero = page.hero_payload.unwrap_or(serde_json::json!({}));
+                    let blocks = page.blocks_payload.unwrap_or(serde_json::json!({}));
+
+                    LandingPageRecord {
+                        id: 0,
+                        slug: page.slug,
+                        title: page.title,
+                        description: page.description,
+                        hero_title: hero["hero_title"].as_str().unwrap_or_default().to_string(),
+                        hero_subtitle: hero["hero_subtitle"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                        lead_capture_title: blocks["lead_capture_title"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                        lead_capture_desc: blocks["lead_capture_desc"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_string(),
+                        lead_capture_btn: blocks["lead_capture_btn"]
+                            .as_str()
+                            .unwrap_or("Submit")
+                            .to_string(),
+                        options_json: blocks["options_json"].as_str().unwrap_or("{}").to_string(),
+                        dynamic_blocks_json: blocks["dynamic_blocks"].to_string(),
+                    }
+                })
+                .collect();
             return Ok(mapped);
         }
     }
@@ -230,7 +255,7 @@ pub async fn add_landing_page(
     use axum::Extension;
     use leptos_axum::extract;
     use uuid::Uuid;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
@@ -245,8 +270,9 @@ pub async fn add_landing_page(
         "hero_title": hero_title,
         "hero_subtitle": hero_subtitle
     });
-    
-    let blocks_payload: serde_json::Value = serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
+
+    let blocks_payload: serde_json::Value =
+        serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
     let id = Uuid::new_v4();
 
     sqlx::query("INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, 'dynamic', $6, $7, true, NOW(), NOW())")
@@ -274,7 +300,7 @@ pub async fn update_landing_page(
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
@@ -289,8 +315,9 @@ pub async fn update_landing_page(
         "hero_title": hero_title,
         "hero_subtitle": hero_subtitle
     });
-    
-    let blocks_payload: serde_json::Value = serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
+
+    let blocks_payload: serde_json::Value =
+        serde_json::from_str(&dynamic_blocks_json).unwrap_or(serde_json::json!([]));
 
     sqlx::query("UPDATE app_pages SET slug = $1, title = $2, description = $3, hero_payload = $4, blocks_payload = $5, updated_at = NOW() WHERE tenant_id = $6 AND slug = $7")
         .bind(slug)
@@ -309,7 +336,7 @@ pub async fn delete_landing_page(slug: String) -> Result<(), ServerFnError> {
     use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    
+
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
@@ -323,10 +350,10 @@ pub async fn delete_landing_page(slug: String) -> Result<(), ServerFnError> {
     sqlx::query("DELETE FROM app_pages WHERE tenant_id = $1 AND slug = $2")
         .bind(tenant_id)
         .bind(slug)
-        .execute(&state.pool).await?;
+        .execute(&state.pool)
+        .await?;
     Ok(())
 }
-
 
 #[server(HandleDynamicLead, "/api")]
 pub async fn handle_dynamic_lead(

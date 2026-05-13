@@ -53,7 +53,10 @@ pub fn markdown_excerpt(md: &str, max_chars: usize) -> String {
             if i == 0 {
                 s.to_string()
             } else {
-                s.split_once('>').map(|(_, after)| after).unwrap_or("").to_string()
+                s.split_once('>')
+                    .map(|(_, after)| after)
+                    .unwrap_or("")
+                    .to_string()
             }
         })
         .collect::<Vec<_>>()

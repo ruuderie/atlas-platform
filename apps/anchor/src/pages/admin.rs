@@ -100,7 +100,11 @@ enum AuthStep {
 }
 
 #[derive(Clone, PartialEq)]
-enum AuthState { Pending, Yes, No }
+enum AuthState {
+    Pending,
+    Yes,
+    No,
+}
 
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
 /// Token verification, expired-link UI, URL cleanup — all owned by the panel.
@@ -126,7 +130,7 @@ pub fn Admin() -> impl IntoView {
         |_| async move {
             match check_session().await {
                 Ok(true) => AuthStep::Authenticated,
-                _        => AuthStep::Unauthenticated,
+                _ => AuthStep::Unauthenticated,
             }
         },
     );
@@ -137,21 +141,6 @@ pub fn Admin() -> impl IntoView {
         None => AuthState::Pending,
     };
     let show_passkey_nudge = RwSignal::new(false);
-
-    // After the page loads client-side, check whether the authenticated user has
-    // any passkeys registered. If not, show the registration nudge banner.
-    // LocalResource is intentionally client-only — the check requires a live
-    // session cookie which is only available after the browser hydrates.
-    let passkey_check = LocalResource::new(move || async move {
-        let has: bool = check_has_passkey().await.unwrap_or(true);
-        has
-    });
-    Effect::new(move |_| {
-        if let Some(false) = passkey_check.get() {
-            show_passkey_nudge.set(true);
-        }
-    });
-
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
     let (modal_state, set_modal_state) = signal(ModalState::None);
@@ -161,8 +150,6 @@ pub fn Admin() -> impl IntoView {
     let (refresh, set_refresh) = signal(0i32);
     provide_context(refresh);
     provide_context(set_refresh);
-
-
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
@@ -333,17 +320,19 @@ pub async fn get_dashboard_stats() -> Result<DashboardStats, ServerFnError> {
     let signups: i64 = sqlx::query_scalar(
         "SELECT COUNT(DISTINCT ua.user_id) FROM user_account ua \
          JOIN account a ON a.id = ua.account_id \
-         WHERE a.tenant_id IS NOT DISTINCT FROM $1"
+         WHERE a.tenant_id IS NOT DISTINCT FROM $1",
     )
-        .bind(tenant.0)
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or(0);
-    let mailing: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM mailing_list WHERE tenant_id IS NOT DISTINCT FROM $1")
-        .bind(tenant.0)
-        .fetch_one(&state.pool)
-        .await
-        .unwrap_or(0);
+    .bind(tenant.0)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+    let mailing: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM mailing_list WHERE tenant_id IS NOT DISTINCT FROM $1",
+    )
+    .bind(tenant.0)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
     let views: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM page_views WHERE created_at > NOW() - INTERVAL '24 hours' AND tenant_id IS NOT DISTINCT FROM $1",
     )
@@ -1416,7 +1405,7 @@ pub fn HighlightTable() -> impl IntoView {
 #[component]
 fn PasskeyRegistrationNudge() -> impl IntoView {
     let (is_hidden, set_is_hidden) = signal(false);
-    
+
     #[cfg(feature = "hydrate")]
     Effect::new(move |_| {
         if !is_hidden.get() {
@@ -1487,13 +1476,13 @@ fn PasskeyRegistrationNudge() -> impl IntoView {
                     <p class="text-sm text-on-surface-variant mt-1">"You logged in using an email link. For future logins, please set up a passkey."</p>
                 </div>
                 <div class="flex gap-4 items-center">
-                    <button 
+                    <button
                         id="nudge-register-passkey-btn"
                         class="bg-primary text-white px-4 py-2 font-bold hover:bg-primary-container transition-colors disabled:opacity-50"
                     >
                         "Set Up Passkey"
                     </button>
-                    <button 
+                    <button
                         class="text-outline hover:text-on-surface"
                         on:click=move |_| set_is_hidden.set(true)
                     >

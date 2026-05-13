@@ -1,27 +1,27 @@
+use crate::components::design_mode::use_kami_mode;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::components::design_mode::use_kami_mode;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TimelineBlockData {
-    pub source: String,                    // "static" | "tenant_entries"
+    pub source: String, // "static" | "tenant_entries"
     pub config: TimelineBlockConfig,
     #[serde(default)]
-    pub items: Vec<TimelineItem>,          // used when source = "static"
+    pub items: Vec<TimelineItem>, // used when source = "static"
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TimelineBlockConfig {
     #[serde(default)]
-    pub filter_category: Option<String>,   // e.g. "work", "project"
+    pub filter_category: Option<String>, // e.g. "work", "project"
     #[serde(default)]
-    pub filter_metadata: Option<String>,   // e.g. "is_client_project=true"
+    pub filter_metadata: Option<String>, // e.g. "is_client_project=true"
     #[serde(default)]
     pub show_date_range: bool,
     #[serde(default)]
     pub show_bullets: bool,
     #[serde(default = "default_layout")]
-    pub layout: String,                    // "detailed" | "compact" | "cards"
+    pub layout: String, // "detailed" | "compact" | "cards"
     #[serde(default)]
     pub limit: Option<u32>,
     #[serde(default)]
@@ -62,10 +62,16 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
             async move {
                 if src == "tenant_entries" {
                     if let Ok(entries) = crate::resume_engine::get_tenant_entries(None).await {
-                        let filter_cat = config.get_value().filter_category.clone().unwrap_or_default();
+                        let filter_cat = config
+                            .get_value()
+                            .filter_category
+                            .clone()
+                            .unwrap_or_default();
                         let mapped: Vec<TimelineItem> = entries
                             .into_iter()
-                            .filter(|e| filter_cat.is_empty() || e.category.to_string() == filter_cat)
+                            .filter(|e| {
+                                filter_cat.is_empty() || e.category.to_string() == filter_cat
+                            })
                             .map(|e| TimelineItem {
                                 title: e.title,
                                 subtitle: e.subtitle,
@@ -81,7 +87,7 @@ pub fn TimelineBlock(data: TimelineBlockData) -> impl IntoView {
                 }
                 fallback
             }
-        }
+        },
     );
 
     view! {

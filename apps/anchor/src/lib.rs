@@ -1,19 +1,19 @@
 #![recursion_limit = "256"]
 
 pub mod app;
+#[cfg(feature = "ssr")]
+pub mod atlas_client;
 pub mod auth;
 pub mod b2b;
 pub mod components;
 pub mod email;
-pub mod pages;
-pub mod resume_engine;
-pub mod utils;
-#[cfg(feature = "ssr")]
-pub mod state;
 #[cfg(feature = "ssr")]
 pub mod handlers;
+pub mod pages;
+pub mod resume_engine;
 #[cfg(feature = "ssr")]
-pub mod atlas_client;
+pub mod state;
+pub mod utils;
 #[cfg(feature = "ssr")]
 pub use state::AppState;
 

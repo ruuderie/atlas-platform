@@ -98,7 +98,9 @@ pub async fn send_email(
 ) -> Result<(), ServerFnError> {
     use self::ssr_imports::*;
 
-    let tenant_id = std::env::var("TENANT_ID").ok().and_then(|t| uuid::Uuid::parse_str(&t).ok());
+    let tenant_id = std::env::var("TENANT_ID")
+        .ok()
+        .and_then(|t| uuid::Uuid::parse_str(&t).ok());
 
     let payload = serde_json::json!({
         "tenant_id": tenant_id,
@@ -107,7 +109,10 @@ pub async fn send_email(
         "body_html": body_html,
     });
 
-    let url = format!("{}/api/communications/email", crate::atlas_client::get_atlas_api_url());
+    let url = format!(
+        "{}/api/communications/email",
+        crate::atlas_client::get_atlas_api_url()
+    );
     let client = reqwest::Client::new();
     let res = client.post(&url).json(&payload).send().await;
 
@@ -117,7 +122,11 @@ pub async fn send_email(
             Ok(())
         }
         Ok(r) => {
-            println!("Failed to proxy email to {}: status {}", to_email, r.status());
+            println!(
+                "Failed to proxy email to {}: status {}",
+                to_email,
+                r.status()
+            );
             Err(ServerFnError::ServerError(
                 "Platform failed to send email.".into(),
             ))

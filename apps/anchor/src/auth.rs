@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 
 pub use shared_ui::auth::atlas_auth::{
-    check_has_passkey, check_session, request_magic_link, revoke_session, verify_magic_link,
+    check_session, request_magic_link, revoke_session, verify_magic_link,
 };
 
 #[server(IsSystemInitialized, "/api")]
@@ -18,8 +18,11 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
         let payload = serde_json::json!({
             "token": token,
         });
-        
-        let url = format!("{}/api/auth/magic-link/verify", crate::atlas_client::get_atlas_api_url());
+
+        let url = format!(
+            "{}/api/auth/magic-link/verify",
+            crate::atlas_client::get_atlas_api_url()
+        );
         let client = reqwest::Client::new();
         let res = client.post(&url).json(&payload).send().await;
 
@@ -40,8 +43,10 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
                     return Ok("SUCCESS".to_string());
                 }
                 Err(ServerFnError::ServerError("Invalid response format".into()))
-            },
-            _ => Err(ServerFnError::ServerError("Failed to exchange setup token".into())),
+            }
+            _ => Err(ServerFnError::ServerError(
+                "Failed to exchange setup token".into(),
+            )),
         }
     }
     #[cfg(not(feature = "ssr"))]

@@ -89,13 +89,9 @@ pub enum DataSource {
         headers: Option<serde_json::Value>,
     },
     /// Static value — no data fetching, value is embedded in config.
-    Static {
-        value: serde_json::Value,
-    },
+    Static { value: serde_json::Value },
     /// WebSocket stream — tenant provides the URL.
-    WebSocket {
-        url: String,
-    },
+    WebSocket { url: String },
 }
 
 // ─── Placement ────────────────────────────────────────────────────────────────
@@ -239,7 +235,9 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
     let parsed = url::Url::parse(url).map_err(|e| format!("Invalid URL: {e}"))?;
 
     // Require a host
-    let host = parsed.host().ok_or_else(|| "URL must have a host".to_string())?;
+    let host = parsed
+        .host()
+        .ok_or_else(|| "URL must have a host".to_string())?;
 
     // Enforce HTTPS (allow http only in dev/test via LEPTOS_ENV)
     let env = std::env::var("LEPTOS_ENV").unwrap_or_default();
@@ -252,13 +250,17 @@ pub fn validate_widget_url(url: &str) -> Result<(), String> {
     match host {
         url::Host::Ipv4(addr) => {
             if is_dangerous_ipv4(addr) {
-                return Err(format!("IP address {addr} is not allowed (loopback/private/link-local)"));
+                return Err(format!(
+                    "IP address {addr} is not allowed (loopback/private/link-local)"
+                ));
             }
         }
         url::Host::Ipv6(addr) => {
             // url::Host::Ipv6 gives us the Ipv6Addr directly — no bracket/formatting ambiguity.
             if is_dangerous_ipv6(addr) {
-                return Err(format!("IPv6 address {addr} is not allowed (loopback/private/link-local/IPv4-mapped)"));
+                return Err(format!(
+                    "IPv6 address {addr} is not allowed (loopback/private/link-local/IPv4-mapped)"
+                ));
             }
         }
         url::Host::Domain(domain) => {
@@ -334,7 +336,8 @@ impl reqwest::dns::Resolve for SsrfSafeResolver {
                     return Err(Box::new(std::io::Error::new(
                         std::io::ErrorKind::NotFound,
                         format!("DNS resolution failed for '{}': {}", name_str, e),
-                    )) as Box<dyn std::error::Error + Send + Sync>);
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>);
                 }
             };
 
@@ -342,7 +345,8 @@ impl reqwest::dns::Resolve for SsrfSafeResolver {
                 return Err(Box::new(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     format!("DNS resolution returned no addresses for '{name_str}'"),
-                )) as Box<dyn std::error::Error + Send + Sync>);
+                ))
+                    as Box<dyn std::error::Error + Send + Sync>);
             }
 
             // ALL resolved IPs must pass — one bad IP in a multi-record response
@@ -357,7 +361,8 @@ impl reqwest::dns::Resolve for SsrfSafeResolver {
                             name_str,
                             addr.ip()
                         ),
-                    )) as Box<dyn std::error::Error + Send + Sync>);
+                    ))
+                        as Box<dyn std::error::Error + Send + Sync>);
                 }
             }
 
@@ -389,16 +394,12 @@ pub fn build_ssrf_safe_client() -> Result<reqwest::Client, String> {
     let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
         let url = attempt.url();
         match url.host() {
-            Some(url::Host::Ipv4(addr)) if is_dangerous_ipv4(addr) => {
-                attempt.error(format!(
-                    "SSRF blocked: redirect to dangerous IPv4 address {addr}"
-                ))
-            }
-            Some(url::Host::Ipv6(addr)) if is_dangerous_ipv6(addr) => {
-                attempt.error(format!(
-                    "SSRF blocked: redirect to dangerous IPv6 address {addr}"
-                ))
-            }
+            Some(url::Host::Ipv4(addr)) if is_dangerous_ipv4(addr) => attempt.error(format!(
+                "SSRF blocked: redirect to dangerous IPv4 address {addr}"
+            )),
+            Some(url::Host::Ipv6(addr)) if is_dangerous_ipv6(addr) => attempt.error(format!(
+                "SSRF blocked: redirect to dangerous IPv6 address {addr}"
+            )),
             _ => {
                 if attempt.previous().len() >= 5 {
                     attempt.stop()
@@ -449,7 +450,9 @@ pub async fn enforce_ssrf_safe_fetch(url: &str) -> Result<(), String> {
         .collect();
 
     if addrs.is_empty() {
-        return Err(format!("DNS resolution returned no addresses for '{host_str}'"));
+        return Err(format!(
+            "DNS resolution returned no addresses for '{host_str}'"
+        ));
     }
 
     // All resolved IPs must be safe (no partial-accept bypass)
@@ -495,9 +498,7 @@ pub fn validate_platform_table(table: &str) -> Result<(), String> {
 #[component]
 pub fn WidgetShell(widget: WidgetInstance) -> impl IntoView {
     match widget.renderer {
-        WidgetRenderer::BlockClock => {
-            view! { <BitcoinNavWidget /> }.into_any()
-        }
+        WidgetRenderer::BlockClock => view! { <BitcoinNavWidget /> }.into_any(),
         WidgetRenderer::StatCard { label, unit } => {
             view! { <StatCardWidget label=label unit=unit source=widget.data_source /> }.into_any()
         }
@@ -522,7 +523,9 @@ pub fn BitcoinNavWidget() -> impl IntoView {
         )
         .ok();
         on_cleanup(move || {
-            if let Some(h) = handle { h.clear(); }
+            if let Some(h) = handle {
+                h.clear();
+            }
         });
     });
 
@@ -673,7 +676,7 @@ mod tests {
         // The full 127.0.0.0/8 range must be blocked, not just 127.0.0.1
         // Bypass vector: http://127.0.0.2 or http://127.123.0.1
         assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 1)));
-        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 2)));   // bypass attempt
+        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 2))); // bypass attempt
         assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 123, 45, 67))); // bypass attempt
         assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 255, 255, 255)));
     }
@@ -712,9 +715,9 @@ mod tests {
     #[test]
     fn test_ipv4_public_addresses_are_safe() {
         use std::net::Ipv4Addr;
-        assert!(!is_dangerous_ipv4(Ipv4Addr::new(1, 1, 1, 1)));       // Cloudflare DNS
-        assert!(!is_dangerous_ipv4(Ipv4Addr::new(8, 8, 8, 8)));       // Google DNS
-        assert!(!is_dangerous_ipv4(Ipv4Addr::new(52, 12, 0, 1)));     // Example AWS public
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(1, 1, 1, 1))); // Cloudflare DNS
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(8, 8, 8, 8))); // Google DNS
+        assert!(!is_dangerous_ipv4(Ipv4Addr::new(52, 12, 0, 1))); // Example AWS public
     }
 
     // ── Bypass vector 1: Alternate loopback IPs (127.x.x.x range) ────────────
@@ -809,7 +812,11 @@ mod tests {
         // The client must build without errors — if this fails, the resolver or
         // redirect policy configuration is broken.
         let result = build_ssrf_safe_client();
-        assert!(result.is_ok(), "build_ssrf_safe_client() failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "build_ssrf_safe_client() failed: {:?}",
+            result.err()
+        );
     }
 
     #[cfg(feature = "ssr")]
@@ -819,7 +826,6 @@ mod tests {
         // Phase 2 callers must use it AND build_ssrf_safe_client() together.
         let _ = enforce_ssrf_safe_fetch;
     }
-
 
     // ── Redirect policy bypass vector ─────────────────────────────────────────
     // A server at attacker.com could return: 302 → http://127.0.0.1/steal
@@ -836,10 +842,14 @@ mod tests {
         // The redirect policy calls is_dangerous_ipv4() / is_dangerous_ipv6() —
         // these are already tested exhaustively above. This test documents the
         // threat model so the connection to the redirect policy is explicit.
-        assert!(is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 1)),
-            "127.0.0.1 must be blocked — redirect policy relies on this");
-        assert!(is_dangerous_ipv4(Ipv4Addr::new(169, 254, 169, 254)),
-            "169.254.169.254 must be blocked — redirect policy relies on this");
+        assert!(
+            is_dangerous_ipv4(Ipv4Addr::new(127, 0, 0, 1)),
+            "127.0.0.1 must be blocked — redirect policy relies on this"
+        );
+        assert!(
+            is_dangerous_ipv4(Ipv4Addr::new(169, 254, 169, 254)),
+            "169.254.169.254 must be blocked — redirect policy relies on this"
+        );
     }
 
     // ── Static validation: domains still pass Layer 1 (by design) ────────────
@@ -904,7 +914,11 @@ mod tests {
     fn test_nav_placement_filter() {
         let widgets = vec![
             make_widget("w1", true, vec![WidgetPlacement::Landing]),
-            make_widget("w2", true, vec![WidgetPlacement::Nav, WidgetPlacement::Landing]),
+            make_widget(
+                "w2",
+                true,
+                vec![WidgetPlacement::Nav, WidgetPlacement::Landing],
+            ),
         ];
         let nav: Vec<_> = widgets.iter().filter(|w| w.is_nav_widget()).collect();
         assert_eq!(nav.len(), 1);

@@ -1,9 +1,9 @@
 pub mod admin_modal;
+pub mod blocks;
 pub mod content_feed;
 pub mod design_mode;
 pub mod dynamic_header;
 pub mod footer;
 pub mod nav;
-pub mod blocks;
 pub mod theme_provider;
 pub mod widget_registry;

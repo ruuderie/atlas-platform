@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StatsBlockData {
-    pub source: String,                    // "static" | "live_query"
+    pub source: String, // "static" | "live_query"
     pub config: StatsConfig,
     #[serde(default)]
-    pub items: Vec<StatItem>,              // used when source = "static"
+    pub items: Vec<StatItem>, // used when source = "static"
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -18,14 +18,20 @@ pub struct StatsConfig {
     #[serde(default = "default_3")]
     pub columns: u32,
     #[serde(default = "default_metric")]
-    pub display: String,                   // "metric" | "ticker" | "chart"
+    pub display: String, // "metric" | "ticker" | "chart"
     #[serde(default)]
     pub section_title: Option<String>,
 }
 
-fn default_60() -> u64 { 60 }
-fn default_3() -> u32 { 3 }
-fn default_metric() -> String { "metric".to_string() }
+fn default_60() -> u64 {
+    60
+}
+fn default_3() -> u32 {
+    3
+}
+fn default_metric() -> String {
+    "metric".to_string()
+}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct StatItem {
@@ -36,7 +42,7 @@ pub struct StatItem {
     #[serde(default)]
     pub icon: Option<String>,
     #[serde(default)]
-    pub trend: Option<String>,             // "up" | "down" | "neutral"
+    pub trend: Option<String>, // "up" | "down" | "neutral"
 }
 
 #[component]
@@ -68,7 +74,7 @@ pub fn StatsBlock(data: StatsBlockData) -> impl IntoView {
                     view! {
                         <div class={match display.as_str() {
                             "ticker" => "flex flex-wrap items-center justify-center gap-6 md:gap-10".to_string(),
-                            _ => format!("grid grid-cols-2 lg:grid-cols-{} gap-4 md:gap-8", 
+                            _ => format!("grid grid-cols-2 lg:grid-cols-{} gap-4 md:gap-8",
                                 std::cmp::min(columns, 4)), // metric layout default
                         }}>
                             {items_to_render.into_iter().map(|item| {

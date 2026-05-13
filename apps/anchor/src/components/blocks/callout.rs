@@ -16,14 +16,15 @@ pub struct CalloutBlockData {
 #[component]
 pub fn CalloutBlock(data: CalloutBlockData) -> impl IntoView {
     let design = use_context::<ReadSignal<crate::pages::landing::DesignConfig>>()
-        .map(|s| s.get()).unwrap_or_default();
-        
+        .map(|s| s.get())
+        .unwrap_or_default();
+
     view! {
-        <section class=format!("py-16 md:py-20 w-full {} {}", 
+        <section class=format!("py-16 md:py-20 w-full {} {}",
             if design.elevation_strategy == "tonal-shifts" { "bg-surface-container-low" } else { "bg-surface-container border-y border-outline-variant/30" },
             if design.container_strategy == "asymmetrical-gutters" { "px-[8.5rem]" } else { "px-4" }
         )>
-            <div class=format!("mx-auto {}", 
+            <div class=format!("mx-auto {}",
                 if design.container_strategy == "asymmetrical-gutters" { "max-w-7xl text-left" } else { "container max-w-5xl text-center" }
             )>
                 <h2 class=format!("text-3xl md:text-5xl font-bold text-primary dark:text-primary mb-6 tracking-tight {}", design.heading_font)>

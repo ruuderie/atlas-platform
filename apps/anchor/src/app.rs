@@ -1,22 +1,22 @@
-/* 
+/*
  * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
- * 
+ *
  * This legacy application currently has its routes, migrations, and background jobs
- * hardcoded into the global Atlas platform core. 
- * 
- * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
- * located at `backend/src/traits/atlas_app.rs`. 
- * 
- * Future work requires refactoring this app to implement the `AtlasApp` trait 
- * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
+ * hardcoded into the global Atlas platform core.
+ *
+ * We have introduced a strict, standardized Rust API trait: `AtlasApp`
+ * located at `backend/src/traits/atlas_app.rs`.
+ *
+ * Future work requires refactoring this app to implement the `AtlasApp` trait
+ * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs)
  * instead of manually merging them globally.
- * instead of manually merging them globally. 
- * 
+ * instead of manually merging them globally.
+ *
  * See the full integration protocol at: `docs/atlas_app_integration.md`
  */
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::components::{Router, Routes, Route, Redirect};
+use leptos_router::components::{Redirect, Route, Router, Routes};
 use leptos_router::hooks::use_location;
 use leptos_router::path;
 
@@ -26,8 +26,8 @@ use crate::pages::admin::Admin;
 use crate::pages::bitcoin::BitcoinDashboard;
 use crate::pages::blog::{Blog, BlogPost};
 use crate::pages::book::BookDiscovery;
-use crate::pages::dynamic_landing::{DynamicLanding, DynamicHomeLanding};
 use crate::pages::dynamic_entry::DynamicEntry;
+use crate::pages::dynamic_landing::{DynamicHomeLanding, DynamicLanding};
 use crate::pages::landing::Landing;
 use crate::pages::legal::{Privacy, Terms};
 use crate::pages::onboarding::TenantOnboarding;
@@ -79,13 +79,15 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     let tenant_id = tenant.0.unwrap_or_default();
 
-    let _ = sqlx::query("INSERT INTO page_views (id, tenant_id, path, user_agent) VALUES ($1, $2, $3, $4)")
-        .bind(uuid::Uuid::new_v4())
-        .bind(tenant_id)
-        .bind(path)
-        .bind(user_agent)
-        .execute(&state.pool)
-        .await;
+    let _ = sqlx::query(
+        "INSERT INTO page_views (id, tenant_id, path, user_agent) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(uuid::Uuid::new_v4())
+    .bind(tenant_id)
+    .bind(path)
+    .bind(user_agent)
+    .execute(&state.pool)
+    .await;
     Ok(())
 }
 
@@ -125,11 +127,19 @@ pub fn App() -> impl IntoView {
     // Meta tag signals — reactive with fallbacks.
     let title_sig = move || {
         let s = get_settings();
-        if s.meta_title.is_empty() { "Ruud Salym Erie - Technical Architect".to_string() } else { s.meta_title }
+        if s.meta_title.is_empty() {
+            "Ruud Salym Erie - Technical Architect".to_string()
+        } else {
+            s.meta_title
+        }
     };
     let desc_sig = move || {
         let s = get_settings();
-        if s.meta_description.is_empty() { "Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".to_string() } else { s.meta_description }
+        if s.meta_description.is_empty() {
+            "Technical Architect and Software Engineer specializing in Rust, Salesforce, and high-performance enterprise applications.".to_string()
+        } else {
+            s.meta_description
+        }
     };
     let og_image_sig = move || get_settings().og_image;
 

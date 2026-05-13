@@ -241,80 +241,50 @@ pub async fn request_magic_link(
     };
 
     if let Some(user_mod) = user_model {
-        // ── Idempotency guard (database-level) ──────────────────────────────
-        // Use a PostgreSQL advisory lock keyed on the user's id to prevent
-        // concurrent requests from both passing the token-existence check and
-        // sending duplicate emails. pg_try_advisory_lock is non-blocking:
-        // the second concurrent request fails to acquire the lock and bails
-        // immediately.
-        let lock_key: i64 = user_mod.id.as_u128() as i64;
-        let lock_acquired: bool = sea_orm::ConnectionTrait::query_one(
-            &db,
-            sea_orm::Statement::from_sql_and_values(
-                sea_orm::DbBackend::Postgres,
-                "SELECT pg_try_advisory_lock($1)",
-                [lock_key.into()],
-            ),
-        )
-        .await
-        .ok()
-        .flatten()
-        .and_then(|r| r.try_get_by_index::<bool>(0).ok())
-        .unwrap_or(false);
-
-        if !lock_acquired {
-            tracing::warn!(
-                "Idempotency: concurrent magic link request blocked by advisory lock for {}",
-                user_mod.email
-            );
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
-        }
-
-        // Advisory lock acquired — check DB for a recent token before creating a new one.
-        use sea_orm::QueryOrder;
-        let recent_cutoff = Utc::now() - chrono::Duration::seconds(60);
-        let existing_token = magic_link_token::Entity::find()
-            .filter(magic_link_token::Column::UserId.eq(user_mod.id))
-            .filter(magic_link_token::Column::IsUsed.eq(false))
-            .filter(magic_link_token::Column::CreatedAt.gte(recent_cutoff))
-            .filter(magic_link_token::Column::ExpiresAt.gt(Utc::now()))
-            .order_by_desc(magic_link_token::Column::CreatedAt)
-            .one(&db)
-            .await
-            .unwrap_or(None);
-
-        if let Some(existing) = existing_token {
-            tracing::warn!(
-                "Idempotency: skipping duplicate magic link for {} — token {}... created <60s ago is still valid",
-                user_mod.email,
-                &existing.token[..8]
-            );
-            // Return 200 — the email they already received is still valid.
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
-        }
-        // ── End idempotency guard ────────────────────────────────────────────
-
         let token_str: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
 
-        let token_entity = magic_link_token::ActiveModel {
-            id: Set(Uuid::new_v4()),
-            user_id: Set(user_mod.id),
-            token: Set(token_str.clone()),
-            expires_at: Set(Utc::now() + Duration::minutes(15)),
-            is_used: Set(false),
-            created_at: Set(Utc::now()),
-            redirect_url: Set(validated_redirect_url.clone()),
-            is_setup_token: Set(false),
-        };
-
-        token_entity.insert(&db).await.map_err(|e| {
+        let id = Uuid::new_v4();
+        let created_at = Utc::now();
+        let expires_at = Utc::now() + Duration::minutes(15);
+        let sql = r#"
+            INSERT INTO magic_link_token (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
+            VALUES ($1, $2, $3, $4, false, $5, $6, false)
+            ON CONFLICT (user_id) WHERE is_used = false
+            DO NOTHING
+        "#;
+        
+        let insert_res = sea_orm::ConnectionTrait::execute(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                sql,
+                vec![
+                    id.into(),
+                    user_mod.id.into(),
+                    token_str.clone().into(),
+                    expires_at.into(),
+                    created_at.into(),
+                    validated_redirect_url.clone().into(),
+                ],
+            ),
+        )
+        .await
+        .map_err(|e| {
             tracing::error!("Error saving magic link: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+        if insert_res.rows_affected() == 0 {
+            tracing::warn!(
+                "Idempotency: skipping duplicate magic link for {} — active token already exists",
+                user_mod.email
+            );
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
 
         // Build the magic link URL:
         //   - App-originated: {redirect_url}?token={token}  (e.g. https://uat.buildwithruud.com/admin?token=xxx)
@@ -361,15 +331,7 @@ pub async fn request_magic_link(
         } else {
             tracing::info!("Magic link dispatched to {}", user_mod.email);
         }
-        // Release the advisory lock regardless of outcome.
-        let _ = sea_orm::ConnectionTrait::query_one(
-            &db,
-            sea_orm::Statement::from_sql_and_values(
-                sea_orm::DbBackend::Postgres,
-                "SELECT pg_advisory_unlock($1)",
-                [lock_key.into()],
-            ),
-        ).await;
+        // Token was inserted successfully and email sent.
     }
 
     // Always return 200 — prevents email enumeration.
