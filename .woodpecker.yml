@@ -29,13 +29,6 @@ steps:
       - cd backend && cargo test --workspace -j 1 -- --test-threads=1
 
   # ── Docker Build & Push ─────────────────────────────────────────────────────
-  # Each publish step tags the image with both :latest AND the short commit SHA
-  # (first 8 chars of CI_COMMIT_SHA). This eliminates the :latest race condition
-  # where kubectl might pull a stale image if the push hasn't completed yet.
-  # The deploy step uses the SHA tag for the rollout so Kubernetes always pins
-  # the exact commit that this pipeline built.
-
-  # platform-admin — debug on dev, release on uat
   publish_platform_admin_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -90,7 +83,6 @@ steps:
         - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
-  # backend — debug on dev, release on uat
   publish_backend_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -143,7 +135,6 @@ steps:
         - 'backend/**'
         - '.woodpecker.yml'
 
-  # network-instance — debug on dev, release on uat
   publish_network_instance_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -198,7 +189,6 @@ steps:
         - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
-  # anchor — debug on dev, release on uat
   publish_anchor_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -254,14 +244,6 @@ steps:
         - '.woodpecker.yml'
 
   # ── Unified CD Deployment ───────────────────────────────────────────────────
-  # Injects secrets, applies Kustomize overlays, then performs a SCOPED rollout:
-  # only the deployments whose source paths changed in this commit are restarted.
-  # This avoids unnecessary pod churn and makes it unambiguous which service
-  # caused a problem if a rollout fails.
-  #
-  # The SHA-tagged image is patched into each deployment's container spec via
-  # kubectl set image — this guarantees the pod pulls the exact image built by
-  # this pipeline run, not a racy :latest that may still be uploading.
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
     environment:
@@ -293,9 +275,6 @@ steps:
       - |
         set -euo pipefail
 
-        # ── Build scoped kubeconfig from ServiceAccount token ──────────────────
-        # Set KUBECONFIG first so kubectl config set-* writes to our file, not ~/.kube/config.
-        # --embed-certs=true bakes the CA into the file so path references aren't needed.
         mkdir -p /tmp/kube
         export KUBECONFIG=/tmp/kube/config
         echo "$KUBE_DEPLOY_CA" | base64 -d > /tmp/kube/ca.crt
@@ -311,8 +290,6 @@ steps:
           --namespace=atlas-uat
         kubectl config use-context atlas
 
-        # ── Strict branch → namespace gate ────────────────────────────────────
-        # Only explicitly listed branches may deploy. Anything else fails loudly.
         case "$CI_COMMIT_BRANCH" in
           uat)          NAMESPACE="atlas-uat" ;;
           dev)          NAMESPACE="atlas-dev" ;;
@@ -329,12 +306,10 @@ steps:
         esac
         echo "Branch: $CI_COMMIT_BRANCH → Namespace: $NAMESPACE"
 
-        # Verify connectivity against the target namespace
         kubectl get namespace "$NAMESPACE"
         echo "✓ Connected to K8s API — target: $NAMESPACE"
         echo "Push branch: $CI_COMMIT_BRANCH | commit: $CI_COMMIT_SHA"
 
-        # Short SHA used for image tagging (matches publish steps above)
         SHORT_SHA="${CI_COMMIT_SHA:0:8}"
         echo "Deploying images tagged :$SHORT_SHA"
 
@@ -364,7 +339,6 @@ steps:
 
           dev)
             echo "Deploying to DEV (atlas-dev / dev.buildwithruud.com)..."
-            # atlas_dev DB is pre-provisioned by NixForge — no psql needed here.
 
             for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM; do
               secret_value=$(printenv "$secret_name" || echo "")
@@ -386,21 +360,16 @@ steps:
             kubectl apply -k k8s/overlays/dev
             ;;
 
-          # Unreachable due to gate above — kept as belt-and-suspenders
           *)
             echo "ERROR: Branch '$CI_COMMIT_BRANCH' is not authorised to deploy."
             exit 1
             ;;
         esac
 
-        # ── Scoped rollout: use Woodpecker's native CI_PIPELINE_FILES ────
-        # Woodpecker wraps the value in square brackets: [apps/foo/bar.rs]
-        # Strip them before splitting so ^apps/ grep patterns match correctly.
         CHANGED=$(echo "${CI_PIPELINE_FILES:-}" | tr -d '[]' | tr ',' '\n')
         echo "Changed paths:"
         echo "$CHANGED"
 
-        # Helper: wait for rollout, tail logs on failure
         rollout_service() {
           local DEPLOY=$1
           echo "==> Verifying rollout: $DEPLOY"
@@ -414,7 +383,6 @@ steps:
 
         REGISTRY="ghcr.io/ruuderie"
 
-        # Helper: set image then wait for rollout
         update_service() {
           local DEPLOY=$1
           local IMAGE=$2
@@ -430,28 +398,19 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        # ── Scoped image rollout ────────────────────────────────────────────────
-        # CI_PIPELINE_FILES drives which services get a new image.
-        # If it's empty (e.g. config-only commit, merge commit, first push to branch)
-        # we do NOT blindly update all services — the images for this SHA may not
-        # exist in GHCR (publish steps are path-gated and were skipped).
-        # The kubectl apply -k above already updated all config/secrets.
         if [ -z "$CHANGED" ]; then
           echo "ℹ CI_PIPELINE_FILES is empty — config/secrets applied, image rollouts skipped."
           echo "  Reason: no source files changed in this commit, so no images were built."
           echo "  To force a full image update: re-trigger the pipeline from the Woodpecker UI"
           echo "  on a commit that touches backend/ or apps/."
         else
-          # Detect pipeline-config-only change → no new images built, skip image updates
           if echo "$CHANGED" | grep -qE "(\.woodpecker\.yml|k8s/)" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
             echo "Config/infra-only change — config and secrets applied, no image updates needed."
           else
-            # Service-scoped image updates — only for services rebuilt in this run
             if echo "$CHANGED" | grep -qE "^backend/"; then
               update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
             fi
-            
-            # If shared-ui changed, we need to roll out all three frontend apps
+
             if echo "$CHANGED" | grep -qE "^apps/shared-ui/"; then
               update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
               update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
@@ -473,7 +432,7 @@ steps:
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
 
-  # ── Notifications ───────────────────────────────────────────────────────────
+  # ── Notifications (Best Practice: Clear status + context) ─────────────────────
   notify_discord:
     image: appleboy/drone-discord
     failure: ignore
@@ -483,11 +442,13 @@ steps:
       message: >
         **Atlas Platform Deployment**
         {{#success build.status}}
-          ✅ Pipeline #{{build.number}} successfully compiled and deployed all unified monorepo applications!
+          ✅ **SUCCESS** — Pipeline #{{build.number}} completed successfully!
         {{else}}
-          ❌ Pipeline #{{build.number}} failed during phase `{{build.failed_steps}}`.
+          ❌ **FAILURE** — Pipeline #{{build.number}} failed.
+          Failed step(s): {{build.failed_steps}}
         {{/success}}
-        *Pipeline Logs:* {{build.link}}
+        Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
+        [View Logs]({{build.link}})
     when:
       - status: [success, failure]
         event: [push]
@@ -509,19 +470,30 @@ steps:
       recipients:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
-      subject: "[Atlas CI] Pipeline #{{build.number}} results: {{build.status}}"
+      subject: >
+        [Atlas CI] {{if eq build.status "success"}}✅ SUCCESS{{else}}❌ FAILURE{{end}} — Pipeline #{{build.number}}
       body: |
-        Atlas Platform Deployment Status
-        ------------------------------------
-        Status: {{build.status}}
-        Project: {{repo.owner}}/{{repo.name}}
-        Branch: {{build.branch}}
-        Commit: {{build.commit}} - {{commit.message}}
-        Requested By: {{build.author}}
+        Atlas Platform Deployment Report
+        ========================================
 
-        Failed Steps: {{build.failed_steps}}
+        Status:     {{build.status}}
+        Project:    {{repo.owner}}/{{repo.name}}
+        Branch:     {{build.branch}}
+        Commit:     {{build.commit}} - {{commit.message}}
+        Author:     {{build.author}}
 
-        Logs Available At: {{build.link}}
+        {{#if build.failed_steps}}
+        Failed Steps:
+        {{build.failed_steps}}
+        {{/if}}
+
+        Logs:       {{build.link}}
+
+        {{#if eq build.status "success"}}
+        ✅ Deployment completed successfully.
+        {{else}}
+        ❌ Deployment FAILED. Please investigate immediately.
+        {{/if}}
     when:
       - status: [success, failure]
         event: [push]
@@ -536,4 +508,3 @@ steps:
         event: [push]
 
 # Trigger full pipeline run
-# Trigger full platform build
