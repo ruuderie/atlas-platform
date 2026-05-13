@@ -12,6 +12,7 @@ use crate::models::session::{UserInfo, SessionResponse};
 use crate::models::user::UserLogin;
 use axum::extract::State;
 use serde::Deserialize;
+use std::time::Instant;
 
 /// Builds the `Set-Cookie` header value for the session token.
 /// HttpOnly; Secure; SameSite=Strict — never readable by JavaScript.
@@ -71,6 +72,9 @@ pub async fn create_user_session(
     email: &str,
     password: &str
 ) -> Result<SessionResponse, StatusCode> {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let user = user::Entity::find()
         .filter(user::Column::Email.eq(email))
         .one(db)
@@ -82,16 +86,38 @@ pub async fn create_user_session(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     if !verify_password(password, &user.password_hash).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
+        tracing::warn!(
+            event = "session.creation.failed",
+            request_id = %request_id,
+            email = %email,
+            reason = "invalid_password",
+            duration_ms = start.elapsed().as_millis()
+        );
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    create_session_for_user(db, &user).await
+    let result = create_session_for_user(db, &user).await;
+
+    if result.is_ok() {
+        tracing::info!(
+            event = "session.created",
+            request_id = %request_id,
+            user_id = %user.id,
+            duration_ms = start.elapsed().as_millis(),
+            status = "success"
+        );
+    }
+
+    result
 }
 
 pub async fn create_passwordless_session(
     db: &DatabaseConnection,
     email: &str,
 ) -> Result<SessionResponse, StatusCode> {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let user = user::Entity::find()
         .filter(user::Column::Email.eq(email))
         .one(db)
@@ -102,15 +128,29 @@ pub async fn create_passwordless_session(
         })?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    create_session_for_user(db, &user).await
+    let result = create_session_for_user(db, &user).await;
+
+    if result.is_ok() {
+        tracing::info!(
+            event = "session.created.passwordless",
+            request_id = %request_id,
+            user_id = %user.id,
+            duration_ms = start.elapsed().as_millis(),
+            status = "success"
+        );
+    }
+
+    result
 }
 
 pub async fn create_session_for_user(
     db: &DatabaseConnection,
     user: &user::Model,
 ) -> Result<SessionResponse, StatusCode> {
-    // Determine admin status via user_account role (is_admin was removed from the user entity).
-    // A 'PlatformSuperAdmin' role in user_account grants elevated JWT claims.
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
+    // Determine admin status via user_account role
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
         .filter(crate::entities::user_account::Column::Role.eq(
@@ -155,8 +195,7 @@ pub async fn create_session_for_user(
         integrity_hash: Set(String::new()),
     };
 
-    // Generate integrity hash — must match the fields covered by generate_integrity_hash().
-    // is_active = true because this is a freshly created, active session.
+    // Generate integrity hash
     let integrity_hash = {
         let temp_model = session::Model {
             id: new_session.id.clone().unwrap(),
@@ -183,10 +222,7 @@ pub async fn create_session_for_user(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Issue 4 fix: fetch app-level permissions so the login response is immediately
-    // usable by client-side feature gates (e.g. ListingPoster). The middleware
-    // re-injects these per-request, but on first login the client only has the
-    // JSON response to go on.
+    // Fetch app-level permissions
     let app_permissions: Vec<crate::models::session::AppPermission> =
         crate::entities::user_app_permission::Entity::find()
             .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
@@ -200,6 +236,16 @@ pub async fn create_session_for_user(
                 permissions: p.permissions,
             })
             .collect();
+
+    tracing::info!(
+        event = "session.created.full",
+        request_id = %request_id,
+        user_id = %user.id,
+        is_platform_admin = is_platform_admin,
+        app_permissions_count = app_permissions.len(),
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
 
     Ok(SessionResponse {
         user: Some(UserInfo {
@@ -219,6 +265,9 @@ pub async fn validate_session(
     Extension(db): Extension<DatabaseConnection>,
     headers: HeaderMap,
 ) -> Result<Json<SessionResponse>, StatusCode> {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     tracing::info!("Validating session");
 
     let token = extract_session_token(&headers).ok_or_else(|| {
@@ -226,7 +275,6 @@ pub async fn validate_session(
         StatusCode::UNAUTHORIZED
     })?;
     
-    // Query for session with this token
     tracing::info!("Querying database for session with token");
     let session = match session::Entity::find()
         .filter(session::Column::BearerToken.eq(token.clone()))
@@ -247,7 +295,6 @@ pub async fn validate_session(
         }
     };
 
-    // Check session validity
     if !session.is_active {
         tracing::warn!("Session is inactive");
         return Err(StatusCode::UNAUTHORIZED);
@@ -267,14 +314,16 @@ pub async fn validate_session(
     // Update last_accessed_at
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.last_accessed_at = Set(Utc::now());
-    // Note: integrity_hash is intentionally NOT recomputed here.
-    // generate_integrity_hash() covers: id, user_id, bearer_token, token_expiration, is_admin.
-    // last_accessed_at is excluded from the hash by design so that this frequent
-    // housekeeping write does not trigger a hash update on every request.
-
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // Return the tokens. We omit the full UserInfo object here to save a DB fetch.
+    tracing::info!(
+        event = "session.validated",
+        request_id = %request_id,
+        user_id = %session.user_id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
+
     Ok(Json(SessionResponse {
         user: None,
         token: session.bearer_token.clone(),
@@ -288,24 +337,21 @@ pub async fn revoke_session(
     Extension(db): Extension<DatabaseConnection>,
     headers: HeaderMap,
 ) -> Response {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let Some(token) = extract_session_token(&headers) else {
         return StatusCode::NO_CONTENT.into_response();
     };
 
-    // Deactivate session in DB and regenerate integrity hash to reflect the revocation.
-    // is_active is now part of the hash, so setting it to false without updating the hash
-    // would cause any subsequent verify_integrity() call to fail — but more importantly,
-    // recomputing here means an attacker who flips is_active back to true in the DB
-    // will also need to forge the hash, which they cannot do without the secret.
     if let Ok(Some(sess)) = session::Entity::find()
         .filter(session::Column::BearerToken.eq(&token))
         .one(&db)
         .await
     {
-        // Build the revoked model to compute the new hash.
         let revoked_model = session::Model {
             is_active: false,
-            integrity_hash: String::new(), // placeholder for hash computation
+            integrity_hash: String::new(),
             ..sess.clone()
         };
         let new_hash = revoked_model.generate_integrity_hash();
@@ -314,9 +360,16 @@ pub async fn revoke_session(
         active.is_active = Set(false);
         active.integrity_hash = Set(new_hash);
         let _ = active.update(&db).await;
+
+        tracing::info!(
+            event = "session.revoked",
+            request_id = %request_id,
+            user_id = %sess.user_id,
+            duration_ms = start.elapsed().as_millis(),
+            status = "success"
+        );
     }
 
-    // Clear the cookie regardless
     (StatusCode::NO_CONTENT,
      [(header::SET_COOKIE, clear_session_cookie_header())])
         .into_response()
@@ -350,11 +403,13 @@ pub async fn refresh_token(
     Extension(db): Extension<DatabaseConnection>,
     Json(payload): Json<RefreshTokenRequest>,
 ) -> Result<Json<SessionResponse>, StatusCode> {
+    let start = Instant::now();
+    let request_id = uuid::Uuid::new_v4();
+
     let refresh_token = payload.refresh_token;
     tracing::info!("Refreshing token with refresh_token: {}", 
                   refresh_token.chars().take(10).collect::<String>() + "...");
     
-    // Find the session with the given refresh token
     let session = match session::Entity::find()
         .filter(session::Column::RefreshToken.eq(refresh_token))
         .one(&db)
@@ -370,13 +425,11 @@ pub async fn refresh_token(
             }
         };
 
-    // Check if the refresh token is still valid
     if session.refresh_token_expiration < Utc::now() {
         tracing::warn!("Refresh token has expired");
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    // Find the user associated with this session
     let user = match user::Entity::find_by_id(session.user_id)
         .one(&db)
         .await {
@@ -391,7 +444,6 @@ pub async fn refresh_token(
             }
         };
 
-    // Generate new bearer token — re-check admin status since roles may have changed.
     let is_platform_admin = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user.id))
         .filter(crate::entities::user_account::Column::Role.eq(
@@ -411,13 +463,11 @@ pub async fn refresh_token(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Generate new refresh token
     let new_refresh_token = generate_jwt(&user).map_err(|e| {
         tracing::error!("Error generating new refresh token: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // Update the session with the new tokens and refreshed admin status.
     let new_token_expiration = Utc::now() + Duration::hours(1);
     let new_refresh_token_expiration = Utc::now() + Duration::days(7);
     let mut updated_session: session::ActiveModel = session.clone().into();
@@ -427,13 +477,8 @@ pub async fn refresh_token(
     updated_session.refresh_token_expiration = Set(new_refresh_token_expiration);
     updated_session.last_accessed_at = Set(Utc::now());
     updated_session.last_modified_date = Set(Utc::now());
-    // Issue 5 fix: persist the re-evaluated admin status so the session row
-    // stays consistent with the current user_account.role. Without this write,
-    // a revoked admin who refreshes will keep is_admin=true in the DB, causing
-    // the integrity hash to diverge on the next verify_integrity() call.
     updated_session.is_admin = Set(is_platform_admin);
 
-    // Recompute integrity hash over ALL the new field values before writing.
     let refreshed_hash = {
         let temp = session::Model {
             id: session.id,
@@ -455,11 +500,14 @@ pub async fn refresh_token(
 
     match updated_session.update(&db).await {
         Ok(_) => {
-            tracing::info!("Session refreshed successfully for user: {}", user.id);
+            tracing::info!(
+                event = "session.refreshed",
+                request_id = %request_id,
+                user_id = %user.id,
+                duration_ms = start.elapsed().as_millis(),
+                status = "success"
+            );
 
-            // R1 fix: populate app_permissions on the refresh path, same as the login path.
-            // Without this, a client that refreshes its token loses permission context
-            // until its next full login.
             let app_permissions: Vec<crate::models::session::AppPermission> =
                 crate::entities::user_app_permission::Entity::find()
                     .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
@@ -491,7 +539,6 @@ pub async fn refresh_token(
     }
 }
 
-// Add this struct for the refresh token request
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
