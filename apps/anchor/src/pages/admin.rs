@@ -141,6 +141,20 @@ pub fn Admin() -> impl IntoView {
         None => AuthState::Pending,
     };
     let show_passkey_nudge = RwSignal::new(false);
+
+    // ── Passkey nudge check (client-only, safe hydration) ─────────────────────
+    // LocalResource + Effect is the recommended pattern for post-hydration side effects.
+    // The server fn is robust (returns true on any error) so no deserialization panic can kill the reactive graph.
+    // This was the root cause of Bug A (dead nav buttons).
+    let passkey_check = LocalResource::new(move || async move {
+        check_has_passkey().await.unwrap_or(true)
+    });
+    Effect::new(move |_| {
+        if let Some(false) = passkey_check.get() {
+            show_passkey_nudge.set(true);
+        }
+    });
+
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
     let (modal_state, set_modal_state) = signal(ModalState::None);
@@ -222,7 +236,7 @@ pub fn Admin() -> impl IntoView {
                         // Main Content Area
                         <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
                             <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
-                                <Show when=show_passkey_nudge>
+                                <Show when=move || show_passkey_nudge.get()>
                                     <PasskeyRegistrationNudge />
                                 </Show>
                                 // Header
@@ -444,12 +458,10 @@ fn SettingsReadView() -> impl IntoView {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING SETTINGS..."</div> }>
             {move || match settings_res.get() {
                 Some(Ok(s)) => view! {
-                    <div class="grid grid-cols-1 gap-4 text-left jetbrains text-sm">
-
-                        <div class="grid grid-cols-3 border-b-2 border-outline-variant/30 pb-2 mb-4">
-                            <div class="font-label text-[0.65rem] uppercase tracking-widest text-outline">"KEY"</div>
-                            <div class="col-span-2 font-label text-[0.65rem] uppercase tracking-widest text-outline">"VALUE"</div>
-                        </div>
+                    <div class="grid grid-cols-3 border-b-2 border-outline-variant/30 pb-2 mb-4">
+                        <div class="font-label text-[0.65rem] uppercase tracking-widest text-outline">"KEY"</div>
+                        <div class="col-span-2 font-label text-[0.65rem] uppercase tracking-widest text-outline">"VALUE"</div>
+                    </div>
 
                         // Hero
                         <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30">
@@ -484,7 +496,7 @@ fn SettingsReadView() -> impl IntoView {
                         </div>
 
                         // Lead Capture
-                        <div class="grid grid-cols-3 py-2 border-b border-secondary/20 hover:bg-surface-container/30 mt-4">
+                        <div class="grid grid-cols-3 py-2 border-b border-outline-variant/10 hover:bg-surface-container/30 mt-4">
                             <div class="text-secondary uppercase tracking-widest text-xs">"LC TITLE"</div>
                             <div class="col-span-2 text-on-surface font-medium">{s.lc_title.clone()}</div>
                         </div>
@@ -798,7 +810,6 @@ pub async fn delete_mailing_list(id: i32) -> Result<(), ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     sqlx::query("DELETE FROM mailing_list WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2")
         .bind(id)
-        .bind(tenant.0)
         .execute(&state.pool)
         .await?;
     Ok(())
@@ -1027,7 +1038,7 @@ fn PasskeyTable() -> impl IntoView {
                     {match res {
                         Some(Ok(users)) => users.into_iter().map(|u| view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
-                                <td class="py-4 px-4 text-outline-variant">"#" {u.id}</td>
+                                <td class="py-4 text-outline-variant">"#" {u.id}</td>
                                 <td class="py-4 px-4 font-bold text-primary">{u.username}</td>
                                 <td class="py-4 px-4 text-outline">{u.created_at}</td>
                                 <td class="py-4 px-4">
@@ -1088,7 +1099,7 @@ pub fn LandingPageTable() -> impl IntoView {
                             let p_clone_2 = p.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
-                                <td class="py-4 px-4 font-bold text-primary">"/" {p.slug}</td>
+                                <td class="py-4 font-bold text-primary">"/" {p.slug}</td>
                                 <td class="py-4 px-4 text-outline">{p.title}</td>
                                 <td class="py-4 px-4">
                                     <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1155,7 +1166,7 @@ pub fn NavTable() -> impl IntoView {
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{n.display_order}</td>
-                                <td class="py-4 px-4 text-outline font-medium">"#" {n.id.to_string()}</td>
+                                <td class="py-4 px-4 font-medium">"#" {n.id.to_string()}</td>
                                 <td class="py-4 px-4 font-bold text-primary">
                                     {if let Some(_pid) = n.parent_id { format!("↳ {}", n.label) } else { n.label.clone() }}
                                 </td>
@@ -1213,8 +1224,10 @@ pub fn FooterTable() -> impl IntoView {
                 <thead>
                     <tr class="text-outline border-b border-outline-variant/30">
                         <th class="py-4 px-4 font-normal tracking-widest uppercase">"Weight"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Label"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Binding"</th>
+                        <th class="py-4 px-4 font-bold text-primary">
+                            {n.label.clone()}
+                        </th>
+                        <th class="py-4 px-4 text-outline">{n.href.unwrap_or_else(|| "DROPDOWN [null]".to_string())}</th>
                         <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                     </tr>
                 </thead>
@@ -1225,7 +1238,7 @@ pub fn FooterTable() -> impl IntoView {
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{n.display_order}</td>
-                                <td class="py-4 px-4 font-bold text-primary">
+                                <td class="py-4 font-bold text-primary">
                                     {n.label.clone()}
                                 </td>
                                 <td class="py-4 px-4 text-outline">{n.href.unwrap_or_else(|| "DROPDOWN [null]".to_string())}</td>
@@ -1336,7 +1349,7 @@ pub fn CaseStudyTable() -> impl IntoView {
                         Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
-                                <td class="py-4 px-4 font-bold text-primary">{item.client_name}</td>
+                                <td class="py-4 font-bold text-primary">{item.client_name}</td>
                                 <td class="py-4 px-4 text-outline">{if item.is_visible { "YES" } else { "NO" }}</td>
                                 <td class="py-4 px-4">
                                     <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1382,7 +1395,7 @@ pub fn HighlightTable() -> impl IntoView {
                         Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
-                                <td class="py-4 px-4 font-bold text-primary">{item.title}</td>
+                                <td class="py-4 font-bold text-primary">{item.title}</td>
                                 <td class="py-4 px-4 text-outline">{if item.is_visible { "YES" } else { "NO" }}</td>
                                 <td class="py-4 px-4">
                                     <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
