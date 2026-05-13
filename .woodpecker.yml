@@ -498,7 +498,7 @@ steps:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
       subject: >
-        [Atlas CI] {{if eq build.status "success"}}✅ SUCCESS{{else}}❌ FAILURE{{end}} — Pipeline #{{build.number}}
+        {{#success build.status}}[Atlas CI] ✅ SUCCESS{{else}}[Atlas CI] ❌ FAILURE{{/success}} — Pipeline #{{build.number}}
       body: |
         Atlas Platform Deployment Report
         ========================================
@@ -516,11 +516,11 @@ steps:
 
         Logs:       {{build.link}}
 
-        {{#if eq build.status "success"}}
+        {{#success build.status}}
         ✅ Deployment completed successfully.
         {{else}}
         ❌ Deployment FAILED. Please investigate immediately.
-        {{/if}}
+        {{/success}}
     when:
       - status: [success, failure]
         event: [push]
