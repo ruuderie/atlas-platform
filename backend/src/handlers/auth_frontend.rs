@@ -9,6 +9,7 @@ use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, Ac
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
+use std::time::Instant;
 use std::time::Duration as StdDuration;
 use chrono::{Utc, Duration};
 use moka::future::Cache;
@@ -25,6 +26,10 @@ static MAGIC_LINK_REQUEST_CACHE: Lazy<Cache<String, bool>> = Lazy::new(|| {
         .time_to_live(StdDuration::from_secs(60))
         .build()
 });
+
+fn generate_request_id() -> Uuid {
+    Uuid::new_v4()
+}
 
 #[derive(Deserialize)]
 pub struct VerifyEmailQuery {
@@ -62,6 +67,9 @@ pub async fn get_auth_flow(
     State(db): State<DatabaseConnection>,
     axum::extract::Path(email): axum::extract::Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let start = Instant::now();
+    let request_id = generate_request_id();
+
     let user_model = user::Entity::find()
         .filter(user::Column::Email.eq(&email))
         .one(&db)
@@ -79,6 +87,13 @@ pub async fn get_auth_flow(
         false
     };
 
+    tracing::info!(
+        event = "auth.flow.checked",
+        request_id = %request_id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
+
     Ok((StatusCode::OK, Json(AuthFlowResponse { has_passkey })))
 }
 
@@ -87,7 +102,6 @@ pub async fn verify_email(
     Query(_query): Query<VerifyEmailQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Stub for email verification logic
-    // We would look up the user by the verification token and set is_active = true
     Ok((StatusCode::OK, Json(json!({"message": "Email verified successfully"}))))
 }
 
@@ -95,6 +109,9 @@ pub async fn login(
     State(db): State<DatabaseConnection>,
     Json(credentials): Json<LoginCredentials>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let start = Instant::now();
+    let request_id = generate_request_id();
+
     let user = user::Entity::find()
         .filter(user::Column::Email.eq(&credentials.email))
         .one(&db)
@@ -106,6 +123,13 @@ pub async fn login(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     if !is_valid {
+        tracing::warn!(
+            event = "auth.login.failed",
+            request_id = %request_id,
+            email = %credentials.email,
+            reason = "invalid_password",
+            duration_ms = start.elapsed().as_millis()
+        );
         return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()));
     }
 
@@ -116,6 +140,14 @@ pub async fn login(
     let session_response = create_user_session(&db, &credentials.email, &credentials.password)
         .await
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create session".to_string()))?;
+
+    tracing::info!(
+        event = "auth.login.success",
+        request_id = %request_id,
+        user_id = %user.id,
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
 
     Ok(Json(session_response))
 }
@@ -130,27 +162,20 @@ pub async fn get_me(
         "last_name": current_user.last_name,
         "username": current_user.username,
         "is_active": current_user.is_active,
-        // is_admin is not stored on the user entity (removed during RBAC migration).
-        // Admin claims are embedded in the session JWT and read from session.is_admin.
     })))
 }
 
 pub async fn webauthn_register_start() -> Result<impl IntoResponse, StatusCode> {
-    // Stub for WebAuthn registration
     Ok((StatusCode::NOT_IMPLEMENTED, "WebAuthn not fully implemented yet"))
 }
 
 pub async fn webauthn_auth_start() -> Result<impl IntoResponse, StatusCode> {
-    // Stub for WebAuthn authentication
     Ok((StatusCode::NOT_IMPLEMENTED, "WebAuthn not fully implemented yet"))
 }
 
 #[derive(Deserialize)]
 pub struct RequestMagicLinkPayload {
     pub email: String,
-    /// Optional callback URL the magic link email should direct the user to.
-    /// Must be a URL whose host is registered in `app_domains`.
-    /// When absent, falls back to `ADMIN_URL/verify-token/{token}` (platform-admin flow).
     pub redirect_url: Option<String>,
 }
 
@@ -160,13 +185,29 @@ pub async fn request_magic_link(
     headers: axum::http::HeaderMap,
     Json(payload): Json<RequestMagicLinkPayload>,
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-    let ip_address = headers
+    let start = Instant::now();
+    let request_id = generate_request_id();
+
+    let ip = headers
         .get("x-forwarded-for")
         .and_then(|h| h.to_str().ok())
-        .unwrap_or("Unknown")
+        .unwrap_or("unknown")
         .to_string();
 
-    if let Err(status) = rate_limiter.check_auth_rate_limit(&ip_address, &payload.email).await {
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
+    if let Err(status) = rate_limiter.check_auth_rate_limit(&ip, &payload.email).await {
+        tracing::warn!(
+            event = "magic_link.rate_limited",
+            request_id = %request_id,
+            ip = %ip,
+            email = %payload.email,
+            duration_ms = start.elapsed().as_millis()
+        );
         return Err(status);
     }
 
@@ -179,11 +220,6 @@ pub async fn request_magic_link(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    // ── Validate redirect_url against app_domains (open-redirect prevention) ──
-    // Parse the host from the supplied redirect_url and confirm it exists in
-    // app_domains. Unknown hosts get a 400 — no information about the user is
-    // leaked at this point (validation happens before the user lookup result
-    // is acted upon, but after a generic check so the response timing is uniform).
     let validated_redirect_url_data = if let Some(ref url_str) = payload.redirect_url {
         match url::Url::parse(url_str) {
             Ok(parsed) => {
@@ -213,7 +249,6 @@ pub async fn request_magic_link(
                     return Err(StatusCode::BAD_REQUEST);
                 }
 
-                // Fetch tenant branding if domain is registered
                 let mut tenant_name = None;
                 if let Some(domain) = domain_record {
                     if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
@@ -223,7 +258,6 @@ pub async fn request_magic_link(
                     }
                 }
 
-                tracing::info!("Magic link request: redirect_url '{}' validated against app_domains (or dev bypass)", url_str);
                 Some((url_str.clone(), tenant_name))
             }
             Err(e) => {
@@ -280,18 +314,19 @@ pub async fn request_magic_link(
 
         if insert_res.rows_affected() == 0 {
             tracing::warn!(
-                "Idempotency: skipping duplicate magic link for {} — active token already exists",
-                user_mod.email
+                event = "magic_link.duplicate_prevented",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                email = %user_mod.email,
+                ip = %ip,
+                duration_ms = start.elapsed().as_millis(),
+                status = "blocked"
             );
             return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
         }
 
-        // Build the magic link URL:
-        //   - App-originated: {redirect_url}?token={token}  (e.g. https://uat.buildwithruud.com/admin?token=xxx)
-        //   - Platform-admin:  {ADMIN_URL}/verify-token/{token}  (unchanged legacy behaviour)
         let magic_link_url = match validated_redirect_url {
             Some(ref base) => {
-                // Append ?token= correctly whether base already has query params or not
                 if base.contains('?') {
                     format!("{}&token={}", base, token_str)
                 } else {
@@ -306,7 +341,16 @@ pub async fn request_magic_link(
         };
 
         let token_preview = &token_str[..8];
-        tracing::info!("Dispatching magic link to {} (token: {}...) → {}", user_mod.email, token_preview, magic_link_url);
+        tracing::info!(
+            event = "magic_link.requested",
+            request_id = %request_id,
+            user_id = %user_mod.id,
+            email = %user_mod.email,
+            ip = %ip,
+            user_agent = %user_agent,
+            duration_ms = start.elapsed().as_millis(),
+            status = "success"
+        );
 
         let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
         
@@ -331,10 +375,8 @@ pub async fn request_magic_link(
         } else {
             tracing::info!("Magic link dispatched to {}", user_mod.email);
         }
-        // Token was inserted successfully and email sent.
     }
 
-    // Always return 200 — prevents email enumeration.
     Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))
 }
 
@@ -348,6 +390,9 @@ pub async fn verify_magic_link(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<VerifyMagicLinkPayload>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let start = Instant::now();
+    let request_id = generate_request_id();
+
     let magic_link_opt = magic_link_token::Entity::find()
         .filter(magic_link_token::Column::Token.eq(&payload.token))
         .filter(magic_link_token::Column::IsUsed.eq(false))
@@ -357,10 +402,25 @@ pub async fn verify_magic_link(
 
     let magic_link = match magic_link_opt {
         Some(m) => m,
-        None => return Err((StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string())),
+        None => {
+            tracing::warn!(
+                event = "magic_link.verify.failed",
+                request_id = %request_id,
+                reason = "token_not_found",
+                duration_ms = start.elapsed().as_millis()
+            );
+            return Err((StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string()));
+        }
     };
 
     if magic_link.expires_at < Utc::now() {
+        tracing::warn!(
+            event = "magic_link.verify.failed",
+            request_id = %request_id,
+            user_id = %magic_link.user_id,
+            reason = "token_expired",
+            duration_ms = start.elapsed().as_millis()
+        );
         return Err((StatusCode::UNAUTHORIZED, "Token has expired".to_string()));
     }
 
@@ -370,7 +430,6 @@ pub async fn verify_magic_link(
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?
         .ok_or((StatusCode::UNAUTHORIZED, "User not found".to_string()))?;
 
-    // Validate tenant access if tenant_id is provided
     if let Some(target_tenant_id) = payload.tenant_id {
         let user_accounts = user_account::Entity::find()
             .filter(user_account::Column::UserId.eq(user_mod.id))
@@ -393,12 +452,17 @@ pub async fn verify_magic_link(
         }
         
         if !has_access {
+            tracing::warn!(
+                event = "magic_link.verify.failed",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                tenant_id = %target_tenant_id,
+                reason = "tenant_access_denied"
+            );
             return Err((StatusCode::UNAUTHORIZED, "User does not have access to this tenant".to_string()));
         }
     }
 
-    // Mark as used
-    // Only wipe passkeys for first-time setup tokens, not regular magic link logins.
     if magic_link.is_setup_token {
         let _ = crate::entities::passkey::Entity::delete_many()
             .filter(crate::entities::passkey::Column::UserId.eq(user_mod.id))
@@ -410,16 +474,21 @@ pub async fn verify_magic_link(
     ml_active.is_used = Set(true);
     let _ = ml_active.update(&db).await;
 
-    // We can use `create_session_for_user`
     let session_response = crate::handlers::sessions::create_session_for_user(&db, &user_mod)
         .await
         .map_err(|e| (e, "Failed to create session".to_string()))?;
 
-    // CRITICAL: SessionResponse.token is #[serde(skip_serializing)] so it is never
-    // present in the JSON body. The frontend reads the Set-Cookie header — do NOT
-    // change this to a JSON field without a security review.
     use crate::handlers::sessions::session_cookie_header;
-    let cookie = session_cookie_header(&session_response.token, 86_400); // 24 h
+    let cookie = session_cookie_header(&session_response.token, 86_400);
+
+    tracing::info!(
+        event = "magic_link.verified",
+        request_id = %request_id,
+        user_id = %user_mod.id,
+        tenant_id = %payload.tenant_id.unwrap_or(Uuid::nil()),
+        duration_ms = start.elapsed().as_millis(),
+        status = "success"
+    );
 
     Ok((
         StatusCode::OK,
