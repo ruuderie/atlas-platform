@@ -16,7 +16,7 @@ use crate::entities::{user, passkey};
 use crate::auth::generate_jwt;
 use crate::handlers::sessions::session_cookie_header;
 use crate::webauthn_registry::WebauthnRegistry;
-use crate::metrics;  // Prometheus metrics
+use crate::metrics;
 
 pub struct WebauthnStateRaw {
     pub registry: Arc<WebauthnRegistry>,
@@ -39,8 +39,6 @@ pub fn authenticated_routes() -> Router<sea_orm::DatabaseConnection> {
         .route("/api/passkeys/has-passkey", get(has_passkey))
 }
 
-/// Returns whether the currently-authenticated user has at least one passkey registered.
-/// Used by the dashboard to decide whether to show the passkey registration nudge.
 pub async fn has_passkey(
     Extension(db): Extension<DatabaseConnection>,
     Extension(user): Extension<user::Model>,
@@ -73,6 +71,12 @@ pub async fn register_start(
 ) -> Result<Json<CreationChallengeResponse>, (StatusCode, String)> {
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
+
+    let app_instance_id = headers
+        .get("x-app-instance-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
 
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
@@ -122,15 +126,15 @@ pub async fn register_start(
     
     state.reg_state.insert(user.id, reg_state).await;
 
-    // Increment Prometheus metric
     metrics::PASSKEY_REGISTRATION_STARTED
-        .with_label_values(&[&user.id.to_string()])
+        .with_label_values(&["unknown", &app_instance_id])
         .inc();
 
     tracing::info!(
         event = "passkey.registration.started",
         request_id = %request_id,
         user_id = %user.id,
+        app_instance_id = %app_instance_id,
         duration_ms = start.elapsed().as_millis(),
         status = "success"
     );
@@ -147,6 +151,12 @@ pub async fn register_finish(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
+
+    let app_instance_id = headers
+        .get("x-app-instance-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
 
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
@@ -180,15 +190,15 @@ pub async fn register_finish(
     
     state.reg_state.invalidate(&user.id).await;
 
-    // Increment Prometheus metric
     metrics::PASSKEY_REGISTRATION_SUCCESS
-        .with_label_values(&[&user.id.to_string()])
+        .with_label_values(&["unknown", &app_instance_id])
         .inc();
 
     tracing::info!(
         event = "passkey.registration.success",
         request_id = %request_id,
         user_id = %user.id,
+        app_instance_id = %app_instance_id,
         duration_ms = start.elapsed().as_millis(),
         status = "success"
     );
@@ -209,6 +219,12 @@ pub async fn login_start(
 ) -> Result<Response, (StatusCode, String)> {
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
+
+    let app_instance_id = headers
+        .get("x-app-instance-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
 
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
@@ -253,6 +269,7 @@ pub async fn login_start(
     tracing::info!(
         event = "passkey.auth.started",
         request_id = %request_id,
+        app_instance_id = %app_instance_id,
         duration_ms = start.elapsed().as_millis(),
         status = "success"
     );
@@ -279,6 +296,12 @@ pub async fn login_finish(
 ) -> Result<Response, (StatusCode, String)> {
     let start = Instant::now();
     let request_id = uuid::Uuid::new_v4();
+
+    let app_instance_id = headers
+        .get("x-app-instance-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
 
     let origin = headers.get(header::ORIGIN)
         .and_then(|v| v.to_str().ok())
@@ -317,15 +340,15 @@ pub async fn login_finish(
     let cookie = session_cookie_header(&session_response.token, 86_400);
     let clear_pk_session = "passkey_session=; Path=/api/passkeys; HttpOnly; Max-Age=0";
     
-    // Increment Prometheus metric for successful passkey auth
     metrics::PASSKEY_AUTH_SUCCESS
-        .with_label_values(&[&user.id.to_string()])
+        .with_label_values(&["unknown", &app_instance_id])
         .inc();
 
     tracing::info!(
         event = "passkey.auth.success",
         request_id = %request_id,
         user_id = %user.id,
+        app_instance_id = %app_instance_id,
         duration_ms = start.elapsed().as_millis(),
         status = "success"
     );
