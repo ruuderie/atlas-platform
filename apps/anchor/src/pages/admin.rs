@@ -1417,6 +1417,68 @@ pub fn HighlightTable() -> impl IntoView {
 fn PasskeyRegistrationNudge() -> impl IntoView {
     let (is_hidden, set_is_hidden) = signal(false);
     
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        if !is_hidden.get() {
+            let script = r#"
+                if (!document.getElementById('simplewebauthn-script')) {
+                    const s = document.createElement('script');
+                    s.id = 'simplewebauthn-script';
+                    s.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
+                    document.head.appendChild(s);
+                }
+                setTimeout(() => {
+                    const btn = document.getElementById('nudge-register-passkey-btn');
+                    const msg = document.getElementById('nudge-passkey-message');
+                    if(btn && !btn.dataset.bound) {
+                        btn.dataset.bound = 'true';
+                        btn.addEventListener('click', async () => {
+                            try {
+                                btn.disabled = true;
+                                msg.innerText = 'Initiating...';
+                                
+                                const startRes = await fetch('/api/passkeys/start-register', {
+                                    method: 'POST',
+                                    credentials: 'include',
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                                if (!startRes.ok) throw new Error('Failed to start registration');
+                                const options = await startRes.json();
+                                
+                                msg.innerText = 'Please follow browser prompts...';
+                                const { startRegistration } = window.SimpleWebAuthnBrowser;
+                                const credential = await startRegistration(options);
+                                
+                                msg.innerText = 'Verifying...';
+                                const finishRes = await fetch('/api/passkeys/finish-register', {
+                                    method: 'POST',
+                                    credentials: 'include',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(credential)
+                                });
+
+                                if (finishRes.ok) {
+                                    msg.innerText = 'Passkey registered successfully!';
+                                    msg.className = 'text-sm font-medium text-green-500 mt-2';
+                                    setTimeout(() => btn.closest('.bg-primary\\/10').style.display = 'none', 2000);
+                                } else {
+                                    throw new Error(await finishRes.text());
+                                }
+                            } catch (err) {
+                                console.error(err);
+                                msg.innerText = err.message || 'Registration failed';
+                                msg.className = 'text-sm font-medium text-error mt-2';
+                            } finally {
+                                btn.disabled = false;
+                            }
+                        });
+                    }
+                }, 500);
+            "#;
+            let _ = js_sys::eval(script);
+        }
+    });
+
     view! {
         <Show when=move || !is_hidden.get()>
             <div class="bg-primary/10 border border-primary p-6 mb-8 flex justify-between items-center w-full">
@@ -1440,57 +1502,6 @@ fn PasskeyRegistrationNudge() -> impl IntoView {
                 </div>
                 <div id="nudge-passkey-message" class="text-sm font-medium mt-2"></div>
             </div>
-            <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
-            <script>
-            "setTimeout(() => {
-                const btn = document.getElementById('nudge-register-passkey-btn');
-                const msg = document.getElementById('nudge-passkey-message');
-                if(btn && !btn.dataset.bound) {
-                    btn.dataset.bound = 'true';
-                    btn.addEventListener('click', async () => {
-                        try {
-                            btn.disabled = true;
-                            msg.innerText = 'Initiating...';
-                            
-                            const startRes = await fetch('/api/passkeys/start-register', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: { 'Content-Type': 'application/json' }
-                            });
-                            if (!startRes.ok) throw new Error('Failed to start registration');
-                            const options = await startRes.json();
-                            
-                            msg.innerText = 'Please follow browser prompts...';
-                            const { startRegistration } = window.SimpleWebAuthnBrowser;
-                            const credential = await startRegistration(options);
-                            
-                            msg.innerText = 'Verifying...';
-                            const finishRes = await fetch('/api/passkeys/finish-register', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(credential)
-                            });
-
-                            
-                            if (finishRes.ok) {
-                                msg.innerText = 'Passkey registered successfully!';
-                                msg.className = 'text-sm font-medium text-green-500 mt-2';
-                                setTimeout(() => btn.closest('.bg-primary\\\\/10').style.display = 'none', 2000);
-                            } else {
-                                throw new Error(await finishRes.text());
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            msg.innerText = err.message || 'Registration failed';
-                            msg.className = 'text-sm font-medium text-error mt-2';
-                        } finally {
-                            btn.disabled = false;
-                        }
-                    });
-                }
-            }, 500);"
-            </script>
         </Show>
     }
 }

@@ -9,12 +9,22 @@ use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, Ac
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
+use std::time::Duration as StdDuration;
 use chrono::{Utc, Duration};
+use moka::future::Cache;
+use once_cell::sync::Lazy;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{user, account, user_account, magic_link_token};
+use crate::entities::{app_domain, magic_link_token, tenant, user, app_instance, account, user_account};
 use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
+
+static MAGIC_LINK_REQUEST_CACHE: Lazy<Cache<String, bool>> = Lazy::new(|| {
+    Cache::builder()
+        .max_capacity(1000)
+        .time_to_live(StdDuration::from_secs(60))
+        .build()
+});
 
 #[derive(Deserialize)]
 pub struct VerifyEmailQuery {
@@ -238,8 +248,24 @@ pub async fn request_magic_link(
         // requests reach the handler from the same user action (e.g. a network
         // retry, an in-flight browser double-dispatch before the countdown UI
         // kicks in, or a load-balancer quirk).
+        
+        static EMAIL_RATE_LIMITER: Lazy<Cache<String, bool>> = Lazy::new(|| {
+            Cache::builder()
+                .time_to_live(StdDuration::from_secs(60))
+                .build()
+        });
+
+        // 1. Check in-memory lock to prevent race conditions on concurrent requests
+        if EMAIL_RATE_LIMITER.contains_key(&user_mod.email) {
+            tracing::warn!(
+                "Idempotency: skipping duplicate magic link for {} (in-memory lock active)",
+                user_mod.email
+            );
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
+
         use sea_orm::QueryOrder;
-        let recent_cutoff = Utc::now() - Duration::seconds(60);
+        let recent_cutoff = Utc::now() - chrono::Duration::seconds(60);
         let existing_token = magic_link_token::Entity::find()
             .filter(magic_link_token::Column::UserId.eq(user_mod.id))
             .filter(magic_link_token::Column::IsUsed.eq(false))
@@ -327,6 +353,8 @@ pub async fn request_magic_link(
             tracing::error!("Failed to dispatch magic link email: {} {:?}", msg, status);
         } else {
             tracing::info!("Magic link dispatched to {}", user_mod.email);
+            // 2. Set in-memory lock now that we've dispatched
+            EMAIL_RATE_LIMITER.insert(user_mod.email.clone(), true).await;
         }
     }
 
