@@ -1,0 +1,161 @@
+{
+  "dashboard": {
+    "title": "Kubernetes Cluster State & Live Commits",
+    "uid": "k8s-cluster-state",
+    "tags": ["kubernetes", "state", "commits", "resources", "ingress"],
+    "time": { "from": "now-6h", "to": "now" },
+    "refresh": "1m",
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "hide": false,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
+          "type": "dashboard"
+        },
+        {
+          "datasource": "-- Grafana --",
+          "enable": true,
+          "iconColor": "#E02F44",
+          "name": "Woodpecker Deployments",
+          "target": { "limit": 100, "matchAny": false, "tags": ["deploy"], "type": "tags" }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Application Health Matrix (Deployments)",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 10 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "textMode": "name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              { "type": "value", "options": { "0": { "color": "green", "text": "Healthy" } } },
+              { "type": "range", "options": { "from": 1, "to": 9999, "result": { "color": "red", "text": "Unhealthy" } } }
+            ]
+          }
+        },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "kube_deployment_status_replicas_unavailable{namespace=~\"atlas-.*\"}",
+            "legendFormat": "{{namespace}} / {{deployment}}"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Live Version Matrix",
+        "type": "table",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 10 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "max by(namespace, container, image) (kube_pod_container_info{namespace=~\"atlas-.*\", container!=\"\", container!=\"POD\"})",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "extractFields",
+            "options": {
+              "source": "image",
+              "replace": false
+            }
+          },
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "Value": true },
+              "indexByName": { "namespace": 0, "container": 1, "image": 2 },
+              "renameByName": { "namespace": "Environment", "container": "Service", "image": "Image (Commit)" }
+            }
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "CPU Usage per Pod (Cores)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~\"atlas-.*\", container!=\"\", container!=\"POD\"}[5m]))",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Memory Usage per Pod (Bytes)",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=~\"atlas-.*\", container!=\"\", container!=\"POD\"})",
+            "legendFormat": "{{pod}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Ingress Errors (5xx)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 18, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum by (ingress) (rate(nginx_ingress_controller_requests{status=~\"5..\"}[5m]))",
+            "legendFormat": "{{ingress}}"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "OOMKills & Restarts",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 18, "w": 12, "h": 8 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+          }
+        },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum by (pod) (kube_pod_container_status_terminated_reason{reason=\"OOMKilled\"} > 0 or increase(kube_pod_container_status_restarts_total[1h]) > 0)",
+            "legendFormat": "{{pod}} (Restarts/OOMs)"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true,
+  "folderId": 0,
+  "inputs": []
+}
