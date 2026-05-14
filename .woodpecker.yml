@@ -76,9 +76,9 @@ steps:
           cp -r /cache/cargo $CARGO_HOME 2>/dev/null || true
         fi
       # Check anchor (SSR feature covers all shared logic and view! macros)
-      - cargo check -p anchor --features ssr -j $(nproc)
+      - cd apps && cargo check -p anchor --features ssr -j $(nproc)
       # Check shared-ui to catch any import/API surface regressions
-      - cargo check -p shared-ui --features ssr -j $(nproc)
+      - cd apps && cargo check -p shared-ui --features ssr -j $(nproc)
       - |
         cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
     when:
@@ -580,29 +580,29 @@ steps:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
       subject: >
-        {{#success build.status}}[Atlas CI] ✅ SUCCESS{{else}}[Atlas CI] ❌ FAILURE{{/success}} — Pipeline #{{build.number}}
+        [Atlas CI] {{#success build.status}}✅ SUCCESS{{else}}❌ FAILURE{{/success}} — Pipeline #${CI_PIPELINE_NUMBER}
       body: |
-        Atlas Platform Deployment Report
-        ========================================
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
+          <h2 style="color: #24292e; margin-top: 0; border-bottom: 1px solid #eaecef; padding-bottom: 10px;">Atlas Platform Deployment Report</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td>{{#success build.status}}<span style="color: #28a745;">✅ Success</span>{{else}}<span style="color: #cb2431;">❌ Failure</span>{{/success}}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Project:</td><td>${CI_REPO_OWNER}/${CI_REPO_NAME}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Branch:</td><td><span style="background: #f1f8ff; padding: 3px 6px; border-radius: 3px; font-family: monospace;">${CI_COMMIT_BRANCH}</span></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Commit:</td><td><a href="${CI_REPO_URL}/commit/${CI_COMMIT_SHA}" style="color: #0366d6; text-decoration: none; font-family: monospace;">${CI_COMMIT_SHA}</a></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Message:</td><td><em>${CI_COMMIT_MESSAGE}</em></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Author:</td><td>${CI_COMMIT_AUTHOR}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Logs:</td><td><a href="${CI_PIPELINE_URL}" style="color: #0366d6; text-decoration: none;">View Pipeline #${CI_PIPELINE_NUMBER}</a></td></tr>
+          </table>
 
-        Status:     {{build.status}}
-        Project:    {{repo.owner}}/{{repo.name}}
-        Branch:     {{build.branch}}
-        Commit:     {{build.commit}} - {{commit.message}}
-        Author:     {{build.author}}
-
-        {{#if build.failed_steps}}
-        Failed Steps:
-        {{build.failed_steps}}
-        {{/if}}
-
-        Logs:       {{build.link}}
-
-        {{#success build.status}}
-        ✅ Deployment completed successfully.
-        {{else}}
-        ❌ Deployment FAILED. Please investigate immediately.
-        {{/success}}
+          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; {{#success build.status}}background-color: #dcffe4; color: #1a7f37;{{else}}background-color: #ffeef0; color: #b31d28;{{/success}}">
+            {{#success build.status}}
+            <strong>✅ Deployment completed successfully.</strong>
+            {{else}}
+            <strong>❌ Deployment FAILED. Please investigate immediately.</strong>
+            {{/success}}
+          </div>
+        </div>
     when:
       - status: [success, failure]
         event: [push]
