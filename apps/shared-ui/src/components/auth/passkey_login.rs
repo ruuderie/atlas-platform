@@ -110,7 +110,6 @@ pub fn PasskeyLoginButton(
                 padding: 12px 20px;
                 font-size: 14px;
                 font-weight: 500;
-                font-family: Charter, Georgia, Palatino, 'Times New Roman', serif;
                 cursor: pointer;
                 transition: background 0.15s, opacity 0.15s;
                 text-align: center;
@@ -120,7 +119,7 @@ pub fn PasskeyLoginButton(
             // Fingerprint icon inline SVG — no external icon font dependency
             {move || if is_submitting.get() {
                 view! {
-                    <span style="font-family: Charter, Georgia, Palatino, serif;">
+                    <span>
                         "Authenticating…"
                     </span>
                 }.into_any()
