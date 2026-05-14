@@ -57,13 +57,13 @@ steps:
         cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
         cp -r ./target /cache/target 2>/dev/null || true
 
-  # ── Anchor / shared-ui compile gate (SSR feature) ────────────────────────
+  # ── Apps Compile Gate ──────────────────────────────────────────────────────
   # This runs BEFORE Docker builds and catches Rust compile errors in the
-  # anchor WASM crate early. Without this, errors are only discovered inside
+  # apps workspace early. Without this, errors are only discovered inside
   # the Docker build step — slow, noisy, and after the fact.
   # WASM compilation (wasm32-unknown-unknown) is done inside the Dockerfile;
   # here we only check native SSR compilation which covers 99% of errors.
-  check_anchor_compiles:
+  check_apps_compile:
     image: rust:1.91-slim
     environment:
       CARGO_INCREMENTAL: "1"
@@ -77,6 +77,10 @@ steps:
         fi
       # Check anchor (SSR feature covers all shared logic and view! macros)
       - cd apps && cargo check -p anchor --features ssr -j $(nproc)
+      # Check network-instance
+      - cd apps && cargo check -p atlas_network_instance --features ssr -j $(nproc)
+      # Check platform-admin (CSR only, no SSR feature)
+      - cd apps && cargo check -p atlas_platform_admin -j $(nproc)
       # Check shared-ui to catch any import/API surface regressions
       - cd apps && cargo check -p shared-ui --features ssr -j $(nproc)
       - |
@@ -84,8 +88,7 @@ steps:
     when:
       branch: [dev, uat]
       path:
-        - 'apps/anchor/**'
-        - 'apps/shared-ui/**'
+        - 'apps/**'
         - '.woodpecker.yml'
 
 
