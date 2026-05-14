@@ -107,6 +107,10 @@ pub mod m20260504_000002_remove_is_admin_from_user;
 pub mod m20260504_000003_seed_platform_sentinel_account;
 pub mod m20260507_000001_add_redirect_url_to_magic_link;
 pub mod m20260507_000002_add_is_setup_to_magic_link;
+// 2026-05-14: These two migrations were applied to the dev DB (in de583e29) but the
+// backend Docker image was never rebuilt afterward — all subsequent commits only
+// touched apps/ or .woodpecker.yml. This comment triggers a backend rebuild so the
+// atlas-dev pod boots with the correct migration manifest and stops CrashLoopBackOff.
 pub mod m20260513_000001_add_dev_domain_buildwithruud;
 pub mod m20260513_000002_unique_active_magic_link_per_user;
 
