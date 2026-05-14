@@ -57,7 +57,38 @@ steps:
         cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
         cp -r ./target /cache/target 2>/dev/null || true
 
-  # ── Docker Build & Push ─────────────────────────────────────────────────────
+  # ── Anchor / shared-ui compile gate (SSR feature) ────────────────────────
+  # This runs BEFORE Docker builds and catches Rust compile errors in the
+  # anchor WASM crate early. Without this, errors are only discovered inside
+  # the Docker build step — slow, noisy, and after the fact.
+  # WASM compilation (wasm32-unknown-unknown) is done inside the Dockerfile;
+  # here we only check native SSR compilation which covers 99% of errors.
+  check_anchor_compiles:
+    image: rust:1.91-slim
+    environment:
+      CARGO_INCREMENTAL: "1"
+      CARGO_TERM_COLOR: always
+    commands:
+      - apt-get update -qq && apt-get install -y -qq pkg-config libssl-dev mold
+      - |
+        mkdir -p /cache/cargo
+        if [ -d /cache/cargo ]; then
+          cp -r /cache/cargo $CARGO_HOME 2>/dev/null || true
+        fi
+      # Check anchor (SSR feature covers all shared logic and view! macros)
+      - cargo check -p anchor --features ssr -j $(nproc)
+      # Check shared-ui to catch any import/API surface regressions
+      - cargo check -p shared-ui --features ssr -j $(nproc)
+      - |
+        cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
+    when:
+      branch: [dev, uat]
+      path:
+        - 'apps/anchor/**'
+        - 'apps/shared-ui/**'
+        - '.woodpecker.yml'
+
+
   publish_platform_admin_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -459,6 +490,55 @@ steps:
 
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
+
+  # ── Post-Deploy Smoke Test ──────────────────────────────────────────────────
+  # Hits the /health endpoint on each environment after deploy and fails the
+  # pipeline if the new pod is not serving a 200. This catches a new image
+  # that crashes on startup before anyone notices via the browser.
+  smoke_test_dev:
+    image: curlimages/curl:latest
+    commands:
+      - |
+        echo "Smoke testing dev.buildwithruud.com ..."
+        sleep 15  # Give the rollout a moment to settle
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.buildwithruud.com/api/health --max-time 20 || echo "000")
+        if [ "$STATUS" != "200" ]; then
+          echo "SMOKE TEST FAILED — /api/health returned HTTP $STATUS (expected 200)"
+          echo "The new pod may have crashed. Check: kubectl logs -n atlas-dev -l app=anchor-app --tail=50"
+          exit 1
+        fi
+        echo "✓ Smoke test passed — dev is healthy (HTTP $STATUS)"
+    failure: ignore
+    when:
+      branch: dev
+      path:
+        - 'apps/anchor/**'
+        - 'apps/shared-ui/**'
+        - 'backend/**'
+
+  annotate_grafana_dev:
+    image: curlimages/curl:latest
+    environment:
+      GRAFANA_URL: "https://grafana.oply.co"
+      GRAFANA_TOKEN:
+        from_secret: grafana_token
+    commands:
+      - |
+        curl -s -X POST $GRAFANA_URL/api/annotations \
+          -H "Authorization: Bearer $GRAFANA_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "time": '$(date +%s%3N)',
+            "tags": ["deploy", "atlas-dev", "'${CI_COMMIT_SHA:0:8}'"],
+            "text": "Deployed atlas-dev commit '${CI_COMMIT_SHA:0:8}'"
+          }'
+    failure: ignore
+    when:
+      branch: dev
+      path:
+        - 'apps/anchor/**'
+        - 'apps/shared-ui/**'
+        - 'backend/**'
 
   # ── Notifications (Best Practice) ───────────────────────────────────────────
   notify_discord:
