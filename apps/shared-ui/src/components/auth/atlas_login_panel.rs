@@ -1,3 +1,4 @@
+// Build: 2026-05-14 — forces anchor image rebuild via CI path detection.
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
