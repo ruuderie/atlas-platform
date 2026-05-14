@@ -524,13 +524,14 @@ steps:
         from_secret: grafana_token
     commands:
       - |
+        SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-8)
         curl -s -X POST $GRAFANA_URL/api/annotations \
           -H "Authorization: Bearer $GRAFANA_TOKEN" \
           -H "Content-Type: application/json" \
           -d '{
             "time": '$(date +%s%3N)',
-            "tags": ["deploy", "atlas-dev", "'${CI_COMMIT_SHA:0:8}'"],
-            "text": "Deployed atlas-dev commit '${CI_COMMIT_SHA:0:8}'"
+            "tags": ["deploy", "atlas-dev", "'$SHORT_SHA'"],
+            "text": "Deployed atlas-dev commit '$SHORT_SHA'"
           }'
     failure: ignore
     when:
