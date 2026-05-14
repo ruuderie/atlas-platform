@@ -167,35 +167,29 @@ pub fn Admin() -> impl IntoView {
     provide_context(set_refresh);
 
     view! {
-        // ── Unauthenticated / Pending: render OUTSIDE the main layout shell ───
-        // The nav is fixed at z-[60] with the page layout using pt-24 to clear it.
-        // Rendering AtlasLoginPanel inside that shell caused the card to be
-        // partially obscured by the nav — specifically the top ~96px where the
-        // tab buttons live — making them unclickable. By splitting the view here
-        // we avoid the pt-24 offset entirely for unauthenticated states.
+        <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
+        // Suspense is INSIDE <main> (not wrapping it) so there is only ever
+        // one <main> element in the DOM — the hydration walker never sees a
+        // structural mismatch.
         <Suspense fallback=move || view! {
-            <div style="position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;">
+            <div class="flex-1 flex justify-center items-center">
                 <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
             </div>
         }>
             {move || match auth_state() {
                 AuthState::Pending => view! {
-                    <div style="position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;">
+                    <div class="flex-1 flex justify-center items-center">
                         <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
                     </div>
                 }.into_any(),
 
                 // ── Unauthenticated ─────────────────────────────────────────────
-                // LoginPanel is self-contained (min-height:100vh). Render it at
-                // root level — no pt-24, no px-4 — so the nav never covers it.
                 AuthState::No => view! {
                     <LoginPanel />
                 }.into_any(),
 
                 // ── Authenticated ───────────────────────────────────────────────
-                // Only the dashboard gets the full main layout with pt-24 nav clearance.
                 AuthState::Yes => view! {
-                    <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
                     <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
                         // Sidebar
                         <aside class="w-full md:w-64 shrink-0 space-y-2">
@@ -310,10 +304,10 @@ pub fn Admin() -> impl IntoView {
                         <AdminEditorModal />
                     </section>
                 </div>
-                </main>
                 }.into_any(),
             }}
             </Suspense>
+        </main>
     }
 }
 

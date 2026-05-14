@@ -82,7 +82,7 @@ fn token_view(
         }
     });
 
-    let page = "min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
+    let page = "position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;overflow-y:auto;";
     let card = "width:100%;max-width:420px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
 
     view! {
@@ -181,7 +181,7 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
         error_sig.set(Some(err));
     });
 
-    let page = "min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
+    let page = "position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;overflow-y:auto;";
     let card = "width:100%;max-width:420px;min-height:380px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
 
     view! {
