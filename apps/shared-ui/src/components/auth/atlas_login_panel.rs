@@ -1,4 +1,24 @@
 // Build: 2026-05-14 — forces anchor image rebuild via CI path detection.
+// LAYOUT INVARIANT — READ BEFORE EDITING
+// ============================================================================
+// The anchor app's <Nav /> is rendered unconditionally on every route at
+// z-index:60 (position:fixed; top:0). This component is used on the /admin
+// route which is a child of that nav.
+//
+// RULE: The outermost container of this panel MUST use:
+//   position:fixed; inset:0; z-index:70; overflow-y:auto
+//
+// DO NOT change to min-height:100vh or any in-flow layout. That puts the
+// top ~96px of the login card behind the fixed nav bar — every button and
+// tab in that region becomes completely unclickable. This regression has
+// occurred multiple times (commits 0d38c4fa, 0a63b6f1).
+//
+// The `page` variable in both token_view() and login_view() encodes this.
+// If you change one, change both. The z-index hierarchy is:
+//   55 = mobile slide-in menu   (nav.rs)
+//   60 = fixed nav bar          (nav.rs)  ← must stay BELOW this panel
+//   70 = this panel + modals    ← must stay ABOVE nav
+// ============================================================================
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
@@ -82,6 +102,8 @@ fn token_view(
         }
     });
 
+    // INVARIANT: Must be position:fixed;inset:0;z-index:70 — see file header.
+    // DO NOT revert to min-height:100vh; that puts the card behind the nav.
     let page = "position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;overflow-y:auto;";
     let card = "width:100%;max-width:420px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
 
@@ -181,8 +203,11 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
         error_sig.set(Some(err));
     });
 
+    // INVARIANT: Must be position:fixed;inset:0;z-index:70 — see file header.
+    // DO NOT revert to min-height:100vh; that puts the card behind the nav.
     let page = "position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;overflow-y:auto;";
     let card = "width:100%;max-width:420px;min-height:380px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
+
 
     view! {
         <div style=page>

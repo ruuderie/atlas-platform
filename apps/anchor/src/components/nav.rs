@@ -183,6 +183,24 @@ pub fn Nav() -> impl IntoView {
     view! {
         <>
         // ── Fixed top nav bar ──────────────────────────────────────────────────
+        // Z-INDEX ANCHOR: This nav is always present at z-[60] (z-index:60).
+        //
+        // RULE: Any full-screen overlay rendered by a route component (login,
+        //   modal, onboarding) MUST use z-index ≥ 70 to appear above this bar.
+        //   Using min-height:100vh in document flow is WRONG for full-screen UIs
+        //   — the nav physically sits over the top of the page and intercepts
+        //   clicks on whatever is beneath it.
+        //
+        // IF YOU CHANGE z-[60] HERE, you must also update:
+        //   - AtlasLoginPanel  (atlas_login_panel.rs)  → currently z-index:70
+        //   - Mobile overlay   (this file, ~line 293)  → currently z-[55]
+        //   - Hamburger button (this file, ~line 276)  → currently z-[70]
+        //   - Any other fixed overlays in the app
+        //
+        // The hierarchy is intentional:
+        //   55 = mobile slide-in menu (below nav so hamburger stays tappable)
+        //   60 = nav bar (the baseline fixed element)
+        //   70 = full-screen overlays (login panel, modals — must cover nav)
         <nav class=format!("fixed top-0 left-0 w-full flex justify-between items-center py-4 z-[60] {} {}",
             if design.nav_layout == "floating-glass" { "bg-surface/80 backdrop-blur-[20px] shadow-sm" } else { "bg-surface shadow-[0_2px_12px_rgba(0,0,0,0.08)]" },
             if design.container_strategy == "asymmetrical-gutters" { "px-5 md:px-[8.5rem]" } else { "px-5 md:px-12" }

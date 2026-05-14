@@ -178,10 +178,33 @@ pub fn App() -> impl IntoView {
         <crate::components::theme_provider::ThemeProvider primary_color=theme_color>
             <Router>
                 <div class="flex flex-col min-h-screen">
-                    <Nav />
-                    {
-                        view! { <PageViewTracker /> }
-                    }
+                // ── Z-INDEX CONTRACT — READ BEFORE ADDING FULL-SCREEN ROUTE COMPONENTS ──
+                // <Nav /> is rendered here unconditionally and is ALWAYS present on every
+                // route. It uses: position:fixed; top:0; left:0; z-index:60 (z-[60]).
+                //
+                // ┌─────────────────────────────────────────────────────────────────────┐
+                // │  INVARIANT: Any route component that renders a full-screen / full-  │
+                // │  viewport overlay (login panels, modals, onboarding flows, etc.)   │
+                // │  MUST use z-index ≥ 70 on its outermost container.                │
+                // │                                                                     │
+                // │  DO NOT use min-height:100vh with default document flow for full-  │
+                // │  screen UIs. The nav will sit on top of the top portion of the     │
+                // │  page, intercepting click events on whatever is beneath it.        │
+                // │                                                                     │
+                // │  CORRECT pattern:                                                   │
+                // │    position:fixed; inset:0; z-index:70; overflow-y:auto            │
+                // │                                                                     │
+                // │  See: AtlasLoginPanel (atlas_login_panel.rs) for reference impl.  │
+                // │  See: nav.rs for the nav z-index (z-[60]).                        │
+                // │                                                                     │
+                // │  Page-level layouts that flow in the document (dashboards, lists,  │
+                // │  article pages) should instead use padding-top:96px / pt-24 to    │
+                // │  clear the nav. Do NOT combine pt-24 with z-index overlays.        │
+                // └─────────────────────────────────────────────────────────────────────┘
+                <Nav />
+                {
+                    view! { <PageViewTracker /> }
+                }
 
                     // GA script — non-blocking, scoped Suspense, renders when ready.
                     <Suspense fallback=move || view! { <span class="hidden"></span> }>
