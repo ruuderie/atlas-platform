@@ -811,6 +811,7 @@ pub async fn delete_mailing_list(id: i32) -> Result<(), ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     sqlx::query("DELETE FROM mailing_list WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2")
         .bind(id)
+        .bind(tenant.0)
         .execute(&state.pool)
         .await?;
     Ok(())
