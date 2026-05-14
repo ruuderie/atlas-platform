@@ -1,4 +1,20 @@
 // Build: 2026-05-14 — forces anchor image rebuild via CI path detection.
+// ARCHITECTURE & HYDRATION INVARIANT — READ BEFORE EDITING
+// ============================================================================
+// AtlasLoginPanel operates in standard document flow (`min-height:100vh`).
+// It expects to be rendered inside a layout shell that provides clearance for
+// the global navigation bar (e.g., `<main pt-24>`).
+//
+// HYDRATION WARNING:
+// If the buttons/tabs on this panel suddenly become unclickable, DO NOT try
+// to "fix" it by making this component `position:fixed` or `z-index:70`. 
+// The unclickability is almost certainly caused by a WASM/HTML hydration 
+// mismatch due to aggressive CDN caching (e.g., Cloudflare serving an old 
+// anchor.js bundle against new HTML).
+// 
+// To fix unclickable buttons, bust the WASM cache by incrementing the
+// `output-name` in Cargo.toml (e.g., "anchor-v3").
+// ============================================================================
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 

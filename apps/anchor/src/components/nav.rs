@@ -183,6 +183,22 @@ pub fn Nav() -> impl IntoView {
     view! {
         <>
         // ── Fixed top nav bar ──────────────────────────────────────────────────
+        // Z-INDEX ANCHOR: This nav is always present at z-[60] (z-index:60).
+        //
+        // RULE: Modals and full-screen overlays MUST use z-index ≥ 70 to appear 
+        //   above this bar.
+        //
+        // NOTE ON PAGE COMPONENTS (like AtlasLoginPanel):
+        //   Do NOT force them to use `position: fixed` or `z-index: 70`. They 
+        //   should flow naturally in the document (min-height: 100vh) and be 
+        //   cleared by a layout shell (e.g., `<main pt-24>`). If buttons on 
+        //   those components break, it is usually a WASM hydration cache mismatch
+        //   caused by Cloudflare, not a z-index layout issue.
+        //
+        // The hierarchy is intentional:
+        //   55 = mobile slide-in menu (below nav so hamburger stays tappable)
+        //   60 = nav bar (the baseline fixed element)
+        //   70 = full-screen overlays (modals — must cover nav)
         <nav class=format!("fixed top-0 left-0 w-full flex justify-between items-center py-4 z-[60] {} {}",
             if design.nav_layout == "floating-glass" { "bg-surface/80 backdrop-blur-[20px] shadow-sm" } else { "bg-surface shadow-[0_2px_12px_rgba(0,0,0,0.08)]" },
             if design.container_strategy == "asymmetrical-gutters" { "px-5 md:px-[8.5rem]" } else { "px-5 md:px-12" }

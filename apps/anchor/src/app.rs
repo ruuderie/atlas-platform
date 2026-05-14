@@ -178,6 +178,23 @@ pub fn App() -> impl IntoView {
         <crate::components::theme_provider::ThemeProvider primary_color=theme_color>
             <Router>
                 <div class="flex flex-col min-h-screen">
+                // ── Z-INDEX & HYDRATION CONTRACT ────────────────────────────────────────
+                // <Nav /> is rendered here unconditionally on every route at z-[60].
+                // 
+                // In-Flow Layouts:
+                //   Components like AtlasLoginPanel and dashboards flow in the 
+                //   document and MUST use `pt-24` (or similar padding) in their 
+                //   layout shell (e.g., `<main pt-24>`) to clear the `<Nav />`.
+                //
+                // Full-Screen Overlays:
+                //   True modals or full-screen overlays must use `z-index: 70`.
+                //
+                // HYDRATION WARNING:
+                //   If buttons on a page (like the login panel) become unclickable,
+                //   it is usually NOT a z-index occlusion bug. It is a WASM hydration
+                //   mismatch caused by CDN caching (Cloudflare).
+                //   To fix: bust the WASM cache via `output-name` in Cargo.toml.
+                // ────────────────────────────────────────────────────────────────────────
                 <Nav />
                 {
                     view! { <PageViewTracker /> }
