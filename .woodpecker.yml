@@ -585,6 +585,8 @@ steps:
   notify_discord:
     image: appleboy/drone-discord
     failure: ignore
+    environment:
+      DRONE_BUILD_STATUS: ${CI_PIPELINE_STATUS}
     settings:
       webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
       webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
@@ -605,6 +607,8 @@ steps:
   notify_email:
     image: drillster/drone-email
     failure: ignore
+    environment:
+      DRONE_BUILD_STATUS: ${CI_PIPELINE_STATUS}
     settings:
       host:
         from_secret: SMTP_SERVER
