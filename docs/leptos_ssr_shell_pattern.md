@@ -164,5 +164,106 @@ When creating a new app that uses `leptos_axum`:
 3. Add `.fallback(leptos_axum::file_and_error_handler(shell))`
 4. Add the `/api/{*fn_name}` server function route
 5. Verify the Dockerfile `COPY --from=builder` uses the correct workspace-level target path
+6. **Add `LEPTOS_HASH_FILES = "true"` to the k8s base manifest `env:` block** (see section below)
 
 See `apps/anchor/src/main.rs` and `apps/network-instance/src/main.rs` as reference implementations.
+
+---
+
+## CDN Cache Busting & File Hashing
+
+### Why file hashing is required
+
+Every Atlas SSR app deployed behind Cloudflare must use content-hashed WASM and JS bundles.
+Without hashing, Cloudflare's edge cache will serve stale `anchor.js` from the previous
+deployment to users that have not hard-refreshed. The browser then tries to hydrate the new
+server-rendered HTML with old JS — the DOM structures don't match — and Leptos panics silently.
+The result: **the page renders visually but ALL buttons are dead and no events fire.**
+
+### The three-layer configuration (all three must be present)
+
+File hashing requires consistent configuration across three separate layers. Failing to set
+any one of them causes a different failure mode:
+
+| Layer | Setting | Failure if missing |
+|---|---|---|
+| `Cargo.toml` | `hash-files = true` | Filenames are not hashed; Cloudflare serves stale bundles |
+| `Dockerfile` | `ENV LEPTOS_HASH_FILES="true"` | Works for `docker run` locally but not in k8s |
+| `k8s/base/<app>.yaml` | `env: LEPTOS_HASH_FILES: "true"` | Pod starts but serves **dead static HTML** (502 from Cloudflare) |
+
+### The Kubernetes env precedence footgun
+
+> [!CAUTION]
+> This is the most dangerous footgun in the platform. It causes a 502 with no obvious error log.
+
+When a pod uses `envFrom: configMapRef`, Kubernetes merges the ConfigMap values into the
+container environment. **However, `ENV` instructions baked into the Docker image do NOT
+automatically survive this merge.** Any variable not explicitly listed in the pod spec's
+`env:` block is not guaranteed to reach the running process.
+
+**Timeline of the incident:**
+1. `ENV LEPTOS_HASH_FILES="true"` added to `Dockerfile` ✅
+2. Image built and pushed successfully ✅
+3. Pod deployed — `envFrom: configMapRef` applied at startup
+4. `LEPTOS_HASH_FILES` silently dropped — not in ConfigMap, not in `env:` block ❌
+5. Leptos SSR server starts, looks for `anchor.js` — file is actually `anchor-a1b2c3d4.js` ❌
+6. Process panics on first request → Cloudflare returns 502
+
+### Canonical k8s manifest snippet for any Leptos SSR app
+
+```yaml
+containers:
+- name: your-app
+  image: ghcr.io/ruuderie/your-app:latest
+  envFrom:
+  - configMapRef:
+      name: app-config
+  - secretRef:
+      name: app-secrets
+  ports:
+  - containerPort: 3000
+  # ── Leptos Runtime Configuration ─────────────────────────────────────
+  # CRITICAL — DO NOT REMOVE. These MUST live in the k8s manifest env: block.
+  # envFrom (configMapRef) does not preserve Dockerfile ENV values.
+  # LEPTOS_HASH_FILES: mirrors `hash-files = true` in Cargo.toml.
+  #   Remove this and the server injects no <script> tag → dead HTML → 502.
+  env:
+  - name: LEPTOS_SITE_ADDR
+    value: "0.0.0.0:3000"
+  - name: LEPTOS_SITE_ROOT
+    value: "site"             # must match Dockerfile COPY destination
+  - name: LEPTOS_HASH_FILES
+    value: "true"
+```
+
+### Debugging a 502 on a Leptos SSR app
+
+```bash
+# 1. Confirm it's not a k8s connectivity issue
+curl -I https://your-domain.com
+
+# 2. Check pod status
+kubectl get pods -n atlas-dev -l app=your-app
+
+# 3. Get crash logs — the panic message will indicate the exact cause
+kubectl logs -n atlas-dev -l app=your-app --tail=50
+
+# 4. Confirm LEPTOS_HASH_FILES reached the process
+kubectl exec -n atlas-dev deployment/your-app -- env | grep LEPTOS
+
+# 5. Verify hashed assets were built and copied into the container
+kubectl exec -n atlas-dev deployment/your-app -- find /app/site/pkg -type f | sort
+#  Expected: /app/site/pkg/anchor-a1b2c3d4.js  (hashed name)
+#  If you see:  /app/site/pkg/anchor.js         (unhashed) → hash-files not active at build time
+```
+
+### Diagnostic panic → root cause table (updated)
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| `you are using leptos_meta without a </head> tag` | Missing `shell()` function | Add `shell()` and wire into `leptos_routes` |
+| 502, pod crash, `No such file or directory` for `.js` | `hash-files=true` in Cargo.toml but `LEPTOS_HASH_FILES` missing from k8s manifest | Add to `env:` in `k8s/base/<app>.yaml` |
+| Page loads visually, buttons do nothing | Cloudflare serving stale unhashed WASM bundle | Ensure all three hash-files layers are set; hard-purge Cloudflare cache |
+| `Invalid static segment: {slug}` | Axum route using Leptos path! syntax | Use `{slug}` in Axum routes, `:slug` in Leptos `path!()` |
+| `you are reading a resource in hydrate mode outside a <Suspense/>` | `Resource::new` read outside Suspense | Switch to `LocalResource` or wrap in `<Suspense>` |
+

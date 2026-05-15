@@ -85,11 +85,27 @@ spec:
             name: app-config
         - secretRef:
             name: app-secrets
+        ports:
+        - containerPort: <port>   # the port your app listens on
+        # ── Leptos Runtime Configuration ─────────────────────────────────────
+        # CRITICAL — DO NOT REMOVE. For any Leptos SSR app (leptos_axum), these
+        # env vars MUST be declared here, NOT only in the Dockerfile.
+        # When Kubernetes applies envFrom: configMapRef, variables baked into the
+        # Docker image via ENV are not guaranteed to survive. Any Leptos runtime
+        # variable not explicitly listed in env: below will be silently dropped.
+        #
+        # LEPTOS_HASH_FILES must mirror `hash-files = true` in Cargo.toml.
+        # If missing: server boots normally but injects no <script> tag → 502.
+        # See docs/leptos_ssr_shell_pattern.md for the full incident breakdown.
         env:
         - name: DATABASE_URL
           value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"
-        ports:
-        - containerPort: <port>   # the port your app listens on
+        - name: LEPTOS_SITE_ADDR
+          value: "0.0.0.0:<port>"
+        - name: LEPTOS_SITE_ROOT
+          value: "site"             # must match the Dockerfile COPY destination
+        - name: LEPTOS_HASH_FILES
+          value: "true"
 ---
 apiVersion: v1
 kind: Service
@@ -104,6 +120,8 @@ spec:
 ```
 
 > **Critical:** The `image:` field must contain a **real, pullable SHA tag** — never the placeholder string `ATLAS_IMAGE_TAG`. Set it to the SHA of the first image you push manually (see Step 5). The pipeline will update it automatically after that using `kubectl set image`.
+
+> **Note (CSR apps only):** `platform-admin` is a pure CSR app built with Trunk. It does not use `leptos_axum` or SSR. The Leptos runtime env vars above do not apply to it — omit them from its manifest.
 
 ---
 
@@ -266,13 +284,14 @@ This means a `.woodpecker.yml`-only change (e.g., updating pipeline logic) will 
 
 | Step | What | Where |
 |------|------|-------|
-| 1 | Create `Dockerfile` with `BUILD_PROFILE` arg | `apps/<your-app>/Dockerfile` |
-| 2 | Create K8s manifest with real image tag | `k8s/base/<your-app>.yaml` |
+| 1 | Create `Dockerfile` with `BUILD_PROFILE` arg and `ENV LEPTOS_HASH_FILES="true"` | `apps/<your-app>/Dockerfile` |
+| 2 | Create K8s manifest with real image tag **and Leptos env block** | `k8s/base/<your-app>.yaml` |
 | 3 | Register in Kustomize | `k8s/base/kustomization.yaml` |
 | 4 | Add ingress rules (UAT + prod) | `k8s/overlays/uat/ingress.yaml`, `k8s/overlays/prod/ingress.yaml` |
 | 5 | Push first image manually to GHCR | (one-time bootstrap) |
 | 6a | Add `publish_<app>_dev` + `publish_<app>_uat` steps | `.woodpecker.yml` |
 | 6b | Add `update_service` call in deploy step | `.woodpecker.yml` |
+| 7 | Verify `hash-files = true` in `Cargo.toml` and all three env layers are set | `Cargo.toml`, `Dockerfile`, `k8s/base/<app>.yaml` |
 
 ---
 

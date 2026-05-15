@@ -99,3 +99,30 @@ This isolates blast radiuses: A compromise of the Dev pipeline key physically ca
 Instead of hacking TLS constraints inside stripped cluster interfaces, the architecture was fully decoupled sequentially using Woodpecker multi-image bindings:
 1. Created an isolated preceding pipeline step (`decrypt_secrets_uat`) leveraging a generic `alpine:latest` container. Because this image possesses native root trust, it installed a fully-fledged `curl` dynamically, pulled the literal statically linked AMD64 SOPS binary perfectly out of Github over TLS, explicitly handled the `secret.enc.yaml` cryptographic decryption, and saved the parsed credential variables out transparently inside the shared CI-volume (`/woodpecker/src/`).
 2. Dropped the existing deployment step back completely into the trusted `rancher/k3s:latest` layer to ingest that natively processed YAML file organically via `kubectl apply -f`, immediately wiping the unencrypted ghost state from the deployment disk before continuing.
+
+---
+
+## 11. Leptos WASM Hydration 502 (K8s Env Var Precedence Footgun)
+
+**Issue:** After enabling `hash-files = true` in `Cargo.toml` and adding `ENV LEPTOS_HASH_FILES="true"` to the `Dockerfile`, the deployment succeeded but the site immediately returned 502. No Kubernetes health check failures were reported; the pod appeared running.
+
+**Cause:** This is a Kubernetes environment variable precedence trap. The Leptos SSR server (`cargo-leptos`) has a critical two-part requirement for file hashing:
+1. `hash-files = true` in `Cargo.toml` tells the **compiler** to generate hashed filenames (e.g. `anchor-a1b2c3d4.js`).
+2. `LEPTOS_HASH_FILES=true` in the **runtime environment** tells the SSR server that it should look for hashed filenames when injecting the `<script>` tag into HTML.
+
+The `ENV` instruction in a `Dockerfile` bakes the variable into the image's default environment. **However**, when Kubernetes starts the pod and applies `envFrom: configMapRef`, the ConfigMap values are merged into the container environment. Any variable **not** listed in the pod spec's explicit `env:` block and **not** present in the ConfigMap is silently dropped. `LEPTOS_HASH_FILES` was in neither — so it was stripped at pod startup. The SSR server then looked for `anchor.js`, found only `anchor-a1b2c3d4.js`, panicked on the first request, and Cloudflare returned 502.
+
+**Correction:**
+All critical Leptos runtime variables must be explicitly declared in the `env:` block of the Kubernetes base manifest (`k8s/base/<app>.yaml`). The `Dockerfile` `ENV` declarations serve as a fallback for local `docker run` only and are not authoritative in a Kubernetes deployment.
+
+```yaml
+env:
+- name: LEPTOS_SITE_ADDR
+  value: "0.0.0.0:3000"
+- name: LEPTOS_SITE_ROOT
+  value: "site"
+- name: LEPTOS_HASH_FILES
+  value: "true"
+```
+
+See `docs/leptos_ssr_shell_pattern.md § CDN Cache Busting & File Hashing` for the full three-layer configuration requirement and debugging commands.
