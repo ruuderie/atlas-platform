@@ -1,7 +1,7 @@
 // Build: 2026-05-14 — forces anchor image rebuild via CI path detection.
 // ARCHITECTURE & HYDRATION INVARIANT — READ BEFORE EDITING
 // ============================================================================
-// AtlasLoginPanel operates in standard document flow (`min-height:100vh`).
+// AtlasLoginPanel operates in standard document flow (`flex: 1`).
 // It expects to be rendered inside a layout shell that provides clearance for
 // the global navigation bar (e.g., `<main pt-24>`).
 //
@@ -98,8 +98,10 @@ fn token_view(
         }
     });
 
-    let page = "min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
-    let card = "width:100%;max-width:420px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
+    // INVARIANT: This panel flows in the document. Do not use position:fixed.
+    // See file header for hydration/cache-busting instructions if buttons break.
+    let page = "flex:1;width:100%;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
+    let card = "width:100%;max-width:420px;height:440px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
 
     view! {
         <Suspense fallback=move || view! {
@@ -197,8 +199,10 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
         error_sig.set(Some(err));
     });
 
-    let page = "min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
-    let card = "width:100%;max-width:420px;min-height:380px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
+    // INVARIANT: This panel flows in the document. Do not use position:fixed.
+    // See file header for hydration/cache-busting instructions if buttons break.
+    let page = "flex:1;width:100%;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
+    let card = "width:100%;max-width:420px;height:440px;background:#faf9f5;border:1px solid #e8e6dc;border-radius:8px;padding:48px 40px;box-shadow:0 4px 24px rgba(0,0,0,0.05);box-sizing:border-box;";
 
 
     view! {
