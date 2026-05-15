@@ -31,11 +31,20 @@ pub async fn exchange_setup_token(token: String) -> Result<String, ServerFnError
                 let data: serde_json::Value = r.json().await.unwrap_or_default();
                 if let Some(session_token) = data.get("token").and_then(|v| v.as_str()) {
                     use leptos_axum::ResponseOptions;
-                    let response = expect_context::<ResponseOptions>();
+                    use leptos_axum::extract;
+                    use axum::http::HeaderMap;
+                    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+                    let host = headers
+                        .get("host")
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("localhost");
+                    let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+                    let secure = if is_https { "; Secure" } else { "" };
                     let header_val = format!(
-                        "session={}; HttpOnly; Path=/; SameSite=Strict",
-                        session_token
+                        "session={}; HttpOnly; Path=/; SameSite=Strict{}",
+                        session_token, secure
                     );
+                    let response = expect_context::<ResponseOptions>();
                     response.append_header(
                         axum::http::header::SET_COOKIE,
                         axum::http::HeaderValue::from_str(&header_val).unwrap(),

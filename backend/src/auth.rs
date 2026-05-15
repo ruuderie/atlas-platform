@@ -72,11 +72,11 @@ pub fn generate_jwt(user: &user::Model) -> Result<String, jsonwebtoken::errors::
     tracing::debug!("[{}] Generating JWT for user: {} ({})", 
         operation_id, user.id, user.email);
     
-    // Get JWT secret from environment or use default (for development only)
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-        tracing::warn!("[{}] JWT_SECRET not set in environment, using default (insecure)", operation_id);
-        "your-secret-key".to_string()
-    });
+    // JWT_SECRET must be present — the pod refuses to start without it rather
+    // than silently using a well-known default that any attacker can exploit.
+    let jwt_secret = env::var("JWT_SECRET")
+        .expect("JWT_SECRET must be set in the environment");
+
     
     let jwt_expiry_hours = env::var("JWT_EXPIRY_HOURS")
         .ok()
@@ -133,11 +133,11 @@ pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::er
     tracing::debug!("[{}] Generating admin JWT for user: {} ({})", 
         operation_id, user.id, user.email);
     
-    // Get JWT secret from environment or use default (for development only)
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-        tracing::warn!("[{}] JWT_SECRET not set in environment, using default (insecure)", operation_id);
-        "your-secret-key".to_string()
-    });
+    // JWT_SECRET must be present — the pod refuses to start without it rather
+    // than silently using a well-known default that any attacker can exploit.
+    let jwt_secret = env::var("JWT_SECRET")
+        .expect("JWT_SECRET must be set in the environment");
+
     
     let jwt_expiry_hours = env::var("ADMIN_JWT_EXPIRY_HOURS")
         .ok()
@@ -193,9 +193,9 @@ pub fn generate_impersonation_jwt(target_user: &user::Model, admin_id: &Uuid) ->
     tracing::info!("[{}] Generating IMPERSONATION JWT for user: {} ({}) by Admin: {}", 
         operation_id, target_user.id, target_user.email, admin_id);
     
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-        "your-secret-key".to_string()
-    });
+    let jwt_secret = env::var("JWT_SECRET")
+        .expect("JWT_SECRET must be set in the environment");
+
     
     let jwt_expiry_hours = 2; // Hardcode a short 2 hour span for impersonation scopes
         
@@ -227,11 +227,11 @@ pub fn validate_jwt<T: DeserializeOwned>(token: &str) -> Result<T, jsonwebtoken:
     
     tracing::debug!("[{}] Validating JWT: {}", operation_id, token_preview);
     
-    // Get JWT secret from environment or use default (for development only)
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
-        tracing::warn!("[{}] JWT_SECRET not set in environment, using default (insecure)", operation_id);
-        "your-secret-key".to_string()
-    });
+    // JWT_SECRET must be present — the pod refuses to start without it rather
+    // than silently using a well-known default that any attacker can exploit.
+    let jwt_secret = env::var("JWT_SECRET")
+        .expect("JWT_SECRET must be set in the environment");
+
     
     let decoding_key = DecodingKey::from_secret(jwt_secret.as_ref());
     let mut validation = Validation::default();
