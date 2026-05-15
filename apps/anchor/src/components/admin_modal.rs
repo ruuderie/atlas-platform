@@ -1263,8 +1263,8 @@ pub fn ResumeProfileForm(
                         let res = entries_res.get();
                         view! {
                         <div class="grid grid-cols-1 gap-2">
-                            {match res {
-                                Some(Ok(entries)) => {
+                            {match shared_ui::utils::ResourceState::from(res) {
+                                shared_ui::utils::ResourceState::Ready(entries) => {
                                     entries.into_iter().map(|e| {
                                         let eid = e.id;
                                         let is_checked = move || active_entries.get().contains_key(&eid);
@@ -1319,7 +1319,8 @@ pub fn ResumeProfileForm(
                                         }
                                     }).collect::<Vec<_>>().into_any()
                                 },
-                                _ => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_any()
+                                shared_ui::utils::ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                                shared_ui::utils::ResourceState::Error(_) => view! { <div class="text-xs text-error">"Failed to load entries"</div> }.into_any()
                             }}
                         </div>
                         }.into_any()
@@ -1631,8 +1632,8 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
                 >
                     <option value="" selected=move || parent_id_str.get().is_empty()>"-- NONE (TOP LEVEL) --"</option>
                     <Suspense fallback=move || view! { <option>"Loading..."</option> }>
-                        {move || match parents_resource.get() {
-                            Some(Ok(items)) => items.into_iter()
+                        {move || match shared_ui::utils::ResourceState::from(parents_resource.get()) {
+                            shared_ui::utils::ResourceState::Ready(items) => items.into_iter()
                                 .filter(|i| i.href.is_none() || i.href.as_deref() == Some(""))
                                 .map(|i| {
                                     let id_s = i.id.to_string();
@@ -1642,7 +1643,8 @@ pub fn NavItemForm(initial_item: Option<crate::components::nav::NavItemRecord>) 
                                         </option>
                                     }
                             }).collect::<Vec<_>>().into_any(),
-                            _ => view! { <option disabled=true>"ERROR"</option> }.into_any()
+                            shared_ui::utils::ResourceState::Loading => view! { <option class="hidden" disabled=true></option> }.into_any(),
+                            shared_ui::utils::ResourceState::Error(_) => view! { <option disabled=true>"ERROR"</option> }.into_any()
                         }}
                     </Suspense>
                 </select>
@@ -2016,8 +2018,8 @@ pub fn BaseResumeEntryForm(
                         let res = profiles_res.get();
                         view! {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {match res {
-                                Some(Ok(profiles)) => {
+                            {match shared_ui::utils::ResourceState::from(res) {
+                                shared_ui::utils::ResourceState::Ready(profiles) => {
                                     profiles.into_iter().map(|p| {
                                         let pid = p.id;
                                         let is_checked = move || active_profiles.get().contains(&pid);
@@ -2037,7 +2039,8 @@ pub fn BaseResumeEntryForm(
                                         }
                                     }).collect::<Vec<_>>().into_any()
                                 },
-                                _ => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_any()
+                                shared_ui::utils::ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                                shared_ui::utils::ResourceState::Error(_) => view! { <div class="text-xs text-error">"Failed to load profiles"</div> }.into_any()
                             }}
                         </div>
                         }.into_any()

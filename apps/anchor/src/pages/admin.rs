@@ -122,7 +122,7 @@ pub fn Admin() -> impl IntoView {
     // The server fn is robust (returns true on any error) so no deserialization panic can kill the reactive graph.
     // This was the root cause of Bug A (dead nav buttons).
     let passkey_check = LocalResource::new(move || async move {
-        check_has_passkey().await.unwrap_or(true)
+        check_has_passkey().await.unwrap_or_else(|_| true)
     });
     Effect::new(move |_| {
         if let Some(false) = passkey_check.get() {

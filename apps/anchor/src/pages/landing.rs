@@ -628,8 +628,8 @@ pub fn Landing() -> impl IntoView {
                                         view! {
                                             <div class="space-y-4 text-left border border-outline-variant/30 p-6 bg-surface-container-lowest/50">
                                                 <Transition fallback=move || view! { <div>"..."</div> }>
-                                                {move || match options_res.get() {
-                                                    Some(Ok(options)) => options.into_iter().map(|opt| {
+                                                {move || match shared_ui::utils::ResourceState::from(options_res.get()) {
+                                                    shared_ui::utils::ResourceState::Ready(options) => options.into_iter().map(|opt| {
                                                         let k = opt.value_key.clone();
                                                         view! {
                                                         <label class="flex items-center space-x-3 cursor-pointer group">
@@ -647,7 +647,8 @@ pub fn Landing() -> impl IntoView {
                                                         </label>
                                                         }
                                                     }).collect::<Vec<_>>().into_any(),
-                                                    _ => view! { <div>"No options available."</div> }.into_any(),
+                                                    shared_ui::utils::ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                                                    shared_ui::utils::ResourceState::Error(_) => view! { <div>"No options available."</div> }.into_any(),
                                                 }}
                                                 </Transition>
                                             </div>

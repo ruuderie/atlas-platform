@@ -169,7 +169,6 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
     }
 }
 
-#[cfg(any(feature = "ssr", feature = "hydrate"))]
 #[server(CheckHasPasskey, "/api")]
 pub async fn check_has_passkey() -> Result<bool, ServerFnError> {
     #[cfg(feature = "ssr")]
