@@ -41,6 +41,12 @@ async fn main() {
             "/metrics",
             axum::routing::get(|| async move { metric_handle.render() }),
         )
+        // Health check — must be registered BEFORE /api/{*fn_name} so the Leptos
+        // server-fn handler doesn't intercept it and return 400 (unknown function).
+        .route(
+            "/api/health",
+            axum::routing::get(|| async { axum::http::StatusCode::OK }),
+        )
         .route(
             "/api/{*fn_name}",
             axum::routing::get(leptos_axum::handle_server_fns).post(leptos_axum::handle_server_fns),
