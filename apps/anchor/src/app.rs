@@ -159,11 +159,10 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
-        // NOTE: Do NOT add a hardcoded <Stylesheet href="/pkg/anchor.css"/> here.
-        // When hash-files = true in Cargo.toml, cargo-leptos generates a hashed filename
-        // (e.g. /pkg/anchor-a1b2c3d4.css). The correct hashed <link> tag is injected
-        // automatically by <HydrationScripts> in main.rs via the hash.txt manifest.
-        // A hardcoded unhashed href will 404 and break CSS on every deployment.
+        // Manual cache-busting: the CSS filename matches `output-name` in Cargo.toml.
+        // When deploying a new WASM bundle, increment the suffix (v4 → v5) in BOTH
+        // Cargo.toml (output-name) and here to force Cloudflare to serve fresh assets.
+        <Stylesheet id="leptos" href="/pkg/anchor-v4.css"/>
 
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <Title text=title_sig/>

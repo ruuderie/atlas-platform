@@ -94,10 +94,10 @@ wasm-bindgen-test = "0.3.67"
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
-output-name = "anchor"
-
-# Enable file hashing to permanently prevent Cloudflare/browser caching of old WASM bundles
-hash-files = true
+# NOTE: Increment the version suffix (v4 → v5, etc.) on each deployment to bust Cloudflare edge
+# caches. This is the proven-reliable alternative to hash-files=true, which requires careful
+# three-layer env var coordination (Cargo.toml + Dockerfile + k8s manifest) to work correctly.
+output-name = "anchor-v4"
 
 # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
 site-root = "target/site"

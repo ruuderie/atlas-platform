@@ -77,15 +77,6 @@ ENV RUST_LOG="info"
 ENV LEPTOS_SITE_ADDR="0.0.0.0:3000"
 ENV LEPTOS_SITE_ROOT="site"
 
-# ARCHITECTURE REQUIREMENT:
-# We use `hash-files = true` in Cargo.toml to generate cryptographically hashed
-# WASM/JS binaries during the build stage to permanently bust Cloudflare edge caching.
-# HOWEVER, cargo-leptos has a massive footgun: the SSR server will ONLY inject the 
-# <script> tag referencing those hashed files if this environment variable is explicitly
-# set at runtime. If you remove this, the server will boot normally but will serve
-# 100% dead, static HTML with no interactivity (hydration panic).
-ENV LEPTOS_HASH_FILES="true"
-
 EXPOSE 3000
 
 CMD ["/app/anchor"]

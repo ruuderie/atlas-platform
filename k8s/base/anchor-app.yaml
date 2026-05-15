@@ -27,17 +27,12 @@ spec:
         - containerPort: 3000
         # ── Leptos Runtime Configuration ─────────────────────────────────────
         # CRITICAL ARCHITECTURE REQUIREMENT — DO NOT REMOVE ANY OF THESE:
-        # These env vars govern how the Axum/Leptos SSR server finds and injects
-        # its WASM and JS assets. They MUST live here in the k8s manifest, NOT
-        # only in the Dockerfile. Reason: `envFrom: configMapRef` merges the
-        # ConfigMap into the container environment at pod start. Any variable NOT
-        # explicitly listed in `env:` below is not guaranteed to survive.
+        # These env vars govern how the Axum/Leptos SSR server finds and serves
+        # its WASM and JS assets.
         #
-        # LEPTOS_HASH_FILES — must mirror `hash-files = true` in Cargo.toml.
-        #   The compiler generates hashed filenames (e.g. anchor-a1b2c3d4.js).
-        #   The SSR server ONLY injects the correct <script> tag if this is "true".
-        #   If missing/false: server boots normally but serves dead static HTML with
-        #   no JS/WASM loaded — ALL buttons silent, ALL reactive events dead.
+        # Cache-busting strategy: manual output-name versioning (anchor-v4).
+        # When deploying a new WASM bundle, increment the suffix in Cargo.toml
+        # (output-name) and in app.rs (<Stylesheet href="/pkg/anchor-vN.css"/>).
         #
         # LEPTOS_SITE_ROOT — path where the compiled site/ directory was placed
         #   inside the container by the Dockerfile COPY step. Must match exactly.
@@ -50,8 +45,6 @@ spec:
           value: "0.0.0.0:3000"
         - name: LEPTOS_SITE_ROOT
           value: "site"
-        - name: LEPTOS_HASH_FILES
-          value: "true"
 ---
 apiVersion: v1
 kind: Service
