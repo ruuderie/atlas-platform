@@ -159,7 +159,7 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
-        <Stylesheet id="leptos" href="/pkg/anchor.css?v=2"/>
+        <Stylesheet id="leptos" href="/pkg/anchor-v3.css"/>
 
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <Title text=title_sig/>

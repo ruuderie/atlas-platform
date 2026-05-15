@@ -48,13 +48,7 @@ ssr = [
 wasm-bindgen-test = "0.3.64"
 
 [package.metadata.leptos]
-output-name = "network-instance"
-
-# ARCHITECTURE REQUIREMENT:
-# Enable file hashing to permanently prevent Cloudflare/CDN edge caching
-# of old WASM bundles. Without this, aggressive caching will cause fatal
-# hydration mismatches between fresh HTML and stale WASM.
-hash-files = true
+output-name = "network-instance-v2"
 site-root = "target/site"
 site-pkg-dir = "pkg"
 style-file = "style/tailwind-out.css"
