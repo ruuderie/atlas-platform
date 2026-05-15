@@ -21,8 +21,25 @@ use leptos_router::hooks::use_query_map;
 use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link};
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-enum TokenState { None, Success, Failed }
+#[derive(Clone, PartialEq)]
+enum TokenFailure {
+    /// Token string exists in DB but the 15-minute window has passed.
+    Expired,
+    /// Token was already consumed by a prior successful login click.
+    AlreadyUsed,
+    /// Token string not found in DB — likely a malformed or copied link.
+    NotFound,
+    /// Unexpected backend or network error.
+    ServerError,
+}
+
+#[derive(Clone, PartialEq)]
+enum TokenState {
+    /// Resource not yet resolved — WASM is still verifying.
+    Pending,
+    Success,
+    Failed(TokenFailure),
+}
 
 /// Full auth UI component — owns passkey, magic-link send, AND token verification.
 /// Every app using this gets the complete auth flow for free.
@@ -55,20 +72,31 @@ fn token_view(
 ) -> impl IntoView {
     // IMPORTANT: Use LocalResource (client-only) — NOT Resource.
     // Resource::new runs during SSR, which would consume the single-use token
-    // server-side before WASM loads. If the session cookie then fails to stick
-    // (e.g. browser rejects it without the Secure flag on first response),
-    // the token is gone and the next click shows "already expired".
-    // LocalResource skips SSR entirely: the Suspense fallback shows on first
-    // load, WASM verifies the token, sets the cookie, and navigates cleanly.
+    // server-side before WASM loads. LocalResource skips SSR entirely: WASM
+    // verifies the token, the Set-Cookie header is proxied, then we navigate.
     let resource = LocalResource::new(move || {
         let tok = token.clone();
         async move {
             match tok {
                 Some(t) if !t.is_empty() => match verify_magic_link(t).await {
-                    Ok(_)  => TokenState::Success,
-                    Err(_) => TokenState::Failed,
+                    Ok(_) => TokenState::Success,
+                    Err(e) => {
+                        // Map the structured error_code prefix the backend returns
+                        // into a typed TokenFailure variant.
+                        let msg = e.to_string();
+                        let failure = if msg.contains("token_already_used") {
+                            TokenFailure::AlreadyUsed
+                        } else if msg.contains("token_expired") {
+                            TokenFailure::Expired
+                        } else if msg.contains("token_not_found") {
+                            TokenFailure::NotFound
+                        } else {
+                            TokenFailure::ServerError
+                        };
+                        TokenState::Failed(failure)
+                    }
                 },
-                _ => TokenState::None,
+                _ => TokenState::Failed(TokenFailure::NotFound),
             }
         }
     });
@@ -119,7 +147,10 @@ fn token_view(
             </div>
         }>
             {move || match resource.get() {
-                None | Some(TokenState::None) => view!{ <div/> }.into_any(),
+                // Resource not yet resolved — show nothing (Suspense fallback covers this)
+                None => view!{ <div/> }.into_any(),
+
+                Some(TokenState::Pending) => view!{ <div/> }.into_any(),
 
                 Some(TokenState::Success) => view! {
                     <div style=page>
@@ -135,40 +166,54 @@ fn token_view(
                     </div>
                 }.into_any(),
 
-                Some(TokenState::Failed) => view! {
-                    <div style=page>
-                        <div style=card>
-                            <div style="border-left:3px solid #c0392b;padding-left:10px;margin-bottom:24px;">
-                                <p style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#922b21;margin:0 0 4px;">"Sign-in link invalid"</p>
-                                <h1 style="font-size:22px;font-weight:500;color:#141413;margin:0;">"This link has expired"</h1>
-                            </div>
-                            <p style="font-size:14px;color:#504e49;line-height:1.6;margin:0 0 8px;">
-                                "Sign-in links are single-use and expire after 15 minutes. \
-                                 This link has already been used or is no longer valid."
-                            </p>
-                            <p style="font-size:13px;color:#6b6a64;line-height:1.55;margin:0 0 28px;">
-                                "If you didn't use this link, your account is secure \u{2014} \
-                                 magic links can only be activated once."
-                            </p>
-                            // Use a button + window.location.replace instead of an <a href>.
-                            // Leptos router intercepts same-origin <a> clicks as client-side
-                            // navigations, which keeps the component mounted with stale has_token=true
-                            // and the expired card stays on screen. A hard reload via
-                            // window.location.replace fully remounts the component from scratch.
-                            <button type="button"
-                                on:click=move |_| {
-                                    #[cfg(feature = "hydrate")]
-                                    if let Some(w) = web_sys::window() {
-                                        let _ = w.location().replace("/admin?mode=email");
+                Some(TokenState::Failed(reason)) => {
+                    // Each failure reason gets a distinct heading and explanation.
+                    let (heading, detail, hint) = match reason {
+                        TokenFailure::AlreadyUsed => (
+                            "This link has already been used",
+                            "Sign-in links are single-use. This link was consumed by a previous login attempt.",
+                            "If that wasn't you, your account is secure — each link can only be activated once.",
+                        ),
+                        TokenFailure::Expired => (
+                            "This link has expired",
+                            "Sign-in links expire after 15 minutes. This one is no longer valid.",
+                            "Request a new link below and click it within 15 minutes.",
+                        ),
+                        TokenFailure::NotFound => (
+                            "Sign-in link not recognised",
+                            "This link doesn't match any active sign-in request. It may have been copied incorrectly.",
+                            "Request a fresh link below.",
+                        ),
+                        TokenFailure::ServerError => (
+                            "Something went wrong",
+                            "We couldn't verify your sign-in link due to a server error.",
+                            "Please try again in a moment.",
+                        ),
+                    };
+                    view! {
+                        <div style=page>
+                            <div style=card>
+                                <div style="border-left:3px solid #c0392b;padding-left:10px;margin-bottom:24px;">
+                                    <p style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#922b21;margin:0 0 4px;">"Sign-in link invalid"</p>
+                                    <h1 style="font-size:22px;font-weight:500;color:#141413;margin:0;">{heading}</h1>
+                                </div>
+                                <p style="font-size:14px;color:#504e49;line-height:1.6;margin:0 0 8px;">{detail}</p>
+                                <p style="font-size:13px;color:#6b6a64;line-height:1.55;margin:0 0 28px;">{hint}</p>
+                                <button type="button"
+                                    on:click=move |_| {
+                                        #[cfg(feature = "hydrate")]
+                                        if let Some(w) = web_sys::window() {
+                                            let _ = w.location().replace("/admin?mode=email");
+                                        }
                                     }
-                                }
-                                style="display:block;width:100%;box-sizing:border-box;background:#1B365D;color:#faf9f5;border:none;border-radius:6px;padding:12px 20px;font-size:14px;font-weight:500;text-align:center;cursor:pointer;"
-                            >
-                                "Request a new sign-in link"
-                            </button>
+                                    style="display:block;width:100%;box-sizing:border-box;background:#1B365D;color:#faf9f5;border:none;border-radius:6px;padding:12px 20px;font-size:14px;font-weight:500;text-align:center;cursor:pointer;"
+                                >
+                                    "Request a new sign-in link"
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                }.into_any(),
+                    }.into_any()
+                },
             }}
         </Suspense>
     }

@@ -293,14 +293,42 @@ pub async fn request_magic_link(
         let id = Uuid::new_v4();
         let created_at = Utc::now();
         let expires_at = Utc::now() + Duration::minutes(15);
+
+        // Expire ALL existing unused tokens for this user before creating a new one.
+        // This guarantees exactly one valid token exists at any time, regardless of
+        // whether the partial unique index (magic_link_token_one_per_user_active) is
+        // in place. Old emails become immediately invalid when a new link is requested,
+        // giving the user a clear "already used" message instead of confusion.
+        let expired_count = sea_orm::ConnectionTrait::execute(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false",
+                vec![user_mod.id.into()],
+            ),
+        )
+        .await
+        .map(|r| r.rows_affected())
+        .unwrap_or(0);
+
+        if expired_count > 0 {
+            tracing::info!(
+                event = "magic_link.prior_tokens_expired",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                count = expired_count,
+            );
+            metrics::MAGIC_LINK_DUPLICATES_PREVENTED
+                .with_label_values(&["unknown", &final_app_instance_id])
+                .inc();
+        }
+
         let sql = r#"
             INSERT INTO magic_link_token (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
             VALUES ($1, $2, $3, $4, false, $5, $6, false)
-            ON CONFLICT (user_id) WHERE is_used = false
-            DO NOTHING
         "#;
-        
-        let insert_res = sea_orm::ConnectionTrait::execute(
+
+        sea_orm::ConnectionTrait::execute(
             &db,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -320,24 +348,6 @@ pub async fn request_magic_link(
             tracing::error!("Error saving magic link: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-
-        if insert_res.rows_affected() == 0 {
-            tracing::warn!(
-                event = "magic_link.duplicate_prevented",
-                request_id = %request_id,
-                user_id = %user_mod.id,
-                email = %user_mod.email,
-                ip = %ip,
-                duration_ms = start.elapsed().as_millis(),
-                status = "blocked"
-            );
-
-            metrics::MAGIC_LINK_DUPLICATES_PREVENTED
-                .with_label_values(&["unknown", &final_app_instance_id])
-                .inc();
-
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
-        }
 
         let magic_link_url = match validated_redirect_url {
             Some(ref base) => {
@@ -412,9 +422,10 @@ pub async fn verify_magic_link(
     let start = Instant::now();
     let request_id = generate_request_id();
 
+    // Look up the token WITHOUT filtering is_used so we can return a precise error code.
+    // The frontend TokenFailure enum uses these codes to show contextual messages.
     let magic_link_opt = magic_link_token::Entity::find()
         .filter(magic_link_token::Column::Token.eq(&payload.token))
-        .filter(magic_link_token::Column::IsUsed.eq(false))
         .one(&db)
         .await
         .map_err(|_e| (StatusCode::INTERNAL_SERVER_ERROR, "Database Error".to_string()))?;
@@ -428,9 +439,21 @@ pub async fn verify_magic_link(
                 reason = "token_not_found",
                 duration_ms = start.elapsed().as_millis()
             );
-            return Err((StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string()));
+            // Structured error code for frontend enum
+            return Err((StatusCode::UNAUTHORIZED, "error_code:token_not_found".to_string()));
         }
     };
+
+    if magic_link.is_used {
+        tracing::warn!(
+            event = "magic_link.verify.failed",
+            request_id = %request_id,
+            user_id = %magic_link.user_id,
+            reason = "token_already_used",
+            duration_ms = start.elapsed().as_millis()
+        );
+        return Err((StatusCode::UNAUTHORIZED, "error_code:token_already_used".to_string()));
+    }
 
     if magic_link.expires_at < Utc::now() {
         tracing::warn!(
@@ -439,8 +462,8 @@ pub async fn verify_magic_link(
             user_id = %magic_link.user_id,
             reason = "token_expired",
             duration_ms = start.elapsed().as_millis()
-            );
-            return Err((StatusCode::UNAUTHORIZED, "Token has expired".to_string()));
+        );
+        return Err((StatusCode::UNAUTHORIZED, "error_code:token_expired".to_string()));
     }
 
     let user_mod = user::Entity::find_by_id(magic_link.user_id)

@@ -102,7 +102,7 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
         let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
-        let secure_flag = if is_https { "; Secure" } else { "" };
+        let _secure_flag = if is_https { "; Secure" } else { "" };
 
         let payload = serde_json::json!({ "token": token });
         let url = format!("{}/api/auth/magic-link/verify", get_atlas_api_url());
@@ -111,11 +111,7 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
 
         match res {
             Ok(r) if r.status().is_success() => {
-                // SessionResponse.token is #[serde(skip_serializing)] — it is NEVER in
-                // the JSON body, so reading data.get("token") always returned None and
-                // every verification silently became TokenFailed while the token was
-                // already marked is_used=true on the backend.
-                // The backend now sets a Set-Cookie header; we proxy it to the browser.
+                // Proxy the Set-Cookie from the backend to the browser.
                 let cookie = r.headers()
                     .get("set-cookie")
                     .and_then(|v| v.to_str().ok())
@@ -129,9 +125,25 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                     );
                     return Ok("SUCCESS".to_string());
                 }
-                Err(ServerFnError::ServerError("No session cookie in verify response".into()))
+                Err(ServerFnError::ServerError("error_code:server_error".into()))
             },
-            _ => Err(ServerFnError::ServerError("Failed to verify magic link".into())),
+            Ok(r) => {
+                // Surface the structured error_code so the frontend TokenFailure enum
+                // can branch on Expired vs AlreadyUsed vs NotFound.
+                let body = r.text().await.unwrap_or_default();
+                let code = if body.contains("token_already_used") {
+                    "error_code:token_already_used"
+                } else if body.contains("token_expired") {
+                    "error_code:token_expired"
+                } else {
+                    "error_code:token_not_found"
+                };
+                Err(ServerFnError::ServerError(code.into()))
+            },
+            Err(e) => {
+                leptos::logging::error!("Magic link verify error: {:?}", e);
+                Err(ServerFnError::ServerError("error_code:server_error".into()))
+            },
         }
     }
     #[cfg(not(feature = "ssr"))]
