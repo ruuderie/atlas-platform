@@ -159,7 +159,11 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
-        <Stylesheet id="leptos" href="/pkg/anchor.css"/>
+        // NOTE: Do NOT add a hardcoded <Stylesheet href="/pkg/anchor.css"/> here.
+        // When hash-files = true in Cargo.toml, cargo-leptos generates a hashed filename
+        // (e.g. /pkg/anchor-a1b2c3d4.css). The correct hashed <link> tag is injected
+        // automatically by <HydrationScripts> in main.rs via the hash.txt manifest.
+        // A hardcoded unhashed href will 404 and break CSS on every deployment.
 
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <Title text=title_sig/>
