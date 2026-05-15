@@ -5,33 +5,44 @@
     "tags": ["kubernetes", "state", "commits", "resources", "ingress"],
     "time": { "from": "now-6h", "to": "now" },
     "refresh": "1m",
-    "annotations": {
-      "list": [
-        {
-          "builtIn": 1,
-          "datasource": "-- Grafana --",
-          "enable": true,
-          "hide": false,
-          "iconColor": "rgba(0, 211, 255, 1)",
-          "name": "Annotations & Alerts",
-          "target": { "limit": 100, "matchAny": false, "tags": [], "type": "dashboard" },
-          "type": "dashboard"
-        },
-        {
-          "datasource": "-- Grafana --",
-          "enable": true,
-          "iconColor": "#E02F44",
-          "name": "Woodpecker Deployments",
-          "target": { "limit": 100, "matchAny": false, "tags": ["deploy"], "type": "tags" }
-        }
-      ]
-    },
     "panels": [
       {
-        "id": 1,
-        "title": "Application Health Matrix (Deployments)",
+        "id": 10,
+        "title": "Total Cluster CPU Usage",
         "type": "stat",
-        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 10 },
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 4 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "fieldConfig": {
+          "defaults": { "unit": "cores" }
+        },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\"}[5m]))"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Total Cluster Memory Usage",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 4 },
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "fieldConfig": {
+          "defaults": { "unit": "bytes" }
+        },
+        "targets": [
+          {
+            "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+            "expr": "sum(container_memory_working_set_bytes{container!=\"\", container!=\"POD\"})"
+          }
+        ]
+      },
+      {
+        "id": 1,
+        "title": "Pod Health Matrix",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 10 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "options": {
           "colorMode": "background",
@@ -42,16 +53,15 @@
         "fieldConfig": {
           "defaults": {
             "mappings": [
-              { "type": "value", "options": { "0": { "color": "green", "text": "Healthy" } } },
-              { "type": "range", "options": { "from": 1, "to": 9999, "result": { "color": "red", "text": "Unhealthy" } } }
+              { "type": "value", "options": { "1": { "color": "green", "text": "Healthy (Running)" }, "0": { "color": "red", "text": "Unhealthy/Pending" } } }
             ]
           }
         },
         "targets": [
           {
             "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-            "expr": "kube_deployment_status_replicas_unavailable{namespace=~\"atlas-.*\"}",
-            "legendFormat": "{{namespace}} / {{deployment}}"
+            "expr": "kube_pod_status_phase{phase=\"Running\", exported_namespace=~\"atlas-.*\"}",
+            "legendFormat": "{{exported_namespace}} / {{pod}}"
           }
         ]
       },
@@ -59,12 +69,12 @@
         "id": 2,
         "title": "Live Version Matrix",
         "type": "table",
-        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 10 },
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 10 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "targets": [
           {
             "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-            "expr": "max by(namespace, container, image) (kube_pod_container_info{namespace=~\"atlas-.*\", container!=\"\", container!=\"POD\"})",
+            "expr": "max by(exported_namespace, exported_container, image) (kube_pod_container_info{exported_namespace=~\"atlas-.*\", exported_container!=\"\", exported_container!=\"POD\"})",
             "format": "table",
             "instant": true
           }
@@ -78,17 +88,25 @@
             "id": "organize",
             "options": {
               "excludeByName": { "Time": true, "Value": true },
-              "indexByName": { "namespace": 0, "container": 1, "image": 2 },
-              "renameByName": { "namespace": "Environment", "container": "Service", "image": "Image (Commit)" }
+              "indexByName": { "exported_namespace": 0, "exported_container": 1, "image": 2 },
+              "renameByName": { "exported_namespace": "Environment", "exported_container": "Service", "image": "Image (Commit)" }
+            }
+          },
+          {
+            "id": "groupingToMatrix",
+            "options": {
+              "columnField": "Environment",
+              "rowField": "Service",
+              "valueField": "Image (Commit)"
             }
           }
         ]
       },
       {
         "id": 3,
-        "title": "CPU Usage per Pod (Cores)",
+        "title": "CPU Usage per Pod",
         "type": "timeseries",
-        "gridPos": { "x": 0, "y": 10, "w": 12, "h": 8 },
+        "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "targets": [
           {
@@ -102,7 +120,7 @@
         "id": 4,
         "title": "Memory Usage per Pod",
         "type": "timeseries",
-        "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+        "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "fieldConfig": {
           "defaults": {
@@ -121,7 +139,7 @@
         "id": 5,
         "title": "Ingress Errors (5xx)",
         "type": "timeseries",
-        "gridPos": { "x": 0, "y": 18, "w": 12, "h": 8 },
+        "gridPos": { "x": 0, "y": 22, "w": 12, "h": 8 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "targets": [
           {
@@ -135,7 +153,7 @@
         "id": 6,
         "title": "OOMKills & Restarts",
         "type": "stat",
-        "gridPos": { "x": 12, "y": 18, "w": 12, "h": 8 },
+        "gridPos": { "x": 12, "y": 22, "w": 12, "h": 8 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
         "options": {
           "colorMode": "background",
