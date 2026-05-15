@@ -92,9 +92,13 @@ pub fn generate_jwt(user: &user::Model) -> Result<String, jsonwebtoken::errors::
     
     // JWT_SECRET must be present — the pod refuses to start without it rather
     // than silently using a well-known default that any attacker can exploit.
-    let jwt_secret = env::var("JWT_SECRET")
-        .expect("JWT_SECRET must be set in the environment");
-
+    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
+        if cfg!(test) {
+            "test_secret_for_unit_tests_only".to_string()
+        } else {
+            panic!("JWT_SECRET must be set in the environment");
+        }
+    });
     
     let jwt_expiry_hours = env::var("JWT_EXPIRY_HOURS")
         .ok()
@@ -153,9 +157,13 @@ pub fn generate_jwt_admin(user: &user::Model) -> Result<String, jsonwebtoken::er
     
     // JWT_SECRET must be present — the pod refuses to start without it rather
     // than silently using a well-known default that any attacker can exploit.
-    let jwt_secret = env::var("JWT_SECRET")
-        .expect("JWT_SECRET must be set in the environment");
-
+    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| {
+        if cfg!(test) {
+            "test_secret_for_unit_tests_only".to_string()
+        } else {
+            panic!("JWT_SECRET must be set in the environment");
+        }
+    });
     
     let jwt_expiry_hours = env::var("ADMIN_JWT_EXPIRY_HOURS")
         .ok()
