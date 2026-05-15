@@ -363,6 +363,8 @@ steps:
         from_secret: SMTP_FROM
       METRICS_TOKEN:
         from_secret: METRICS_TOKEN
+      JWT_SECRET:
+        from_secret: JWT_SECRET
       KUBE_DEPLOY_TOKEN:
         from_secret: KUBE_DEPLOY_TOKEN
       KUBE_DEPLOY_CA:
@@ -414,7 +416,7 @@ steps:
           uat)
             echo "Deploying to UAT (atlas-uat)..."
 
-            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM METRICS_TOKEN; do
+            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM METRICS_TOKEN JWT_SECRET; do
               secret_value=$(printenv "$secret_name" || echo "")
               if [ -z "$secret_value" ]; then
                 echo "FATAL ERROR: CI Secret '$secret_name' missing! UAT deployment aborted."
@@ -432,13 +434,14 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/uat/config.yaml
+            sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/uat/config.yaml
             kubectl apply -k k8s/overlays/uat
             ;;
 
           dev)
             echo "Deploying to DEV (atlas-dev / dev.buildwithruud.com)..."
 
-            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM METRICS_TOKEN; do
+            for secret_name in ATLAS_INIT_TOKEN DB_USER DB_PASSWORD ADMIN_PASSWORD SMTP_TOKEN SMTP_SERVER SMTP_PORT SMTP_USERNAME SMTP_FROM METRICS_TOKEN JWT_SECRET; do
               secret_value=$(printenv "$secret_name" || echo "")
               if [ -z "$secret_value" ]; then
                 echo "FATAL ERROR: CI Secret '$secret_name' missing! Dev deployment aborted."
@@ -456,6 +459,7 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_USERNAME|$SMTP_USERNAME|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/dev/config.yaml
+            sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/dev/config.yaml
             kubectl apply -k k8s/overlays/dev
             ;;
 

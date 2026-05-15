@@ -39,3 +39,4 @@ stringData:
   # Bearer token required on Authorization: Bearer <token> header for GET /metrics.
   # Must match the bearer_token in the Prometheus scrape job in NixForge/flake.nix.
   METRICS_TOKEN: "REPLACE_WITH_METRICS_TOKEN"
+  JWT_SECRET: "REPLACE_WITH_JWT_SECRET"
