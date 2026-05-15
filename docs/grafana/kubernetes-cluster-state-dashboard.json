@@ -41,15 +41,9 @@
       {
         "id": 1,
         "title": "Pod Health Matrix",
-        "type": "stat",
+        "type": "table",
         "gridPos": { "x": 0, "y": 4, "w": 12, "h": 10 },
         "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-        "options": {
-          "colorMode": "background",
-          "graphMode": "none",
-          "justifyMode": "auto",
-          "textMode": "name"
-        },
         "fieldConfig": {
           "defaults": {
             "mappings": [
@@ -61,7 +55,22 @@
           {
             "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
             "expr": "kube_pod_status_phase{phase=\"Running\", exported_namespace=~\"atlas-.*\"}",
-            "legendFormat": "{{exported_namespace}} / {{pod}}"
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "labelsToFields",
+            "options": {}
+          },
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": { "Time": true, "__name__": true, "container": true, "endpoint": true, "instance": true, "job": true, "namespace": true, "phase": true, "uid": true },
+              "indexByName": { "exported_namespace": 0, "pod": 1, "Value": 2 },
+              "renameByName": { "exported_namespace": "Environment", "pod": "Pod Name", "Value": "Status" }
+            }
           }
         ]
       },
@@ -74,7 +83,7 @@
         "targets": [
           {
             "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
-            "expr": "max by(exported_namespace, exported_container, image) (kube_pod_container_info{exported_namespace=~\"atlas-.*\", exported_container!=\"\", exported_container!=\"POD\"})",
+            "expr": "max by(exported_namespace, exported_container, version) (label_replace(kube_pod_container_info{exported_namespace=~\"atlas-.*\", exported_container!=\"\", exported_container!=\"POD\"}, \"version\", \"$1\", \"image\", \".*:([^:]+)\"))",
             "format": "table",
             "instant": true
           }
@@ -88,8 +97,8 @@
             "id": "organize",
             "options": {
               "excludeByName": { "Time": true, "Value": true },
-              "indexByName": { "exported_namespace": 0, "exported_container": 1, "image": 2 },
-              "renameByName": { "exported_namespace": "Environment", "exported_container": "Service", "image": "Image (Commit)" }
+              "indexByName": { "exported_namespace": 0, "exported_container": 1, "version": 2 },
+              "renameByName": { "exported_namespace": "Environment", "exported_container": "Service", "version": "Version / Commit" }
             }
           },
           {
@@ -97,7 +106,7 @@
             "options": {
               "columnField": "Environment",
               "rowField": "Service",
-              "valueField": "Image (Commit)"
+              "valueField": "Version / Commit"
             }
           }
         ]
