@@ -32,7 +32,7 @@
         "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "sum by (app_instance_id) (passkey_registration_success_total[7d]) / clamp_max(sum by (app_instance_id) (passkey_registration_started_total[7d]), 1)"
+            "expr": "sum by (app_instance_id) (increase(passkey_registration_success_total[7d])) / clamp_max(sum by (app_instance_id) (increase(passkey_registration_started_total[7d])), 1)"
           }
         ]
       },
@@ -53,7 +53,7 @@
         "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
         "targets": [
           {
-            "expr": "sum by (app_instance_id) (auth_requests_total[5m])"
+            "expr": "sum by (app_instance_id) (increase(auth_requests_total[5m]))"
           }
         ]
       },

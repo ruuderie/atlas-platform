@@ -64,7 +64,7 @@
         "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
         "targets": [
           {
-            "expr": "sum by (tenant_id) (passkey_registration_success_total[7d]) / clamp_max(sum by (tenant_id) (passkey_registration_started_total[7d]), 1)"
+            "expr": "sum by (tenant_id) (increase(passkey_registration_success_total[7d])) / clamp_max(sum by (tenant_id) (increase(passkey_registration_started_total[7d])), 1)"
           }
         ]
       },
@@ -95,7 +95,7 @@
         "gridPos": { "x": 0, "y": 32, "w": 24, "h": 8 },
         "targets": [
           {
-            "expr": "sum by (tenant_id) (auth_requests_total{status=\"success\"}[5m]) / sum by (tenant_id) (auth_requests_total[5m])"
+            "expr": "sum by (tenant_id) (increase(auth_requests_total{status=\"success\"}[5m])) / sum by (tenant_id) (increase(auth_requests_total[5m]))"
           }
         ]
       }
