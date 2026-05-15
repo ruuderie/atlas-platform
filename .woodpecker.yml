@@ -306,6 +306,39 @@ steps:
         - 'apps/shared-ui/**'
         - '.woodpecker.yml'
 
+  # ── Deployment Markers ──────────────────────────────────────────────────────
+  # We use these markers because Woodpecker's CI_PIPELINE_FILES variable is often
+  # empty on large pushes, causing the deployment script to silently skip updates.
+  # These steps natively use Woodpecker's robust path filtering to set flags.
+  
+  mark_backend_built:
+    image: alpine
+    commands: [ "touch .backend_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "backend/**", ".woodpecker.yml" ]
+
+  mark_anchor_built:
+    image: alpine
+    commands: [ "touch .anchor_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "apps/anchor/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+
+  mark_network_built:
+    image: alpine
+    commands: [ "touch .network_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "apps/network-instance/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+
+  mark_admin_built:
+    image: alpine
+    commands: [ "touch .admin_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "apps/platform-admin/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+
   # ── Unified CD Deployment ───────────────────────────────────────────────────
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
@@ -464,34 +497,24 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        if [ -z "$CHANGED" ]; then
-          echo "ℹ CI_PIPELINE_FILES is empty — config/secrets applied, image rollouts skipped."
-          echo "  Reason: no source files changed in this commit, so no images were built."
-          echo "  To force a full image update: re-trigger the pipeline from the Woodpecker UI"
-          echo "  on a commit that touches backend/ or apps/."
+        if [ ! -f .backend_built ] && [ ! -f .anchor_built ] && [ ! -f .network_built ] && [ ! -f .admin_built ]; then
+          echo "ℹ No app build markers found — config and secrets applied, image rollouts skipped."
+          echo "  (If you expected an image update, check the 'when: path' rules on the mark_*_built steps)"
         else
-          if echo "$CHANGED" | grep -qE "(\.woodpecker\.yml|k8s/)" && ! echo "$CHANGED" | grep -qE "^(backend/|apps/)"; then
-            echo "Config/infra-only change — config and secrets applied, no image updates needed."
-          else
-            if echo "$CHANGED" | grep -qE "^backend/"; then
-              update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
-            fi
+          if [ -f .backend_built ]; then
+            update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
+          fi
 
-            if echo "$CHANGED" | grep -qE "^apps/shared-ui/"; then
-              update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-              update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-              update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
-            else
-              if echo "$CHANGED" | grep -qE "^apps/platform-admin/"; then
-                update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-              fi
-              if echo "$CHANGED" | grep -qE "^apps/network-instance/"; then
-                update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-              fi
-              if echo "$CHANGED" | grep -qE "^apps/anchor/"; then
-                update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
-              fi
-            fi
+          if [ -f .anchor_built ]; then
+            update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
+          fi
+
+          if [ -f .network_built ]; then
+            update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
+          fi
+
+          if [ -f .admin_built ]; then
+            update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
           fi
         fi
 
