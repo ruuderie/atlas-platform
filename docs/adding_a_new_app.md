@@ -254,15 +254,28 @@ Publish steps are **split by branch** so dev gets a fast debug build and uat get
 
 ### 6b — Deploy wiring (updates the running pod image)
 
-Inside the `deploy_platform_k8s` step's scoped rollout block, add a condition for your app in **both** the UAT and prod branches:
+Because Woodpecker's `CI_PIPELINE_FILES` variable is notoriously fragile on large commits, we use a robust file-flag approach to trigger deployments.
+
+First, add a marker step **before** `deploy_platform_k8s`:
 
 ```yaml
-          if echo "$CHANGED" | grep -qE "^apps/<your-app>/"; then
+  mark_<your-app>_built:
+    image: alpine
+    commands: [ "touch .<your-app>_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "apps/<your-app>/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+```
+
+Next, inside the `deploy_platform_k8s` step's script block, add an `if` block for your app:
+
+```yaml
+          if [ -f .<your-app>_built ]; then
             update_service <your-app> "$REGISTRY/<your-app>:$SHORT_SHA"
           fi
 ```
 
-This must be added in the final `if/else` block in `commands:`, alongside the existing conditions for `backend`, `platform-admin`, `network-instance`, and `anchor-app`.
+And finally, add `&& [ ! -f .<your-app>_built ]` to the skip condition at the top of that block.
 
 ---
 
