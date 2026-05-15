@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
+use shared_ui::utils::ResourceState;
 
 use crate::b2b::{get_case_studies, get_highlights, get_services};
 use crate::pages::landing::get_site_settings;
@@ -21,8 +22,8 @@ pub fn Services() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="min-h-screen pt-32 pb-24 px-6 md:px-12 flex justify-center items-center jetbrains text-outline">"Authenticating Protocol..."</div> }>
-            {move || match settings_res.get() {
-                Some(Ok(settings)) => {
+            {move || match ResourceState::from(settings_res.get()) {
+                ResourceState::Ready(settings) => {
                     if !settings.b2b_enabled {
                         view! {
                             <Title text="Not Found" />
@@ -57,8 +58,8 @@ pub fn Services() -> impl IntoView {
                 </div>
 
                 <Transition fallback=move || view! { <div class="text-center text-outline jetbrains">"Loading services..."</div> }>
-                    {move || match services_res.get() {
-                        Some(Ok(items)) => {
+                    {move || match ResourceState::from(services_res.get()) {
+                        ResourceState::Ready(items) => {
                             if items.is_empty() {
                                 view! { <div class="text-center text-outline">"Services are currently being updated. Check back soon."</div> }.into_any()
                             } else {
@@ -92,7 +93,8 @@ pub fn Services() -> impl IntoView {
                                 }.into_any()
                             }
                         },
-                        _ => view! { <div class="text-error">"Failed to load services"</div> }.into_any(),
+                        ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                        ResourceState::Error(_) => view! { <div class="text-error">"Failed to load services"</div> }.into_any(),
                     }}
                 </Transition>
             </section>
@@ -107,8 +109,8 @@ pub fn Services() -> impl IntoView {
                 </div>
 
                 <Transition fallback=move || view! { <div class="text-center text-outline jetbrains">"Loading case studies..."</div> }>
-                    {move || match case_studies_res.get() {
-                        Some(Ok(items)) => {
+                    {move || match ResourceState::from(case_studies_res.get()) {
+                        ResourceState::Ready(items) => {
                             if items.is_empty() {
                                 view! { <div class="text-center text-outline italic">"Select case studies available upon request."</div> }.into_any()
                             } else {
@@ -149,7 +151,8 @@ pub fn Services() -> impl IntoView {
                                 }.into_any()
                             }
                         },
-                        _ => view! { <div class="text-error">"Failed to load case studies"</div> }.into_any(),
+                        ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                        ResourceState::Error(_) => view! { <div class="text-error">"Failed to load case studies"</div> }.into_any(),
                     }}
                 </Transition>
             </section>
@@ -161,7 +164,8 @@ pub fn Services() -> impl IntoView {
                         }.into_any()
                     }
                 },
-                _ => view! { <div class="text-error mt-32 px-12">"System Failure"</div> }.into_any()
+                ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                ResourceState::Error(_) => view! { <div class="text-error mt-32 px-12">"System Failure"</div> }.into_any()
             }}
         </Transition>
     }
@@ -179,8 +183,8 @@ pub fn HighlightsGallery() -> impl IntoView {
             </div>
 
             <Transition fallback=move || view! { <div class="text-outline jetbrains px-6">"Loading highlights..."</div> }>
-                {move || match highlights_res.get() {
-                    Some(Ok(items)) => {
+                {move || match ResourceState::from(highlights_res.get()) {
+                    ResourceState::Ready(items) => {
                         if items.is_empty() {
                             view! { <div class="hidden"></div> }.into_any()
                         } else {
@@ -223,7 +227,8 @@ pub fn HighlightsGallery() -> impl IntoView {
                             }.into_any()
                         }
                     },
-                    _ => view! { <div class="text-error px-6">"Failed to load highlights"</div> }.into_any()
+                    ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                    ResourceState::Error(_) => view! { <div class="text-error px-6">"Failed to load highlights"</div> }.into_any()
                 }}
             </Transition>
 

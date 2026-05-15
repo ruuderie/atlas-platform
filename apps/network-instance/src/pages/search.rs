@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
+use shared_ui::utils::ResourceState;
 use crate::app::{ListingModel, PaginatedListings};
 use crate::components::seo::Seo;
 use crate::components::search_ui::{SearchGrid, RefinementSidebar};
@@ -88,8 +89,10 @@ pub fn Search() -> impl IntoView {
                             <p class="text-on-surface-variant max-w-xl leading-relaxed">"Browse verified renovation contractors, handymen, and home service professionals across Connecticut."</p>
                         </div>
                         <Suspense fallback=|| view! { <span/> }>
-                            {move || match search_resource.get() {
-                                Some(Ok(ref res)) => view! {
+                            {move || match ResourceState::from(search_resource.get()) {
+                                ResourceState::Loading => view! { <span class="hidden"></span> }.into_any(),
+                                ResourceState::Error(_) => view! { <span/> }.into_any(),
+                                ResourceState::Ready(ref res) => view! {
                                     <div class="hidden md:flex items-center gap-2 bg-surface-container-lowest px-5 py-3 rounded-lg text-sm shadow-sm">
                                         <span class="text-[#004289] font-extrabold text-lg">{res.total}</span>
                                         <span class="text-on-surface-variant font-medium">"Results Found"</span>
@@ -99,7 +102,6 @@ pub fn Search() -> impl IntoView {
                                         </button>
                                     </div>
                                 }.into_any(),
-                                _ => view! { <span/> }.into_any(),
                             }}
                         </Suspense>
                     </div>

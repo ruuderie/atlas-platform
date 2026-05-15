@@ -3,8 +3,10 @@ use axum::{
     http::{StatusCode, header},
     response::{IntoResponse, Response},
     routing::post,
+    Extension,
     Router,
 };
+use axum::http::HeaderMap;
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -17,6 +19,7 @@ use std::env;
 use crate::entities::{user, magic_link_token};
 use crate::models::session::SessionResponse;
 use crate::handlers::sessions::{create_passwordless_session, session_cookie_header};
+use crate::middleware::rate_limiter::RateLimiter;
 
 #[derive(Deserialize)]
 pub struct MagicLinkRequest {
@@ -114,8 +117,28 @@ pub async fn request_magic_link(
 
 pub async fn verify_magic_link(
     State(db): State<DatabaseConnection>,
+    Extension(rate_limiter): Extension<RateLimiter>,
+    headers: HeaderMap,
     Json(req): Json<MagicLinkVerifyRequest>,
 ) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+    // Rate-limit the verify endpoint to create an observable signal for bulk
+    // token enumeration attempts. Brute-force is infeasible (190-bit entropy)
+    // but this generates a Prometheus counter and log event if triggered.
+    let ip = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .unwrap_or("unknown")
+        .trim()
+        .to_string();
+    if let Err(_) = rate_limiter.check_rate_limit(&ip).await {
+        tracing::warn!(event = "verify.rate_limited", ip = %ip);
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({ "message": "Too many requests. Please try again later." })),
+        ));
+    }
+
     let user_record = crate::services::auth_service::AuthService::verify_magic_link(&db, &req.token)
         .await
         .map_err(|(status, msg)| (status, Json(json!({ "message": msg }))))?;

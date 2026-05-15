@@ -6,6 +6,24 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use crate::entities::user;
 use std::env;
 use uuid::Uuid;
+use sha2::{Sha256, Digest};
+
+/// Produce the SHA-256 hex digest of a session token.
+///
+/// This is used to store a one-way fingerprint of `bearer_token` and
+/// `refresh_token` in the database. On lookup, we hash the incoming token
+/// and compare against the stored digest — the plaintext JWT never needs
+/// to leave the client after initial issuance.
+///
+/// # Security properties
+/// - SHA-256 is a one-way function: hash → token reconstruction is infeasible.
+/// - JWTs are not short enough for pre-computation / rainbow table attacks.
+/// - Constant-time comparison is not required here because the attacker
+///   already knows the token (it's in the cookie) — the hash only protects
+///   against DB-at-rest compromise.
+pub fn hash_token(token: &str) -> String {
+    format!("{:x}", Sha256::digest(token.as_bytes()))
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Claims {

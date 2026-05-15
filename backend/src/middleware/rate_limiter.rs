@@ -11,6 +11,16 @@ const AUTH_MAX_IP_REQUESTS: u32 = 5;
 const AUTH_MAX_EMAIL_REQUESTS: u32 = 3;
 const AUTH_WINDOW_SIZE: Duration = Duration::from_secs(600); // 10 minutes
 
+// ⚠️  REPLICA BYPASS LIMITATION
+// This rate limiter uses in-process DashMap state. With replicas > 1, each pod
+// has independent counters \u2014 an attacker can send (replicas × limit) requests
+// before either pod triggers a block.
+//
+// Short-term: keep `replicas: 1` in the backend Deployment manifest.
+// Long-term: replace DashMap stores with a Redis INCR+EXPIRE pattern, or
+// enforce primary rate limiting at the Cloudflare WAF layer (rate limit rule
+// on /magic-links/request by IP \u2014 Cloudflare sees the true IP pre-pod).
+
 #[derive(Clone)]
 pub struct RateLimiter {
     store: Arc<DashMap<String, (Instant, u32)>>,

@@ -7,7 +7,7 @@ use sea_orm::{DatabaseConnection, ColumnTrait, EntityTrait, Set, ActiveModelTrai
 use uuid::Uuid;
 use chrono::{Utc, Duration};
 use crate::entities::{session, user};
-use crate::auth::{generate_jwt, verify_password, generate_jwt_admin};
+use crate::auth::{generate_jwt, verify_password, generate_jwt_admin, hash_token};
 use crate::models::session::{UserInfo, SessionResponse};
 use crate::models::user::UserLogin;
 use axum::extract::State;
@@ -176,6 +176,11 @@ pub async fn create_session_for_user(
         user_id: Set(user.id),
         bearer_token: Set(bearer_token.clone()),
         refresh_token: Set(refresh_token.clone()),
+        // Store SHA-256 hashes for secure DB lookup (Security #7).
+        // Dual-write: plaintext columns kept for backward compat until a follow-up
+        // migration drops them after full rollout of hash-based lookup.
+        bearer_token_hash: Set(Some(hash_token(&bearer_token))),
+        refresh_token_hash: Set(Some(hash_token(&refresh_token))),
         token_expiration: Set(token_expiration),
         refresh_token_expiration: Set(refresh_token_expiration),
         created_at: Set(Utc::now()),
@@ -188,10 +193,12 @@ pub async fn create_session_for_user(
 
     let integrity_hash = {
         let temp_model = session::Model {
-            id: new_session.id.clone().unwrap(),
+                    id: new_session.id.clone().unwrap(),
             user_id: user.id,
             bearer_token: bearer_token.clone(),
             refresh_token: refresh_token.clone(),
+            bearer_token_hash: Some(hash_token(&bearer_token)),
+            refresh_token_hash: Some(hash_token(&refresh_token)),
             token_expiration,
             refresh_token_expiration,
             created_at: Utc::now(),
@@ -261,15 +268,31 @@ pub async fn validate_session(
         StatusCode::UNAUTHORIZED
     })?;
     
+    // Look up session by bearer_token_hash (secure) with fallback to plaintext
+    // for sessions created before migration m20260515_000001.
+    let token_hash = hash_token(&token);
     let session = match session::Entity::find()
-        .filter(session::Column::BearerToken.eq(token.clone()))
+        .filter(session::Column::BearerTokenHash.eq(&token_hash))
         .one(&db)
         .await
     {
         Ok(Some(session)) => session,
-        Ok(None) => {
-            tracing::warn!("No session found for token");
-            return Err(StatusCode::UNAUTHORIZED);
+        // Fallback: pre-migration sessions have NULL hash — look up by plaintext.
+        Ok(None) => match session::Entity::find()
+            .filter(session::Column::BearerToken.eq(token.clone()))
+            .filter(session::Column::BearerTokenHash.is_null())
+            .one(&db)
+            .await
+        {
+            Ok(Some(session)) => session,
+            Ok(None) => {
+                tracing::warn!("No session found for token");
+                return Err(StatusCode::UNAUTHORIZED);
+            },
+            Err(e) => {
+                tracing::error!("Database error when fetching session (fallback): {:?}", e);
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
         },
         Err(e) => {
             tracing::error!("Database error when fetching session: {:?}", e);
@@ -376,15 +399,28 @@ pub async fn refresh_token(
 
     let refresh_token = payload.refresh_token;
     
+    // Look up by refresh_token_hash with plaintext fallback for pre-migration sessions.
+    let refresh_hash = hash_token(&refresh_token);
     let session = match session::Entity::find()
-        .filter(session::Column::RefreshToken.eq(refresh_token))
+        .filter(session::Column::RefreshTokenHash.eq(&refresh_hash))
         .one(&db)
         .await {
             Ok(Some(session)) => session,
-            Ok(None) => {
-                tracing::warn!("No session found for refresh token");
-                return Err(StatusCode::UNAUTHORIZED);
-            },
+            Ok(None) => match session::Entity::find()
+                .filter(session::Column::RefreshToken.eq(&refresh_token))
+                .filter(session::Column::RefreshTokenHash.is_null())
+                .one(&db)
+                .await {
+                    Ok(Some(session)) => session,
+                    Ok(None) => {
+                        tracing::warn!("No session found for refresh token");
+                        return Err(StatusCode::UNAUTHORIZED);
+                    },
+                    Err(e) => {
+                        tracing::error!("Database error when fetching session (fallback): {:?}", e);
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
+                },
             Err(e) => {
                 tracing::error!("Database error when fetching session: {:?}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -436,9 +472,13 @@ pub async fn refresh_token(
 
     let new_token_expiration = Utc::now() + Duration::hours(1);
     let new_refresh_token_expiration = Utc::now() + Duration::days(7);
+    let new_bearer_hash = hash_token(&new_bearer_token);
+    let new_refresh_hash = hash_token(&new_refresh_token);
     let mut updated_session: session::ActiveModel = session.clone().into();
     updated_session.bearer_token = Set(new_bearer_token.clone());
     updated_session.refresh_token = Set(new_refresh_token.clone());
+    updated_session.bearer_token_hash = Set(Some(new_bearer_hash.clone()));
+    updated_session.refresh_token_hash = Set(Some(new_refresh_hash.clone()));
     updated_session.token_expiration = Set(new_token_expiration);
     updated_session.refresh_token_expiration = Set(new_refresh_token_expiration);
     updated_session.last_accessed_at = Set(Utc::now());
@@ -447,10 +487,12 @@ pub async fn refresh_token(
 
     let refreshed_hash = {
         let temp = session::Model {
-            id: session.id,
+                    id: session.id,
             user_id: user.id,
             bearer_token: new_bearer_token.clone(),
             refresh_token: new_refresh_token.clone(),
+            bearer_token_hash: Some(new_bearer_hash.clone()),
+            refresh_token_hash: Some(new_refresh_hash.clone()),
             token_expiration: new_token_expiration,
             refresh_token_expiration: new_refresh_token_expiration,
             created_at: session.created_at,

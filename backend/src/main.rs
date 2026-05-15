@@ -14,7 +14,7 @@ mod webauthn_registry;
 pub mod atlas_apps;
 pub mod metrics;
 
-use axum::http::{self, HeaderValue, Method,Request, StatusCode, header};
+use axum::http::{self, HeaderMap, HeaderValue, Method, Request, StatusCode, header};
 use axum::body::Body;
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::{
@@ -91,8 +91,30 @@ fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
         .allow_credentials(true)
 }
 
-async fn metrics_endpoint() -> String {
-    crate::metrics::metrics_handler()
+/// Prometheus metrics scrape endpoint.
+///
+/// Protected by a static bearer token (`METRICS_TOKEN` env var).
+/// Prometheus scrape config must include:
+///   `bearer_token: <same token>`
+///
+/// Without this, internal counters (magic link rates, session latency) are
+/// publicly accessible to any external actor.
+async fn metrics_endpoint(headers: HeaderMap) -> Result<String, StatusCode> {
+    let expected = std::env::var("METRICS_TOKEN").unwrap_or_default();
+    // If METRICS_TOKEN is unset, deny all — prevents misconfigured pods from leaking data.
+    if expected.is_empty() {
+        tracing::warn!("METRICS_TOKEN is not set — /metrics access denied");
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let provided = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .unwrap_or("");
+    if provided != expected {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    Ok(crate::metrics::metrics_handler())
 }
 
 #[tokio::main]

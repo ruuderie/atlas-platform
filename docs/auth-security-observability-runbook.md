@@ -1,7 +1,7 @@
 # Atlas Platform — Auth & Security Observability Runbook
 
-**Version**: 1.0  
-**Last Updated**: 2026-05-13  
+**Version**: 1.1  
+**Last Updated**: 2026-05-15  
 **Owner**: Platform Team  
 **Status**: Production-Ready
 
@@ -228,6 +228,87 @@ tracing::info!(
 - [ ] Automated passkey enforcement policy engine
 - [ ] Cryptographic audit log chaining
 - [ ] Short-lived JWT + refresh token rotation (zero-trust)
+
+---
+
+**End of Runbook** — Update this document whenever auth architecture or logging standards change.
+
+---
+
+## 11. Security Audit Findings (2026-05-15)
+
+Full analysis documented in `security_analysis.md` from session `f55aba1a`. Summary of all 7 findings and their current state:
+
+### ✅ Finding #1 — JWT_SECRET Fallback to Plaintext
+**File**: `backend/src/auth.rs`  
+**Status**: **Fixed**  
+**Resolution**: Changed `unwrap_or_else(|_| "your-secret-key")` to `.expect("JWT_SECRET must be set")` across all 4 call sites. Pod will refuse to start if secret is absent rather than running with a known public key.
+
+### ✅ Finding #5 — Token Prefix Logged (8 chars)
+**File**: `backend/src/handlers/auth_frontend.rs`  
+**Status**: **Confirmed Resolved** — `token_preview` variable no longer present in file.
+
+### ✅ Finding #6 — Secure Flag Missing on Setup Cookie
+**File**: `apps/anchor/src/auth.rs`  
+**Status**: **Fixed**  
+**Resolution**: Cookie now conditionally sets `; Secure` based on whether host is `localhost` / `127.*`.
+
+### 🔴 Finding #7 — Refresh & Bearer Tokens Stored in Plaintext
+**File**: `backend/src/handlers/sessions.rs`  
+**Status**: **Pending — Pre-UAT Required**  
+**Risk**: A database read compromise (e.g., via a SQL injection or direct access) yields immediately usable JWTs. An attacker with DB access can impersonate any user for up to 7 days.
+
+**Remediation Plan (Non-Breaking)**:
+1. Add `sha2` to `backend/Cargo.toml`.
+2. Implement `pub fn hash_token(token: &str) -> String { format!("{:x}", sha2::Sha256::digest(token.as_bytes())) }` in `auth.rs`.
+3. Add migration to add `bearer_token_hash VARCHAR(64)` and `refresh_token_hash VARCHAR(64)` columns to `session`.
+4. In `create_session_for_user`: store hash in the new columns, keep plaintext in existing columns temporarily (dual-write).
+5. In `validate_session`: look up by `bearer_token_hash = hash_token(incoming)` (use new column).
+6. In `refresh_token` handler: look up by `refresh_token_hash`.
+7. After one full deploy cycle: drop the plaintext columns in a follow-up migration.
+
+### 🟡 Finding #2 — Rate Limiter Not Shared Across Replicas
+**File**: `backend/src/middleware/rate_limiter.rs`  
+**Status**: **Documented** — bypass factor `2×` with current 2 replicas
+
+**Short-term**: Backend `Deployment` MUST be kept at `replicas: 1` until Redis is wired. Comment added to `rate_limiter.rs`.
+
+**Long-term**: Replace `DashMap` stores with Redis `INCR` + `EXPIRE`. Alternatively, configure a Cloudflare WAF rate-limit rule on `/magic-links/request` by `CF-Connecting-IP` (Cloudflare sees the true IP before the pod does — this is the most reliable defense regardless of replica count).
+
+**Prometheus alert to add**:
+```yaml
+- alert: AuthRateLimiterBypassRisk
+  expr: kube_deployment_spec_replicas{deployment="atlas-backend"} > 1
+  labels:
+    severity: warning
+  annotations:
+    summary: "Backend replicas > 1 — in-process rate limiter is bypassable"
+```
+
+### 🟡 Finding #3 — /metrics Publicly Accessible
+**File**: `backend/src/main.rs`  
+**Status**: **Fixed** — Bearer token auth added to `metrics_endpoint`
+
+**Operational steps**:
+1. Generate a token: `openssl rand -hex 32`
+2. Add `METRICS_TOKEN=<value>` to the backend k8s Secret (`kubectl edit secret atlas-backend-secrets -n atlas`).
+3. Update the Prometheus scrape config:
+```yaml
+scrape_configs:
+  - job_name: atlas-backend
+    bearer_token: <same token>
+    static_configs:
+      - targets: ['atlas-backend:8000']
+```
+4. Restart backend pod after the secret is updated.
+5. Verify: `curl -H "Authorization: Bearer <token>" https://api.buildwithruud.com/metrics` — must return `200`.
+6. Verify: `curl https://api.buildwithruud.com/metrics` — must return `401`.
+
+### 🟢 Finding #4 — No Rate Limit on /magic-links/verify
+**File**: `backend/src/handlers/magic_links.rs`  
+**Status**: **Fixed** — General IP rate limiter (100/min) now applied to verify endpoint
+
+The per-IP limit uses the existing `RateLimiter` Extension. An `x-forwarded-for` IP is extracted and checked before token verification. Bulk verification attempts will now generate `verify.rate_limited` log events and `429` responses observable in Loki and Prometheus.
 
 ---
 

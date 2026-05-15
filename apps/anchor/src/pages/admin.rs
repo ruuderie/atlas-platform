@@ -3,6 +3,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
 use shared_ui::auth::atlas_auth::check_has_passkey;
+use shared_ui::utils::ResourceState;
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -93,19 +94,7 @@ pub fn WebformsTable() -> impl IntoView {
     }
 }
 
-/// Returned by the `auth_resource` async block.
-#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-enum AuthStep {
-    Authenticated,
-    Unauthenticated,
-}
 
-#[derive(Clone, PartialEq)]
-enum AuthState {
-    Pending,
-    Yes,
-    No,
-}
 
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
 /// Token verification, expired-link UI, URL cleanup — all owned by the panel.
@@ -119,28 +108,13 @@ pub fn Admin() -> impl IntoView {
     let query = use_query_map();
 
     // ── Auth resource ─────────────────────────────────────────────────────────
-    // Uses create_resource (not create_effect + spawn_local) so it integrates
-    // directly with the Leptos reactive scheduler and resolves correctly even
-    // when the component mounts inside the outer App <Suspense>.
-    //
-    // Reactive key: the ?token= query param. If a magic-link token is present
-    // it is verified first; otherwise we fall through to session validation.
-    // The resource re-runs automatically if the URL query string changes.
+    // `Resource::new` integrates with the Leptos reactive scheduler and resolves
+    // correctly inside the outer App <Suspense>.
+    // Returns `Result<bool, ServerFnError>` — mapped via `ResourceState` below.
     let auth_resource = Resource::new(
         || (),
-        |_| async move {
-            match check_session().await {
-                Ok(true) => AuthStep::Authenticated,
-                _ => AuthStep::Unauthenticated,
-            }
-        },
+        |_| async move { check_session().await },
     );
-
-    let auth_state = move || match auth_resource.get() {
-        Some(AuthStep::Authenticated) => AuthState::Yes,
-        Some(AuthStep::Unauthenticated) => AuthState::No,
-        None => AuthState::Pending,
-    };
     let show_passkey_nudge = RwSignal::new(false);
 
     // ── Passkey nudge check (client-only, safe hydration) ─────────────────────
@@ -176,20 +150,23 @@ pub fn Admin() -> impl IntoView {
                 <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
             </div>
         }>
-            {move || match auth_state() {
-                AuthState::Pending => view! {
-                    <div class="flex-1 flex justify-center items-center">
-                        <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
-                    </div>
+            // ResourceState::from() maps:
+            //   None              → Loading  (Suspense fallback handles visible spinner)
+            //   Some(Ok(false))   → show LoginPanel
+            //   Some(Err(_))      → show LoginPanel (treat auth error as unauthenticated)
+            //   Some(Ok(true))    → render dashboard
+            {move || match ResourceState::from(auth_resource.get()) {
+                ResourceState::Loading => view! {
+                    <div class="hidden"></div>
                 }.into_any(),
 
-                // ── Unauthenticated ─────────────────────────────────────────────
-                AuthState::No => view! {
+                // ── Unauthenticated / Error ──────────────────────────────────
+                ResourceState::Ready(false) | ResourceState::Error(_) => view! {
                     <LoginPanel />
                 }.into_any(),
 
-                // ── Authenticated ───────────────────────────────────────────────
-                AuthState::Yes => view! {
+                // ── Authenticated ───────────────────────────────────────────
+                ResourceState::Ready(true) => view! {
                     <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
                         // Sidebar
                         <aside class="w-full md:w-64 shrink-0 space-y-2">
@@ -384,8 +361,8 @@ fn PageHeaderTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(headers)) => headers.into_iter().map(|h| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(headers) => headers.into_iter().map(|h| {
                             let h_clone = h.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
@@ -400,7 +377,8 @@ fn PageHeaderTable() -> impl IntoView {
                             </tr>
                             }
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -417,8 +395,8 @@ fn DashboardView() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"COMPILING_TELEMETRY..."</div> }>
-            {move || match stats_resource.get() {
-                Some(Ok(stats)) => view! {
+            {move || match ResourceState::from(stats_resource.get()) {
+                ResourceState::Ready(stats) => view! {
                     <div class="grid grid-cols-2 gap-8">
                         <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
                             <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Mempool Network Fetches (24H)"</span>
@@ -438,7 +416,8 @@ fn DashboardView() -> impl IntoView {
                         </div>
                     </div>
                 }.into_any(),
-                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
+                ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                ResourceState::Error(_) => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
             }}
         </Transition>
     }
@@ -454,8 +433,8 @@ fn SettingsReadView() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING SETTINGS..."</div> }>
-            {move || match settings_res.get() {
-                Some(Ok(s)) => view! {
+            {move || match ResourceState::from(settings_res.get()) {
+                ResourceState::Ready(s) => view! {
                     <div class="space-y-0">
                     <div class="grid grid-cols-3 border-b-2 border-outline-variant/30 pb-2 mb-4">
                         <div class="font-label text-[0.65rem] uppercase tracking-widest text-outline">"KEY"</div>
@@ -546,7 +525,8 @@ fn SettingsReadView() -> impl IntoView {
                         </div>
                 </div>
                 }.into_any(),
-                _ => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
+                ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                ResourceState::Error(_) => view! { <div class="text-error">"Failed to load settings"</div> }.into_any()
             }}
         </Transition>
     }
@@ -576,8 +556,8 @@ fn ResumeProfileTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="jetbrains text-sm">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|item| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|item| {
                             let id_val = item.id;
                             let clone_item = item.clone();
                             view! {
@@ -656,7 +636,8 @@ fn ResumeProfileTable() -> impl IntoView {
                                 </tr>
                             }
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -678,8 +659,8 @@ fn BaseResumeEntryTable() -> impl IntoView {
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"LOADING DATA..."</div> }>
-            {move || match items_res.get() {
-                Some(Ok(items)) => {
+            {move || match ResourceState::from(items_res.get()) {
+                ResourceState::Ready(items) => {
                     if items.is_empty() {
                         view! { <div class="py-8 text-center text-outline-variant">"NO ENTRIES IN DATABASE"</div> }.into_any()
                     } else {
@@ -754,7 +735,8 @@ fn BaseResumeEntryTable() -> impl IntoView {
                         }).collect::<Vec<_>>().into_any()
                     }
                 },
-                _ => view! { <div class="py-8 text-center text-error">"ERR_NO_DATA"</div> }.into_any(),
+                ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                ResourceState::Error(_) => view! { <div class="py-8 text-center text-error">"ERR_NO_DATA"</div> }.into_any(),
             }}
         </Transition>
     }
@@ -841,8 +823,8 @@ fn LeadOptionTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="jetbrains text-sm">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|item| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|item| {
                             let id_val = item.id;
                             let clone_item = item.clone();
                             view! {
@@ -872,7 +854,8 @@ fn LeadOptionTable() -> impl IntoView {
                                 </tr>
                             }
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="6" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="6" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -903,8 +886,8 @@ fn MailingListTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|i| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|i| {
                             let prefs_title = i.preferences.clone();
                             let prefs_text = i.preferences;
                             view! {
@@ -934,7 +917,8 @@ fn MailingListTable() -> impl IntoView {
                             </tr>
                             }
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -967,8 +951,8 @@ fn PostTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(posts)) => posts.into_iter().map(|p| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(posts) => posts.into_iter().map(|p| {
                             let p_clone = p.clone();
                             let del_id = p.id.clone();
                             view! {
@@ -1002,7 +986,8 @@ fn PostTable() -> impl IntoView {
                             </tr>
                             }
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1034,8 +1019,8 @@ fn PasskeyTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(users)) => users.into_iter().map(|u| view! {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(users) => users.into_iter().map(|u| view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 text-outline-variant">"#" {u.id}</td>
                                 <td class="py-4 px-4 font-bold text-primary">{u.username}</td>
@@ -1059,7 +1044,8 @@ fn PasskeyTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1092,8 +1078,8 @@ pub fn LandingPageTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(pages)) => pages.into_iter().map(|p| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(pages) => pages.into_iter().map(|p| {
                             let p_clone = p.clone();
                             let p_clone_2 = p.clone();
                             view! {
@@ -1125,7 +1111,8 @@ pub fn LandingPageTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="3" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1159,8 +1146,8 @@ pub fn NavTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|n| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|n| {
                             let n_clone = n.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
@@ -1195,7 +1182,8 @@ pub fn NavTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1229,8 +1217,8 @@ pub fn FooterTable() -> impl IntoView {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|n| {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|n| {
                             let n_clone = n.clone();
                             view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
@@ -1264,7 +1252,8 @@ pub fn FooterTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1296,8 +1285,8 @@ pub fn ServiceTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
                                 <td class="py-4 px-4 font-bold text-primary">{item.title}</td>
@@ -1310,7 +1299,8 @@ pub fn ServiceTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1342,8 +1332,8 @@ pub fn CaseStudyTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
                                 <td class="py-4 font-bold text-primary">{item.client_name}</td>
@@ -1356,7 +1346,8 @@ pub fn CaseStudyTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>
@@ -1388,8 +1379,8 @@ pub fn HighlightTable() -> impl IntoView {
                     <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
                 </tr></thead>
                 <tbody class="divide-y divide-outline-variant/20">
-                    {match res {
-                        Some(Ok(items)) => items.into_iter().map(|item| { let c = item.clone(); view! {
+                    {match ResourceState::from(res) {
+                        ResourceState::Ready(items) => items.into_iter().map(|item| { let c = item.clone(); view! {
                             <tr class="hover:bg-surface-container-high transition-colors group">
                                 <td class="py-4 px-4 text-outline-variant">{item.display_order}</td>
                                 <td class="py-4 font-bold text-primary">{item.title}</td>
@@ -1402,7 +1393,8 @@ pub fn HighlightTable() -> impl IntoView {
                                 </td>
                             </tr>
                         }}).collect::<Vec<_>>().into_any(),
-                        _ => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
+                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
+                        ResourceState::Error(_) => view! { <tr><td colspan="4" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
                     }}
                 </tbody>
             </table>

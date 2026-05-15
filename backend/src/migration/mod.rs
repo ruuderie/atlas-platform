@@ -113,6 +113,8 @@ pub mod m20260507_000002_add_is_setup_to_magic_link;
 // atlas-dev pod boots with the correct migration manifest and stops CrashLoopBackOff.
 pub mod m20260513_000001_add_dev_domain_buildwithruud;
 pub mod m20260513_000002_unique_active_magic_link_per_user;
+// 2026-05-15: Add SHA-256 hash columns for bearer/refresh tokens (Security #7).
+pub mod m20260515_000001_hash_session_tokens;
 
 pub struct Migrator;
 
@@ -185,6 +187,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20260513_000001_add_dev_domain_buildwithruud::Migration),
             // Unique active magic link per user
             Box::new(m20260513_000002_unique_active_magic_link_per_user::Migration),
+            // 2026-05-15 Security #7: hash bearer_token and refresh_token before storage.
+            // Non-breaking: adds hash columns alongside plaintext, backfills existing rows.
+            // Plaintext columns dropped in a follow-up migration after full rollout.
+            Box::new(m20260515_000001_hash_session_tokens::Migration),
 
         ];
 

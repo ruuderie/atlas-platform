@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
+use shared_ui::utils::ResourceState;
 
 use crate::pages::landing::get_site_settings;
 
@@ -23,8 +24,8 @@ pub fn Terms() -> impl IntoView {
         <Meta name="description" content="Terms of Service and conditions for engaging with Anchor and OPLYST INTERNATIONAL, LLC."/>
         <main class="min-h-screen pt-32 pb-24 px-6 md:px-12 max-w-4xl mx-auto">
             <Transition fallback=move || view! { <div class="text-outline jetbrains">"Loading terms..."</div> }>
-                {move || match settings_res.get() {
-                    Some(Ok(settings)) => {
+                {move || match ResourceState::from(settings_res.get()) {
+                    ResourceState::Ready(settings) => {
                         let html = render_markdown(&settings.terms_html);
                         view! {
                             <article class="prose prose-invert prose-emerald max-w-none
@@ -38,7 +39,8 @@ pub fn Terms() -> impl IntoView {
                             </article>
                         }.into_any()
                     },
-                    _ => view! { <div class="text-error">"Failed to load terms."</div> }.into_any()
+                    ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                    ResourceState::Error(_) => view! { <div class="text-error">"Failed to load terms."</div> }.into_any()
                 }}
             </Transition>
         </main>
@@ -54,8 +56,8 @@ pub fn Privacy() -> impl IntoView {
         <Meta name="description" content="Privacy Policy covering data handling, cookies, and digital security at Anchor."/>
         <main class="min-h-screen pt-32 pb-24 px-6 md:px-12 max-w-4xl mx-auto">
             <Transition fallback=move || view! { <div class="text-outline jetbrains">"Loading privacy policy..."</div> }>
-                {move || match settings_res.get() {
-                    Some(Ok(settings)) => {
+                {move || match ResourceState::from(settings_res.get()) {
+                    ResourceState::Ready(settings) => {
                         let html = render_markdown(&settings.privacy_html);
                         view! {
                             <article class="prose prose-invert prose-emerald max-w-none
@@ -69,7 +71,8 @@ pub fn Privacy() -> impl IntoView {
                             </article>
                         }.into_any()
                     },
-                    _ => view! { <div class="text-error">"Failed to load privacy policy."</div> }.into_any()
+                    ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                    ResourceState::Error(_) => view! { <div class="text-error">"Failed to load privacy policy."</div> }.into_any()
                 }}
             </Transition>
         </main>

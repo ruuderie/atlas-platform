@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
+use shared_ui::utils::ResourceState;
 
 use crate::pages::landing::get_site_settings;
 
@@ -19,8 +20,8 @@ pub fn BookDiscovery() -> impl IntoView {
             </div>
 
             <Transition fallback=move || view! { <div class="text-outline jetbrains">"Loading calendar..."</div> }>
-                {move || match settings_res.get() {
-                    Some(Ok(settings)) => {
+                {move || match ResourceState::from(settings_res.get()) {
+                    ResourceState::Ready(settings) => {
                         let bu = settings.booking_url;
                         if bu.is_empty() {
                             view! { <div class="text-error bg-error-container text-on-error-container p-6 w-full max-w-2xl text-center">"Booking is currently unavailable. Please reach out via email."</div> }.into_any()
@@ -37,7 +38,8 @@ pub fn BookDiscovery() -> impl IntoView {
                             }.into_any()
                         }
                     },
-                    _ => view! { <div class="text-error">"Failed to load booking configuration."</div> }.into_any()
+                    ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                    ResourceState::Error(_) => view! { <div class="text-error">"Failed to load booking configuration."</div> }.into_any()
                 }}
             </Transition>
         </main>

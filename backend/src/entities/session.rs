@@ -25,6 +25,12 @@ pub struct Model {
     pub is_admin: bool,
     pub is_active: bool,
     pub integrity_hash: String,
+    /// SHA-256 hex of bearer_token. Used for secure DB lookup.
+    /// NULL for rows created before migration m20260515_000001.
+    pub bearer_token_hash: Option<String>,
+    /// SHA-256 hex of refresh_token. Used for secure DB lookup.
+    /// NULL for rows created before migration m20260515_000001.
+    pub refresh_token_hash: Option<String>,
 }
 
 impl Model {
