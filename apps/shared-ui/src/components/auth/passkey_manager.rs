@@ -20,7 +20,8 @@ pub fn ManagePasskeys(
         let message = message.clone();
         let is_error = is_error.clone();
         let api_url = api_url_sig.get();
-        let token = auth_token_str.clone();
+        // auth_token is kept for API compat but the backend reads the session cookie,
+        // not an Authorization header. credentials: include is set via fetch_credentials_include().
 
         async move {
             if is_submitting.get() { return; }
@@ -29,16 +30,21 @@ pub fn ManagePasskeys(
             message.set("Initiating registration...".to_string());
             is_error.set(false);
             let client = Client::new();
-            
+
             // 1. Start Registration
             let start_url = format!("{}/start-register", api_url);
-            
+
+            // fetch_credentials_include() is a WASM-only reqwest method that sets
+            // the browser Fetch API credentials mode to 'include'. This makes the browser
+            // send the HttpOnly session cookie on cross-origin requests — which is how
+            // the backend auth middleware identifies the authenticated user.
+            #[cfg(target_arch = "wasm32")]
             let start_res = match client.post(&start_url)
-                .header("Authorization", format!("Bearer {}", token))
+                .fetch_credentials_include()
                 .send().await {
                 Ok(res) if res.status().is_success() => res,
                 Ok(res) => {
-                    let text = res.text().await.unwrap_or_default();
+                    let text: String = res.text().await.unwrap_or_default();
                     message.set(format!("Failed to start registration: {}", text));
                     is_error.set(true);
                     is_submitting.set(false);
@@ -51,7 +57,24 @@ pub fn ManagePasskeys(
                     return;
                 }
             };
-            
+            #[cfg(not(target_arch = "wasm32"))]
+            let start_res = match client.post(&start_url).send().await {
+                Ok(res) if res.status().is_success() => res,
+                Ok(res) => {
+                    let text: String = res.text().await.unwrap_or_default();
+                    message.set(format!("Failed to start registration: {}", text));
+                    is_error.set(true);
+                    is_submitting.set(false);
+                    return;
+                }
+                Err(_) => {
+                    message.set("Network error communicating with server.".to_string());
+                    is_error.set(true);
+                    is_submitting.set(false);
+                    return;
+                }
+            };
+
             let options = match start_res.json::<serde_json::Value>().await {
                 Ok(opt) => opt,
                 Err(_) => {
@@ -73,18 +96,24 @@ pub fn ManagePasskeys(
                 }
             };
 
-            // 3. Finish Registration
+            // Finish Registration — same credentials:include guard.
             let finish_url = format!("{}/finish-register", api_url);
-            
-            match client.post(&finish_url)
-                .header("Authorization", format!("Bearer {}", token))
-                .json(&credential).send().await {
+
+            #[cfg(target_arch = "wasm32")]
+            let finish_result = client.post(&finish_url)
+                .fetch_credentials_include()
+                .json(&credential).send().await;
+            #[cfg(not(target_arch = "wasm32"))]
+            let finish_result = client.post(&finish_url)
+                .json(&credential).send().await;
+
+            match finish_result {
                 Ok(res) if res.status().is_success() => {
                     message.set("Passkey registered successfully!".to_string());
                     is_error.set(false);
                 }
                 Ok(res) => {
-                    let text = res.text().await.unwrap_or_default();
+                    let text: String = res.text().await.unwrap_or_default();
                     message.set(format!("Registration failed: {}", text));
                     is_error.set(true);
                 }

@@ -35,10 +35,13 @@ pub fn LoginModal(
                             </p>
                         </div>
 
-                        // Shared login panel handles passkey + magic link flows
+                        // success_path must match a valid route within network-instance.
+                        // Without this, token_view defaults to "/admin" which does not
+                        // exist here — the hard reload after magic-link verification would 404.
                         <AtlasLoginPanel
                             app_title="NETWORK"
                             on_authenticated=handle_authenticated
+                            success_path="/"
                         />
                     </div>
                 </div>

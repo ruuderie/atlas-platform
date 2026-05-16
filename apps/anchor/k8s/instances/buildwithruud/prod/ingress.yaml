@@ -6,6 +6,11 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     cert-manager.io/cluster-issuer: "letsencrypt-http"
+    # T5: Bound proxy timeout to 10s. Well above the new <500ms response time
+    # (SMTP is fire-and-forget). Guards against future regressions re-introducing
+    # synchronous blocking before the HTTP response.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "10"
 spec:
   tls:
   - hosts:

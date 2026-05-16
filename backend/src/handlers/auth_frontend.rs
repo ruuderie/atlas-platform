@@ -218,6 +218,21 @@ pub async fn request_magic_link(
         return Err(status);
     }
 
+    // T5 IDEMPOTENCY GUARD: suppress duplicate dispatches within 60 seconds.
+    // Covers both LB-level retries (if SMTP latency ever exceeds the proxy timeout)
+    // and pre-hydration double-submits (first SSR click + second post-WASM click).
+    // The cache TTL (60s) is set in the Lazy initialiser above.
+    let cache_key = payload.email.to_lowercase();
+    if MAGIC_LINK_REQUEST_CACHE.get(&cache_key).await.is_some() {
+        tracing::info!(
+            event = "magic_link.deduplicated",
+            request_id = %request_id,
+            email = %payload.email,
+            duration_ms = start.elapsed().as_millis()
+        );
+        return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+    }
+
     let user_model = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
@@ -396,14 +411,24 @@ pub async fn request_magic_link(
             ),
         };
 
-        if let Err((status, msg)) = crate::handlers::communications::send_email_handler(
-            State(db.clone()),
-            Json(email_payload),
-        ).await {
-            tracing::error!("Failed to dispatch magic link email: {} {:?}", msg, status);
-        } else {
-            tracing::info!("Magic link dispatched to {}", user_mod.email);
-        }
+        MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
+
+        // T5 LATENCY FIX: move email dispatch to a background task so the HTTP response
+        // is returned immediately after the token row is committed. The SMTP conversation
+        // (DB query + TLS handshake + mailer.send) previously blocked this handler for 3+
+        // seconds, triggering LB retries and pre-hydration double-submits.
+        let db_for_email = db.clone();
+        let email_addr = user_mod.email.clone();
+        tokio::task::spawn(async move {
+            if let Err((status, msg)) = crate::handlers::communications::send_email_handler(
+                State(db_for_email),
+                Json(email_payload),
+            ).await {
+                tracing::error!("Failed to dispatch magic link email to {}: {} {:?}", email_addr, msg, status);
+            } else {
+                tracing::info!("Magic link dispatched to {}", email_addr);
+            }
+        });
     }
 
     Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))

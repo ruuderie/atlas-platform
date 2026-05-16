@@ -54,7 +54,7 @@ pub fn AtlasLoginPanel(
     success_path: String,
 ) -> impl IntoView {
     let query = use_query_map();
-    let token_in_url = query.with(|q| q.get("token").filter(|t| !t.is_empty()));
+    let token_in_url = query.with_untracked(|q| q.get("token").filter(|t| !t.is_empty()));
     let has_token = token_in_url.is_some();
 
     if has_token {
@@ -232,7 +232,7 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
     // Default to email/magic-link tab when arriving via ?mode=email — e.g. after a
     // hard-reload from the "Request a new sign-in link" button on the expired-token card.
     let query = use_query_map();
-    let initial_email_mode = query.with(|q| q.get("mode").as_deref() == Some("email"));
+    let initial_email_mode = query.with_untracked(|q| q.get("mode").as_deref() == Some("email"));
     let email_mode = RwSignal::new(initial_email_mode);
 
     let on_pk = on_authenticated.clone();
@@ -260,11 +260,11 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
             </div>
             // Tabs
             <div style="display:flex;gap:8px;margin-bottom:32px;">
-                <button type="button" on:click=move |_| email_mode.set(false)
+                <button type="button" on:click=move |ev| { ev.prevent_default(); email_mode.set(false); }
                     style=move || format!("padding:6px 14px;border-radius:4px;font-size:12px;font-weight:500;border:none;pointer-events:auto;cursor:pointer;{}",
                         if !email_mode.get() {"background:#1B365D;color:#faf9f5;"} else {"background:#e8e6dc;color:#3d3d3a;"})
                 >"Passkey"</button>
-                <button type="button" on:click=move |_| email_mode.set(true)
+                <button type="button" on:click=move |ev| { ev.prevent_default(); email_mode.set(true); }
                     style=move || format!("padding:6px 14px;border-radius:4px;font-size:12px;font-weight:500;border:none;pointer-events:auto;cursor:pointer;{}",
                         if email_mode.get() {"background:#1B365D;color:#faf9f5;"} else {"background:#e8e6dc;color:#3d3d3a;"})
                 >"Magic Link"</button>

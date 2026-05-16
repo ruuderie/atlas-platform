@@ -48,7 +48,10 @@ ssr = [
 wasm-bindgen-test = "0.3.64"
 
 [package.metadata.leptos]
-output-name = "network-instance"
+# NOTE: Increment the version suffix (v1 → v2, etc.) whenever shared-ui or app.rs changes
+# that affect the WASM bundle are deployed to production, to bust Cloudflare/CDN edge caches.
+# hash-files=true below provides a secondary guard but output-name versioning is more reliable.
+output-name = "network-v1"
 
 # ARCHITECTURE REQUIREMENT:
 # Enable file hashing to permanently prevent Cloudflare/CDN edge caching

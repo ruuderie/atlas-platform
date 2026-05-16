@@ -98,7 +98,19 @@ pub fn Login() -> impl IntoView {
                                     </div>
                                     <Button 
                                         class="w-full mt-4 btn-primary-gradient text-on-primary border-none shadow-[0_0_20px_rgba(123,208,255,0.2)] hover:shadow-[0_0_25px_rgba(123,208,255,0.4)] transition-all font-bold".to_string() 
-                                        on:click=move |_| { auth.dispatch_login.dispatch(()); } 
+                                        on:click=move |ev| {
+                            ev.prevent_default();
+                            // Synchronous guard: check signal state before dispatching.
+                            // attr:disabled reacts async; events already queued before the
+                            // DOM updates can still fire — reading signals closes this window.
+                            if auth.is_loading.get_untracked()
+                                || auth.countdown.get_untracked() != 0
+                                || auth.email.get_untracked().trim().is_empty()
+                            {
+                                return;
+                            }
+                            auth.dispatch_login.dispatch(());
+                        }
                                         attr:disabled=move || auth.email.get().is_empty() || auth.is_loading.get() || (auth.countdown.get() > 0)
                                     >
                                         {move || if auth.is_loading.get() { 

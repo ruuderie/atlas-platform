@@ -5,6 +5,9 @@ metadata:
   namespace: buildwithruud-uat
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-http"
+    # T5: Bound proxy timeout to 10s for parity with prod ingress.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "10"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "10"
 spec:
   ingressClassName: nginx
   tls:
