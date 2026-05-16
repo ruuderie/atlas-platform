@@ -57,6 +57,69 @@ steps:
         cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
         cp -r ./target /cache/target 2>/dev/null || true
 
+  # ── Bundle Version Sync Lint ───────────────────────────────────────────────
+  # Prevents the stylesheet-404 bug: when output-name is bumped in Cargo.toml
+  # (e.g. anchor-v4 → anchor-v5), the matching <Stylesheet href="/pkg/NAME.css"/>
+  # in app.rs MUST be updated too. If they diverge, the browser requests a CSS
+  # file that doesn't exist, the CDN returns index.html, and the page loads
+  # completely unstyled. This check catches that mismatch before it ships.
+  lint_bundle_version_sync:
+    image: alpine
+    commands:
+      - apk add --no-cache grep
+      - |
+        set -euo pipefail
+        FAIL=0
+
+        check_sync() {
+          local APP=$1
+          local CARGO=$2
+          local APPRS=$3
+
+          # Extract the output-name value from [package.metadata.leptos]
+          NAME=$(grep -A1 '\[package\.metadata\.leptos\]' "$CARGO" | grep 'output-name' | sed 's/.*= *"\(.*\)"/\1/')
+          if [ -z "$NAME" ]; then
+            echo "⚠  $APP: could not extract output-name from $CARGO (skipping)"
+            return
+          fi
+
+          EXPECTED="/pkg/${NAME}.css"
+
+          if grep -qF "$EXPECTED" "$APPRS"; then
+            echo "✓  $APP: output-name '$NAME' matches Stylesheet href ($EXPECTED)"
+          else
+            ACTUAL=$(grep -o '/pkg/[^"]*\.css' "$APPRS" | head -1 || echo "<not found>")
+            echo "✗  $APP: MISMATCH"
+            echo "     Cargo.toml output-name  : $NAME  →  expected href: $EXPECTED"
+            echo "     app.rs Stylesheet href   : $ACTUAL"
+            echo "   Fix: update the <Stylesheet href=...> in $APPRS to match $EXPECTED"
+            FAIL=1
+          fi
+        }
+
+        check_sync "anchor" \
+          "apps/anchor/Cargo.toml" \
+          "apps/anchor/src/app.rs"
+
+        check_sync "network-instance" \
+          "apps/network-instance/Cargo.toml" \
+          "apps/network-instance/src/app.rs"
+
+        if [ "$FAIL" -ne 0 ]; then
+          echo ""
+          echo "LINT FAILED: bundle version is out of sync."
+          echo "See above for which file to fix."
+          exit 1
+        fi
+    when:
+      branch: [dev, uat]
+      path:
+        - 'apps/anchor/Cargo.toml'
+        - 'apps/anchor/src/app.rs'
+        - 'apps/network-instance/Cargo.toml'
+        - 'apps/network-instance/src/app.rs'
+        - '.woodpecker.yml'
+
   # ── Apps Compile Gate ──────────────────────────────────────────────────────
   # This runs BEFORE Docker builds and catches Rust compile errors in the
   # apps workspace early. Without this, errors are only discovered inside
