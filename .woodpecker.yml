@@ -76,8 +76,8 @@ steps:
           local CARGO=$2
           local APPRS=$3
 
-          # Extract the output-name value from [package.metadata.leptos]
-          NAME=$(grep -A1 '\[package\.metadata\.leptos\]' "$CARGO" | grep 'output-name' | sed 's/.*= *"\(.*\)"/\1/')
+          # Extract the output-name value from Cargo.toml
+          NAME=$(grep '^output-name' "$CARGO" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
           if [ -z "$NAME" ]; then
             echo "⚠  $APP: could not extract output-name from $CARGO (skipping)"
             return
@@ -654,12 +654,8 @@ steps:
       webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
       message: >
         **Atlas Platform Deployment**
-        {{#success build.status}}
-          ✅ **SUCCESS** — Pipeline #{{build.number}} completed successfully!
-        {{else}}
-          ❌ **FAILURE** — Pipeline #{{build.number}} failed.
-          Failed step(s): {{build.failed_steps}}
-        {{/success}}
+        Status: **${CI_PIPELINE_STATUS}** — Pipeline #{{build.number}}
+        Failed step(s): {{build.failed_steps}}
         Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
         [View Logs]({{build.link}})
     when:
@@ -685,13 +681,13 @@ steps:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
       subject: >
-        [Atlas CI] {{#success build.status}}✅ SUCCESS{{else}}❌ FAILURE{{/success}} — Pipeline #${CI_PIPELINE_NUMBER}
+        [Atlas CI] Status: ${CI_PIPELINE_STATUS} — Pipeline #${CI_PIPELINE_NUMBER}
       body: |
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
           <h2 style="color: #24292e; margin-top: 0; border-bottom: 1px solid #eaecef; padding-bottom: 10px;">Atlas Platform Deployment Report</h2>
           
           <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td>{{#success build.status}}<span style="color: #28a745;">✅ Success</span>{{else}}<span style="color: #cb2431;">❌ Failure</span>{{/success}}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td><span style="font-weight: bold; text-transform: uppercase;">${CI_PIPELINE_STATUS}</span></td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Project:</td><td>${CI_REPO_OWNER}/${CI_REPO_NAME}</td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Branch:</td><td><span style="background: #f1f8ff; padding: 3px 6px; border-radius: 3px; font-family: monospace;">${CI_COMMIT_BRANCH}</span></td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Commit:</td><td><a href="${CI_REPO_URL}/commit/${CI_COMMIT_SHA}" style="color: #0366d6; text-decoration: none; font-family: monospace;">${CI_COMMIT_SHA}</a></td></tr>
@@ -700,12 +696,8 @@ steps:
             <tr><td style="padding: 8px 0; font-weight: bold;">Logs:</td><td><a href="${CI_PIPELINE_URL}" style="color: #0366d6; text-decoration: none;">View Pipeline #${CI_PIPELINE_NUMBER}</a></td></tr>
           </table>
 
-          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; {{#success build.status}}background-color: #dcffe4; color: #1a7f37;{{else}}background-color: #ffeef0; color: #b31d28;{{/success}}">
-            {{#success build.status}}
-            <strong>✅ Deployment completed successfully.</strong>
-            {{else}}
-            <strong>❌ Deployment FAILED. Please investigate immediately.</strong>
-            {{/success}}
+          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; color: #24292e;">
+            <strong>Deployment status: ${CI_PIPELINE_STATUS}.</strong> Please review the logs if this failed.
           </div>
         </div>
     when:
