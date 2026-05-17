@@ -95,8 +95,6 @@ pub fn WebformsTable() -> impl IntoView {
     }
 }
 
-
-
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
 /// Token verification, expired-link UI, URL cleanup — all owned by the panel.
 #[component]
@@ -106,35 +104,18 @@ fn LoginPanel() -> impl IntoView {
 
 #[component]
 pub fn Admin() -> impl IntoView {
-    let query = use_query_map();
+    // query is available for downstream components via context if needed
+    let _query = use_query_map();
 
     // ── Auth resource ─────────────────────────────────────────────────────────
-    // `Resource::new_blocking` blocks the SSR byte stream until check_session()
-    // resolves and serializes Ok(false)/Ok(true) into the HTML. The WASM client
-    // reads it synchronously — no None → Ready(false) transition, no Suspense
-    // DOM swap, no pre-hydration click vulnerability window.
-    //
-    // Without this, a click on "Magic Link" during the WASM download window
-    // re-targets to the Leptos Router delegation listener and causes a full
-    // history.pushState()/Admin remount perceived as a page refresh.
+    // Resource::new_blocking blocks the SSR byte stream until check_session()
+    // resolves and serialises Ok(false)/Ok(true) into the HTML payload.
+    // The WASM client reads it synchronously — no None→Ready transition,
+    // no Suspense DOM swap, no pre-hydration click vulnerability window.
     let auth_resource = Resource::new_blocking(
         || (),
         |_| async move { check_session().await },
     );
-    let show_passkey_nudge = RwSignal::new(false);
-
-    // ── Passkey nudge check (client-only, safe hydration) ─────────────────────
-    // LocalResource + Effect is the recommended pattern for post-hydration side effects.
-    // The server fn is robust (returns true on any error) so no deserialization panic can kill the reactive graph.
-    // This was the root cause of Bug A (dead nav buttons).
-    let passkey_check = LocalResource::new(move || async move {
-        check_has_passkey().await.unwrap_or_else(|_| true)
-    });
-    Effect::new(move |_| {
-        if let Some(false) = passkey_check.get() {
-            show_passkey_nudge.set(true);
-        }
-    });
 
     let (active_tab, set_active_tab) = signal("DASHBOARD");
 
@@ -148,151 +129,184 @@ pub fn Admin() -> impl IntoView {
 
     view! {
         <main class="min-h-screen bg-surface-container-low text-on-surface flex flex-col pt-24 px-4 md:px-[8.5rem]">
-        // Suspense is INSIDE <main> (not wrapping it) so there is only ever
-        // one <main> element in the DOM — the hydration walker never sees a
-        // structural mismatch.
-        <Suspense fallback=move || view! {
-            <div class="flex-1 flex justify-center items-center">
-                <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
-            </div>
-        }>
-            // ResourceState::from() maps:
-            //   None              → Loading  (Suspense fallback handles visible spinner)
-            //   Some(Ok(false))   → show LoginPanel
-            //   Some(Err(_))      → show LoginPanel (treat auth error as unauthenticated)
-            //   Some(Ok(true))    → render dashboard
-            {move || match ResourceState::from(auth_resource.get()) {
-                ResourceState::Loading => view! {
-                    <div class="hidden"></div>
-                }.into_any(),
-
-                // ── Unauthenticated / Error ──────────────────────────────────
-                ResourceState::Ready(false) | ResourceState::Error(_) => view! {
-                    <LoginPanel />
-                }.into_any(),
-
-                // ── Authenticated ───────────────────────────────────────────
-                ResourceState::Ready(true) => view! {
-                    <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
-                        // Sidebar
-                        <aside class="w-full md:w-64 shrink-0 space-y-2">
-                            <div class="mb-12">
-                            {["DASHBOARD", "WEBFORMS", "SERVICES", "CASE STUDIES", "HIGHLIGHTS", "MAILING LIST", "SETTINGS", "LEAD OPTIONS", "NAVIGATION", "FOOTER", "PAGE HEADERS", "BLOG", "RESUME PROFILES", "RESUME ENTRIES", "LANDING PAGES", "SECURITY"].iter().map(|&t| {
-                                            let tab = t; // Capture `t` for the closure
-                                            view! {
-                                                <button
-                                                    on:click=move |_| set_active_tab.set(tab)
-                                                    class=move || format!(
-                                                        "w-full text-left px-4 py-3 jetbrains text-sm font-bold tracking-wider transition-colors {}",
-                                                        if active_tab.get() == tab {
-                                                            "bg-primary text-on-primary"
-                                                        } else {
-                                                            "text-slate-500 hover:bg-surface-container-high dark:text-slate-400 dark:hover:bg-slate-800"
-                                                        }
-                                                    )
-                                                >
-                                                    {tab}
-                                                </button>
-                                            }
-                                        }
-                                    ).collect::<Vec<_>>()}
-                                </div>
-
-                            <button
-                                on:click=move |_| {
-                                    leptos::task::spawn_local(async move {
-                                        // RevokeSession clears the HttpOnly cookie server-side.
-                                        let _ = revoke_session().await;
-                                        // Refetch auth_resource — it will re-run check_session,
-                                        // find no valid cookie, and resolve to Unauthenticated.
-                                        auth_resource.refetch();
-                                    });
-                                }
-                                class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
-                            >
-                                "[ TERMINATE SESSION ]"
-                            </button>
-                        </aside>
-
-                        // Main Content Area
-                        <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
-                            <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
-                                <Show when=move || show_passkey_nudge.get()>
-                                    <PasskeyNudge />
-                                </Show>
-                                // Header
-                                <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
-                                    <div>
-                                        <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-4">
-                                            <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">"DATABASE // LIVE"</span>
-                                        </div>
-                                        <h2 class="text-3xl font-extrabold text-primary tracking-tight uppercase">
-                                            {move || active_tab.get()}
-                                        </h2>
-                                    </div>
-                                    <button
-                                        on:click=move |_| {
-                                            let state = match active_tab.get() {
-                                                "SETTINGS" => ModalState::Settings,
-                                                "SERVICES" => ModalState::Service(None),
-                                                "CASE STUDIES" => ModalState::CaseStudy(None),
-                                                "HIGHLIGHTS" => ModalState::Highlight(None),
-                                                "BLOG" => ModalState::Post(None),
-                                                "RESUME PROFILES" => ModalState::Profile(None),
-                                                "RESUME ENTRIES" => ModalState::BaseEntry(None, None),
-                                                "LANDING PAGES" => ModalState::LandingPage(None),
-                                                "FOOTER" => ModalState::FooterItem(None),
-                                                "PAGE HEADERS" => ModalState::PageHeader(None),
-                                                "MAILING LIST" => ModalState::MailingList(None),
-                                                "LEAD OPTIONS" => ModalState::LeadOption(None),
-                                                "WEBFORMS" => ModalState::None, // Requires dedicated Form Builder UI
-                                                "SECURITY" => ModalState::Passkey,
-                                                _ => ModalState::None,
-                                            };
-                                            set_modal_state.set(state);
-                                        }
-                                        class="bg-primary text-on-primary px-8 py-4 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors"
-                                    >
-                                        {move || if active_tab.get() == "SETTINGS" { "EDIT VALUES" } else if active_tab.get() == "DASHBOARD" { "REFRESH" } else { "NEW ENTRY +" }}
-                                    </button>
-                                </div>
-
-                                // Datagrid View
-                                <div class="flex-1 overflow-x-auto">
-                                    {move || match active_tab.get() {
-                                        "DASHBOARD" => view! { <DashboardView /> }.into_any(),
-                                        "WEBFORMS" => view! { <WebformsTable /> }.into_any(),
-                                        "SERVICES" => view! { <ServiceTable /> }.into_any(),
-                                        "CASE STUDIES" => view! { <CaseStudyTable /> }.into_any(),
-                                        "HIGHLIGHTS" => view! { <HighlightTable /> }.into_any(),
-                                        "MAILING LIST" => view! { <MailingListTable /> }.into_any(),
-                                        "LEAD OPTIONS" => view! { <LeadOptionTable /> }.into_any(),
-                                        "NAVIGATION" => view! { <NavTable /> }.into_any(),
-                                        "FOOTER" => view! { <FooterTable /> }.into_any(),
-                                        "PAGE HEADERS" => view! { <PageHeaderTable /> }.into_any(),
-                                        "SETTINGS" => view! { <SettingsReadView /> }.into_any(),
-                                        "BLOG" => view! { <PostTable /> }.into_any(),
-                                        "RESUME PROFILES" => view! { <ResumeProfileTable /> }.into_any(),
-                                        "RESUME ENTRIES" => view! { <BaseResumeEntryTable /> }.into_any(),
-                                        "LANDING PAGES" => view! { <LandingPageTable /> }.into_any(),
-                                        "SECURITY" => view! { <PasskeyTable /> }.into_any(),
-                                        _ => view! {
-                                            <div class="h-64 flex items-center justify-center border-2 border-dashed border-outline-variant text-outline">
-                                                <span class="jetbrains text-sm">"MODULE_OFFLINE"</span>
-                                        </div>
-                                    }.into_any(),
-                                }}
-                            </div>
-                        </div>
-                        <AdminEditorModal />
-                    </section>
+            // Suspense is INSIDE <main> so there is always exactly one <main>
+            // in the DOM — the hydration walker never sees a structural mismatch.
+            <Suspense fallback=move || view! {
+                <div class="flex-1 flex justify-center items-center">
+                    <span class="material-symbols-outlined animate-spin text-4xl text-primary">"progress_activity"</span>
                 </div>
-                }.into_any(),
-            }}
+            }>
+                {move || match ResourceState::from(auth_resource.get()) {
+                    ResourceState::Loading => view! {
+                        <div class="hidden"></div>
+                    }.into_any(),
+
+                    // ── Unauthenticated / Error ──────────────────────────────
+                    // LoginPanel renders with ZERO reactive dependencies on any
+                    // LocalResource. The passkey nudge check lives in
+                    // AuthenticatedDashboard only. This prevents its resolution
+                    // from re-invalidating this branch and unmounting LoginPanel
+                    // (which reset email_mode → Passkey tab, appearing as a
+                    // page reload to the user).
+                    ResourceState::Ready(false) | ResourceState::Error(_) => view! {
+                        <LoginPanel />
+                    }.into_any(),
+
+                    // ── Authenticated ────────────────────────────────────────
+                    ResourceState::Ready(true) => view! {
+                        <AuthenticatedDashboard
+                            active_tab=active_tab
+                            set_active_tab=set_active_tab
+                        />
+                    }.into_any(),
+                }}
             </Suspense>
         </main>
     }
 }
+
+/// Authenticated dashboard shell, extracted so that the passkey nudge
+/// LocalResource is scoped here — inside the authenticated branch only.
+/// Previously it lived at the Admin component level; when it resolved,
+/// the reactive write to show_passkey_nudge invalidated the entire
+/// `match ResourceState` closure, destroying and recreating LoginPanel
+/// and resetting email_mode to false on every post-hydration tick.
+#[component]
+fn AuthenticatedDashboard(
+    active_tab: ReadSignal<&'static str>,
+    set_active_tab: WriteSignal<&'static str>,
+) -> impl IntoView {
+    let modal_state = expect_context::<ReadSignal<ModalState>>();
+    let set_modal_state = expect_context::<WriteSignal<ModalState>>();
+
+    // Passkey nudge — client-only, safe to live here because this component
+    // only mounts when the user is authenticated.
+    let show_passkey_nudge = RwSignal::new(false);
+    let passkey_check = LocalResource::new(move || async move {
+        check_has_passkey().await.unwrap_or_else(|_| true)
+    });
+    Effect::new(move |_| {
+        if let Some(false) = passkey_check.get() {
+            show_passkey_nudge.set(true);
+        }
+    });
+
+    view! {
+        <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
+            // Sidebar
+            <aside class="w-full md:w-64 shrink-0 space-y-2">
+                <div class="mb-12">
+                {["DASHBOARD", "WEBFORMS", "SERVICES", "CASE STUDIES", "HIGHLIGHTS", "MAILING LIST", "SETTINGS", "LEAD OPTIONS", "NAVIGATION", "FOOTER", "PAGE HEADERS", "BLOG", "RESUME PROFILES", "RESUME ENTRIES", "LANDING PAGES", "SECURITY"].iter().map(|&t| {
+                    view! {
+                        <button
+                            on:click=move |_| set_active_tab.set(t)
+                            class=move || format!(
+                                "w-full text-left px-4 py-3 jetbrains text-sm font-bold tracking-wider transition-colors {}",
+                                if active_tab.get() == t { "bg-primary text-on-primary" }
+                                else { "text-slate-500 hover:bg-surface-container-high dark:text-slate-400 dark:hover:bg-slate-800" }
+                            )
+                        >
+                            {t}
+                        </button>
+                    }
+                }).collect::<Vec<_>>()}
+                </div>
+                <button
+                    on:click=move |_| {
+                        leptos::task::spawn_local(async move {
+                            let _ = revoke_session().await;
+                            if let Some(w) = web_sys::window() {
+                                let _ = w.location().replace("/admin");
+                            }
+                        });
+                    }
+                    class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
+                >
+                    "[ TERMINATE SESSION ]"
+                </button>
+            </aside>
+
+            // Main Content Area
+            <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
+                <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
+                    <Show when=move || show_passkey_nudge.get()>
+                        <PasskeyNudge />
+                    </Show>
+                    // Header
+                    <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
+                        <div>
+                            <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-4">
+                                <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">"DATABASE // LIVE"</span>
+                            </div>
+                            <h2 class="text-3xl font-extrabold text-primary tracking-tight uppercase">
+                                {move || active_tab.get()}
+                            </h2>
+                        </div>
+                        <button
+                            on:click=move |_| {
+                                let state = match active_tab.get() {
+                                    "SETTINGS"        => ModalState::Settings,
+                                    "SERVICES"        => ModalState::Service(None),
+                                    "CASE STUDIES"    => ModalState::CaseStudy(None),
+                                    "HIGHLIGHTS"      => ModalState::Highlight(None),
+                                    "BLOG"            => ModalState::Post(None),
+                                    "RESUME PROFILES" => ModalState::Profile(None),
+                                    "RESUME ENTRIES"  => ModalState::BaseEntry(None, None),
+                                    "LANDING PAGES"   => ModalState::LandingPage(None),
+                                    "FOOTER"          => ModalState::FooterItem(None),
+                                    "PAGE HEADERS"    => ModalState::PageHeader(None),
+                                    "MAILING LIST"    => ModalState::MailingList(None),
+                                    "LEAD OPTIONS"    => ModalState::LeadOption(None),
+                                    "WEBFORMS"        => ModalState::None,
+                                    "SECURITY"        => ModalState::Passkey,
+                                    _                 => ModalState::None,
+                                };
+                                set_modal_state.set(state);
+                            }
+                            class="bg-primary text-on-primary px-8 py-4 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors"
+                        >
+                            {move || match active_tab.get() {
+                                "SETTINGS"  => "EDIT VALUES",
+                                "DASHBOARD" => "REFRESH",
+                                _           => "NEW ENTRY +",
+                            }}
+                        </button>
+                    </div>
+
+                    // Datagrid View
+                    <div class="flex-1 overflow-x-auto">
+                        {move || match active_tab.get() {
+                            "DASHBOARD"      => view! { <DashboardView /> }.into_any(),
+                            "WEBFORMS"       => view! { <WebformsTable /> }.into_any(),
+                            "SERVICES"       => view! { <ServiceTable /> }.into_any(),
+                            "CASE STUDIES"   => view! { <CaseStudyTable /> }.into_any(),
+                            "HIGHLIGHTS"     => view! { <HighlightTable /> }.into_any(),
+                            "MAILING LIST"   => view! { <MailingListTable /> }.into_any(),
+                            "LEAD OPTIONS"   => view! { <LeadOptionTable /> }.into_any(),
+                            "NAVIGATION"     => view! { <NavTable /> }.into_any(),
+                            "FOOTER"         => view! { <FooterTable /> }.into_any(),
+                            "PAGE HEADERS"   => view! { <PageHeaderTable /> }.into_any(),
+                            "SETTINGS"       => view! { <SettingsReadView /> }.into_any(),
+                            "BLOG"           => view! { <PostTable /> }.into_any(),
+                            "RESUME PROFILES"  => view! { <ResumeProfileTable /> }.into_any(),
+                            "RESUME ENTRIES"   => view! { <BaseResumeEntryTable /> }.into_any(),
+                            "LANDING PAGES"    => view! { <LandingPageTable /> }.into_any(),
+                            "SECURITY"         => view! { <PasskeyTable /> }.into_any(),
+                            _ => view! {
+                                <div class="h-64 flex items-center justify-center border-2 border-dashed border-outline-variant text-outline">
+                                    <span class="jetbrains text-sm">"MODULE_OFFLINE"</span>
+                                </div>
+                            }.into_any(),
+                        }}
+                    </div>
+                </div>
+                <AdminEditorModal />
+            </section>
+        </div>
+    }
+}
+
+
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DashboardStats {
