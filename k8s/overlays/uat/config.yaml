@@ -19,6 +19,11 @@ data:
   ATLAS_API_URL: "http://backend.atlas-uat.svc.cluster.local:8000"
   FRONTEND_URL: "https://network.uat.atlas.oply.co"
   ADMIN_URL: "https://uat.atlas.oply.co"
+  # Platform-first-party WebAuthn origin. Tenant custom domains are seeded at
+  # startup from the app_domain table — do NOT add tenant domains here.
+  WEBAUTHN_ORIGIN: "https://uat.atlas.oply.co"
+  RP_ID: "atlas.oply.co"
+  # CORS allowlist only — NOT a WebAuthn origin source.
   ADDITIONAL_ALLOWED_ORIGINS: "https://uat.buildwithruud.com"
 ---
 apiVersion: v1

@@ -62,6 +62,13 @@ impl WebauthnRegistry {
     ///
     /// Uses `try_get_with` so that concurrent requests for the same new origin share a
     /// single in-flight initialiser — no duplicate DB queries or cache inserts.
+    ///
+    /// # rp_id derivation
+    /// `rp_id` is always derived as eTLD+1 (registrable domain), never the full
+    /// subdomain host. The WebAuthn spec requires that `rpId` be a suffix of the
+    /// origin host, but passkeys are bound to the `rpId` at registration time. Using
+    /// the full subdomain (e.g. "dev.buildwithruud.com") as `rpId` would cause browsers
+    /// to reject challenges for credentials registered under "buildwithruud.com".
     pub async fn get_or_create(&self, origin: &str) -> Result<Arc<Webauthn>, String> {
         // Normalise: strip any trailing slash for consistent cache keys.
         let origin = origin.trim_end_matches('/').to_string();
@@ -77,14 +84,18 @@ impl WebauthnRegistry {
                 let origin_url = Url::parse(&origin)
                     .map_err(|_| "Invalid origin URL".to_string())?;
 
-                // For subdomains the RP ID is the effective registrable domain.
-                // For custom tenant domains it is the custom domain itself.
-                let rp_id = origin_url
+                // FIX: use eTLD+1 as rpId, not the full subdomain host.
+                // "dev.buildwithruud.com" → "buildwithruud.com"
+                // "buildwithruud.com"     → "buildwithruud.com"
+                // This ensures passkeys registered from any subdomain share the same
+                // rpId and can authenticate from any sibling subdomain of that tenant.
+                let host = origin_url
                     .host_str()
                     .ok_or_else(|| "No host in origin".to_string())?;
+                let rp_id = effective_tld_plus_one(host);
 
                 let webauthn = Arc::new(
-                    WebauthnBuilder::new(rp_id, &origin_url)
+                    WebauthnBuilder::new(&rp_id, &origin_url)
                         .map_err(|e| format!("Invalid WebauthnBuilder arguments: {e}"))?
                         .rp_name("Atlas Platform")
                         .build()
@@ -92,8 +103,8 @@ impl WebauthnRegistry {
                 );
 
                 info!(
-                    "Dynamically allocated and cached WebAuthn instance for origin: {}",
-                    origin
+                    "Cached WebAuthn instance for origin: {} (rpId: {})",
+                    origin, rp_id
                 );
                 Ok(webauthn)
             })
@@ -139,3 +150,29 @@ impl WebauthnRegistry {
         }
     }
 }
+
+/// Returns the registrable domain (eTLD+1) for a given hostname.
+///
+/// This is used to derive the WebAuthn `rpId`. The WebAuthn spec requires `rpId` to be
+/// the eTLD+1 so that passkeys registered from any subdomain (e.g. `dev.example.com`)
+/// can be used from the apex domain (`example.com`) and vice versa.
+///
+/// # Examples
+/// - `"dev.buildwithruud.com"` → `"buildwithruud.com"`
+/// - `"buildwithruud.com"`     → `"buildwithruud.com"`
+/// - `"localhost"`             → `"localhost"`
+///
+/// # Limitations
+/// This naive implementation splits on `.` and takes the last two labels. It is correct
+/// for single-label TLDs (`.com`, `.co`, `.io`). For multi-label TLDs (`.co.uk`) the
+/// result would be incorrect (e.g. `"co.uk"` instead of `"example.co.uk"`).
+/// If multi-label TLD support is required, replace with the `publicsuffix` crate.
+pub fn effective_tld_plus_one(host: &str) -> String {
+    let parts: Vec<&str> = host.split('.').collect();
+    if parts.len() > 2 {
+        parts[parts.len() - 2..].join(".")
+    } else {
+        host.to_string()
+    }
+}
+

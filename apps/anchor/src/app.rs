@@ -159,6 +159,23 @@ pub fn App() -> impl IntoView {
             "el.parentElement.replaceWith(div); }); "
             "mermaid.run({ querySelector: '.mermaid' }); } catch(e) {} }, 100); };"
         </Script>
+        <Script>
+            // PRE-HYDRATION TAB GUARD
+            // Prevents the Leptos Router from intercepting clicks on [data-tab-guard]
+            // elements before WASM has attached reactive event handlers.
+            // window.__atlasReady is set to true by the hydrate() WASM entry point
+            // in main.rs after leptos::mount_to_body completes.
+            r#"
+            window.__atlasReady = false;
+            document.addEventListener('click', function(e) {
+                var guard = e.target.closest('[data-tab-guard]');
+                if (guard && !window.__atlasReady) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, true);
+            "#
+        </Script>
         // Manual cache-busting: the CSS filename matches `output-name` in Cargo.toml.
         // When deploying a new WASM bundle, increment the suffix (v5 → v6) in BOTH
         // Cargo.toml (output-name) and here to force Cloudflare to serve fresh assets.

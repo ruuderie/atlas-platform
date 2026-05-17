@@ -309,49 +309,34 @@ pub async fn request_magic_link(
         let created_at = Utc::now();
         let expires_at = Utc::now() + Duration::minutes(15);
 
-        // Expire ALL existing unused tokens for this user before creating a new one.
-        // This guarantees exactly one valid token exists at any time, regardless of
-        // whether the partial unique index (magic_link_token_one_per_user_active) is
-        // in place. Old emails become immediately invalid when a new link is requested,
-        // giving the user a clear "already used" message instead of confusion.
-        let expired_count = sea_orm::ConnectionTrait::execute(
-            &db,
-            sea_orm::Statement::from_sql_and_values(
-                sea_orm::DatabaseBackend::Postgres,
-                "UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false",
-                vec![user_mod.id.into()],
-            ),
-        )
-        .await
-        .map(|r| r.rows_affected())
-        .unwrap_or(0);
 
-        if expired_count > 0 {
-            tracing::info!(
-                event = "magic_link.prior_tokens_expired",
-                request_id = %request_id,
-                user_id = %user_mod.id,
-                count = expired_count,
-            );
-            metrics::MAGIC_LINK_DUPLICATES_PREVENTED
-                .with_label_values(&["unknown", &final_app_instance_id])
-                .inc();
-        }
-
+        // ATOMIC UPSERT — single DB round-trip, no race window.
+        //
+        // The prior two-step (UPDATE is_used=true + INSERT DO NOTHING) had a race:
+        // two concurrent requests on different pods could both expire existing tokens
+        // then both insert successfully (no conflict row exists after the expiry).
+        //
+        // This upsert collapses both operations atomically:
+        //   - If no active token exists → INSERT (xmax = 0 → was_inserted = true)
+        //   - If an active token exists → UPDATE it in-place (xmax ≠ 0 → was_inserted = false)
+        // Only the transaction that inserted dispatches an email. The one that updated
+        // returns 200 silently. The old token string is overwritten, so stale email links
+        // pointing to the prior token become invalid automatically.
         let sql = r#"
-            INSERT INTO magic_link_token (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
+            INSERT INTO magic_link_token
+                (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
             VALUES ($1, $2, $3, $4, false, $5, $6, false)
-            ON CONFLICT (user_id) WHERE is_used = false DO NOTHING
+            ON CONFLICT (user_id) WHERE is_used = false
+            DO UPDATE SET
+                id           = EXCLUDED.id,
+                token        = EXCLUDED.token,
+                expires_at   = EXCLUDED.expires_at,
+                created_at   = EXCLUDED.created_at,
+                redirect_url = EXCLUDED.redirect_url
+            RETURNING (xmax = 0) AS was_inserted
         "#;
 
-        // Cross-pod idempotency guard (Bug 2 fix):
-        // The partial unique index (magic_link_token_one_per_user_active) rejects
-        // a second INSERT for the same user atomically. rows_affected == 0 means a
-        // concurrent pod already created a token — return 200 without dispatching
-        // a duplicate email. This closes both the cross-pod Moka cache miss race
-        // (backend: 2 replicas, isolated in-process caches) and the intra-pod
-        // async get()/insert() race on the Moka cache itself.
-        let insert_result = sea_orm::ConnectionTrait::execute(
+        let upsert_result = sea_orm::ConnectionTrait::query_one(
             &db,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -368,17 +353,21 @@ pub async fn request_magic_link(
         )
         .await
         .map_err(|e| {
-            tracing::error!("Error saving magic link: {:?}", e);
+            tracing::error!("Error upserting magic link token: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        if insert_result.rows_affected() == 0 {
+        let was_inserted = upsert_result
+            .and_then(|row| row.try_get_by_index::<bool>(0).ok())
+            .unwrap_or(false);
+
+        if !was_inserted {
             tracing::info!(
                 event = "magic_link.deduplicated_at_db",
                 request_id = %request_id,
                 user_id = %user_mod.id,
                 email = %payload.email,
-                reason = "concurrent_insert_conflict",
+                reason = "concurrent_upsert_lost_race",
             );
             return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
         }

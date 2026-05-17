@@ -236,9 +236,51 @@ async fn main() {
     if let Err(e) = registry.seed(&rp_id, &rp_origin).await {
         tracing::error!("Failed to seed WebauthnRegistry: {}", e);
     }
+
+    // DB-driven startup warm: seed the registry for every tenant domain already
+    // registered in app_domain. This ensures dynamically provisioned tenant origins
+    // use the correct eTLD+1 rpId immediately, without waiting for a live request to
+    // hit get_or_create. New tenants provisioned post-startup are still covered by
+    // get_or_create via the DB-verify path — no pod restart needed.
+    {
+        use crate::entities::app_domain;
+        use crate::webauthn_registry::effective_tld_plus_one;
+        use sea_orm::EntityTrait;
+        match app_domain::Entity::find().all(&conn).await {
+            Ok(domains) => {
+                tracing::info!("Pre-warming WebAuthn registry for {} tenant domain(s)...", domains.len());
+                for domain in domains {
+                    let origin_str = format!("https://{}", domain.domain_name);
+                    match url::Url::parse(&origin_str) {
+                        Ok(origin_url) => {
+                            let domain_rp_id = effective_tld_plus_one(
+                                origin_url.host_str().unwrap_or(&domain.domain_name)
+                            );
+                            if let Err(e) = registry.seed(&domain_rp_id, &origin_url).await {
+                                tracing::warn!(
+                                    "Could not pre-warm WebAuthn for domain '{}': {}",
+                                    domain.domain_name, e
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "Skipping WebAuthn pre-warm for invalid domain '{}': {}",
+                                domain.domain_name, e
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Could not load app_domain records for WebAuthn pre-warm: {}", e);
+            }
+        }
+    }
     
     // Additional origins
     if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
+
         for origin in additional_origins.split(',') {
             if let Ok(parsed) = url::Url::parse(origin.trim()) {
                 let add_rp_id = parsed.host_str().unwrap_or(&rp_id);
