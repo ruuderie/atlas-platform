@@ -115,6 +115,10 @@ pub mod m20260513_000001_add_dev_domain_buildwithruud;
 pub mod m20260513_000002_unique_active_magic_link_per_user;
 // 2026-05-15: Add SHA-256 hash columns for bearer/refresh tokens (Security #7).
 pub mod m20260515_000001_hash_session_tokens;
+// 2026-05-17: Bug 4 — ensure mailing_list table has the correct schema
+// (preferences JSONB, tenant_id UUID). The legacy drop migration was never
+// registered, so the table may exist with an old schema missing these columns.
+pub mod m20260517_000001_ensure_mailing_list_schema;
 
 pub struct Migrator;
 
@@ -191,6 +195,9 @@ impl MigratorTrait for Migrator {
             // Non-breaking: adds hash columns alongside plaintext, backfills existing rows.
             // Plaintext columns dropped in a follow-up migration after full rollout.
             Box::new(m20260515_000001_hash_session_tokens::Migration),
+            // 2026-05-17: Ensure mailing_list table exists with preferences JSONB + tenant_id.
+            // Fixes ERR_NO_DATA on the Mailing List admin tab.
+            Box::new(m20260517_000001_ensure_mailing_list_schema::Migration),
 
         ];
 

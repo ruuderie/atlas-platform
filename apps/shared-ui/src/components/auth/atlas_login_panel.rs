@@ -259,12 +259,17 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                 <h1 style="font-size:26px;font-weight:500;line-height:1.2;color:#141413;margin:0;">{app_title}</h1>
             </div>
             // Tabs
+            // Note: type="button" prevents form submission on click.
+            // The primary pre-hydration guard is Resource::new_blocking in admin.rs
+            // which eliminates the Suspense DOM swap that caused the full-page refresh.
             <div style="display:flex;gap:8px;margin-bottom:32px;">
-                <button type="button" on:click=move |ev| { ev.prevent_default(); email_mode.set(false); }
+                <button type="button"
+                    on:click=move |ev| { ev.prevent_default(); email_mode.set(false); }
                     style=move || format!("padding:6px 14px;border-radius:4px;font-size:12px;font-weight:500;border:none;pointer-events:auto;cursor:pointer;{}",
                         if !email_mode.get() {"background:#1B365D;color:#faf9f5;"} else {"background:#e8e6dc;color:#3d3d3a;"})
                 >"Passkey"</button>
-                <button type="button" on:click=move |ev| { ev.prevent_default(); email_mode.set(true); }
+                <button type="button"
+                    on:click=move |ev| { ev.prevent_default(); email_mode.set(true); }
                     style=move || format!("padding:6px 14px;border-radius:4px;font-size:12px;font-weight:500;border:none;pointer-events:auto;cursor:pointer;{}",
                         if email_mode.get() {"background:#1B365D;color:#faf9f5;"} else {"background:#e8e6dc;color:#3d3d3a;"})
                 >"Magic Link"</button>

@@ -341,9 +341,17 @@ pub async fn request_magic_link(
         let sql = r#"
             INSERT INTO magic_link_token (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
             VALUES ($1, $2, $3, $4, false, $5, $6, false)
+            ON CONFLICT (user_id) WHERE is_used = false DO NOTHING
         "#;
 
-        sea_orm::ConnectionTrait::execute(
+        // Cross-pod idempotency guard (Bug 2 fix):
+        // The partial unique index (magic_link_token_one_per_user_active) rejects
+        // a second INSERT for the same user atomically. rows_affected == 0 means a
+        // concurrent pod already created a token — return 200 without dispatching
+        // a duplicate email. This closes both the cross-pod Moka cache miss race
+        // (backend: 2 replicas, isolated in-process caches) and the intra-pod
+        // async get()/insert() race on the Moka cache itself.
+        let insert_result = sea_orm::ConnectionTrait::execute(
             &db,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -363,6 +371,17 @@ pub async fn request_magic_link(
             tracing::error!("Error saving magic link: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+        if insert_result.rows_affected() == 0 {
+            tracing::info!(
+                event = "magic_link.deduplicated_at_db",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                email = %payload.email,
+                reason = "concurrent_insert_conflict",
+            );
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
 
         let magic_link_url = match validated_redirect_url {
             Some(ref base) => {

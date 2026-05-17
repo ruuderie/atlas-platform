@@ -2,6 +2,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
+use shared_ui::components::auth::passkey_nudge::PasskeyNudge;
 use shared_ui::auth::atlas_auth::check_has_passkey;
 use shared_ui::utils::ResourceState;
 
@@ -108,10 +109,15 @@ pub fn Admin() -> impl IntoView {
     let query = use_query_map();
 
     // ── Auth resource ─────────────────────────────────────────────────────────
-    // `Resource::new` integrates with the Leptos reactive scheduler and resolves
-    // correctly inside the outer App <Suspense>.
-    // Returns `Result<bool, ServerFnError>` — mapped via `ResourceState` below.
-    let auth_resource = Resource::new(
+    // `Resource::new_blocking` blocks the SSR byte stream until check_session()
+    // resolves and serializes Ok(false)/Ok(true) into the HTML. The WASM client
+    // reads it synchronously — no None → Ready(false) transition, no Suspense
+    // DOM swap, no pre-hydration click vulnerability window.
+    //
+    // Without this, a click on "Magic Link" during the WASM download window
+    // re-targets to the Leptos Router delegation listener and causes a full
+    // history.pushState()/Admin remount perceived as a page refresh.
+    let auth_resource = Resource::new_blocking(
         || (),
         |_| async move { check_session().await },
     );
@@ -212,7 +218,7 @@ pub fn Admin() -> impl IntoView {
                         <section class="flex-1 bg-surface-container-highest p-1 blueprint-overlay min-h-[600px]">
                             <div class="bg-surface-container-lowest h-full p-8 md:p-12 relative flex flex-col">
                                 <Show when=move || show_passkey_nudge.get()>
-                                    <PasskeyRegistrationNudge />
+                                    <PasskeyNudge />
                                 </Show>
                                 // Header
                                 <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
@@ -1404,95 +1410,7 @@ pub fn HighlightTable() -> impl IntoView {
     }
 }
 
-#[component]
-fn PasskeyRegistrationNudge() -> impl IntoView {
-    let (is_hidden, set_is_hidden) = signal(false);
-
-    #[cfg(feature = "hydrate")]
-    Effect::new(move |_| {
-        if !is_hidden.get() {
-            let script = r#"
-                if (!document.getElementById('simplewebauthn-script')) {
-                    const s = document.createElement('script');
-                    s.id = 'simplewebauthn-script';
-                    s.src = 'https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js';
-                    document.head.appendChild(s);
-                }
-                setTimeout(() => {
-                    const btn = document.getElementById('nudge-register-passkey-btn');
-                    const msg = document.getElementById('nudge-passkey-message');
-                    if(btn && !btn.dataset.bound) {
-                        btn.dataset.bound = 'true';
-                        btn.addEventListener('click', async () => {
-                            try {
-                                btn.disabled = true;
-                                msg.innerText = 'Initiating...';
-                                
-                                const startRes = await fetch('/api/passkeys/start-register', {
-                                    method: 'POST',
-                                    credentials: 'include',
-                                    headers: { 'Content-Type': 'application/json' }
-                                });
-                                if (!startRes.ok) throw new Error('Failed to start registration');
-                                const options = await startRes.json();
-                                
-                                msg.innerText = 'Please follow browser prompts...';
-                                const { startRegistration } = window.SimpleWebAuthnBrowser;
-                                const credential = await startRegistration(options);
-                                
-                                msg.innerText = 'Verifying...';
-                                const finishRes = await fetch('/api/passkeys/finish-register', {
-                                    method: 'POST',
-                                    credentials: 'include',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(credential)
-                                });
-
-                                if (finishRes.ok) {
-                                    msg.innerText = 'Passkey registered successfully!';
-                                    msg.className = 'text-sm font-medium text-green-500 mt-2';
-                                    setTimeout(() => btn.closest('.bg-primary\\/10').style.display = 'none', 2000);
-                                } else {
-                                    throw new Error(await finishRes.text());
-                                }
-                            } catch (err) {
-                                console.error(err);
-                                msg.innerText = err.message || 'Registration failed';
-                                msg.className = 'text-sm font-medium text-error mt-2';
-                            } finally {
-                                btn.disabled = false;
-                            }
-                        });
-                    }
-                }, 500);
-            "#;
-            let _ = js_sys::eval(script);
-        }
-    });
-
-    view! {
-        <Show when=move || !is_hidden.get()>
-            <div class="bg-primary/10 border border-primary p-6 mb-8 flex justify-between items-center w-full">
-                <div>
-                    <h3 class="text-primary font-bold text-lg">"Action Required: Set Up a Passkey"</h3>
-                    <p class="text-sm text-on-surface-variant mt-1">"You logged in using an email link. For future logins, please set up a passkey."</p>
-                </div>
-                <div class="flex gap-4 items-center">
-                    <button
-                        id="nudge-register-passkey-btn"
-                        class="bg-primary text-white px-4 py-2 font-bold hover:bg-primary-container transition-colors disabled:opacity-50"
-                    >
-                        "Set Up Passkey"
-                    </button>
-                    <button
-                        class="text-outline hover:text-on-surface"
-                        on:click=move |_| set_is_hidden.set(true)
-                    >
-                        <span class="material-symbols-outlined">"close"</span>
-                    </button>
-                </div>
-                <div id="nudge-passkey-message" class="text-sm font-medium mt-2"></div>
-            </div>
-        </Show>
-    }
-}
+// PasskeyRegistrationNudge was removed. PasskeyNudge (shared-ui) is used instead.
+// The old implementation used js_sys::eval + setTimeout(500) + manual DOM binding
+// which raced against WASM hydration and CDN script load timing. See Bug 3 in the
+// engineering brief (2026-05-17) for the full root-cause analysis.
