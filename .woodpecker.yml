@@ -83,7 +83,7 @@ steps:
             return
           fi
 
-          EXPECTED="/pkg/${NAME}.css"
+          EXPECTED="/pkg/$${NAME}.css"
 
           if grep -qF "$EXPECTED" "$APPRS"; then
             echo "✓  $APP: output-name '$NAME' matches Stylesheet href ($EXPECTED)"
@@ -645,27 +645,37 @@ steps:
         - 'backend/**'
 
   # ── Notifications (Best Practice) ───────────────────────────────────────────
-  notify_discord:
+  notify_discord_success:
     image: appleboy/drone-discord
-    failure: ignore
-
     settings:
       webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
       webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
       message: >
-        **Atlas Platform Deployment**
-        Status: **${CI_PIPELINE_STATUS}** — Pipeline #{{build.number}}
+        🎉 **Atlas Platform Deployment SUCCESS** 🎉
+        Pipeline #{{build.number}} completed successfully!
+        Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
+        [View Logs]({{build.link}})
+    when:
+      - status: [success]
+        event: [push]
+
+  notify_discord_failure:
+    image: appleboy/drone-discord
+    settings:
+      webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
+      webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
+      message: >
+        🚨 💥 **Atlas Platform Deployment FAILED** 💥 🚨
+        Pipeline #{{build.number}} failed.
         Failed step(s): {{build.failed_steps}}
         Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
         [View Logs]({{build.link}})
     when:
-      - status: [success, failure]
+      - status: [failure]
         event: [push]
 
-  notify_email:
+  notify_email_success:
     image: drillster/drone-email
-    failure: ignore
-
     settings:
       host:
         from_secret: SMTP_SERVER
@@ -681,13 +691,13 @@ steps:
         from_secret: NOTIFICATION_EMAIL
       recipients_only: true
       subject: >
-        [Atlas CI] Status: ${CI_PIPELINE_STATUS} — Pipeline #${CI_PIPELINE_NUMBER}
+        [Atlas CI] 🎉 SUCCESS — Pipeline #${CI_PIPELINE_NUMBER}
       body: |
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
           <h2 style="color: #24292e; margin-top: 0; border-bottom: 1px solid #eaecef; padding-bottom: 10px;">Atlas Platform Deployment Report</h2>
           
           <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td><span style="font-weight: bold; text-transform: uppercase;">${CI_PIPELINE_STATUS}</span></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td><span style="color: #28a745; font-weight: bold; text-transform: uppercase;">✅ SUCCESS 🎉</span></td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Project:</td><td>${CI_REPO_OWNER}/${CI_REPO_NAME}</td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Branch:</td><td><span style="background: #f1f8ff; padding: 3px 6px; border-radius: 3px; font-family: monospace;">${CI_COMMIT_BRANCH}</span></td></tr>
             <tr><td style="padding: 8px 0; font-weight: bold;">Commit:</td><td><a href="${CI_REPO_URL}/commit/${CI_COMMIT_SHA}" style="color: #0366d6; text-decoration: none; font-family: monospace;">${CI_COMMIT_SHA}</a></td></tr>
@@ -696,12 +706,52 @@ steps:
             <tr><td style="padding: 8px 0; font-weight: bold;">Logs:</td><td><a href="${CI_PIPELINE_URL}" style="color: #0366d6; text-decoration: none;">View Pipeline #${CI_PIPELINE_NUMBER}</a></td></tr>
           </table>
 
-          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #f6f8fa; color: #24292e;">
-            <strong>Deployment status: ${CI_PIPELINE_STATUS}.</strong> Please review the logs if this failed.
+          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #dcffe4; color: #1a7f37;">
+            <strong>✅ Deployment completed successfully! All systems are go. 🚀</strong>
           </div>
         </div>
     when:
-      - status: [success, failure]
+      - status: [success]
+        event: [push]
+
+  notify_email_failure:
+    image: drillster/drone-email
+    settings:
+      host:
+        from_secret: SMTP_SERVER
+      port:
+        from_secret: SMTP_PORT
+      username:
+        from_secret: SMTP_USERNAME
+      password:
+        from_secret: SMTP_TOKEN
+      from:
+        from_secret: SMTP_FROM
+      recipients:
+        from_secret: NOTIFICATION_EMAIL
+      recipients_only: true
+      subject: >
+        [Atlas CI] 🚨 FAILURE — Pipeline #${CI_PIPELINE_NUMBER}
+      body: |
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
+          <h2 style="color: #24292e; margin-top: 0; border-bottom: 1px solid #eaecef; padding-bottom: 10px;">Atlas Platform Deployment Report</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <tr><td style="padding: 8px 0; font-weight: bold; width: 100px;">Status:</td><td><span style="color: #cb2431; font-weight: bold; text-transform: uppercase;">🚨 FAILURE 💥</span></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Project:</td><td>${CI_REPO_OWNER}/${CI_REPO_NAME}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Branch:</td><td><span style="background: #f1f8ff; padding: 3px 6px; border-radius: 3px; font-family: monospace;">${CI_COMMIT_BRANCH}</span></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Commit:</td><td><a href="${CI_REPO_URL}/commit/${CI_COMMIT_SHA}" style="color: #0366d6; text-decoration: none; font-family: monospace;">${CI_COMMIT_SHA}</a></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Message:</td><td><em>${CI_COMMIT_MESSAGE}</em></td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Author:</td><td>${CI_COMMIT_AUTHOR}</td></tr>
+            <tr><td style="padding: 8px 0; font-weight: bold;">Logs:</td><td><a href="${CI_PIPELINE_URL}" style="color: #0366d6; text-decoration: none;">View Pipeline #${CI_PIPELINE_NUMBER}</a></td></tr>
+          </table>
+
+          <div style="margin-top: 25px; padding: 15px; border-radius: 3px; background-color: #ffeef0; color: #b31d28;">
+            <strong>❌ Deployment FAILED. Please investigate immediately! 🛠️</strong>
+          </div>
+        </div>
+    when:
+      - status: [failure]
         event: [push]
 
   cleanup_workspace:
