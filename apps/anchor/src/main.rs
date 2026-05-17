@@ -41,8 +41,10 @@ async fn main() {
             "/metrics",
             axum::routing::get(|| async move { metric_handle.render() }),
         )
-        // Health check — must be registered BEFORE /api/{*fn_name} so the Leptos
-        // server-fn handler doesn't intercept it and return 400 (unknown function).
+        // Health check — MUST come before /api/{*fn_name} to prevent the Leptos
+        // server-fn catch-all from intercepting it and returning 400 (unknown fn).
+        // Also MUST be reached BEFORE extract_tenant_header runs, which is ensured
+        // by the early-return bypass added in that middleware for /api/health.
         .route(
             "/api/health",
             axum::routing::get(|| async { axum::http::StatusCode::OK }),
@@ -158,6 +160,16 @@ async fn extract_tenant_header(
     use anchor::state::TenantContext;
     use std::str::FromStr;
     use uuid::Uuid;
+
+    // Bypass tenant resolution for system endpoints that have no tenant context.
+    // Without this, CI smoke tests, K8s liveness/readiness probes, and Prometheus
+    // scrapers all receive 400/401 because they don't carry a session or Host header
+    // that resolves to a registered app_domain.
+    let path = req.uri().path();
+    if path == "/api/health" || path == "/health" || path == "/metrics" {
+        req.extensions_mut().insert(TenantContext(None));
+        return Ok(next.run(req).await);
+    }
 
     let mut tenant_id = if let Some(tenant_str) = headers
         .get("x-tenant-id")
