@@ -761,3 +761,4 @@ steps:
     when:
       - status: [success, failure]
         event: [push]
+# Trigger full rebuild for K8s base manifest fix
