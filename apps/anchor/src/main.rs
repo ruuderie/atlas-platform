@@ -230,23 +230,11 @@ async fn extract_tenant_header(
 
 #[cfg(not(feature = "ssr"))]
 pub fn main() {
-    use anchor::app::App;
-    _ = console_error_panic_hook::set_once;
-    leptos::mount::hydrate_body(App);
-    // Signal the pre-hydration click guard (injected in anchor/src/app.rs shell script)
-    // that WASM has fully hydrated and reactive handlers are now attached.
-    // From this point forward, clicks on [data-tab-guard] elements are passed through
-    // to Leptos reactive handlers normally.
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(w) = web_sys::window() {
-            let _ = js_sys::Reflect::set(
-                &w,
-                &wasm_bindgen::JsValue::from_str("__atlasReady"),
-                &wasm_bindgen::JsValue::from_bool(true),
-            );
-        }
-    }
+    // This stub intentionally has no body.
+    // In this Leptos/cargo-leptos setup, the WASM binary entry point and
+    // hydration are handled by the HydrationScripts component in the shell.
+    // The window.__atlasReady flag is set via a Leptos Effect in App() in app.rs,
+    // which fires on the client after the reactive system initialises.
 }
 
 

@@ -95,6 +95,16 @@ pub async fn record_page_view(path: String) -> Result<(), ServerFnError> {
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
+    // PRE-HYDRATION GUARD SIGNAL
+    // Lifts the capture-phase click guard injected in the shell <Script> block.
+    // Effect::new only runs on the client after the reactive system initialises
+    // (never during SSR), so this is the correct place to signal that WASM is live.
+    // Once this fires, clicks on [data-tab-guard] elements reach Leptos handlers normally.
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        let _ = js_sys::eval("window.__atlasReady = true;");
+    });
+
     let settings_resource = LocalResource::new(|| crate::pages::landing::get_site_settings());
 
     // ── Reactive derived values with immediate defaults ───────────────────────
