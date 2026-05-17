@@ -1061,7 +1061,7 @@ pub fn App() -> impl IntoView {
     let host = get_host();
     
     view! {
-        <Stylesheet id="leptos" href="/pkg/network-instance.css"/>
+        <Stylesheet id="leptos" href="/pkg/network-v1.css"/>
         
         <Suspense fallback=|| view! { <div class="min-h-screen flex items-center justify-center"><div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div> }>
             {
