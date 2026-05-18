@@ -66,6 +66,11 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/platform/provision/{tenant_id}", post(provision_tenant))
                 // Tenant management API is handled via tenant::authenticated_routes
 
+                // ── Admin Module Registry ─────────────────────────────────────────
+                // GET  /api/admin/modules                            — tenant-scoped
+                // POST /api/platform/tenants/{tenant_id}/modules     — platform-admin only
+                .merge(crate::handlers::admin_modules::routes())
+
                 // Listing management
                 .route("/api/admin/listings", get(admin::get_network_listings).post(listings::create_listing))
                 .route("/api/admin/listings/{id}", get(listings::get_listing_by_id).put(listings::update_listing).delete(listings::delete_listing))

@@ -17,3 +17,5 @@ pub mod webhook_tests;
 pub mod anchor_pages_tests;
 pub mod search_tests;
 pub mod webauthn_registry_tests;
+// Admin Module Registry — Phase 4 tests
+pub mod admin_module_tests;

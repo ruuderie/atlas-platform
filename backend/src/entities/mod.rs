@@ -36,6 +36,7 @@ pub mod tenant_setting;
 pub mod audit_log;
 // MULTI-TENANT ARCHITECTURE
 pub mod app_instance;
+pub mod app_instance_module;
 pub mod app_domain;
 pub mod app_page;
 pub mod app_menu;
