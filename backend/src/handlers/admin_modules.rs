@@ -274,6 +274,7 @@ pub async fn upsert_tenant_module(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::admin_module::ModuleCategory;
 
     #[test]
     fn test_fixed_module_disable_is_rejected() {

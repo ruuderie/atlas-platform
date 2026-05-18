@@ -9,7 +9,6 @@ use sea_orm::{
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;
-use futures::TryFutureExt;
 use std::result::Result;
 use crate::entities::{
     listing,
