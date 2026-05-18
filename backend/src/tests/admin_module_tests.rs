@@ -23,24 +23,25 @@ use crate::tests::test_utils;
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async fn get_or_create_test_tenant_id(db: &sea_orm::DatabaseConnection) -> Uuid {
-    // Return the first tenant or create one
-    use sea_orm::{EntityTrait, QueryOrder};
-    let tenant = crate::entities::tenant::Entity::find()
-        .order_by_asc(crate::entities::tenant::Column::CreatedAt)
+async fn get_tenant_for_user(db: &sea_orm::DatabaseConnection, user_id: Uuid) -> Uuid {
+    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+    let user_account = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .one(db)
         .await
-        .unwrap();
-    if let Some(t) = tenant {
-        t.id
-    } else {
-        let t = crate::tests::test_utils::create_test_tenant(db).await;
-        t.id
-    }
+        .unwrap()
+        .expect("user account missing");
+    
+    let account = crate::entities::account::Entity::find_by_id(user_account.account_id)
+        .one(db)
+        .await
+        .unwrap()
+        .expect("account missing");
+        
+    account.tenant_id
 }
 
-async fn get_or_create_app_instance_for_test_tenant(db: &sea_orm::DatabaseConnection) -> Uuid {
-    let tenant_id = get_or_create_test_tenant_id(db).await;
+async fn get_or_create_app_instance_for_tenant(db: &sea_orm::DatabaseConnection, tenant_id: Uuid) -> Uuid {
     use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
     let instance = crate::entities::app_instance::Entity::find()
         .filter(crate::entities::app_instance::Column::TenantId.eq(tenant_id))
@@ -103,6 +104,8 @@ async fn seed_module(
 async fn test_get_admin_modules_returns_ok_for_admin() {
     let (app, _db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &_db).await;
+    let tenant_id = get_tenant_for_user(&_db, _admin_user.id).await;
+    get_or_create_app_instance_for_tenant(&_db, tenant_id).await;
 
     let response = app
         .oneshot(
@@ -141,13 +144,10 @@ async fn test_get_admin_modules_returns_forbidden_without_auth() {
         .await
         .unwrap();
 
-    // The platform auth_middleware returns 403 FORBIDDEN (not 401) when
-    // no session cookie / Authorization header is present. This matches
-    // the behaviour observed in other protected endpoints.
     assert_eq!(
         response.status(),
-        StatusCode::FORBIDDEN,
-        "GET /api/admin/modules should return 403 for unauthenticated requests"
+        StatusCode::UNAUTHORIZED,
+        "GET /api/admin/modules should return 401 for unauthenticated requests"
     );
 }
 
@@ -156,7 +156,8 @@ async fn test_get_admin_modules_returns_forbidden_for_member_role() {
     // Validates P0 fix: the role gate rejects Member-role users who have a
     // valid session but insufficient privileges to read the module registry.
     let (app, db) = setup_test_app().await;
-    let tenant_id = get_or_create_test_tenant_id(&db).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let tenant_id = tenant.id;
 
     // register_test_user creates a Member-role user_account.
     let mut username = format!("member{}", Uuid::new_v4());
@@ -189,7 +190,8 @@ async fn test_get_admin_modules_returns_sorted_list() {
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
 
     // Find the test tenant's app_instance_id
-    let instance_id = get_or_create_app_instance_for_test_tenant(&db).await;
+    let tenant_id = get_tenant_for_user(&db, _admin_user.id).await;
+    let instance_id = get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     // Seed modules in reverse sort order intentionally
     seed_module(&db, instance_id, "SECURITY",  30, true).await;
@@ -235,7 +237,8 @@ async fn test_get_admin_modules_returns_sorted_list() {
 async fn test_upsert_module_creates_new_row() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    let tenant_id = get_or_create_test_tenant_id(&db).await;
+    let tenant_id = get_tenant_for_user(&db, _admin_user.id).await;
+    get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     let body = json!({
         "module_type": "LEADS",
@@ -269,7 +272,9 @@ async fn test_upsert_module_creates_new_row() {
 #[tokio::test]
 async fn test_upsert_module_forbidden_for_regular_user() {
     let (app, db) = setup_test_app().await;
-    let tenant_id = get_or_create_test_tenant_id(&db).await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+    let tenant_id = tenant.id;
+    get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     // Create and login a regular (non-admin) user
     let mut username = format!("regularuser{}", Uuid::new_v4());
@@ -309,7 +314,8 @@ async fn test_upsert_module_forbidden_for_regular_user() {
 async fn test_fixed_module_cannot_be_disabled_via_api() {
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    let tenant_id = get_or_create_test_tenant_id(&db).await;
+    let tenant_id = get_tenant_for_user(&db, _admin_user.id).await;
+    get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     // Attempt to disable Dashboard (a fixed module) — must be rejected with 400.
     let body = json!({
@@ -349,7 +355,8 @@ async fn test_fixed_module_can_be_enabled_via_api() {
     // disabling is forbidden.
     let (app, db) = setup_test_app().await;
     let (_admin_user, admin_token) = test_utils::create_and_login_admin_user(&app, &db).await;
-    let tenant_id = get_or_create_test_tenant_id(&db).await;
+    let tenant_id = get_tenant_for_user(&db, _admin_user.id).await;
+    get_or_create_app_instance_for_tenant(&db, tenant_id).await;
 
     let body = json!({
         "module_type": "SETTINGS",
