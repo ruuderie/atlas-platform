@@ -645,13 +645,16 @@ steps:
         - 'backend/**'
 
   # ── Notifications (Best Practice) ───────────────────────────────────────────
-  notify_discord_success:
-    image: appleboy/drone-discord
+  notify_telegram_success:
+    image: appleboy/drone-telegram
     settings:
-      webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
-      webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
+      token:
+        from_secret: TELEGRAM_BOT_TOKEN
+      to:
+        from_secret: TELEGRAM_CHAT_ID
+      format: markdown
       message: >
-        🎉 **Atlas Platform Deployment SUCCESS** 🎉
+        🎉 *Atlas Platform Deployment SUCCESS* 🎉
         Pipeline #{{build.number}} completed successfully!
         Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
         [View Logs]({{build.link}})
@@ -659,13 +662,16 @@ steps:
       - status: [success]
         event: [push]
 
-  notify_discord_failure:
-    image: appleboy/drone-discord
+  notify_telegram_failure:
+    image: appleboy/drone-telegram
     settings:
-      webhook_id: ${DISCORD_WEBHOOK_ID:-ignored}
-      webhook_token: ${DISCORD_WEBHOOK_TOKEN:-ignored}
+      token:
+        from_secret: TELEGRAM_BOT_TOKEN
+      to:
+        from_secret: TELEGRAM_CHAT_ID
+      format: markdown
       message: >
-        🚨 💥 **Atlas Platform Deployment FAILED** 💥 🚨
+        🚨 💥 *Atlas Platform Deployment FAILED* 💥 🚨
         Pipeline #{{build.number}} failed.
         Failed step(s): {{build.failed_steps}}
         Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
