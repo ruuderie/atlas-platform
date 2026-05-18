@@ -655,9 +655,9 @@ steps:
       format: markdown
       message: >
         🎉 *Atlas Platform Deployment SUCCESS* 🎉
-        Pipeline #{{build.number}} completed successfully!
-        Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
-        [View Logs]({{build.link}})
+        Pipeline #${CI_PIPELINE_NUMBER} completed successfully!
+        Branch: `${CI_COMMIT_BRANCH}` | Commit: `${CI_COMMIT_SHA}`
+        [View Logs](${CI_PIPELINE_URL})
     when:
       - status: [success]
         event: [push]
@@ -672,10 +672,9 @@ steps:
       format: markdown
       message: >
         🚨 💥 *Atlas Platform Deployment FAILED* 💥 🚨
-        Pipeline #{{build.number}} failed.
-        Failed step(s): {{build.failed_steps}}
-        Branch: `{{build.branch}}` | Commit: `{{build.commit}}`
-        [View Logs]({{build.link}})
+        Pipeline #${CI_PIPELINE_NUMBER} failed.
+        Branch: `${CI_COMMIT_BRANCH}` | Commit: `${CI_COMMIT_SHA}`
+        [View Logs](${CI_PIPELINE_URL})
     when:
       - status: [failure]
         event: [push]
