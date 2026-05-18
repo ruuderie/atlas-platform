@@ -131,4 +131,26 @@ impl AtlasApp for NetworkInstanceApp {
             },
         ]
     }
+
+    fn default_modules(&self) -> Vec<(crate::models::admin_module::AdminModuleType, &'static str, i32, bool)> {
+        use crate::models::admin_module::AdminModuleType as M;
+        vec![
+            // Fixed platform modules — cannot be disabled
+            (M::Dashboard,   "Dashboard",  0,  true),
+            (M::Settings,    "Settings",   50, true),
+            (M::Security,    "Security",   60, true),
+            // Marketplace core
+            (M::Listings,    "Listings",   10, false),
+            (M::Leads,       "Leads",      20, false),
+            (M::Contacts,    "Contacts",   30, false),
+            // Appearance
+            (M::Navigation,  "Navigation", 40, false),
+        ]
+    }
+
+    async fn provision(&self, db: &sea_orm::DatabaseConnection, tenant_id: uuid::Uuid) -> Result<(), String> {
+        use crate::services::module_provisioning::{resolve_app_instance_id, seed_default_modules};
+        let app_instance_id = resolve_app_instance_id(db, tenant_id, self.app_id()).await?;
+        seed_default_modules(db, app_instance_id, self.default_modules()).await
+    }
 }

@@ -119,6 +119,9 @@ pub mod m20260515_000001_hash_session_tokens;
 // (preferences JSONB, tenant_id UUID). The legacy drop migration was never
 // registered, so the table may exist with an old schema missing these columns.
 pub mod m20260517_000001_ensure_mailing_list_schema;
+// 2026-05-18: Dynamic Admin Module Registry — creates app_instance_module table
+// and seeds buildwithruud's existing module set for backward compatibility.
+pub mod m20260518_000001_create_app_instance_modules;
 
 pub struct Migrator;
 
@@ -198,6 +201,9 @@ impl MigratorTrait for Migrator {
             // 2026-05-17: Ensure mailing_list table exists with preferences JSONB + tenant_id.
             // Fixes ERR_NO_DATA on the Mailing List admin tab.
             Box::new(m20260517_000001_ensure_mailing_list_schema::Migration),
+            // 2026-05-18: Dynamic Admin Module Registry — platform-wide module config table.
+            // Seeds buildwithruud with its existing 17 modules (incl. renamed Contacts + new Leads).
+            Box::new(m20260518_000001_create_app_instance_modules::Migration),
 
         ];
 

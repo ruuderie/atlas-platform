@@ -219,7 +219,32 @@ pub trait AtlasApp: Send + Sync {
         vec![]
     }
 
-    // ── Onboarding Contract ───────────────────────────────────────────────────
+    /// Returns the default admin module set for this app.
+    ///
+    /// Each tuple is `(AdminModuleType, display_name, sort_order, is_fixed)`.
+    /// This is used by `provision()` to seed the `app_instance_module` table when
+    /// a new tenant is onboarded to this app.
+    ///
+    /// Fixed modules (Dashboard, Settings, Security) should always be included.
+    /// The `is_fixed` flag prevents them from being disabled via Platform Admin.
+    ///
+    /// Default implementation returns an empty list. Apps MUST override this.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// fn default_modules(&self) -> Vec<(AdminModuleType, &'static str, i32, bool)> {
+    ///     vec![
+    ///         (AdminModuleType::Dashboard, "Dashboard", 0,  true),
+    ///         (AdminModuleType::Blog,      "Blog",      10, false),
+    ///         (AdminModuleType::Settings,  "Settings",  20, true),
+    ///         (AdminModuleType::Security,  "Security",  30, true),
+    ///     ]
+    /// }
+    /// ```
+    fn default_modules(&self) -> Vec<(crate::models::admin_module::AdminModuleType, &'static str, i32, bool)> {
+        vec![]
+    }
+
 
     /// Returns the ordered list of onboarding steps this app requires before it is
     /// considered "live-ready". Each step is declarative and serializable so the

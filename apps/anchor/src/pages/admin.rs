@@ -5,6 +5,9 @@ use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
 use shared_ui::components::auth::passkey_nudge::PasskeyNudge;
 use shared_ui::auth::atlas_auth::check_has_passkey;
 use shared_ui::utils::ResourceState;
+use shared_ui::components::admin_module_sidebar::{
+    AdminModuleConfig, AdminModuleType, SidebarTheme,
+};
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -33,6 +36,112 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
         let _ = reqwest::Client::new().post(&url).send().await;
     }
     Ok(())
+}
+
+/// Fetches the enabled admin module set for the authenticated tenant.
+/// Sorted by `sort_order` ascending. Returns `Vec<AdminModuleConfig>`.
+/// Falls back to an empty vec on error — the sidebar will show nothing (safe failure mode).
+///
+/// Uses the same AppState/TenantContext injection pattern as all anchor server fns.
+#[server(GetAdminModules, "/api")]
+pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use shared_ui::components::admin_module_sidebar::ModuleCategory;
+
+    // Local helper: parse SCREAMING_SNAKE_CASE string → AdminModuleType.
+    fn parse_module(s: &str) -> Option<AdminModuleType> {
+        match s {
+            "DASHBOARD"       => Some(AdminModuleType::Dashboard),
+            "SETTINGS"        => Some(AdminModuleType::Settings),
+            "SECURITY"        => Some(AdminModuleType::Security),
+            "BLOG"            => Some(AdminModuleType::Blog),
+            "RESUME_PROFILES" => Some(AdminModuleType::ResumeProfiles),
+            "RESUME_ENTRIES"  => Some(AdminModuleType::ResumeEntries),
+            "LANDING_PAGES"   => Some(AdminModuleType::LandingPages),
+            "WEBFORMS"        => Some(AdminModuleType::Webforms),
+            "NAVIGATION"      => Some(AdminModuleType::Navigation),
+            "FOOTER"          => Some(AdminModuleType::Footer),
+            "PAGE_HEADERS"    => Some(AdminModuleType::PageHeaders),
+            "LEADS"           => Some(AdminModuleType::Leads),
+            "CONTACTS"        => Some(AdminModuleType::Contacts),
+            "LEAD_OPTIONS"    => Some(AdminModuleType::LeadOptions),
+            "SERVICES"        => Some(AdminModuleType::Services),
+            "CASE_STUDIES"    => Some(AdminModuleType::CaseStudies),
+            "HIGHLIGHTS"      => Some(AdminModuleType::Highlights),
+            "PROPERTIES"      => Some(AdminModuleType::Properties),
+            "LISTINGS"        => Some(AdminModuleType::Listings),
+            // IMPORTANT: Unknown strings are dropped (None), not mapped to Custom.
+            // This prevents future backend variants or DB typos from creating
+            // phantom tabs in the sidebar. Matches the backend's own filter_map/.ok()?.
+            _                 => None,
+        }
+    }
+
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    // Resolve the app_instance for this tenant.
+    let app_instance_id: Option<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT ai.id FROM app_instances ai WHERE ai.tenant_id = $1 LIMIT 1"
+    )
+    .bind(tenant.0)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    let Some(instance_id) = app_instance_id else {
+        return Ok(vec![]);
+    };
+
+    let rows = sqlx::query_as::<_, (String, String, Option<String>, i32, bool)>(
+        "SELECT module_type, display_name, icon, sort_order, is_fixed \
+         FROM app_instance_module \
+         WHERE app_instance_id = $1 AND is_enabled = true \
+         ORDER BY sort_order ASC"
+    )
+    .bind(instance_id)
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    let configs = rows
+        .into_iter()
+        .filter_map(|(type_str, display_name, icon, sort_order, is_fixed)| {
+            let module_type = parse_module(&type_str)?;
+            // Derive category from module_type via a local lookup table.
+            let category = match module_type {
+                AdminModuleType::Dashboard
+                | AdminModuleType::Settings
+                | AdminModuleType::Security => ModuleCategory::Platform,
+                AdminModuleType::Blog
+                | AdminModuleType::ResumeProfiles
+                | AdminModuleType::ResumeEntries
+                | AdminModuleType::LandingPages
+                | AdminModuleType::Webforms => ModuleCategory::Content,
+                AdminModuleType::Navigation
+                | AdminModuleType::Footer
+                | AdminModuleType::PageHeaders => ModuleCategory::Appearance,
+                AdminModuleType::Leads
+                | AdminModuleType::Contacts
+                | AdminModuleType::LeadOptions => ModuleCategory::CrmAndComms,
+                AdminModuleType::Services
+                | AdminModuleType::CaseStudies
+                | AdminModuleType::Highlights => ModuleCategory::B2B,
+                _ => ModuleCategory::Advanced,
+            };
+            Some(AdminModuleConfig {
+                module_type,
+                display_name,
+                icon,
+                sort_order,
+                is_fixed,
+                category,
+            })
+        })
+        .collect();
+
+    Ok(configs)
 }
 
 #[component]
@@ -117,7 +226,7 @@ pub fn Admin() -> impl IntoView {
         |_| async move { check_session().await },
     );
 
-    let (active_tab, set_active_tab) = signal("DASHBOARD");
+    let (active_tab, set_active_tab) = signal(AdminModuleType::Dashboard);
 
     let (modal_state, set_modal_state) = signal(ModalState::None);
     provide_context(modal_state);
@@ -173,8 +282,8 @@ pub fn Admin() -> impl IntoView {
 /// and resetting email_mode to false on every post-hydration tick.
 #[component]
 fn AuthenticatedDashboard(
-    active_tab: ReadSignal<&'static str>,
-    set_active_tab: WriteSignal<&'static str>,
+    active_tab: ReadSignal<AdminModuleType>,
+    set_active_tab: WriteSignal<AdminModuleType>,
 ) -> impl IntoView {
     let modal_state = expect_context::<ReadSignal<ModalState>>();
     let set_modal_state = expect_context::<WriteSignal<ModalState>>();
@@ -191,39 +300,42 @@ fn AuthenticatedDashboard(
         }
     });
 
+    // ── Dynamic module registry ───────────────────────────────────────────────
+    // Loaded once on mount via server fn. Falls back to empty on error.
+    // SSR-safe: Resource::new_blocking ensures the module list is in the HTML
+    // payload so WASM reads it synchronously with no Suspense flash.
+    let modules_resource = Resource::new_blocking(
+        || (),
+        |_| async move { get_admin_modules().await.unwrap_or_default() },
+    );
+
     view! {
         <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
-            // Sidebar
-            <aside class="w-full md:w-64 shrink-0 space-y-2">
-                <div class="mb-12">
-                {["DASHBOARD", "WEBFORMS", "SERVICES", "CASE STUDIES", "HIGHLIGHTS", "MAILING LIST", "SETTINGS", "LEAD OPTIONS", "NAVIGATION", "FOOTER", "PAGE HEADERS", "BLOG", "RESUME PROFILES", "RESUME ENTRIES", "LANDING PAGES", "SECURITY"].iter().map(|&t| {
-                    view! {
-                        <button
-                            on:click=move |_| set_active_tab.set(t)
-                            class=move || format!(
-                                "w-full text-left px-4 py-3 jetbrains text-sm font-bold tracking-wider transition-colors {}",
-                                if active_tab.get() == t { "bg-primary text-on-primary" }
-                                else { "text-slate-500 hover:bg-surface-container-high dark:text-slate-400 dark:hover:bg-slate-800" }
-                            )
-                        >
-                            {t}
-                        </button>
-                    }
-                }).collect::<Vec<_>>()}
-                </div>
-                <button
-                    on:click=move |_| {
-                        leptos::task::spawn_local(async move {
-                            let _ = revoke_session().await;
-                            if let Some(w) = web_sys::window() {
-                                let _ = w.location().replace("/admin");
-                            }
+            // Sidebar — dynamic from module registry
+            <aside class="w-full md:w-64 shrink-0">
+                <Suspense fallback=move || view! { <div class="h-64 animate-pulse bg-surface-container-high rounded" /> }>
+                    {move || {
+                        let modules = modules_resource.get().unwrap_or_default();
+                        let on_logout = Callback::new(move |_: ()| {
+                            leptos::task::spawn_local(async move {
+                                let _ = revoke_session().await;
+                                if let Some(w) = web_sys::window() {
+                                    let _ = w.location().replace("/admin");
+                                }
+                            });
                         });
-                    }
-                    class="text-error text-xs jetbrains font-bold uppercase tracking-widest hover:underline"
-                >
-                    "[ TERMINATE SESSION ]"
-                </button>
+                        view! {
+                            <shared_ui::components::admin_module_sidebar::AdminModuleSidebar
+                                modules=modules
+                                active_tab=active_tab
+                                set_active_tab=set_active_tab
+                                on_logout=on_logout
+                                theme=SidebarTheme::Anchor
+                                brand_label="SYSTEM_CMS".to_string()
+                            />
+                        }
+                    }}
+                </Suspense>
             </aside>
 
             // Main Content Area
@@ -236,65 +348,68 @@ fn AuthenticatedDashboard(
                     <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
                         <div>
                             <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-4">
-                                <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">"DATABASE // LIVE"</span>
+                                <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">
+                                    "DATABASE // LIVE"
+                                </span>
                             </div>
                             <h2 class="text-3xl font-extrabold text-primary tracking-tight uppercase">
-                                {move || active_tab.get()}
+                                {move || format!("{:?}", active_tab.get())}
                             </h2>
                         </div>
                         <button
                             on:click=move |_| {
                                 let state = match active_tab.get() {
-                                    "SETTINGS"        => ModalState::Settings,
-                                    "SERVICES"        => ModalState::Service(None),
-                                    "CASE STUDIES"    => ModalState::CaseStudy(None),
-                                    "HIGHLIGHTS"      => ModalState::Highlight(None),
-                                    "BLOG"            => ModalState::Post(None),
-                                    "RESUME PROFILES" => ModalState::Profile(None),
-                                    "RESUME ENTRIES"  => ModalState::BaseEntry(None, None),
-                                    "LANDING PAGES"   => ModalState::LandingPage(None),
-                                    "FOOTER"          => ModalState::FooterItem(None),
-                                    "PAGE HEADERS"    => ModalState::PageHeader(None),
-                                    "MAILING LIST"    => ModalState::MailingList(None),
-                                    "LEAD OPTIONS"    => ModalState::LeadOption(None),
-                                    "WEBFORMS"        => ModalState::None,
-                                    "SECURITY"        => ModalState::Passkey,
-                                    _                 => ModalState::None,
+                                    AdminModuleType::Settings       => ModalState::Settings,
+                                    AdminModuleType::Services       => ModalState::Service(None),
+                                    AdminModuleType::CaseStudies    => ModalState::CaseStudy(None),
+                                    AdminModuleType::Highlights     => ModalState::Highlight(None),
+                                    AdminModuleType::Blog           => ModalState::Post(None),
+                                    AdminModuleType::ResumeProfiles => ModalState::Profile(None),
+                                    AdminModuleType::ResumeEntries  => ModalState::BaseEntry(None, None),
+                                    AdminModuleType::LandingPages   => ModalState::LandingPage(None),
+                                    AdminModuleType::Footer         => ModalState::FooterItem(None),
+                                    AdminModuleType::PageHeaders    => ModalState::PageHeader(None),
+                                    AdminModuleType::Contacts       => ModalState::MailingList(None),
+                                    AdminModuleType::LeadOptions    => ModalState::LeadOption(None),
+                                    AdminModuleType::Security       => ModalState::Passkey,
+                                    _                               => ModalState::None,
                                 };
                                 set_modal_state.set(state);
                             }
                             class="bg-primary text-on-primary px-8 py-4 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors"
                         >
                             {move || match active_tab.get() {
-                                "SETTINGS"  => "EDIT VALUES",
-                                "DASHBOARD" => "REFRESH",
-                                _           => "NEW ENTRY +",
+                                AdminModuleType::Settings  => "EDIT VALUES",
+                                AdminModuleType::Dashboard => "REFRESH",
+                                _                          => "NEW ENTRY +",
                             }}
                         </button>
                     </div>
 
-                    // Datagrid View
+                    // Datagrid View — dispatch on AdminModuleType enum
                     <div class="flex-1 overflow-x-auto">
                         {move || match active_tab.get() {
-                            "DASHBOARD"      => view! { <DashboardView /> }.into_any(),
-                            "WEBFORMS"       => view! { <WebformsTable /> }.into_any(),
-                            "SERVICES"       => view! { <ServiceTable /> }.into_any(),
-                            "CASE STUDIES"   => view! { <CaseStudyTable /> }.into_any(),
-                            "HIGHLIGHTS"     => view! { <HighlightTable /> }.into_any(),
-                            "MAILING LIST"   => view! { <MailingListTable /> }.into_any(),
-                            "LEAD OPTIONS"   => view! { <LeadOptionTable /> }.into_any(),
-                            "NAVIGATION"     => view! { <NavTable /> }.into_any(),
-                            "FOOTER"         => view! { <FooterTable /> }.into_any(),
-                            "PAGE HEADERS"   => view! { <PageHeaderTable /> }.into_any(),
-                            "SETTINGS"       => view! { <SettingsReadView /> }.into_any(),
-                            "BLOG"           => view! { <PostTable /> }.into_any(),
-                            "RESUME PROFILES"  => view! { <ResumeProfileTable /> }.into_any(),
-                            "RESUME ENTRIES"   => view! { <BaseResumeEntryTable /> }.into_any(),
-                            "LANDING PAGES"    => view! { <LandingPageTable /> }.into_any(),
-                            "SECURITY"         => view! { <PasskeyTable /> }.into_any(),
+                            AdminModuleType::Dashboard      => view! { <DashboardView /> }.into_any(),
+                            AdminModuleType::Webforms       => view! { <WebformsTable /> }.into_any(),
+                            AdminModuleType::Services       => view! { <ServiceTable /> }.into_any(),
+                            AdminModuleType::CaseStudies    => view! { <CaseStudyTable /> }.into_any(),
+                            AdminModuleType::Highlights     => view! { <HighlightTable /> }.into_any(),
+                            AdminModuleType::Contacts       => view! { <MailingListTable /> }.into_any(),
+                            AdminModuleType::LeadOptions    => view! { <LeadOptionTable /> }.into_any(),
+                            AdminModuleType::Navigation     => view! { <NavTable /> }.into_any(),
+                            AdminModuleType::Footer         => view! { <FooterTable /> }.into_any(),
+                            AdminModuleType::PageHeaders    => view! { <PageHeaderTable /> }.into_any(),
+                            AdminModuleType::Settings       => view! { <SettingsReadView /> }.into_any(),
+                            AdminModuleType::Blog           => view! { <PostTable /> }.into_any(),
+                            AdminModuleType::ResumeProfiles => view! { <ResumeProfileTable /> }.into_any(),
+                            AdminModuleType::ResumeEntries  => view! { <BaseResumeEntryTable /> }.into_any(),
+                            AdminModuleType::LandingPages   => view! { <LandingPageTable /> }.into_any(),
+                            AdminModuleType::Security       => view! { <PasskeyTable /> }.into_any(),
                             _ => view! {
                                 <div class="h-64 flex items-center justify-center border-2 border-dashed border-outline-variant text-outline">
-                                    <span class="jetbrains text-sm">"MODULE_OFFLINE"</span>
+                                    <span class="jetbrains text-sm">
+                                        "MODULE_OFFLINE"
+                                    </span>
                                 </div>
                             }.into_any(),
                         }}
@@ -427,7 +542,7 @@ fn DashboardView() -> impl IntoView {
                             <span class="text-5xl font-extrabold text-primary">{stats.recent_page_views}</span>
                         </div>
                         <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
-                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Total Mailing List & Leads"</span>
+                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Total Contacts"</span>
                             <span class="text-5xl font-extrabold text-secondary">{stats.total_mailing_list}</span>
                         </div>
                         <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">

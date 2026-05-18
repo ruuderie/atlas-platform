@@ -174,4 +174,38 @@ impl AtlasApp for AnchorApp {
             },
         ]
     }
+
+    fn default_modules(&self) -> Vec<(crate::models::admin_module::AdminModuleType, &'static str, i32, bool)> {
+        use crate::models::admin_module::AdminModuleType as M;
+        vec![
+            // Fixed platform modules — cannot be disabled
+            (M::Dashboard,      "Dashboard",       0,   true),
+            (M::Settings,       "Settings",        60,  true),
+            (M::Security,       "Security",        150, true),
+            // Content
+            (M::Blog,           "Blog",            10,  false),
+            (M::LandingPages,   "Landing Pages",   110, false),
+            (M::ResumeProfiles, "Resume Profiles", 120, false),
+            (M::ResumeEntries,  "Resume Entries",  130, false),
+            (M::Webforms,       "Webforms",        140, false),
+            // Appearance
+            (M::Navigation,     "Navigation",      80,  false),
+            (M::Footer,         "Footer",          90,  false),
+            (M::PageHeaders,    "Page Headers",    100, false),
+            // CRM & Comms
+            (M::Leads,          "Leads",           160, false),
+            (M::Contacts,       "Contacts",        50,  false),
+            (M::LeadOptions,    "Lead Options",    70,  false),
+            // B2B
+            (M::Services,       "Services",        20,  false),
+            (M::CaseStudies,    "Case Studies",    30,  false),
+            (M::Highlights,     "Highlights",      40,  false),
+        ]
+    }
+
+    async fn provision(&self, db: &sea_orm::DatabaseConnection, tenant_id: uuid::Uuid) -> Result<(), String> {
+        use crate::services::module_provisioning::{resolve_app_instance_id, seed_default_modules};
+        let app_instance_id = resolve_app_instance_id(db, tenant_id, self.app_id()).await?;
+        seed_default_modules(db, app_instance_id, self.default_modules()).await
+    }
 }

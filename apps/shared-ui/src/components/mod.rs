@@ -11,3 +11,5 @@ pub mod auth;
 pub mod properties_editor;
 pub mod icon;
 pub mod theme_provider;
+// Platform admin module registry sidebar
+pub mod admin_module_sidebar;

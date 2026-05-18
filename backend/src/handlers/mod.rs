@@ -28,6 +28,8 @@ pub mod admin;
 pub mod sessions;
 pub mod request_logs;
 pub mod health;
+// Admin module registry
+pub mod admin_modules;
 pub mod auth_frontend;
 pub mod my_accounts;
 pub mod ab_testing;

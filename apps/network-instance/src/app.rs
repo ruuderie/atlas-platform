@@ -1038,6 +1038,8 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
                     <leptos_router::components::Route path=leptos_router::path!("/list-property") view=HostLanding />
                     <leptos_router::components::Route path=leptos_router::path!("/auth/login") view=crate::pages::auth::login::Login />
                     <leptos_router::components::Route path=leptos_router::path!("/auth/register") view=crate::pages::auth::register::Register />
+                    // Operator admin dashboard — dynamic module registry
+                    <leptos_router::components::Route path=leptos_router::path!("/admin") view=crate::pages::admin::NetworkAdmin />
                     <leptos_router::components::ParentRoute path=leptos_router::path!("/dashboard") view=crate::pages::dashboard::layout::DashboardLayout>
                         <leptos_router::components::Route path=leptos_router::path!("") view=crate::pages::dashboard::layout::DashboardOverview />
                         <leptos_router::components::Route path=leptos_router::path!("settings") view=crate::pages::dashboard::settings::DashboardSettings />
