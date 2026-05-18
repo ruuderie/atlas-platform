@@ -53,8 +53,7 @@ async fn get_or_create_app_instance_for_test_tenant(db: &sea_orm::DatabaseConnec
         crate::entities::app_instance::ActiveModel {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant_id),
-            app_id: Set("anchor".to_string()),
-            is_active: Set(true),
+            app_type: Set("anchor".to_string()),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),
             ..Default::default()
