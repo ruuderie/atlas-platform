@@ -203,7 +203,7 @@ impl AtlasApp for AnchorApp {
         ]
     }
 
-    async fn provision(&self, db: &sea_orm::DatabaseConnection, tenant_id: uuid::Uuid) -> Result<(), String> {
+    async fn provision(&self, db: &DatabaseConnection, tenant_id: uuid::Uuid) -> Result<(), String> {
         use crate::services::module_provisioning::{resolve_app_instance_id, seed_default_modules};
         let app_instance_id = resolve_app_instance_id(db, tenant_id, self.app_id()).await?;
         seed_default_modules(db, app_instance_id, self.default_modules()).await

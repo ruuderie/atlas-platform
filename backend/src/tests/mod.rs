@@ -19,3 +19,5 @@ pub mod search_tests;
 pub mod webauthn_registry_tests;
 // Admin Module Registry — Phase 4 tests
 pub mod admin_module_tests;
+// Phase 2 — Provisioning API tests
+pub mod provision_tests;

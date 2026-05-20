@@ -157,22 +157,25 @@ impl WebauthnRegistry {
 /// the eTLD+1 so that passkeys registered from any subdomain (e.g. `dev.example.com`)
 /// can be used from the apex domain (`example.com`) and vice versa.
 ///
+/// Uses the Mozilla Public Suffix List (via the `addr` crate, bundled at compile time)
+/// to correctly handle multi-label TLDs such as `.co.uk`, `.com.au`, `.gov.uk`.
+///
 /// # Examples
 /// - `"dev.buildwithruud.com"` → `"buildwithruud.com"`
 /// - `"buildwithruud.com"`     → `"buildwithruud.com"`
+/// - `"sub.example.co.uk"`     → `"example.co.uk"`
 /// - `"localhost"`             → `"localhost"`
-///
-/// # Limitations
-/// This naive implementation splits on `.` and takes the last two labels. It is correct
-/// for single-label TLDs (`.com`, `.co`, `.io`). For multi-label TLDs (`.co.uk`) the
-/// result would be incorrect (e.g. `"co.uk"` instead of `"example.co.uk"`).
-/// If multi-label TLD support is required, replace with the `publicsuffix` crate.
+/// - `"192.168.1.1"`           → `"192.168.1.1"` (IPs pass through unchanged)
 pub fn effective_tld_plus_one(host: &str) -> String {
-    let parts: Vec<&str> = host.split('.').collect();
-    if parts.len() > 2 {
-        parts[parts.len() - 2..].join(".")
-    } else {
-        host.to_string()
+    use addr::parse_domain_name;
+    match parse_domain_name(host) {
+        Ok(domain) => domain
+            .root()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| host.to_string()),
+        // Fallback covers: localhost, bare IPs, and any parse error.
+        // These are returned unchanged so local dev and non-standard envs keep working.
+        Err(_) => host.to_string(),
     }
 }
 

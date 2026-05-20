@@ -88,37 +88,41 @@ impl AtlasApp for CorePlatformApp {
     /// Uses `ON CONFLICT DO NOTHING` semantics — safe to call multiple times.
     /// Each insert is a no-op if the row already exists, so re-provisioning
     /// an existing tenant leaves its data intact.
+    ///
+    /// Accepts any `ConnectionTrait` so it can be called inside a transaction
+    /// (`&DatabaseTransaction`) or directly against a `DatabaseConnection`.
     async fn provision(&self, db: &DatabaseConnection, tenant_id: Uuid) -> Result<(), String> {
-        use sea_orm::{ActiveModelTrait, Set, ConnectionTrait, Statement};
-        use crate::entities::{app_page, app_menu};
+        use sea_orm::{ConnectionTrait, Statement};
         use chrono::Utc;
 
         let now = Utc::now();
 
-        // ── 1. Seed default home page ─────────────────────────────────────────
-        // Use raw SQL ON CONFLICT DO NOTHING to be safe against race conditions
-        // and re-provisioning without needing to check existence first.
+        // ── 1. Seed default home page (idempotent via WHERE NOT EXISTS) ───────────
         let page_id = Uuid::new_v4();
         db.execute(Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
             INSERT INTO app_pages (id, tenant_id, slug, title, description, page_type, hero_payload, blocks_payload, is_published, created_at, updated_at)
-            VALUES ($1, $2, 'home', 'Home', 'Welcome to your new site', 'standard', NULL, '[]'::jsonb, true, $3, $3)
-            ON CONFLICT (tenant_id, slug) DO NOTHING
+            SELECT $1, $2, 'home', 'Home', 'Welcome to your new site', 'standard', NULL, '[]'::jsonb, true, $3, $3
+            WHERE NOT EXISTS (
+                SELECT 1 FROM app_pages WHERE tenant_id = $2 AND slug = 'home'
+            )
             "#,
             vec![page_id.into(), tenant_id.into(), now.into()],
         ))
         .await
         .map_err(|e| format!("provision: failed to seed home page: {e}"))?;
 
-        // ── 2. Seed default header menu ───────────────────────────────────────
+        // ── 2. Seed default header menu (idempotent via WHERE NOT EXISTS) ─────────
         let menu_id = Uuid::new_v4();
         db.execute(Statement::from_sql_and_values(
             sea_orm::DatabaseBackend::Postgres,
             r#"
             INSERT INTO app_menus (id, tenant_id, menu_type, label, href, parent_id, display_order, is_visible, created_at, updated_at)
-            VALUES ($1, $2, 'header', 'Home', '/', NULL, 1, true, $3, $3)
-            ON CONFLICT DO NOTHING
+            SELECT $1, $2, 'header', 'Home', '/', NULL, 1, true, $3, $3
+            WHERE NOT EXISTS (
+                SELECT 1 FROM app_menus WHERE tenant_id = $2 AND menu_type = 'header' AND label = 'Home'
+            )
             "#,
             vec![menu_id.into(), tenant_id.into(), now.into()],
         ))

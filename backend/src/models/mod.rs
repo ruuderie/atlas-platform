@@ -28,3 +28,4 @@ pub mod feed;
 pub mod feed_item;
 // Platform admin module registry
 pub mod admin_module;
+pub mod provision;

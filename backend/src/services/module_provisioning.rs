@@ -24,11 +24,14 @@ use crate::models::admin_module::AdminModuleType;
 ///
 /// # Errors
 /// Returns a `String` error description on DB failure.
-pub async fn seed_default_modules(
-    db: &DatabaseConnection,
+pub async fn seed_default_modules<C>(
+    db: &C,
     app_instance_id: Uuid,
     modules: Vec<(AdminModuleType, &'static str, i32, bool)>,
-) -> Result<(), String> {
+) -> Result<(), String>
+where
+    C: sea_orm::ConnectionTrait,
+{
     if modules.is_empty() {
         return Ok(());
     }
@@ -76,11 +79,14 @@ pub async fn seed_default_modules(
 ///
 /// Used by `AtlasApp::provision()` implementations that need the app instance
 /// UUID to call `seed_default_modules()`.
-pub async fn resolve_app_instance_id(
-    db: &DatabaseConnection,
+pub async fn resolve_app_instance_id<C>(
+    db: &C,
     tenant_id: Uuid,
     app_id: &str,
-) -> Result<Uuid, String> {
+) -> Result<Uuid, String>
+where
+    C: sea_orm::ConnectionTrait,
+{
     use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 
     let instance = crate::entities::app_instance::Entity::find()

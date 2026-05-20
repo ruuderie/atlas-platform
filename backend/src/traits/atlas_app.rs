@@ -189,8 +189,6 @@ pub trait AtlasApp: Send + Sync {
     /// This pattern prevents frontend apps from silently pinging APIs by moving the burden to platform pollers.
     fn background_jobs(&self) -> Vec<BackgroundJob>;
 
-    // ── Provisioning Contract ─────────────────────────────────────────────────
-
     /// Called when a new tenant is onboarded to this app.
     ///
     /// Override to create default pages, menus, app_instance records, onboarding
@@ -199,6 +197,10 @@ pub trait AtlasApp: Send + Sync {
     /// The implementation should be idempotent — safe to call multiple times
     /// on the same tenant without corrupting existing data (use ON CONFLICT DO NOTHING
     /// or EXISTS guards).
+    ///
+    /// Note: Called post-commit by the provisioning handler. If you need in-transaction
+    /// guarantees for your seeding logic, accept DatabaseConnection and use SeaORM
+    /// transactions internally, or call the module_provisioning helpers directly.
     ///
     /// Default: no-op. Returns `Ok(())` without touching the database.
     async fn provision(&self, _db: &DatabaseConnection, _tenant_id: Uuid) -> Result<(), String> {
