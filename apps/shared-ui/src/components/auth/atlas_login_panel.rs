@@ -19,6 +19,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link};
+use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
 #[derive(Clone, PartialEq)]
@@ -340,6 +341,11 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                 }.into_any()
             } else {
                 // Passkey flow
+                // IMPORTANT: Use the absolute backend API URL, not a relative path.
+                // A relative "/api/passkeys" resolves to the Leptos SSR server (e.g.
+                // anchor-app at uat.buildwithruud.com) which does NOT host the passkey
+                // routes — only the backend API at api.*.atlas.oply.co does.
+                let passkey_api_base = format!("{}/api/passkeys", get_atlas_api_url());
                 view! {
                     <div>
                         <p style="font-size:14px;color:#504e49;line-height:1.55;margin:0 0 24px;">
@@ -349,7 +355,7 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                             <div style="border-left:3px solid #c0392b;background:#fdf3f2;padding:10px 12px 10px 14px;margin-bottom:16px;font-size:13px;color:#922b21;">{e}</div>
                         })}
                         <PasskeyLoginButton
-                            api_base_url="/api/passkeys".to_string()
+                            api_base_url=passkey_api_base.clone()
                             email=RwSignal::new("".to_string())
                             on_success=handle_passkey_success
                             on_error=handle_passkey_error

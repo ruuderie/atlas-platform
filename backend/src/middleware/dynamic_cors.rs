@@ -149,6 +149,11 @@ pub fn dynamic_cors_layer(registry: Arc<DynamicCorsRegistry>) -> CorsLayer {
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
             header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
             header::ACCESS_CONTROL_ALLOW_HEADERS,
+            // x-app-instance-id is sent by all passkey handlers and the magic-link handler
+            // to scope metrics/audit logs to the originating app instance. Without this,
+            // the CORS preflight rejects the request and reqwest reports "Network error"
+            // before any HTTP status code is received.
+            axum::http::HeaderName::from_static("x-app-instance-id"),
         ])
         .allow_credentials(true)
 }

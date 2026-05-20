@@ -299,6 +299,34 @@ pub async fn request_magic_link(
     };
 
     if let Some(user_mod) = user_model {
+        // CROSS-POD COOLDOWN CHECK: The in-memory MAGIC_LINK_REQUEST_CACHE (above) only
+        // deduplicates requests hitting the same pod. With 2+ replicas behind a LB, a
+        // second request can reach a different pod with an empty cache. To handle this
+        // reliably, we also check the DB: if the user has ANY magic link token created
+        // within the last 60 seconds (used or not), we suppress a new email send.
+        // This is safe because a consumed token means the user just authenticated — they
+        // don't need a second email. A brand-new token within the window means the first
+        // email is still in transit.
+        let cooldown_check = sea_orm::ConnectionTrait::query_one(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "SELECT id FROM magic_link_token WHERE user_id = $1 AND is_setup_token = false AND created_at > NOW() - INTERVAL '60 seconds' ORDER BY created_at DESC LIMIT 1",
+                vec![user_mod.id.into()],
+            ),
+        ).await.unwrap_or(None);
+
+        if cooldown_check.is_some() {
+            tracing::info!(
+                event = "magic_link.suppressed_cooldown",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                email = %payload.email,
+                reason = "token_created_within_60s",
+            );
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
+
         let token_str: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)

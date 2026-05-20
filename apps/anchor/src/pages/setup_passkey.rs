@@ -74,33 +74,47 @@ pub fn SetupPasskey() -> impl IntoView {
                                     const msg = document.getElementById('passkey-message');
                                     if(btn) {
                                         btn.addEventListener('click', async () => {
+                                            // Idempotency guard: prevent double-registration if button
+                                            // is clicked again before the first attempt completes.
+                                            if (sessionStorage.getItem('passkey-reg-in-progress')) {
+                                                msg.innerText = 'Registration already in progress.';
+                                                return;
+                                            }
+
+                                            // Resolve the backend API base URL.
+                                            // window.__ENV__.API_BASE_URL is injected by the Leptos
+                                            // shell at SSR time. Fallback to relative path (dev only).
+                                            const apiBase = (window.__ENV__ && window.__ENV__.API_BASE_URL)
+                                                ? window.__ENV__.API_BASE_URL.replace(/\\/$/, '')
+                                                : '';
+
                                             try {
+                                                sessionStorage.setItem('passkey-reg-in-progress', '1');
                                                 btn.disabled = true;
                                                 msg.innerText = 'Initiating...';
-                                                
-                                                // NOTE: credentials:'include' is required to send the
-                                                // HttpOnly SameSite=Strict session cookie.
-                                                // Path is /api/passkeys/... (not /api/auth/passkeys/...).
-                                                const startRes = await fetch('/api/passkeys/start-register', {
+
+                                                // NOTE: credentials:'include' sends the HttpOnly
+                                                // SameSite=Strict session cookie cross-origin.
+                                                const startRes = await fetch(apiBase + '/api/passkeys/start-register', {
                                                     method: 'POST',
                                                     credentials: 'include',
                                                     headers: { 'Content-Type': 'application/json' }
                                                 });
-                                                if (!startRes.ok) throw new Error('Failed to start registration');
+                                                if (!startRes.ok) throw new Error('Failed to start registration: ' + await startRes.text());
                                                 const options = await startRes.json();
-                                                
+
                                                 msg.innerText = 'Please follow browser prompts...';
                                                 const { startRegistration } = window.SimpleWebAuthnBrowser;
                                                 const credential = await startRegistration(options);
-                                                
+
                                                 msg.innerText = 'Verifying...';
-                                                const finishRes = await fetch('/api/passkeys/finish-register', {
+                                                const finishRes = await fetch(apiBase + '/api/passkeys/finish-register', {
                                                     method: 'POST',
                                                     credentials: 'include',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify(credential)
                                                 });
-                                                
+
                                                 if (finishRes.ok) {
                                                     msg.innerText = 'Passkey registered successfully!';
                                                     msg.className = 'mt-4 text-sm font-medium text-green-600';
@@ -112,6 +126,7 @@ pub fn SetupPasskey() -> impl IntoView {
                                                 msg.innerText = err.message || 'Registration failed';
                                                 msg.className = 'mt-4 text-sm font-medium text-red-600';
                                             } finally {
+                                                sessionStorage.removeItem('passkey-reg-in-progress');
                                                 btn.disabled = false;
                                             }
                                         });
