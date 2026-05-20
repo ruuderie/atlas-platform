@@ -34,6 +34,10 @@ pub struct ProvisionTenantPayload {
     /// Which AtlasApps to provision for this tenant.
     /// Defaults to `["anchor"]` when omitted.
     pub apps: Option<Vec<String>>,
+
+    /// Bypass the DNS TXT record ownership verification.
+    /// Must be explicitly set to true by PlatformSuperAdmin.
+    pub bypass_dns_verification: Option<bool>,
 }
 
 // ── Response ──────────────────────────────────────────────────────────────────

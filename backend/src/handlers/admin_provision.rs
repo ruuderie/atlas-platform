@@ -19,6 +19,7 @@ use crate::handlers::passkeys::WebauthnState;
 use crate::middleware::DynamicCorsRegistry;
 use crate::models::provision::{ProvisionTenantPayload, ProvisionTenantResponse, validate_domain};
 use crate::services::auth_service::AuthService;
+use crate::services::ingress_provisioner::IngressProvisioner;
 use crate::webauthn_registry::effective_tld_plus_one;
 use crate::atlas_apps::core_platform::CorePlatformApp;
 use crate::traits::atlas_app::AtlasApp;
@@ -39,6 +40,53 @@ fn conflict(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
 
 fn forbidden(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
     (StatusCode::FORBIDDEN, Json(json!({ "message": msg.into() })))
+}
+
+async fn verify_dns_txt_record(domain: &str, tenant_slug: &str) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://cloudflare-dns.com/dns-query?name={}&type=TXT", domain);
+    
+    let res = client.get(&url)
+        .header("Accept", "application/dns-json")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send DoH request: {}", e))?;
+        
+    if !res.status().is_success() {
+        return Err(format!("Cloudflare DoH returned status {}", res.status()));
+    }
+    
+    #[derive(serde::Deserialize)]
+    struct DohAnswer {
+        data: String,
+    }
+    
+    #[derive(serde::Deserialize)]
+    struct DohResponse {
+        #[serde(rename = "Answer")]
+        answer: Option<Vec<DohAnswer>>,
+    }
+    
+    let dns_res: DohResponse = res.json()
+        .await
+        .map_err(|e| format!("Failed to parse DoH JSON: {}", e))?;
+        
+    let expected_txt = format!("\"atlas-verification={}\"", tenant_slug);
+    let expected_txt_unquoted = format!("atlas-verification={}", tenant_slug);
+    
+    if let Some(answers) = dns_res.answer {
+        for ans in answers {
+            let trimmed = ans.data.trim();
+            if trimmed == expected_txt || trimmed == expected_txt_unquoted {
+                return Ok(());
+            }
+        }
+    }
+    
+    Err(format!(
+        "TXT record 'atlas-verification={}' not found for '{}'",
+        tenant_slug, domain
+    ))
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -65,6 +113,7 @@ pub async fn provision_tenant(
     State(db): State<DatabaseConnection>,
     Extension(webauthn_state): Extension<WebauthnState>,
     Extension(cors_registry): Extension<Arc<DynamicCorsRegistry>>,
+    Extension(ingress_provisioner): Extension<Arc<IngressProvisioner>>,
     Extension(user): Extension<user::Model>,
     Json(payload): Json<ProvisionTenantPayload>,
 ) -> Result<(StatusCode, Json<ProvisionTenantResponse>), (StatusCode, Json<Value>)> {
@@ -123,6 +172,28 @@ pub async fn provision_tenant(
         return Err(conflict(format!(
             "Domain '{}' is already registered to another app instance", payload.domain
         )));
+    }
+
+    // ── 2b. DNS TXT record challenge verification ──────────────────────────────
+    let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string());
+    let bypass = payload.bypass_dns_verification.unwrap_or(false);
+    
+    if env == "development" || bypass || payload.domain == "localhost" {
+        tracing::info!(
+            event = "provision.dns_verification.bypass",
+            domain = %payload.domain,
+            reason = if env == "development" {
+                "development_environment"
+            } else if payload.domain == "localhost" {
+                "localhost_domain"
+            } else {
+                "super_admin_bypass"
+            }
+        );
+    } else {
+        verify_dns_txt_record(&payload.domain, &payload.tenant_name)
+            .await
+            .map_err(|e| bad_request(format!("DNS verification failed: {}", e)))?;
     }
 
     // ── 3. Begin atomic transaction ────────────────────────────────────────────
@@ -268,6 +339,17 @@ pub async fn provision_tenant(
 
     // 5d. Register new domain with the dynamic CORS registry on-the-fly
     cors_registry.add_host(&payload.domain);
+
+    // 5e. Trigger ingress and TLS automation via K8s Sidecar
+    if let Err(e) = ingress_provisioner.provision_domain(&payload.tenant_name, &payload.domain).await {
+        tracing::error!(
+            event = "provision.ingress.failed",
+            tenant_slug = %payload.tenant_name,
+            domain = %payload.domain,
+            error = %e,
+            message = "Ingress provisioning failed, but tenant database setup succeeded."
+        );
+    }
 
     // ── 6. Generate one-time passkey setup link + send email ───────────────────
     let setup_token = AuthService::create_setup_token(&db, user_id)

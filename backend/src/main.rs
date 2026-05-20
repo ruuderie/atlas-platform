@@ -48,6 +48,7 @@ use crate::webauthn_registry::WebauthnRegistry;
 use moka::future::Cache;
 use std::sync::Arc;
 use std::time::Duration;
+use crate::services::ingress_provisioner::IngressProvisioner;
 
 async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http::StatusCode, String) {
     tracing::error!("Unhandled error: {:?}", error);
@@ -309,6 +310,8 @@ async fn main() {
         auth_state: Cache::builder().time_to_live(Duration::from_secs(300)).build(),
     });
 
+    let ingress_provisioner = Arc::new(IngressProvisioner::new());
+
     let app = Router::new()
         .merge(create_router(conn.clone()))
         .route("/metrics", get(metrics_endpoint))
@@ -335,7 +338,8 @@ async fn main() {
         .layer(Extension(conn.clone()))
         .layer(Extension(rate_limiter))
         .layer(Extension(webauthn_state))
-        .layer(Extension(cors_registry));
+        .layer(Extension(cors_registry))
+        .layer(Extension(ingress_provisioner));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("Listening on {}", addr);

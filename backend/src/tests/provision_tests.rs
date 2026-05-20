@@ -70,7 +70,8 @@ async fn do_provision(
                     "domain": domain,
                     "admin_email": format!("admin@{}", domain),
                     "admin_first_name": "Test",
-                    "admin_last_name": "Admin"
+                    "admin_last_name": "Admin",
+                    "bypass_dns_verification": true
                 }).to_string()))
                 .unwrap(),
         )
@@ -307,4 +308,43 @@ async fn provision_adds_domain_to_cors_registry() {
         &format!("https://{}", domain),
         "Domain should be dynamically CORS-allowed after provisioning"
     );
+}
+
+/// Provision fails if DNS verification is not bypassed and is missing TXT record.
+#[tokio::test]
+async fn provision_fails_without_dns_bypass_and_missing_txt() {
+    let (app, db) = setup_test_app().await;
+    let (_, admin_token) = super::test_utils::create_and_login_admin_user(&app, &db).await;
+
+    let slug = unique_slug();
+    let domain = unique_domain();
+
+    // Trigger without bypass_dns_verification (should attempt real DNS challenge and fail)
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/admin/tenants/provision")
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", admin_token))
+                .header("Host", "localhost")
+                .body(Body::from(json!({
+                    "tenant_name": slug,
+                    "display_name": format!("Test Tenant {}", slug),
+                    "domain": domain,
+                    "admin_email": format!("admin@{}", domain),
+                    "admin_first_name": "Test",
+                    "admin_last_name": "Admin",
+                    "bypass_dns_verification": false
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    let msg = body["message"].as_str().unwrap_or("");
+    assert!(msg.contains("DNS verification failed"), "Expected DNS verification error, got: {}", msg);
 }

@@ -145,6 +145,7 @@ pub struct ProvisionAdminPayload {
     pub last_name: String,
 }
 
+#[deprecated(since = "0.1.0", note = "Use POST /api/admin/tenants/provision instead")]
 pub async fn provision_admin(
     Path(tenant_id): Path<Uuid>,
     State(db): State<DatabaseConnection>,
@@ -152,6 +153,8 @@ pub async fn provision_admin(
 ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
     use crate::entities::user;
     use crate::services::auth_service::AuthService;
+
+    tracing::warn!("Hit deprecated endpoint /api/tenants/{}/provision-admin", tenant_id);
 
     // 1. Check if user exists
     let existing_user = user::Entity::find()
