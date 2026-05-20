@@ -76,3 +76,4 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
 pub fn main() {
     // no client-side main function
 }
+// Trigger CI
