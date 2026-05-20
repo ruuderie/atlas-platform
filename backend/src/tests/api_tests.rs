@@ -67,11 +67,14 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
 
     let cors_registry = Arc::new(crate::middleware::DynamicCorsRegistry::new_in_memory());
     let cors = crate::middleware::dynamic_cors_layer(cors_registry.clone());
+    
+    let ingress_provisioner = Arc::new(crate::services::ingress_provisioner::IngressProvisioner::new());
 
     let app = api::create_router(db.clone())
         .layer(cors)
         .layer(axum::Extension(webauthn_state))
-        .layer(axum::Extension(cors_registry));
+        .layer(axum::Extension(cors_registry))
+        .layer(axum::Extension(ingress_provisioner));
 
     (app, db)
 }

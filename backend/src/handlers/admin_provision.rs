@@ -176,18 +176,23 @@ pub async fn provision_tenant(
 
     // ── 2b. DNS TXT record challenge verification ──────────────────────────────
     let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string());
-    let bypass = payload.bypass_dns_verification.unwrap_or(false);
     
-    if env == "development" || bypass || payload.domain == "localhost" {
+    // If the payload explicitly defines bypass_dns_verification, use that.
+    // Otherwise, default to bypassing in development or for localhost.
+    let bypass = payload.bypass_dns_verification.unwrap_or_else(|| {
+        env == "development" || payload.domain == "localhost"
+    });
+    
+    if bypass {
         tracing::info!(
             event = "provision.dns_verification.bypass",
             domain = %payload.domain,
-            reason = if env == "development" {
-                "development_environment"
-            } else if payload.domain == "localhost" {
-                "localhost_domain"
+            reason = if payload.bypass_dns_verification == Some(true) {
+                "explicit_payload_bypass"
+            } else if env == "development" {
+                "development_environment_default"
             } else {
-                "super_admin_bypass"
+                "localhost_domain_default"
             }
         );
     } else {
