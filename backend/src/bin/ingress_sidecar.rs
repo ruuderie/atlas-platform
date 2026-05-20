@@ -171,6 +171,13 @@ async fn deprovision_ingress(
 
 #[tokio::main]
 async fn main() {
+    // Install the ring crypto provider before any TLS code runs.
+    // Required because both `kube` and `reqwest` use rustls but neither
+    // enables a provider feature, so we must select one explicitly.
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls ring crypto provider");
+
     tracing_subscriber::fmt::init();
     tracing::info!("Starting Ingress Sidecar on port 8085...");
 
@@ -185,11 +192,12 @@ async fn main() {
     let state = AppState { client };
 
     let app = Router::new()
+        .route("/health", axum::routing::get(|| async { "ok" }))
         .route("/api/ingress/provision", post(provision_ingress))
         .route("/api/ingress/deprovision", post(deprovision_ingress))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8085));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8085));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     tracing::info!("Listening on http://{}", addr);
     axum::serve(listener, app).await.unwrap();
