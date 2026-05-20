@@ -261,6 +261,58 @@ steps:
         - 'backend/**'
         - '.woodpecker.yml'
 
+  publish_ingress_sidecar_dev:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/atlas-ingress-sidecar
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: backend
+      dockerfile: backend/Dockerfile.sidecar
+      build_args:
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        BUILD_PROFILE: debug
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: dev
+      path:
+        - 'backend/src/bin/ingress_sidecar.rs'
+        - 'backend/Dockerfile.sidecar'
+        - '.woodpecker.yml'
+
+  publish_ingress_sidecar_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/atlas-ingress-sidecar
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: backend
+      dockerfile: backend/Dockerfile.sidecar
+      build_args:
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        BUILD_PROFILE: release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'backend/src/bin/ingress_sidecar.rs'
+        - 'backend/Dockerfile.sidecar'
+        - '.woodpecker.yml'
+
   publish_network_instance_dev:
     image: woodpeckerci/plugin-docker-buildx
     privileged: true
@@ -401,6 +453,13 @@ steps:
     when:
       branch: [dev, uat]
       path: [ "apps/platform-admin/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+
+  mark_sidecar_built:
+    image: alpine
+    commands: [ "touch .sidecar_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "backend/src/bin/ingress_sidecar.rs", "backend/Dockerfile.sidecar", ".woodpecker.yml" ]
 
   # ── Unified CD Deployment ───────────────────────────────────────────────────
   deploy_platform_k8s:
@@ -588,6 +647,10 @@ steps:
 
           if [ -f .admin_built ]; then
             update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
+          fi
+
+          if [ -f .sidecar_built ]; then
+            update_service ingress-sidecar "$REGISTRY/atlas-ingress-sidecar:$SHORT_SHA"
           fi
         fi
 

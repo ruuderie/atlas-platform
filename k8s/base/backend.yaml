@@ -16,7 +16,6 @@ spec:
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
-      serviceAccountName: ingress-sidecar-sa
       imagePullSecrets:
       - name: ghcr-login-secret
       containers:
@@ -37,15 +36,6 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
-      - name: ingress-sidecar
-        image: ghcr.io/ruuderie/atlas-ingress-sidecar:latest
-        ports:
-        - containerPort: 8085
-        env:
-        - name: KUBERNETES_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
 ---
 apiVersion: v1
 kind: Service
