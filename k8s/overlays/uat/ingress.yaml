@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   name: atlas-ingress-uat
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"
 spec:
   ingressClassName: "nginx"
   tls:
