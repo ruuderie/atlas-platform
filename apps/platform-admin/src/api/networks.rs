@@ -20,70 +20,10 @@ pub async fn get_networks() -> Result<Vec<PlatformAppModel>, String> {
     Err("Network Error: Backend unreachable".into())
 }
 
-/// Creates a new tenant record via `POST /api/tenants`.
-async fn create_tenant_record(name: &str, domain: &str) -> Result<TenantCreatedModel, String> {
-    let client = create_client();
-    let url = api_url("/api/tenants");
-    let body = serde_json::json!({
-        "name": name,
-        "description": format!("Tenant for {}", domain)
-    });
-    let req = client.post(&url).json(&body);
-    api_request::<TenantCreatedModel>(req).await
-}
 
-/// Creates an `app_instance` record via `POST /api/app-instances`.
-async fn create_app_instance_record(data: CreateAppInstance) -> Result<(), String> {
-    let client = create_client();
-    let url = api_url("/api/app-instances");
-    let req = client.post(&url).json(&data);
-    let req = with_credentials(req);
-    let res = req.send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() {
-        Ok(())
-    } else {
-        Err(format!("Failed to create app_instance: HTTP {}", res.status()))
-    }
-}
+// The old multi-step tenant provisioning flow (create_tenant_record, create_app_instance_record, and create_network)
+// has been deprecated in favor of the atomic transaction-based provision_tenant API inside api/provision.rs.
 
-/// Full tenant provisioning flow:
-///   1. POST /api/tenants            → get tenant_id
-///   2. POST /api/app-instances      → register app type for this tenant
-///   3. POST /api/admin/platform/provision/{tenant_id}  → seed default pages + menus
-pub async fn create_network(data: CreateNetwork) -> Result<PlatformAppModel, String> {
-    // Step 1 — create tenant record
-    let tenant = create_tenant_record(&data.name, &data.domain)
-        .await
-        .map_err(|e| format!("Step 1 (create tenant) failed: {e}"))?;
-
-    // Step 2 — register app_instance
-    let app_instance = CreateAppInstance {
-        tenant_id: tenant.id,
-        app_type: data.network_type_id.clone(),
-        database_url: None,
-        data_seed_name: None,
-        settings: Some(serde_json::json!({ "domain": data.domain })),
-    };
-    create_app_instance_record(app_instance)
-        .await
-        .map_err(|e| format!("Step 2 (create app_instance) failed: {e}"))?;
-
-    // Step 3 — provision (seeds pages, menus, etc.)
-    provision_tenant(tenant.id)
-        .await
-        .map_err(|e| format!("Step 3 (provision) failed: {e}"))?;
-
-    // Return a synthetic PlatformAppModel from the data we have
-    Ok(PlatformAppModel {
-        tenant_id: tenant.id.to_string(),
-        instance_id: tenant.id.to_string(), // actual instance_id fetched from app_instances on next reload
-        name: tenant.name,
-        app_type: data.network_type_id,
-        domain: data.domain,
-        site_status: "active".to_string(),
-        description: data.description,
-    })
-}
 
 pub async fn get_tenant_setting(tenant_id: &str, key: &str) -> Result<super::models::TenantSettingResponse, String> {
     let client = create_client();

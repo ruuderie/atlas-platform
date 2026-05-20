@@ -39,6 +39,8 @@ use crate::middleware::{
     rate_limiter::RateLimiter,
     middleware::log_request_middleware,
     request_id::request_id_middleware,
+    DynamicCorsRegistry,
+    dynamic_cors_layer,
 };
 use webauthn_rs::prelude::*;
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
@@ -218,7 +220,9 @@ async fn main() {
     tracing::info!("Network URL: {}", network_client);
     tracing::info!("Admin URL: {}", admin_client);
 
-    let cors = configure_cors(&network_client, &admin_client);
+    let cors_registry = Arc::new(DynamicCorsRegistry::new(conn.clone()));
+    cors_registry.hydrate(&[network_client.clone(), admin_client.clone()]).await;
+    let cors = dynamic_cors_layer(cors_registry.clone());
 
     let rate_limiter = RateLimiter::new();
 
@@ -330,7 +334,8 @@ async fn main() {
         )
         .layer(Extension(conn.clone()))
         .layer(Extension(rate_limiter))
-        .layer(Extension(webauthn_state));
+        .layer(Extension(webauthn_state))
+        .layer(Extension(cors_registry));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     tracing::info!("Listening on {}", addr);

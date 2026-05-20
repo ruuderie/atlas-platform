@@ -259,3 +259,52 @@ async fn provision_rejects_invalid_domain_format() {
         );
     }
 }
+
+/// Provisioned tenant should immediately pass the dynamic CORS check.
+#[tokio::test]
+async fn provision_adds_domain_to_cors_registry() {
+    let (app, db) = setup_test_app().await;
+    let (_, admin_token) = super::test_utils::create_and_login_admin_user(&app, &db).await;
+
+    let slug = unique_slug();
+    let domain = unique_domain();
+
+    // 1. Try a request with the new origin before provisioning.
+    let req_before = Request::builder()
+        .method("OPTIONS")
+        .uri("/health")
+        .header("Origin", format!("https://{}", domain))
+        .header("Access-Control-Request-Method", "GET")
+        .header("Access-Control-Request-Headers", "content-type")
+        .body(Body::empty())
+        .unwrap();
+    let res_before = app.clone().oneshot(req_before).await.unwrap();
+    let allow_origin_before = res_before.headers().get("access-control-allow-origin");
+    assert!(
+        allow_origin_before.is_none() || allow_origin_before.unwrap() != &format!("https://{}", domain),
+        "Domain should not be CORS-allowed before provisioning"
+    );
+
+    // 2. Perform provisioning
+    let (status, body) = do_provision(&app, &admin_token, &slug, &domain).await;
+    assert_eq!(status, StatusCode::CREATED, "Expected 201, got: {:?}", body);
+
+    // 3. Test that the origin is now CORS allowed!
+    let req_after = Request::builder()
+        .method("OPTIONS")
+        .uri("/health")
+        .header("Origin", format!("https://{}", domain))
+        .header("Access-Control-Request-Method", "GET")
+        .header("Access-Control-Request-Headers", "content-type")
+        .body(Body::empty())
+        .unwrap();
+    let res_after = app.clone().oneshot(req_after).await.unwrap();
+    
+    let allow_origin_after = res_after.headers().get("access-control-allow-origin")
+        .expect("CORS header Access-Control-Allow-Origin must be present after provisioning");
+    assert_eq!(
+        allow_origin_after,
+        &format!("https://{}", domain),
+        "Domain should be dynamically CORS-allowed after provisioning"
+    );
+}

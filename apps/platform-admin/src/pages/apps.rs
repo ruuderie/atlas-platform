@@ -1,8 +1,8 @@
 use leptos::prelude::*;
 use leptos::ev;
 use shared_ui::components::ui::switch::Switch;
-use crate::api::models::{PlatformAppModel, CreateNetwork};
-use crate::api::networks::{get_networks, create_network};
+use crate::api::models::PlatformAppModel;
+use crate::api::networks::get_networks;
 
 #[component]
 pub fn Apps() -> impl IntoView {

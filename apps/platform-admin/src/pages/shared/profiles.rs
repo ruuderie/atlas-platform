@@ -4,6 +4,7 @@ use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::table::{Table as DataTable, TableHeader as DataTableHeader, TableRow as DataTableRow, TableHead as DataTableHead, TableBody as DataTableBody, TableCell as DataTableCell};
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::label::Label;
+use crate::api::provision::{provision_admin, ProvisionAdminPayload};
 
 #[component]
 pub fn ProfilesPanel() -> impl IntoView {
@@ -12,8 +13,29 @@ pub fn ProfilesPanel() -> impl IntoView {
     let site_id_str = site_id().to_string();
 
     let (show_invite, set_show_invite) = signal(false);
+    let (show_provision, set_show_provision) = signal(false);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
+    
     let invite_email = RwSignal::new("".to_string());
+    
+    let provision_email = RwSignal::new("".to_string());
+    let provision_first_name = RwSignal::new("".to_string());
+    let provision_last_name = RwSignal::new("".to_string());
+    let is_provisioning = RwSignal::new(false);
+    let provision_setup_url = RwSignal::new(None::<String>);
+
+    let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
+
+    let tenant_id_sig = Signal::derive(move || {
+        let current_id = site_id();
+        if let Some(d) = dirs.get() {
+            d.into_iter()
+                .find(|dir| dir.instance_id.to_string() == current_id)
+                .and_then(|dir| uuid::Uuid::parse_str(&dir.tenant_id).ok())
+        } else {
+            None
+        }
+    });
 
     let _profiles_res = LocalResource::new({
         let sid = site_id_str.clone();
@@ -37,6 +59,52 @@ pub fn ProfilesPanel() -> impl IntoView {
         set_show_invite.set(false);
     };
 
+    let handle_provision = move |_| {
+        if is_provisioning.get() { return; }
+        
+        let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
+        let email = provision_email.get().trim().to_string();
+        let first = provision_first_name.get().trim().to_string();
+        let last = provision_last_name.get().trim().to_string();
+        
+        if email.is_empty() || first.is_empty() || last.is_empty() {
+            toast.message.set(Some("All credentials are required.".to_string()));
+            return;
+        }
+        
+        let t_id_opt = tenant_id_sig.get();
+        if t_id_opt.is_none() {
+            toast.message.set(Some("Error: Could not retrieve active Tenant ID context.".to_string()));
+            return;
+        }
+        let tenant_id = t_id_opt.unwrap();
+        
+        is_provisioning.set(true);
+        toast.message.set(Some("Seeding tenant administrator...".to_string()));
+        
+        let payload = ProvisionAdminPayload {
+            email,
+            first_name: first,
+            last_name: last,
+        };
+        
+        leptos::task::spawn_local(async move {
+            match provision_admin(tenant_id, payload).await {
+                Ok(res) => {
+                    toast.message.set(Some("Administrator seeded!".to_string()));
+                    provision_setup_url.set(Some(res.setup_url));
+                    provision_email.set("".to_string());
+                    provision_first_name.set("".to_string());
+                    provision_last_name.set("".to_string());
+                }
+                Err(e) => {
+                    toast.message.set(Some(format!("Seeding failed: {}", e)));
+                }
+            }
+            is_provisioning.set(false);
+        });
+    };
+
     view! {
         <div class="w-full animation-fade-in relative">
             <div class="flex justify-between items-center mb-6">
@@ -44,9 +112,14 @@ pub fn ProfilesPanel() -> impl IntoView {
                     <h3 class="text-xl font-semibold dark:text-white">"Identity & Access Management"</h3>
                     <p class="text-slate-500 text-sm">"Manage access controls, roles, and connected profiles."</p>
                 </div>
-                <Button variant=ButtonVariant::Default on:click=move |_| set_show_invite.set(true)>
-                    "Invite Team Member"
-                </Button>
+                <div class="flex gap-2">
+                    <Button variant=ButtonVariant::Outline on:click=move |_| set_show_provision.set(true)>
+                        "Provision Administrator"
+                    </Button>
+                    <Button variant=ButtonVariant::Default on:click=move |_| set_show_invite.set(true)>
+                        "Invite Team Member"
+                    </Button>
+                </div>
             </div>
 
             <div class="w-full rounded-md border border-border">
@@ -108,6 +181,86 @@ pub fn ProfilesPanel() -> impl IntoView {
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_show_invite.set(false)>"Cancel"</Button>
                             <Button variant=ButtonVariant::Default on:click=handle_invite>"Send Invite"</Button>
                         </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when=move || show_provision.get()>
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| {
+                            set_show_provision.set(false);
+                            provision_setup_url.set(None);
+                        }>"✕"</button>
+                        
+                        {move || if let Some(url) = provision_setup_url.get() {
+                            view! {
+                                <div class="space-y-4">
+                                    <h3 class="text-xl font-semibold text-foreground flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-emerald-500">"check_circle"</span>
+                                        "Administrator Provisioned!"
+                                    </h3>
+                                    <p class="text-muted-foreground text-sm">
+                                        "A secure, passwordless-first onboarding credential has been registered. Share the setup link below with the user."
+                                    </p>
+                                    <div class="space-y-2 mt-4">
+                                        <input 
+                                            type="text" 
+                                            value=url.clone() 
+                                            readonly=true 
+                                            class="w-full bg-muted font-mono text-xs px-3 py-2 rounded border border-border outline-none select-all text-foreground"
+                                        />
+                                        <Button variant=ButtonVariant::Default class="w-full justify-center".to_string() on:click=move |_| {
+                                            let window = web_sys::window().unwrap();
+                                            let navigator = window.navigator();
+                                            let clipboard = navigator.clipboard();
+                                            let _ = clipboard.write_text(&url);
+                                            let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
+                                            toast.message.set(Some("Copied link to clipboard!".to_string()));
+                                        }>
+                                            "Copy Link"
+                                        </Button>
+                                    </div>
+                                    <div class="flex justify-end pt-4">
+                                        <Button variant=ButtonVariant::Outline on:click=move |_| {
+                                            set_show_provision.set(false);
+                                            provision_setup_url.set(None);
+                                        }>"Close"</Button>
+                                    </div>
+                                </div>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-4">
+                                    <h3 class="text-xl font-semibold text-foreground">"Provision Tenant Administrator"</h3>
+                                    <p class="text-muted-foreground text-sm">
+                                        "Bypass typical invitations to directly seed a brand new Tenant Administrator (Owner) with passwordless setup token."
+                                    </p>
+                                    <div class="space-y-4 my-6 text-left">
+                                        <div class="grid gap-2">
+                                            <Label>"Administrator Email"</Label>
+                                            <Input r#type=InputType::Email placeholder="admin@company.com".to_string() bind_value=provision_email />
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div class="grid gap-2">
+                                                <Label>"First Name"</Label>
+                                                <Input r#type=InputType::Text placeholder="Jane".to_string() bind_value=provision_first_name />
+                                            </div>
+                                            <div class="grid gap-2">
+                                                <Label>"Last Name"</Label>
+                                                <Input r#type=InputType::Text placeholder="Doe".to_string() bind_value=provision_last_name />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-end gap-3 pt-2">
+                                        <Button variant=ButtonVariant::Outline on:click=move |_| set_show_provision.set(false)>"Cancel"</Button>
+                                        <Button variant=ButtonVariant::Default on:click=handle_provision attr:disabled=move || is_provisioning.get()>
+                                            {move || if is_provisioning.get() { "Provisioning..." } else { "Provision Administrator" }}
+                                        </Button>
+                                    </div>
+                                </div>
+                            }.into_any()
+                        }}
                     </div>
                 </div>
             </Show>

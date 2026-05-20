@@ -13,8 +13,10 @@ use chrono::Utc;
 use url::Url;
 use validator::Validate;
 
+use std::sync::Arc;
 use crate::entities::{tenant, account, app_instance, app_domain, user, user_account};
 use crate::handlers::passkeys::WebauthnState;
+use crate::middleware::DynamicCorsRegistry;
 use crate::models::provision::{ProvisionTenantPayload, ProvisionTenantResponse, validate_domain};
 use crate::services::auth_service::AuthService;
 use crate::webauthn_registry::effective_tld_plus_one;
@@ -62,6 +64,7 @@ fn forbidden(msg: impl Into<String>) -> (StatusCode, Json<Value>) {
 pub async fn provision_tenant(
     State(db): State<DatabaseConnection>,
     Extension(webauthn_state): Extension<WebauthnState>,
+    Extension(cors_registry): Extension<Arc<DynamicCorsRegistry>>,
     Extension(user): Extension<user::Model>,
     Json(payload): Json<ProvisionTenantPayload>,
 ) -> Result<(StatusCode, Json<ProvisionTenantResponse>), (StatusCode, Json<Value>)> {
@@ -262,6 +265,9 @@ pub async fn provision_tenant(
             tracing::info!(event = "provision.webauthn.seeded", domain = %payload.domain, rp_id = %rp_id);
         }
     }
+
+    // 5d. Register new domain with the dynamic CORS registry on-the-fly
+    cors_registry.add_host(&payload.domain);
 
     // ── 6. Generate one-time passkey setup link + send email ───────────────────
     let setup_token = AuthService::create_setup_token(&db, user_id)
