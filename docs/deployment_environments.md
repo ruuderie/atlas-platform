@@ -182,3 +182,135 @@ ensureDatabases = [
 ];
 ```
 *(Note: The legacy `ruud`, `anchor`, and `anchor_uat` databases were deprecated and dropped from the server to maintain a clean operational state).*
+
+---
+
+## 6. New Environment Provisioning Runbook
+
+> **This section is the canonical checklist for bringing up a new namespace.** CI alone is not sufficient — several resources must be applied manually by a cluster admin before the first pipeline run will succeed.
+
+The following gaps have been discovered through live deployments and **will silently break the environment** if skipped.
+
+### Step 1 — Create the Namespace
+
+```bash
+kubectl create namespace atlas-<env>
+```
+
+### Step 2 — Copy the Registry Pull Secret
+
+The `ghcr-login-secret` only lives in `atlas-uat` by default. Copy it to any new namespace:
+
+```bash
+kubectl get secret ghcr-login-secret -n atlas-uat -o json \
+  | sed 's/"namespace": "atlas-uat"/"namespace": "atlas-<env>"/' \
+  | kubectl create -f -
+```
+
+Without this, all pods will fail with `ImagePullBackOff`.
+
+### Step 3 — Apply Woodpecker RBAC
+
+```bash
+kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-<env>
+```
+
+Without this, the CI deploy step fails with `403 Forbidden` on every `kubectl` call.
+
+### Step 4 — Verify `app-secrets` Will Be Injected
+
+The CI pipeline injects `app-secrets` via `sed` substitution before running `kubectl apply`. Confirm all required CI secrets are set in Woodpecker for the relevant branch:
+
+| Secret Name | Used By |
+|---|---|
+| `DB_USER` | backend, anchor-app |
+| `DB_PASSWORD` | backend, anchor-app |
+| `ADMIN_PASSWORD` | backend |
+| `ATLAS_INIT_TOKEN` | backend |
+| `SMTP_TOKEN` | backend |
+| `SMTP_SERVER` | backend |
+| `SMTP_PORT` | backend |
+| `SMTP_USERNAME` | backend |
+| `SMTP_FROM` | backend |
+| `METRICS_TOKEN` | backend |
+| `JWT_SECRET` | backend |
+
+> **⚠️ Do NOT add `cloudflare-edge-secrets` to backend-patch.yaml for DEV or UAT.** This secret does not exist in those namespaces. The reference has been removed from `k8s/overlays/uat/backend-patch.yaml` and `k8s/overlays/dev/backend-patch.yaml`. Only add it if you explicitly create and populate the secret in the target namespace.
+
+### Step 5 — Apply the Ingress Manually (First Time)
+
+The ingress must exist **before** CI runs, because CI applies kustomize which includes the ingress — but cert-manager needs the annotation to start issuing certs, and that depends on the ingress existing first.
+
+```bash
+# For UAT
+kubectl apply -f k8s/overlays/uat/ingress.yaml -n atlas-uat
+
+# For DEV
+kubectl apply -f k8s/overlays/dev/ingress.yaml -n atlas-dev
+```
+
+> **⚠️ All ingress manifests must use `letsencrypt-cloudflare` (DNS-01), not `letsencrypt-prod` (HTTP-01).** Cloudflare's "Always Use HTTPS" redirect breaks HTTP-01 ACME challenges permanently.
+
+### Step 6 — Verify Cert-Manager Issues Certificates
+
+After the ingress is applied, cert-manager will begin DNS-01 challenges automatically. Check progress:
+
+```bash
+kubectl get certificate,challenges -n atlas-<env>
+```
+
+Expected outcome within ~2 minutes:
+
+```
+NAME              READY   SECRET
+<env>-atlas-tls   True    <env>-atlas-tls   ✅
+<env>-bwr-tls     True    <env>-bwr-tls     ✅
+```
+
+If challenges stay `pending` for more than 3 minutes, the Cloudflare API token has insufficient permissions. See [Section 3](#3-traffic-routing-ingress) for the token verification runbook.
+
+To force an immediate retry after fixing token permissions:
+
+```bash
+kubectl delete challenges --all -n atlas-<env>
+```
+
+### Step 7 — Ensure the Database Exists
+
+Databases are provisioned declaratively in NixForge, not by CI. Add the new database to `NixForge/flake.nix`:
+
+```nix
+services.postgresql.ensureDatabases = [
+  "atlas_dev"
+  "atlas_uat"
+  "atlas_<env>"   # ← add this
+];
+```
+
+Then deploy the NixForge change:
+```bash
+colmena apply --on manager
+```
+
+### Step 8 — Trigger the First CI Deploy
+
+Push to the environment's branch to trigger a full pipeline run:
+
+```bash
+git commit --allow-empty -m "chore: trigger initial <env> deploy" && git push origin <branch>
+```
+
+### Environment Pre-flight Checklist
+
+| Check | DEV | UAT | PROD |
+|---|---|---|---|
+| Namespace exists | ✅ | ✅ | 🔒 (not yet) |
+| `ghcr-login-secret` copied | ✅ | ✅ | 🔒 |
+| Woodpecker RBAC applied | ✅ | ✅ | 🔒 |
+| Ingress applied with DNS-01 issuer | ✅ | ✅ | 🔒 |
+| TLS certs `Ready: True` | ✅ | ✅ (after fix) | 🔒 |
+| Database in NixForge | ✅ | ✅ | ✅ (pre-provisioned) |
+| `cloudflare-edge-secrets` **absent** from backend-patch | ✅ | ✅ | N/A (uses SealedSecret) |
+| CI secrets set in Woodpecker | ✅ | ✅ | 🔒 |
+| Ingress-sidecar Deployment running | ✅ | ⏳ (next CI run) | 🔒 |
+
