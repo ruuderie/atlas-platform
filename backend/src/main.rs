@@ -278,13 +278,23 @@ async fn main() {
         }
     }
     
-    // Additional origins
+    // Additional origins (e.g. tenant custom domains listed in ADDITIONAL_ALLOWED_ORIGINS).
+    // Must use eTLD+1 as rp_id — the same rule applied in get_or_create() and the tenant
+    // pre-warm loop above. Using the full host (e.g. "dev.buildwithruud.com") as rp_id
+    // would cause browsers to reject challenges for passkeys registered under "buildwithruud.com".
     if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
-
+        use crate::webauthn_registry::effective_tld_plus_one;
         for origin in additional_origins.split(',') {
-            if let Ok(parsed) = url::Url::parse(origin.trim()) {
-                let add_rp_id = parsed.host_str().unwrap_or(&rp_id);
-                let _ = registry.seed(add_rp_id, &parsed).await;
+            let trimmed = origin.trim();
+            if let Ok(parsed) = url::Url::parse(trimmed) {
+                let host = parsed.host_str().unwrap_or("localhost");
+                let add_rp_id = effective_tld_plus_one(host);
+                if let Err(e) = registry.seed(&add_rp_id, &parsed).await {
+                    tracing::warn!(
+                        "Could not seed WebAuthn registry for additional origin '{}': {}",
+                        trimmed, e
+                    );
+                }
             }
         }
     }

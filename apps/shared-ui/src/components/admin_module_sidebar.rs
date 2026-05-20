@@ -155,12 +155,15 @@ impl SidebarTheme {
             Self::Anchor => SidebarThemeTokens {
                 bg:            "bg-[#0a0a0a]",
                 brand_text:    "text-white font-mono text-sm tracking-widest",
-                text_inactive: "text-slate-400 hover:text-white hover:bg-white/5",
+                // slate-200 (#e2e8f0) on #0a0a0a gives ~13:1 contrast — WCAG AAA.
+                // Previously slate-400 (~4.5:1) was barely AA and icons appeared washed out.
+                text_inactive: "text-slate-200 hover:text-white hover:bg-white/5",
                 text_active:   "text-white bg-white/10 border-l-2 border-white",
                 bg_active:     "bg-white/10",
                 font_class:    "font-mono",
                 border:        "border-white/10",
-                logout_text:   "text-slate-500 hover:text-red-400",
+                // slate-400 is enough contrast for the logout action (lower prominence intentional).
+                logout_text:   "text-slate-400 hover:text-red-400",
             },
             Self::Network => SidebarThemeTokens {
                 bg:            "bg-white",

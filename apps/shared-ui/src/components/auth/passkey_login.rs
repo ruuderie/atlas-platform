@@ -25,10 +25,24 @@ pub fn PasskeyLoginButton(
             let client = Client::new();
             
             // 1. Start Login
+            // credentials_include is required so the browser sends the HttpOnly
+            // SameSite=Strict session cookie on this cross-origin fetch. Without it
+            // the backend auth middleware cannot identify the caller and the WebAuthn
+            // origin lookup fails, surfacing as "Network error".
             let start_url = format!("{}/start-login", api_url);
             let start_payload = json!({ "email": email_val });
             
-            let start_res = match client.post(&start_url).json(&start_payload).send().await {
+            #[cfg(target_arch = "wasm32")]
+            let start_result = client
+                .post(&start_url)
+                .json(&start_payload)
+                .fetch_credentials_include()
+                .send()
+                .await;
+            #[cfg(not(target_arch = "wasm32"))]
+            let start_result = client.post(&start_url).json(&start_payload).send().await;
+
+            let start_res = match start_result {
                 Ok(res) if res.status().is_success() => res,
                 Ok(res) => {
                     let text = res.text().await.unwrap_or_default();
@@ -63,14 +77,26 @@ pub fn PasskeyLoginButton(
                 }
             };
 
-            // 3. Finish Login
+            // 3. Finish Login — also needs credentials_include so the
+            // passkey_session cookie set by start-login is echoed back for
+            // state correlation on the server.
             let finish_url = format!("{}/finish-login", api_url);
             let finish_payload = json!({
                 "email": email_val,
                 "response": assertion
             });
-            
-            match client.post(&finish_url).json(&finish_payload).send().await {
+
+            #[cfg(target_arch = "wasm32")]
+            let finish_result = client
+                .post(&finish_url)
+                .json(&finish_payload)
+                .fetch_credentials_include()
+                .send()
+                .await;
+            #[cfg(not(target_arch = "wasm32"))]
+            let finish_result = client.post(&finish_url).json(&finish_payload).send().await;
+
+            match finish_result {
                 Ok(res) if res.status().is_success() => {
                     if let Ok(json) = res.json::<serde_json::Value>().await {
                         if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
