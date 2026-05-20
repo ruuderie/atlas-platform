@@ -266,4 +266,96 @@ kubectl exec -n atlas-dev deployment/your-app -- find /app/site/pkg -type f | so
 | Page loads visually, buttons do nothing | Cloudflare serving stale unhashed WASM bundle | Ensure all three hash-files layers are set; hard-purge Cloudflare cache |
 | `Invalid static segment: {slug}` | Axum route using Leptos path! syntax | Use `{slug}` in Axum routes, `:slug` in Leptos `path!()` |
 | `you are reading a resource in hydrate mode outside a <Suspense/>` | `Resource::new` read outside Suspense | Switch to `LocalResource` or wrap in `<Suspense>` |
+| Clicking a tab/button causes a **full page reload** (not a client-side state change) | `#[cfg]`-gated function called inside a reactive closure, producing different output on SSR vs WASM passes — Leptos detects the mismatch and forces a reload | See § "cfg-gated values in reactive closures" below |
+
+---
+
+## cfg-gated values in reactive closures
+
+### The pattern that breaks hydration
+
+Any function with two `#[cfg]`-gated implementations that return **different values** at compile time will produce a hydration mismatch when called inside a reactive closure in an SSR+hydrate app.
+
+The canonical example in this codebase is `get_atlas_api_url()` ([`shared-ui/src/auth/atlas_auth/server_fns.rs`](../apps/shared-ui/src/auth/atlas_auth/server_fns.rs)):
+
+```rust
+// SSR compile pass — reads env var → internal cluster URL
+#[cfg(feature = "ssr")]
+pub fn get_atlas_api_url() -> String {
+    std::env::var("ATLAS_API_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
+}
+
+// WASM compile pass — reads window.__ENV__ → public URL
+#[cfg(not(feature = "ssr"))]
+pub fn get_atlas_api_url() -> String {
+    // ... reads window.__ENV__.API_BASE_URL at runtime
+}
+```
+
+When called inside a reactive closure in `anchor` (SSR + hydrate):
+
+```rust
+// ❌ WRONG — triggers page reload
+{move || if email_mode.get() {
+    // magic link tab
+} else {
+    // This runs during SSR → "http://backend:8000/api/passkeys"
+    // This runs during WASM → "https://api.uat.atlas.oply.co/api/passkeys"
+    // Leptos sees a mismatch → forces full page reload.
+    let url = format!("{}/api/passkeys", get_atlas_api_url());
+    view! { <PasskeyLoginButton api_base_url=url /> }
+}}
+```
+
+Leptos reconciles the WASM-rendered tree against the server-rendered HTML. If any node attribute differs, it considers hydration failed and falls back to a **full client-side re-render** — which manifests as a visible page reload.
+
+### The fix
+
+**Rule: never call a `#[cfg]`-gated function that returns environment-dependent values inside a reactive closure in a component that runs in an SSR+hydrate app.**
+
+Instead, compute the value once at component setup time, using `#[cfg]` gates to ensure both compile passes see a consistent *kind* of value:
+
+```rust
+// ✅ CORRECT — computed once at component setup, cfg-gated by compile pass
+// SSR pass: empty string — the value is never used server-side (fetch calls
+// only happen in the browser), so baking an empty string into the HTML is safe
+// and produces a stable hydration baseline.
+#[cfg(feature = "ssr")]
+let passkey_api_base = String::new();
+
+// WASM/CSR pass: real public URL resolved at runtime from window.__ENV__
+#[cfg(not(feature = "ssr"))]
+let passkey_api_base = format!("{}/api/passkeys", get_atlas_api_url());
+```
+
+### Why empty string is safe for the SSR pass
+
+`PasskeyLoginButton` makes `fetch()` calls in response to user interaction. These calls **never execute during SSR** — there is no browser, no WebAuthn API, and no user input on the server. The SSR pass only needs to render stable HTML for the hydration baseline; the actual URL is only ever used after WASM loads. Using `String::new()` as the SSR placeholder means both passes produce structurally identical HTML (same node, same attribute name, just a different value that Leptos ignores for hydration matching purposes because attribute values are not checked, only tree structure).
+
+> [!IMPORTANT]
+> This rule applies to **any** value that differs between SSR and WASM compile passes —
+> not just URLs. Other examples: feature flags read from env vars, build-time constants,
+> or any `std::env::var()` call. If the value is only consumed client-side (in event
+> handlers, fetch calls, or WASM-only APIs), use `#[cfg(feature = "ssr")]` to substitute
+> a stable placeholder for the server pass.
+
+### Affected components (as of 2026-05-20)
+
+| Component | cfg-gated value | SSR placeholder | Notes |
+|---|---|---|---|
+| [`atlas_login_panel.rs`](../apps/shared-ui/src/components/auth/atlas_login_panel.rs) | `passkey_api_base` (PasskeyLoginButton URL) | `String::new()` | Fixed 2026-05-20 |
+
+Add new entries to this table when you fix or encounter this pattern elsewhere.
+
+### How to detect this bug
+
+The symptom is always the same: **clicking an interactive element (tab, button) on a page served by an SSR+hydrate app causes a full page reload instead of a client-side state change.** This is distinct from the CDN stale-bundle symptom (where buttons are completely dead — no response at all).
+
+If you see the reload symptom:
+
+1. Open browser DevTools → Network tab
+2. Click the problematic element
+3. If you see a full navigation request to the same URL → hydration mismatch
+4. Check the component for any `#[cfg]`-gated function calls inside reactive closures (`move || ...`, `Signal::derive(...)`, `Effect::new(...)`)
+5. Move those calls outside the closure with appropriate `#[cfg]` gates
 
