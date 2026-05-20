@@ -66,8 +66,9 @@ rules:
 | `patch deployments` in `atlas-dev` | ✅ Yes |
 | `get secrets` in `kube-system` | ❌ No |
 | `delete namespaces` | ❌ No |
-| `get/patch roles` or `rolebindings` | ❌ No |
-| `create serviceaccounts` | ❌ No |
+| `get/patch roles` or `rolebindings` in own namespace | ✅ Yes (for ingress-sidecar SA bootstrap) |
+| `get/create serviceaccounts` in own namespace | ✅ Yes (for ingress-sidecar SA bootstrap) |
+| `get/patch roles` or `rolebindings` in other namespaces | ❌ No |
 
 ### Pipeline kubeconfig construction
 
@@ -122,12 +123,27 @@ These resources are applied **once by a cluster admin** and are never touched by
 | Resource | Why admin-only |
 |---|---|
 | `Namespace` (`atlas-uat`, `atlas-dev`) | SA lacks permission to patch namespaces |
-| `ServiceAccount` / `Role` / `RoleBinding` | CI managing its own RBAC is a security anti-pattern |
+| `woodpecker-rbac.yaml` | CI managing its own RBAC is a security anti-pattern. Applied manually once via `kubectl apply -f k8s/base/woodpecker-rbac.yaml -n <ns>` |
 | `ghcr-login-secret` | Registry credentials — rotated out-of-band |
-| `cloudflare-edge-secrets` | API tokens — managed out-of-band |
+| `cloudflare-api-token-secret` | Cloudflare API token in `cert-manager` namespace — must have `Zone:DNS:Edit` + `Zone:Zone:Read` permissions |
 
 The kustomize overlays intentionally exclude these resources. The CI SA only manages:
-ConfigMaps, Secrets (app-secrets only), Services, Deployments, and Ingresses.
+ConfigMaps, Secrets (app-secrets only), Services, Deployments, Ingresses, and the `ingress-sidecar` RBAC (via `k8s/base/ingress-sidecar-rbac.yaml`).
+
+### Ingress Sidecar Architecture
+
+The `ingress-sidecar` is a standalone Rust binary (`backend/src/bin/ingress_sidecar.rs`) deployed as its own Kubernetes Deployment. It runs on port `8085` and exposes:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Readiness probe |
+| `POST /api/ingress/provision` | Creates K8s Ingress + cert-manager TLS for a new tenant domain |
+| `POST /api/ingress/deprovision` | Deletes the Ingress for an offboarded tenant |
+
+Its `ingress-sidecar-sa` ServiceAccount is bound to a Role that only allows `get/list/create/patch/delete` on `ingresses` within its own namespace. It uses **`rustls` with the `ring` crypto provider** — the provider must be explicitly installed at startup via `rustls::crypto::ring::default_provider().install_default()` before any TLS connections are made.
+
+> **Why standalone?** Embedding it as a sidecar in the backend pod caused every backend rollout to fail with `ImagePullBackOff` if the sidecar image hadn't been built yet. Standalone deployments have independent lifecycles.
+
 
 ---
 
@@ -234,7 +250,9 @@ services.woodpecker-agents.agents."dagger-runner" = {
 | Scoped ServiceAccount token (no host kubeconfig mount) | ✅ Done | Eliminates cluster-admin blast radius |
 | Strict branch → namespace gate | ✅ Done | Only `uat`/`dev` branches can deploy; `main` explicitly blocked |
 | Scoped image rollout (path-gated) | ✅ Done | Only services with changed source files get new images; config-only commits skip rollouts |
-| Isolated namespaces per environment | ✅ Done | UAT (`atlas-uat`) and DEV (`atlas-dev`) are fully isolated; deploying dev cannot affect UAT |
+| Isolated namespaces per environment | ✅ Done | UAT (`atlas-uat`) and DEV (`atlas-dev`) are fully isolated |
+| Ingress-sidecar as standalone Deployment | ✅ Done | Backend rollouts no longer blocked by sidecar image availability |
+| TLS via DNS-01 (Cloudflare) | ✅ Done | Certs issue correctly behind Cloudflare's HTTPS redirect |
 | Version chip in platform-admin sidebar | ✅ Done (pending build) | Shows running SHA + environment badge without SSH |
 | Full K8s backend for agent | ⏳ Future | Security + parallelism |
 

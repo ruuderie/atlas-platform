@@ -97,6 +97,112 @@ pub fn Dashboard() -> impl IntoView {
                     <div class="text-3xl font-bold tracking-tight mb-1">{move || format!("{}", active_listings.get())}</div>
                 </div>
             </div>
+
+            // ── Infrastructure Overview ──
+            <div class="bg-surface-container rounded-xl border border-outline-variant/10 overflow-hidden">
+                <div class="flex justify-between items-center px-6 py-4 border-b border-outline-variant/10">
+                    <h3 class="text-base font-bold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-xl">"dns"</span>
+                        "Platform Infrastructure"
+                    </h3>
+                    <span class="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant px-2 py-1 rounded bg-surface-container-highest border border-outline-variant/20">"Ops Reference"</span>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    // Services
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">"Core Services"</h4>
+                        {[
+                            ("backend", "8000", "API (Axum + SeaORM)", "api"),
+                            ("anchor-app", "80", "Tenant Frontend (Leptos SSR)", "language"),
+                            ("platform-admin", "80", "Admin Panel (Leptos CSR)", "admin_panel_settings"),
+                            ("network-instance", "80", "Network Frontend", "hub"),
+                            ("ingress-sidecar", "8085", "K8s Ingress Provisioner", "route"),
+                        ].into_iter().map(|(name, port, desc, icon)| view! {
+                            <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-highest border border-outline-variant/10">
+                                <span class="material-symbols-outlined text-primary text-base">{icon}</span>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-on-surface font-mono">{name}</span>
+                                        <span class="text-[10px] text-on-surface-variant bg-surface px-1.5 py-0.5 rounded border border-outline-variant/20 font-mono">{":" }{port}</span>
+                                    </div>
+                                    <div class="text-[10px] text-on-surface-variant truncate">{desc}</div>
+                                </div>
+                            </div>
+                        }).collect_view()}
+                    </div>
+
+                    // TLS / DNS Requirements
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">"TLS Certificate Requirements"</h4>
+                        <div class="p-4 rounded-lg bg-warning/10 border border-warning/30 space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-warning text-base">"warning"</span>
+                                <span class="text-xs font-bold text-warning">"DNS-01 Issuer Required"</span>
+                            </div>
+                            <p class="text-[11px] text-on-surface-variant leading-relaxed">
+                                "Use "<span class="font-mono font-bold text-on-surface">"letsencrypt-cloudflare"</span>" on all Ingress resources. Cloudflare's \"Always Use HTTPS\" redirect breaks HTTP-01 challenges."
+                            </p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-surface-container-highest border border-outline-variant/10 space-y-2">
+                            <div class="text-xs font-bold text-on-surface mb-2">"Cloudflare API Token Scopes"</div>
+                            {[
+                                ("Zone → DNS → Edit", "Create ACME TXT records"),
+                                ("Zone → Zone → Read", "Resolve zone IDs"),
+                            ].into_iter().map(|(scope, reason)| view! {
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-success text-sm mt-0.5">"check_circle"</span>
+                                    <div>
+                                        <div class="text-[11px] font-mono font-bold text-on-surface">{scope}</div>
+                                        <div class="text-[10px] text-on-surface-variant">{reason}</div>
+                                    </div>
+                                </div>
+                            }).collect_view()}
+                            <div class="pt-2 mt-2 border-t border-outline-variant/20">
+                                <div class="text-[10px] text-on-surface-variant">"Secret: "<span class="font-mono">"cloudflare-api-token-secret"</span>" in "<span class="font-mono">"cert-manager"</span>" namespace"</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    // Environment Matrix
+                    <div class="space-y-3">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-3">"Environments"</h4>
+                        {[
+                            ("dev", "atlas-dev", "dev.buildwithruud.com", "success"),
+                            ("uat", "atlas-uat", "uat.buildwithruud.com", "success"),
+                            ("main", "atlas-prod", "buildwithruud.com", "warning"),
+                        ].into_iter().map(|(branch, ns, domain, status)| {
+                            let (dot_class, label) = if status == "success" {
+                                ("bg-success", "Active")
+                            } else {
+                                ("bg-warning", "Pending")
+                            };
+                            view! {
+                                <div class="p-3 rounded-lg bg-surface-container-highest border border-outline-variant/10">
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <span class="font-mono text-xs font-bold text-on-surface">{branch}</span>
+                                        <div class="flex items-center gap-1.5">
+                                            <div class=format!("w-1.5 h-1.5 rounded-full {}", dot_class)></div>
+                                            <span class="text-[10px] text-on-surface-variant">{label}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-[10px] font-mono text-on-surface-variant">{ns}</div>
+                                    <div class="text-[10px] text-on-surface-variant/60 truncate">{domain}</div>
+                                </div>
+                            }
+                        }).collect_view()}
+                        <div class="p-3 rounded-lg bg-surface-container-highest border border-outline-variant/10 mt-1">
+                            <div class="text-[10px] font-bold text-on-surface mb-1">"Ingress Sidecar"</div>
+                            <div class="text-[10px] text-on-surface-variant leading-relaxed">
+                                "Standalone Deployment (not a pod sidecar). Provisions K8s Ingress + TLS for new tenant domains via "<span class="font-mono">"POST /api/ingress/provision"</span>"."
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
         </div>
     }
 }

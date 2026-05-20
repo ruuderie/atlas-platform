@@ -1,21 +1,37 @@
 # Atlas Platform: Deployment & Environments Architecture
 
-This document outlines how the Atlas Platform is configured across different deployment environments (UAT vs. Production) and how the CI/CD pipeline correctly routes traffic, provisions databases, and manages secrets.
+This document outlines how the Atlas Platform is configured across different deployment environments (DEV, UAT, Production) and how the CI/CD pipeline correctly routes traffic, provisions databases, and manages secrets.
 
 ## Overview
 
-The Atlas Platform uses **Kustomize** to manage environment-specific Kubernetes configurations (`k8s/overlays/uat` and `k8s/overlays/prod`), and **Woodpecker CI** to automatically apply the correct overlay based on the git branch being pushed.
+The Atlas Platform uses **Kustomize** to manage environment-specific Kubernetes configurations (`k8s/overlays/dev`, `k8s/overlays/uat`, `k8s/overlays/prod`), and **Woodpecker CI** to automatically apply the correct overlay based on the git branch being pushed.
 
 ### Environment Matrix
 
-| Component | UAT (`uat` branch) | Production (`main`/`master` branch) |
-| :--- | :--- | :--- |
-| **K8s Overlay** | `k8s/overlays/uat` | `k8s/overlays/prod` |
-| **Database** | `atlas_uat` | `atlas_prod` |
-| **API Domain** | `api.uat.atlas.oply.co` | `api.atlas.oply.co` |
-| **Admin Domain** | `uat.atlas.oply.co` | `atlas.oply.co` |
-| **Tenant Domains** | `uat.buildwithruud.com`, `uat.oplystusa.com` | `buildwithruud.com`, `oplystusa.com` (+ `www` variants) |
-| **Secrets Strategy**| CI-injected plaintext overrides (speed/flexibility) | **Bitnami Sealed Secrets** (strict security) |
+| Component | DEV (`dev` branch) | UAT (`uat` branch) | Production (`main`/`master` branch) |
+| :--- | :--- | :--- | :--- |
+| **K8s Namespace** | `atlas-dev` | `atlas-uat` | `atlas-prod` |
+| **K8s Overlay** | `k8s/overlays/dev` | `k8s/overlays/uat` | `k8s/overlays/prod` |
+| **Database** | `atlas_dev` | `atlas_uat` | `atlas_prod` |
+| **API Domain** | `api.dev.atlas.oply.co` | `api.uat.atlas.oply.co` | `api.atlas.oply.co` |
+| **Admin Domain** | `dev.atlas.oply.co` | `uat.atlas.oply.co` | `atlas.oply.co` |
+| **Tenant Domain** | `dev.buildwithruud.com` | `uat.buildwithruud.com` | `buildwithruud.com` |
+| **TLS Issuer** | `letsencrypt-cloudflare` (DNS-01) | `letsencrypt-cloudflare` (DNS-01) | `letsencrypt-cloudflare` (DNS-01) |
+| **Secrets Strategy**| CI-injected plaintext | CI-injected plaintext | **Bitnami Sealed Secrets** |
+
+### Core Services
+
+Each environment runs these Kubernetes Deployments:
+
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| `backend` | `ghcr.io/ruuderie/atlas-backend` | 8000 | Rust API server (Axum + SeaORM) |
+| `anchor-app` | `ghcr.io/ruuderie/anchor-app` | 80 | Tenant-facing Leptos SSR frontend |
+| `platform-admin` | `ghcr.io/ruuderie/platform-admin` | 80 | Operator admin panel (Leptos CSR) |
+| `network-instance` | `ghcr.io/ruuderie/network-instance` | 80 | Multi-tenant network frontend |
+| `ingress-sidecar` | `ghcr.io/ruuderie/atlas-ingress-sidecar` | 8085 | Zero-touch K8s Ingress provisioner |
+
+> **Note:** The `ingress-sidecar` is a **standalone Deployment**, not a sidecar container in the backend pod. It manages Ingress and TLS provisioning for newly onboarded tenants via the `/api/ingress/provision` endpoint.
 
 ---
 
@@ -70,12 +86,66 @@ When the `atlas-backend` pod starts, it grabs `DATABASE_NAME` (e.g., `atlas_prod
 
 The `ingress.yaml` file in each overlay determines which domains map to which Kubernetes services.
 
-**In Production (`k8s/overlays/prod/ingress.yaml`):**
-* `atlas.oply.co` routes to the `platform-admin` service.
-* `api.atlas.oply.co` routes to the `backend` service (port 8000).
-* `buildwithruud.com` and `www.buildwithruud.com` route to the `anchor-app` service.
+**In DEV (`k8s/overlays/dev/ingress.yaml`):**
+* `dev.buildwithruud.com` → `anchor-app` (port 80)
+* `api.dev.atlas.oply.co` → `backend` (port 8000)
+* `dev.atlas.oply.co` → `platform-admin` (port 80)
+* `network.dev.atlas.oply.co` → `network-instance` (port 80)
 
-The production ingress specifies `cert-manager.io/cluster-issuer: "letsencrypt-prod"` to automatically provision trusted SSL certificates for all these bare domains.
+**In Production (`k8s/overlays/prod/ingress.yaml`):**
+* `buildwithruud.com` and `www.buildwithruud.com` → `anchor-app`
+* `api.atlas.oply.co` → `backend` (port 8000)
+* `atlas.oply.co` → `platform-admin`
+
+### TLS Certificate Issuance — DNS-01 Required
+
+> **⚠️ Critical:** All ingress files **must** use `cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"` (DNS-01), **not** `letsencrypt-prod` (HTTP-01).
+
+**Why:** Cloudflare's "Always Use HTTPS" setting redirects all `http://` traffic to `https://` before Let's Encrypt's ACME HTTP-01 validator can reach the challenge token. This causes challenges to remain `pending` indefinitely.
+
+DNS-01 validates via Cloudflare DNS TXT records instead, completely bypassing the HTTP redirect issue.
+
+### Cloudflare API Token Requirements
+
+The `letsencrypt-cloudflare` ClusterIssuer uses a token stored in:
+```
+Secret: cloudflare-api-token-secret
+Namespace: cert-manager
+Key: api-token
+```
+
+This token **must** have the following Cloudflare permissions:
+
+| Permission | Level | Why |
+|---|---|---|
+| `Zone → DNS → Edit` | All zones (or specific zones) | Create/delete ACME challenge TXT records |
+| `Zone → Zone → Read` | All zones | Look up Zone IDs by domain name |
+
+To verify the token is working:
+```bash
+# Test authentication
+curl -s -X GET "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# Test DNS edit access to a specific zone
+curl -s "https://api.cloudflare.com/client/v4/zones/ZONE_ID/dns_records?type=TXT&per_page=1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+# Should return: "success":true  (not authentication error)
+```
+
+To update the token on the cluster:
+```bash
+kubectl create secret generic cloudflare-api-token-secret \
+  --from-literal=api-token=YOUR_NEW_TOKEN \
+  -n cert-manager \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+After updating the token, force cert-manager to retry immediately:
+```bash
+kubectl delete challenges --all -n atlas-dev
+kubectl delete challenges --all -n atlas-uat
+```
 
 ---
 
