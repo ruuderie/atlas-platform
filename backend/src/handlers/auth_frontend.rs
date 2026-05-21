@@ -218,10 +218,18 @@ pub async fn request_magic_link(
         return Err(status);
     }
 
-    // T5 IDEMPOTENCY GUARD: suppress duplicate dispatches within 60 seconds.
-    // Covers both LB-level retries (if SMTP latency ever exceeds the proxy timeout)
-    // and pre-hydration double-submits (first SSR click + second post-WASM click).
-    // The cache TTL (60s) is set in the Lazy initialiser above.
+    // IDEMPOTENCY GUARD — Layer 1: in-memory cache (same-pod deduplication).
+    //
+    // The cache is populated HERE, before any DB writes, so that concurrent requests
+    // on the same pod are caught before they reach the database. Previously the cache
+    // was populated AFTER the upsert, leaving a race window where two rapid requests
+    // could both miss the cache and both proceed to the DB.
+    //
+    // TTL is 60 seconds (set in the Lazy initialiser above). This covers:
+    //   - UI double-submits (pre-hydration SSR click + post-WASM click)
+    //   - LB/browser retries triggered by slow SMTP
+    //
+    // Cross-pod deduplication is handled by the DB upsert (Layer 2, below).
     let cache_key = payload.email.to_lowercase();
     if MAGIC_LINK_REQUEST_CACHE.get(&cache_key).await.is_some() {
         tracing::info!(
@@ -232,6 +240,9 @@ pub async fn request_magic_link(
         );
         return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
     }
+    // Claim the cache slot immediately so concurrent same-pod requests are rejected
+    // before they reach the DB. The slot is released automatically after the TTL.
+    MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
 
     let user_model = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
@@ -309,19 +320,50 @@ pub async fn request_magic_link(
         let created_at = Utc::now();
         let expires_at = Utc::now() + Duration::minutes(15);
 
+        // IDEMPOTENCY GUARD — Layer 2: DB-level deduplication.
+        //
+        // The partial unique index `magic_link_token_one_per_user_active` covers
+        // rows WHERE is_used = false. This includes EXPIRED tokens (expires_at < NOW())
+        // that were never clicked. Without the cleanup step below, an expired-but-unused
+        // token causes every subsequent request to hit the DO UPDATE path, returning
+        // was_inserted = false and suppressing all future emails indefinitely.
+        //
+        // FIX: explicitly expire stale tokens before the upsert so the partial index
+        // no longer matches them. Then the INSERT path is taken and was_inserted = true.
+        //
+        // Both statements run sequentially on the same connection. They are not wrapped
+        // in an explicit BEGIN/COMMIT because SeaORM's `query_one` uses auto-commit and
+        // the cleanup UPDATE is idempotent — if a concurrent request cleans up the same
+        // expired token, the second UPDATE affects 0 rows (harmless). The subsequent
+        // INSERT will then conflict on the fresh token the concurrent request inserted,
+        // hit DO UPDATE, and return was_inserted = false, suppressing the duplicate.
+        let _ = sea_orm::ConnectionTrait::execute(
+            &db,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                // Mark expired-but-unused tokens as used so they leave the partial index.
+                // This is intentional: an expired token is functionally equivalent to a
+                // used one — the link can no longer be clicked.
+                "UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false AND expires_at < NOW()",
+                vec![user_mod.id.into()],
+            ),
+        ).await;
 
-        // ATOMIC UPSERT — single DB round-trip, no race window.
+        // Now do the upsert. After the cleanup above:
+        //   - If no active (unexpired, unused) token exists → INSERT succeeds
+        //     (xmax = 0 → was_inserted = true) → send email
+        //   - If a valid active token exists (re-request within 15-min window) →
+        //     DO UPDATE rotates the token in-place (xmax ≠ 0 → was_inserted = false)
+        //     → still send email with the new token (user requested a fresh link)
         //
-        // The prior two-step (UPDATE is_used=true + INSERT DO NOTHING) had a race:
-        // two concurrent requests on different pods could both expire existing tokens
-        // then both insert successfully (no conflict row exists after the expiry).
-        //
-        // This upsert collapses both operations atomically:
-        //   - If no active token exists → INSERT (xmax = 0 → was_inserted = true)
-        //   - If an active token exists → UPDATE it in-place (xmax ≠ 0 → was_inserted = false)
-        // Only the transaction that inserted dispatches an email. The one that updated
-        // returns 200 silently. The old token string is overwritten, so stale email links
-        // pointing to the prior token become invalid automatically.
+        // Cross-pod concurrent request on the same user: both pass the Layer 1 cache
+        // (different pods), both run the cleanup (idempotent), then one INSERT wins
+        // and one hits DO UPDATE. The in-memory cache (Layer 1) already claimed by
+        // pod that won will catch any retry on the same pod. For true concurrent
+        // cross-pod sends in the DO UPDATE case, both emails contain the same final
+        // token value (last writer wins on the UPDATE), and the user can use either.
+        // This is an acceptable edge case — the next architectural step is to replace
+        // the in-memory cache with a distributed Redis/Valkey cache.
         let sql = r#"
             INSERT INTO magic_link_token
                 (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
@@ -357,20 +399,33 @@ pub async fn request_magic_link(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
+        // Note: was_inserted = false means an active token was rotated in-place.
+        // We still send the email — the user requested a fresh link within the 15-min
+        // window and deserves one. The Layer 1 cache prevents same-pod duplicates.
+        // For cross-pod concurrent requests both getting was_inserted = false, both
+        // will send an email with the same token (last-writer-wins semantics on the
+        // DO UPDATE). This is acceptable until a distributed cache is in place.
         let was_inserted = upsert_result
             .and_then(|row| row.try_get_by_index::<bool>(0).ok())
-            .unwrap_or(false);
+            .unwrap_or(true); // default true: if RETURNING fails, attempt to send
 
-        if !was_inserted {
-            tracing::info!(
-                event = "magic_link.deduplicated_at_db",
-                request_id = %request_id,
-                user_id = %user_mod.id,
-                email = %payload.email,
-                reason = "concurrent_upsert_lost_race",
-            );
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
-        }
+        tracing::info!(
+            event = if was_inserted { "magic_link.requested" } else { "magic_link.rotated" },
+            request_id = %request_id,
+            user_id = %user_mod.id,
+            email = %user_mod.email,
+            ip = %ip,
+            user_agent = %user_agent,
+            app_instance_id = %final_app_instance_id,
+            duration_ms = start.elapsed().as_millis(),
+            status = "success"
+        );
+
+        metrics::MAGIC_LINK_REQUESTS
+            .with_label_values(&["unknown", &final_app_instance_id, "success"])
+            .inc();
+
+        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
 
         let magic_link_url = match validated_redirect_url {
             Some(ref base) => {
@@ -387,25 +442,6 @@ pub async fn request_magic_link(
             }
         };
 
-        let token_preview = &token_str[..8];
-        tracing::info!(
-            event = "magic_link.requested",
-            request_id = %request_id,
-            user_id = %user_mod.id,
-            email = %user_mod.email,
-            ip = %ip,
-            user_agent = %user_agent,
-            app_instance_id = %final_app_instance_id,
-            duration_ms = start.elapsed().as_millis(),
-            status = "success"
-        );
-
-        metrics::MAGIC_LINK_REQUESTS
-            .with_label_values(&["unknown", &final_app_instance_id, "success"])
-            .inc();
-
-        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
-        
         let email_payload = crate::handlers::communications::SendEmailPayload {
             tenant_id: Uuid::nil(),
             to_email: user_mod.email.clone(),
@@ -419,12 +455,9 @@ pub async fn request_magic_link(
             ),
         };
 
-        MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
-
-        // T5 LATENCY FIX: move email dispatch to a background task so the HTTP response
-        // is returned immediately after the token row is committed. The SMTP conversation
-        // (DB query + TLS handshake + mailer.send) previously blocked this handler for 3+
-        // seconds, triggering LB retries and pre-hydration double-submits.
+        // T5 LATENCY FIX: dispatch email in a background task so the HTTP response
+        // is returned immediately after the token is committed. SMTP (TLS handshake +
+        // mailer.send) can take 2-5 seconds and would otherwise trigger LB timeouts.
         let db_for_email = db.clone();
         let email_addr = user_mod.email.clone();
         tokio::task::spawn(async move {
