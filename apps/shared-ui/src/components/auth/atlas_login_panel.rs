@@ -1,4 +1,4 @@
-// Build: 2026-05-14 — forces anchor image rebuild via CI path detection.
+// Build: 2026-05-20 — fix passkey URL hydration mismatch causing /admin page reload.
 // ARCHITECTURE & HYDRATION INVARIANT — READ BEFORE EDITING
 // ============================================================================
 // AtlasLoginPanel operates in standard document flow (`flex: 1`).
@@ -19,6 +19,7 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link};
+use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
 #[derive(Clone, PartialEq)]
@@ -244,6 +245,24 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
         error_sig.set(Some(err));
     });
 
+    // Compute the absolute backend API URL ONCE at component setup time.
+    //
+    // HYDRATION INVARIANT: get_atlas_api_url() has two compile-time implementations:
+    //   - SSR:  reads ATLAS_API_URL env var → internal cluster URL (http://backend:8000)
+    //   - WASM: reads window.__ENV__.API_BASE_URL → public URL (https://api.env.atlas.oply.co)
+    //
+    // If this were computed inside a reactive closure, SSR and WASM would produce
+    // different strings, causing a Leptos hydration mismatch that forces a full
+    // page reload when the user switches tabs. Computing it here at setup time is
+    // also wrong for the same reason — SSR bakes the internal URL into HTML.
+    //
+    // The correct fix: use an empty string during SSR (PasskeyLoginButton's fetch
+    // calls never execute server-side) and compute the real URL only on the client.
+    #[cfg(feature = "ssr")]
+    let passkey_api_base = String::new();
+    #[cfg(not(feature = "ssr"))]
+    let passkey_api_base = format!("{}/api/passkeys", get_atlas_api_url());
+
     // INVARIANT: This panel flows in the document. Do not use position:fixed.
     // See file header for hydration/cache-busting instructions if buttons break.
     let page = "flex:1;width:100%;display:flex;align-items:center;justify-content:center;background:#f5f4ed;padding:48px 16px;";
@@ -349,7 +368,7 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                             <div style="border-left:3px solid #c0392b;background:#fdf3f2;padding:10px 12px 10px 14px;margin-bottom:16px;font-size:13px;color:#922b21;">{e}</div>
                         })}
                         <PasskeyLoginButton
-                            api_base_url="/api/passkeys".to_string()
+                            api_base_url=passkey_api_base.clone()
                             email=RwSignal::new("".to_string())
                             on_success=handle_passkey_success
                             on_error=handle_passkey_error
