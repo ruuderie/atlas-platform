@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelTrait, TransactionTrait};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
@@ -310,34 +310,25 @@ pub async fn request_magic_link(
     };
 
     if let Some(user_mod) = user_model {
-        // CROSS-POD COOLDOWN CHECK: The in-memory MAGIC_LINK_REQUEST_CACHE (above) only
-        // deduplicates requests hitting the same pod. With 2+ replicas behind a LB, a
-        // second request can reach a different pod with an empty cache. To handle this
-        // reliably, we also check the DB: if the user has ANY magic link token created
-        // within the last 60 seconds (used or not), we suppress a new email send.
-        // This is safe because a consumed token means the user just authenticated — they
-        // don't need a second email. A brand-new token within the window means the first
-        // email is still in transit.
-        let cooldown_check = sea_orm::ConnectionTrait::query_one(
-            &db,
-            sea_orm::Statement::from_sql_and_values(
-                sea_orm::DatabaseBackend::Postgres,
-                "SELECT id FROM magic_link_token WHERE user_id = $1 AND is_setup_token = false AND created_at > NOW() - INTERVAL '60 seconds' ORDER BY created_at DESC LIMIT 1",
-                vec![user_mod.id.into()],
-            ),
-        ).await.unwrap_or(None);
-
-        if cooldown_check.is_some() {
-            tracing::info!(
-                event = "magic_link.suppressed_cooldown",
-                request_id = %request_id,
-                user_id = %user_mod.id,
-                email = %payload.email,
-                reason = "token_created_within_60s",
-            );
-            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
-        }
-
+        // IDEMPOTENCY GUARD — Layer 2: PostgreSQL transaction-scoped advisory lock.
+        //
+        // pg_try_advisory_xact_lock(key) is the architecturally correct cross-pod
+        // solution: it uses PostgreSQL's built-in locking — no Redis, no external
+        // infrastructure, no in-memory shared state.
+        //
+        // Properties:
+        //   - Non-blocking: returns false immediately if another session holds the lock
+        //   - Transaction-scoped: released automatically on COMMIT or ROLLBACK
+        //   - Per-user: the lock key is derived from the user_id UUID
+        //   - Works across all pods sharing the same PostgreSQL instance
+        //
+        // Flow:
+        //   Pod A arrives → acquires lock → runs cleanup + upsert → sends email → COMMIT
+        //   Pod B arrives concurrently → pg_try_advisory_xact_lock returns false → 200
+        //
+        // The key is a stable i64 derived from the UUID bytes. We XOR the high and low
+        // halves of the 128-bit UUID to produce a 64-bit lock key. Collision probability
+        // (two different users mapping to the same key) is 1/(2^64) — negligible.
         let token_str: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(32)
@@ -348,50 +339,70 @@ pub async fn request_magic_link(
         let created_at = Utc::now();
         let expires_at = Utc::now() + Duration::minutes(15);
 
-        // IDEMPOTENCY GUARD — Layer 2: DB-level deduplication.
-        //
-        // The partial unique index `magic_link_token_one_per_user_active` covers
-        // rows WHERE is_used = false. This includes EXPIRED tokens (expires_at < NOW())
-        // that were never clicked. Without the cleanup step below, an expired-but-unused
-        // token causes every subsequent request to hit the DO UPDATE path, returning
-        // was_inserted = false and suppressing all future emails indefinitely.
-        //
-        // FIX: explicitly expire stale tokens before the upsert so the partial index
-        // no longer matches them. Then the INSERT path is taken and was_inserted = true.
-        //
-        // Both statements run sequentially on the same connection. They are not wrapped
-        // in an explicit BEGIN/COMMIT because SeaORM's `query_one` uses auto-commit and
-        // the cleanup UPDATE is idempotent — if a concurrent request cleans up the same
-        // expired token, the second UPDATE affects 0 rows (harmless). The subsequent
-        // INSERT will then conflict on the fresh token the concurrent request inserted,
-        // hit DO UPDATE, and return was_inserted = false, suppressing the duplicate.
-        let _ = sea_orm::ConnectionTrait::execute(
-            &db,
+        // Derive a stable i64 lock key from the user UUID.
+        let uuid_bytes = user_mod.id.as_bytes();
+        let hi = i64::from_be_bytes(uuid_bytes[..8].try_into().unwrap_or([0u8; 8]));
+        let lo = i64::from_be_bytes(uuid_bytes[8..].try_into().unwrap_or([0u8; 8]));
+        let lock_key = hi ^ lo;
+
+        // All three DB operations (advisory lock, expired token cleanup, upsert) run
+        // inside a single explicit transaction. The advisory lock is xact-scoped, so
+        // it is automatically released when this transaction commits or rolls back.
+        let txn = db.begin().await.map_err(|e| {
+            tracing::error!("Failed to begin transaction for magic link: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        // Try to acquire the per-user advisory lock.
+        let lock_row = sea_orm::ConnectionTrait::query_one(
+            &txn,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
-                // Mark expired-but-unused tokens as used so they leave the partial index.
-                // This is intentional: an expired token is functionally equivalent to a
-                // used one — the link can no longer be clicked.
+                "SELECT pg_try_advisory_xact_lock($1) AS acquired",
+                vec![lock_key.into()],
+            ),
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!("Advisory lock query failed: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        let lock_acquired = lock_row
+            .and_then(|row| row.try_get_by_index::<bool>(0).ok())
+            .unwrap_or(false);
+
+        if !lock_acquired {
+            // Another pod is handling this exact user's request right now.
+            // The transaction rolls back automatically (no writes were made).
+            let _ = txn.rollback().await;
+            tracing::info!(
+                event = "magic_link.deduplicated_cross_pod",
+                request_id = %request_id,
+                user_id = %user_mod.id,
+                email = %payload.email,
+                reason = "advisory_lock_contention",
+                duration_ms = start.elapsed().as_millis()
+            );
+            return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+        }
+
+        // Lock acquired — this pod is the sole handler for this user right now.
+        // Step 1: expire any stale (unused but expired) tokens so they leave the
+        //         partial index WHERE is_used = false.
+        let _ = sea_orm::ConnectionTrait::execute(
+            &txn,
+            sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
                 "UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false AND expires_at < NOW()",
                 vec![user_mod.id.into()],
             ),
         ).await;
 
-        // Now do the upsert. After the cleanup above:
-        //   - If no active (unexpired, unused) token exists → INSERT succeeds
-        //     (xmax = 0 → was_inserted = true) → send email
-        //   - If a valid active token exists (re-request within 15-min window) →
-        //     DO UPDATE rotates the token in-place (xmax ≠ 0 → was_inserted = false)
-        //     → still send email with the new token (user requested a fresh link)
-        //
-        // Cross-pod concurrent request on the same user: both pass the Layer 1 cache
-        // (different pods), both run the cleanup (idempotent), then one INSERT wins
-        // and one hits DO UPDATE. The in-memory cache (Layer 1) already claimed by
-        // pod that won will catch any retry on the same pod. For true concurrent
-        // cross-pod sends in the DO UPDATE case, both emails contain the same final
-        // token value (last writer wins on the UPDATE), and the user can use either.
-        // This is an acceptable edge case — the next architectural step is to replace
-        // the in-memory cache with a distributed Redis/Valkey cache.
+        // Step 2: upsert the new token.
+        //   - No active token (or just cleaned up) → INSERT → was_inserted = true
+        //   - Active token exists (re-request within 15-min window) →
+        //     DO UPDATE rotates token → was_inserted = false → still send email
         let sql = r#"
             INSERT INTO magic_link_token
                 (id, user_id, token, expires_at, is_used, created_at, redirect_url, is_setup_token)
@@ -407,7 +418,7 @@ pub async fn request_magic_link(
         "#;
 
         let upsert_result = sea_orm::ConnectionTrait::query_one(
-            &db,
+            &txn,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
                 sql,
@@ -427,15 +438,15 @@ pub async fn request_magic_link(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        // Note: was_inserted = false means an active token was rotated in-place.
-        // We still send the email — the user requested a fresh link within the 15-min
-        // window and deserves one. The Layer 1 cache prevents same-pod duplicates.
-        // For cross-pod concurrent requests both getting was_inserted = false, both
-        // will send an email with the same token (last-writer-wins semantics on the
-        // DO UPDATE). This is acceptable until a distributed cache is in place.
+        // Commit — releases the advisory lock atomically.
+        txn.commit().await.map_err(|e| {
+            tracing::error!("Failed to commit magic link transaction: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
         let was_inserted = upsert_result
             .and_then(|row| row.try_get_by_index::<bool>(0).ok())
-            .unwrap_or(true); // default true: if RETURNING fails, attempt to send
+            .unwrap_or(true);
 
         tracing::info!(
             event = if was_inserted { "magic_link.requested" } else { "magic_link.rotated" },
