@@ -158,7 +158,7 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 // Inject window.__ENV__ synchronously before WASM loads so client-side
                 // JS (passkey registration, etc.) can read API_BASE_URL immediately.
-                <script inner_html=env_script />
+                <script inner_html=env_script></script>
                 <AutoReload options=options.clone() />
                 <HydrationScripts options />
                 <MetaTags/>
