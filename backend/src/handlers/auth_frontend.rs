@@ -238,6 +238,9 @@ pub async fn request_magic_link(
             email = %payload.email,
             duration_ms = start.elapsed().as_millis()
         );
+        crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
+            .with_label_values(&["unknown", &app_instance_id])
+            .inc();
         return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
     }
     // Claim the cache key immediately to close the concurrency/race window
@@ -397,6 +400,9 @@ pub async fn request_magic_link(
                 reason = "advisory_lock_contention",
                 duration_ms = start.elapsed().as_millis()
             );
+            crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
+                .with_label_values(&["unknown", &final_app_instance_id])
+                .inc();
             return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
         }
 
@@ -434,6 +440,9 @@ pub async fn request_magic_link(
                     created_at = %t.created_at,
                     duration_ms = start.elapsed().as_millis()
                 );
+                crate::metrics::MAGIC_LINK_DUPLICATES_PREVENTED
+                    .with_label_values(&["unknown", &final_app_instance_id])
+                    .inc();
                 return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
             }
         }

@@ -242,7 +242,7 @@ async fn main() {
         conn.clone(),
         10_000,
         primary_host.clone(),
-        primary_rp_id,
+        primary_rp_id.clone(),
     ));
     
     // Seed primary platform origin
@@ -277,9 +277,16 @@ async fn main() {
                                     }
                                 }
                             }
-                            let domain_rp_id = effective_tld_plus_one(
-                                origin_url.host_str().unwrap_or(&domain.domain_name)
-                            );
+                            let domain_host = origin_url.host_str().unwrap_or(&domain.domain_name);
+                            let domain_rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&primary_host, &primary_rp_id) {
+                                if domain_host.eq_ignore_ascii_case(prim_host) {
+                                    prim_rp_id.clone()
+                                } else {
+                                    domain_host.to_string()
+                                }
+                            } else {
+                                domain_host.to_string()
+                            };
                             if let Err(e) = registry.seed(&domain_rp_id, &origin_url).await {
                                 tracing::warn!(
                                     "Could not pre-warm WebAuthn for domain '{}': {}",
@@ -323,7 +330,15 @@ async fn main() {
                     }
                 }
                 let host = parsed.host_str().unwrap_or("localhost");
-                let add_rp_id = effective_tld_plus_one(host);
+                let add_rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&primary_host, &primary_rp_id) {
+                    if host.eq_ignore_ascii_case(prim_host) {
+                        prim_rp_id.clone()
+                    } else {
+                        host.to_string()
+                    }
+                } else {
+                    host.to_string()
+                };
                 if let Err(e) = registry.seed(&add_rp_id, &parsed).await {
                     tracing::warn!(
                         "Could not seed WebAuthn registry for additional origin '{}': {}",

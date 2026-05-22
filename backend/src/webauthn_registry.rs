@@ -93,11 +93,9 @@ impl WebauthnRegistry {
                 let origin_url = Url::parse(&origin)
                     .map_err(|_| "Invalid origin URL".to_string())?;
 
-                // FIX: use eTLD+1 as rpId, not the full subdomain host.
-                // "dev.buildwithruud.com" → "buildwithruud.com"
-                // "buildwithruud.com"     → "buildwithruud.com"
-                // This ensures passkeys registered from any subdomain share the same
-                // rpId and can authenticate from any sibling subdomain of that tenant.
+                // Use strict host-bound rpId for custom domains/tenants, preserving
+                // environment and tenant isolation. The primary platform admin domain
+                // remains bound to the primary platform RP ID.
                 let host = origin_url
                     .host_str()
                     .ok_or_else(|| "No host in origin".to_string())?;
@@ -106,10 +104,10 @@ impl WebauthnRegistry {
                     if host.eq_ignore_ascii_case(prim_host) {
                         prim_rp_id.clone()
                     } else {
-                        effective_tld_plus_one(host)
+                        host.to_string() // Use strict host-bound RP ID for tenants
                     }
                 } else {
-                    effective_tld_plus_one(host)
+                    host.to_string()
                 };
 
                 let webauthn = Arc::new(

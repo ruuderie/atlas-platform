@@ -218,10 +218,6 @@ pub async fn check_session() -> Result<bool, ServerFnError> {
             Err(_) => Ok(false),
         }
     }
-    #[cfg(not(feature = "ssr"))]
-    {
-        Ok(false)
-    }
 }
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]

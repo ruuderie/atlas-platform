@@ -336,7 +336,7 @@ pub async fn provision_tenant(
     let origin_url = format!("https://{}", payload.domain);
     if let Ok(url) = Url::parse(&origin_url) {
         if let Some(host) = url.host_str() {
-            let rp_id = effective_tld_plus_one(host);
+            let rp_id = host;
             let _ = webauthn_state.registry.get_or_create(&origin_url).await;
             tracing::info!(event = "provision.webauthn.seeded", domain = %payload.domain, rp_id = %rp_id);
         }

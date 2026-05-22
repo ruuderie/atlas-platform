@@ -484,6 +484,7 @@ pub async fn handle_lead_capture(email: String, options: Vec<String>) -> Result<
 pub fn Landing() -> impl IntoView {
     let settings_resource = Resource::new(|| (), |_| get_site_settings());
     let stats_resource = Resource::new(|| (), |_| crate::components::nav::get_bitcoin_stats());
+    let options_res = Resource::new(|| (), |_| get_lead_options());
 
     let (email, set_email) = signal(String::new());
     let (selected_options, set_selected_options) =
@@ -624,7 +625,6 @@ pub fn Landing() -> impl IntoView {
                                 </div>
                                 <Suspense fallback=move || view! { <div class="jetbrains text-xs">"Loading options..."</div> }>
                                     {move || {
-                                        let options_res = Resource::new(|| (), |_| get_lead_options());
                                         view! {
                                             <div class="space-y-4 text-left border border-outline-variant/30 p-6 bg-surface-container-lowest/50">
                                                 <Transition fallback=move || view! { <div>"..."</div> }>
