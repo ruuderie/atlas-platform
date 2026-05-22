@@ -207,10 +207,10 @@ fn AdminDashboard() -> impl IntoView {
     });
 
     view! {
-        <div class="min-h-screen flex bg-background">
+        <div class="min-h-screen flex flex-col md:flex-row bg-background">
             // ── Sidebar ───────────────────────────────────────────────────
             <Suspense fallback=move || view! {
-                <div class="w-56 h-screen border-r border-border bg-background animate-pulse" />
+                <div class="w-full md:w-48 h-12 md:h-screen border-b md:border-b-0 md:border-r border-border bg-background animate-pulse" />
             }>
                 {move || {
                     let on_logout = on_logout.clone();

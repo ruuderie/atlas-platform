@@ -218,58 +218,116 @@ pub fn AdminModuleSidebar(
 
     let label = brand_label.unwrap_or_else(|| "ATLAS".to_string());
 
+    // Reactive drawer state for mobile viewports
+    let is_open = RwSignal::new(false);
+
+    let drawer_class = move || {
+        let base = "fixed inset-y-0 left-0 w-60 z-50 flex flex-col transition-transform duration-200 ease-in-out \
+                    md:static md:w-48 md:h-full md:translate-x-0";
+        if is_open.get() {
+            format!("{base} translate-x-0 {bg} border-r {border}")
+        } else {
+            format!("{base} -translate-x-full {bg} border-r {border}")
+        }
+    };
+
+    let backdrop_class = move || {
+        if is_open.get() {
+            "fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden block transition-opacity duration-200"
+        } else {
+            "hidden"
+        }
+    };
+
     view! {
-        <nav class=format!(
-            "flex flex-col h-full w-56 shrink-0 border-r {border} {bg} {font_class}"
-        )>
-            // ── Brand header ────────────────────────────────────────────────
-            <div class=format!("px-5 py-5 border-b {border}")>
+        // Enclosing layout container
+        <div class=format!("flex flex-col md:h-full md:w-48 shrink-0 {font_class}")>
+            
+            // ── Mobile Sticky Header Bar ─────────────────────────────────────
+            <div class=format!("flex md:hidden w-full h-12 items-center justify-between px-4 border-b {border} {bg} shrink-0")>
                 <span class=format!("uppercase tracking-widest {brand_text_class}")>
-                    {label}
+                    {label.clone()}
                 </span>
-            </div>
-
-            // ── Module navigation ────────────────────────────────────────────
-            <div class="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-                {modules.into_iter().map(|m| {
-                    let module_type = m.module_type;
-                    let display_name = m.display_name.clone();
-                    let icon_name = m.icon
-                        .clone()
-                        .unwrap_or_else(|| module_type.default_icon().to_string());
-                    let text_inactive = text_inactive.to_string();
-                    let text_active   = text_active.to_string();
-
-                    view! {
-                        <SidebarNavItem
-                            module_type=module_type
-                            display_name=display_name
-                            icon_name=icon_name
-                            active_tab=active_tab
-                            set_active_tab=set_active_tab
-                            text_inactive=text_inactive
-                            text_active=text_active
-                        />
-                    }
-                }).collect_view()}
-            </div>
-
-            // ── Logout ───────────────────────────────────────────────────────
-            <div class=format!("px-2 py-3 border-t {border}")>
                 <button
-                    class=format!(
-                        "w-full flex items-center gap-2.5 px-3 py-2 rounded-md \
-                         text-xs transition-colors {logout_text}"
-                    )
-                    on:click=move |_| on_logout.run(())
+                    type="button"
+                    class=format!("p-1.5 rounded-md hover:bg-white/10 transition-colors {text_inactive}")
+                    on:click=move |_| is_open.set(!is_open.get())
                 >
-                    <span class="material-symbols-outlined text-[16px]">
-                        "logout"
+                    <span class="material-symbols-outlined text-[20px]">
+                        {move || if is_open.get() { "close" } else { "menu" }}
                     </span>
-                    "Sign Out"
                 </button>
             </div>
-        </nav>
+
+            // ── Mobile Backdrop Overlay ──────────────────────────────────────
+            <div 
+                class=backdrop_class 
+                on:click=move |_| is_open.set(false)
+            />
+
+            // ── Sidebar Drawer (Off-canvas on mobile, static on desktop) ─────
+            <nav class=drawer_class>
+                // ── Brand / Header ──────────────────────────────────────────
+                <div class=format!("px-5 py-5 border-b {border} flex items-center justify-between md:block shrink-0")>
+                    <span class=format!("uppercase tracking-widest {brand_text_class}")>
+                        {label.clone()}
+                    </span>
+                    <button
+                        type="button"
+                        class=format!("md:hidden p-1 rounded-md hover:bg-white/10 transition-colors {text_inactive}")
+                        on:click=move |_| is_open.set(false)
+                    >
+                        <span class="material-symbols-outlined text-[18px]">"close"</span>
+                    </button>
+                </div>
+
+                // ── Module navigation ────────────────────────────────────────
+                <div class="flex-1 flex flex-col overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-none">
+                    {modules.into_iter().map(|m| {
+                        let module_type = m.module_type;
+                        let display_name = m.display_name.clone();
+                        let icon_name = m.icon
+                            .clone()
+                            .unwrap_or_else(|| module_type.default_icon().to_string());
+                        let text_inactive = text_inactive.to_string();
+                        let text_active   = text_active.to_string();
+                        
+                        let on_item_click = Callback::new(move |_: ()| {
+                            is_open.set(false);
+                        });
+
+                        view! {
+                            <SidebarNavItem
+                                module_type=module_type
+                                display_name=display_name
+                                icon_name=icon_name
+                                active_tab=active_tab
+                                set_active_tab=set_active_tab
+                                text_inactive=text_inactive
+                                text_active=text_active
+                                on_click=on_item_click
+                            />
+                        }
+                    }).collect_view()}
+                </div>
+
+                // ── Logout ───────────────────────────────────────────────────
+                <div class=format!("px-2 py-3 border-t {border} flex items-center shrink-0")>
+                    <button
+                        class=format!(
+                            "w-full flex items-center gap-2.5 px-3 py-2 rounded-md \
+                             text-xs transition-colors {logout_text} whitespace-nowrap"
+                        )
+                        on:click=move |_| on_logout.run(())
+                    >
+                        <span class="material-symbols-outlined text-[16px]">
+                            "logout"
+                        </span>
+                        <span>"Sign Out"</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
     }
 }
 
@@ -283,6 +341,8 @@ fn SidebarNavItem(
     set_active_tab: WriteSignal<AdminModuleType>,
     text_inactive: String,
     text_active: String,
+    #[prop(into, optional)]
+    on_click: Option<Callback<()>>,
 ) -> impl IntoView {
     let text_inactive_clone = text_inactive.clone();
     let text_active_clone   = text_active.clone();
@@ -291,12 +351,12 @@ fn SidebarNavItem(
         if active_tab.get() == module_type {
             format!(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-md \
-                 text-xs transition-colors cursor-pointer {text_active_clone}"
+                 text-xs transition-colors cursor-pointer whitespace-nowrap {text_active_clone}"
             )
         } else {
             format!(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-md \
-                 text-xs transition-colors cursor-pointer {text_inactive_clone}"
+                 text-xs transition-colors cursor-pointer whitespace-nowrap {text_inactive_clone}"
             )
         }
     };
@@ -304,7 +364,12 @@ fn SidebarNavItem(
     view! {
         <button
             class=item_class
-            on:click=move |_| set_active_tab.set(module_type)
+            on:click=move |_| {
+                set_active_tab.set(module_type);
+                if let Some(cb) = on_click {
+                    cb.run(());
+                }
+            }
         >
             <span class="material-symbols-outlined text-[16px] shrink-0">
                 {icon_name.clone()}

@@ -107,9 +107,15 @@ pub fn PasskeyLoginButton(
                     }
                 }
                 Ok(res) => {
+                    let status = res.status();
                     let text = res.text().await.unwrap_or_default();
-                    leptos::logging::warn!("Passkey finish-login failed: {}", text);
-                    on_error.run("Passkey verification failed. Please try again.".to_string());
+                    leptos::logging::warn!("Passkey finish-login failed: {} - {}", status, text);
+                    let err_msg = if text.trim().is_empty() {
+                        format!("Passkey verification failed (HTTP {}). Please try again.", status)
+                    } else {
+                        format!("Passkey verification failed: {}", text)
+                    };
+                    on_error.run(err_msg);
                 }
                 Err(_) => on_error.run("Network error during verification. Please check your connection.".to_string()),
             }

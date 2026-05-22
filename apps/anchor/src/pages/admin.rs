@@ -335,9 +335,9 @@ fn AuthenticatedDashboard(
     );
 
     view! {
-        <div class="flex-1 flex flex-col md:flex-row gap-12 pb-24">
+        <div class="flex-1 flex flex-col md:flex-row gap-6 md:gap-8 pb-24">
             // Sidebar — dynamic from module registry
-            <aside class="w-full md:w-64 shrink-0">
+            <aside class="w-full md:w-48 shrink-0">
                 <Suspense fallback=move || view! { <div class="h-64 animate-pulse bg-surface-container-high rounded" /> }>
                     {move || {
                         match ResourceState::from_option(modules_resource.get()) {
