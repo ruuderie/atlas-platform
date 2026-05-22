@@ -265,13 +265,77 @@ Used when: user has no passkey registered on the current device.
 1. User clicks "I don't have my passkey" / "Send Recovery Link"
 2. Client calls: POST /api/auth/magic-link/request { email: string }
       └─ Always returns HTTP 200 regardless of whether email exists (anti-enumeration)
-3. If email matches a user: backend sends email with link to /magic-login?token=<uuid>
-4. User clicks link → app calls: POST /api/auth/magic-link/verify { token: string }
-5. Backend validates: token exists, not used, not expired (15-min TTL)
-6. Backend marks token as used (one-time only), creates session, sets HttpOnly cookie
-7. App immediately prompts: "Register a passkey on this device for next time"
+3. If email matches a user: backend processes request through a 3-layer deduplication guard:
+      ├─ Layer 1: In-memory same-pod TTL cache (60s) to absorb double-clicks
+      ├─ Layer 2: Transaction-scoped PostgreSQL advisory lock on user UUID to prevent multi-pod races
+      └─ Layer 3: Pre-upsert cleanup of expired-but-active tokens to prevent index lockout
+4. Backend sends email with link to /magic-login?token=<uuid> (token is rotated if active)
+5. User clicks link → app calls: POST /api/auth/magic-link/verify { token: string }
+6. Backend validates: token exists, not used, not expired (15-min TTL)
+7. Backend marks token as used (one-time only), creates session, sets HttpOnly cookie
+8. App immediately prompts: "Register a passkey on this device for next time"
       └─ This is non-optional UX — magic link login should bootstrap passkey registration
 ```
+
+#### Magic Link 3-Layer Deduplication Architecture
+
+To guarantee that magic link emails are sent **once and only once** without locking out users permanently, the platform implements a robust, state-of-the-art three-layer deduplication architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: In-Memory TTL Cache (Same-Pod)                     │
+│  - Bounded moka Cache (1000 cap, 60s TTL)                   │
+│  - Checked BEFORE DB read/write; committed AFTER txn commit │
+│  - Absorbs rapid UI double-clicks / pre-hydration mismatch  │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2: PostgreSQL Advisory Lock (Cross-Pod / Concurrency)│
+│  - Single explicit transaction per user request             │
+│  - pg_try_advisory_xact_lock(lock_key)                      │
+│  - Stable 64-bit key: XOR of high/low 64-bit halves of UUID │
+│  - Releases atomically on COMMIT or ROLLBACK                │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3: Stale Token DB Cleanup                            │
+│  - Expired, unused tokens block the partial unique index    │
+│  - UPDATE magic_link_token SET is_used = true               │
+│    WHERE user_id = $1 AND is_used = false AND expires < NOW │
+│  - Prevents permanent user lockouts from stale rows          │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Token Rotation & Upsert                                    │
+│  - ON CONFLICT (user_id) WHERE is_used = false DO UPDATE    │
+│  - xmax check: returns was_inserted = true/false            │
+│  - Rotates active token and sends email on manual retry      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+##### 1. Layer 1: In-Memory same-pod cache
+An in-memory `moka` cache (`max_capacity: 1000`, `ttl: 60s`) acts as a front door. When a request arrives, the pod checks the cache. If present, it returns `200 OK` immediately without accessing the database.
+* **Cache Poisoning Prevention:** The cache is not populated until *after* the database transaction successfully commits. A non-existent user or database connection failure will not block legitimate retries.
+
+##### 2. Layer 2: PostgreSQL Advisory Lock
+To handle concurrent requests landing on different pod replicas, the backend utilizes PostgreSQL's transaction-scoped advisory locks (`pg_try_advisory_xact_lock`). 
+* **Key Derivation:** The per-user 64-bit key is derived by XORing the high and low 64-bit halves of the user's UUID.
+* **Automatic Release:** Because the lock is transaction-scoped, it is held *only* during active execution of the token rotation transaction and is released atomically by Postgres upon `COMMIT` or `ROLLBACK`.
+* **Lock Contention:** If pod B tries to process a request for user X while pod A holds the lock, the lock acquisition immediately returns `false`. Pod B aborts the transaction, logs a `magic_link.deduplicated_cross_pod` event, and returns `200 OK` (so attackers gain no timing information).
+
+##### 3. Layer 3: Stale Token Cleanup & Rotation
+The database uses a partial unique index:
+`CREATE UNIQUE INDEX magic_link_token_one_per_user_active ON magic_link_token (user_id) WHERE is_used = false;`
+* **Stale Token Cleanup:** If a token expires without being clicked, `is_used` remains `false`, which would block new inserts. Before writing a new token, the transaction executes:
+  `UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false AND expires_at < NOW();`
+  This cleans up stale tokens, freeing up the partial index predicate.
+* **Token Rotation:** If a valid active token already exists, the transaction performs an upsert:
+  `ON CONFLICT (user_id) WHERE is_used = false DO UPDATE SET token = EXCLUDED.token...`
+  This rotates the token in place for active requests.
+
 
 ### Flow 3: New Tenant Admin Provisioning
 

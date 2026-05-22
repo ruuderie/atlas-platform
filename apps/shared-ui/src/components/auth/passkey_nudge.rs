@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use crate::components::auth::passkey_manager::ManagePasskeys;
+use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 
 /// A dismissable nudge banner that prompts the user to register a passkey after
 /// magic-link login. Universal across all Atlas apps.
@@ -28,6 +29,15 @@ use crate::components::auth::passkey_manager::ManagePasskeys;
 pub fn PasskeyNudge() -> impl IntoView {
     let (is_hidden, set_is_hidden) = signal(false);
 
+    // Compute the absolute backend API URL ONCE at component setup time.
+    // Use an empty string during SSR and compute the real public URL only on the client.
+    #[cfg(feature = "ssr")]
+    let passkey_api_base = String::new();
+    #[cfg(not(feature = "ssr"))]
+    let passkey_api_base = format!("{}/api/passkeys", get_atlas_api_url());
+
+    let (passkey_api_base_sig, _) = signal(passkey_api_base);
+
     view! {
         <Show when=move || !is_hidden.get()>
             <div class="bg-primary/10 border border-primary/40 rounded-2xl p-6 mb-8 w-full">
@@ -53,11 +63,9 @@ pub fn PasskeyNudge() -> impl IntoView {
                 </div>
                 // ManagePasskeys owns the full WebAuthn registration flow:
                 // Action::new_local + fetch_credentials_include() + reactive error/success UI.
-                // api_base_url is passed as a relative path so this component works on any
-                // Atlas app regardless of domain. auth_token is vestigial — the backend reads
-                // the session cookie, not an Authorization header.
+                // auth_token is vestigial — the backend reads the session cookie, not an Authorization header.
                 <ManagePasskeys
-                    api_base_url=Signal::derive(|| "/api/passkeys".to_string())
+                    api_base_url=Signal::derive(move || passkey_api_base_sig.get())
                     auth_token="".to_string()
                 />
             </div>

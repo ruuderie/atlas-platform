@@ -207,8 +207,15 @@ pub fn WebformsTable() -> impl IntoView {
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
 /// Token verification, expired-link UI, URL cleanup — all owned by the panel.
 #[component]
-fn LoginPanel() -> impl IntoView {
-    view! { <AtlasLoginPanel app_title="SYSTEM_CMS" success_path="/admin" /> }
+fn LoginPanel(on_authenticated: Callback<()>) -> impl IntoView {
+    view! {
+        <AtlasLoginPanel
+            app_title="SYSTEM_CMS"
+            success_path="/admin"
+            skip_reload=true
+            on_authenticated=on_authenticated
+        />
+    }
 }
 
 #[component]
@@ -216,15 +223,33 @@ pub fn Admin() -> impl IntoView {
     // query is available for downstream components via context if needed
     let _query = use_query_map();
 
+    let (auth_trigger, set_auth_trigger) = signal(0i32);
+
     // ── Auth resource ─────────────────────────────────────────────────────────
     // Resource::new_blocking blocks the SSR byte stream until check_session()
     // resolves and serialises Ok(false)/Ok(true) into the HTML payload.
     // The WASM client reads it synchronously — no None→Ready transition,
     // no Suspense DOM swap, no pre-hydration click vulnerability window.
     let auth_resource = Resource::new_blocking(
-        || (),
+        move || auth_trigger.get(),
         |_| async move { check_session().await },
     );
+
+    let on_auth = Callback::new(move |_: ()| {
+        #[cfg(not(feature = "ssr"))]
+        if let Some(w) = web_sys::window() {
+            if let Ok(loc) = w.location().pathname() {
+                if let Ok(history) = w.history() {
+                    let _ = history.replace_state_with_url(
+                        &leptos::wasm_bindgen::JsValue::NULL,
+                        "",
+                        Some(&loc),
+                    );
+                }
+            }
+        }
+        set_auth_trigger.update(|t| *t += 1);
+    });
 
     let (active_tab, set_active_tab) = signal(AdminModuleType::Dashboard);
 
@@ -258,7 +283,7 @@ pub fn Admin() -> impl IntoView {
                     // (which reset email_mode → Passkey tab, appearing as a
                     // page reload to the user).
                     ResourceState::Ready(false) | ResourceState::Error(_) => view! {
-                        <LoginPanel />
+                        <LoginPanel on_authenticated=on_auth />
                     }.into_any(),
 
                     // ── Authenticated ────────────────────────────────────────

@@ -272,3 +272,131 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
     let _ = req.send().await;
     Ok(())
 }
+
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(StartPasskeyRegistration, "/api")]
+pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        
+        let origin = if let Some(origin_val) = headers.get("origin").and_then(|v| v.to_str().ok()) {
+            origin_val.to_string()
+        } else {
+            let host = headers
+                .get("host")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("localhost");
+            let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
+                "http"
+            } else {
+                "https"
+            };
+            format!("{}://{}", scheme, host)
+        };
+
+        let url = format!("{}/api/passkeys/start-register", get_atlas_api_url());
+        let client = reqwest::Client::new();
+        let res = client.post(&url)
+            .header("cookie", cookie_header)
+            .header("origin", &origin)
+            .send()
+            .await;
+
+        match res {
+            Ok(r) if r.status().is_success() => {
+                let val: serde_json::Value = r.json().await.map_err(|e| {
+                    ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))
+                })?;
+                Ok(val)
+            }
+            Ok(r) => {
+                let err_text = r.text().await.unwrap_or_default();
+                leptos::logging::warn!("Start passkey registration failed: HTTP {} - {}", r.status(), err_text);
+                Err(ServerFnError::ServerError(err_text))
+            }
+            Err(e) => {
+                leptos::logging::error!("Start passkey registration error: {:?}", e);
+                Err(ServerFnError::ServerError("Failed to start passkey registration".into()))
+            }
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::ServerError("Client-side stub".into()))
+    }
+}
+
+#[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnError> {
+    Err(ServerFnError::ServerError("Server functions not available in CSR-only build".into()))
+}
+
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(FinishPasskeyRegistration, "/api")]
+pub async fn finish_passkey_registration(credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+        
+        let origin = if let Some(origin_val) = headers.get("origin").and_then(|v| v.to_str().ok()) {
+            origin_val.to_string()
+        } else {
+            let host = headers
+                .get("host")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("localhost");
+            let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
+                "http"
+            } else {
+                "https"
+            };
+            format!("{}://{}", scheme, host)
+        };
+
+        let url = format!("{}/api/passkeys/finish-register", get_atlas_api_url());
+        let client = reqwest::Client::new();
+        let res = client.post(&url)
+            .header("cookie", cookie_header)
+            .header("origin", &origin)
+            .json(&credential)
+            .send()
+            .await;
+
+        match res {
+            Ok(r) if r.status().is_success() => {
+                let val: serde_json::Value = r.json().await.map_err(|e| {
+                    ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))
+                })?;
+                Ok(val)
+            }
+            Ok(r) => {
+                let err_text = r.text().await.unwrap_or_default();
+                leptos::logging::warn!("Finish passkey registration failed: HTTP {} - {}", r.status(), err_text);
+                Err(ServerFnError::ServerError(err_text))
+            }
+            Err(e) => {
+                leptos::logging::error!("Finish passkey registration error: {:?}", e);
+                Err(ServerFnError::ServerError("Failed to finish passkey registration".into()))
+            }
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::ServerError("Client-side stub".into()))
+    }
+}
+
+#[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+pub async fn finish_passkey_registration(_credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
+    Err(ServerFnError::ServerError("Server functions not available in CSR-only build".into()))
+}
+

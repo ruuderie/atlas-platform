@@ -53,13 +53,15 @@ pub fn AtlasLoginPanel(
     /// Clean URL to navigate to after token exchange. Defaults to /admin.
     #[prop(into, default = "/admin".into())]
     success_path: String,
+    #[prop(default = false)]
+    skip_reload: bool,
 ) -> impl IntoView {
     let query = use_query_map();
     let token_in_url = query.with_untracked(|q| q.get("token").filter(|t| !t.is_empty()));
     let has_token = token_in_url.is_some();
 
     if has_token {
-        token_view(token_in_url, success_path, on_authenticated).into_any()
+        token_view(token_in_url, success_path, on_authenticated, skip_reload).into_any()
     } else {
         login_view(app_title, on_authenticated).into_any()
     }
@@ -70,6 +72,7 @@ fn token_view(
     token: Option<String>,
     success_path: String,
     on_authenticated: Option<Callback<()>>,
+    skip_reload: bool,
 ) -> impl IntoView {
     // IMPORTANT: Use LocalResource (client-only) — NOT Resource.
     // Resource::new runs during SSR, which would consume the single-use token
@@ -115,14 +118,16 @@ fn token_view(
     //
     // The on_authenticated callback (if any) still fires first so callers can
     // perform any synchronous side-effects before the navigation happens.
-    let clean2 = success_path.clone();
+    let _clean2 = success_path.clone();
     let on_ok  = on_authenticated.clone();
     Effect::new(move |_| {
         if matches!(resource.get(), Some(TokenState::Success)) {
             if let Some(cb) = &on_ok { cb.run(()); }
-            #[cfg(feature = "hydrate")]
-            if let Some(w) = web_sys::window() {
-                let _ = w.location().replace(&clean2);
+            if !skip_reload {
+                #[cfg(feature = "hydrate")]
+                if let Some(w) = web_sys::window() {
+                    let _ = w.location().replace(&_clean2);
+                }
             }
         }
     });

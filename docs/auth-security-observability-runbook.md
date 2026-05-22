@@ -24,11 +24,16 @@ This runbook provides operational, security, and architectural guidance for the 
 
 ### Auth Flow
 1. User requests magic link → `request_magic_link`
-2. Backend enforces idempotency via PostgreSQL partial unique index + `ON CONFLICT DO NOTHING`
-3. Email sent via Lettre
-4. User clicks link → `verify_magic_link` (sets HttpOnly + SameSite=Strict session cookie)
-5. Optional passkey nudge shown if user has no passkeys
-6. Session created with JWT + refresh token
+2. Backend enforces strict double-send prevention & lockout safety via a 3-layer guard:
+   - **Layer 1:** Bounded in-memory `MAGIC_LINK_REQUEST_CACHE` (60s TTL) to catch same-pod UI double-clicks.
+   - **Layer 2:** PostgreSQL transaction-scoped advisory locks (`pg_try_advisory_xact_lock`) using XOR-derived user UUID keys to isolate concurrent multi-pod requests.
+   - **Layer 3:** Active but expired token cleanup (`UPDATE is_used = true WHERE expires_at < NOW()`) within the same transaction to prevent partial unique index lockouts.
+3. Token upserted or rotated in place (`ON CONFLICT (user_id) WHERE is_used = false DO UPDATE`) inside the explicit transaction.
+4. Email sent via Lettre.
+5. User clicks link → `verify_magic_link` (sets HttpOnly + SameSite=Strict session cookie).
+6. Optional passkey nudge shown if user has no passkeys.
+7. Session created, permissions mapped, and stored securely using SHA-256 token hashing (`bearer_token_hash` and `refresh_token_hash` columns in Postgres).
+
 
 ### Key Components
 - **Frontend**: Leptos 0.8 (WASM) + shared-ui
@@ -147,15 +152,22 @@ tracing::info!(
 
 ## 7. Common Failure Scenarios & Runbooks
 
-### Scenario A: Duplicate Magic Link Emails (Regression of Bug B)
-**Symptoms**: Users receive 2+ magic link emails in quick succession.
+### Scenario A: Duplicate Magic Link Emails or Lockout Issues
+**Symptoms**: Users receive 2+ magic link emails in quick succession, or report receiving no email and being permanently unable to request a new magic link.
 **Checks**:
-1. Check `magic_link_duplicates_prevented_total` metric
-2. Search logs for `event="magic_link.requested"` + `status="blocked"`
-3. Verify partial unique index still exists: `SELECT indexname FROM pg_indexes WHERE tablename = 'magic_link_token';`
+1. Check `magic_link_duplicates_prevented_total` metric in Prometheus.
+2. Search Loki logs for deduplication and lock-contention events:
+   - Same-pod cache hits: `event="magic_link.deduplicated"`
+   - Cross-pod advisory lock contention: `event="magic_link.deduplicated_cross_pod"` (verify `reason="advisory_lock_contention"`)
+3. Verify the partial unique index exists on Postgres:
+   `SELECT indexname FROM pg_indexes WHERE tablename = 'magic_link_token';`
+4. Check if expired, unused tokens are correctly being cleaned up by querying active expired rows:
+   `SELECT id, user_id, expires_at, is_used FROM magic_link_token WHERE is_used = false AND expires_at < NOW();`
+   *(Should yield 0 rows under normal operations since they are cleaned up pre-upsert).*
 **Remediation**:
-- If metric is high → investigate recent code changes to `request_magic_link`
-- If index missing → re-apply migration `m20260513_000002_unique_active_magic_link_per_user`
+- If users are locked out and query 4 returns rows, check that the `UPDATE magic_link_token SET is_used = true` query is executing successfully prior to the upsert in `auth_frontend.rs` inside the database transaction.
+- If duplicate emails are sent and Loki shows no `deduplicated` logs, verify that the in-memory `MAGIC_LINK_REQUEST_CACHE` check occurs *before* database writes and that `pg_try_advisory_xact_lock` successfully blocks concurrent transaction attempts.
+
 
 ### Scenario B: Admin Dashboard Unclickable / Hydration Panic
 **Symptoms**: Nav items and buttons do nothing after magic-link login.
@@ -253,19 +265,18 @@ Full analysis documented in `security_analysis.md` from session `f55aba1a`. Summ
 **Status**: **Fixed**  
 **Resolution**: Cookie now conditionally sets `; Secure` based on whether host is `localhost` / `127.*`.
 
-### 🔴 Finding #7 — Refresh & Bearer Tokens Stored in Plaintext
+### ✅ Finding #7 — Refresh & Bearer Tokens Stored in Plaintext
 **File**: `backend/src/handlers/sessions.rs`  
-**Status**: **Pending — Pre-UAT Required**  
-**Risk**: A database read compromise (e.g., via a SQL injection or direct access) yields immediately usable JWTs. An attacker with DB access can impersonate any user for up to 7 days.
+**Status**: **Fixed**  
+**Resolution**: 
+1. Added SHA-256 hashing to session and refresh token creation and verification processes (`hash_token` function using `sha2` crate).
+2. Registered and executed migration `m20260515_000001_hash_session_tokens.rs` to add `bearer_token_hash VARCHAR(64)` and `refresh_token_hash VARCHAR(64)` columns to the `session` table.
+3. Created a unique index on `bearer_token_hash` for fast, secure O(1) lookups: `idx_session_bearer_token_hash`.
+4. Configured session creation to write both hashed values (dual-write) and plaintext values.
+5. Session validation performs a lookup using the SHA-256 hash of the incoming token against the `bearer_token_hash` column.
+6. Implemented a zero-downtime, backward-compatible fallback: if no session is matched by hash, the query falls back to matching by the plaintext `bearer_token` specifically where `bearer_token_hash` is NULL, protecting pre-migration active user sessions from being abruptly terminated.
+7. Dropping plaintext columns will be scheduled in a future release cycle after active sessions expire.
 
-**Remediation Plan (Non-Breaking)**:
-1. Add `sha2` to `backend/Cargo.toml`.
-2. Implement `pub fn hash_token(token: &str) -> String { format!("{:x}", sha2::Sha256::digest(token.as_bytes())) }` in `auth.rs`.
-3. Add migration to add `bearer_token_hash VARCHAR(64)` and `refresh_token_hash VARCHAR(64)` columns to `session`.
-4. In `create_session_for_user`: store hash in the new columns, keep plaintext in existing columns temporarily (dual-write).
-5. In `validate_session`: look up by `bearer_token_hash = hash_token(incoming)` (use new column).
-6. In `refresh_token` handler: look up by `refresh_token_hash`.
-7. After one full deploy cycle: drop the plaintext columns in a follow-up migration.
 
 ### 🟡 Finding #2 — Rate Limiter Not Shared Across Replicas
 **File**: `backend/src/middleware/rate_limiter.rs`  

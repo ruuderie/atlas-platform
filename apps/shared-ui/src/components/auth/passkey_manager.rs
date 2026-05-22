@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use reqwest::Client;
 use crate::auth::passkey::start_registration;
+use crate::auth::atlas_auth::server_fns::{start_passkey_registration, finish_passkey_registration};
 
 #[component]
 pub fn ManagePasskeys(
@@ -20,106 +21,140 @@ pub fn ManagePasskeys(
         let message = message.clone();
         let is_error = is_error.clone();
         let api_url = api_url_sig.get();
-        // auth_token is kept for API compat but the backend reads the session cookie,
-        // not an Authorization header. credentials: include is set via fetch_credentials_include().
+        let auth_token_val = auth_token_str.clone();
 
         async move {
             if is_submitting.get() { return; }
         
             is_submitting.set(true);
-            message.set("Initiating registration...".to_string());
             is_error.set(false);
-            let client = Client::new();
 
-            // 1. Start Registration
-            let start_url = format!("{}/start-register", api_url);
+            if auth_token_val.is_empty() {
+                // Same-Origin Server Function Proxy Flow
+                message.set("Initiating registration...".to_string());
+                let options = match start_passkey_registration().await {
+                    Ok(opt) => opt,
+                    Err(e) => {
+                        message.set(format!("Failed to start registration: {}", e));
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
 
-            // fetch_credentials_include() is a WASM-only reqwest method that sets
-            // the browser Fetch API credentials mode to 'include'. This makes the browser
-            // send the HttpOnly session cookie on cross-origin requests — which is how
-            // the backend auth middleware identifies the authenticated user.
-            #[cfg(target_arch = "wasm32")]
-            let start_res = match client.post(&start_url)
-                .fetch_credentials_include()
-                .send().await {
-                Ok(res) if res.status().is_success() => res,
-                Ok(res) => {
-                    let text: String = res.text().await.unwrap_or_default();
-                    message.set(format!("Failed to start registration: {}", text));
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
-                }
-                Err(_) => {
-                    message.set("Network error communicating with server.".to_string());
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
-                }
-            };
-            #[cfg(not(target_arch = "wasm32"))]
-            let start_res = match client.post(&start_url).send().await {
-                Ok(res) if res.status().is_success() => res,
-                Ok(res) => {
-                    let text: String = res.text().await.unwrap_or_default();
-                    message.set(format!("Failed to start registration: {}", text));
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
-                }
-                Err(_) => {
-                    message.set("Network error communicating with server.".to_string());
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
-                }
-            };
+                // Browser WebAuthn API
+                let credential = match start_registration(&options).await {
+                    Ok(cred) => cred,
+                    Err(e) => {
+                        message.set(e);
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
 
-            let options = match start_res.json::<serde_json::Value>().await {
-                Ok(opt) => opt,
-                Err(_) => {
-                    message.set("Invalid server response.".to_string());
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
+                message.set("Verifying credential...".to_string());
+                match finish_passkey_registration(credential).await {
+                    Ok(_) => {
+                        message.set("Passkey registered successfully!".to_string());
+                        is_error.set(false);
+                    }
+                    Err(e) => {
+                        message.set(format!("Registration failed: {}", e));
+                        is_error.set(true);
+                    }
                 }
-            };
+            } else {
+                // Direct CSR HTTP request flow
+                message.set("Initiating registration...".to_string());
+                let client = Client::new();
 
-            // 2. Browser WebAuthn API
-            let credential = match start_registration(&options).await {
-                Ok(cred) => cred,
-                Err(e) => {
-                    message.set(e);
-                    is_error.set(true);
-                    is_submitting.set(false);
-                    return;
-                }
-            };
+                // 1. Start Registration
+                let start_url = format!("{}/start-register", api_url);
 
-            // Finish Registration — same credentials:include guard.
-            let finish_url = format!("{}/finish-register", api_url);
+                #[cfg(target_arch = "wasm32")]
+                let start_res = match client.post(&start_url)
+                    .fetch_credentials_include()
+                    .send().await {
+                    Ok(res) if res.status().is_success() => res,
+                    Ok(res) => {
+                        let text: String = res.text().await.unwrap_or_default();
+                        message.set(format!("Failed to start registration: {}", text));
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                    Err(_) => {
+                        message.set("Network error communicating with server.".to_string());
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
+                #[cfg(not(target_arch = "wasm32"))]
+                let start_res = match client.post(&start_url).send().await {
+                    Ok(res) if res.status().is_success() => res,
+                    Ok(res) => {
+                        let text: String = res.text().await.unwrap_or_default();
+                        message.set(format!("Failed to start registration: {}", text));
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                    Err(_) => {
+                        message.set("Network error communicating with server.".to_string());
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
 
-            #[cfg(target_arch = "wasm32")]
-            let finish_result = client.post(&finish_url)
-                .fetch_credentials_include()
-                .json(&credential).send().await;
-            #[cfg(not(target_arch = "wasm32"))]
-            let finish_result = client.post(&finish_url)
-                .json(&credential).send().await;
+                let options = match start_res.json::<serde_json::Value>().await {
+                    Ok(opt) => opt,
+                    Err(_) => {
+                        message.set("Invalid server response.".to_string());
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
 
-            match finish_result {
-                Ok(res) if res.status().is_success() => {
-                    message.set("Passkey registered successfully!".to_string());
-                    is_error.set(false);
-                }
-                Ok(res) => {
-                    let text: String = res.text().await.unwrap_or_default();
-                    message.set(format!("Registration failed: {}", text));
-                    is_error.set(true);
-                }
-                Err(_) => {
-                    message.set("Network error during verification.".to_string());
-                    is_error.set(true);
+                // 2. Browser WebAuthn API
+                let credential = match start_registration(&options).await {
+                    Ok(cred) => cred,
+                    Err(e) => {
+                        message.set(e);
+                        is_error.set(true);
+                        is_submitting.set(false);
+                        return;
+                    }
+                };
+
+                // Finish Registration
+                let finish_url = format!("{}/finish-register", api_url);
+
+                #[cfg(target_arch = "wasm32")]
+                let finish_result = client.post(&finish_url)
+                    .fetch_credentials_include()
+                    .json(&credential).send().await;
+                #[cfg(not(target_arch = "wasm32"))]
+                let finish_result = client.post(&finish_url)
+                    .json(&credential).send().await;
+
+                match finish_result {
+                    Ok(res) if res.status().is_success() => {
+                        message.set("Passkey registered successfully!".to_string());
+                        is_error.set(false);
+                    }
+                    Ok(res) => {
+                        let text: String = res.text().await.unwrap_or_default();
+                        message.set(format!("Registration failed: {}", text));
+                        is_error.set(true);
+                    }
+                    Err(_) => {
+                        message.set("Network error during verification.".to_string());
+                        is_error.set(true);
+                    }
                 }
             }
             

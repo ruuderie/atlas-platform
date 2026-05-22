@@ -39,8 +39,9 @@ Each environment runs these Kubernetes Deployments:
 
 The `.woodpecker.yml` pipeline is the brain that orchestrates deployments. When a push occurs, it determines the target environment based on the branch name.
 
-* **Branch `main` or `master`** → Deploys to **Production**.
-* **Any other branch (e.g., `uat`)** → Deploys to **UAT**.
+* **Branch `dev`** → Deploys to the **DEV** environment (`atlas-dev` namespace).
+* **Branch `uat`** → Deploys to the **UAT** environment (`atlas-uat` namespace).
+* **Branch `main` or `master`** → Reserved for **Production** (`atlas-prod` namespace), but not yet enabled/authorized in the pipeline workflow.
 
 ### Injection & Validation
 
