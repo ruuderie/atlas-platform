@@ -1,0 +1,28 @@
+flowchart TD
+    subgraph Client ["Client Layer"]
+        A[Browser Request: dev.buildwithruud.com/admin]
+    end
+
+    subgraph Ingress ["Routing & Ingress Layer"]
+        B[Caddy Proxy / K8s Ingress] -->|Preserves Host Header| C[Leptos SSR / CSR Application Router]
+    end
+
+    subgraph Axum ["Axum Middleware & Router Tier"]
+        C -->|HTTP Request| D[Axum AppInstance Middleware]
+        D -->|Extract host: dev.buildwithruud.com| E{Lookup Cache / DB}
+        E -->|SELECT * FROM app_domains WHERE domain = host| F[Resolve AppInstance & Tenant ID]
+        F -->|Inject resolved Tenant ID & App Context| G[Axum Request Extensions]
+    end
+
+    subgraph Service ["Service & Data Access Tier"]
+        G -->|Matches Route| H[Server Function / Handler]
+        H -->|Extract Tenant ID from Context| I[SeaORM Query Builder]
+        I -->|Inject Column::TenantId.eq| J[Execute Scope-Filtered Query]
+    end
+
+    subgraph DB ["PostgreSQL Database"]
+        J -->|SELECT * FROM resume_entries WHERE tenant_id = resolved_id| K[(Filtered Results)]
+    end
+
+    A --> B
+    K -->|Return isolated data only| Client

@@ -1,0 +1,49 @@
+flowchart TB
+    subgraph Clients ["Client Layer"]
+        User[End Users / Tenant Visitors]
+        Admin[Platform Administrators]
+    end
+
+    subgraph Edge ["Routing & Proxy Tier"]
+        Caddy[Caddy Reverse Proxy / K8s Ingress]
+    end
+
+    subgraph Frontends ["Frontend Applications (Leptos)"]
+        Anchor[Anchor CMS App<br/>SSR + WASM Client]
+        NetInst[Network Instance App<br/>SSR + WASM Client]
+        PlatAdmin[Platform Admin Portal<br/>CSR Application]
+    end
+
+    subgraph Backend ["Atlas API Backend Service (Rust Axum)"]
+        Router[Axum Headless API Router]
+        Middleware[AppInstance & Tenant Resolution Middleware]
+        Registry[Multi-Tenant WebAuthn Registry]
+        BackgroundJob[Async Background Polling Service]
+    end
+
+    subgraph DB ["Database & Storage (PostgreSQL)"]
+        Postgres[(PostgreSQL Shared Database)]
+        Cache[(Moka LRU In-Memory Cache)]
+    end
+
+    %% Routing lines
+    User -->|dev.buildwithruud.com| Caddy
+    Admin -->|admin.domain.com| Caddy
+
+    Caddy -->|SSR / WASM| Anchor
+    Caddy -->|SSR / WASM| NetInst
+    Caddy -->|CSR Assets| PlatAdmin
+
+    Anchor -->|API request with Host| Router
+    NetInst -->|API request with Host| Router
+    PlatAdmin -->|API request with tenant_id| Router
+
+    Router --> Middleware
+    Middleware -->|Cache lookup| Cache
+    Middleware -->|Verify & Fetch| Postgres
+    
+    Router --> Registry
+    Registry -->|DoS check domain| Postgres
+    Registry -->|Cache RP ID instance| Cache
+
+    BackgroundJob -->|Idempotent updates| Postgres

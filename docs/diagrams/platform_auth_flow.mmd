@@ -1,0 +1,48 @@
+sequenceDiagram
+    autonumber
+    actor User as End User
+    participant FE as Leptos Frontend (WASM/Client)
+    participant BE as Rust Axum Backend
+    participant DB as PostgreSQL Database
+    participant Email as SMTP Email Server
+
+    alt Scenario A: Passkey Authentication (Frictionless)
+        User->>FE: Click "Sign In with Passkey"
+        FE->>BE: POST /api/passkeys/login-start (Origin)
+        BE->>DB: Resolve Tenant & Fetch registered credentials
+        DB-->>BE: Tenant & Registered keys
+        BE-->>FE: WebAuthn PublicKeyCredentialRequestOptions
+        FE->>User: Prompt biometric / hardware key authentication
+        User-->>FE: Biometric / Key assertion
+        FE->>BE: POST /api/passkeys/login-finish { assertion }
+        BE->>BE: Verify assertion signature against credential public key
+        BE->>BE: Generate cryptographically secure bearer & refresh tokens
+        BE->>BE: SHA-256 hash the tokens
+        BE->>DB: INSERT into session (bearer_token_hash, refresh_token_hash)
+        DB-->>BE: Session created successfully
+        BE-->>FE: Return HTTP 200 with HttpOnly session cookie
+        FE->>User: Redirect to Authenticated Dashboard
+    else Scenario B: Magic Link Fallback (Two-Way Authentication)
+        User->>FE: Enter email & Click "Send Email Link"
+        FE->>BE: POST /api/auth/magic-link/request { email }
+        Note over BE: Triggers 3-Layer Deduplication Guard
+        BE->>BE: Layer 1: Check in-memory Moka TTL cache
+        rect rgb(240, 248, 255)
+            BE->>BE: Layer 2: Acquire PostgreSQL advisory lock on User UUID
+            BE->>DB: Layer 3: Clean up expired unused tokens
+            BE->>DB: Upsert new active token (rotates if active token exists)
+        end
+        BE-->>FE: Return HTTP 200 (Anti-enumeration safe response)
+        BE->>Email: Deliver magic link with one-time token UUID
+        Email->>User: "Action Required: Sign In" email received
+        User->>FE: Click magic link (URL: /magic-login?token=uuid)
+        FE->>BE: POST /api/auth/magic-link/verify { token }
+        BE->>DB: Query magic_link_token where token = uuid and is_used = false
+        DB-->>BE: Token valid, user_id resolved
+        BE->>DB: UPDATE magic_link_token SET is_used = true WHERE token = uuid
+        BE->>BE: Generate session tokens and SHA-256 hash them
+        BE->>DB: INSERT into session (bearer_token_hash, refresh_token_hash)
+        DB-->>BE: Session record saved
+        BE-->>FE: Return HTTP 200 with HttpOnly session cookie
+        FE->>User: Render Nudge: "Register a passkey for faster sign-in next time"
+    end

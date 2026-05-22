@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    actor Client as End-User Browser
+    participant Axum as Axum API Server
+    participant Registry as WebauthnRegistry (Moka)
+    participant DB as Postgres (app_domains)
+    participant Lib as webauthn-rs Builder
+
+    Client->>Axum: POST /api/auth/passkey/register_options (Origin: dev.buildwithruud.com)
+    Axum->>Registry: get_or_create("https://dev.buildwithruud.com")
+    
+    rect rgb(240, 248, 255)
+        Note over Registry: Cache Check
+        Registry-->>Registry: Try lookup "https://dev.buildwithruud.com"
+    end
+
+    alt Cache Hit
+        Registry-->>Axum: Return Arc<Webauthn>
+    else Cache Miss (Concurrency Locked via try_get_with)
+        Registry->>DB: Query app_domains (DomainName IN ["dev.buildwithruud.com", "buildwithruud.com"])
+        
+        alt Unauthorized Origin (Not in DB)
+            DB-->>Registry: Return Empty/None
+            Registry-->>Axum: Return Err("Unauthorized origin")
+            Axum-->>Client: HTTP 403 Forbidden ("Network error")
+        else Verified Tenant Origin
+            DB-->>Registry: Return domain record
+            
+            Note over Registry: rp_id derivation via addr (eTLD+1)<br/>"dev.buildwithruud.com" -> "buildwithruud.com"
+            
+            Registry->>Lib: WebauthnBuilder::new("buildwithruud.com", "https://dev.buildwithruud.com")
+            Lib-->>Registry: Build & Return Webauthn Instance
+            Registry-->>Registry: Store Arc<Webauthn> in Moka Cache
+            Registry-->>Axum: Return Arc<Webauthn>
+        end
+    end
+
+    Axum->>Client: Return RegisterOptions JSON

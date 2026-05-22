@@ -1,0 +1,8 @@
+graph TD
+    User[End User] -->|Visits app.domain.com| Proxy[Caddy Reverse Proxy / K8s Ingress]
+    Proxy -->|Preserves Host Header| AppInst[App Server SSR/CSR e.g. Network, Anchor]
+    AppInst -->|API Lookup with Host| Backend[Rust Axum Backend API]
+    Backend -->|Resolves Tenant via AppDomain| DB[(PostgreSQL Database)]
+    Admin[Platform Admin] -->|Visits admin.domain.com| Proxy
+    Proxy --> AdminApp[Platform Admin CSR App]
+    AdminApp --> Backend

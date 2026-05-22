@@ -318,6 +318,8 @@ To guarantee that magic link emails are sent **once and only once** without lock
 
 ##### Deduplication Sequence Flow
 
+> 📊 **Mermaid Source Diagram:** [`docs/diagrams/magic_link_deduplication.mmd`](diagrams/magic_link_deduplication.mmd)
+
 ```mermaid
 sequenceDiagram
     autonumber
