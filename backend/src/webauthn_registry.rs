@@ -23,16 +23,25 @@ pub struct WebauthnRegistry {
     /// Max capacity prevents memory exhaustion from spoofed origins.
     cache: Cache<String, Arc<Webauthn>>,
     db: DatabaseConnection,
+    primary_host: Option<String>,
+    primary_rp_id: Option<String>,
 }
 
 impl WebauthnRegistry {
     /// Create a new registry with a capped cache capacity (e.g. 10,000 tenants).
-    pub fn new(db: DatabaseConnection, max_capacity: u64) -> Self {
+    pub fn new(
+        db: DatabaseConnection,
+        max_capacity: u64,
+        primary_host: Option<String>,
+        primary_rp_id: Option<String>,
+    ) -> Self {
         Self {
             cache: Cache::builder()
                 .max_capacity(max_capacity)
                 .build(),
             db,
+            primary_host,
+            primary_rp_id,
         }
     }
 
@@ -92,7 +101,16 @@ impl WebauthnRegistry {
                 let host = origin_url
                     .host_str()
                     .ok_or_else(|| "No host in origin".to_string())?;
-                let rp_id = effective_tld_plus_one(host);
+                
+                let rp_id = if let (Some(prim_host), Some(prim_rp_id)) = (&self.primary_host, &self.primary_rp_id) {
+                    if host.eq_ignore_ascii_case(prim_host) {
+                        prim_rp_id.clone()
+                    } else {
+                        effective_tld_plus_one(host)
+                    }
+                } else {
+                    effective_tld_plus_one(host)
+                };
 
                 let webauthn = Arc::new(
                     WebauthnBuilder::new(&rp_id, &origin_url)

@@ -56,7 +56,12 @@ pub async fn setup_test_app() -> (Router, DatabaseConnection) {
     test_utils::initialize_database(&db).await;
 
     let rp_origin = url::Url::parse("http://localhost:5001").unwrap();
-    let registry = Arc::new(crate::webauthn_registry::WebauthnRegistry::new(db.clone(), 100));
+    let registry = Arc::new(crate::webauthn_registry::WebauthnRegistry::new(
+        db.clone(),
+        100,
+        Some("localhost".to_string()),
+        Some("localhost".to_string()),
+    ));
     registry.seed("localhost", &rp_origin).await.unwrap();
     
     let webauthn_state: WebauthnState = Arc::new(WebauthnStateRaw {

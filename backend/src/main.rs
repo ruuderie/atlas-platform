@@ -235,7 +235,15 @@ async fn main() {
         rp_origin.host_str().unwrap_or("localhost").to_string()
     });
     
-    let registry = Arc::new(WebauthnRegistry::new(conn.clone(), 10_000));
+    let primary_host = rp_origin.host_str().map(|s| s.to_string());
+    let primary_rp_id = Some(rp_id.clone());
+
+    let registry = Arc::new(WebauthnRegistry::new(
+        conn.clone(),
+        10_000,
+        primary_host.clone(),
+        primary_rp_id,
+    ));
     
     // Seed primary platform origin
     if let Err(e) = registry.seed(&rp_id, &rp_origin).await {
@@ -258,6 +266,17 @@ async fn main() {
                     let origin_str = format!("https://{}", domain.domain_name);
                     match url::Url::parse(&origin_str) {
                         Ok(origin_url) => {
+                            if let Some(domain_host) = origin_url.host_str() {
+                                if let Some(ref prim_host) = primary_host {
+                                    if domain_host.eq_ignore_ascii_case(prim_host) {
+                                        tracing::info!(
+                                            "Skipping WebAuthn pre-warm for primary platform domain '{}' to respect explicit RP_ID configuration.",
+                                            domain.domain_name
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
                             let domain_rp_id = effective_tld_plus_one(
                                 origin_url.host_str().unwrap_or(&domain.domain_name)
                             );
@@ -292,6 +311,17 @@ async fn main() {
         for origin in additional_origins.split(',') {
             let trimmed = origin.trim();
             if let Ok(parsed) = url::Url::parse(trimmed) {
+                if let Some(parsed_host) = parsed.host_str() {
+                    if let Some(ref prim_host) = primary_host {
+                        if parsed_host.eq_ignore_ascii_case(prim_host) {
+                            tracing::info!(
+                                "Skipping WebAuthn seed for additional origin '{}' because it matches primary platform domain.",
+                                trimmed
+                            );
+                            continue;
+                        }
+                    }
+                }
                 let host = parsed.host_str().unwrap_or("localhost");
                 let add_rp_id = effective_tld_plus_one(host);
                 if let Err(e) = registry.seed(&add_rp_id, &parsed).await {
