@@ -12,11 +12,12 @@ use std::sync::Arc;
 use uuid::Uuid;
 use moka::future::Cache;
 use std::time::Instant;
-use crate::entities::{user, passkey};
+use crate::entities::{user, passkey, webauthn_challenge};
 use crate::auth::generate_jwt;
 use crate::handlers::sessions::session_cookie_header;
 use crate::webauthn_registry::WebauthnRegistry;
 use crate::metrics;
+
 
 pub struct WebauthnStateRaw {
     pub registry: Arc<WebauthnRegistry>,
@@ -124,8 +125,9 @@ pub async fn register_start(
             );
         }
     }
-    
-    state.reg_state.insert(user.id, reg_state).await;
+    prune_expired_challenges(&db).await;
+    save_challenge(&db, user.id, &reg_state, "registration").await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     metrics::PASSKEY_REGISTRATION_STARTED
         .with_label_values(&["unknown", &app_instance_id])
@@ -166,8 +168,8 @@ pub async fn register_finish(
     let webauthn = state.registry.get_or_create(origin).await
         .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
 
-    let reg_state = state.reg_state.get(&user.id).await
-        .ok_or((StatusCode::BAD_REQUEST, "Registration challenge not found or expired".to_string()))?;
+    let reg_state: PasskeyRegistration = get_challenge(&db, user.id, "registration").await
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Registration challenge not found or expired: {e}")))?;
         
     let passkey_reg = webauthn.finish_passkey_registration(&reg, &reg_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Registration failed: {:?}", e)))?;
@@ -189,7 +191,7 @@ pub async fn register_finish(
         updated_at: Set(chrono::Utc::now()),
     }.insert(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     
-    state.reg_state.invalidate(&user.id).await;
+    let _ = delete_challenge(&db, user.id).await;
 
     metrics::PASSKEY_REGISTRATION_SUCCESS
         .with_label_values(&["unknown", &app_instance_id])
@@ -260,7 +262,9 @@ pub async fn login_start(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     let session_id = Uuid::new_v4();
-    state.auth_state.insert(session_id, auth_state).await;
+    prune_expired_challenges(&db).await;
+    save_challenge(&db, session_id, &auth_state, "authentication").await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     let cookie = format!(
         "passkey_session={}; Path=/api/passkeys; HttpOnly; Secure; Max-Age=300; SameSite=Strict",
@@ -328,10 +332,10 @@ pub async fn login_finish(
         })
         .ok_or((StatusCode::BAD_REQUEST, "Passkey session missing or expired".to_string()))?;
 
-    let auth_state = state.auth_state.get(&session_id).await
-        .ok_or((StatusCode::BAD_REQUEST, "Auth state not found".to_string()))?;
+    let auth_state: PasskeyAuthentication = get_challenge(&db, session_id, "authentication").await
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Auth state not found: {e}")))?;
 
-    state.auth_state.invalidate(&session_id).await;
+    let _ = delete_challenge(&db, session_id).await;
 
     let auth_result = webauthn.finish_passkey_authentication(&req.response, &auth_state)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
@@ -376,3 +380,97 @@ pub async fn login_finish(
         Json(serde_json::json!(session_response)),
     ).into_response())
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DATABASE CHALLENGE PERSISTENCE (Enterprise Best Practices)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async fn save_challenge<T: serde::Serialize>(
+    db: &DatabaseConnection,
+    id: Uuid,
+    challenge: &T,
+    challenge_type: &str,
+) -> Result<(), String> {
+    use sea_orm::Set;
+
+    let challenge_json = serde_json::to_value(challenge)
+        .map_err(|e| format!("Failed to serialize challenge: {e}"))?;
+
+    let existing = webauthn_challenge::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| format!("Database error on lookup: {e}"))?;
+
+    if let Some(model) = existing {
+        let mut active: webauthn_challenge::ActiveModel = model.into();
+        active.challenge = Set(challenge_json);
+        active.challenge_type = Set(challenge_type.to_string());
+        active.expires_at = Set(chrono::Utc::now() + chrono::Duration::seconds(300));
+        active.update(db)
+            .await
+            .map_err(|e| format!("Failed to update challenge: {e}"))?;
+    } else {
+        webauthn_challenge::ActiveModel {
+            id: Set(id),
+            challenge: Set(challenge_json),
+            challenge_type: Set(challenge_type.to_string()),
+            expires_at: Set(chrono::Utc::now() + chrono::Duration::seconds(300)),
+            created_at: Set(chrono::Utc::now()),
+        }
+        .insert(db)
+        .await
+        .map_err(|e| format!("Failed to insert challenge: {e}"))?;
+    }
+
+    Ok(())
+}
+
+async fn get_challenge<T: serde::de::DeserializeOwned>(
+    db: &DatabaseConnection,
+    id: Uuid,
+    expected_type: &str,
+) -> Result<T, String> {
+    let model = webauthn_challenge::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| format!("Database query failed: {e}"))?
+        .ok_or_else(|| "Challenge not found".to_string())?;
+
+    if model.challenge_type != expected_type {
+        return Err("Challenge type mismatch".to_string());
+    }
+
+    if model.expires_at < chrono::Utc::now() {
+        return Err("Challenge expired".to_string());
+    }
+
+    let challenge: T = serde_json::from_value(model.challenge)
+        .map_err(|e| format!("Failed to deserialize challenge: {e}"))?;
+
+    Ok(challenge)
+}
+
+async fn delete_challenge(
+    db: &DatabaseConnection,
+    id: Uuid,
+) -> Result<(), String> {
+    use sea_orm::EntityTrait;
+    webauthn_challenge::Entity::delete_by_id(id)
+        .exec(db)
+        .await
+        .map_err(|e| format!("Failed to delete challenge: {e}"))?;
+    Ok(())
+}
+
+async fn prune_expired_challenges(db: &DatabaseConnection) {
+    use sea_orm::EntityTrait;
+    use sea_orm::QueryFilter;
+    use sea_orm::ColumnTrait;
+
+    let now = chrono::Utc::now();
+    let _ = webauthn_challenge::Entity::delete_many()
+        .filter(webauthn_challenge::Column::ExpiresAt.lt(now))
+        .exec(db)
+        .await;
+}
+

@@ -122,6 +122,8 @@ pub mod m20260517_000001_ensure_mailing_list_schema;
 // 2026-05-18: Dynamic Admin Module Registry — creates app_instance_module table
 // and seeds buildwithruud's existing module set for backward compatibility.
 pub mod m20260518_000001_create_app_instance_modules;
+// 2026-05-22: Create webauthn_challenges table to persist session/challenge state in PostgreSQL.
+pub mod m20260522_000001_create_webauthn_challenges;
 
 pub struct Migrator;
 
@@ -202,8 +204,9 @@ impl MigratorTrait for Migrator {
             // Fixes ERR_NO_DATA on the Mailing List admin tab.
             Box::new(m20260517_000001_ensure_mailing_list_schema::Migration),
             // 2026-05-18: Dynamic Admin Module Registry — platform-wide module config table.
-            // Seeds buildwithruud with its existing 17 modules (incl. renamed Contacts + new Leads).
             Box::new(m20260518_000001_create_app_instance_modules::Migration),
+            // 2026-05-22: Create webauthn_challenges table to persist session/challenge state in PostgreSQL.
+            Box::new(m20260522_000001_create_webauthn_challenges::Migration),
 
         ];
 
