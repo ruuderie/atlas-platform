@@ -240,19 +240,20 @@ pub async fn request_magic_link(
         );
         return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
     }
-    // NOTE: we do NOT insert into the cache here yet.
-    // The cache slot is claimed only after a successful transaction commit (below),
-    // so that a non-existent user or a DB failure does not poison the cache and
-    // block legitimate retries for 60 seconds.
+    // Claim the cache key immediately to close the concurrency/race window
+    MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
 
-    let user_model = user::Entity::find()
+    let user_model = match user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
         .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Error finding user: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .await {
+            Ok(u) => u,
+            Err(e) => {
+                tracing::error!("Error finding user: {:?}", e);
+                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
     let validated_redirect_url_data = if let Some(ref url_str) = payload.redirect_url {
         match url::Url::parse(url_str) {
@@ -260,12 +261,14 @@ pub async fn request_magic_link(
                 let scheme = parsed.scheme();
                 if scheme != "https" && scheme != "http" {
                     tracing::warn!("Magic link request: redirect_url has non-http scheme '{}' — rejecting", scheme);
+                    MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                     return Err(StatusCode::BAD_REQUEST);
                 }
 
                 let host = parsed.host_str().unwrap_or("").to_string();
                 if host.is_empty() {
                     tracing::warn!("Magic link request: redirect_url has no host: {}", url_str);
+                    MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                     return Err(StatusCode::BAD_REQUEST);
                 }
                 let domain_record = crate::entities::app_domain::Entity::find()
@@ -280,6 +283,7 @@ pub async fn request_magic_link(
                         "Magic link request: redirect_url host '{}' not in app_domains — rejecting",
                         host
                     );
+                    MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                     return Err(StatusCode::BAD_REQUEST);
                 }
 
@@ -298,6 +302,7 @@ pub async fn request_magic_link(
             }
             Err(e) => {
                 tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
+                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
                 return Err(StatusCode::BAD_REQUEST);
             }
         }
@@ -349,13 +354,17 @@ pub async fn request_magic_link(
         // All three DB operations (advisory lock, expired token cleanup, upsert) run
         // inside a single explicit transaction. The advisory lock is xact-scoped, so
         // it is automatically released when this transaction commits or rolls back.
-        let txn = db.begin().await.map_err(|e| {
-            tracing::error!("Failed to begin transaction for magic link: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let txn = match db.begin().await {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::error!("Failed to begin transaction for magic link: {:?}", e);
+                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
         // Try to acquire the per-user advisory lock.
-        let lock_row = sea_orm::ConnectionTrait::query_one(
+        let lock_row = match sea_orm::ConnectionTrait::query_one(
             &txn,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -363,11 +372,14 @@ pub async fn request_magic_link(
                 vec![lock_key.into()],
             ),
         )
-        .await
-        .map_err(|e| {
-            tracing::error!("Advisory lock query failed: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!("Advisory lock query failed: {:?}", e);
+                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
         let lock_acquired = lock_row
             .and_then(|row| row.try_get_by_index::<bool>(0).ok())
@@ -418,7 +430,7 @@ pub async fn request_magic_link(
             RETURNING (xmax = 0) AS was_inserted
         "#;
 
-        let upsert_result = sea_orm::ConnectionTrait::query_one(
+        let upsert_result = match sea_orm::ConnectionTrait::query_one(
             &txn,
             sea_orm::Statement::from_sql_and_values(
                 sea_orm::DatabaseBackend::Postgres,
@@ -433,25 +445,21 @@ pub async fn request_magic_link(
                 ],
             ),
         )
-        .await
-        .map_err(|e| {
-            tracing::error!("Error upserting magic link token: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        .await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!("Error upserting magic link token: {:?}", e);
+                MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            }
+        };
 
         // Commit — releases the advisory lock atomically with the token write.
-        txn.commit().await.map_err(|e| {
+        if let Err(e) = txn.commit().await {
             tracing::error!("Failed to commit magic link transaction: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-        // Claim the in-memory cache slot NOW — only after we have confirmed:
-        //   1. The user exists in the DB
-        //   2. The advisory lock was acquired (cross-pod dedup)
-        //   3. The token was written and committed
-        // This prevents cache poisoning: a failed transaction or non-existent user
-        // no longer blocks retries for the cache TTL window.
-        MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
+            MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
 
         let was_inserted = upsert_result
             .and_then(|row| row.try_get_by_index::<bool>(0).ok())
@@ -518,6 +526,9 @@ pub async fn request_magic_link(
                 tracing::info!("Magic link dispatched to {}", email_addr);
             }
         });
+    } else {
+        // User not found. Invalidate the cache since no email will be sent.
+        MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
     }
 
     Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))))

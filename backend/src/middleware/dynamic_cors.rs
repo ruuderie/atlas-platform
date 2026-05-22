@@ -154,8 +154,12 @@ pub fn dynamic_cors_layer(registry: Arc<DynamicCorsRegistry>) -> CorsLayer {
             // the CORS preflight rejects the request and reqwest reports "Network error"
             // before any HTTP status code is received.
             axum::http::HeaderName::from_static("x-app-instance-id"),
+            axum::http::HeaderName::from_static("x-passkey-session"),
         ])
         .allow_credentials(true)
+        .expose_headers([
+            axum::http::HeaderName::from_static("x-passkey-session"),
+        ])
 }
 
 #[cfg(test)]

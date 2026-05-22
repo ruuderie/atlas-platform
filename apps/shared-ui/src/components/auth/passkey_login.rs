@@ -58,6 +58,11 @@ pub fn PasskeyLoginButton(
                 }
             };
             
+            let session_id_opt = start_res.headers()
+                .get("x-passkey-session")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string());
+
             let options = match start_res.json::<serde_json::Value>().await {
                 Ok(opt) => opt,
                 Err(_) => {
@@ -87,14 +92,17 @@ pub fn PasskeyLoginButton(
             });
 
             #[cfg(target_arch = "wasm32")]
-            let finish_result = client
+            let mut req = client
                 .post(&finish_url)
                 .json(&finish_payload)
-                .fetch_credentials_include()
-                .send()
-                .await;
+                .fetch_credentials_include();
             #[cfg(not(target_arch = "wasm32"))]
-            let finish_result = client.post(&finish_url).json(&finish_payload).send().await;
+            let mut req = client.post(&finish_url).json(&finish_payload);
+
+            if let Some(ref sess_id) = session_id_opt {
+                req = req.header("x-passkey-session", sess_id);
+            }
+            let finish_result = req.send().await;
 
             match finish_result {
                 Ok(res) if res.status().is_success() => {

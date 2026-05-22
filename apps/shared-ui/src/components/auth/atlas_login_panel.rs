@@ -74,6 +74,7 @@ fn token_view(
     on_authenticated: Option<Callback<()>>,
     skip_reload: bool,
 ) -> impl IntoView {
+    let navigate = leptos_router::hooks::use_navigate();
     // IMPORTANT: Use LocalResource (client-only) — NOT Resource.
     // Resource::new runs during SSR, which would consume the single-use token
     // server-side before WASM loads. LocalResource skips SSR entirely: WASM
@@ -124,10 +125,7 @@ fn token_view(
         if matches!(resource.get(), Some(TokenState::Success)) {
             if let Some(cb) = &on_ok { cb.run(()); }
             if !skip_reload {
-                #[cfg(feature = "hydrate")]
-                if let Some(w) = web_sys::window() {
-                    let _ = w.location().replace(&_clean2);
-                }
+                navigate(&_clean2, Default::default());
             }
         }
     });
@@ -344,6 +342,7 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                                         {
                                             return;
                                         }
+                                        is_loading_sig.set(true);
                                         let _ = dispatch_login.dispatch(());
                                     }
                                     prop:disabled=move || is_loading_sig.get() || (countdown_sig.get() != 0) || email_sig.get().trim().is_empty()

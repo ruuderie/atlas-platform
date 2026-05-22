@@ -275,9 +275,16 @@ pub async fn login_start(
         status = "success"
     );
 
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(header::SET_COOKIE, cookie.parse().unwrap());
+    headers.insert(
+        axum::http::HeaderName::from_static("x-passkey-session"),
+        session_id.to_string().parse().unwrap()
+    );
+
     Ok((
         StatusCode::OK,
-        [(header::SET_COOKIE, cookie)],
+        headers,
         Json(rcr)
     ).into_response())
 }
@@ -311,8 +318,14 @@ pub async fn login_finish(
     let webauthn = state.registry.get_or_create(origin).await
         .map_err(|e: String| (StatusCode::BAD_REQUEST, e))?;
 
-    let session_id = jar.get("passkey_session")
-        .and_then(|c| Uuid::parse_str(c.value()).ok())
+    let session_id = headers
+        .get("x-passkey-session")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .or_else(|| {
+            jar.get("passkey_session")
+                .and_then(|c| Uuid::parse_str(c.value()).ok())
+        })
         .ok_or((StatusCode::BAD_REQUEST, "Passkey session missing or expired".to_string()))?;
 
     let auth_state = state.auth_state.get(&session_id).await
