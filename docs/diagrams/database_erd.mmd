@@ -22,6 +22,63 @@ erDiagram
     Template ||--o{ ListingAttribute : has
     Category ||--o{ Category : has_subcategories
 
+    %% Clipping Marketplace Relationships
+    Tenant ||--o{ SocialChannel : has
+    Tenant ||--o{ Campaign : hosts
+    Campaign ||--o{ Asset : provides
+    Campaign ||--o{ ClipSubmission : has
+    SocialChannel ||--o{ ClipSubmission : submits
+    ClipSubmission ||--o{ MetricHistory : logs
+    
+    %% Branded Client Delivery Relationships
+    Tenant ||--o{ DeliveryPortal : manages
+    DeliveryPortal ||--o{ DeliverySession : tracks
+    DeliverySession ||--o{ DeliveryPaywall : secures
+    
+    %% Classified Directory Extensions
+    Listing ||--o{ ListingBump : prioritizes
+    Profile ||--o{ IdentityVerification : undergoes
+    
+    %% Property Management Relationships
+    Tenant ||--o{ LandlordPortfolio : has
+    LandlordPortfolio ||--o{ ManagedProperty : contains
+    ManagedProperty ||--o{ LeaseContract : active_leases
+    LeaseContract ||--o{ LateFeeSuppression : evaluates
+    ManagedProperty ||--o{ MaintenanceTriage : triages
+    
+    %% Dynamic Packaging & Booking Relationships
+    Tenant ||--o{ PackageTenant : contains
+    PackageTenant ||--o{ AgencySeat : has
+    PackageTenant ||--o{ PackageBooking : processes
+    PackageBooking ||--o{ BookingItem : contains
+    PackageBooking ||--o{ PriceLock : secures
+    PackageBooking ||--o{ CommissionLedger : records
+    
+    %% STR Compliance Relationships
+    Tenant ||--o{ ComplianceProperty : tracks
+    ComplianceProperty ||--o{ PropertyPermit : requires
+    ComplianceProperty ||--o{ TdtBookingReceipt : ingests
+    ComplianceProperty ||--o{ TdtMonthlyReconciliation : files
+    ComplianceProperty ||--o{ ActiveOtaListing : syncs
+    ComplianceProperty ||--o{ ComplianceAlert : triggers
+    
+    %% Direct Booking & Comms Relationships
+    Tenant ||--o{ BookingTenant : configures
+    BookingTenant ||--o{ HotelRoomType : defines
+    HotelRoomType ||--o{ RoomRate : sets
+    BookingTenant ||--o{ CorporateContract : negotiates
+    BookingTenant ||--o{ DirectBooking : processes
+    DirectBooking ||--o{ BookedPerk : assigns
+    BookingTenant ||--o{ CartSession : tracks
+    
+    Tenant ||--o{ CommsTenant : manages
+    CommsTenant ||--o{ GuestProfile : registers
+    GuestProfile ||--o{ GuestReservation : books
+    GuestReservation ||--o{ MessageLog : archives
+    CommsTenant ||--o{ RecipientStaff : employs
+    RecipientStaff ||--o{ WorkTask : performs
+    CommsTenant ||--o{ LocalRecommendation : curates
+
     %% New CRM Relationships
     Customer ||--o{ Deal : has
     Customer ||--o{ Contact : has
@@ -338,4 +395,337 @@ erDiagram
     DealContact {
         UUID deal_id FK
         UUID contact_id FK
+    }
+
+    %% Clipping Marketplace Entities
+    SocialChannel {
+        UUID id PK
+        UUID user_id FK
+        string platform
+        string platform_user_id
+        string handle
+        int follower_count
+        boolean verified
+    }
+    Campaign {
+        UUID id PK
+        UUID creator_id FK
+        string title
+        string description
+        string guidelines
+        string hashtags
+        int cpm_cents
+        int min_views_threshold
+        int64 escrow_budget_cents
+        int64 remaining_budget_cents
+        string status
+        datetime starts_at
+        datetime ends_at
+    }
+    Asset {
+        UUID id PK
+        UUID campaign_id FK
+        string name
+        string source_url
+        int duration_seconds
+    }
+    ClipSubmission {
+        UUID id PK
+        UUID campaign_id FK
+        UUID clipper_id FK
+        UUID channel_id FK
+        string video_url
+        string external_video_id
+        string video_hash
+        string status
+        int cumulative_views
+        int64 payout_cents_earned
+    }
+    MetricHistory {
+        UUID id PK
+        UUID submission_id FK
+        int views
+        int likes
+        int comments
+        int shares
+        datetime sampled_at
+    }
+
+    %% Branded Client Delivery Entities
+    DeliveryPortal {
+        UUID id PK
+        UUID tenant_id FK
+        string subdomain
+        string domain_alias
+        string presentational_theme
+        boolean paywall_enabled
+    }
+    DeliverySession {
+        UUID id PK
+        UUID portal_id FK
+        string session_token
+        string client_email
+        int64 total_bytes
+        boolean is_uploaded
+    }
+    DeliveryPaywall {
+        UUID id PK
+        UUID session_id FK
+        int64 charge_amount_cents
+        string stripe_payment_intent
+        boolean is_paid
+    }
+
+    %% Classified Directory Extensions
+    ListingBump {
+        UUID id PK
+        UUID listing_id FK
+        datetime bumped_at
+        int64 credits_spent
+    }
+    IdentityVerification {
+        UUID id PK
+        UUID profile_id FK
+        string selfie_url
+        string verification_status
+        datetime verified_at
+    }
+
+    %% Property Management Entities
+    LandlordPortfolio {
+        UUID id PK
+        UUID tenant_id FK
+        string portfolio_name
+    }
+    ManagedProperty {
+        UUID id PK
+        UUID portfolio_id FK
+        string street_address
+        string building_type
+        string tax_jurisdiction
+    }
+    LeaseContract {
+        UUID id PK
+        UUID property_id FK
+        string tenant_name
+        datetime start_date
+        datetime end_date
+        string btcpay_store_id
+    }
+    LateFeeSuppression {
+        UUID id PK
+        UUID lease_id FK
+        int target_mempool_fee
+        boolean is_suppressed
+    }
+    MaintenanceTriage {
+        UUID id PK
+        UUID property_id FK
+        string emergency_code
+        string description
+        string status
+    }
+
+    %% Dynamic Packaging Entities
+    PackageTenant {
+        UUID id PK
+        UUID tenant_id FK
+        string subdomain
+        string base_currency
+    }
+    AgencySeat {
+        UUID id PK
+        UUID tenant_id FK
+        string email
+        string agent_code
+    }
+    PackageBooking {
+        UUID id PK
+        UUID tenant_id FK
+        UUID agent_id FK
+        string customer_email
+        int64 total_amount_cents
+        string status
+        string duffel_order_id
+        string gds_pnr
+    }
+    BookingItem {
+        UUID id PK
+        UUID booking_id FK
+        string type
+        string provider_name
+        string provider_reference
+        int64 net_cost_cents
+        int64 markup_cents
+    }
+    PriceLock {
+        UUID id PK
+        UUID booking_id FK
+        string lock_token
+        datetime expires_at
+        int64 locked_total_cents
+    }
+    CommissionLedger {
+        UUID id PK
+        UUID booking_id FK
+        int64 platform_fee_cents
+        int64 agency_share_cents
+        int64 hotel_payout_cents
+    }
+
+    %% STR Compliance Entities
+    ComplianceProperty {
+        UUID id PK
+        UUID tenant_id FK
+        string street_address
+        string folio_number
+        string zoning_classification
+        string permittability_status
+    }
+    PropertyPermit {
+        UUID id PK
+        UUID property_id FK
+        string type
+        string permit_number
+        datetime expiration_date
+        string status
+    }
+    TdtBookingReceipt {
+        UUID id PK
+        UUID property_id FK
+        string booking_platform
+        int64 gross_rent_cents
+        int64 tdt_collected_cents
+        boolean tdt_remitted_by_platform
+    }
+    TdtMonthlyReconciliation {
+        UUID id PK
+        UUID property_id FK
+        int filing_month
+        int filing_year
+        int64 total_tdt_owed_cents
+        int64 platform_remitted_cents
+        int64 host_liability_cents
+        string filing_status
+    }
+    ActiveOtaListing {
+        UUID id PK
+        UUID property_id FK
+        string platform
+        string listing_url
+        boolean active_status
+    }
+    ComplianceAlert {
+        UUID id PK
+        UUID property_id FK
+        string severity
+        string message
+        boolean resolved
+    }
+
+    %% Direct Booking & Comms Entities
+    BookingTenant {
+        UUID id PK
+        string domain_alias
+        string pms_type
+        string stripe_account_id
+    }
+    HotelRoomType {
+        UUID id PK
+        UUID tenant_id FK
+        string name
+        int64 base_price_cents
+        int inventory_count
+    }
+    RoomRate {
+        UUID id PK
+        UUID room_type_id FK
+        date rate_date
+        int64 price_cents
+        boolean gds_synced
+    }
+    CorporateContract {
+        UUID id PK
+        UUID tenant_id FK
+        string company_name
+        string access_code
+        float discount_percent
+        int room_block_allocation
+    }
+    DirectBooking {
+        UUID id PK
+        UUID tenant_id FK
+        UUID corporate_contract_id FK
+        string guest_email
+        date check_in_date
+        date check_out_date
+        int64 total_amount_cents
+        string status
+    }
+    BookedPerk {
+        UUID id PK
+        UUID booking_id FK
+        string perk_type
+        boolean redeemed
+    }
+    CartSession {
+        UUID id PK
+        UUID tenant_id FK
+        string session_token
+        string email_captured
+        int recovery_phase
+    }
+    CommsTenant {
+        UUID id PK
+        string whatsapp_phone_number
+        string twilio_sid
+    }
+    GuestProfile {
+        UUID id PK
+        UUID tenant_id FK
+        string email
+        string phone_number
+        string detected_language
+        string country_code
+    }
+    GuestReservation {
+        UUID id PK
+        UUID guest_profile_id FK
+        string pms_reservation_code
+        date check_in_date
+        date check_out_date
+        string reservation_status
+    }
+    MessageLog {
+        UUID id PK
+        UUID reservation_id FK
+        string channel
+        string direction
+        string message_body
+        string status
+    }
+    LocalRecommendation {
+        UUID id PK
+        UUID tenant_id FK
+        string poi_name
+        string category
+        string language_code
+        string description
+        string target_demographics
+    }
+    RecipientStaff {
+        UUID id PK
+        UUID tenant_id FK
+        string full_name
+        string phone_number
+        string role
+        string native_language
+    }
+    WorkTask {
+        UUID id PK
+        UUID tenant_id FK
+        UUID staff_id FK
+        string task_description_english
+        string task_description_translated
+        string status
     }
