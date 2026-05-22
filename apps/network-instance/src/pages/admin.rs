@@ -22,6 +22,7 @@ use leptos::prelude::*;
 use shared_ui::components::admin_module_sidebar::{
     AdminModuleConfig, AdminModuleType, SidebarTheme,
 };
+use shared_ui::utils::ResourceState;
 use crate::auth::api_base_url;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,16 +213,22 @@ fn AdminDashboard() -> impl IntoView {
                 <div class="w-56 h-screen border-r border-border bg-background animate-pulse" />
             }>
                 {move || {
-                    let modules = modules_resource.get().unwrap_or_default();
-                    view! {
-                        <shared_ui::components::admin_module_sidebar::AdminModuleSidebar
-                            modules=modules
-                            active_tab=active_tab
-                            set_active_tab=set_active_tab
-                            on_logout=on_logout
-                            theme=SidebarTheme::Network
-                            brand_label="NETWORK ADMIN".to_string()
-                        />
+                    let on_logout = on_logout.clone();
+                    match ResourceState::from_option(modules_resource.get()) {
+                        ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                        ResourceState::Ready(modules) => {
+                            view! {
+                                <shared_ui::components::admin_module_sidebar::AdminModuleSidebar
+                                    modules=modules
+                                    active_tab=active_tab
+                                    set_active_tab=set_active_tab
+                                    on_logout=on_logout
+                                    theme=SidebarTheme::Network
+                                    brand_label="NETWORK ADMIN".to_string()
+                                />
+                            }.into_any()
+                        }
+                        ResourceState::Error(_) => unreachable!(),
                     }
                 }}
             </Suspense>

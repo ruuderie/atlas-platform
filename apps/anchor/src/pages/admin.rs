@@ -340,24 +340,29 @@ fn AuthenticatedDashboard(
             <aside class="w-full md:w-64 shrink-0">
                 <Suspense fallback=move || view! { <div class="h-64 animate-pulse bg-surface-container-high rounded" /> }>
                     {move || {
-                        let modules = modules_resource.get().unwrap_or_default();
-                        let on_logout = Callback::new(move |_: ()| {
-                            leptos::task::spawn_local(async move {
-                                let _ = revoke_session().await;
-                                if let Some(w) = web_sys::window() {
-                                    let _ = w.location().replace("/admin");
-                                }
-                            });
-                        });
-                        view! {
-                            <shared_ui::components::admin_module_sidebar::AdminModuleSidebar
-                                modules=modules
-                                active_tab=active_tab
-                                set_active_tab=set_active_tab
-                                on_logout=on_logout
-                                theme=SidebarTheme::Anchor
-                                brand_label="SYSTEM_CMS".to_string()
-                            />
+                        match ResourceState::from_option(modules_resource.get()) {
+                            ResourceState::Loading => view! { <div class="hidden"></div> }.into_any(),
+                            ResourceState::Ready(modules) => {
+                                let on_logout = Callback::new(move |_: ()| {
+                                    leptos::task::spawn_local(async move {
+                                        let _ = revoke_session().await;
+                                        if let Some(w) = web_sys::window() {
+                                            let _ = w.location().replace("/admin");
+                                        }
+                                    });
+                                });
+                                view! {
+                                    <shared_ui::components::admin_module_sidebar::AdminModuleSidebar
+                                        modules=modules
+                                        active_tab=active_tab
+                                        set_active_tab=set_active_tab
+                                        on_logout=on_logout
+                                        theme=SidebarTheme::Anchor
+                                        brand_label="SYSTEM_CMS".to_string()
+                                    />
+                                }.into_any()
+                            }
+                            ResourceState::Error(_) => unreachable!(),
                         }
                     }}
                 </Suspense>
