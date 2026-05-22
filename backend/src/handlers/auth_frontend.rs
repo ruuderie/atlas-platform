@@ -412,6 +412,32 @@ pub async fn request_magic_link(
             ),
         ).await;
 
+        // DB Spacing Guard: Check if an active, unconsumed token was created within the last 15 seconds.
+        // This handles cross-pod rapid double-clicks (e.g. 500ms apart) where the first request
+        // has already successfully committed and released the advisory lock, but the second request
+        // bypasses the local memory cache of a different pod replica.
+        let recent_token = magic_link_token::Entity::find()
+            .filter(magic_link_token::Column::UserId.eq(user_mod.id))
+            .filter(magic_link_token::Column::IsUsed.eq(false))
+            .filter(magic_link_token::Column::ExpiresAt.gt(Utc::now()))
+            .one(&txn)
+            .await;
+
+        if let Ok(Some(t)) = recent_token {
+            if Utc::now() - t.created_at < Duration::seconds(15) {
+                let _ = txn.rollback().await;
+                tracing::info!(
+                    event = "magic_link.deduplicated_recent_db_token",
+                    request_id = %request_id,
+                    user_id = %user_mod.id,
+                    email = %payload.email,
+                    created_at = %t.created_at,
+                    duration_ms = start.elapsed().as_millis()
+                );
+                return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
+            }
+        }
+
         // Step 2: upsert the new token.
         //   - No active token (or just cleaned up) → INSERT → was_inserted = true
         //   - Active token exists (re-request within 15-min window) →

@@ -18,7 +18,7 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
-use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link};
+use crate::auth::atlas_auth::{use_atlas_auth, verify_magic_link, set_session_cookie};
 use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
@@ -240,9 +240,25 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
     let email_mode = RwSignal::new(initial_email_mode);
 
     let on_pk = on_authenticated.clone();
-    let handle_passkey_success = Callback::new(move |_: String| {
-        if let Some(cb) = &on_pk { cb.run(()); }
-        else { let _ = web_sys::window().unwrap().location().reload(); }
+    let handle_passkey_success = Callback::new(move |token: String| {
+        let on_pk_inner = on_pk.clone();
+        leptos::task::spawn_local(async move {
+            match set_session_cookie(token).await {
+                Ok(_) => {
+                    if let Some(cb) = &on_pk_inner {
+                        cb.run(());
+                    } else {
+                        if let Some(w) = web_sys::window() {
+                            let _ = w.location().reload();
+                        }
+                    }
+                }
+                Err(e) => {
+                    leptos::logging::error!("Failed to set passkey session cookie: {:?}", e);
+                    error_sig.set(Some("Failed to complete passkey sign-in. Please try again.".to_string()));
+                }
+            }
+        });
     });
     let handle_passkey_error = Callback::new(move |err: String| {
         error_sig.set(Some(err));
@@ -365,15 +381,21 @@ fn login_view(app_title: String, on_authenticated: Option<Callback<()>>) -> impl
                 // Passkey flow
                 view! {
                     <div>
-                        <p style="font-size:14px;color:#504e49;line-height:1.55;margin:0 0 24px;">
-                            "Use a registered passkey — Face ID, Touch ID, or a hardware key — to sign in instantly."
+                        <label for="atlas-pk-email" style="display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b6a64;margin-bottom:8px;">"Email address (Optional)"</label>
+                        <input id="atlas-pk-email" type="email" placeholder="you@example.com"
+                            on:input=move |ev| email_sig.set(event_target_value(&ev))
+                            prop:value=move || email_sig.get()
+                            style="display:block;width:100%;box-sizing:border-box;background:#faf9f5;border:1px solid #e8e6dc;border-radius:6px;padding:10px 12px;font-size:14px;color:#141413;outline:none;margin-bottom:16px;"
+                        />
+                        <p style="font-size:12px;color:#6b6a64;margin:0 0 20px;line-height:1.45;">
+                            "Provide your email for a targeted login, or leave blank to search your device's registered keys."
                         </p>
                         {move || error_sig.get().map(|e| view! {
                             <div style="border-left:3px solid #c0392b;background:#fdf3f2;padding:10px 12px 10px 14px;margin-bottom:16px;font-size:13px;color:#922b21;">{e}</div>
                         })}
                         <PasskeyLoginButton
                             api_base_url=passkey_api_base.clone()
-                            email=RwSignal::new("".to_string())
+                            email=email_sig
                             on_success=handle_passkey_success
                             on_error=handle_passkey_error
                         />

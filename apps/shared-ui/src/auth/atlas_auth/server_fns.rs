@@ -397,6 +397,45 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
     }
 }
 
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(SetSessionCookie, "/api")]
+pub async fn set_session_cookie(token: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use leptos_axum::ResponseOptions;
+        let response = expect_context::<ResponseOptions>();
+
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let host = headers
+            .get("host")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("localhost");
+        let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
+        let secure_flag = if is_https { "; Secure" } else { "" };
+        let cookie_val = format!(
+            "session={}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400{}",
+            token, secure_flag
+        );
+
+        response.append_header(
+            axum::http::header::SET_COOKIE,
+            axum::http::HeaderValue::from_str(&cookie_val).unwrap(),
+        );
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(())
+    }
+}
+
+#[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+pub async fn set_session_cookie(_token: String) -> Result<(), ServerFnError> {
+    Ok(())
+}
+
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
 pub async fn finish_passkey_registration(_credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
     Err(ServerFnError::ServerError("Server functions not available in CSR-only build".into()))

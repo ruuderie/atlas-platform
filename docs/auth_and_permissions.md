@@ -243,19 +243,31 @@ Used by: all apps, all user types.
 
 ```
 1. User visits /login (or /admin for anchor-app)
-2. Client calls: POST /api/passkeys/start-login { email?: string }
+2. Optional: User provides email to trigger targeted flow, or leaves blank for username-less flow.
+3. Client calls: POST /api/passkeys/start-login { email?: string }
       └─ email is optional for discoverable credentials (resident keys)
-3. Backend returns WebAuthn challenge
-4. Browser invokes authenticator (FaceID, TouchID, Windows Hello, hardware key)
+4. Backend returns WebAuthn challenge
+5. Browser invokes authenticator (FaceID, TouchID, Windows Hello, hardware key)
       └─ Private key never leaves the device. Origin is cryptographically verified.
-5. Client calls: POST /api/passkeys/finish-login { credential }
-6. Backend verifies credential against stored public key
-7. Backend sets: Set-Cookie: session=<token>; HttpOnly; Secure; SameSite=Strict
-8. All subsequent requests send cookie automatically (credentials: include)
+6. Client calls: POST /api/passkeys/finish-login { credential }
+7. Backend verifies credential against stored public key and returns session token
+8. Client calls frontend server function: set_session_cookie(token)
+      └─ Proxies cookie injection to frontend domain, resolving cross-origin browser limits.
+9. Frontend domain sets: Set-Cookie: session=<token>; HttpOnly; Secure; SameSite=Strict
+10. Page redirects or reloads; subsequent requests send cookie automatically (credentials: include)
 ```
 
 The session cookie is `HttpOnly` — **it is never accessible to JavaScript**. Do not read
 auth state from `document.cookie` or `localStorage` in any app.
+
+#### Dual Passkey Flow (Targeted vs. Discoverable)
+To support maximum browser compatibility and user experience:
+* **Targeted Flow (Recommended)**: If the user types their email before initiating passkey login, the backend populates `allowCredentials` in the WebAuthn challenge. This enables a highly reliable non-resident key flow, guiding the browser directly to the registered credential for that email.
+* **Discoverable Flow (Username-less)**: If the email input is left empty, the browser triggers a resident key/discoverable credential search. The user selects a passkey from their local device or cloud keychain. This flow requires synchronized cloud keychains and may return a `NotFoundError` if none are found.
+
+#### Cross-Origin Cookie Proxying (`set_session_cookie`)
+Because the frontend Admin UI (`dev.buildwithruud.com`) and backend API (`api.dev.atlas.oply.co`) are cross-origin, cookies set directly by backend HTTP responses are bound only to the API domain. This prevents the frontend SSR servers from accessing the session and causes immediate verification failure, resulting in an infinite page-reload loop.
+To solve this, on successful passkey authentication, the frontend invokes a Leptos SSR server function `set_session_cookie(token)`. This server function writes the session cookie directly to the frontend's domain via Leptos `ResponseOptions` *before* the client performs any redirection or reload.
 
 ### Flow 2: Magic Link (Recovery Only)
 
@@ -265,11 +277,12 @@ Used when: user has no passkey registered on the current device.
 1. User clicks "I don't have my passkey" / "Send Recovery Link"
 2. Client calls: POST /api/auth/magic-link/request { email: string }
       └─ Always returns HTTP 200 regardless of whether email exists (anti-enumeration)
-3. If email matches a user: backend processes request through a 3-layer deduplication guard:
+3. If email matches a user: backend processes request through a 4-layer deduplication guard:
       ├─ Layer 1: In-memory same-pod TTL cache (60s) to absorb double-clicks
       ├─ Layer 2: Transaction-scoped PostgreSQL advisory lock on user UUID to prevent multi-pod races
-      └─ Layer 3: Pre-upsert cleanup of expired-but-active tokens to prevent index lockout
-4. Backend sends email with link to /magic-login?token=<uuid> (token is rotated if active)
+      ├─ Layer 3: Pre-upsert cleanup of expired-but-active tokens to prevent index lockout
+      └─ Layer 4: DB-Backed Active Token Spacing Guard to prevent duplicate dispatches within a 15-second window
+4. Backend sends email with link to /magic-login?token=<uuid> (token is rotated if active and spacing guard passes)
 5. User clicks link → app calls: POST /api/auth/magic-link/verify { token: string }
 6. Backend validates: token exists, not used, not expired (15-min TTL)
 7. Backend marks token as used (one-time only), creates session, sets HttpOnly cookie
@@ -277,11 +290,8 @@ Used when: user has no passkey registered on the current device.
       └─ This is non-optional UX — magic link login should bootstrap passkey registration
 ```
 
-#### Magic Link 3-Layer Deduplication Architecture
+#### Magic Link 4-Layer Deduplication Architecture
 
-To guarantee that magic link emails are sent **once and only once** without locking out users permanently, the platform implements a robust, state-of-the-art three-layer deduplication architecture:
-
-```
 ┌─────────────────────────────────────────────────────────────┐
 │  Layer 1: In-Memory TTL Cache (Same-Pod)                     │
 │  - Bounded moka Cache (1000 cap, 60s TTL)                   │
@@ -405,6 +415,11 @@ The database uses a partial unique index:
 * **Token Rotation:** If a valid active token already exists, the transaction performs an upsert:
   `ON CONFLICT (user_id) WHERE is_used = false DO UPDATE SET token = EXCLUDED.token...`
   This rotates the token in place for active requests.
+
+##### 4. Layer 4: DB-Backed Active Token Spacing Guard
+To prevent rapid sequential clicks (e.g. 500ms apart) that bypass the separate pod caches and serialize on database locks from sending multiple emails, the database-backed spacing guard:
+* **Gap Restriction**: Checks the `created_at` timestamp of the currently active token for the user.
+* **Early Abort**: If a valid, active token was generated in the last 15 seconds, the transaction rolls back, a `magic_link.deduplicated_recent_db_token` event is logged, and a successful `200 OK` is returned without rotating the token or scheduling duplicate email dispatches. This successfully guarantees absolute single-email dispatches for rapid multi-pod double-clicks.
 
 
 ### Flow 3: New Tenant Admin Provisioning
