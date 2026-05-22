@@ -240,9 +240,10 @@ pub async fn request_magic_link(
         );
         return Ok((StatusCode::OK, Json(json!({"message": "If the email exists, a magic link has been sent."}))));
     }
-    // Claim the cache slot immediately so concurrent same-pod requests are rejected
-    // before they reach the DB. The slot is released automatically after the TTL.
-    MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
+    // NOTE: we do NOT insert into the cache here yet.
+    // The cache slot is claimed only after a successful transaction commit (below),
+    // so that a non-existent user or a DB failure does not poison the cache and
+    // block legitimate retries for 60 seconds.
 
     let user_model = user::Entity::find()
         .filter(user::Column::Email.eq(&payload.email))
@@ -438,11 +439,19 @@ pub async fn request_magic_link(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        // Commit — releases the advisory lock atomically.
+        // Commit — releases the advisory lock atomically with the token write.
         txn.commit().await.map_err(|e| {
             tracing::error!("Failed to commit magic link transaction: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+        // Claim the in-memory cache slot NOW — only after we have confirmed:
+        //   1. The user exists in the DB
+        //   2. The advisory lock was acquired (cross-pod dedup)
+        //   3. The token was written and committed
+        // This prevents cache poisoning: a failed transaction or non-existent user
+        // no longer blocks retries for the cache TTL window.
+        MAGIC_LINK_REQUEST_CACHE.insert(cache_key.clone(), true).await;
 
         let was_inserted = upsert_result
             .and_then(|row| row.try_get_by_index::<bool>(0).ok())
