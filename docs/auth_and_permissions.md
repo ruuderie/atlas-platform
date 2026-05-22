@@ -316,6 +316,74 @@ To guarantee that magic link emails are sent **once and only once** without lock
 └─────────────────────────────────────────────────────────────┘
 ```
 
+##### Deduplication Sequence Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as End User
+    participant App as Frontend App
+    participant Axum as Axum API Pod
+    participant Cache as Moka Request Cache (Layer 1)
+    participant DB as PostgreSQL (Layer 2 & 3)
+    participant Email as Email Dispatcher
+
+    User->>App: Click "Send Recovery Link" (Email: user@example.com)
+    App->>Axum: POST /api/auth/magic-link/request { email }
+    
+    rect rgb(245, 245, 245)
+        Note over Axum, Cache: Layer 1: Same-Pod In-Memory Deduplication
+        Axum->>Cache: Check "user_id_or_email" in Cache (60s TTL)
+        alt Cache Hit (Recent request processed on this pod)
+            Cache-->>Axum: Return Cached
+            Axum-->>App: Return HTTP 200 OK (Silent absorb)
+            App-->>User: Show "Check your inbox"
+        end
+    end
+
+    Note over Axum, DB: Cache Miss -> Proceed to Database Transaction
+    Axum->>DB: BEGIN Transaction
+    
+    rect rgb(240, 248, 255)
+        Note over Axum, DB: Layer 2: Cross-Pod PG Advisory Lock
+        Note over Axum: Derive 64-bit lock key:<br/>XOR high and low 64-bits of User UUID
+        Axum->>DB: pg_try_advisory_xact_lock(lock_key)
+        
+        alt Lock Acquisition Failed (Concurrent request being processed on another pod)
+            DB-->>Axum: Return false
+            Axum->>DB: ROLLBACK Transaction
+            Axum-->>App: Return HTTP 200 OK (Silent absorb / log deduplication)
+            App-->>User: Show "Check your inbox"
+        end
+        DB-->>Axum: Return true (Lock acquired)
+    end
+
+    rect rgb(245, 255, 250)
+        Note over Axum, DB: Layer 3: Stale Token DB Cleanup
+        Axum->>DB: UPDATE magic_link_token SET is_used = true WHERE user_id = $1 AND is_used = false AND expires_at < NOW()
+        Note over DB: Frees partial unique index predicate:<br/>ON magic_link_token (user_id) WHERE is_used = false
+        DB-->>Axum: Rows updated (0 or 1)
+    end
+
+    rect rgb(255, 240, 245)
+        Note over Axum, DB: Token Rotation & Upsert
+        Axum->>DB: INSERT INTO magic_link_token ... ON CONFLICT (user_id) WHERE is_used = false DO UPDATE...
+        DB-->>Axum: Upsert success (Returns generated token)
+    end
+
+    Axum->>DB: COMMIT Transaction
+    Note over DB: Advisory Lock released automatically on COMMIT
+
+    rect rgb(240, 240, 240)
+        Note over Axum, Cache: Post-Commit Cache Insertion (Avoids Poisoning)
+        Axum->>Cache: Insert user key into Moka Cache (60s TTL)
+    end
+
+    Axum->>Email: Send magic link email (once and only once!)
+    Axum-->>App: Return HTTP 200 OK
+    App-->>User: Show "Check your inbox"
+```
+
 ##### 1. Layer 1: In-Memory same-pod cache
 An in-memory `moka` cache (`max_capacity: 1000`, `ttl: 60s`) acts as a front door. When a request arrives, the pod checks the cache. If present, it returns `200 OK` immediately without accessing the database.
 * **Cache Poisoning Prevention:** The cache is not populated until *after* the database transaction successfully commits. A non-existent user or database connection failure will not block legitimate retries.
