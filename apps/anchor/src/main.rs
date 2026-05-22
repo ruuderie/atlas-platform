@@ -133,12 +133,32 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
 
     use anchor::app::App;
 
+    // Read the public-facing API base URL from the environment.
+    // PUBLIC_API_BASE_URL is the HTTPS URL of the backend API as seen from the browser
+    // (e.g. https://api.dev.atlas.oply.co). This is distinct from ATLAS_API_URL which
+    // is the internal cluster URL used for SSR-side server fn calls.
+    let public_api_base_url = std::env::var("PUBLIC_API_BASE_URL")
+        .unwrap_or_else(|_| std::env::var("ATLAS_API_URL")
+            .unwrap_or_else(|_| "http://localhost:8000".to_string()));
+
+    // Inline the env script as a raw string so it is synchronously available
+    // before any WASM or JS module executes. This matches the platform-admin pattern.
+    let env_script = format!(
+        "window.__ENV__ = {{ API_BASE_URL: '{}' }};",
+        // Strip trailing slash for consistency — JS consumers do .replace(/\/$/, '')
+        // but we do it here too for belt-and-suspenders safety.
+        public_api_base_url.trim_end_matches('/')
+    );
+
     view! {
         <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                // Inject window.__ENV__ synchronously before WASM loads so client-side
+                // JS (passkey registration, etc.) can read API_BASE_URL immediately.
+                <script inner_html=env_script />
                 <AutoReload options=options.clone() />
                 <HydrationScripts options />
                 <MetaTags/>
