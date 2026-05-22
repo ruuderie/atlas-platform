@@ -12,3 +12,12 @@ resources:
 patches:
   - path: platform-admin-patch.yaml
   - path: backend-patch.yaml
+
+# Image tags are pinned per-environment to prevent cross-contamination.
+# CI substitutes REPLACE_WITH_IMAGE_TAG with the actual commit SHA (${CI_COMMIT_SHA:0:8})
+# so dev always runs images built from the dev branch, uat from uat branch.
+images:
+  - name: ghcr.io/ruuderie/atlas-backend
+    newTag: REPLACE_WITH_IMAGE_TAG
+  - name: ghcr.io/ruuderie/anchor-app
+    newTag: REPLACE_WITH_IMAGE_TAG
