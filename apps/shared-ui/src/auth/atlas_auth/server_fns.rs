@@ -309,14 +309,15 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
 
         match res {
             Ok(r) if r.status().is_success() => {
-                let val: serde_json::Value = r.json().await.map_err(|e| {
-                    ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))
-                })?;
-                Ok(val)
+                match r.json::<serde_json::Value>().await {
+                    Ok(val) => Ok(val),
+                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
+                }
             }
             Ok(r) => {
+                let status = r.status();
                 let err_text = r.text().await.unwrap_or_default();
-                leptos::logging::warn!("Start passkey registration failed: HTTP {} - {}", r.status(), err_text);
+                leptos::logging::warn!("Start passkey registration failed: HTTP {} - {}", status, err_text);
                 Err(ServerFnError::ServerError(err_text))
             }
             Err(e) => {
@@ -373,14 +374,15 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
 
         match res {
             Ok(r) if r.status().is_success() => {
-                let val: serde_json::Value = r.json().await.map_err(|e| {
-                    ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))
-                })?;
-                Ok(val)
+                match r.json::<serde_json::Value>().await {
+                    Ok(val) => Ok(val),
+                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
+                }
             }
             Ok(r) => {
+                let status = r.status();
                 let err_text = r.text().await.unwrap_or_default();
-                leptos::logging::warn!("Finish passkey registration failed: HTTP {} - {}", r.status(), err_text);
+                leptos::logging::warn!("Finish passkey registration failed: HTTP {} - {}", status, err_text);
                 Err(ServerFnError::ServerError(err_text))
             }
             Err(e) => {
