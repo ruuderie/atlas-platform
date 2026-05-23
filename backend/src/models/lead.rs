@@ -28,6 +28,9 @@ pub struct LeadModel {
     pub associated_deal_id: Option<Uuid>,
     pub converted_customer_id: Option<Uuid>,
     pub converted_contact_id: Option<Uuid>,
+    pub company: Option<String>,
+    pub title: Option<String>,
+    pub lead_status: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -50,6 +53,9 @@ pub struct CreateLeadInput {
     pub shipping_address: Option<AddressJson>,
     pub message: Option<String>,
     pub source: Option<String>,
+    pub company: Option<String>,
+    pub title: Option<String>,
+    pub lead_status: Option<String>,
     pub _bot_check: Option<String>,
 }
 
@@ -76,6 +82,9 @@ pub struct UpdateLeadInput {
     pub associated_deal_id: Option<Uuid>,
     pub converted_customer_id: Option<Uuid>,
     pub converted_contact_id: Option<Uuid>,
+    pub company: Option<String>,
+    pub title: Option<String>,
+    pub lead_status: Option<String>,
 }
 
 impl From<lead::Model> for LeadModel {
@@ -103,6 +112,9 @@ impl From<lead::Model> for LeadModel {
             associated_deal_id: lead.associated_deal_id,
             converted_customer_id: lead.converted_customer_id,
             converted_contact_id: lead.converted_contact_id,
+            company: lead.company,
+            title: lead.title,
+            lead_status: lead.lead_status,
             created_at: lead.created_at,
             updated_at: lead.updated_at,
         }

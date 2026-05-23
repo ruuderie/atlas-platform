@@ -13,3 +13,5 @@ pub mod icon;
 pub mod theme_provider;
 // Platform admin module registry sidebar
 pub mod admin_module_sidebar;
+pub mod crm_stage_bar;
+pub mod crm_timeline;

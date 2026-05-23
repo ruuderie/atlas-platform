@@ -7,11 +7,11 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait
+    ActiveModelTrait, ModelTrait, TransactionTrait
 };
 use uuid::Uuid;
 use chrono::Utc;
-use crate::entities::{lead, listing, account, note,user, activity};
+use crate::entities::{lead, listing, account, note, user, activity, contact, user_account};
 use crate::models::lead::{LeadModel, CreateLeadInput, UpdateLeadInput};
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};
@@ -36,6 +36,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
         .route("/api/leads/{id}", get(get_lead))
         .route("/api/leads/{id}", put(update_lead))
         .route("/api/leads/{id}", delete(delete_lead))
+        .route("/api/crm/leads/{id}/convert", post(convert_lead))
         .route("/api/leads/{lead_id}/files/{file_id}", post(add_file_to_lead))
         .route("/api/leads/{id}/files", get(get_lead_files))
         .route("/api/leads/{id}/notes", get(get_lead_notes))
@@ -96,7 +97,7 @@ pub async fn create_lead(
     
     // If no listing provided or listing not found, fallback to the primary account of the active network
     if resolved_account_id.is_none() {
-        if let Some(Extension(site_config)) = site_config_opt {
+        if let Some(Extension(site_config)) = &site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
                 .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
@@ -110,6 +111,11 @@ pub async fn create_lead(
         } else {
             resolved_account_id = input.account_id;
         }
+    }
+
+    let mut resolved_tenant_id = None;
+    if let Some(Extension(site_config)) = site_config_opt {
+        resolved_tenant_id = Some(site_config.tenant_id);
     }
 
     let mut new_lead = lead::ActiveModel {
@@ -133,8 +139,12 @@ pub async fn create_lead(
         associated_deal_id: Set(None),
         converted_customer_id: Set(None),
         converted_contact_id: Set(None),
+        company: Set(input.company),
+        title: Set(input.title),
+        lead_status: Set(input.lead_status.or(Some("New".to_string()))),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        tenant_id: Set(resolved_tenant_id),
         properties: Set(None),
         ..Default::default()
     };
@@ -255,7 +265,7 @@ pub async fn ingest_lead(
     }
     
     if resolved_account_id.is_none() {
-        if let Some(Extension(site_config)) = site_config_opt {
+        if let Some(Extension(site_config)) = &site_config_opt {
             if let Ok(Some(primary_account)) = account::Entity::find()
                 .filter(account::Column::TenantId.eq(site_config.tenant_id))
                 .one(&db)
@@ -268,6 +278,11 @@ pub async fn ingest_lead(
         } else {
             resolved_account_id = input.account_id;
         }
+    }
+
+    let mut resolved_tenant_id = None;
+    if let Some(Extension(site_config)) = site_config_opt {
+        resolved_tenant_id = Some(site_config.tenant_id);
     }
 
     let mut new_lead = lead::ActiveModel {
@@ -286,8 +301,12 @@ pub async fn ingest_lead(
         facebook: Set(input.facebook.clone()),
         message: Set(input.message.clone()),
         source: Set(input.source.clone().or_else(|| Some("API Ingestion".to_string()))),
+        company: Set(input.company.clone()),
+        title: Set(input.title.clone()),
+        lead_status: Set(input.lead_status.clone().or_else(|| Some("New".to_string()))),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        tenant_id: Set(resolved_tenant_id),
         ..Default::default()
     };
 
@@ -327,8 +346,25 @@ pub async fn ingest_lead(
 
 pub async fn get_leads(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let user_accounts = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let user_tenant_id = profile.tenant_id;
+
     let leads = lead::Entity::find()
+        .filter(lead::Column::TenantId.eq(user_tenant_id))
         .all(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -339,27 +375,69 @@ pub async fn get_leads(
 
 pub async fn get_lead(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let user_accounts = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let user_tenant_id = profile.tenant_id;
+
     let lead = lead::Entity::find_by_id(id)
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
+    if lead.tenant_id != Some(user_tenant_id) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
     Ok(JsonResponse(LeadModel::from(lead)))
 }
 
 pub async fn update_lead(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateLeadInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let mut lead: lead::ActiveModel = lead::Entity::find_by_id(id)
+    let user_accounts = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?.into();
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let user_tenant_id = profile.tenant_id;
+
+    let existing_lead = lead::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if existing_lead.tenant_id != Some(user_tenant_id) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let mut lead: lead::ActiveModel = existing_lead.into();
 
     if let Some(name) = input.name {
         lead.name = Set(name);
@@ -445,6 +523,18 @@ pub async fn update_lead(
         lead.converted_contact_id = Set(Some(converted_contact_id));
     }
 
+    if let Some(company) = input.company {
+        lead.company = Set(Some(company));
+    }
+
+    if let Some(title) = input.title {
+        lead.title = Set(Some(title));
+    }
+
+    if let Some(lead_status) = input.lead_status {
+        lead.lead_status = Set(Some(lead_status));
+    }
+
     let updated_lead = lead.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     Ok(JsonResponse(LeadModel::from(updated_lead)))
@@ -452,13 +542,33 @@ pub async fn update_lead(
 
 pub async fn delete_lead(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let user_accounts = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let user_tenant_id = profile.tenant_id;
+
     let lead = lead::Entity::find_by_id(id)
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    if lead.tenant_id != Some(user_tenant_id) {
+        return Err(StatusCode::FORBIDDEN);
+    }
 
     lead.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -610,4 +720,119 @@ pub async fn create_lead_activity(
     let inserted_activity = new_activity.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(inserted_activity))))
+}
+
+pub async fn convert_lead(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let user_accounts = user_account::Entity::find()
+        .filter(user_account::Column::UserId.eq(current_user.id))
+        .all(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+    
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+    let user_tenant_id = profile.tenant_id;
+
+    let lead_model = lead::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if lead_model.tenant_id != Some(user_tenant_id) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    if lead_model.is_converted {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let txn = db.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut duplicate_contact = None;
+    if let Some(ref email) = lead_model.email {
+        if !email.is_empty() {
+            let dup = contact::Entity::find()
+                .filter(contact::Column::TenantId.eq(user_tenant_id))
+                .filter(contact::Column::Email.eq(email.clone()))
+                .one(&txn)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            if dup.is_some() {
+                duplicate_contact = dup;
+            }
+        }
+    }
+
+    if duplicate_contact.is_none() {
+        if let Some(ref phone) = lead_model.phone {
+            if !phone.is_empty() {
+                let dup = contact::Entity::find()
+                    .filter(contact::Column::TenantId.eq(user_tenant_id))
+                    .filter(contact::Column::Phone.eq(phone.clone()))
+                    .one(&txn)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                if dup.is_some() {
+                    duplicate_contact = dup;
+                }
+            }
+        }
+    }
+
+    let contact_id = if let Some(contact) = duplicate_contact {
+        contact.id
+    } else {
+        let new_contact_id = Uuid::new_v4();
+        let new_contact = contact::ActiveModel {
+            id: Set(new_contact_id),
+            customer_id: Set(None),
+            name: Set(lead_model.name.clone()),
+            first_name: Set(lead_model.first_name.clone()),
+            last_name: Set(lead_model.last_name.clone()),
+            email: Set(lead_model.email.clone()),
+            phone: Set(lead_model.phone.clone()),
+            whatsapp: Set(lead_model.whatsapp.clone()),
+            telegram: Set(lead_model.telegram.clone()),
+            twitter: Set(lead_model.twitter.clone()),
+            instagram: Set(lead_model.instagram.clone()),
+            facebook: Set(lead_model.facebook.clone()),
+            billing_address: Set(lead_model.billing_address.clone()),
+            shipping_address: Set(lead_model.shipping_address.clone()),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            tenant_id: Set(Some(user_tenant_id)),
+            properties: Set(None),
+        };
+        new_contact.insert(&txn).await.map_err(|e| {
+            tracing::error!("Failed to insert contact on lead conversion: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+        new_contact_id
+    };
+
+    let mut active_lead: lead::ActiveModel = lead_model.into();
+    active_lead.is_converted = Set(true);
+    active_lead.converted_to_contact = Set(true);
+    active_lead.converted_contact_id = Set(Some(contact_id));
+    active_lead.lead_status = Set(Some("Converted".to_string()));
+    active_lead.updated_at = Set(Utc::now());
+
+    let updated = active_lead.update(&txn).await.map_err(|e| {
+        tracing::error!("Failed to update lead status on lead conversion: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    txn.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(JsonResponse(LeadModel::from(updated)))
 }

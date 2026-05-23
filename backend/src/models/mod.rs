@@ -23,6 +23,7 @@ pub mod activity;
 pub mod note;
 pub mod file;
 pub mod property;
+pub mod crm_status_option;
 pub mod attachment;
 pub mod feed;
 pub mod feed_item;

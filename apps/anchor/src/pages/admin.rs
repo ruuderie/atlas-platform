@@ -1,4 +1,16 @@
 // Build: ship Leptos hydration fix; pipeline now uses CI_COMMIT_CHANGED_FILES.
+pub mod leads;
+pub mod contacts;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct MailingListRecord {
+    pub id: i32,
+    pub email: String,
+    pub list_type: String,
+    pub preferences: String,
+    pub created_at: String,
+}
+
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
@@ -383,7 +395,7 @@ fn AuthenticatedDashboard(
                                 </span>
                             </div>
                             <h2 class="text-3xl font-extrabold text-primary tracking-tight uppercase">
-                                {move || format!("{:?}", active_tab.get())}
+                                {move || active_tab.get().to_string()}
                             </h2>
                         </div>
                         <button
@@ -424,7 +436,7 @@ fn AuthenticatedDashboard(
                             AdminModuleType::Services       => view! { <ServiceTable /> }.into_any(),
                             AdminModuleType::CaseStudies    => view! { <CaseStudyTable /> }.into_any(),
                             AdminModuleType::Highlights     => view! { <HighlightTable /> }.into_any(),
-                            AdminModuleType::Contacts       => view! { <MailingListTable /> }.into_any(),
+                            AdminModuleType::Contacts       => view! { <contacts::ContactTable /> }.into_any(),
                             AdminModuleType::LeadOptions    => view! { <LeadOptionTable /> }.into_any(),
                             AdminModuleType::Navigation     => view! { <NavTable /> }.into_any(),
                             AdminModuleType::Footer         => view! { <FooterTable /> }.into_any(),
@@ -435,6 +447,7 @@ fn AuthenticatedDashboard(
                             AdminModuleType::ResumeEntries  => view! { <BaseResumeEntryTable /> }.into_any(),
                             AdminModuleType::LandingPages   => view! { <LandingPageTable /> }.into_any(),
                             AdminModuleType::Security       => view! { <PasskeyTable /> }.into_any(),
+                            AdminModuleType::Leads          => view! { <leads::LeadTable /> }.into_any(),
                             _ => view! {
                                 <div class="h-64 flex items-center justify-center border-2 border-dashed border-outline-variant text-outline">
                                     <span class="jetbrains text-sm">
@@ -907,59 +920,7 @@ fn BaseResumeEntryTable() -> impl IntoView {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct MailingListRecord {
-    pub id: i32,
-    pub email: String,
-    pub list_type: String,
-    pub preferences: String,
-    pub created_at: String,
-}
 
-#[server(GetMailingList, "/api")]
-pub async fn get_mailing_list() -> Result<Vec<MailingListRecord>, ServerFnError> {
-    use axum::Extension;
-    use leptos_axum::extract;
-    use sqlx::Row;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-
-    let rows = sqlx::query("SELECT id, email, list_type, preferences::text as prefs, created_at FROM mailing_list WHERE tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC")
-        .bind(tenant.0)
-        .fetch_all(&state.pool).await?;
-
-    let mut records = Vec::new();
-    for row in rows {
-        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
-        records.push(MailingListRecord {
-            id: row.get("id"),
-            email: row.get("email"),
-            list_type: row.get("list_type"),
-            preferences: row.get("prefs"),
-            created_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
-        });
-    }
-
-    Ok(records)
-}
-
-#[server(DeleteMailingList, "/api")]
-pub async fn delete_mailing_list(id: i32) -> Result<(), ServerFnError> {
-    use crate::auth::check_session;
-    use axum::Extension;
-    use leptos_axum::extract;
-    if !check_session().await.unwrap_or(false) {
-        return Err(ServerFnError::ServerError("Unauthorized".into()));
-    }
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
-    sqlx::query("DELETE FROM mailing_list WHERE id = $1 AND tenant_id IS NOT DISTINCT FROM $2")
-        .bind(id)
-        .bind(tenant.0)
-        .execute(&state.pool)
-        .await?;
-    Ok(())
-}
 
 #[component]
 fn LeadOptionTable() -> impl IntoView {
@@ -1030,68 +991,7 @@ fn LeadOptionTable() -> impl IntoView {
     }
 }
 
-#[component]
-fn MailingListTable() -> impl IntoView {
-    let refresh = expect_context::<ReadSignal<i32>>();
-    let list_resource = Resource::new(move || refresh.get(), |_| get_mailing_list());
 
-    view! {
-        <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"QUERYING_DB..."</div> }>
-            {move || {
-                let res = list_resource.get();
-                view! {
-            <table class="w-full text-left jetbrains text-sm">
-                <thead>
-                    <tr class="text-outline border-b border-outline-variant/30">
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Email"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Type"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Preferences"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Timestamp"</th>
-                        <th class="py-4 px-4 font-normal tracking-widest uppercase">"Actions"</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-variant/20">
-                    {match ResourceState::from(res) {
-                        ResourceState::Ready(items) => items.into_iter().map(|i| {
-                            let prefs_title = i.preferences.clone();
-                            let prefs_text = i.preferences;
-                            view! {
-                            <tr class="hover:bg-surface-container-high transition-colors group">
-                                <td class="py-4 px-4 font-bold text-primary">{i.email}</td>
-                                <td class="py-4 px-4 text-on-surface">{i.list_type}</td>
-                                <td class="py-4 px-4 text-outline truncate max-w-[200px]" title=prefs_title>{prefs_text}</td>
-                                <td class="py-4 px-4 text-outline-variant">{i.created_at}</td>
-                                <td class="py-4 px-4">
-                                    <div class="flex space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            on:click=move |_| {
-                                                let id = i.id;
-                                                let r = refresh;
-                                                leptos::task::spawn_local(async move {
-                                                    if let Ok(_) = delete_mailing_list(id).await {
-                                                        expect_context::<WriteSignal<i32>>().set(r.get_untracked() + 1);
-                                                    }
-                                                });
-                                            }
-                                            class="text-error hover:underline uppercase text-xs"
-                                        >
-                                            "Drop"
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            }
-                        }).collect::<Vec<_>>().into_any(),
-                        ResourceState::Loading => view! { <tr class="hidden"></tr> }.into_any(),
-                        ResourceState::Error(_) => view! { <tr><td colspan="5" class="py-8 text-center text-error">"ERR_NO_DATA"</td></tr> }.into_any(),
-                    }}
-                </tbody>
-            </table>
-            }.into_any()
-            }}
-        </Transition>
-    }
-}
 
 #[component]
 fn PostTable() -> impl IntoView {
@@ -1573,3 +1473,6 @@ pub fn HighlightTable() -> impl IntoView {
 // The old implementation used js_sys::eval + setTimeout(500) + manual DOM binding
 // which raced against WASM hydration and CDN script load timing. See Bug 3 in the
 // engineering brief (2026-05-17) for the full root-cause analysis.
+
+
+

@@ -126,6 +126,8 @@ pub mod m20260518_000001_create_app_instance_modules;
 pub mod m20260522_000001_create_webauthn_challenges;
 // 2026-05-23: Create outbox_job table to support Transactional Outbox Pattern
 pub mod m20260523_000001_create_outbox_jobs;
+pub mod m20260523_000002_extend_lead_table;
+pub mod m20260523_000003_create_crm_status_options;
 
 pub struct Migrator;
 
@@ -211,6 +213,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260522_000001_create_webauthn_challenges::Migration),
             // 2026-05-23: Create outbox_job table to support Transactional Outbox Pattern
             Box::new(m20260523_000001_create_outbox_jobs::Migration),
+            Box::new(m20260523_000002_extend_lead_table::Migration),
+            Box::new(m20260523_000003_create_crm_status_options::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

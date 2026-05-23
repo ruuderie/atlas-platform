@@ -70,6 +70,34 @@ pub enum AdminModuleType {
     Custom,
 }
 
+impl std::fmt::Display for AdminModuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Dashboard      => "Dashboard",
+            Self::Settings       => "Settings",
+            Self::Security       => "Security",
+            Self::Blog           => "Blog",
+            Self::ResumeProfiles => "Resume Profiles",
+            Self::ResumeEntries  => "Resume Entries",
+            Self::LandingPages   => "Landing Pages",
+            Self::Webforms       => "Webforms",
+            Self::Navigation     => "Navigation",
+            Self::Footer         => "Footer",
+            Self::PageHeaders    => "Page Headers",
+            Self::Leads          => "Leads",
+            Self::Contacts       => "Contacts",
+            Self::LeadOptions    => "Lead Options",
+            Self::Services       => "Services",
+            Self::CaseStudies    => "Case Studies",
+            Self::Highlights     => "Highlights",
+            Self::Properties     => "Properties",
+            Self::Listings       => "Listings",
+            Self::Custom         => "Custom",
+        };
+        write!(f, "{s}")
+    }
+}
+
 impl AdminModuleType {
     /// Returns the default material symbol icon name for this module type.
     pub fn default_icon(self) -> &'static str {
@@ -169,8 +197,8 @@ impl SidebarTheme {
                 bg:            "bg-white",
                 brand_text:    "text-slate-900 font-semibold text-sm",
                 text_inactive: "text-slate-500 hover:text-slate-900 hover:bg-slate-50",
-                text_active:   "text-blue-600 bg-blue-50 border-l-2 border-blue-600",
-                bg_active:     "bg-blue-50",
+                text_active:   "text-primary bg-slate-100 border-l-2 border-primary",
+                bg_active:     "bg-slate-100",
                 font_class:    "font-sans",
                 border:        "border-slate-200",
                 logout_text:   "text-slate-400 hover:text-red-500",

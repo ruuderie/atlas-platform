@@ -8,6 +8,7 @@ pub mod customers;
 pub mod contacts;
 pub mod files;
 pub mod notes;
+pub mod crm_status_options;
 
 //Admin
 pub mod ad_purchases;

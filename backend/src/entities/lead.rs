@@ -37,6 +37,9 @@ pub struct Model {
     pub associated_deal_id: Option<Uuid>,
     pub converted_customer_id: Option<Uuid>,
     pub converted_contact_id: Option<Uuid>,
+    pub company: Option<String>,
+    pub title: Option<String>,
+    pub lead_status: Option<String>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]

@@ -82,6 +82,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(ab_testing::authenticated_routes())
         .merge(crate::handlers::passkeys::authenticated_routes())
         .merge(crate::handlers::communications::authenticated_routes(db.clone()))
+        .merge(crate::handlers::crm_status_options::authenticated_routes())
         .merge(crate::handlers::telemetry::authenticated_routes());
 
     for app in crate::atlas_apps::get_active_apps() {

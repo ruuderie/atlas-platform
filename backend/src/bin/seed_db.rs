@@ -513,6 +513,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             updated_at: Set(Utc::now()),
             tenant_id: Set(Some(dir_uuid)),
             properties: Set(None),
+            ..Default::default()
         };
         ld.insert(&db).await?;
     }

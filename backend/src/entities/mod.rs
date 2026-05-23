@@ -10,6 +10,7 @@ pub mod file;
 pub mod file_association;
 pub mod note;
 pub mod lead_charge;
+pub mod crm_status_option;
 
 //DIRECTORIES
 pub mod user;
