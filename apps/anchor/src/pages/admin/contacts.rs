@@ -605,7 +605,7 @@ fn ContactCrmPane(
                 </div>
 
                 <Show
-                    when=edit_mode
+                    when=move || edit_mode.get()
                     fallback=move || view! {
                         <div class="grid grid-cols-2 gap-4 text-xs font-mono bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/10">
                             <div>
