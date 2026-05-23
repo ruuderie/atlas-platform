@@ -16,3 +16,4 @@ pub mod data_sync;
 pub mod module_provisioning;
 pub mod ingress_provisioner;
 pub mod outbox_worker;
+pub mod crm_validator;

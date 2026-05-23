@@ -129,6 +129,8 @@ pub mod m20260523_000001_create_outbox_jobs;
 pub mod m20260523_000002_extend_lead_table;
 pub mod m20260523_000003_create_crm_status_options;
 pub mod m20260523_000004_ensure_crm_modules;
+pub mod m20260523_000005_create_crm_activity_and_deep_fields;
+
 
 pub struct Migrator;
 
@@ -217,6 +219,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260523_000002_extend_lead_table::Migration),
             Box::new(m20260523_000003_create_crm_status_options::Migration),
             Box::new(m20260523_000004_ensure_crm_modules::Migration),
+            Box::new(m20260523_000005_create_crm_activity_and_deep_fields::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

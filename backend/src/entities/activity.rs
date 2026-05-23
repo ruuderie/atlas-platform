@@ -12,6 +12,7 @@ use sea_orm::Set;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: Uuid,
+    pub tenant_id: Option<Uuid>,
     pub account_id: Option<Uuid>,
     pub deal_id: Option<Uuid>,
     pub customer_id: Option<Uuid>,

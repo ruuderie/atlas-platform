@@ -338,6 +338,67 @@ pub async fn add_lead(
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
+    let mut validated_phone = phone.clone();
+    let mut validated_email = email.clone();
+
+    #[cfg(feature = "ssr")]
+    {
+        // 1. Telephone E.164 Standardization & Validation
+        if let Some(ref p) = phone {
+            let trimmed = p.trim();
+            if !trimmed.is_empty() {
+                let cleaned: String = trimmed.chars()
+                    .filter(|c| c.is_ascii_digit() || *c == '+')
+                    .collect();
+                if cleaned.starts_with('+') && cleaned.len() >= 8 && cleaned.len() <= 16 {
+                    let after_plus = &cleaned[1..];
+                    if after_plus.chars().all(|c| c.is_ascii_digit()) && !after_plus.starts_with('0') {
+                        validated_phone = Some(cleaned);
+                    } else {
+                        return Err(ServerFnError::ServerError("Invalid phone format. Please enter a valid international number in E.164 format (e.g., +15551234567).".into()));
+                    }
+                } else {
+                    return Err(ServerFnError::ServerError("Invalid phone format. Please enter a valid international number in E.164 format (e.g., +15551234567).".into()));
+                }
+            }
+        }
+
+        // 2. Email Verification with DNS resolution check
+        if let Some(ref e) = email {
+            let trimmed = e.trim();
+            if !trimmed.is_empty() {
+                let parts: Vec<&str> = trimmed.split('@').collect();
+                if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                }
+                let domain = parts[1].to_lowercase();
+                if !domain.contains('.') || domain.starts_with('.') || domain.ends_with('.') {
+                    return Err(ServerFnError::ServerError("Invalid email address format (e.g. user@domain.com).".into()));
+                }
+                
+                // Block test list
+                let blocked = ["test.com", "example.com", "tempmail.com", "mailinator.com", "junk.com", "trashmail.com"];
+                if blocked.contains(&domain.as_str()) {
+                    return Err(ServerFnError::ServerError(format!("The domain '{}' is blocked or reserved for testing.", domain).into()));
+                }
+
+                // DNS resolving check
+                let host_to_resolve = format!("{}:80", domain);
+                match tokio::net::lookup_host(host_to_resolve.as_str()).await {
+                    Ok(mut addrs) => {
+                        if addrs.next().is_none() {
+                            return Err(ServerFnError::ServerError(format!("The email domain '{}' does not resolve to any active hosts.", domain).into()));
+                        }
+                    }
+                    Err(_) => {
+                        return Err(ServerFnError::ServerError(format!("The email domain '{}' is offline or has no active DNS registration.", domain).into()));
+                    }
+                }
+                validated_email = Some(trimmed.to_string());
+            }
+        }
+    }
+
     let lead_id = uuid::Uuid::new_v4();
     let status_str = lead_status.unwrap_or_else(|| "new".to_string());
 
@@ -349,8 +410,8 @@ pub async fn add_lead(
     .bind(name)
     .bind(first_name)
     .bind(last_name)
-    .bind(email)
-    .bind(phone)
+    .bind(validated_email)
+    .bind(validated_phone)
     .bind(company)
     .bind(title)
     .bind(status_str)
@@ -359,6 +420,27 @@ pub async fn add_lead(
     .bind(tenant.0)
     .execute(&state.pool)
     .await?;
+
+    // 3. Log lead creation activity in the existing activity table
+    #[cfg(feature = "ssr")]
+    {
+        let user_id: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
+            .fetch_one(&state.pool)
+            .await?;
+
+        sqlx::query(
+            "INSERT INTO activity (id, tenant_id, lead_id, activity_type, title, description, status, associated_entities, created_by, created_at, updated_at) \
+             VALUES ($1, $2, $3, 'Other', $4, $5, 'Completed', '[]'::json, $6, NOW(), NOW())"
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(tenant.0)
+        .bind(lead_id)
+        .bind("Lead Captured".to_string())
+        .bind("System: Lead entered manually via the CRM admin portal.".to_string())
+        .bind(user_id)
+        .execute(&state.pool)
+        .await?;
+    }
 
     Ok(())
 }

@@ -170,6 +170,7 @@ pub async fn create_case_activity(
 
     let new_activity = activity::ActiveModel {
         id: Set(Uuid::new_v4()),
+        tenant_id: Set(None),
         account_id: Set(None),
         case_id: Set(Some(case.id)),
         customer_id: Set(Some(case.customer_id)),

@@ -451,6 +451,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let act_id = Uuid::new_v4();
         let act = activity::ActiveModel {
             id: Set(act_id),
+            tenant_id: Set(Some(dir_uuid)),
             account_id: Set(None),
             deal_id: Set(Some(d_id)),
             customer_id: Set(Some(cust_id)),

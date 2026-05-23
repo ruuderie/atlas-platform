@@ -33,6 +33,7 @@ pub async fn create_activity(
 ) -> Result<impl IntoResponse, StatusCode> {
     let new_activity = activity::ActiveModel {
         id: Set(Uuid::new_v4()),
+        tenant_id: Set(None),
         account_id: Set(Some(input.account_id)),
         deal_id: Set(input.deal_id),
         customer_id: Set(input.customer_id),

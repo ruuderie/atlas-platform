@@ -473,6 +473,68 @@ pub struct DashboardStats {
     pub total_signups: i64,
     pub total_mailing_list: i64,
     pub recent_page_views: i64,
+    pub total_leads: i64,
+    pub converted_leads_24h: i64,
+    pub crm_interactions_24h: i64,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct GlobalActivityItem {
+    pub id: uuid::Uuid,
+    pub contact_id: Option<uuid::Uuid>,
+    pub lead_id: Option<uuid::Uuid>,
+    pub customer_name: String,
+    pub activity_type: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub status: String,
+    pub created_at: String,
+}
+
+#[server(GetGlobalActivity, "/api")]
+pub async fn get_global_activity() -> Result<Vec<GlobalActivityItem>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let rows = sqlx::query(
+        "SELECT a.id, a.contact_id, a.lead_id, a.activity_type, a.title, a.description, a.status, a.created_at, \
+         COALESCE(c.name, l.name, 'Unknown Entity') as customer_name \
+         FROM activity a \
+         LEFT JOIN contact c ON c.id = a.contact_id \
+         LEFT JOIN lead l ON l.id = a.lead_id \
+         WHERE a.tenant_id IS NOT DISTINCT FROM $1 \
+         ORDER BY a.created_at DESC \
+         LIMIT 30"
+    )
+    .bind(tenant.0)
+    .fetch_all(&state.pool)
+    .await?;
+
+    use sqlx::Row;
+    let items = rows.into_iter().map(|row| {
+        let created_at_time: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        GlobalActivityItem {
+            id: row.get("id"),
+            contact_id: row.get("contact_id"),
+            lead_id: row.get("lead_id"),
+            customer_name: row.get("customer_name"),
+            activity_type: row.get("activity_type"),
+            title: row.get("title"),
+            description: row.get("description"),
+            status: row.get("status"),
+            created_at: created_at_time.to_rfc3339(),
+        }
+    }).collect();
+
+    Ok(items)
 }
 
 #[server(GetDashboardStats, "/api")]
@@ -509,11 +571,38 @@ pub async fn get_dashboard_stats() -> Result<DashboardStats, ServerFnError> {
     .await
     .unwrap_or(0);
 
+    let total_leads: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM lead WHERE tenant_id IS NOT DISTINCT FROM $1"
+    )
+    .bind(tenant.0)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+
+    let converted_leads: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM lead WHERE is_converted = true AND updated_at > NOW() - INTERVAL '24 hours' AND tenant_id IS NOT DISTINCT FROM $1"
+    )
+    .bind(tenant.0)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+
+    let crm_interactions: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM activity WHERE created_at > NOW() - INTERVAL '24 hours' AND tenant_id IS NOT DISTINCT FROM $1"
+    )
+    .bind(tenant.0)
+    .fetch_one(&state.pool)
+    .await
+    .unwrap_or(0);
+
     Ok(DashboardStats {
         mempool_requests_24h: mempool,
         total_signups: signups,
         total_mailing_list: mailing,
         recent_page_views: views,
+        total_leads,
+        converted_leads_24h: converted_leads,
+        crm_interactions_24h: crm_interactions,
     })
 }
 
@@ -571,27 +660,133 @@ fn PageHeaderTable() -> impl IntoView {
 fn DashboardView() -> impl IntoView {
     let refresh = expect_context::<ReadSignal<i32>>();
     let stats_resource = Resource::new(move || refresh.get(), |_| get_dashboard_stats());
+    let activity_resource = Resource::new(move || refresh.get(), |_| get_global_activity());
 
     view! {
         <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline">"COMPILING_TELEMETRY..."</div> }>
             {move || match ResourceState::from(stats_resource.get()) {
                 ResourceState::Ready(stats) => view! {
-                    <div class="grid grid-cols-2 gap-8">
-                        <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
-                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Mempool Network Fetches (24H)"</span>
-                            <span class="text-5xl font-extrabold text-[#f7931a]">{stats.mempool_requests_24h}</span>
+                    <div class="space-y-10">
+                        // Metric Cards Grid
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-primary/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Page Views (24H)"</span>
+                                <span class="text-4xl font-extrabold text-primary">{stats.recent_page_views}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-secondary/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Total Contacts"</span>
+                                <span class="text-4xl font-extrabold text-secondary">{stats.total_mailing_list}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-[#f7931a]/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Total Leads"</span>
+                                <span class="text-4xl font-extrabold text-[#f7931a]">{stats.total_leads}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-emerald-500/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Conversions (24H)"</span>
+                                <span class="text-4xl font-extrabold text-emerald-500">{stats.converted_leads_24h}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-violet-500/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"CRM Activities (24H)"</span>
+                                <span class="text-4xl font-extrabold text-violet-500">{stats.crm_interactions_24h}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-outline/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Mempool API Fetches (24H)"</span>
+                                <span class="text-4xl font-extrabold text-on-surface-variant">{stats.mempool_requests_24h}</span>
+                            </div>
+                            <div class="p-6 border border-outline-variant/30 flex flex-col justify-between hover:border-on-surface/50 transition-colors">
+                                <span class="jetbrains text-[0.6rem] uppercase text-outline tracking-widest mb-3">"Admin Users Registered"</span>
+                                <span class="text-4xl font-extrabold text-on-surface">{stats.total_signups}</span>
+                            </div>
                         </div>
-                        <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
-                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Page Views (24H)"</span>
-                            <span class="text-5xl font-extrabold text-primary">{stats.recent_page_views}</span>
-                        </div>
-                        <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
-                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Total Contacts"</span>
-                            <span class="text-5xl font-extrabold text-secondary">{stats.total_mailing_list}</span>
-                        </div>
-                        <div class="p-8 border border-outline-variant/30 flex flex-col justify-between">
-                            <span class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider mb-4">"Admin Identities Registered"</span>
-                            <span class="text-5xl font-extrabold text-on-surface">{stats.total_signups}</span>
+
+                        // 360° Real-time Unified Timeline Sub-section
+                        <div class="border-t border-outline-variant/20 pt-8">
+                            <div class="flex justify-between items-end mb-6">
+                                <div>
+                                    <h3 class="jetbrains text-sm font-bold tracking-widest text-on-surface uppercase">"360° Real-Time Activity Feed"</h3>
+                                    <p class="jetbrains text-[0.6rem] text-outline mt-1 uppercase">"Chronological Touchpoints Stream across all Leads & Contacts"</p>
+                                </div>
+                                <span class="jetbrains text-[0.55rem] px-2 py-1 bg-surface-container-high border border-outline-variant/30 text-outline-variant tracking-widest uppercase">"TENANT_STREAM_SYNC"</span>
+                            </div>
+
+                            <Transition fallback=move || view! { <div class="jetbrains text-xs text-outline">"LOADING TIMELINE..."</div> }>
+                                {move || match ResourceState::from(activity_resource.get()) {
+                                    ResourceState::Ready(activities) => {
+                                        if activities.is_empty() {
+                                            view! {
+                                                <div class="py-12 text-center border border-dashed border-outline-variant/30 jetbrains text-xs text-outline uppercase">
+                                                    "No CRM activities or timeline logs recorded for this tenant."
+                                                </div>
+                                            }.into_any()
+                                        } else {
+                                            view! {
+                                                <div class="space-y-4">
+                                                    {activities.into_iter().map(|item| {
+                                                        let badge_color = match item.activity_type.as_str() {
+                                                            "Email" => "border-sky-500/30 bg-sky-500/5 text-sky-400",
+                                                            "PhoneCall" => "border-violet-500/30 bg-violet-500/5 text-violet-400",
+                                                            "Meeting" => "border-amber-500/30 bg-amber-500/5 text-amber-400",
+                                                            "Note" => "border-emerald-500/30 bg-emerald-500/5 text-emerald-400",
+                                                            _ => "border-outline-variant/30 bg-surface-container-high text-outline-variant",
+                                                        };
+                                                        
+                                                        let entity_type_label = if item.contact_id.is_some() {
+                                                            "CONTACT"
+                                                        } else {
+                                                            "LEAD"
+                                                        };
+
+                                                        // Parse timestamp dynamically to a readable format
+                                                        let date_display = item.created_at.split('T').next().unwrap_or_default().to_string();
+                                                        let time_display = item.created_at.split('T').nth(1).and_then(|t| t.split('.').next()).unwrap_or_default().to_string();
+
+                                                        view! {
+                                                            <div class="p-5 border border-outline-variant/20 hover:border-outline-variant/40 hover:bg-surface-container/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                                <div class="flex items-start gap-4">
+                                                                    // Type Badge
+                                                                    <div class=format!("px-3 py-1.5 border text-[0.6rem] font-bold tracking-widest uppercase jetbrains {}", badge_color)>
+                                                                        {item.activity_type}
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="text-sm font-semibold text-on-surface">{item.title}</span>
+                                                                            <span class="jetbrains text-[0.55rem] px-1.5 py-0.5 bg-outline-variant/15 text-outline tracking-wider font-bold uppercase rounded">
+                                                                                {entity_type_label}
+                                                                            </span>
+                                                                        </div>
+                                                                        
+                                                                        <p class="text-xs text-on-surface-variant mt-1">
+                                                                            {item.description.unwrap_or_default()}
+                                                                        </p>
+
+                                                                        <div class="flex items-center gap-3 mt-2 text-[0.65rem] jetbrains text-outline">
+                                                                            <span class="font-bold text-outline-variant uppercase">"Target:"</span>
+                                                                            <span class="text-on-surface font-medium">{item.customer_name}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                // Timestamp and Status
+                                                                <div class="flex md:flex-col items-end gap-2 text-right self-start md:self-auto">
+                                                                    <span class="text-xs font-semibold text-on-surface-variant jetbrains">
+                                                                        {format!("{} {}", date_display, time_display)}
+                                                                    </span>
+                                                                    <span class="text-[0.6rem] tracking-widest uppercase text-outline jetbrains">
+                                                                        {format!("Status: {}", item.status)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    }).collect::<Vec<_>>().into_any()}
+                                                </div>
+                                            }.into_any()
+                                        }
+                                    }
+                                    ResourceState::Loading => view! { <div class="jetbrains text-xs text-outline uppercase animate-pulse">"REFRESHING_STREAM_SYNC..."</div> }.into_any(),
+                                    ResourceState::Error(err) => view! { <div class="text-error text-xs jetbrains">"ERR_TIMELINE_LOAD"</div> }.into_any(),
+                                }}
+                            </Transition>
                         </div>
                     </div>
                 }.into_any(),
