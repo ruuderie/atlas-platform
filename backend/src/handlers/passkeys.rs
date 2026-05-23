@@ -371,13 +371,20 @@ pub async fn login_finish(
         status = "success"
     );
 
+    let mut response_json = serde_json::to_value(&session_response)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if let serde_json::Value::Object(ref mut map) = response_json {
+        map.insert("token".to_string(), serde_json::Value::String(session_response.token.clone()));
+    }
+
     Ok((
         StatusCode::OK,
         [
             (header::SET_COOKIE, cookie.clone()),
             (header::SET_COOKIE, clear_pk_session.to_string())
         ],
-        Json(serde_json::json!(session_response)),
+        Json(response_json),
     ).into_response())
 }
 
