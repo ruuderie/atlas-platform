@@ -14,3 +14,10 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = "abort"
+
+# Drastically reduces dev WASM binary size (from ~55MB to ~3MB) by disabling heavy
+# debug symbols. This prevents HTTP/3 QUIC protocol errors (net::ERR_QUIC_PROTOCOL_ERROR)
+# on first-time page loads in the development environment.
+[profile.dev]
+debug = 0
+
