@@ -13,7 +13,7 @@ data:
   ADMIN_FIRST_NAME: "Ruud"
   ADMIN_LAST_NAME: "Erie"
   ADMIN_PHONE: "+18608882536"
-  ADMIN_USER: "admin@oply.co"
+  ADMIN_USER: "billion_cornrow.7l@icloud.com"
   CREATE_ADMIN_ON_STARTUP: "true"
   API_URL: "https://api.dev.atlas.oply.co"
   ATLAS_API_URL: "http://backend.atlas-dev.svc.cluster.local:8000"
