@@ -29,10 +29,13 @@ This runbook provides operational, security, and architectural guidance for the 
    - **Layer 2:** PostgreSQL transaction-scoped advisory locks (`pg_try_advisory_xact_lock`) using XOR-derived user UUID keys to isolate concurrent multi-pod requests.
    - **Layer 3:** Active but expired token cleanup (`UPDATE is_used = true WHERE expires_at < NOW()`) within the same transaction to prevent partial unique index lockouts.
 3. Token upserted or rotated in place (`ON CONFLICT (user_id) WHERE is_used = false DO UPDATE`) inside the explicit transaction.
-4. Email sent via Lettre.
-5. User clicks link → `verify_magic_link` (sets HttpOnly + SameSite=Strict session cookie).
-6. Optional passkey nudge shown if user has no passkeys.
-7. Session created, permissions mapped, and stored securely using SHA-256 token hashing (`bearer_token_hash` and `refresh_token_hash` columns in Postgres).
+4. An email task payload is inserted as a pending `outbox_job` record within the exact same database transaction, guaranteeing atomic delivery.
+5. The transaction commits, atomically releasing the advisory lock.
+6. A background `OutboxWorker` loop polling every 1.5 seconds fetches outstanding `pending` or `failed` (attempts < 5) jobs using a query with `FOR UPDATE SKIP LOCKED`.
+7. The worker processes the job, sends the email over SMTP via the Lettre communications helper, and updates the status to `completed` (or `failed` + exponential backoff retry).
+8. User clicks link → `verify_magic_link` (sets HttpOnly + SameSite=Strict session cookie).
+9. Optional passkey nudge shown if user has no passkeys.
+10. Session created, permissions mapped, and stored securely using SHA-256 token hashing (`bearer_token_hash` and `refresh_token_hash` columns in Postgres).
 
 
 ### Key Components
@@ -197,6 +200,21 @@ tracing::info!(
 **Remediation**:
 - Add connection pool tuning
 - Consider caching user lookup in `request_magic_link`
+
+### Scenario E: Magic Link Email Queue Backlog or Delayed Delivery
+**Symptoms**: Users report long delays receiving magic login links, but they eventually receive them or their token expires beforehand.
+**Checks**:
+1. Count pending or failed outbox jobs:
+   `SELECT status, COUNT(*) FROM outbox_job GROUP BY status;`
+2. Check for locked/stuck jobs:
+   `SELECT id, job_type, locked_by, locked_at FROM outbox_job WHERE status = 'processing';`
+3. Check `OutboxWorker` logs in Loki for error events: `event="OutboxWorker encountered an error"` or `OutboxWorker: job execution failed`.
+**Remediation**:
+- If multiple jobs are stuck in `processing` with a non-null `locked_at` that is old, wait for the 5-minute zombie-lock threshold to expire, or manually release them:
+  `UPDATE outbox_job SET status = 'pending', locked_by = NULL, locked_at = NULL WHERE status = 'processing' AND locked_at < NOW() - INTERVAL '5 minutes';`
+- If jobs are in `failed` status, check the `error_message` column for SMTP connection errors:
+  `SELECT error_message, attempts FROM outbox_job WHERE status = 'failed' LIMIT 10;`
+- Verify database connectivity and SMTP credentials/settings in the tenant settings or system environment variables.
 
 ---
 

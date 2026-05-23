@@ -201,6 +201,8 @@ async fn main() {
 
     let sync_db = conn.clone();
     crate::services::data_sync::DataSyncService::start_worker(sync_db).await;
+    let outbox_db = conn.clone();
+    crate::services::outbox_worker::OutboxWorker::start_worker(outbox_db).await;
     let telemetry_db = conn.clone();
     tokio::spawn(async move {
         // Run every hour

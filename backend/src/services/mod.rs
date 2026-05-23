@@ -15,3 +15,4 @@ pub mod data_sync;
 // Platform module provisioning
 pub mod module_provisioning;
 pub mod ingress_provisioner;
+pub mod outbox_worker;

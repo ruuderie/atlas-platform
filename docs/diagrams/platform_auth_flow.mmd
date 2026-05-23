@@ -31,10 +31,13 @@ sequenceDiagram
             BE->>BE: Layer 2: Acquire PostgreSQL advisory lock on User UUID
             BE->>DB: Layer 3: Clean up expired unused tokens
             BE->>DB: Upsert new active token (rotates if active token exists)
+            BE->>DB: Save email payload into outbox_job table with status='pending'
         end
         BE-->>FE: Return HTTP 200 (Anti-enumeration safe response)
-        BE->>Email: Deliver magic link with one-time token UUID
+        Note over BE: OutboxWorker polls outbox_job using SKIP LOCKED
+        BE->>Email: Deliver magic link with one-time token UUID via SMTP
         Email->>User: "Action Required: Sign In" email received
+        BE->>DB: Update outbox_job status to 'completed'
         User->>FE: Click magic link (URL: /magic-login?token=uuid)
         FE->>BE: POST /api/auth/magic-link/verify { token }
         BE->>DB: Query magic_link_token where token = uuid and is_used = false

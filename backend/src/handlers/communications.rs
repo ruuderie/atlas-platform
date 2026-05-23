@@ -12,7 +12,7 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use crate::entities::tenant_setting::{self, Entity as TenantSetting};
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SendEmailPayload {
     pub tenant_id: Uuid,
     pub to_email: String,

@@ -45,6 +45,22 @@ lazy_static! {
         Opts::new("frontend_hydration_panics_total", "Number of detected Leptos hydration panics"),
         &["tenant_id", "app_instance_id", "component"]
     ).unwrap();
+
+    // === TRANSACTIONAL OUTBOX METRICS ===
+    pub static ref OUTBOX_JOBS_PROCESSED: CounterVec = CounterVec::new(
+        Opts::new("outbox_jobs_processed_total", "Number of successfully processed outbox jobs"),
+        &["tenant_id", "job_type"]
+    ).unwrap();
+
+    pub static ref OUTBOX_JOB_FAILURES: CounterVec = CounterVec::new(
+        Opts::new("outbox_job_failures_total", "Number of failed outbox job attempts"),
+        &["tenant_id", "job_type", "reason"]
+    ).unwrap();
+
+    pub static ref OUTBOX_JOB_LATENCY: HistogramVec = HistogramVec::new(
+        HistogramOpts::new("outbox_job_latency_seconds", "Latency of outbox job processing"),
+        &["tenant_id", "job_type"]
+    ).unwrap();
 }
 
 pub fn register_metrics() {
@@ -56,6 +72,9 @@ pub fn register_metrics() {
     REGISTRY.register(Box::new(PASSKEY_REGISTRATION_SUCCESS.clone())).unwrap();
     REGISTRY.register(Box::new(PASSKEY_AUTH_SUCCESS.clone())).unwrap();
     REGISTRY.register(Box::new(FRONTEND_HYDRATION_PANICS.clone())).unwrap();
+    REGISTRY.register(Box::new(OUTBOX_JOBS_PROCESSED.clone())).unwrap();
+    REGISTRY.register(Box::new(OUTBOX_JOB_FAILURES.clone())).unwrap();
+    REGISTRY.register(Box::new(OUTBOX_JOB_LATENCY.clone())).unwrap();
 }
 
 pub fn metrics_handler() -> String {

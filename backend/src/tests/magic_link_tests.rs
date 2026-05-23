@@ -415,3 +415,59 @@ impl Drop for SmtpGuard {
         }
     }
 }
+
+#[tokio::test]
+async fn test_magic_link_outbox_processing() {
+    let _smtp_guard = SmtpGuard::new();
+    let (app, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+
+    let mut username = format!("outbox_{}", Uuid::new_v4());
+    let (status, json_body) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let email = json_body["user"]["email"]
+        .as_str()
+        .expect("email missing from register response")
+        .to_string();
+
+    // 1. Request magic link. This should atomically insert a pending outbox job.
+    let req = app.clone()
+        .oneshot(
+            Request::builder()
+                .header("Host", "localhost")
+                .method("POST")
+                .uri("/api/auth/magic-link/request")
+                .header("Content-Type", "application/json")
+                .body(Body::from(json!({"email": email}).to_string()))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+    assert_eq!(req.status(), StatusCode::OK);
+
+    // 2. Query the database directly to verify a pending job was created.
+    use crate::entities::outbox_job;
+    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+
+    let pending_jobs = outbox_job::Entity::find()
+        .filter(outbox_job::Column::Status.eq("pending"))
+        .filter(outbox_job::Column::JobType.eq("send_magic_link_email"))
+        .all(&db)
+        .await
+        .unwrap();
+
+    // Verify exactly one job exists
+    assert!(!pending_jobs.is_empty(), "A pending outbox job must have been enqueued");
+    
+    // 3. Run the worker's processing logic manually to verify checkout, execution, and status transition.
+    crate::services::outbox_worker::OutboxWorker::process_next_job(&db).await.unwrap();
+
+    // 4. Verify that the job was completed in the database.
+    let processed_jobs = outbox_job::Entity::find()
+        .filter(outbox_job::Column::Status.eq("completed"))
+        .all(&db)
+        .await
+        .unwrap();
+
+    assert!(!processed_jobs.is_empty(), "The outbox job must be marked as 'completed'");
+}

@@ -49,6 +49,27 @@ impl DataSyncService {
                 continue;
             }
 
+            // Atomic Checkout Guard (optimistic concurrency update):
+            // Try to update last_run only if it hasn't changed since we fetched it.
+            // If another pod checked it out first, our update will affect 0 rows, and we skip execution.
+            let now_run = Utc::now();
+            let mut update_query = tenant_background_job::Entity::update_many()
+                .col_expr(tenant_background_job::Column::LastRun, sea_orm::sea_query::Expr::val(now_run).into())
+                .filter(tenant_background_job::Column::Id.eq(job.id));
+            
+            if let Some(last) = job.last_run {
+                update_query = update_query.filter(tenant_background_job::Column::LastRun.eq(last));
+            } else {
+                update_query = update_query.filter(tenant_background_job::Column::LastRun.is_null());
+            }
+
+            let rows_affected = update_query.exec(db).await?.rows_affected;
+            if rows_affected == 0 {
+                // Another pod checked out and ran/is running this job concurrently. Skip!
+                debug!("Skipping concurrent execution of job {} (type: {}) for tenant {}", job.id, job.job_type, job.tenant_id);
+                continue;
+            }
+
             debug!("Executing job {} / {} for tenant {}", job.id, job.job_type, job.tenant_id);
 
             // Dispatch based on dynamic AtlasApp definitions
@@ -67,11 +88,6 @@ impl DataSyncService {
             if !executed {
                 debug!("Unknown job type: {}", job.job_type);
             }
-
-            // Update last_run
-            let mut active_model: tenant_background_job::ActiveModel = job.into();
-            active_model.last_run = Set(Some(Utc::now().into()));
-            active_model.update(db).await?;
         }
 
         Ok(())

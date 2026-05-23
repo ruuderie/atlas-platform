@@ -16,7 +16,7 @@ use moka::future::Cache;
 use once_cell::sync::Lazy;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{app_domain, magic_link_token, tenant, user, app_instance, account, user_account};
+use crate::entities::{app_domain, magic_link_token, tenant, user, app_instance, account, user_account, outbox_job};
 use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
 use crate::metrics;  // Prometheus metrics
@@ -292,16 +292,18 @@ pub async fn request_magic_link(
 
                 let mut tenant_name = None;
                 let mut resolved_app_instance_id = app_instance_id.clone();
+                let mut resolved_tenant_id = Uuid::nil();
                 if let Some(domain) = domain_record {
                     resolved_app_instance_id = domain.app_instance_id.to_string();
                     if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
+                        resolved_tenant_id = app_inst.tenant_id;
                         if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
                             tenant_name = Some(tenant.name);
                         }
                     }
                 }
 
-                Some((url_str.clone(), tenant_name, resolved_app_instance_id))
+                Some((url_str.clone(), tenant_name, resolved_app_instance_id, resolved_tenant_id))
             }
             Err(e) => {
                 tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
@@ -313,9 +315,9 @@ pub async fn request_magic_link(
         None
     };
 
-    let (validated_redirect_url, tenant_name_opt, final_app_instance_id) = match validated_redirect_url_data {
-        Some((url, name_opt, app_id)) => (Some(url), name_opt, app_id),
-        None => (None, None, app_instance_id),
+    let (validated_redirect_url, tenant_name_opt, final_app_instance_id, tenant_id) = match validated_redirect_url_data {
+        Some((url, name_opt, app_id, t_id)) => (Some(url), name_opt, app_id, t_id),
+        None => (None, None, app_instance_id, Uuid::nil()),
     };
 
     if let Some(user_mod) = user_model {
@@ -489,7 +491,63 @@ pub async fn request_magic_link(
             }
         };
 
-        // Commit — releases the advisory lock atomically with the token write.
+        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
+
+        let magic_link_url = match validated_redirect_url {
+            Some(ref base) => {
+                if base.contains('?') {
+                    format!("{}&token={}", base, token_str)
+                } else {
+                    format!("{}?token={}", base, token_str)
+                }
+            }
+            None => {
+                let admin_url = std::env::var("ADMIN_URL")
+                    .unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
+                format!("{}/verify-token/{}", admin_url, token_str)
+            }
+        };
+
+        let email_payload = crate::handlers::communications::SendEmailPayload {
+            tenant_id,
+            to_email: user_mod.email.clone(),
+            subject: format!("Sign in to {}", brand_name),
+            body_html: format!(
+                "<h2>Sign in to {1}</h2>\
+                <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
+                <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
+                <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
+                magic_link_url, brand_name
+            ),
+        };
+
+        // Write the email payload into the transaction as an outbox_job entity:
+        let job_id = Uuid::new_v4();
+        let job_payload = serde_json::to_value(&email_payload).map_err(|e| {
+            tracing::error!("Failed to serialize email payload: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        let outbox_active = outbox_job::ActiveModel {
+            id: Set(job_id),
+            tenant_id: Set(tenant_id),
+            job_type: Set("send_magic_link_email".to_string()),
+            payload: Set(job_payload),
+            status: Set("pending".to_string()),
+            attempts: Set(0),
+            created_at: Set(Utc::now()),
+            run_at: Set(Utc::now()),
+            ..Default::default()
+        };
+
+        if let Err(e) = outbox_active.insert(&txn).await {
+            tracing::error!("Failed to insert outbox job: {:?}", e);
+            let _ = txn.rollback().await;
+            MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+
+        // Commit — releases the advisory lock atomically with the token and outbox job writes.
         if let Err(e) = txn.commit().await {
             tracing::error!("Failed to commit magic link transaction: {:?}", e);
             MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;
@@ -515,52 +573,6 @@ pub async fn request_magic_link(
         metrics::MAGIC_LINK_REQUESTS
             .with_label_values(&["unknown", &final_app_instance_id, "success"])
             .inc();
-
-        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
-
-        let magic_link_url = match validated_redirect_url {
-            Some(ref base) => {
-                if base.contains('?') {
-                    format!("{}&token={}", base, token_str)
-                } else {
-                    format!("{}?token={}", base, token_str)
-                }
-            }
-            None => {
-                let admin_url = std::env::var("ADMIN_URL")
-                    .unwrap_or_else(|_| "https://uat.atlas.oply.co".to_string());
-                format!("{}/verify-token/{}", admin_url, token_str)
-            }
-        };
-
-        let email_payload = crate::handlers::communications::SendEmailPayload {
-            tenant_id: Uuid::nil(),
-            to_email: user_mod.email.clone(),
-            subject: format!("Sign in to {}", brand_name),
-            body_html: format!(
-                "<h2>Sign in to {1}</h2>\
-                <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
-                <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
-                <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
-                magic_link_url, brand_name
-            ),
-        };
-
-        // T5 LATENCY FIX: dispatch email in a background task so the HTTP response
-        // is returned immediately after the token is committed. SMTP (TLS handshake +
-        // mailer.send) can take 2-5 seconds and would otherwise trigger LB timeouts.
-        let db_for_email = db.clone();
-        let email_addr = user_mod.email.clone();
-        tokio::task::spawn(async move {
-            if let Err((status, msg)) = crate::handlers::communications::send_email_handler(
-                State(db_for_email),
-                Json(email_payload),
-            ).await {
-                tracing::error!("Failed to dispatch magic link email to {}: {} {:?}", email_addr, msg, status);
-            } else {
-                tracing::info!("Magic link dispatched to {}", email_addr);
-            }
-        });
     } else {
         // User not found. Invalidate the cache since no email will be sent.
         MAGIC_LINK_REQUEST_CACHE.invalidate(&cache_key).await;

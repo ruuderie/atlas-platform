@@ -124,6 +124,8 @@ pub mod m20260517_000001_ensure_mailing_list_schema;
 pub mod m20260518_000001_create_app_instance_modules;
 // 2026-05-22: Create webauthn_challenges table to persist session/challenge state in PostgreSQL.
 pub mod m20260522_000001_create_webauthn_challenges;
+// 2026-05-23: Create outbox_job table to support Transactional Outbox Pattern
+pub mod m20260523_000001_create_outbox_jobs;
 
 pub struct Migrator;
 
@@ -207,7 +209,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260518_000001_create_app_instance_modules::Migration),
             // 2026-05-22: Create webauthn_challenges table to persist session/challenge state in PostgreSQL.
             Box::new(m20260522_000001_create_webauthn_challenges::Migration),
-
+            // 2026-05-23: Create outbox_job table to support Transactional Outbox Pattern
+            Box::new(m20260523_000001_create_outbox_jobs::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

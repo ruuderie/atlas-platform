@@ -98,6 +98,39 @@
             "expr": "sum by (tenant_id) (increase(auth_requests_total{status=\"success\"}[5m])) / sum by (tenant_id) (increase(auth_requests_total[5m]))"
           }
         ]
+      },
+      {
+        "title": "Outbox Jobs Processed by Tenant",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 40, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(outbox_jobs_processed_total[5m])",
+            "legendFormat": "{{tenant_id}} - {{job_type}}"
+          }
+        ]
+      },
+      {
+        "title": "Outbox Job Failures by Tenant",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 40, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(outbox_job_failures_total[5m])",
+            "legendFormat": "{{tenant_id}} - {{job_type}} - {{reason}}"
+          }
+        ]
+      },
+      {
+        "title": "Outbox Job Latency P95 by Tenant",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 48, "w": 24, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum by (tenant_id, job_type, le) (rate(outbox_job_latency_seconds_bucket[5m])))",
+            "legendFormat": "{{tenant_id}} - {{job_type}}"
+          }
+        ]
       }
     ]
   }

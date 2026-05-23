@@ -45,19 +45,23 @@ sequenceDiagram
     end
 
     rect rgb(255, 240, 245)
-        Note over Axum, DB: Token Rotation & Upsert
+        Note over Axum, DB: Token Rotation & Transactional Outbox Job Enqueue
         Axum->>DB: INSERT INTO magic_link_token ... ON CONFLICT (user_id) WHERE is_used = false DO UPDATE...
         DB-->>Axum: Upsert success (Returns generated token)
+        Axum->>DB: INSERT INTO outbox_job (id, tenant_id, job_type, payload, status='pending')
+        DB-->>Axum: Outbox job persisted
     end
 
     Axum->>DB: COMMIT Transaction
     Note over DB: Advisory Lock released automatically on COMMIT
 
-    rect rgb(240, 240, 240)
-        Note over Axum, Cache: Post-Commit Cache Insertion (Avoids Poisoning)
-        Axum->>Cache: Insert user key into Moka Cache (60s TTL)
-    end
-
-    Axum->>Email: Send magic link email (once and only once!)
     Axum-->>App: Return HTTP 200 OK
     App-->>User: Show "Check your inbox"
+
+    rect rgb(240, 240, 240)
+        Note over DB, Email: Background Worker Outbox Poller
+        Email->>DB: SELECT * FROM outbox_job WHERE status='pending' FOR UPDATE SKIP LOCKED
+        DB-->>Email: Returns pending outbox job row
+        Email->>Email: Process email & send over SMTP via Lettre
+        Email->>DB: UPDATE outbox_job SET status='completed' WHERE id = job_id
+    end

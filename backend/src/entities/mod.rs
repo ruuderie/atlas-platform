@@ -68,3 +68,5 @@ pub mod user_app_permission;
 // WEBAUTHN SESSION PERSISTENCE
 pub mod webauthn_challenge;
 
+// DISTRIBUTED TRANSACTIONAL OUTBOX
+pub mod outbox_job;
