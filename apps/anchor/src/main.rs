@@ -150,6 +150,10 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
         public_api_base_url.trim_end_matches('/')
     );
 
+    let env = std::env::var("ENVIRONMENT").unwrap_or_default();
+    let is_deployed = !env.is_empty() && env != "local";
+    let reload_component = (!is_deployed).then(|| view! { <AutoReload options=options.clone() /> });
+
     view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -159,7 +163,7 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::IntoView {
                 // Inject window.__ENV__ synchronously before WASM loads so client-side
                 // JS (passkey registration, etc.) can read API_BASE_URL immediately.
                 <script inner_html=env_script></script>
-                <AutoReload options=options.clone() />
+                {reload_component}
                 <HydrationScripts options />
                 <MetaTags/>
             </head>
