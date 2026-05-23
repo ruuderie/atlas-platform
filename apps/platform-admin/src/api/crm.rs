@@ -254,3 +254,30 @@ pub async fn get_crm_status_options(object_type: &str) -> Result<Vec<CrmStatusOp
         Err("Failed to fetch status options".into())
     }
 }
+
+pub async fn convert_lead(id: &str) -> Result<ContactModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/crm/leads/{}/convert", id));
+    let req = with_credentials(client.post(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::OK || res.status() == StatusCode::CREATED {
+        res.json::<ContactModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err("Failed to convert lead".into())
+    }
+}
+
+pub async fn update_lead(id: &str, status: &str) -> Result<LeadModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/admin/leads/{}", id));
+    let payload = serde_json::json!({
+        "lead_status": status
+    });
+    let req = with_credentials(client.put(&url).json(&payload));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::OK {
+        res.json::<LeadModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err("Failed to update lead".into())
+    }
+}

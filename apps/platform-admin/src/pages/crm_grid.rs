@@ -7,8 +7,8 @@ use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 use crate::components::milestone_modal::MilestoneModal;
 
-use crate::api::crm::{get_users, get_leads, get_accounts, get_deals, create_lead, create_account};
-use crate::api::models::{UserInfo, LeadModel, AccountModel, DealModel, CreateLead, CreateAccount};
+use crate::api::crm::{get_users, get_leads, get_accounts, get_deals, get_contacts, create_lead, create_account, create_contact};
+use crate::api::models::{UserInfo, LeadModel, AccountModel, DealModel, ContactModel, CreateLead, CreateAccount, CreateContact};
 
 #[component]
 pub fn CrmGrid() -> impl IntoView {
@@ -22,6 +22,7 @@ pub fn CrmGrid() -> impl IntoView {
     let users_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_users().await.unwrap_or_default() }});
     let leads_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_leads().await.unwrap_or_default() }});
     let accounts_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_accounts().await.unwrap_or_default() }});
+    let contacts_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_contacts().await.unwrap_or_default() }});
     let deals_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_deals().await.unwrap_or_default() }});
 
     let handle_save_record = move |_: ev::MouseEvent| {
@@ -36,6 +37,19 @@ pub fn CrmGrid() -> impl IntoView {
             } else if rtype == "Account" {
                 let data = CreateAccount { name };
                 if let Err(e) = create_account(data).await { toast.message.set(Some(e)); }
+            } else if rtype == "Contact" {
+                let data = CreateContact {
+                    name,
+                    email: Some(email),
+                    phone: None,
+                    whatsapp: None,
+                    telegram: None,
+                    twitter: None,
+                    instagram: None,
+                    facebook: None,
+                    properties: None,
+                };
+                if let Err(e) = create_contact(data).await { toast.message.set(Some(e)); }
             }
             set_trigger_fetch.update(|v| *v += 1);
             new_record_name.set("".to_string());
@@ -63,6 +77,7 @@ pub fn CrmGrid() -> impl IntoView {
     let user_headers = vec!["ID".to_string(), "Name".to_string(), "Email".to_string(), "Role".to_string(), "Status".to_string()];
     let lead_headers = vec!["Lead ID".to_string(), "Name".to_string(), "Email".to_string(), "Status".to_string(), "Converted?".to_string()];
     let account_headers = vec!["Account ID".to_string(), "Name".to_string()];
+    let contact_headers = vec!["Contact ID".to_string(), "Name".to_string(), "Email".to_string(), "Phone".to_string(), "Created At".to_string()];
     let deal_headers = vec!["Deal ID".to_string(), "Name".to_string(), "Customer ID".to_string(), "Amount".to_string(), "Status".to_string(), "Stage".to_string()];
 
     let user_data = Signal::derive(move || {
@@ -98,6 +113,18 @@ pub fn CrmGrid() -> impl IntoView {
         }).collect::<Vec<Vec<String>>>()
     });
 
+    let contact_data = Signal::derive(move || {
+        contacts_res.get().unwrap_or_default().into_iter().map(|c| {
+            vec![
+                c.id.clone(),
+                c.name.clone(),
+                c.email.clone().unwrap_or_else(|| "-".to_string()),
+                c.phone.clone().unwrap_or_else(|| "-".to_string()),
+                c.created_at.clone(),
+            ]
+        }).collect::<Vec<Vec<String>>>()
+    });
+
     let deal_data = Signal::derive(move || {
         deals_res.get().unwrap_or_default().into_iter().map(|d| {
             vec![
@@ -114,6 +141,7 @@ pub fn CrmGrid() -> impl IntoView {
     let selected_user = RwSignal::new(None::<Vec<String>>);
     let selected_lead = RwSignal::new(None::<Vec<String>>);
     let selected_account = RwSignal::new(None::<Vec<String>>);
+    let selected_contact = RwSignal::new(None::<Vec<String>>);
 
     let (show_milestone_modal, set_show_milestone_modal) = signal(false);
 
@@ -140,7 +168,8 @@ pub fn CrmGrid() -> impl IntoView {
                         <TabsList class="inline-flex gap-8".to_string()>
                             <TabButton label="Users" value="users" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
                             <TabButton label="Leads" value="leads" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                            <TabButton label="Accounts & Contacts" value="accounts_contacts" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
+                            <TabButton label="Accounts" value="accounts" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
+                            <TabButton label="Contacts" value="contacts" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
                             <TabButton label="Deals" value="deals" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
                         </TabsList>
                     </div>
@@ -280,7 +309,7 @@ pub fn CrmGrid() -> impl IntoView {
                         </TabsContent>
 
                         // ── Accounts Tab ──
-                        <TabsContent value="accounts_contacts".to_string()>
+                        <TabsContent value="accounts".to_string()>
                             <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
                                 <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
                                     <DataTable 
@@ -302,6 +331,44 @@ pub fn CrmGrid() -> impl IntoView {
                                         </div>
                                         <div class="mt-auto pt-6">
                                             <a href=move || format!("/crm/account/{}", selected_account.get().and_then(|a| a.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
+                                                "View Full Details"
+                                                <span class="material-symbols-outlined text-sm">"open_in_new"</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </Show>
+                            </div>
+                        </TabsContent>
+
+                        // ── Contacts Tab ──
+                        <TabsContent value="contacts".to_string()>
+                            <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
+                                <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
+                                    <DataTable 
+                                        headers=contact_headers.clone() 
+                                        data=contact_data 
+                                        on_row_click=Callback::new(move |row: Vec<String>| selected_contact.set(Some(row)))
+                                    />
+                                </div>
+                                <Show when=move || selected_contact.get().is_some() fallback=|| view! { <div class="w-full xl:w-[400px] flex items-center justify-center p-8 text-on-surface-variant bg-surface-container-low">"Select a contact to view details"</div> }>
+                                    <div class="w-full xl:w-[400px] shrink-0 bg-surface-container-low overflow-y-auto p-8 space-y-6">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-16 h-16 rounded-xl bg-surface-bright flex items-center justify-center border border-outline-variant/40">
+                                                <span class="text-2xl font-bold text-primary">{move || selected_contact.get().and_then(|c| c.get(1).map(|n| n.chars().take(2).collect::<String>().to_uppercase())).unwrap_or_default()}</span>
+                                            </div>
+                                            <div>
+                                                <h2 class="text-xl font-bold text-on-surface">{move || selected_contact.get().and_then(|c| c.get(1).cloned()).unwrap_or_default()}</h2>
+                                                <p class="text-on-surface-variant text-sm">{move || selected_contact.get().and_then(|c| c.get(2).cloned()).unwrap_or_default()}</p>
+                                            </div>
+                                        </div>
+                                        <div class="grid grid-cols-1 gap-4">
+                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
+                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Phone"</div>
+                                                <div class="text-sm font-semibold text-primary">{move || selected_contact.get().and_then(|c| c.get(3).cloned()).unwrap_or_default()}</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-auto pt-6">
+                                            <a href=move || format!("/crm/contact/{}", selected_contact.get().and_then(|c| c.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
                                                 "View Full Details"
                                                 <span class="material-symbols-outlined text-sm">"open_in_new"</span>
                                             </a>
