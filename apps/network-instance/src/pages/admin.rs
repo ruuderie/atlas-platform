@@ -25,6 +25,9 @@ use shared_ui::components::admin_module_sidebar::{
 use shared_ui::utils::ResourceState;
 use crate::auth::api_base_url;
 
+pub mod leads;
+pub mod contacts;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Server Functions
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,10 +244,7 @@ fn AdminDashboard() -> impl IntoView {
                         "Network Administration"
                     </p>
                     <h1 class="text-3xl font-bold text-foreground">
-                        {move || format!("{}", active_tab.get()
-                            .to_display_name_dyn()
-                            .unwrap_or("Dashboard")
-                        )}
+                        {move || active_tab.get().to_string()}
                     </h1>
                 </div>
 
@@ -253,8 +253,8 @@ fn AdminDashboard() -> impl IntoView {
                     {move || match active_tab.get() {
                         AdminModuleType::Dashboard  => view! { <AdminOverviewPanel /> }.into_any(),
                         AdminModuleType::Listings   => view! { <ListingsPanel /> }.into_any(),
-                        AdminModuleType::Leads      => view! { <LeadsPanel /> }.into_any(),
-                        AdminModuleType::Contacts   => view! { <ContactsPanel /> }.into_any(),
+                        AdminModuleType::Leads      => view! { <leads::LeadTable /> }.into_any(),
+                        AdminModuleType::Contacts   => view! { <contacts::ContactTable /> }.into_any(),
                         AdminModuleType::Settings   => view! { <SettingsPanel /> }.into_any(),
                         AdminModuleType::Security   => view! { <SecurityPanel /> }.into_any(),
                         AdminModuleType::Navigation => view! { <NavigationPanel /> }.into_any(),
@@ -306,32 +306,7 @@ fn ListingsPanel() -> impl IntoView {
     }
 }
 
-#[component]
-fn LeadsPanel() -> impl IntoView {
-    view! {
-        <div class="rounded-xl border border-border bg-card p-8 text-center space-y-3">
-            <span class="material-symbols-outlined text-4xl text-primary block">"person_add"</span>
-            <h2 class="text-lg font-semibold text-foreground">"Leads"</h2>
-            <p class="text-sm text-muted-foreground max-w-md mx-auto">
-                "Inbound inquiries and unvetted contacts awaiting qualification. "
-                "Leads are distinct from Contacts — they have not yet opted in to communications."
-            </p>
-        </div>
-    }
-}
 
-#[component]
-fn ContactsPanel() -> impl IntoView {
-    view! {
-        <div class="rounded-xl border border-border bg-card p-8 text-center space-y-3">
-            <span class="material-symbols-outlined text-4xl text-primary block">"contacts"</span>
-            <h2 class="text-lg font-semibold text-foreground">"Contacts"</h2>
-            <p class="text-sm text-muted-foreground max-w-md mx-auto">
-                "Vetted, opted-in members eligible to receive network communications."
-            </p>
-        </div>
-    }
-}
 
 #[component]
 fn SettingsPanel() -> impl IntoView {

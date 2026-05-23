@@ -332,3 +332,59 @@ pub struct TenantSettingResponse {
     pub key: String,
     pub value: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ContactModel {
+    pub id: String,
+    pub customer_id: Option<String>,
+    pub name: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub whatsapp: Option<String>,
+    pub telegram: Option<String>,
+    pub twitter: Option<String>,
+    pub instagram: Option<String>,
+    pub facebook: Option<String>,
+    pub properties: Option<serde_json::Value>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateContact {
+    pub name: String,
+    pub email: Option<String>,
+    pub phone: Option<String>,
+    pub whatsapp: Option<String>,
+    pub telegram: Option<String>,
+    pub twitter: Option<String>,
+    pub instagram: Option<String>,
+    pub facebook: Option<String>,
+    pub properties: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrmNote {
+    pub id: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrmActivity {
+    pub id: String,
+    pub activity_type: String,
+    pub description: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrmStatusOption {
+    pub status_key: String,
+    pub label: String,
+    pub color: String,
+    pub sort_order: i32,
+    pub is_system: bool,
+}

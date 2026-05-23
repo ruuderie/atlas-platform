@@ -54,7 +54,7 @@ pub async fn create_contact(
         facebook: Set(payload.facebook),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        properties: Set(None),
+        properties: Set(payload.properties),
         ..Default::default()
     };
 
@@ -154,6 +154,9 @@ pub async fn update_contact(
     }
     if let Some(facebook) = payload.facebook {
         contact.facebook = Set(Some(facebook));
+    }
+    if let Some(properties) = payload.properties {
+        contact.properties = Set(Some(properties));
     }
     contact.updated_at = Set(Utc::now());
 
