@@ -97,7 +97,7 @@ wasm-bindgen-test = "0.3.67"
 # NOTE: Increment the version suffix (v5 → v6, etc.) on each deployment to bust Cloudflare edge
 # caches. This is the proven-reliable alternative to hash-files=true, which requires careful
 # three-layer env var coordination (Cargo.toml + Dockerfile + k8s manifest) to work correctly.
-output-name = "anchor-v5"
+output-name = "anchor-v6"
 
 # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
 site-root = "target/site"

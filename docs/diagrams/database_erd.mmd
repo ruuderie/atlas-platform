@@ -82,7 +82,7 @@ erDiagram
     %% New CRM Relationships
     Customer ||--o{ Deal : has
     Customer ||--o{ Contact : has
-    Customer ||--o{ Case : has
+    Customer ||--o{ "Case" : has
     Customer ||--o{ Activity : has
     Customer ||--o{ Note : has
     Deal ||--o{ DealContact : has
@@ -93,8 +93,8 @@ erDiagram
     Contact ||--o{ Note : has
     Lead ||--o{ Activity : has
     Lead ||--o{ Note : has
-    Case ||--o{ Activity : has
-    Case ||--o{ Note : has
+    "Case" ||--o{ Activity : has
+    "Case" ||--o{ Note : has
     Activity ||--o{ Note : has
     FileAssociation }|--|| File : belongs_to
 
@@ -103,7 +103,7 @@ erDiagram
     Deal ||--o{ FileAssociation : has
     Contact ||--o{ FileAssociation : has
     Lead ||--o{ FileAssociation : has
-    Case ||--o{ FileAssociation : has
+    "Case" ||--o{ FileAssociation : has
     Activity ||--o{ FileAssociation : has
     Note ||--o{ FileAssociation : has
 
@@ -331,7 +331,7 @@ erDiagram
         datetime updated_at
     }
 
-    Case {
+    "Case" {
         UUID id PK
         UUID customer_id FK
         string title
