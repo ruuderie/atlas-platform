@@ -1550,11 +1550,13 @@ pub fn LeadForm(
     let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let save = move |_| {
-        let n = name.get_untracked();
-        if n.is_empty() {
-            set_save_error.set(Some("Full Name is required".to_string()));
+        let fn_val = first_name.get_untracked();
+        let ln_val = last_name.get_untracked();
+        if fn_val.is_empty() && ln_val.is_empty() {
+            set_save_error.set(Some("First Name or Last Name is required".to_string()));
             return;
         }
+        let n = format!("{} {}", fn_val, ln_val).trim().to_string();
 
         let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
         let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
@@ -1611,12 +1613,8 @@ pub fn LeadForm(
     view! {
         <div class="space-y-6">
             <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col gap-2 col-span-2">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Full Name *"</label>
-                    <input type="text" prop:value=name on:input=move |ev| set_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="John Doe" />
-                </div>
                 <div class="flex flex-col gap-2">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name"</label>
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name *"</label>
                     <input type="text" prop:value=first_name on:input=move |ev| set_first_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="John" />
                 </div>
                 <div class="flex flex-col gap-2">
@@ -1714,11 +1712,13 @@ pub fn ContactForm(
     let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let save = move |_| {
-        let n = name.get_untracked();
-        if n.is_empty() {
-            set_save_error.set(Some("Full Name is required".to_string()));
+        let fn_val = first_name.get_untracked();
+        let ln_val = last_name.get_untracked();
+        if fn_val.is_empty() && ln_val.is_empty() {
+            set_save_error.set(Some("First Name or Last Name is required".to_string()));
             return;
         }
+        let n = format!("{} {}", fn_val, ln_val).trim().to_string();
 
         let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
         let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
@@ -1794,12 +1794,8 @@ pub fn ContactForm(
     view! {
         <div class="space-y-6">
             <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col gap-2 col-span-2">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Full Name *"</label>
-                    <input type="text" prop:value=name on:input=move |ev| set_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Jane Smith" />
-                </div>
                 <div class="flex flex-col gap-2">
-                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name"</label>
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name *"</label>
                     <input type="text" prop:value=first_name on:input=move |ev| set_first_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Jane" />
                 </div>
                 <div class="flex flex-col gap-2">

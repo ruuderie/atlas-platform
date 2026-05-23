@@ -712,6 +712,7 @@ fn LeadCrmPane(
     let (message, set_message) = signal(lead_record.message.clone().unwrap_or_default());
     
     let (edit_mode, set_edit_mode) = signal(false);
+    let (save_error, set_save_error) = signal::<Option<String>>(None);
 
     let handle_stage_change = move |new_stage: String| {
         set_current_stage.set(new_stage.clone());
@@ -726,9 +727,18 @@ fn LeadCrmPane(
     };
 
     let handle_save_details = move |_| {
-        let n = name.get();
-        let fn_val = Some(first_name.get()).filter(|s| !s.is_empty());
-        let ln_val = Some(last_name.get()).filter(|s| !s.is_empty());
+        let fn_val = first_name.get();
+        let ln_val = last_name.get();
+        if fn_val.is_empty() && ln_val.is_empty() {
+            set_save_error.set(Some("First Name or Last Name is required".to_string()));
+            return;
+        }
+        let n = format!("{} {}", fn_val, ln_val).trim().to_string();
+        set_name.set(n.clone());
+        set_save_error.set(None);
+
+        let fn_opt = Some(fn_val).filter(|s| !s.is_empty());
+        let ln_opt = Some(ln_val).filter(|s| !s.is_empty());
         let em_val = Some(email.get()).filter(|s| !s.is_empty());
         let ph_val = Some(phone.get()).filter(|s| !s.is_empty());
         let co_val = Some(company.get()).filter(|s| !s.is_empty());
@@ -737,11 +747,16 @@ fn LeadCrmPane(
         let me_val = Some(message.get()).filter(|s| !s.is_empty());
 
         leptos::task::spawn_local(async move {
-            if let Ok(_) = update_lead_details(
-                lead_id, n, fn_val, ln_val, em_val, ph_val, co_val, ti_val, so_val, me_val
+            match update_lead_details(
+                lead_id, n, fn_opt, ln_opt, em_val, ph_val, co_val, ti_val, so_val, me_val
             ).await {
-                set_edit_mode.set(false);
-                set_refresh.set(refresh.get_untracked() + 1);
+                Ok(_) => {
+                    set_edit_mode.set(false);
+                    set_refresh.set(refresh.get_untracked() + 1);
+                }
+                Err(e) => {
+                    set_save_error.set(Some(format!("Save failed: {}", e)));
+                }
             }
         });
     };
@@ -864,25 +879,7 @@ fn LeadCrmPane(
                     <div class="space-y-3 bg-surface-container-lowest p-4 rounded-lg border border-outline-variant/20">
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Full Name *"</label>
-                                <input 
-                                    type="text" 
-                                    prop:value=name
-                                    on:input=move |ev| set_name.set(event_target_value(&ev))
-                                    class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Source"</label>
-                                <input 
-                                    type="text" 
-                                    prop:value=source
-                                    on:input=move |ev| set_source.set(event_target_value(&ev))
-                                    class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
-                                />
-                            </div>
-                            <div>
-                                <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name"</label>
+                                <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"First Name *"</label>
                                 <input 
                                     type="text" 
                                     prop:value=first_name
@@ -935,6 +932,15 @@ fn LeadCrmPane(
                                     class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
                                 />
                             </div>
+                            <div class="col-span-2">
+                                <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Source"</label>
+                                <input 
+                                    type="text" 
+                                    prop:value=source
+                                    on:input=move |ev| set_source.set(event_target_value(&ev))
+                                    class="w-full bg-surface-container border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:border-primary rounded"
+                                />
+                            </div>
                         </div>
                         <div>
                             <label class="block text-[10px] jetbrains uppercase text-outline mb-1">"Message / Quote Details"</label>
@@ -945,6 +951,11 @@ fn LeadCrmPane(
                                 class="w-full bg-surface-container border border-outline-variant/30 px-3 py-2 text-xs text-on-surface focus:outline-none focus:border-primary rounded resize-none"
                             ></textarea>
                         </div>
+                        <Show when=move || save_error.get().is_some()>
+                            <div class="bg-error/10 border-l-4 border-error p-3 jetbrains text-xs text-error font-medium">
+                                {move || save_error.get().unwrap_or_default()}
+                            </div>
+                        </Show>
                         <div class="flex justify-end">
                             <button
                                 on:click=handle_save_details
