@@ -314,6 +314,56 @@ pub async fn update_lead_details(
     Ok(())
 }
 
+#[server(AddLead, "/api")]
+pub async fn add_lead(
+    name: String,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    email: Option<String>,
+    phone: Option<String>,
+    company: Option<String>,
+    title: Option<String>,
+    lead_status: Option<String>,
+    source: Option<String>,
+    message: Option<String>,
+) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let lead_id = uuid::Uuid::new_v4();
+    let status_str = lead_status.unwrap_or_else(|| "new".to_string());
+
+    sqlx::query(
+        "INSERT INTO lead (id, name, first_name, last_name, email, phone, company, title, lead_status, message, source, is_converted, tenant_id, created_at, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false, $12, NOW(), NOW())"
+    )
+    .bind(lead_id)
+    .bind(name)
+    .bind(first_name)
+    .bind(last_name)
+    .bind(email)
+    .bind(phone)
+    .bind(company)
+    .bind(title)
+    .bind(status_str)
+    .bind(message)
+    .bind(source)
+    .bind(tenant.0)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(())
+}
+
+
 #[server(GetLeadNotes, "/api")]
 pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerFnError> {
     use axum::Extension;

@@ -178,6 +178,57 @@ pub async fn update_contact_details(
     Ok(())
 }
 
+#[server(AddContact, "/api")]
+pub async fn add_contact(
+    name: String,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    email: Option<String>,
+    phone: Option<String>,
+    whatsapp: Option<String>,
+    telegram: Option<String>,
+    twitter: Option<String>,
+    instagram: Option<String>,
+    facebook: Option<String>,
+    properties: Option<serde_json::Value>,
+) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let contact_id = uuid::Uuid::new_v4();
+
+    sqlx::query(
+        "INSERT INTO contact (id, name, first_name, last_name, email, phone, whatsapp, telegram, twitter, instagram, facebook, properties, tenant_id, created_at, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())"
+    )
+    .bind(contact_id)
+    .bind(name)
+    .bind(first_name)
+    .bind(last_name)
+    .bind(email)
+    .bind(phone)
+    .bind(whatsapp)
+    .bind(telegram)
+    .bind(twitter)
+    .bind(instagram)
+    .bind(facebook)
+    .bind(properties)
+    .bind(tenant.0)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(())
+}
+
+
 #[server(GetContactNotes, "/api")]
 pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerFnError> {
     use axum::Extension;

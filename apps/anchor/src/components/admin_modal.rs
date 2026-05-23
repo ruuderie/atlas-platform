@@ -11,6 +11,8 @@ pub enum ModalState {
     ),
     LandingPage(Option<crate::pages::dynamic_landing::LandingPageRecord>),
     MailingList(Option<crate::pages::admin::MailingListRecord>),
+    Lead(Option<crate::pages::admin::leads::LeadRecord>),
+    Contact(Option<crate::pages::admin::contacts::ContactRecord>),
     NavItem(Option<crate::components::nav::NavItemRecord>),
     FooterItem(Option<crate::components::footer::FooterItemRecord>),
     PageHeader(Option<crate::components::dynamic_header::PageHeaderData>),
@@ -55,6 +57,10 @@ pub fn AdminEditorModal() -> impl IntoView {
                                     ModalState::LandingPage(Some(_)) => "EDIT LANDING PAGE",
                                     ModalState::MailingList(None) => "ADD MAILING LIST MEMBER",
                                     ModalState::MailingList(Some(_)) => "EDIT MAILING LIST MEMBER",
+                                    ModalState::Lead(None) => "NEW LEAD ENTRY",
+                                    ModalState::Lead(Some(_)) => "EDIT LEAD ENTRY",
+                                    ModalState::Contact(None) => "NEW CRM CONTACT",
+                                    ModalState::Contact(Some(_)) => "EDIT CRM CONTACT",
                                     ModalState::NavItem(None) => "NEW NAVIGATION NODE",
                                     ModalState::NavItem(Some(_)) => "EDIT NAVIGATION NODE",
                                     ModalState::FooterItem(None) => "NEW FOOTER NODE",
@@ -96,6 +102,8 @@ pub fn AdminEditorModal() -> impl IntoView {
             },
                                 ModalState::LandingPage(p) => view! { <LandingPageForm initial_page=p /> }.into_any(),
                                 ModalState::MailingList(r) => view! { <MailingListForm initial_record=r /> }.into_any(),
+                                ModalState::Lead(l) => view! { <LeadForm initial_record=l.clone() /> }.into_any(),
+                                ModalState::Contact(c) => view! { <ContactForm initial_record=c.clone() /> }.into_any(),
                                 ModalState::NavItem(n) => view! { <NavItemForm initial_item=n /> }.into_any(),
                                 ModalState::FooterItem(f) => view! { <FooterItemForm initial_item=f /> }.into_any(),
                                 ModalState::PageHeader(h) => view! { <PageHeaderForm initial_item=h /> }.into_any(),
@@ -1509,6 +1517,378 @@ pub fn MailingListForm(
 
             <button on:click=save class="w-full bg-primary text-on-primary py-4 mt-6 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors shadow-lg">
                 "SUBMIT LEAD"
+            </button>
+        </div>
+    }
+}
+
+// -----------------------------------------
+// CRM Lead Form
+// -----------------------------------------
+#[component]
+pub fn LeadForm(
+    initial_record: Option<crate::pages::admin::leads::LeadRecord>,
+) -> impl IntoView {
+    let set_modal_state = expect_context::<WriteSignal<ModalState>>();
+    let set_refresh = expect_context::<WriteSignal<i32>>();
+    let refresh = expect_context::<ReadSignal<i32>>();
+
+    let is_edit = initial_record.is_some();
+    let id_val = initial_record.as_ref().map(|r| r.id).unwrap_or_default();
+
+    let (name, set_name) = signal(initial_record.as_ref().map(|r| r.name.clone()).unwrap_or_default());
+    let (first_name, set_first_name) = signal(initial_record.as_ref().and_then(|r| r.first_name.clone()).unwrap_or_default());
+    let (last_name, set_last_name) = signal(initial_record.as_ref().and_then(|r| r.last_name.clone()).unwrap_or_default());
+    let (email, set_email) = signal(initial_record.as_ref().and_then(|r| r.email.clone()).unwrap_or_default());
+    let (phone, set_phone) = signal(initial_record.as_ref().and_then(|r| r.phone.clone()).unwrap_or_default());
+    let (company, set_company) = signal(initial_record.as_ref().and_then(|r| r.company.clone()).unwrap_or_default());
+    let (title, set_title) = signal(initial_record.as_ref().and_then(|r| r.title.clone()).unwrap_or_default());
+    let (lead_status, set_lead_status) = signal(initial_record.as_ref().and_then(|r| r.lead_status.clone()).unwrap_or_else(|| "new".to_string()));
+    let (source, set_source) = signal(initial_record.as_ref().and_then(|r| r.source.clone()).unwrap_or_else(|| "Manual".to_string()));
+    let (message, set_message) = signal(initial_record.as_ref().and_then(|r| r.message.clone()).unwrap_or_default());
+
+    let (save_error, set_save_error) = signal::<Option<String>>(None);
+
+    let save = move |_| {
+        let n = name.get_untracked();
+        if n.is_empty() {
+            set_save_error.set(Some("Full Name is required".to_string()));
+            return;
+        }
+
+        let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let em_opt = { let s = email.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ph_opt = { let s = phone.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let co_opt = { let s = company.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ti_opt = { let s = title.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let st_opt = Some(lead_status.get_untracked());
+        let src_opt = Some(source.get_untracked());
+        let msg_opt = { let s = message.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+
+        set_save_error.set(None);
+        leptos::task::spawn_local(async move {
+            let res = if is_edit {
+                crate::pages::admin::leads::update_lead_details(
+                    id_val,
+                    n,
+                    fn_opt,
+                    ln_opt,
+                    em_opt,
+                    ph_opt,
+                    co_opt,
+                    ti_opt,
+                    src_opt,
+                    msg_opt,
+                ).await
+            } else {
+                crate::pages::admin::leads::add_lead(
+                    n,
+                    fn_opt,
+                    ln_opt,
+                    em_opt,
+                    ph_opt,
+                    co_opt,
+                    ti_opt,
+                    st_opt,
+                    src_opt,
+                    msg_opt,
+                ).await
+            };
+
+            match res {
+                Ok(_) => {
+                    set_refresh.set(refresh.get_untracked() + 1);
+                    set_modal_state.set(ModalState::None);
+                }
+                Err(e) => {
+                    set_save_error.set(Some(format!("Save failed: {}", e)));
+                }
+            }
+        });
+    };
+
+    view! {
+        <div class="space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2 col-span-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Full Name *"</label>
+                    <input type="text" prop:value=name on:input=move |ev| set_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="John Doe" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name"</label>
+                    <input type="text" prop:value=first_name on:input=move |ev| set_first_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="John" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Last Name"</label>
+                    <input type="text" prop:value=last_name on:input=move |ev| set_last_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Doe" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Email Address"</label>
+                    <input type="email" prop:value=email on:input=move |ev| set_email.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="john@example.com" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Phone Number"</label>
+                    <input type="tel" prop:value=phone on:input=move |ev| set_phone.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="+1 (555) 019-2834" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Company"</label>
+                    <input type="text" prop:value=company on:input=move |ev| set_company.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Acme Corp" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Job Title"</label>
+                    <input type="text" prop:value=title on:input=move |ev| set_title.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="VP of Sales" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Lead Status"</label>
+                    <select on:change=move |ev| set_lead_status.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains">
+                        <option value="new" selected=move || lead_status.get() == "new">"New"</option>
+                        <option value="contacted" selected=move || lead_status.get() == "contacted">"Contacted"</option>
+                        <option value="nurturing" selected=move || lead_status.get() == "nurturing">"Nurturing"</option>
+                        <option value="qualified" selected=move || lead_status.get() == "qualified">"Qualified"</option>
+                        <option value="unqualified" selected=move || lead_status.get() == "unqualified">"Unqualified"</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-2 col-span-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Lead Source"</label>
+                    <input type="text" prop:value=source on:input=move |ev| set_source.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Webform / Manual" />
+                </div>
+                <div class="flex flex-col gap-2 col-span-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Message / Notes"</label>
+                    <textarea prop:value=message on:input=move |ev| set_message.set(event_target_value(&ev)) rows="3" class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains resize-y"></textarea>
+                </div>
+            </div>
+
+            <Show when=move || save_error.get().is_some()>
+                <div class="bg-error/10 border-l-4 border-error p-3 jetbrains text-xs text-error font-medium">
+                    {move || save_error.get().unwrap_or_default()}
+                </div>
+            </Show>
+
+            <button on:click=save class="w-full bg-primary text-on-primary py-4 mt-6 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors shadow-lg">
+                "SAVE LEAD"
+            </button>
+        </div>
+    }
+}
+
+// -----------------------------------------
+// CRM Contact Form
+// -----------------------------------------
+#[component]
+pub fn ContactForm(
+    initial_record: Option<crate::pages::admin::contacts::ContactRecord>,
+) -> impl IntoView {
+    let set_modal_state = expect_context::<WriteSignal<ModalState>>();
+    let set_refresh = expect_context::<WriteSignal<i32>>();
+    let refresh = expect_context::<ReadSignal<i32>>();
+
+    let is_edit = initial_record.is_some();
+    let id_val = initial_record.as_ref().map(|r| r.id).unwrap_or_default();
+
+    let (name, set_name) = signal(initial_record.as_ref().map(|r| r.name.clone()).unwrap_or_default());
+    let (first_name, set_first_name) = signal(initial_record.as_ref().and_then(|r| r.first_name.clone()).unwrap_or_default());
+    let (last_name, set_last_name) = signal(initial_record.as_ref().and_then(|r| r.last_name.clone()).unwrap_or_default());
+    let (email, set_email) = signal(initial_record.as_ref().and_then(|r| r.email.clone()).unwrap_or_default());
+    let (phone, set_phone) = signal(initial_record.as_ref().and_then(|r| r.phone.clone()).unwrap_or_default());
+    
+    // Social Profiles
+    let (whatsapp, set_whatsapp) = signal(initial_record.as_ref().and_then(|r| r.whatsapp.clone()).unwrap_or_default());
+    let (telegram, set_telegram) = signal(initial_record.as_ref().and_then(|r| r.telegram.clone()).unwrap_or_default());
+    let (twitter, set_twitter) = signal(initial_record.as_ref().and_then(|r| r.twitter.clone()).unwrap_or_default());
+    let (instagram, set_instagram) = signal(initial_record.as_ref().and_then(|r| r.instagram.clone()).unwrap_or_default());
+    let (facebook, set_facebook) = signal(initial_record.as_ref().and_then(|r| r.facebook.clone()).unwrap_or_default());
+
+    // Mailing List Option (Integration)
+    let (subscribe_list, set_subscribe_list) = signal(false);
+    let (list_tag, set_list_tag) = signal("manual_override".to_string());
+
+    // Properties (Metadata Editor)
+    let (properties_str, set_properties_str) = signal(
+        initial_record.as_ref()
+            .and_then(|r| r.properties.as_ref())
+            .map(|p| serde_json::to_string_pretty(p).unwrap_or_else(|_| "{}".to_string()))
+            .unwrap_or_else(|| "{\n  \"tags\": [],\n  \"status\": \"prospect\"\n}".to_string())
+    );
+
+    let (save_error, set_save_error) = signal::<Option<String>>(None);
+
+    let save = move |_| {
+        let n = name.get_untracked();
+        if n.is_empty() {
+            set_save_error.set(Some("Full Name is required".to_string()));
+            return;
+        }
+
+        let fn_opt = { let s = first_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ln_opt = { let s = last_name.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let em_opt = { let s = email.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ph_opt = { let s = phone.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let wa_opt = { let s = whatsapp.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let tg_opt = { let s = telegram.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let tw_opt = { let s = twitter.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let ig_opt = { let s = instagram.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let fb_opt = { let s = facebook.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+
+        let parsed_properties = match serde_json::from_str::<serde_json::Value>(&properties_str.get_untracked()) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                set_save_error.set(Some(format!("Invalid Properties JSON: {}", e)));
+                return;
+            }
+        };
+
+        let sub_email = em_opt.clone().unwrap_or_default();
+        let sub_active = subscribe_list.get_untracked() && !sub_email.is_empty();
+        let sub_tag = list_tag.get_untracked();
+
+        set_save_error.set(None);
+        leptos::task::spawn_local(async move {
+            let res = if is_edit {
+                crate::pages::admin::contacts::update_contact_details(
+                    id_val,
+                    n,
+                    fn_opt,
+                    ln_opt,
+                    em_opt,
+                    ph_opt,
+                    wa_opt,
+                    tg_opt,
+                    tw_opt,
+                    ig_opt,
+                    fb_opt,
+                    parsed_properties,
+                ).await
+            } else {
+                crate::pages::admin::contacts::add_contact(
+                    n,
+                    fn_opt,
+                    ln_opt,
+                    em_opt,
+                    ph_opt,
+                    wa_opt,
+                    tg_opt,
+                    tw_opt,
+                    ig_opt,
+                    fb_opt,
+                    parsed_properties,
+                ).await
+            };
+
+            match res {
+                Ok(_) => {
+                    // Optionally subscribe to the mailing list
+                    if sub_active {
+                        let _ = crate::pages::dynamic_landing::handle_dynamic_lead(sub_tag, sub_email, vec![]).await;
+                    }
+                    set_refresh.set(refresh.get_untracked() + 1);
+                    set_modal_state.set(ModalState::None);
+                }
+                Err(e) => {
+                    set_save_error.set(Some(format!("Save failed: {}", e)));
+                }
+            }
+        });
+    };
+
+    view! {
+        <div class="space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2 col-span-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Full Name *"</label>
+                    <input type="text" prop:value=name on:input=move |ev| set_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Jane Smith" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"First Name"</label>
+                    <input type="text" prop:value=first_name on:input=move |ev| set_first_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Jane" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Last Name"</label>
+                    <input type="text" prop:value=last_name on:input=move |ev| set_last_name.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="Smith" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Email Address"</label>
+                    <input type="email" prop:value=email on:input=move |ev| set_email.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="jane@example.com" />
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Phone Number"</label>
+                    <input type="tel" prop:value=phone on:input=move |ev| set_phone.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="+1 (555) 019-9988" />
+                </div>
+
+                // Social profiles section
+                <div class="col-span-2 border-t border-outline-variant/30 pt-6 mt-4">
+                    <h3 class="font-label text-xs font-bold text-primary tracking-widest uppercase mb-4">"Social Profiles"</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"WhatsApp"</label>
+                            <input type="text" prop:value=whatsapp on:input=move |ev| set_whatsapp.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="+1..." />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Telegram"</label>
+                            <input type="text" prop:value=telegram on:input=move |ev| set_telegram.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="@username" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Twitter (X)"</label>
+                            <input type="text" prop:value=twitter on:input=move |ev| set_twitter.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="@username" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Instagram"</label>
+                            <input type="text" prop:value=instagram on:input=move |ev| set_instagram.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="@username" />
+                        </div>
+                        <div class="flex flex-col gap-2 col-span-2">
+                            <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Facebook"</label>
+                            <input type="text" prop:value=facebook on:input=move |ev| set_facebook.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" placeholder="https://facebook.com/..." />
+                        </div>
+                    </div>
+                </div>
+
+                // Mailing List Option
+                <div class="col-span-2 border-t border-outline-variant/30 pt-6 mt-4">
+                    <h3 class="font-label text-xs font-bold text-secondary tracking-widest uppercase mb-4">"Mailing List Integration"</h3>
+                    <div class="flex flex-col gap-4 p-4 border border-outline-variant/30 bg-surface-container-lowest">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox"
+                                prop:checked=subscribe_list
+                                on:change=move |ev| set_subscribe_list.set(event_target_checked(&ev))
+                                class="w-5 h-5 bg-transparent border-2 border-outline-variant text-primary focus:ring-primary focus:ring-offset-surface-container-low"
+                            />
+                            <div>
+                                <p class="jetbrains text-[0.65rem] uppercase tracking-widest font-bold text-on-surface">
+                                    "Add Contact to a Mailing List"
+                                </p>
+                                <p class="jetbrains text-[0.6rem] text-on-surface-variant mt-0.5">
+                                    "Checking this option registers the contact on the chosen mailing list/tag group."
+                                </p>
+                            </div>
+                        </label>
+                        
+                        <Show when=move || subscribe_list.get()>
+                            <div class="flex flex-col gap-2 mt-2">
+                                <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"List Identifier (Tags)"</label>
+                                <input type="text" prop:value=list_tag on:input=move |ev| set_list_tag.set(event_target_value(&ev)) class="bg-surface p-3 border border-outline-variant focus:border-primary focus:ring-0 text-sm jetbrains" />
+                            </div>
+                        </Show>
+                    </div>
+                </div>
+
+                // Properties JSON Editor
+                <div class="col-span-2 border-t border-outline-variant/30 pt-6 mt-4">
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="jetbrains text-[0.65rem] uppercase text-outline tracking-wider">"Custom CRM Properties / Metadata (JSON)"</label>
+                        <span class="jetbrains text-[0.55rem] text-outline-variant tracking-widest">"SCHEMALESS_JSONB"</span>
+                    </div>
+                    <textarea prop:value=properties_str on:input=move |ev| set_properties_str.set(event_target_value(&ev)) rows="5" class="bg-surface p-4 border border-outline-variant focus:border-primary focus:ring-0 text-sm font-mono text-on-surface resize-y block w-full"></textarea>
+                </div>
+            </div>
+
+            <Show when=move || save_error.get().is_some()>
+                <div class="bg-error/10 border-l-4 border-error p-3 jetbrains text-xs text-error font-medium">
+                    {move || save_error.get().unwrap_or_default()}
+                </div>
+            </Show>
+
+            <button on:click=save class="w-full bg-primary text-on-primary py-4 mt-6 jetbrains text-xs font-bold tracking-[0.2em] uppercase hover:bg-primary-container transition-colors shadow-lg">
+                "SAVE CONTACT"
             </button>
         </div>
     }

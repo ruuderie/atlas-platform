@@ -189,7 +189,7 @@ pub fn App() -> impl IntoView {
         // Manual cache-busting: the CSS filename matches `output-name` in Cargo.toml.
         // When deploying a new WASM bundle, increment the suffix (v5 → v6) in BOTH
         // Cargo.toml (output-name) and here to force Cloudflare to serve fresh assets.
-        <Stylesheet id="leptos" href="/pkg/anchor-v7.css"/>
+        <Stylesheet id="leptos" href="/pkg/anchor-v8.css"/>
 
         <Meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <Title text=title_sig/>
