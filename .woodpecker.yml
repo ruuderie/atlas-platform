@@ -231,9 +231,6 @@ steps:
         from_secret: docker_password
     when:
       branch: dev
-      path:
-        - 'backend/**'
-        - '.woodpecker.yml'
 
   publish_backend_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -257,9 +254,6 @@ steps:
         from_secret: docker_password
     when:
       branch: uat
-      path:
-        - 'backend/**'
-        - '.woodpecker.yml'
 
   publish_ingress_sidecar_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -389,10 +383,6 @@ steps:
         from_secret: docker_password
     when:
       branch: dev
-      path:
-        - 'apps/anchor/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
 
   publish_anchor_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -416,10 +406,6 @@ steps:
         from_secret: docker_password
     when:
       branch: uat
-      path:
-        - 'apps/anchor/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
 
   # ── Deployment Markers ──────────────────────────────────────────────────────
   # We use these markers because Woodpecker's CI_PIPELINE_FILES variable is often
@@ -431,14 +417,12 @@ steps:
     commands: [ "touch .backend_built" ]
     when:
       branch: [dev, uat]
-      path: [ "backend/**", ".woodpecker.yml" ]
 
   mark_anchor_built:
     image: alpine
     commands: [ "touch .anchor_built" ]
     when:
       branch: [dev, uat]
-      path: [ "apps/anchor/**", "apps/shared-ui/**", ".woodpecker.yml" ]
 
   mark_network_built:
     image: alpine
