@@ -35,7 +35,7 @@ impl MigrationTrait for Migration {
         db.execute_unprepared(rename_note_sql).await?;
 
         // 4. Load and execute the ruud_personal.sql seed script
-        let seed_sql = include_str!("../../../seeds/anchor/ruud_personal.sql");
+        let seed_sql = include_str!("ruud_personal.sql");
         db.execute_unprepared(seed_sql).await?;
 
         Ok(())
