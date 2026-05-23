@@ -24,6 +24,11 @@ RUN mkdir -p src && \
     rm -rf src
 # Copy the actual source code
 COPY . .
+# Declare build args for versioning
+ARG ATLAS_BUILD_SHA
+ARG ATLAS_BUILD_DATE
+ENV ATLAS_BUILD_SHA=$ATLAS_BUILD_SHA
+ENV ATLAS_BUILD_DATE=$ATLAS_BUILD_DATE
 # Build the application
 RUN if [ "$BUILD_PROFILE" = "release" ]; then \
       cargo build --release; \
