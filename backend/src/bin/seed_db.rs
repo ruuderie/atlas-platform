@@ -21,63 +21,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("Connected to the database. Beginning Seed Process.");
 
-    // 2. Create Tenant
-    // Attempt to clear old mock string if valid UUID, otherwise generate new
-    // Our DB ID column is UUID, so the frontend's 'mock-dir...'' strings must become a valid uuid in production.
-    let dir_uuid = Uuid::new_v4();
-    
-    // Provide the theme and custom settings that mirror app.rs payload
-    let _theme_json = serde_json::json!({
-        "brand_primary": "#f97316",
-        "bg_surface": "#ffffff",
-        "radius_ui": "6px",
-        "font_heading": "Inter, sans-serif"
-    });
+    // 2. Locate or Create Tenant
+    use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 
-    let _custom_settings = serde_json::json!({
-        "hero_headline": "Connecticut's Most Trusted Home Renovation Pros.",
-        "hero_subtitle": "Find licensed contractors, handymen, and renovation specialists — vetted and reviewed by your neighbors.",
-        "search_placeholder_keyword": "Kitchen remodel, plumber, handyman...",
-        "search_placeholder_location": "Hartford, Stamford, New Haven...",
-        "categories": [
-            { "slug": "kitchen-bath", "label": "Kitchen & Bath", "subtitle": "Remodels & Upgrades", "icon": "countertops" },
-            { "slug": "general-handyman", "label": "General Handyman", "subtitle": "Repairs & Odd Jobs", "icon": "handyman" },
-            { "slug": "roofing-siding", "label": "Roofing & Siding", "subtitle": "Exterior Specialists", "icon": "roofing" },
-            { "slug": "electrical", "label": "Electrical", "subtitle": "Licensed Electricians", "icon": "electrical_services" },
-            { "slug": "painting", "label": "Painting", "subtitle": "Professional Painter", "icon": "professional_painter" }
-        ],
-        "process_steps": [
-            { "number": "1", "title": "Search", "description": "Browse our curated list of professionals by category or location." },
-            { "number": "2", "title": "Compare", "description": "Read verified reviews and compare qualifications." },
-            { "number": "3", "title": "Connect", "description": "Contact pros directly to get quotes and start your project." }
-        ],
-        "host_page_content": {
-            "hero_headline": "Grow Your Business with CT Build Pros",
-            "hero_subtitle": "Join Connecticut's premier network of verified contractors. Get discovered by homeowners actively looking for your services.",
-            "form_category_options": ["Kitchen & Bath", "Roofing", "Electrical", "Plumbing", "General Contracting"],
-            "trust_heading": "Why Pros Choose Us",
-            "trust_subtitle": "We connect you with high-intent homeowners ready to start their projects.",
-            "testimonial_quote": "\"Since listing on CT Build Pros, my lead volume has doubled. The quality of clients is significantly better than other platforms.\"",
-            "testimonial_name": "Mike Sullivan",
-            "testimonial_title": "Owner, Apex Renovation",
-            "cta_headline": "Ready to get more jobs?",
-            "cta_subtitle": "Join hundreds of successful contractors."
-        },
-        "featured_listings": []
-    });
+    let existing_tenant = tenant::Entity::find()
+        .filter(tenant::Column::Name.eq("ctbuildpros"))
+        .one(&db)
+        .await?;
 
-    let tenant_model = tenant::ActiveModel {
-        id: Set(dir_uuid),
-        name: Set("CT Build Pros".to_string()),
-        description: Set("The premier network for top-rated construction and renovation services across Connecticut.".to_string()),
-        site_status: Set("ACTIVE".to_string()),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
+    let dir_uuid = if let Some(t) = existing_tenant {
+        tracing::info!("Found existing tenant 'ctbuildpros' with ID: {}", t.id);
+        t.id
+    } else {
+        let new_id = Uuid::new_v4();
+        let tenant_model = tenant::ActiveModel {
+            id: Set(new_id),
+            name: Set("CT Build Pros".to_string()),
+            description: Set("The premier network for top-rated construction and renovation services across Connecticut.".to_string()),
+            site_status: Set("ACTIVE".to_string()),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        };
+
+        tenant_model.insert(&db).await?;
+        tracing::info!("Created Tenant: CT Build Pros ({})", new_id);
+        new_id
     };
-
-    tenant_model.insert(&db).await?;
-    tracing::info!("Created Tenant: CT Build Pros ({})", dir_uuid);
 
     // 3. Create Categories
     let cat_id_1 = Uuid::new_v4();
