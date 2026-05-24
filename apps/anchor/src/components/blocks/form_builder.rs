@@ -58,7 +58,7 @@ pub async fn submit_dynamic_form(form_id: String, payload: String) -> Result<(),
 
     // Fetch tenant admin email from site settings
     let admin_email: String = sqlx::query_scalar(
-        "SELECT value FROM site_settings WHERE key = 'admin_email' AND tenant_id = $1",
+        "SELECT value FROM tenant_setting WHERE key = 'admin_email' AND tenant_id = $1",
     )
     .bind(tenant_id)
     .fetch_optional(&state.pool)
