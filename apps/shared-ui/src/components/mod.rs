@@ -15,3 +15,5 @@ pub mod theme_provider;
 pub mod admin_module_sidebar;
 pub mod crm_stage_bar;
 pub mod crm_timeline;
+pub mod email_composer;
+

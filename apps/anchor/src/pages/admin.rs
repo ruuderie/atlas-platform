@@ -156,8 +156,59 @@ pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, ServerFnError
     Ok(configs)
 }
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct WebformItem {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub slug: String,
+    pub description: Option<String>,
+    pub webhook_url: Option<String>,
+    pub is_active: bool,
+}
+
+#[server(GetWebforms, "/api")]
+pub async fn get_webforms() -> Result<Vec<WebformItem>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let rows = sqlx::query(
+        "SELECT id, name, slug, description, webhook_url, is_active \
+         FROM form_schemas \
+         WHERE tenant_id = $1 \
+         ORDER BY created_at DESC"
+    )
+    .bind(tenant.0)
+    .fetch_all(&state.pool)
+    .await?;
+
+    use sqlx::Row;
+    let items = rows.into_iter().map(|row| {
+        WebformItem {
+            id: row.get("id"),
+            name: row.get("name"),
+            slug: row.get("slug"),
+            description: row.get("description"),
+            webhook_url: row.get("webhook_url"),
+            is_active: row.get("is_active"),
+        }
+    }).collect();
+
+    Ok(items)
+}
+
 #[component]
 pub fn WebformsTable() -> impl IntoView {
+    let refresh = expect_context::<ReadSignal<i32>>();
+    let webforms_res = Resource::new(move || refresh.get(), |_| get_webforms());
+
     view! {
         <div class="space-y-6">
             <div class="flex justify-between items-center mb-6">
@@ -167,51 +218,63 @@ pub fn WebformsTable() -> impl IntoView {
                 </div>
             </div>
 
-            <div class="bg-surface-container overflow-hidden border border-outline-variant/30 hidden md:block">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-surface-container-high border-b border-outline-variant/30 text-xs tracking-wider uppercase text-on-surface-variant jetbrains">
-                            <th class="px-6 py-4 font-medium">"Form ID (Slug)"</th>
-                            <th class="px-6 py-4 font-medium">"Name"</th>
-                            <th class="px-6 py-4 font-medium">"Description"</th>
-                            <th class="px-6 py-4 font-medium">"Integrations"</th>
-                            <th class="px-6 py-4 font-medium text-right">"Actions"</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-outline-variant/30">
-                        <tr class="hover:bg-surface-container-high/50 transition-colors">
-                            <td class="px-6 py-4 jetbrains text-xs text-primary font-bold">"cre-application"</td>
-                            <td class="px-6 py-4 text-sm font-medium">"Commercial Real Estate Loan"</td>
-                            <td class="px-6 py-4 text-sm text-on-surface-variant truncate max-w-[200px]">"Standard CRE loan application for multifamily, retail, office, etc."</td>
-                            <td class="px-6 py-4">
-                                <span class="bg-primary/10 text-primary px-2 py-1 text-xs font-bold rounded">"Webhook Active"</span>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="text-primary hover:underline text-xs jetbrains font-bold uppercase tracking-widest mr-4">"EDIT JSON"</button>
-                                <button class="text-error hover:underline text-xs jetbrains font-bold uppercase tracking-widest">"DELETE"</button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-surface-container-high/50 transition-colors">
-                            <td class="px-6 py-4 jetbrains text-xs text-primary font-bold">"hoa-condo-application"</td>
-                            <td class="px-6 py-4 text-sm font-medium">"HOA & Condominium Association Loan"</td>
-                            <td class="px-6 py-4 text-sm text-on-surface-variant truncate max-w-[200px]">"Unsecured lending for condo associations to fund capital improvements."</td>
-                            <td class="px-6 py-4">
-                                <span class="bg-primary/10 text-primary px-2 py-1 text-xs font-bold rounded">"Webhook Active"</span>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <button class="text-primary hover:underline text-xs jetbrains font-bold uppercase tracking-widest mr-4">"EDIT JSON"</button>
-                                <button class="text-error hover:underline text-xs jetbrains font-bold uppercase tracking-widest">"DELETE"</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="bg-surface-container border border-outline-variant/30 p-8 text-center mt-6">
-                <span class="material-symbols-outlined text-4xl text-primary mb-4 block">"view_list"</span>
-                <p class="text-on-surface-variant max-w-lg mx-auto">
-                    "These schemas dynamically populate the `<FormBuilderBlock />` when mapped into App Pages."
-                </p>
-            </div>
+            <Transition fallback=move || view! { <div class="jetbrains text-sm text-outline p-6">"QUERYING_DB..."</div> }>
+                {move || match webforms_res.get() {
+                    Some(Ok(items)) => {
+                        if items.is_empty() {
+                            view! {
+                                <div class="bg-surface-container border border-outline-variant/30 p-8 text-center mt-6">
+                                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block">"view_list"</span>
+                                    <p class="text-on-surface-variant max-w-lg mx-auto">
+                                        "No active webforms found for this tenant. Create landing page forms to list them here."
+                                    </p>
+                                </div>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="bg-surface-container overflow-hidden border border-outline-variant/30 hidden md:block">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="bg-surface-container-high border-b border-outline-variant/30 text-xs tracking-wider uppercase text-on-surface-variant jetbrains">
+                                                <th class="px-6 py-4 font-medium">"Form ID (Slug)"</th>
+                                                <th class="px-6 py-4 font-medium">"Name"</th>
+                                                <th class="px-6 py-4 font-medium">"Description"</th>
+                                                <th class="px-6 py-4 font-medium">"Integrations"</th>
+                                                <th class="px-6 py-4 font-medium text-right">"Actions"</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-outline-variant/30">
+                                            {items.into_iter().map(|form| {
+                                                let desc = form.description.unwrap_or_default();
+                                                view! {
+                                                    <tr class="hover:bg-surface-container-high/50 transition-colors">
+                                                        <td class="px-6 py-4 jetbrains text-xs text-primary font-bold">{form.slug}</td>
+                                                        <td class="px-6 py-4 text-sm font-medium">{form.name}</td>
+                                                        <td class="px-6 py-4 text-sm text-on-surface-variant truncate max-w-[200px]">{desc}</td>
+                                                        <td class="px-6 py-4">
+                                                            {if form.webhook_url.is_some() {
+                                                                view! { <span class="bg-primary/10 text-primary px-2 py-1 text-xs font-bold rounded">"Webhook Active"</span> }.into_any()
+                                                            } else {
+                                                                view! { <span class="bg-outline-variant/15 text-outline px-2 py-1 text-xs font-bold rounded">"Local Only"</span> }.into_any()
+                                                            }}
+                                                        </td>
+                                                        <td class="px-6 py-4 text-right">
+                                                            <button class="text-primary hover:underline text-xs jetbrains font-bold uppercase tracking-widest mr-4">"EDIT JSON"</button>
+                                                            <button class="text-error hover:underline text-xs jetbrains font-bold uppercase tracking-widest">"DELETE"</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }).collect::<Vec<_>>()}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }.into_any()
+                        }
+                    }
+                    Some(Err(_)) => view! { <div class="text-error jetbrains text-sm p-6">"ERR_NO_DATA"</div> }.into_any(),
+                    None => view! { <div class="hidden" /> }.into_any(),
+                }}
+            </Transition>
         </div>
     }
 }
@@ -263,7 +326,75 @@ pub fn Admin() -> impl IntoView {
         set_auth_trigger.update(|t| *t += 1);
     });
 
-    let (active_tab, set_active_tab) = signal(AdminModuleType::Dashboard);
+    let location = leptos_router::hooks::use_location();
+    let navigate = leptos_router::hooks::use_navigate();
+
+    let get_tab_from_path = move |path: &str| -> AdminModuleType {
+        let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        if parts.len() >= 2 {
+            match parts[1] {
+                "contacts" => AdminModuleType::Contacts,
+                "leads" => AdminModuleType::Leads,
+                "settings" => AdminModuleType::Settings,
+                "webforms" => AdminModuleType::Webforms,
+                "services" => AdminModuleType::Services,
+                "case-studies" => AdminModuleType::CaseStudies,
+                "highlights" => AdminModuleType::Highlights,
+                "blog" => AdminModuleType::Blog,
+                "navigation" => AdminModuleType::Navigation,
+                "footer" => AdminModuleType::Footer,
+                "page-headers" => AdminModuleType::PageHeaders,
+                "resume-profiles" => AdminModuleType::ResumeProfiles,
+                "resume-entries" => AdminModuleType::ResumeEntries,
+                "landing-pages" => AdminModuleType::LandingPages,
+                "security" => AdminModuleType::Security,
+                "lead-options" => AdminModuleType::LeadOptions,
+                _ => AdminModuleType::Dashboard,
+            }
+        } else {
+            AdminModuleType::Dashboard
+        }
+    };
+
+    let initial_tab = get_tab_from_path(&location.pathname.get_untracked());
+    let (active_tab, set_active_tab) = signal(initial_tab);
+
+    Effect::new(move |_| {
+        let tab = active_tab.get();
+        let path = location.pathname.get();
+        let target = match tab {
+            AdminModuleType::Dashboard => "/admin".to_string(),
+            AdminModuleType::Contacts => "/admin/contacts".to_string(),
+            AdminModuleType::Leads => "/admin/leads".to_string(),
+            AdminModuleType::Settings => "/admin/settings".to_string(),
+            AdminModuleType::Webforms => "/admin/webforms".to_string(),
+            AdminModuleType::Services => "/admin/services".to_string(),
+            AdminModuleType::CaseStudies => "/admin/case-studies".to_string(),
+            AdminModuleType::Highlights => "/admin/highlights".to_string(),
+            AdminModuleType::Blog => "/admin/blog".to_string(),
+            AdminModuleType::Navigation => "/admin/navigation".to_string(),
+            AdminModuleType::Footer => "/admin/footer".to_string(),
+            AdminModuleType::PageHeaders => "/admin/page-headers".to_string(),
+            AdminModuleType::ResumeProfiles => "/admin/resume-profiles".to_string(),
+            AdminModuleType::ResumeEntries => "/admin/resume-entries".to_string(),
+            AdminModuleType::LandingPages => "/admin/landing-pages".to_string(),
+            AdminModuleType::Security => "/admin/security".to_string(),
+            AdminModuleType::LeadOptions => "/admin/lead-options".to_string(),
+            _ => "/admin".to_string(),
+        };
+
+        if !path.starts_with(&target) || path == "/admin" {
+            let _ = navigate(&target, Default::default());
+        }
+    });
+
+    Effect::new(move |_| {
+        let path = location.pathname.get();
+        let parsed = get_tab_from_path(&path);
+        if active_tab.get_untracked() != parsed {
+            set_active_tab.set(parsed);
+        }
+    });
 
     let (modal_state, set_modal_state) = signal(ModalState::None);
     provide_context(modal_state);
@@ -389,11 +520,6 @@ fn AuthenticatedDashboard(
                     // Header
                     <div class="flex justify-between items-end border-b-2 border-outline-variant pb-6 mb-8">
                         <div>
-                            <div class="inline-block bg-secondary-container/20 px-3 py-1 mb-4">
-                                <span class="font-label text-[0.6875rem] text-secondary font-bold tracking-tighter">
-                                    "DATABASE // LIVE"
-                                </span>
-                            </div>
                             <h2 class="text-3xl font-extrabold text-primary tracking-tight uppercase">
                                 {move || active_tab.get().to_string()}
                             </h2>

@@ -20,6 +20,9 @@ erDiagram
     Tenant ||--o{ OutboxJob : schedules
     AppInstance ||--|{ AppDomain : routes
     AppInstance ||--o{ AppInstanceModule : configures
+    Tenant ||--o{ EmailTemplate : manages
+    Tenant ||--o{ CrmStatusOption : configures
+    Activity ||--o{ ActivityAttachment : contains
 
     %% CMS System
     Tenant ||--o{ AppPage : manages
@@ -152,6 +155,17 @@ erDiagram
         string description
         string ip_address
         datetime created_at
+    }
+
+    EmailTemplate {
+        UUID id PK
+        UUID tenant_id FK
+        string template_name
+        string subject_line
+        string html_body
+        jsonb merge_fields
+        datetime created_at
+        datetime updated_at
     }
 
     BillingPlan {
@@ -428,13 +442,31 @@ erDiagram
         datetime updated_at
     }
 
+    CrmStatusOption {
+        UUID id PK
+        UUID tenant_id FK
+        string object_type
+        string status_key
+        string label
+        string color
+        int sort_order
+        boolean is_system
+        datetime created_at
+        datetime updated_at
+    }
+
     Contact {
         UUID id PK
         UUID customer_id FK
         string name
+        string first_name
+        string last_name
+        string middle_name
         string email
         string phone
         string role
+        json billing_address
+        json shipping_address
         datetime created_at
         datetime updated_at
     }
@@ -443,9 +475,16 @@ erDiagram
         UUID id PK
         UUID associated_deal_id FK
         string name
+        string first_name
+        string last_name
         string email
         string phone
         string status
+        string company
+        string title
+        string lead_status
+        json billing_address
+        json shipping_address
         boolean is_converted
         datetime created_at
         datetime updated_at
@@ -466,6 +505,7 @@ erDiagram
 
     Activity {
         UUID id PK
+        UUID tenant_id FK
         UUID account_id FK
         UUID deal_id FK
         UUID customer_id FK
@@ -485,7 +525,15 @@ erDiagram
         datetime updated_at
     }
 
-    Note {
+    ActivityAttachment {
+        UUID activity_id FK
+        string file_url PK
+        string file_name
+        string mime_type
+        datetime created_at
+    }
+
+    Notes {
         UUID id PK
         string content
         UUID created_by FK

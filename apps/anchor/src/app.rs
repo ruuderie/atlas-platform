@@ -265,7 +265,7 @@ pub fn App() -> impl IntoView {
                             <Route path=path!("/e/*slug") view=DynamicEntry/>
                             <Route path=path!("/setup") view=TenantOnboarding/>
                             <Route path=path!("/setup-passkey") view=SetupPasskey/>
-                            <Route path=path!("/admin") view=Admin/>
+                            <Route path=path!("/admin/*any") view=Admin/>
                         </Routes>
                     </div>
                     <Footer />

@@ -30,6 +30,7 @@ sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "tls-rustls",
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.1", features = ["v4", "serde", "js"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+lettre = { version = "0.11.21", features = ["tokio1", "tokio1-native-tls", "builder"], optional = true }
 webauthn-rs = { version = "0.4", optional = true, features = ["danger-allow-state-serialisation"] }
 base64 = { version = "0.22" }
 pulldown-cmark = "0.12"
@@ -69,6 +70,7 @@ ssr = [
     "shared-ui/ssr",
     "dep:sqlx",
     "dep:reqwest",
+    "dep:lettre",
     "dep:webauthn-rs",
     "dep:dotenvy",
     "dep:tower-http",

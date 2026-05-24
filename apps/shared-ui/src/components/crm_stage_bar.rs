@@ -18,7 +18,7 @@ pub fn CrmStageBar(
 ) -> impl IntoView {
     // Helper to get Tailwind color classes based on the stage color string and active status.
     let get_stage_classes = move |color: &str, is_active: bool| -> String {
-        let base = "flex-1 min-h-[44px] px-6 py-3 flex items-center justify-center text-xs jetbrains font-bold uppercase tracking-widest transition-all duration-300 relative border cursor-pointer select-none ";
+        let base = "flex-1 min-h-[44px] px-3 py-3 flex items-center justify-center text-xs jetbrains font-bold uppercase tracking-widest transition-all duration-300 relative border cursor-pointer select-none rounded ";
         if is_active {
             match color {
                 "blue" => format!("{} bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02] z-10", base),
@@ -43,7 +43,7 @@ pub fn CrmStageBar(
     };
 
     view! {
-        <div class="w-full bg-surface-container-low border border-outline-variant/30 p-2 rounded-lg shadow-inner flex flex-col md:flex-row gap-1.5 overflow-hidden">
+        <div class="w-full bg-surface-container-low border border-outline-variant/30 p-2 rounded-lg shadow-inner flex flex-wrap md:flex-nowrap gap-1.5">
             <For
                 each=move || stages.clone()
                 key=|stage| stage.status_key.clone()
