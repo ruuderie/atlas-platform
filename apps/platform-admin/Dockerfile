@@ -5,18 +5,27 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Trunk precompiled binary and add the WASM target
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+      TRUNK_URL="https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-aarch64-unknown-linux-gnu.tar.gz"; \
+    else \
+      TRUNK_URL="https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz"; \
+    fi && \
+    curl -fsSL "$TRUNK_URL" | tar -xzf - -C /usr/local/bin && \
+    chmod +x /usr/local/bin/trunk && \
+    rustup target add wasm32-unknown-unknown
+
 WORKDIR /app
 
 # Development stage
 FROM base AS development
-RUN cargo install trunk && rustup target add wasm32-unknown-unknown
 EXPOSE 8081
 CMD ["trunk", "serve", "--port", "8081", "--address", "0.0.0.0"]
 
 # Build stage
 FROM base AS builder
-# Install Trunk
-RUN cargo install trunk && rustup target add wasm32-unknown-unknown
 COPY . .
 WORKDIR /app/apps/platform-admin
 # Build the application with Trunk
