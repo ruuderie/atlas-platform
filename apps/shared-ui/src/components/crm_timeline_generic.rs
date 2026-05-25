@@ -644,7 +644,7 @@ pub fn CrmTimelineGeneric(
                     <Show when=move || !staged_files.get().is_empty()>
                         <div class="mt-3 space-y-2">
                             <For
-                                each=staged_files
+                                each=move || staged_files.get()
                                 key=|f| f.id
                                 children=move |f| {
                                     let fid = f.id;
