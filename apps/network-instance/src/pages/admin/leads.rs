@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
-use shared_ui::components::crm_timeline::{CrmTimeline, CrmNote, CrmActivity};
+use shared_ui::components::crm_timeline_generic::{
+    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+};
 use shared_ui::utils::ResourceState;
 use shared_ui::components::email_composer::{EmailComposer, EmailTemplate};
 use crate::pages::admin::contacts::send_network_crm_email;
@@ -552,7 +554,7 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
 }
 
 #[server(GetNetworkLeadNotes, "/api")]
-pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerFnError> {
+pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
     use axum::http::request::Parts;
     use crate::auth::api_base_url;
 
@@ -575,7 +577,7 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerF
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/leads/{}/notes", api_base_url(), lead_id);
+    let url = format!("{}/api/crm/notes?entity_type=Lead&entity_id={}", api_base_url(), lead_id);
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -585,20 +587,7 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerF
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let notes = items.into_iter().map(|item| {
-            let created_at_str = item.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
-            let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|_| created_at_str.to_string());
-
-            CrmNote {
-                id: item.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                content: item.get("content").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                created_at,
-            }
-        }).collect();
+        let notes: Vec<NoteModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(notes)
     } else {
         Err(ServerFnError::new("Failed to fetch lead notes"))
@@ -606,7 +595,12 @@ pub async fn get_lead_notes(lead_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerF
 }
 
 #[server(AddNetworkLeadNote, "/api")]
-pub async fn add_lead_note(lead_id: uuid::Uuid, content: String) -> Result<(), ServerFnError> {
+pub async fn add_lead_note(
+    lead_id: uuid::Uuid, 
+    content: String, 
+    is_private: bool, 
+    files: Vec<FileModel>
+) -> Result<(), ServerFnError> {
     use axum::http::request::Parts;
     use crate::auth::api_base_url;
 
@@ -629,13 +623,15 @@ pub async fn add_lead_note(lead_id: uuid::Uuid, content: String) -> Result<(), S
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/notes", api_base_url());
+    let url = format!("{}/api/crm/notes", api_base_url());
     let client = reqwest::Client::new();
     
     let payload = serde_json::json!({
         "entity_type": "Lead",
         "entity_id": lead_id,
-        "content": content
+        "content": content,
+        "is_private": is_private,
+        "files": files
     });
 
     let res = client
@@ -653,8 +649,8 @@ pub async fn add_lead_note(lead_id: uuid::Uuid, content: String) -> Result<(), S
     }
 }
 
-#[server(GetNetworkLeadActivities, "/api")]
-pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<CrmActivity>, ServerFnError> {
+#[server(DeleteNetworkLeadNote, "/api")]
+pub async fn delete_lead_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
     use axum::http::request::Parts;
     use crate::auth::api_base_url;
 
@@ -677,7 +673,47 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<CrmActivity>
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/leads/{}/activities", api_base_url(), lead_id);
+    let url = format!("{}/api/crm/notes/{}", api_base_url(), note_id);
+    let client = reqwest::Client::new();
+    let res = client
+        .delete(&url)
+        .header("Cookie", format!("session={}", token))
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(ServerFnError::new("Failed to delete lead note"))
+    }
+}
+
+#[server(GetNetworkLeadActivities, "/api")]
+pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<ActivityModel>, ServerFnError> {
+    use axum::http::request::Parts;
+    use crate::auth::api_base_url;
+
+    let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
+        req_parts
+            .headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookies| {
+                cookies.split(';').find_map(|part| {
+                    let part = part.trim();
+                    part.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
+    } else {
+        None
+    };
+
+    let Some(token) = session_cookie else {
+        return Err(ServerFnError::new("Unauthorized"));
+    };
+
+    let url = format!("{}/api/crm/activities?entity_type=Lead&entity_id={}", api_base_url(), lead_id);
     let client = reqwest::Client::new();
     let res = client
         .get(&url)
@@ -687,29 +723,24 @@ pub async fn get_lead_activities(lead_id: uuid::Uuid) -> Result<Vec<CrmActivity>
         .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     if res.status().is_success() {
-        let items: Vec<serde_json::Value> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
-        let activities = items.into_iter().map(|item| {
-            let created_at_str = item.get("created_at").and_then(|v| v.as_str()).unwrap_or_default();
-            let created_at = chrono::DateTime::parse_from_rfc3339(created_at_str)
-                .map(|dt| dt.with_timezone(&chrono::Utc))
-                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                .unwrap_or_else(|_| created_at_str.to_string());
-
-            CrmActivity {
-                id: item.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                activity_type: item.get("activity_type").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                description: item.get("description").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
-                created_at,
-            }
-        }).collect();
+        let activities: Vec<ActivityModel> = res.json().await.map_err(|e| ServerFnError::new(e.to_string()))?;
         Ok(activities)
     } else {
         Err(ServerFnError::new("Failed to fetch lead activities"))
     }
 }
 
-#[server(LogNetworkLeadActivity, "/api")]
-pub async fn log_lead_activity(lead_id: uuid::Uuid, activity_type: String, description: String) -> Result<(), ServerFnError> {
+#[server(AddNetworkLeadActivity, "/api")]
+pub async fn add_lead_activity(
+    lead_id: uuid::Uuid,
+    activity_type: ActivityType,
+    title: String,
+    description: Option<String>,
+    status: ActivityStatus,
+    due_date: Option<String>,
+    completed_at: Option<String>,
+    files: Vec<FileModel>
+) -> Result<(), ServerFnError> {
     use axum::http::request::Parts;
     use crate::auth::api_base_url;
 
@@ -732,15 +763,22 @@ pub async fn log_lead_activity(lead_id: uuid::Uuid, activity_type: String, descr
         return Err(ServerFnError::new("Unauthorized"));
     };
 
-    let url = format!("{}/api/activities", api_base_url());
+    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+
+    let url = format!("{}/api/crm/activities", api_base_url());
     let client = reqwest::Client::new();
     
     let payload = serde_json::json!({
         "lead_id": lead_id,
-        "activity_type": activity_type.clone(),
-        "title": format!("Logged {}", activity_type),
+        "activity_type": activity_type,
+        "title": title,
         "description": description,
-        "status": "Completed"
+        "status": status,
+        "due_date": parsed_due_date,
+        "completed_at": parsed_completed_at,
+        "associated_entities": Vec::<serde_json::Value>::new(),
+        "files": files
     });
 
     let res = client
@@ -754,7 +792,96 @@ pub async fn log_lead_activity(lead_id: uuid::Uuid, activity_type: String, descr
     if res.status().is_success() {
         Ok(())
     } else {
-        Err(ServerFnError::new("Failed to log lead activity"))
+        Err(ServerFnError::new("Failed to add lead activity"))
+    }
+}
+
+#[server(UpdateNetworkLeadActivityStatus, "/api")]
+pub async fn update_lead_activity_status(
+    activity_id: uuid::Uuid,
+    status: ActivityStatus
+) -> Result<(), ServerFnError> {
+    use axum::http::request::Parts;
+    use crate::auth::api_base_url;
+
+    let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
+        req_parts
+            .headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookies| {
+                cookies.split(';').find_map(|part| {
+                    let part = part.trim();
+                    part.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
+    } else {
+        None
+    };
+
+    let Some(token) = session_cookie else {
+        return Err(ServerFnError::new("Unauthorized"));
+    };
+
+    let url = format!("{}/api/crm/activities/{}", api_base_url(), activity_id);
+    let client = reqwest::Client::new();
+    
+    let payload = serde_json::json!({
+        "status": status
+    });
+
+    let res = client
+        .put(&url)
+        .header("Cookie", format!("session={}", token))
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(ServerFnError::new("Failed to update lead activity status"))
+    }
+}
+
+#[server(DeleteNetworkLeadActivity, "/api")]
+pub async fn delete_lead_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use axum::http::request::Parts;
+    use crate::auth::api_base_url;
+
+    let session_cookie = if let Some(req_parts) = use_context::<Parts>() {
+        req_parts
+            .headers
+            .get("cookie")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookies| {
+                cookies.split(';').find_map(|part| {
+                    let part = part.trim();
+                    part.strip_prefix("session=").map(|t| t.to_string())
+                })
+            })
+    } else {
+        None
+    };
+
+    let Some(token) = session_cookie else {
+        return Err(ServerFnError::new("Unauthorized"));
+    };
+
+    let url = format!("{}/api/crm/activities/{}", api_base_url(), activity_id);
+    let client = reqwest::Client::new();
+    let res = client
+        .delete(&url)
+        .header("Cookie", format!("session={}", token))
+        .send()
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(ServerFnError::new("Failed to delete lead activity"))
     }
 }
 
@@ -1042,8 +1169,16 @@ fn LeadCrmPane(
         let stage_cl = new_stage.clone();
         leptos::task::spawn_local(async move {
             if let Ok(_) = update_lead_stage(lead_id, stage_cl.clone()).await {
-                // Log automatic timeline activity
-                let _ = log_lead_activity(lead_id, "stage_change".to_string(), format!("Stage updated to {}", stage_cl)).await;
+                let _ = add_lead_activity(
+                    lead_id,
+                    ActivityType::Log,
+                    "Logged: Stage Change".to_string(),
+                    Some(format!("Stage updated to {}", stage_cl)),
+                    ActivityStatus::Completed,
+                    None,
+                    Some(chrono::Utc::now().to_rfc3339()),
+                    Vec::new()
+                ).await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1085,17 +1220,51 @@ fn LeadCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |text: String| {
+    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
         leptos::task::spawn_local(async move {
-            if let Ok(_) = add_lead_note(lead_id, text).await {
+            if let Ok(_) = add_lead_note(lead_id, content, is_private, files).await {
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
     });
 
-    let log_activity_cb = Callback::new(move |(act_type, desc): (String, String)| {
+    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
         leptos::task::spawn_local(async move {
-            if let Ok(_) = log_lead_activity(lead_id, act_type, desc).await {
+            if let Ok(_) = add_lead_activity(lead_id, act_type, title, desc, status, due_date, completed_at, files).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = update_lead_activity_status(act_id, status).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = delete_lead_note(note_id).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let delete_activity_cb = Callback::new(move |act_id: uuid::Uuid| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = delete_lead_activity(act_id).await {
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1178,7 +1347,16 @@ fn LeadCrmPane(
                                     on:click=move |_| {
                                         leptos::task::spawn_local(async move {
                                             if let Ok(_) = convert_lead(lead_id).await {
-                                                let _ = log_lead_activity(lead_id, "conversion".to_string(), "Lead converted to contact successfully.".to_string()).await;
+                                                let _ = add_lead_activity(
+                                                    lead_id,
+                                                    ActivityType::Log,
+                                                    "Logged: Conversion".to_string(),
+                                                    Some("Lead converted to contact successfully.".to_string()),
+                                                    ActivityStatus::Completed,
+                                                    None,
+                                                    Some(chrono::Utc::now().to_rfc3339()),
+                                                    Vec::new()
+                                                ).await;
                                                 set_refresh.set(refresh.get_untracked() + 1);
                                                 on_close.run(());
                                             }
@@ -1376,11 +1554,14 @@ fn LeadCrmPane(
                 <div class="w-full lg:w-[35%] space-y-6">
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col">
                         <label class="block text-[10px] font-bold uppercase text-outline-variant tracking-wider font-mono mb-4">"Timeline (Notes & Activities)"</label>
-                        <CrmTimeline
+                        <CrmTimelineGeneric
                             notes=Signal::derive(move || notes_res.get().and_then(|r| r.ok()).unwrap_or_default())
                             activities=Signal::derive(move || activities_res.get().and_then(|r| r.ok()).unwrap_or_default())
                             on_add_note=add_note_cb
-                            on_log_activity=log_activity_cb
+                            on_add_activity=log_activity_cb
+                            on_update_activity_status=update_activity_status_cb
+                            on_delete_note=delete_note_cb
+                            on_delete_activity=delete_activity_cb
                         />
                     </div>
                     <FileAttachments

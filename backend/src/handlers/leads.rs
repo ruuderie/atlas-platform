@@ -667,12 +667,16 @@ pub async fn get_lead_activities(
     Ok(JsonResponse(activity_models))
 }
 
+use crate::handlers::notes::get_user_tenant_id;
+
 pub async fn create_lead_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<CreateNoteInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
     let lead = lead::Entity::find_by_id(id)
         .one(&db)
         .await
@@ -685,6 +689,8 @@ pub async fn create_lead_note(
         created_by: Set(current_user.id),
         entity_type: Set("Lead".to_string()),
         entity_id: Set(lead.id),
+        tenant_id: Set(Some(tenant_id)),
+        is_private: Set(false),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };

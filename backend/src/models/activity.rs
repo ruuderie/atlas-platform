@@ -8,7 +8,8 @@ use crate::traits::file::FileAssociable;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityModel {
     pub id: Uuid,
-    pub account_id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub account_id: Option<Uuid>,
     pub deal_id: Option<Uuid>,
     pub customer_id: Option<Uuid>,
     pub lead_id: Option<Uuid>,
@@ -36,7 +37,7 @@ pub struct AssociatedEntityModel {
 
 #[derive(Debug, Deserialize)]
 pub struct CreateActivityInput {
-    pub account_id: Uuid,
+    pub account_id: Option<Uuid>,
     pub deal_id: Option<Uuid>,
     pub customer_id: Option<Uuid>,
     pub lead_id: Option<Uuid>,
@@ -47,6 +48,7 @@ pub struct CreateActivityInput {
     pub description: Option<String>,
     pub status: ActivityStatus,
     pub due_date: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
     pub associated_entities: Vec<AssociatedEntity>,
     pub assigned_to: Option<Uuid>,
     pub files: Vec<FileModel>,
@@ -75,7 +77,8 @@ impl From<crate::entities::activity::Model> for ActivityModel {
         let associated_entities = activity.get_associated_entities().unwrap_or_default();
         Self {
             id: activity.id,
-            account_id: activity.account_id.unwrap_or_default(),
+            tenant_id: activity.tenant_id,
+            account_id: activity.account_id,
             deal_id: activity.deal_id,
             customer_id: activity.customer_id,
             lead_id: activity.lead_id,

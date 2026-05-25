@@ -253,12 +253,16 @@ pub async fn get_contact_files(
     Ok(Json(file_ids))
 }
 
+use crate::handlers::notes::get_user_tenant_id;
+
 pub async fn create_contact_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<CreateNoteInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
     let contact = contact::Entity::find_by_id(id)
         .one(&db)
         .await
@@ -271,6 +275,8 @@ pub async fn create_contact_note(
         created_by: Set(current_user.id),
         entity_type: Set("Contact".to_string()),
         entity_id: Set(contact.id),
+        tenant_id: Set(Some(tenant_id)),
+        is_private: Set(false),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };

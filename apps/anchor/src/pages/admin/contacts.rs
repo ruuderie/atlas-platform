@@ -1,6 +1,8 @@
 use leptos::prelude::*;
 use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
-use shared_ui::components::crm_timeline::{CrmTimeline, CrmNote, CrmActivity};
+use shared_ui::components::crm_timeline_generic::{
+    CrmTimelineGeneric, NoteModel, ActivityModel, ActivityType, ActivityStatus, FileModel
+};
 use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::utils::ResourceState;
 use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
@@ -481,43 +483,110 @@ pub async fn send_crm_email(
 
 
 #[server(GetContactNotes, "/api")]
-pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<CrmNote>, ServerFnError> {
+pub async fn get_contact_notes(contact_id: uuid::Uuid) -> Result<Vec<NoteModel>, ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
+    use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+    
+    let user_id = match check_session().await {
+        Ok(true) => {
+            let uid: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1").fetch_one(&state.pool).await?;
+            uid
+        }
+        _ => return Err(ServerFnError::ServerError("Unauthorized".into())),
+    };
 
     let rows = sqlx::query(
-        "SELECT id, content, created_at \
+        "SELECT id, content, created_by, entity_type, entity_id, tenant_id, is_private, created_at, updated_at \
          FROM notes \
-         WHERE entity_type = 'Contact' AND entity_id = $1 \
+         WHERE entity_type = 'Contact' AND entity_id = $1 AND tenant_id = $2 \
+           AND (is_private = false OR created_by = $3) \
          ORDER BY created_at DESC"
     )
     .bind(contact_id)
+    .bind(tenant.0)
+    .bind(user_id)
     .fetch_all(&state.pool)
     .await?;
 
     use sqlx::Row;
-    let notes = rows
-        .into_iter()
-        .map(|row| {
-            let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
-            CrmNote {
-                id: row.get("id"),
-                content: row.get("content"),
-                created_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
-            }
-        })
-        .collect();
+    let mut notes = Vec::new();
+    for row in rows {
+        let note_id: uuid::Uuid = row.get("id");
+        
+        let file_rows = sqlx::query(
+            "SELECT f.id, f.name, f.size, f.mime_type, f.hash_sha256, f.storage_type, f.storage_path, f.views, f.downloads, f.bandwidth_used, f.bandwidth_used_paid, f.date_upload, f.date_last_view, f.is_anonymous, f.user_id \
+             FROM file f \
+             JOIN file_association fa ON f.id = fa.file_id \
+             WHERE fa.associated_entity_type = 'Note' AND fa.associated_entity_id = $1"
+        )
+        .bind(note_id)
+        .fetch_all(&state.pool)
+        .await?;
+
+        let mut files = Vec::new();
+        for f_row in file_rows {
+            let storage_type_str: String = f_row.get("storage_type");
+            let file_id_str: String = f_row.get("id");
+            let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
+            let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
+            let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
+
+            files.push(FileModel {
+                id: file_id,
+                name: f_row.get("name"),
+                size: f_row.get("size"),
+                mime_type: f_row.get("mime_type"),
+                hash_sha256: f_row.get("hash_sha256"),
+                storage_type: storage_type_str,
+                storage_path: f_row.get("storage_path"),
+                views: f_row.get("views"),
+                downloads: f_row.get("downloads"),
+                bandwidth_used: f_row.get("bandwidth_used"),
+                bandwidth_used_paid: f_row.get("bandwidth_used_paid"),
+                date_upload: date_upload.to_rfc3339(),
+                date_last_view: date_last_view.map(|dt| dt.to_rfc3339()),
+                is_anonymous: f_row.get("is_anonymous"),
+                user_id: user_uuid,
+            });
+        }
+
+        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
+
+        notes.push(NoteModel {
+            id: note_id,
+            content: row.get("content"),
+            created_by: row.get("created_by"),
+            entity_type: row.get("entity_type"),
+            entity_id: row.get("entity_id"),
+            tenant_id: row.try_get("tenant_id").unwrap_or(None),
+            is_private: row.get("is_private"),
+            created_at: created_at.to_rfc3339(),
+            updated_at: updated_at.to_rfc3339(),
+            files,
+        });
+    }
 
     Ok(notes)
 }
 
 #[server(AddContactNote, "/api")]
-pub async fn add_contact_note(contact_id: uuid::Uuid, content: String) -> Result<(), ServerFnError> {
+pub async fn add_contact_note(
+    contact_id: uuid::Uuid, 
+    content: String, 
+    is_private: bool, 
+    files: Vec<FileModel>
+) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use crate::auth::check_session;
     let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
     
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -527,55 +596,60 @@ pub async fn add_contact_note(contact_id: uuid::Uuid, content: String) -> Result
         .fetch_one(&state.pool)
         .await?;
 
+    let note_id = uuid::Uuid::new_v4();
+
     sqlx::query(
-        "INSERT INTO notes (id, content, created_by, entity_type, entity_id, created_at, updated_at) \
-         VALUES ($1, $2, $3, 'Contact', $4, NOW(), NOW())"
+        "INSERT INTO notes (id, content, created_by, entity_type, entity_id, tenant_id, is_private, created_at, updated_at) \
+         VALUES ($1, $2, $3, 'Contact', $4, $5, $6, NOW(), NOW())"
     )
-    .bind(uuid::Uuid::new_v4())
+    .bind(note_id)
     .bind(content)
     .bind(user_id)
     .bind(contact_id)
+    .bind(tenant.0)
+    .bind(is_private)
     .execute(&state.pool)
     .await?;
+
+    for file in files {
+        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+            .bind(file.id.to_string())
+            .fetch_one(&state.pool)
+            .await?;
+
+        if !file_exists {
+            sqlx::query(
+                "INSERT INTO file (id, name, size, mime_type, hash_sha256, storage_type, storage_path, views, downloads, bandwidth_used, bandwidth_used_paid, date_upload, is_anonymous, user_id) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, 0, 0, NOW(), false, $8)"
+            )
+            .bind(file.id.to_string())
+            .bind(file.name)
+            .bind(0i64)
+            .bind("application/octet-stream")
+            .bind("")
+            .bind("S3")
+            .bind(file.storage_path)
+            .bind(user_id.to_string())
+            .execute(&state.pool)
+            .await?;
+        }
+
+        sqlx::query(
+            "INSERT INTO file_association (id, file_id, associated_entity_type, associated_entity_id, created_at) \
+             VALUES ($1, $2, 'Note', $3, NOW())"
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(file.id.to_string())
+        .bind(note_id)
+        .execute(&state.pool)
+        .await?;
+    }
 
     Ok(())
 }
 
-#[server(GetContactActivities, "/api")]
-pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<CrmActivity>, ServerFnError> {
-    use axum::Extension;
-    use leptos_axum::extract;
-    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
-
-    let rows = sqlx::query(
-        "SELECT id, activity_type, description, created_at \
-         FROM activity \
-         WHERE contact_id = $1 \
-         ORDER BY created_at DESC"
-    )
-    .bind(contact_id)
-    .fetch_all(&state.pool)
-    .await?;
-
-    use sqlx::Row;
-    let activities = rows
-        .into_iter()
-        .map(|row| {
-            let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
-            CrmActivity {
-                id: row.get("id"),
-                activity_type: row.get("activity_type"),
-                description: row.try_get("description").unwrap_or_else(|_| Some("".to_string())).unwrap_or_default(),
-                created_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
-            }
-        })
-        .collect();
-
-    Ok(activities)
-}
-
-#[server(LogContactActivity, "/api")]
-pub async fn log_contact_activity(contact_id: uuid::Uuid, activity_type: String, description: String) -> Result<(), ServerFnError> {
+#[server(DeleteContactNote, "/api")]
+pub async fn delete_contact_note(note_id: uuid::Uuid) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
     use crate::auth::check_session;
@@ -586,23 +660,289 @@ pub async fn log_contact_activity(contact_id: uuid::Uuid, activity_type: String,
         return Err(ServerFnError::ServerError("Unauthorized".into()));
     }
 
+    sqlx::query("DELETE FROM file_association WHERE associated_entity_type = 'Note' AND associated_entity_id = $1")
+        .bind(note_id)
+        .execute(&state.pool)
+        .await?;
+
+    sqlx::query("DELETE FROM notes WHERE id = $1 AND tenant_id = $2")
+        .bind(note_id)
+        .bind(tenant.0)
+        .execute(&state.pool)
+        .await?;
+
+    Ok(())
+}
+
+#[server(GetContactActivities, "/api")]
+pub async fn get_contact_activities(contact_id: uuid::Uuid) -> Result<Vec<ActivityModel>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let rows = sqlx::query(
+        "SELECT id, tenant_id, account_id, deal_id, customer_id, lead_id, contact_id, case_id, activity_type, title, description, status, due_date, completed_at, associated_entities, created_by, assigned_to, created_at, updated_at \
+         FROM activity \
+         WHERE contact_id = $1 AND tenant_id = $2 \
+         ORDER BY created_at DESC"
+    )
+    .bind(contact_id)
+    .bind(tenant.0)
+    .fetch_all(&state.pool)
+    .await?;
+
+    use sqlx::Row;
+    let mut activities = Vec::new();
+    for row in rows {
+        let act_id: uuid::Uuid = row.get("id");
+
+        let file_rows = sqlx::query(
+            "SELECT f.id, f.name, f.size, f.mime_type, f.hash_sha256, f.storage_type, f.storage_path, f.views, f.downloads, f.bandwidth_used, f.bandwidth_used_paid, f.date_upload, f.date_last_view, f.is_anonymous, f.user_id \
+             FROM file f \
+             JOIN activity_attachment aa ON f.id = aa.file_id \
+             WHERE aa.activity_id = $1"
+        )
+        .bind(act_id)
+        .fetch_all(&state.pool)
+        .await?;
+
+        let mut files = Vec::new();
+        for f_row in file_rows {
+            let storage_type_str: String = f_row.get("storage_type");
+            let file_id_str: String = f_row.get("id");
+            let file_id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
+            let date_upload: chrono::DateTime<chrono::Utc> = f_row.get("date_upload");
+            let date_last_view: Option<chrono::DateTime<chrono::Utc>> = f_row.try_get("date_last_view").unwrap_or(None);
+            let user_id_str: Option<String> = f_row.try_get("user_id").unwrap_or(None);
+            let user_uuid = user_id_str.and_then(|s| uuid::Uuid::parse_str(&s).ok());
+
+            files.push(FileModel {
+                id: file_id,
+                name: f_row.get("name"),
+                size: f_row.get("size"),
+                mime_type: f_row.get("mime_type"),
+                hash_sha256: f_row.get("hash_sha256"),
+                storage_type: storage_type_str,
+                storage_path: f_row.get("storage_path"),
+                views: f_row.get("views"),
+                downloads: f_row.get("downloads"),
+                bandwidth_used: f_row.get("bandwidth_used"),
+                bandwidth_used_paid: f_row.get("bandwidth_used_paid"),
+                date_upload: date_upload.to_rfc3339(),
+                date_last_view: date_last_view.map(|dt| dt.to_rfc3339()),
+                is_anonymous: f_row.get("is_anonymous"),
+                user_id: user_uuid,
+            });
+        }
+
+        let activity_type_str: String = row.get("activity_type");
+        let status_str: String = row.get("status");
+        
+        let activity_type = match activity_type_str.as_str() {
+            "Log" => ActivityType::Log,
+            "Task" => ActivityType::Task,
+            "Event" => ActivityType::Event,
+            _ => ActivityType::Log,
+        };
+
+        let status = match status_str.as_str() {
+            "Open" => ActivityStatus::Open,
+            "Pending" => ActivityStatus::Pending,
+            "Completed" => ActivityStatus::Completed,
+            _ => ActivityStatus::Open,
+        };
+
+        let due_date: Option<chrono::DateTime<chrono::Utc>> = row.try_get("due_date").unwrap_or(None);
+        let completed_at: Option<chrono::DateTime<chrono::Utc>> = row.try_get("completed_at").unwrap_or(None);
+        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        let updated_at: chrono::DateTime<chrono::Utc> = row.get("updated_at");
+
+        activities.push(ActivityModel {
+            id: act_id,
+            tenant_id: row.try_get("tenant_id").unwrap_or(None),
+            account_id: row.try_get("account_id").unwrap_or(None),
+            deal_id: row.try_get("deal_id").unwrap_or(None),
+            customer_id: row.try_get("customer_id").unwrap_or(None),
+            lead_id: row.try_get("lead_id").unwrap_or(None),
+            contact_id: row.try_get("contact_id").unwrap_or(None),
+            case_id: row.try_get("case_id").unwrap_or(None),
+            activity_type,
+            title: row.get("title"),
+            description: row.try_get("description").unwrap_or(None),
+            status,
+            due_date: due_date.map(|dt| dt.to_rfc3339()),
+            completed_at: completed_at.map(|dt| dt.to_rfc3339()),
+            associated_entities: Vec::new(),
+            created_by: row.get("created_by"),
+            assigned_to: row.try_get("assigned_to").unwrap_or(None),
+            created_at: created_at.to_rfc3339(),
+            updated_at: updated_at.to_rfc3339(),
+            files,
+        });
+    }
+
+    Ok(activities)
+}
+
+#[server(AddContactActivity, "/api")]
+pub async fn add_contact_activity(
+    contact_id: uuid::Uuid,
+    activity_type: ActivityType,
+    title: String,
+    description: Option<String>,
+    status: ActivityStatus,
+    due_date: Option<String>,
+    completed_at: Option<String>,
+    files: Vec<FileModel>
+) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
     let user_id: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
         .fetch_one(&state.pool)
         .await?;
 
+    let activity_type_str = match activity_type {
+        ActivityType::Log => "Log",
+        ActivityType::Task => "Task",
+        ActivityType::Event => "Event",
+    };
+
+    let status_str = match status {
+        ActivityStatus::Open => "Open",
+        ActivityStatus::Pending => "Pending",
+        ActivityStatus::Completed => "Completed",
+    };
+
+    let parsed_due_date = due_date.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let parsed_completed_at = completed_at.and_then(|d| chrono::DateTime::parse_from_rfc3339(&d).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+
+    let act_id = uuid::Uuid::new_v4();
+
     sqlx::query(
-        "INSERT INTO activity (id, contact_id, activity_type, title, description, status, created_by, tenant_id, created_at, updated_at) \
-         VALUES ($1, $2, $3, $4, $5, 'Completed', $6, $7, NOW(), NOW())"
+        "INSERT INTO activity (id, tenant_id, contact_id, activity_type, title, description, status, due_date, completed_at, associated_entities, created_by, created_at, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '[]', $10, NOW(), NOW())"
     )
-    .bind(uuid::Uuid::new_v4())
-    .bind(contact_id)
-    .bind(activity_type.clone())
-    .bind(format!("Logged {}", activity_type))
-    .bind(description)
-    .bind(user_id)
+    .bind(act_id)
     .bind(tenant.0)
+    .bind(contact_id)
+    .bind(activity_type_str)
+    .bind(title)
+    .bind(description)
+    .bind(status_str)
+    .bind(parsed_due_date)
+    .bind(parsed_completed_at)
+    .bind(user_id)
     .execute(&state.pool)
     .await?;
+
+    for file in files {
+        let file_exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM file WHERE id = $1)")
+            .bind(file.id.to_string())
+            .fetch_one(&state.pool)
+            .await?;
+
+        if !file_exists {
+            sqlx::query(
+                "INSERT INTO file (id, name, size, mime_type, hash_sha256, storage_type, storage_path, views, downloads, bandwidth_used, bandwidth_used_paid, date_upload, is_anonymous, user_id) \
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, 0, 0, NOW(), false, $8)"
+            )
+            .bind(file.id.to_string())
+            .bind(file.name)
+            .bind(0i64)
+            .bind("application/octet-stream")
+            .bind("")
+            .bind("S3")
+            .bind(file.storage_path)
+            .bind(user_id.to_string())
+            .execute(&state.pool)
+            .await?;
+        }
+
+        sqlx::query(
+            "INSERT INTO activity_attachment (id, activity_id, file_id, created_at) \
+             VALUES ($1, $2, $3, NOW())"
+        )
+        .bind(uuid::Uuid::new_v4())
+        .bind(act_id)
+        .bind(file.id.to_string())
+        .execute(&state.pool)
+        .await?;
+    }
+
+    Ok(())
+}
+
+#[server(UpdateContactActivityStatus, "/api")]
+pub async fn update_contact_activity_status(
+    activity_id: uuid::Uuid,
+    status: ActivityStatus
+) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    let status_str = match status {
+        ActivityStatus::Open => "Open",
+        ActivityStatus::Pending => "Pending",
+        ActivityStatus::Completed => "Completed",
+    };
+
+    if status == ActivityStatus::Completed {
+        sqlx::query("UPDATE activity SET status = $1, completed_at = NOW(), updated_at = NOW() WHERE id = $2 AND tenant_id = $3")
+            .bind(status_str)
+            .bind(activity_id)
+            .bind(tenant.0)
+            .execute(&state.pool)
+            .await?;
+    } else {
+        sqlx::query("UPDATE activity SET status = $1, completed_at = NULL, updated_at = NOW() WHERE id = $2 AND tenant_id = $3")
+            .bind(status_str)
+            .bind(activity_id)
+            .bind(tenant.0)
+            .execute(&state.pool)
+            .await?;
+    }
+
+    Ok(())
+}
+
+#[server(DeleteContactActivity, "/api")]
+pub async fn delete_contact_activity(activity_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    use crate::auth::check_session;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    if !check_session().await.unwrap_or(false) {
+        return Err(ServerFnError::ServerError("Unauthorized".into()));
+    }
+
+    sqlx::query("DELETE FROM activity_attachment WHERE activity_id = $1")
+        .bind(activity_id)
+        .execute(&state.pool)
+        .await?;
+
+    sqlx::query("DELETE FROM activity WHERE id = $1 AND tenant_id = $2")
+        .bind(activity_id)
+        .bind(tenant.0)
+        .execute(&state.pool)
+        .await?;
 
     Ok(())
 }
@@ -1023,7 +1363,16 @@ fn ContactCrmPane(
                 contact_id, n, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
             ).await {
                 // Log timeline activity
-                let _ = log_contact_activity(contact_id, "stage_change".to_string(), format!("Status transitioned to {}", stage_cl)).await;
+                let _ = add_contact_activity(
+                    contact_id,
+                    ActivityType::Log,
+                    "Logged: Stage Change".to_string(),
+                    Some(format!("Status transitioned to {}", stage_cl)),
+                    ActivityStatus::Completed,
+                    None,
+                    Some(chrono::Utc::now().to_rfc3339()),
+                    Vec::new()
+                ).await;
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1072,17 +1421,51 @@ fn ContactCrmPane(
         });
     };
 
-    let add_note_cb = Callback::new(move |text: String| {
+    let add_note_cb = Callback::new(move |(content, is_private, files): (String, bool, Vec<FileModel>)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
         leptos::task::spawn_local(async move {
-            if let Ok(_) = add_contact_note(contact_id, text).await {
+            if let Ok(_) = add_contact_note(contact_id, content, is_private, files).await {
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
     });
 
-    let log_activity_cb = Callback::new(move |(act_type, desc): (String, String)| {
+    let log_activity_cb = Callback::new(move |(act_type, title, desc, status, due_date, completed_at, files): (ActivityType, String, Option<String>, ActivityStatus, Option<String>, Option<String>, Vec<FileModel>)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
         leptos::task::spawn_local(async move {
-            if let Ok(_) = log_contact_activity(contact_id, act_type, desc).await {
+            if let Ok(_) = add_contact_activity(contact_id, act_type, title, desc, status, due_date, completed_at, files).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let update_activity_status_cb = Callback::new(move |(act_id, status): (uuid::Uuid, ActivityStatus)| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = update_contact_activity_status(act_id, status).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let delete_note_cb = Callback::new(move |note_id: uuid::Uuid| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = delete_contact_note(note_id).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let delete_activity_cb = Callback::new(move |act_id: uuid::Uuid| {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = delete_contact_activity(act_id).await {
                 set_refresh.set(refresh.get_untracked() + 1);
             }
         });
@@ -1431,11 +1814,14 @@ fn ContactCrmPane(
                 <div class="w-full lg:w-[35%] space-y-6">
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col">
                         <label class="block text-[10px] font-bold uppercase text-outline-variant tracking-wider font-mono mb-4">"Timeline (Notes & Activities)"</label>
-                        <CrmTimeline
+                        <CrmTimelineGeneric
                             notes=Signal::derive(move || notes_res.get().and_then(|r| r.ok()).unwrap_or_default())
                             activities=Signal::derive(move || activities_res.get().and_then(|r| r.ok()).unwrap_or_default())
                             on_add_note=add_note_cb
-                            on_log_activity=log_activity_cb
+                            on_add_activity=log_activity_cb
+                            on_update_activity_status=update_activity_status_cb
+                            on_delete_note=delete_note_cb
+                            on_delete_activity=delete_activity_cb
                         />
                     </div>
                     <FileAttachments

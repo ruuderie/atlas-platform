@@ -14,6 +14,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 strum = { version = "0.28.0", features = ["derive"] }
 uuid = { version = "1.11.0", features = ["v4", "serde", "js"] }
+chrono = { version = "0.4.39", features = ["serde"] }
 time = "0.3.47"
 tw_merge = { version = "0.1.20", features = ["variant"] }
 validator = "0.20.0"

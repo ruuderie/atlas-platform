@@ -395,12 +395,16 @@ pub async fn get_customer_contacts(
     Ok((StatusCode::OK, JsonResponse(contact_models)))
 }
 
+use crate::handlers::notes::get_user_tenant_id;
+
 pub async fn create_customer_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(customer_id): Path<Uuid>,
     Json(input): Json<CreateNoteInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
     let customer = customer::Entity::find_by_id(customer_id)
         .one(&db)
         .await
@@ -413,6 +417,8 @@ pub async fn create_customer_note(
         created_by: Set(current_user.id),
         entity_type: Set("Customer".to_string()),
         entity_id: Set(customer.id),
+        tenant_id: Set(Some(tenant_id)),
+        is_private: Set(false),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };

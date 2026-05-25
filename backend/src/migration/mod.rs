@@ -132,6 +132,7 @@ pub mod m20260523_000004_ensure_crm_modules;
 pub mod m20260523_000005_create_crm_activity_and_deep_fields;
 pub mod m20260523_000006_create_headless_email_tables;
 pub mod m20260524_000001_extend_crm_avatar_attachments;
+pub mod m20260525_000001_extend_notes_and_activities;
 
 
 
@@ -225,6 +226,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260523_000005_create_crm_activity_and_deep_fields::Migration),
             Box::new(m20260523_000006_create_headless_email_tables::Migration),
             Box::new(m20260524_000001_extend_crm_avatar_attachments::Migration),
+            Box::new(m20260525_000001_extend_notes_and_activities::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

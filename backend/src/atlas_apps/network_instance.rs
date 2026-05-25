@@ -42,9 +42,7 @@ impl AtlasApp for NetworkInstanceApp {
             .merge(crate::handlers::customers::routes())
             .merge(crate::handlers::contacts::routes())
             .merge(crate::handlers::deals::routes())
-            .merge(crate::handlers::activities::routes())
             .merge(crate::handlers::cases::routes())
-            .merge(crate::handlers::notes::routes())
     }
 
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {

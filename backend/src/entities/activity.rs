@@ -38,33 +38,23 @@ pub struct Model {
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
 pub enum ActivityType {
-    #[sea_orm(string_value = "PhoneCall")]
-    PhoneCall,
-    #[sea_orm(string_value = "Email")]
-    Email,
-    #[sea_orm(string_value = "Meeting")]
-    Meeting,
-    #[sea_orm(string_value = "Note")]
-    Note,
+    #[sea_orm(string_value = "Log")]
+    Log,
     #[sea_orm(string_value = "Task")]
     Task,
-    #[sea_orm(string_value = "Reminder")]
-    Reminder,
-    #[sea_orm(string_value = "Other")]
-    Other,
+    #[sea_orm(string_value = "Event")]
+    Event,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
 pub enum ActivityStatus {
+    #[sea_orm(string_value = "Open")]
+    Open,
     #[sea_orm(string_value = "Pending")]
     Pending,
-    #[sea_orm(string_value = "InProgress")]
-    InProgress,
     #[sea_orm(string_value = "Completed")]
     Completed,
-    #[sea_orm(string_value = "Cancelled")]
-    Cancelled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]

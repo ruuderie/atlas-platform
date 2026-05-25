@@ -15,6 +15,8 @@ pub struct Model {
     pub created_by: Uuid,
     pub entity_type: String,
     pub entity_id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub is_private: bool,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
@@ -31,6 +33,7 @@ pub enum Relation {
     Contact,
     Case,
     Activity,
+    Tenant,
 }
 
 impl RelationTrait for Relation {
@@ -65,7 +68,17 @@ impl RelationTrait for Relation {
                 .from(Column::EntityId)
                 .to(super::activity::Column::Id)
                 .into(),
+            Self::Tenant => Entity::belongs_to(super::tenant::Entity)
+                .from(Column::TenantId)
+                .to(super::tenant::Column::Id)
+                .into(),
         }
+    }
+}
+
+impl Related<super::tenant::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Tenant.def()
     }
 }
 
@@ -120,7 +133,7 @@ impl Related<super::activity::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Model {
-    pub fn new(content: String, created_by: Uuid, entity_type: String, entity_id: Uuid) -> Self {
+    pub fn new(content: String, created_by: Uuid, entity_type: String, entity_id: Uuid, tenant_id: Option<Uuid>, is_private: bool) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),
@@ -128,6 +141,8 @@ impl Model {
             created_by,
             entity_type,
             entity_id,
+            tenant_id,
+            is_private,
             created_at: now,
             updated_at: now,
         }

@@ -246,12 +246,16 @@ pub async fn remove_contact_from_deal(
     Ok(StatusCode::NO_CONTENT)
 }
 
+use crate::handlers::notes::get_user_tenant_id;
+
 pub async fn create_deal_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<CreateNoteInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
     let deal = deal::Entity::find_by_id(id)
         .one(&db)
         .await
@@ -264,6 +268,8 @@ pub async fn create_deal_note(
         created_by: Set(current_user.id),
         entity_type: Set("Deal".to_string()),
         entity_id: Set(deal.id),
+        tenant_id: Set(Some(tenant_id)),
+        is_private: Set(false),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };

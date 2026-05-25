@@ -429,7 +429,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             lead_id: Set(None),
             contact_id: Set(Some(cnt_id)),
             case_id: Set(None),
-            activity_type: Set(activity::ActivityType::PhoneCall),
+            activity_type: Set(activity::ActivityType::Log),
             title: Set("Follow-up Call".to_string()),
             description: Set(Some("Discussed the proposal specs.".to_string())),
             status: Set(activity::ActivityStatus::Completed),
@@ -451,6 +451,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             created_by: Set(admin_user_id),
             entity_type: Set("Deal".to_string()),
             entity_id: Set(d_id),
+            tenant_id: Set(Some(dir_uuid)),
+            is_private: Set(false),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
         };

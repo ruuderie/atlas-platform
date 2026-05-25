@@ -7,23 +7,26 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait, PaginatorTrait,
+    ActiveModelTrait, ModelTrait,
 };
 use uuid::Uuid;
 use chrono::Utc;
 use std::collections::HashMap;
+
 use crate::entities::{activity, user};
+use crate::entities::activity::{ActivityType, ActivityStatus};
 use crate::models::activity::{ActivityModel, CreateActivityInput, UpdateActivityInput};
 use crate::models::file::FileAssociation;
+use crate::handlers::notes::get_user_tenant_id;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/activities", post(create_activity))
-        .route("/api/activities", get(get_activities))
-        .route("/api/activities/{id}", get(get_activity))
-        .route("/api/activities/{id}", put(update_activity))
-        .route("/api/activities/{id}", delete(delete_activity))
-        .route("/api/activities/{id}/files", get(get_activity_files))
+        .route("/api/crm/activities", post(create_activity))
+        .route("/api/crm/activities", get(get_activities))
+        .route("/api/crm/activities/{id}", get(get_activity))
+        .route("/api/crm/activities/{id}", put(update_activity))
+        .route("/api/crm/activities/{id}", delete(delete_activity))
+        .route("/api/crm/activities/{id}/files", get(get_activity_files))
 }
 
 pub async fn create_activity(
@@ -31,10 +34,29 @@ pub async fn create_activity(
     Extension(current_user): Extension<user::Model>,
     Json(input): Json<CreateActivityInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
+    let mut completed_at = None;
+    let status = match input.activity_type {
+        ActivityType::Log => {
+            completed_at = Some(input.completed_at.unwrap_or_else(Utc::now));
+            ActivityStatus::Completed
+        }
+        ActivityType::Task | ActivityType::Event => {
+            if input.due_date.is_none() {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            if input.status == ActivityStatus::Completed {
+                completed_at = Some(input.completed_at.unwrap_or_else(Utc::now));
+            }
+            input.status
+        }
+    };
+
     let new_activity = activity::ActiveModel {
         id: Set(Uuid::new_v4()),
-        tenant_id: Set(None),
-        account_id: Set(Some(input.account_id)),
+        tenant_id: Set(Some(tenant_id)),
+        account_id: Set(input.account_id),
         deal_id: Set(input.deal_id),
         customer_id: Set(input.customer_id),
         lead_id: Set(input.lead_id),
@@ -43,9 +65,9 @@ pub async fn create_activity(
         activity_type: Set(input.activity_type),
         title: Set(input.title),
         description: Set(input.description),
-        status: Set(input.status),
+        status: Set(status),
         due_date: Set(input.due_date),
-        completed_at: Set(None),
+        completed_at: Set(completed_at),
         associated_entities: Set(serde_json::to_value(input.associated_entities).unwrap()),
         created_by: Set(current_user.id),
         assigned_to: Set(input.assigned_to),
@@ -53,61 +75,163 @@ pub async fn create_activity(
         updated_at: Set(Utc::now()),
     };
 
-    let activity = new_activity.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let activity = new_activity.insert(&db).await.map_err(|e| {
+        tracing::error!("Failed to insert activity: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     
-    // Associate files with the activity
-    for file_id in input.files {
-        activity.add_file(&db, file_id.id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // Associate files with the activity, auto-inserting the File record if needed
+    for file in input.files {
+        let existing = crate::entities::file::Entity::find_by_id(file.id.to_string())
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        if existing.is_none() {
+            let new_file_db = crate::entities::file::ActiveModel {
+                id: Set(file.id.to_string()),
+                name: Set(file.name.clone()),
+                size: Set(0),
+                mime_type: Set("application/octet-stream".to_string()),
+                hash_sha256: Set("".to_string()),
+                storage_type: Set(crate::entities::file::StorageType::S3),
+                storage_path: Set(file.storage_path.clone()),
+                views: Set(0),
+                downloads: Set(0),
+                bandwidth_used: Set(0),
+                bandwidth_used_paid: Set(0),
+                date_upload: Set(Utc::now().into()),
+                date_last_view: Set(None),
+                is_anonymous: Set(false),
+                user_id: Set(Some(current_user.id.to_string())),
+            };
+            new_file_db.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+        activity.add_file(&db, file.id).await.map_err(|e| {
+            tracing::error!("Failed to add file to activity: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     }
     
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(activity))))
+    let model = ActivityModel::from_with_files(activity, &db).await;
+    Ok((StatusCode::CREATED, JsonResponse(model)))
 }
 
 pub async fn get_activities(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let mut query = activity::Entity::find();
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+    let mut query = activity::Entity::find()
+        .filter(activity::Column::TenantId.eq(tenant_id));
 
-    // Add filters based on query parameters
-    if let Some(account_id) = params.get("account_id") {
-        query = query.filter(activity::Column::AccountId.eq(Uuid::parse_str(account_id).unwrap()));
+    // Polymorphic entity filters
+    if let (Some(entity_type), Some(entity_id_str)) = (params.get("entity_type"), params.get("entity_id")) {
+        if let Ok(entity_id) = Uuid::parse_str(entity_id_str) {
+            match entity_type.as_str() {
+                "Contact" => query = query.filter(activity::Column::ContactId.eq(entity_id)),
+                "Lead" => query = query.filter(activity::Column::LeadId.eq(entity_id)),
+                "Deal" => query = query.filter(activity::Column::DealId.eq(entity_id)),
+                "Customer" => query = query.filter(activity::Column::CustomerId.eq(entity_id)),
+                "Case" => query = query.filter(activity::Column::CaseId.eq(entity_id)),
+                "Account" => query = query.filter(activity::Column::AccountId.eq(entity_id)),
+                _ => {}
+            }
+        }
+    } else {
+        // Fallback to legacy individual query parameters if entity_type / entity_id are not provided
+        if let Some(account_id) = params.get("account_id") {
+            if let Ok(id) = Uuid::parse_str(account_id) {
+                query = query.filter(activity::Column::AccountId.eq(id));
+            }
+        }
+        if let Some(deal_id) = params.get("deal_id") {
+            if let Ok(id) = Uuid::parse_str(deal_id) {
+                query = query.filter(activity::Column::DealId.eq(id));
+            }
+        }
+        if let Some(customer_id) = params.get("customer_id") {
+            if let Ok(id) = Uuid::parse_str(customer_id) {
+                query = query.filter(activity::Column::CustomerId.eq(id));
+            }
+        }
+        if let Some(lead_id) = params.get("lead_id") {
+            if let Ok(id) = Uuid::parse_str(lead_id) {
+                query = query.filter(activity::Column::LeadId.eq(id));
+            }
+        }
+        if let Some(contact_id) = params.get("contact_id") {
+            if let Ok(id) = Uuid::parse_str(contact_id) {
+                query = query.filter(activity::Column::ContactId.eq(id));
+            }
+        }
+        if let Some(case_id) = params.get("case_id") {
+            if let Ok(id) = Uuid::parse_str(case_id) {
+                query = query.filter(activity::Column::CaseId.eq(id));
+            }
+        }
     }
-    // Add more filters for other fields as needed
 
-    let page: u64 = params.get("page").unwrap_or(&"1".to_string()).parse().unwrap_or(1);
-    let items_per_page: u64 = params.get("items_per_page").unwrap_or(&"10".to_string()).parse().unwrap_or(10);
+    let activities = query.all(&db).await.map_err(|e| {
+        tracing::error!("Failed to fetch activities: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let paginator = query.paginate(&db, items_per_page);
-    let activities = paginator.fetch_page(page).await.unwrap();
+    let mut activity_models = Vec::new();
+    for act in activities {
+        activity_models.push(ActivityModel::from_with_files(act, &db).await);
+    }
 
-    Ok(Json(activities))
+    Ok(JsonResponse(activity_models))
 }
 
 pub async fn get_activity(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let activity = activity::Entity::find_by_id(id).one(&db).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+    let activity = activity::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
 
-    Ok(Json(activity))
+    if activity.tenant_id != Some(tenant_id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(JsonResponse(ActivityModel::from_with_files(activity, &db).await))
 }
 
 pub async fn update_activity(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<UpdateActivityInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+
     let activity = activity::Entity::find_by_id(id)
         .one(&db)
         .await
-        .map_err(|_| StatusCode::NOT_FOUND)?
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    if activity.tenant_id != Some(tenant_id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let final_type = input.activity_type.clone().unwrap_or_else(|| activity.activity_type.clone());
+    let final_due_date = input.due_date.or(activity.due_date);
+
+    if (final_type == ActivityType::Task || final_type == ActivityType::Event) && final_due_date.is_none() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     // Create an ActiveModel from the existing model
     let mut activity_active: activity::ActiveModel = activity.clone().into();
 
-    // Update only the fields that are present in the input
     if let Some(deal_id) = input.deal_id {
         activity_active.deal_id = Set(Some(deal_id));
     }
@@ -132,14 +256,27 @@ pub async fn update_activity(
     if let Some(description) = input.description {
         activity_active.description = Set(Some(description));
     }
+
+    // Handle status transitions and completed_at
+    let mut completed_at_set = activity.completed_at;
     if let Some(status) = input.status {
+        if status == ActivityStatus::Completed {
+            if activity.status != ActivityStatus::Completed {
+                completed_at_set = Some(input.completed_at.unwrap_or_else(Utc::now));
+            } else if let Some(new_completed_at) = input.completed_at {
+                completed_at_set = Some(new_completed_at);
+            }
+        } else {
+            completed_at_set = None;
+        }
         activity_active.status = Set(status);
+    } else if let Some(new_completed_at) = input.completed_at {
+        completed_at_set = Some(new_completed_at);
     }
+    activity_active.completed_at = Set(completed_at_set);
+
     if let Some(due_date) = input.due_date {
         activity_active.due_date = Set(Some(due_date));
-    }
-    if let Some(completed_at) = input.completed_at {
-        activity_active.completed_at = Set(Some(completed_at));
     }
     if let Some(associated_entities) = input.associated_entities {
         activity_active.associated_entities = Set(serde_json::to_value(associated_entities).unwrap());
@@ -153,44 +290,89 @@ pub async fn update_activity(
     let updated_activity = activity_active
         .update(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| {
+            tracing::error!("Failed to update activity: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
-    Ok(JsonResponse(ActivityModel::from(updated_activity)))
+    // Handle files updating if provided (similar to note updating)
+    if let Some(file_ids) = input.files {
+        // Disassociate previous files
+        let current_files = activity.get_associated_files(&db).await.unwrap_or_default();
+        for f in current_files {
+            activity.remove_file(&db, f.id).await.map_err(|e| {
+                tracing::error!("Failed to remove file from activity: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+        }
+        // Associate new files
+        for fid in file_ids {
+            activity.add_file(&db, fid).await.map_err(|e| {
+                tracing::error!("Failed to add file to activity: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+        }
+    }
+
+    let model = ActivityModel::from_with_files(updated_activity, &db).await;
+    Ok(JsonResponse(model))
 }
 
 pub async fn delete_activity(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let activity = activity::Entity::find_by_id(id).one(&db).await.map_err(|_| StatusCode::NOT_FOUND)?;
-    if let Some(activity) = activity {
-        activity.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    } else {
-        return Err(StatusCode::NOT_FOUND);
-    }
-    Ok(())
-}
-
-pub async fn get_activity_files(
-    Extension(db): Extension<DatabaseConnection>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
     let activity = activity::Entity::find_by_id(id)
         .one(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let files = activity.get_associated_files(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if activity.tenant_id != Some(tenant_id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
 
+    activity.delete(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn get_activity_files(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+    let activity = activity::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if activity.tenant_id != Some(tenant_id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let files = activity.get_associated_files(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(JsonResponse(files))
 }
 
 pub async fn get_activity_notes(
     Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let activity = activity::Entity::find_by_id(id).one(&db).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
+    let activity = activity::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
 
-    Ok(Json(activity))
+    if activity.tenant_id != Some(tenant_id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(JsonResponse(ActivityModel::from_with_files(activity, &db).await))
 }
