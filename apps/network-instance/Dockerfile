@@ -5,17 +5,30 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install cargo-leptos precompiled binary
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-aarch64-unknown-linux-gnu.tar.gz"; \
+    else \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-x86_64-unknown-linux-gnu.tar.gz"; \
+    fi && \
+    curl -L -o cargo-leptos.tar.gz "$LEPTOS_URL" && \
+    tar -xzf cargo-leptos.tar.gz && \
+    cp cargo-leptos /usr/local/cargo/bin/ && \
+    rm -f cargo-leptos.tar.gz cargo-leptos
+
 WORKDIR /app
 
 # Development stage
 FROM base AS development
-RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
+RUN rustup target add wasm32-unknown-unknown
 EXPOSE 8080
 CMD ["cargo", "leptos", "watch"]
 
 # Build stage
 FROM base AS builder
-RUN cargo install cargo-leptos && rustup target add wasm32-unknown-unknown
+RUN rustup target add wasm32-unknown-unknown
 COPY . .
 WORKDIR /app/apps/network-instance
 ARG BUILD_PROFILE=release

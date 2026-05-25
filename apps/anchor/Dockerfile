@@ -7,19 +7,17 @@ RUN apt-get update -y && \
   apt-get install -y nodejs && \
   rm -rf /var/lib/apt/lists/*
 
-# Install cargo-binstall, which makes it easier to install other
-# cargo extensions like cargo-leptos
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-      BINSTALL_URL="https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-aarch64-unknown-linux-musl.tgz"; \
+# Install cargo-leptos precompiled binary
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-aarch64-unknown-linux-gnu.tar.gz"; \
     else \
-      BINSTALL_URL="https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz"; \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-x86_64-unknown-linux-gnu.tar.gz"; \
     fi && \
-    wget -O cargo-binstall.tgz "$BINSTALL_URL" && \
-    tar -xvf cargo-binstall.tgz && \
-    cp cargo-binstall /usr/local/cargo/bin
-
-# Install cargo-leptos
-RUN cargo binstall cargo-leptos -y
+    wget -O cargo-leptos.tar.gz "$LEPTOS_URL" && \
+    tar -xzf cargo-leptos.tar.gz && \
+    cp cargo-leptos /usr/local/cargo/bin/ && \
+    rm -f cargo-leptos.tar.gz cargo-leptos
 
 # Add the WASM target
 RUN rustup target add wasm32-unknown-unknown
