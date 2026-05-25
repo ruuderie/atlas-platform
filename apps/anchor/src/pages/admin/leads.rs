@@ -345,7 +345,7 @@ pub async fn get_lead_attachments(lead_id: uuid::Uuid) -> Result<Vec<RecordDocum
         let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
         RecordDocumentModel {
             id,
-            tenant_id: tenant.0,
+            tenant_id: tenant.0.unwrap_or_default(),
             target_record_id: lead_id,
             file_url: row.get("storage_path"),
             file_name: row.get("name"),

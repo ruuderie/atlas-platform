@@ -538,7 +538,7 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
     let client = aws_sdk_s3::Client::from_conf(s3_config);
     let expires_in = std::time::Duration::from_secs(3600);
     let presigning_config = aws_sdk_s3::presigning::PresigningConfig::expires_in(expires_in)
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
     
     let presigned_req = client
         .get_object()
@@ -546,7 +546,7 @@ pub async fn get_attachment_download_url(file_key: String) -> Result<String, Ser
         .key(&file_key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::<leptos::server_fn::error::NoCustomError>::ServerError(e.to_string()))?;
         
     Ok(presigned_req.uri().to_string())
 }
