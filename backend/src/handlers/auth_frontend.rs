@@ -519,6 +519,7 @@ pub async fn request_magic_link(
                 <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
                 magic_link_url, brand_name
             ),
+            attachments: Vec::new(),
         };
 
         // Write the email payload into the transaction as an outbox_job entity:

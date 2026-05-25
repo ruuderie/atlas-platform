@@ -196,12 +196,12 @@ impl SidebarTheme {
             Self::Network => SidebarThemeTokens {
                 bg:            "bg-white",
                 brand_text:    "text-slate-900 font-semibold text-sm",
-                text_inactive: "text-slate-500 hover:text-slate-900 hover:bg-slate-50",
+                text_inactive: "text-slate-700 hover:text-slate-900 hover:bg-slate-50",
                 text_active:   "text-primary bg-slate-100 border-l-2 border-primary",
                 bg_active:     "bg-slate-100",
                 font_class:    "font-sans",
                 border:        "border-slate-200",
-                logout_text:   "text-slate-400 hover:text-red-500",
+                logout_text:   "text-slate-600 hover:text-red-600",
             },
             Self::Custom(t) => t.clone(),
         }

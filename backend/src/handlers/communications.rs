@@ -18,6 +18,8 @@ pub struct SendEmailPayload {
     pub to_email: String,
     pub subject: String,
     pub body_html: String,
+    #[serde(default)]
+    pub attachments: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -70,18 +72,63 @@ pub async fn send_email_handler(
     let token = custom_token.unwrap_or_else(|| std::env::var("SMTP_TOKEN").unwrap_or_default());
     let from_email = custom_from.unwrap_or_else(|| std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas-platform.local".to_string()));
 
-    // 3. Construct Message
+    // 3. Construct MultiPart Body
+    let mut multipart = MultiPart::mixed().singlepart(
+        SinglePart::builder()
+            .header(header::ContentType::TEXT_HTML)
+            .body(payload.body_html.clone()),
+    );
+
+    // 4. Download S3 attachments and append to Multipart
+    if !payload.attachments.is_empty() {
+        let access_key = std::env::var("R2_ACCESS_KEY_ID").unwrap_or_default();
+        let secret = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
+        let endpoint = std::env::var("R2_ENDPOINT").unwrap_or_default();
+        let bucket_name = "atlas-tenant-vault".to_string();
+
+        if !access_key.is_empty() && !endpoint.is_empty() {
+            let credentials = aws_sdk_s3::config::Credentials::new(
+                access_key, secret, None, None, "cloudflare"
+            );
+            let s3_config = aws_sdk_s3::config::Builder::new()
+                .credentials_provider(credentials)
+                .region(aws_sdk_s3::config::Region::new("auto"))
+                .endpoint_url(endpoint)
+                .build();
+            let client = aws_sdk_s3::Client::from_conf(s3_config);
+            for file_key in &payload.attachments {
+                if let Ok(resp) = client.get_object().bucket(&bucket_name).key(file_key).send().await {
+                    if let Ok(data) = resp.body.collect().await {
+                        let bytes = data.into_bytes().to_vec();
+                        let filename = file_key.split('/').last().unwrap_or("attachment").to_string();
+                        let ext = filename.split('.').last().unwrap_or("").to_lowercase();
+                        let mime = match ext.as_str() {
+                            "pdf" => "application/pdf",
+                            "png" => "image/png",
+                            "jpg" | "jpeg" => "image/jpeg",
+                            "gif" => "image/gif",
+                            "txt" => "text/plain",
+                            "html" => "text/html",
+                            "doc" | "docx" => "application/msword",
+                            _ => "application/octet-stream",
+                        };
+                        if let Ok(m_parsed) = mime.parse() {
+                            let part = lettre::message::Attachment::new(filename)
+                                .body(bytes, m_parsed);
+                            multipart = multipart.singlepart(part);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 5. Construct Email Message
     let email = Message::builder()
         .from(from_email.parse().map_err(|_| (StatusCode::BAD_REQUEST, "Invalid FROM email".to_string()))?)
         .to(payload.to_email.parse().map_err(|_| (StatusCode::BAD_REQUEST, "Invalid TO email".to_string()))?)
         .subject(&payload.subject)
-        .multipart(
-            MultiPart::alternative().singlepart(
-                SinglePart::builder()
-                    .header(header::ContentType::TEXT_HTML)
-                    .body(payload.body_html),
-            ),
-        )
+        .multipart(multipart)
         .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to build email message".to_string()))?;
 
     // If we're mocking local sending

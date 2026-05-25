@@ -1548,6 +1548,7 @@ pub fn LeadForm(
     let (message, set_message) = signal(initial_record.as_ref().and_then(|r| r.message.clone()).unwrap_or_default());
 
     let (save_error, set_save_error) = signal::<Option<String>>(None);
+    let avatar_url_val = initial_record.as_ref().and_then(|r| r.avatar_url.clone());
 
     let save = move |_| {
         let fn_val = first_name.get_untracked();
@@ -1567,6 +1568,7 @@ pub fn LeadForm(
         let st_opt = Some(lead_status.get_untracked());
         let src_opt = Some(source.get_untracked());
         let msg_opt = { let s = message.get_untracked(); if s.is_empty() { None } else { Some(s) } };
+        let av_opt = avatar_url_val.clone();
 
         set_save_error.set(None);
         leptos::task::spawn_local(async move {
@@ -1582,6 +1584,7 @@ pub fn LeadForm(
                     ti_opt,
                     src_opt,
                     msg_opt,
+                    av_opt,
                 ).await
             } else {
                 crate::pages::admin::leads::add_lead(
@@ -1710,6 +1713,7 @@ pub fn ContactForm(
     );
 
     let (save_error, set_save_error) = signal::<Option<String>>(None);
+    let avatar_url_val = initial_record.as_ref().and_then(|r| r.avatar_url.clone());
 
     let save = move |_| {
         let fn_val = first_name.get_untracked();
@@ -1741,6 +1745,7 @@ pub fn ContactForm(
         let sub_email = em_opt.clone().unwrap_or_default();
         let sub_active = subscribe_list.get_untracked() && !sub_email.is_empty();
         let sub_tag = list_tag.get_untracked();
+        let av_opt = avatar_url_val.clone();
 
         set_save_error.set(None);
         leptos::task::spawn_local(async move {
@@ -1758,6 +1763,7 @@ pub fn ContactForm(
                     ig_opt,
                     fb_opt,
                     parsed_properties,
+                    av_opt,
                 ).await
             } else {
                 crate::pages::admin::contacts::add_contact(

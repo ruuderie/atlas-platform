@@ -249,6 +249,7 @@ pub async fn initialize_finish(
         to_email: setup_payload.email.clone(),
         subject: "Welcome to Atlas Platform!".to_string(),
         body_html: format!("<h2>Atlas Platform Initialized</h2><p>Your administrator profile has been successfully generated and bound to your WebAuthn passkey.</p><br><a href=\"{0}/login\">Access the Platform</a>", frontend_url),
+        attachments: Vec::new(),
     };
     let _ = send_email_handler(State(db.clone()), Json(email_payload)).await;
 

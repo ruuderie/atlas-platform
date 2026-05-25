@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
+use super::file_attachments::RecordDocumentModel;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct EmailTemplate {
@@ -13,12 +14,21 @@ pub fn EmailComposer(
     open: ReadSignal<bool>,
     to_email: ReadSignal<String>,
     #[prop(optional)] templates: Vec<EmailTemplate>,
+    #[prop(into, optional)] record_files: Option<Signal<Vec<RecordDocumentModel>>>,
     on_close: Callback<()>,
-    on_send: Callback<(String, String)>, // (subject, body)
+    on_send: Callback<(String, String, Vec<String>)>, // (subject, body, attachments)
 ) -> impl IntoView {
     let (subject, set_subject) = signal(String::new());
     let (body, set_body) = signal(String::new());
     let (sending, set_sending) = signal(false);
+    let (uploading_attachment, set_uploading_attachment) = signal(false);
+    
+    // Tracks both pre-existing record file keys and newly uploaded local S3 file keys
+    let (selected_attachments, set_selected_attachments) = signal::<Vec<String>>(Vec::new());
+    let (custom_attachments, set_custom_attachments) = signal::<Vec<(String, String)>>(Vec::new()); // (file_name, file_key)
+
+    // Hidden input reference for local upload
+    let local_file_input_ref = NodeRef::<leptos::html::Input>::new();
 
     // Keep inputs in sync when composer opens/closes
     Effect::new(move |_| {
@@ -26,6 +36,8 @@ pub fn EmailComposer(
             set_subject.set(String::new());
             set_body.set(String::new());
             set_sending.set(false);
+            set_selected_attachments.set(Vec::new());
+            set_custom_attachments.set(Vec::new());
         }
     });
 
@@ -47,7 +59,51 @@ pub fn EmailComposer(
                 return;
             }
             set_sending.set(true);
-            on_send.run((subject.get_untracked(), body.get_untracked()));
+            
+            let attachments = selected_attachments.get_untracked();
+            on_send.run((subject.get_untracked(), body.get_untracked(), attachments));
+        }
+    };
+
+    let toggle_attachment = move |file_key: String| {
+        set_selected_attachments.update(|list| {
+            if let Some(pos) = list.iter().position(|k| k == &file_key) {
+                list.remove(pos);
+            } else {
+                list.push(file_key);
+            }
+        });
+    };
+
+    let trigger_local_upload = move |_| {
+        if let Some(input) = local_file_input_ref.get() {
+            input.click();
+        }
+    };
+
+    let handle_local_upload = move |ev: web_sys::Event| {
+        let target = ev.target().and_then(|t| wasm_bindgen::JsCast::dyn_into::<web_sys::HtmlInputElement>(t).ok());
+        if let Some(input) = target {
+            if let Some(files) = input.files() {
+                if let Some(file) = files.get(0) {
+                    set_uploading_attachment.set(true);
+                    leptos::task::spawn_local(async move {
+                        #[cfg(not(feature = "ssr"))]
+                        {
+                            match super::file_attachments::upload_file_to_s3(file).await {
+                                Ok((name, key)) => {
+                                    set_custom_attachments.update(|list| list.push((name.clone(), key.clone())));
+                                    set_selected_attachments.update(|list| list.push(key));
+                                }
+                                Err(e) => {
+                                    leptos::logging::error!("Composer upload error: {}", e);
+                                }
+                            }
+                        }
+                        set_uploading_attachment.set(false);
+                    });
+                }
+            }
         }
     };
 
@@ -76,12 +132,14 @@ pub fn EmailComposer(
         }
     };
 
+    let files_signal = record_files.unwrap_or_else(|| Signal::derive(|| Vec::new()));
+
     view! {
         <div 
             class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[90] transition-opacity duration-300"
             style:display=move || if open.get() { "flex" } else { "none" }
         >
-            <div class="bg-surface-container border border-outline-variant/30 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col font-sans text-on-surface animate-slide-in">
+            <div class="bg-surface-container border border-outline-variant/30 rounded-2xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col font-sans text-on-surface animate-slide-in max-h-[90vh] overflow-y-auto">
                 
                 // Header
                 <div class="flex items-center justify-between border-b border-outline-variant/30 pb-4 mb-4">
@@ -215,6 +273,103 @@ pub fn EmailComposer(
                             ></textarea>
                         </div>
                     </div>
+
+                    // S3/R2 File Attachments Section
+                    <div class="border-t border-outline-variant/20 pt-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-[10px] tracking-wider uppercase font-semibold text-outline-variant">
+                                "Attachments"
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input 
+                                    type="file" 
+                                    node_ref=local_file_input_ref
+                                    on:change=handle_local_upload
+                                    class="hidden"
+                                />
+                                <button 
+                                    type="button"
+                                    on:click=trigger_local_upload
+                                    disabled=uploading_attachment
+                                    class="text-[9px] jetbrains font-bold uppercase text-primary hover:underline flex items-center gap-0.5"
+                                >
+                                    <span class="material-symbols-outlined text-[12px]">"add"</span>
+                                    {move || if uploading_attachment.get() { "Uploading..." } else { "Attach Local File" }}
+                                </button>
+                            </div>
+                        </div>
+
+                        // Attachments checkboxes
+                        <div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-3 max-h-36 overflow-y-auto space-y-2">
+                            
+                            // 1. Existing Record Attachments
+                            <For 
+                                each=move || files_signal.get() 
+                                key=|f| f.id 
+                                children={
+                                    let toggle_attachment = toggle_attachment.clone();
+                                    move |f| {
+                                        let key = f.file_url.clone();
+                                        let key_cl = key.clone();
+                                        let checked = move || selected_attachments.get().contains(&key);
+                                        let toggle = toggle_attachment.clone();
+                                        view! {
+                                            <label class="flex items-center gap-2 text-xs font-medium cursor-pointer py-1 select-none hover:bg-surface-container-high/40 px-2 rounded-lg transition-colors">
+                                                <input 
+                                                    type="checkbox"
+                                                    prop:checked=checked
+                                                    on:change={
+                                                        let key_cl = key_cl.clone();
+                                                        let toggle = toggle.clone();
+                                                        move |_| toggle(key_cl.clone())
+                                                    }
+                                                    class="rounded border-outline-variant/40 text-primary focus:ring-primary w-3.5 h-3.5"
+                                                />
+                                                <span class="material-symbols-outlined text-outline text-[14px]">"description"</span>
+                                                <span class="truncate flex-1 text-on-surface">{f.file_name}</span>
+                                            </label>
+                                        }
+                                    }
+                                }
+                            />
+
+                            // 2. Newly Uploaded Local Files
+                            <For 
+                                each=move || custom_attachments.get() 
+                                key=|(_, k)| k.clone() 
+                                children={
+                                    let toggle_attachment = toggle_attachment.clone();
+                                    move |(name, key)| {
+                                        let key_cl = key.clone();
+                                        let checked = move || selected_attachments.get().contains(&key);
+                                        let toggle = toggle_attachment.clone();
+                                        view! {
+                                            <label class="flex items-center gap-2 text-xs font-medium cursor-pointer py-1 select-none hover:bg-surface-container-high/40 px-2 rounded-lg transition-colors bg-primary/5 border border-primary/10">
+                                                <input 
+                                                    type="checkbox"
+                                                    prop:checked=checked
+                                                    on:change={
+                                                        let key_cl = key_cl.clone();
+                                                        let toggle = toggle.clone();
+                                                        move |_| toggle(key_cl.clone())
+                                                    }
+                                                    class="rounded border-outline-variant/40 text-primary focus:ring-primary w-3.5 h-3.5"
+                                                />
+                                                <span class="material-symbols-outlined text-primary text-[14px]">"cloud_done"</span>
+                                                <span class="truncate flex-1 text-primary font-bold">{name}</span>
+                                            </label>
+                                        }
+                                    }
+                                }
+                            />
+
+                            <Show when=move || files_signal.get().is_empty() && custom_attachments.get().is_empty()>
+                                <div class="text-center py-4 text-[10px] text-outline-variant font-mono uppercase">
+                                    "NO_ATTACHMENTS_STAGED"
+                                </div>
+                            </Show>
+                        </div>
+                    </div>
                 </div>
 
                 // Footer actions
@@ -248,3 +403,5 @@ pub fn EmailComposer(
         </div>
     }
 }
+
+

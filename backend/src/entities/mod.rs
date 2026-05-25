@@ -12,6 +12,7 @@ pub mod note;
 pub mod lead_charge;
 pub mod crm_status_option;
 
+
 //DIRECTORIES
 pub mod user;
 pub mod profile;

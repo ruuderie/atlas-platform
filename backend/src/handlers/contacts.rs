@@ -13,7 +13,7 @@ use uuid::Uuid;
 use chrono::Utc;
 use crate::handlers::Validate;
 use crate::models::{address::AddressJson, contact::Contact as ContactModel};
-use crate::entities::{contact, note, activity, user};
+use crate::entities::{contact, note, activity, user, user_account};
 use crate::models::contact::{ CreateContactInput, UpdateContactInput};
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};
@@ -55,6 +55,7 @@ pub async fn create_contact(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         properties: Set(payload.properties),
+        avatar_url: Set(payload.avatar_url),
         ..Default::default()
     };
 
@@ -157,6 +158,9 @@ pub async fn update_contact(
     }
     if let Some(properties) = payload.properties {
         contact.properties = Set(Some(properties));
+    }
+    if let Some(avatar_url) = payload.avatar_url {
+        contact.avatar_url = Set(Some(avatar_url));
     }
     contact.updated_at = Set(Utc::now());
 
@@ -349,3 +353,5 @@ pub async fn get_contact_activities(
     let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
     Ok(JsonResponse(activity_models))
 }
+
+

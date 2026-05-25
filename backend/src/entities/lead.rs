@@ -47,6 +47,7 @@ pub struct Model {
     pub tenant_id: Option<Uuid>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub properties: Option<Value>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

@@ -26,6 +26,7 @@ pub struct Contact {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub properties: Option<serde_json::Value>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +45,7 @@ pub struct CreateContactInput {
     pub billing_address: Option<AddressJson>,
     pub shipping_address: Option<AddressJson>,
     pub properties: Option<serde_json::Value>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,6 +64,7 @@ pub struct UpdateContactInput {
     pub billing_address: Option<AddressJson>,
     pub shipping_address: Option<AddressJson>,
     pub properties: Option<serde_json::Value>,
+    pub avatar_url: Option<String>,
 }
 
 impl From<contact::Model> for Contact {
@@ -84,6 +87,7 @@ impl From<contact::Model> for Contact {
             created_at: model.created_at,
             updated_at: model.updated_at,
             properties: model.properties,
+            avatar_url: model.avatar_url,
         }
     }
 }

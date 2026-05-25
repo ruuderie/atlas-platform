@@ -3,6 +3,7 @@ use shared_ui::components::crm_stage_bar::{CrmStageBar, CrmStatusOption};
 use shared_ui::components::crm_timeline::{CrmTimeline, CrmNote, CrmActivity};
 use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::utils::ResourceState;
+use shared_ui::components::file_attachments::{FileAttachments, RecordDocumentModel};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct ContactRecord {
@@ -21,6 +22,7 @@ pub struct ContactRecord {
     pub properties: Option<serde_json::Value>,
     pub created_at: String,
     pub updated_at: String,
+    pub avatar_url: Option<String>,
 }
 
 #[server(GetContacts, "/api")]
@@ -37,7 +39,7 @@ pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
     let rows = sqlx::query(
-        "SELECT id, customer_id, name, first_name, last_name, email, phone, whatsapp, telegram, twitter, instagram, facebook, properties, created_at, updated_at \
+        "SELECT id, customer_id, name, first_name, last_name, email, phone, whatsapp, telegram, twitter, instagram, facebook, properties, avatar_url, created_at, updated_at \
          FROM contact \
          WHERE tenant_id = $1 \
          ORDER BY created_at DESC"
@@ -68,6 +70,7 @@ pub async fn get_contacts() -> Result<Vec<ContactRecord>, ServerFnError> {
                 properties: row.try_get("properties").unwrap_or(None),
                 created_at: created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 updated_at: updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                avatar_url: row.try_get("avatar_url").unwrap_or(None),
             }
         })
         .collect();
@@ -143,6 +146,7 @@ pub async fn update_contact_details(
     instagram: Option<String>,
     facebook: Option<String>,
     properties: Option<serde_json::Value>,
+    avatar_url: Option<String>,
 ) -> Result<(), ServerFnError> {
     use axum::Extension;
     use leptos_axum::extract;
@@ -156,8 +160,8 @@ pub async fn update_contact_details(
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
     sqlx::query(
-        "UPDATE contact SET name = $1, first_name = $2, last_name = $3, email = $4, phone = $5, whatsapp = $6, telegram = $7, twitter = $8, instagram = $9, facebook = $10, properties = $11, updated_at = NOW() \
-         WHERE id = $12 AND tenant_id = $13"
+        "UPDATE contact SET name = $1, first_name = $2, last_name = $3, email = $4, phone = $5, whatsapp = $6, telegram = $7, twitter = $8, instagram = $9, facebook = $10, properties = $11, avatar_url = $12, updated_at = NOW() \
+         WHERE id = $13 AND tenant_id = $14"
     )
     .bind(name)
     .bind(first_name)
@@ -170,6 +174,7 @@ pub async fn update_contact_details(
     .bind(instagram)
     .bind(facebook)
     .bind(properties)
+    .bind(avatar_url)
     .bind(id)
     .bind(tenant.0)
     .execute(&state.pool)
@@ -317,6 +322,7 @@ pub async fn send_crm_email(
     body_html: String,
     contact_id: Option<uuid::Uuid>,
     lead_id: Option<uuid::Uuid>,
+    attachments: Vec<String>,
 ) -> Result<(), ServerFnError> {
     #[cfg(feature = "ssr")]
     {
@@ -369,21 +375,67 @@ pub async fn send_crm_email(
         let token = custom_token.unwrap_or_else(|| std::env::var("SMTP_TOKEN").unwrap_or_default());
         let from_email = custom_from.unwrap_or_else(|| std::env::var("SMTP_FROM").unwrap_or_else(|_| "noreply@atlas-platform.local".to_string()));
 
-        // 3. Construct Message
+        // 3. Construct MultiPart Body
+        let mut multipart = MultiPart::mixed().singlepart(
+            SinglePart::builder()
+                .header(header::ContentType::TEXT_HTML)
+                .body(body_html.clone()),
+        );
+
+        // 4. Download S3 attachments and append to Multipart
+        if !attachments.is_empty() {
+            let access_key = std::env::var("R2_ACCESS_KEY_ID").unwrap_or_default();
+            let secret = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
+            let endpoint = std::env::var("R2_ENDPOINT").unwrap_or_default();
+            let bucket_name = "atlas-tenant-vault".to_string();
+
+            if !access_key.is_empty() && !endpoint.is_empty() {
+                let credentials = aws_sdk_s3::config::Credentials::new(
+                    access_key, secret, None, None, "cloudflare"
+                );
+                let s3_config = aws_sdk_s3::config::Builder::new()
+                    .credentials_provider(credentials)
+                    .region(aws_sdk_s3::config::Region::new("auto"))
+                    .endpoint_url(endpoint)
+                    .build();
+
+                let client = aws_sdk_s3::Client::from_conf(s3_config);
+                for file_key in &attachments {
+                    if let Ok(resp) = client.get_object().bucket(&bucket_name).key(file_key).send().await {
+                        if let Ok(data) = resp.body.collect().await {
+                            let bytes = data.into_bytes().to_vec();
+                            let filename = file_key.split('/').last().unwrap_or("attachment").to_string();
+                            let ext = filename.split('.').last().unwrap_or("").to_lowercase();
+                            let mime = match ext.as_str() {
+                                "pdf" => "application/pdf",
+                                "png" => "image/png",
+                                "jpg" | "jpeg" => "image/jpeg",
+                                "gif" => "image/gif",
+                                "txt" => "text/plain",
+                                "html" => "text/html",
+                                "doc" | "docx" => "application/msword",
+                                _ => "application/octet-stream",
+                            };
+                            if let Ok(m_parsed) = mime.parse() {
+                                let part = lettre::message::Attachment::new(filename)
+                                    .body(bytes, m_parsed);
+                                multipart = multipart.singlepart(part);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. Construct Email Message
         let email = Message::builder()
             .from(from_email.parse().map_err(|e| ServerFnError::new(format!("Invalid FROM email: {}", e)))?)
             .to(to_email.parse().map_err(|e| ServerFnError::new(format!("Invalid TO email: {}", e)))?)
             .subject(&subject)
-            .multipart(
-                MultiPart::alternative().singlepart(
-                    SinglePart::builder()
-                        .header(header::ContentType::TEXT_HTML)
-                        .body(body_html.clone()),
-                ),
-            )
+            .multipart(multipart)
             .map_err(|e| ServerFnError::new(format!("Failed to build email message: {}", e)))?;
 
-        // 4. Send email
+        // 6. Send email
         if host == "localhost" || host.is_empty() {
             leptos::logging::log!("SMTP Host not configured. Mocking email send to: {}", to_email);
         } else {
@@ -405,7 +457,7 @@ pub async fn send_crm_email(
             mailer.send(email).await.map_err(|e| ServerFnError::new(format!("SMTP delivery failed: {}", e)))?;
         }
 
-        // 5. Insert activity record
+        // 7. Insert activity record
         let user_id: uuid::Uuid = sqlx::query_scalar("SELECT id FROM \"user\" LIMIT 1")
             .fetch_one(&state.pool)
             .await?;
@@ -553,6 +605,127 @@ pub async fn log_contact_activity(contact_id: uuid::Uuid, activity_type: String,
     .await?;
 
     Ok(())
+}
+
+#[server(GetContactAttachments, "/api")]
+pub async fn get_contact_attachments(contact_id: uuid::Uuid) -> Result<Vec<RecordDocumentModel>, ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let rows = sqlx::query(
+        "SELECT f.id as file_id, f.name, f.storage_path, f.created_at \
+         FROM files f \
+         INNER JOIN file_associations fa ON f.id = fa.file_id \
+         WHERE fa.associated_entity_type = 'Contact' AND fa.associated_entity_id = $1 \
+         ORDER BY f.created_at DESC"
+    )
+    .bind(contact_id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    use sqlx::Row;
+    let docs = rows.into_iter().map(|row| {
+        let created_at: chrono::DateTime<chrono::Utc> = row.get("created_at");
+        let file_id_str: String = row.get("file_id");
+        let id = uuid::Uuid::parse_str(&file_id_str).unwrap_or_default();
+        RecordDocumentModel {
+            id,
+            tenant_id: tenant.0,
+            target_record_id: contact_id,
+            file_url: row.get("storage_path"),
+            file_name: row.get("name"),
+            uploaded_at: created_at.format("%Y-%m-%d %H:%M").to_string(),
+        }
+    }).collect();
+
+    Ok(docs)
+}
+
+#[server(AddContactAttachment, "/api")]
+pub async fn add_contact_attachment(contact_id: uuid::Uuid, file_name: String, file_url: String) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+    let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
+
+    let file_id = uuid::Uuid::new_v4();
+    let file_id_str = file_id.to_string();
+
+    sqlx::query(
+        "INSERT INTO files (id, name, size, mime_type, hash_sha256, storage_type, storage_path, views, downloads, bandwidth_used, bandwidth_used_paid, created_at, updated_at, is_anonymous) \
+         VALUES ($1, $2, 0, 'application/octet-stream', '', 'S', $3, 0, 0, 0, 0, NOW(), NOW(), false)"
+    )
+    .bind(&file_id_str)
+    .bind(&file_name)
+    .bind(&file_url)
+    .execute(&state.pool)
+    .await?;
+
+    sqlx::query(
+        "INSERT INTO file_associations (id, file_id, associated_entity_type, associated_entity_id) \
+         VALUES ($1, $2, 'Contact', $3)"
+    )
+    .bind(uuid::Uuid::new_v4())
+    .bind(&file_id_str)
+    .bind(contact_id)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(())
+}
+
+#[server(DeleteContactAttachment, "/api")]
+pub async fn delete_contact_attachment(doc_id: uuid::Uuid) -> Result<(), ServerFnError> {
+    use axum::Extension;
+    use leptos_axum::extract;
+    let Extension(state) = extract::<Extension<crate::state::AppState>>().await?;
+
+    sqlx::query(
+        "DELETE FROM files WHERE id = $1"
+    )
+    .bind(doc_id.to_string())
+    .execute(&state.pool)
+    .await?;
+
+    Ok(())
+}
+
+#[server(GetAttachmentDownloadUrl, "/api")]
+pub async fn get_attachment_download_url(file_key: String) -> Result<String, ServerFnError> {
+    let access_key = std::env::var("R2_ACCESS_KEY_ID").unwrap_or_default();
+    let secret = std::env::var("R2_SECRET_ACCESS_KEY").unwrap_or_default();
+    let endpoint = std::env::var("R2_ENDPOINT").unwrap_or_default();
+    let bucket_name = "atlas-tenant-vault".to_string();
+
+    if access_key.is_empty() || endpoint.is_empty() {
+        return Err(ServerFnError::ServerError("R2 unconfigured".into()));
+    }
+
+    let credentials = aws_sdk_s3::config::Credentials::new(
+        access_key, secret, None, None, "cloudflare"
+    );
+    let s3_config = aws_sdk_s3::config::Builder::new()
+        .credentials_provider(credentials)
+        .region(aws_sdk_s3::config::Region::new("auto"))
+        .endpoint_url(endpoint)
+        .build();
+
+    let client = aws_sdk_s3::Client::from_conf(s3_config);
+    let expires_in = std::time::Duration::from_secs(3600);
+    let presigning_config = aws_sdk_s3::presigning::PresigningConfig::expires_in(expires_in)
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    
+    let presigned_req = client
+        .get_object()
+        .bucket(&bucket_name)
+        .key(&file_key)
+        .presigned(presigning_config)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        
+    Ok(presigned_req.uri().to_string())
 }
 
 #[component]
@@ -792,6 +965,17 @@ fn ContactCrmPane(
     let contact_id = contact_record.id;
     let notes_res = Resource::new(move || refresh.get(), move |_| get_contact_notes(contact_id));
     let activities_res = Resource::new(move || refresh.get(), move |_| get_contact_activities(contact_id));
+    let attachments_res = Resource::new(move || refresh.get(), move |_| get_contact_attachments(contact_id));
+
+    // Avatar Url State
+    let (avatar_url_signal, set_avatar_url_signal) = signal(contact_record.avatar_url.clone());
+    let avatar_input_ref = NodeRef::<leptos::html::Input>::new();
+    
+    let trigger_avatar_upload = move |_| {
+        if let Some(input) = avatar_input_ref.get() {
+            input.click();
+        }
+    };
 
     // Field signals for standard details editing
     let (name, set_name) = signal(contact_record.name.clone());
@@ -833,9 +1017,10 @@ fn ContactCrmPane(
         let ig_val = Some(instagram.get()).filter(|s| !s.is_empty());
         let fb_val = Some(facebook.get()).filter(|s| !s.is_empty());
 
+        let avatar_val = avatar_url_signal.get_untracked();
         leptos::task::spawn_local(async move {
             if let Ok(_) = update_contact_details(
-                contact_id, n, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props)
+                contact_id, n, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
             ).await {
                 // Log timeline activity
                 let _ = log_contact_activity(contact_id, "stage_change".to_string(), format!("Status transitioned to {}", stage_cl)).await;
@@ -871,9 +1056,10 @@ fn ContactCrmPane(
             map.insert("status".to_string(), serde_json::Value::String(current_stage.get_untracked()));
         }
 
+        let avatar_val = avatar_url_signal.get_untracked();
         leptos::task::spawn_local(async move {
             match update_contact_details(
-                contact_id, n, fn_opt, ln_opt, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props)
+                contact_id, n, fn_opt, ln_opt, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, Some(props), avatar_val
             ).await {
                 Ok(_) => {
                     set_edit_mode.set(false);
@@ -902,6 +1088,87 @@ fn ContactCrmPane(
         });
     });
 
+    let add_attachment_cb = Callback::new(move |(file_name, file_url): (String, String)| {
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = add_contact_attachment(contact_id, file_name, file_url).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let delete_attachment_cb = Callback::new(move |doc_id: uuid::Uuid| {
+        leptos::task::spawn_local(async move {
+            if let Ok(_) = delete_contact_attachment(doc_id).await {
+                set_refresh.set(refresh.get_untracked() + 1);
+            }
+        });
+    });
+
+    let download_attachment_cb = Callback::new(move |file_key: String| {
+        leptos::task::spawn_local(async move {
+            if let Ok(download_url) = get_attachment_download_url(file_key).await {
+                #[cfg(not(feature = "ssr"))]
+                if let Some(win) = web_sys::window() {
+                    let _ = win.open_with_url_and_target(&download_url, "_blank");
+                }
+            }
+        });
+    });
+
+    let handle_avatar_change = {
+        let set_refresh = set_refresh.clone();
+        let refresh = refresh.clone();
+        let name = name.clone();
+        let first_name = first_name.clone();
+        let last_name = last_name.clone();
+        let email = email.clone();
+        let phone = phone.clone();
+        let whatsapp = whatsapp.clone();
+        let telegram = telegram.clone();
+        let twitter = twitter.clone();
+        let instagram = instagram.clone();
+        let facebook = facebook.clone();
+        let properties_signal = properties_signal.clone();
+        move |ev: web_sys::Event| {
+            #[cfg(not(feature = "ssr"))]
+            {
+                use leptos::wasm_bindgen::JsCast;
+                let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                if let Some(input) = target {
+                    if let Some(files) = input.files() {
+                        if let Some(file) = files.get(0) {
+                            let name_val = name.get_untracked();
+                            let fn_val = Some(first_name.get_untracked()).filter(|s| !s.is_empty());
+                            let ln_val = Some(last_name.get_untracked()).filter(|s| !s.is_empty());
+                            let em_val = Some(email.get_untracked()).filter(|s| !s.is_empty());
+                            let ph_val = Some(phone.get_untracked()).filter(|s| !s.is_empty());
+                            let wa_val = Some(whatsapp.get_untracked()).filter(|s| !s.is_empty());
+                            let tg_val = Some(telegram.get_untracked()).filter(|s| !s.is_empty());
+                            let tw_val = Some(twitter.get_untracked()).filter(|s| !s.is_empty());
+                            let ig_val = Some(instagram.get_untracked()).filter(|s| !s.is_empty());
+                            let fb_val = Some(facebook.get_untracked()).filter(|s| !s.is_empty());
+                            let props = properties_signal.get_untracked();
+                            let set_refresh = set_refresh.clone();
+                            let refresh = refresh.clone();
+                            let set_avatar_url_signal = set_avatar_url_signal.clone();
+                            
+                            leptos::task::spawn_local(async move {
+                                if let Ok((_, key)) = shared_ui::components::file_attachments::upload_file_to_s3(file).await {
+                                    if let Ok(_) = update_contact_details(
+                                        contact_id, name_val, fn_val, ln_val, em_val, ph_val, wa_val, tg_val, tw_val, ig_val, fb_val, props, Some(key.clone())
+                                    ).await {
+                                        set_avatar_url_signal.set(Some(key));
+                                        set_refresh.set(refresh.get_untracked() + 1);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    };
+
     view! {
         <div class="w-full bg-background flex flex-col animate-slide-in font-sans text-on-surface">
             // Breadcrumb navigation header
@@ -924,8 +1191,38 @@ fn ContactCrmPane(
                     // Main Highlight Panel / Avatar & Quick Details
                     <div class="bg-surface-container p-6 rounded-2xl border border-outline-variant/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex items-center gap-4">
-                            <div class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-                                <span class="material-symbols-outlined text-[28px]">"person"</span>
+                            <input 
+                                type="file" 
+                                node_ref=avatar_input_ref
+                                on:change=handle_avatar_change
+                                class="hidden"
+                            />
+                            <div 
+                                on:click=trigger_avatar_upload
+                                class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20 relative group cursor-pointer overflow-hidden"
+                            >
+                                <Show 
+                                    when=move || avatar_url_signal.get().is_some()
+                                    fallback=move || {
+                                        let name_val = name.get();
+                                        let initials: String = name_val.split_whitespace()
+                                            .filter_map(|s| s.chars().next())
+                                            .take(2)
+                                            .collect::<String>()
+                                            .to_uppercase();
+                                        view! {
+                                            <span class="font-bold text-lg">{initials}</span>
+                                        }
+                                    }
+                                >
+                                    <img 
+                                        src=move || avatar_url_signal.get().unwrap_or_default()
+                                        class="w-full h-full object-cover animate-fade-in"
+                                    />
+                                </Show>
+                                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span class="material-symbols-outlined text-white text-[18px]">"photo_camera"</span>
+                                </div>
                             </div>
                             <div>
                                 <h2 class="text-xl font-bold text-on-surface leading-tight">{move || name.get()}</h2>
@@ -1141,6 +1438,14 @@ fn ContactCrmPane(
                             on_log_activity=log_activity_cb
                         />
                     </div>
+                    <FileAttachments
+                        entity_type="Contact".to_string()
+                        entity_id=contact_id
+                        files=Signal::derive(move || attachments_res.get().and_then(|r| r.ok()).unwrap_or_default())
+                        on_upload=add_attachment_cb
+                        on_delete=delete_attachment_cb
+                        on_download=download_attachment_cb
+                    />
                 </div>
 
             </div>
@@ -1149,17 +1454,18 @@ fn ContactCrmPane(
                 open=composer_open
                 to_email=email
                 templates=default_templates.clone()
+                record_files=Signal::derive(move || attachments_res.get().and_then(|r| r.ok()).unwrap_or_default())
                 on_close=Callback::new(move |_: ()| set_composer_open.set(false))
                 on_send=Callback::new({
                     let set_refresh = set_refresh.clone();
                     let refresh = refresh.clone();
                     let to_email = email.clone();
-                    move |(subj, bdy): (String, String)| {
+                    move |(subj, bdy, atts): (String, String, Vec<String>)| {
                         let set_refresh = set_refresh.clone();
                         let refresh = refresh.clone();
                         let to_addr = to_email.get();
                         leptos::task::spawn_local(async move {
-                            if let Ok(_) = send_crm_email(to_addr, subj, bdy, Some(contact_id), None).await {
+                            if let Ok(_) = send_crm_email(to_addr, subj, bdy, Some(contact_id), None, atts).await {
                                 set_composer_open.set(false);
                                 set_refresh.set(refresh.get_untracked() + 1);
                             }

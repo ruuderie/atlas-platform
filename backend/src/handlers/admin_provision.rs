@@ -382,6 +382,7 @@ pub async fn provision_tenant(
                      <p><a href=\"{url}\">{url}</a></p>\
                      <p><em>This link expires in 24 hours.</em></p>",
                 ),
+                attachments: Vec::new(),
             };
             let _ = crate::handlers::communications::send_email_handler(
                 axum::extract::State(db_clone),

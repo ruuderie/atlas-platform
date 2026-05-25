@@ -33,6 +33,7 @@ pub struct LeadModel {
     pub lead_status: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,6 +58,7 @@ pub struct CreateLeadInput {
     pub title: Option<String>,
     pub lead_status: Option<String>,
     pub _bot_check: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,6 +87,7 @@ pub struct UpdateLeadInput {
     pub company: Option<String>,
     pub title: Option<String>,
     pub lead_status: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 impl From<lead::Model> for LeadModel {
@@ -117,6 +120,7 @@ impl From<lead::Model> for LeadModel {
             lead_status: lead.lead_status,
             created_at: lead.created_at,
             updated_at: lead.updated_at,
+            avatar_url: lead.avatar_url,
         }
     }
 }

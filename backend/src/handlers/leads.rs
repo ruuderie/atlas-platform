@@ -146,6 +146,7 @@ pub async fn create_lead(
         updated_at: Set(Utc::now()),
         tenant_id: Set(resolved_tenant_id),
         properties: Set(None),
+        avatar_url: Set(input.avatar_url),
         ..Default::default()
     };
 
@@ -307,6 +308,7 @@ pub async fn ingest_lead(
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         tenant_id: Set(resolved_tenant_id),
+        avatar_url: Set(input.avatar_url.clone()),
         ..Default::default()
     };
 
@@ -533,6 +535,9 @@ pub async fn update_lead(
 
     if let Some(lead_status) = input.lead_status {
         lead.lead_status = Set(Some(lead_status));
+    }
+    if let Some(avatar_url) = input.avatar_url {
+        lead.avatar_url = Set(Some(avatar_url));
     }
 
     let updated_lead = lead.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -812,6 +817,7 @@ pub async fn convert_lead(
             updated_at: Set(Utc::now()),
             tenant_id: Set(Some(user_tenant_id)),
             properties: Set(None),
+            avatar_url: Set(lead_model.avatar_url.clone()),
         };
         new_contact.insert(&txn).await.map_err(|e| {
             tracing::error!("Failed to insert contact on lead conversion: {:?}", e);
@@ -836,3 +842,5 @@ pub async fn convert_lead(
 
     Ok(JsonResponse(LeadModel::from(updated)))
 }
+
+
