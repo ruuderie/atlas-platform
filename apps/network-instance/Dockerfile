@@ -14,9 +14,9 @@ RUN ARCH=$(uname -m) && \
       LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-x86_64-unknown-linux-gnu.tar.gz"; \
     fi && \
     curl -L -o cargo-leptos.tar.gz "$LEPTOS_URL" && \
-    tar -xzf cargo-leptos.tar.gz && \
+    tar -xzf cargo-leptos.tar.gz --strip-components=1 && \
     cp cargo-leptos /usr/local/cargo/bin/ && \
-    rm -f cargo-leptos.tar.gz cargo-leptos
+    rm -f cargo-leptos.tar.gz cargo-leptos README.md LICENSE
 
 WORKDIR /app
 
