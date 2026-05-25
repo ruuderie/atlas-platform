@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y \
 # Install cargo-leptos precompiled binary
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-aarch64-unknown-linux-gnu.tar.gz"; \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.3.6/cargo-leptos-aarch64-unknown-linux-gnu.tar.gz"; \
     else \
-      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.2.25/cargo-leptos-x86_64-unknown-linux-gnu.tar.gz"; \
+      LEPTOS_URL="https://github.com/leptos-rs/cargo-leptos/releases/download/v0.3.6/cargo-leptos-x86_64-unknown-linux-gnu.tar.gz"; \
     fi && \
     curl -L -o cargo-leptos.tar.gz "$LEPTOS_URL" && \
     tar -xzf cargo-leptos.tar.gz --strip-components=1 && \
