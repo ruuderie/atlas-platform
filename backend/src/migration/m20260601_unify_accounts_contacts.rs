@@ -20,31 +20,31 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasAccount::Table)
+                    .table(AtlasAccounts::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasAccount::Id)
+                        ColumnDef::new(AtlasAccounts::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasAccount::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasAccount::AccountType).string().not_null())
-                    .col(ColumnDef::new(AtlasAccount::Name).string().not_null())
-                    .col(ColumnDef::new(AtlasAccount::FirstName).string().null())
-                    .col(ColumnDef::new(AtlasAccount::LastName).string().null())
-                    .col(ColumnDef::new(AtlasAccount::PrimaryContactId).uuid().null())
-                    .col(ColumnDef::new(AtlasAccount::Status).string().not_null().default(Expr::val("active")))
-                    .col(ColumnDef::new(AtlasAccount::Attributes).json_binary().null())
+                    .col(ColumnDef::new(AtlasAccounts::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasAccounts::AccountType).string().not_null())
+                    .col(ColumnDef::new(AtlasAccounts::Name).string().not_null())
+                    .col(ColumnDef::new(AtlasAccounts::FirstName).string().null())
+                    .col(ColumnDef::new(AtlasAccounts::LastName).string().null())
+                    .col(ColumnDef::new(AtlasAccounts::PrimaryContactId).uuid().null())
+                    .col(ColumnDef::new(AtlasAccounts::Status).string().not_null().default(Expr::val("active")))
+                    .col(ColumnDef::new(AtlasAccounts::Attributes).json_binary().null())
                     .col(
-                        ColumnDef::new(AtlasAccount::CreatedAt)
+                        ColumnDef::new(AtlasAccounts::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
                     .col(
-                        ColumnDef::new(AtlasAccount::UpdatedAt)
+                        ColumnDef::new(AtlasAccounts::UpdatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -57,9 +57,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_accounts_tenant_status")
-                    .table(AtlasAccount::Table)
-                    .col(AtlasAccount::TenantId)
-                    .col(AtlasAccount::Status)
+                    .table(AtlasAccounts::Table)
+                    .col(AtlasAccounts::TenantId)
+                    .col(AtlasAccounts::Status)
                     .to_owned(),
             )
             .await?;
@@ -68,9 +68,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_accounts_type")
-                    .table(AtlasAccount::Table)
-                    .col(AtlasAccount::TenantId)
-                    .col(AtlasAccount::AccountType)
+                    .table(AtlasAccounts::Table)
+                    .col(AtlasAccounts::TenantId)
+                    .col(AtlasAccounts::AccountType)
                     .to_owned(),
             )
             .await?;
@@ -79,34 +79,34 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasContact::Table)
+                    .table(AtlasContacts::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasContact::Id)
+                        ColumnDef::new(AtlasContacts::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasContact::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasContact::AccountId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasContact::FirstName).string().null())
-                    .col(ColumnDef::new(AtlasContact::LastName).string().null())
-                    .col(ColumnDef::new(AtlasContact::FullName).string().null())
-                    .col(ColumnDef::new(AtlasContact::Email).string().null())
-                    .col(ColumnDef::new(AtlasContact::Phone).string().null())
-                    .col(ColumnDef::new(AtlasContact::Title).string().null())
-                    .col(ColumnDef::new(AtlasContact::Department).string().null())
-                    .col(ColumnDef::new(AtlasContact::IsPrimary).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasContact::ContactMetadata).json_binary().null())
+                    .col(ColumnDef::new(AtlasContacts::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasContacts::AccountId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasContacts::FirstName).string().null())
+                    .col(ColumnDef::new(AtlasContacts::LastName).string().null())
+                    .col(ColumnDef::new(AtlasContacts::FullName).string().null())
+                    .col(ColumnDef::new(AtlasContacts::Email).string().null())
+                    .col(ColumnDef::new(AtlasContacts::Phone).string().null())
+                    .col(ColumnDef::new(AtlasContacts::Title).string().null())
+                    .col(ColumnDef::new(AtlasContacts::Department).string().null())
+                    .col(ColumnDef::new(AtlasContacts::IsPrimary).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasContacts::ContactMetadata).json_binary().null())
                     .col(
-                        ColumnDef::new(AtlasContact::CreatedAt)
+                        ColumnDef::new(AtlasContacts::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
                     .col(
-                        ColumnDef::new(AtlasContact::UpdatedAt)
+                        ColumnDef::new(AtlasContacts::UpdatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -119,9 +119,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_contacts_account_primary")
-                    .table(AtlasContact::Table)
-                    .col(AtlasContact::AccountId)
-                    .col(AtlasContact::IsPrimary)
+                    .table(AtlasContacts::Table)
+                    .col(AtlasContacts::AccountId)
+                    .col(AtlasContacts::IsPrimary)
                     .to_owned(),
             )
             .await?;
@@ -130,8 +130,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_contacts_tenant")
-                    .table(AtlasContact::Table)
-                    .col(AtlasContact::TenantId)
+                    .table(AtlasContacts::Table)
+                    .col(AtlasContacts::TenantId)
                     .to_owned(),
             )
             .await?;
@@ -140,9 +140,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_contacts_email")
-                    .table(AtlasContact::Table)
-                    .col(AtlasContact::TenantId)
-                    .col(AtlasContact::Email)
+                    .table(AtlasContacts::Table)
+                    .col(AtlasContacts::TenantId)
+                    .col(AtlasContacts::Email)
                     .to_owned(),
             )
             .await?;
@@ -165,11 +165,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasContact::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasContacts::Table).to_owned())
             .await?;
 
         manager
-            .drop_table(Table::drop().table(AtlasAccount::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasAccounts::Table).to_owned())
             .await?;
 
         Ok(())
@@ -177,7 +177,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasAccount {
+enum AtlasAccounts {
     Table,
     Id,
     TenantId,
@@ -193,7 +193,7 @@ enum AtlasAccount {
 }
 
 #[derive(DeriveIden)]
-enum AtlasContact {
+enum AtlasContacts {
     Table,
     Id,
     TenantId,

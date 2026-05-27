@@ -40,28 +40,28 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(GeoServiceArea::Table)
+                    .table(GeoServiceAreas::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(GeoServiceArea::Id)
+                        ColumnDef::new(GeoServiceAreas::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(GeoServiceArea::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(GeoServiceArea::OwnerEntityType).string().not_null())
+                    .col(ColumnDef::new(GeoServiceAreas::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(GeoServiceAreas::OwnerEntityType).string().not_null())
                     // Examples: 'agency', 'adjuster', 'property', 'listing', 'vendor'
-                    .col(ColumnDef::new(GeoServiceArea::OwnerEntityId).uuid().not_null())
-                    .col(ColumnDef::new(GeoServiceArea::Label).string().null())
+                    .col(ColumnDef::new(GeoServiceAreas::OwnerEntityId).uuid().not_null())
+                    .col(ColumnDef::new(GeoServiceAreas::Label).string().null())
                     // Geometry for polygons (MultiPolygon in SRID 4326)
-                    .col(ColumnDef::new(GeoServiceArea::Geom).custom(sea_orm::sea_query::Alias::new("geometry(MultiPolygon, 4326)")).null())
+                    .col(ColumnDef::new(GeoServiceAreas::Geom).custom(sea_orm::sea_query::Alias::new("geometry(MultiPolygon, 4326)")).null())
                     // Geography point for fast radius / distance queries
-                    .col(ColumnDef::new(GeoServiceArea::Point).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
+                    .col(ColumnDef::new(GeoServiceAreas::Point).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
                     // Optional zip code list for fallback matching
-                    .col(ColumnDef::new(GeoServiceArea::ZipCodes).json_binary().null())
+                    .col(ColumnDef::new(GeoServiceAreas::ZipCodes).json_binary().null())
                     .col(
-                        ColumnDef::new(GeoServiceArea::CreatedAt)
+                        ColumnDef::new(GeoServiceAreas::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -75,8 +75,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_geo_service_areas_geom")
-                    .table(GeoServiceArea::Table)
-                    .col(GeoServiceArea::Geom)
+                    .table(GeoServiceAreas::Table)
+                    .col(GeoServiceAreas::Geom)
                     .to_owned(),
             )
             .await?;
@@ -86,8 +86,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_geo_service_areas_point")
-                    .table(GeoServiceArea::Table)
-                    .col(GeoServiceArea::Point)
+                    .table(GeoServiceAreas::Table)
+                    .col(GeoServiceAreas::Point)
                     .to_owned(),
             )
             .await?;
@@ -97,9 +97,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_geo_service_areas_tenant_type")
-                    .table(GeoServiceArea::Table)
-                    .col(GeoServiceArea::TenantId)
-                    .col(GeoServiceArea::OwnerEntityType)
+                    .table(GeoServiceAreas::Table)
+                    .col(GeoServiceAreas::TenantId)
+                    .col(GeoServiceAreas::OwnerEntityType)
                     .to_owned(),
             )
             .await?;
@@ -109,7 +109,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(GeoServiceArea::Table).to_owned())
+            .drop_table(Table::drop().table(GeoServiceAreas::Table).to_owned())
             .await?;
 
         // Note: We intentionally do NOT drop the PostGIS extension in down(),
@@ -119,7 +119,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum GeoServiceArea {
+enum GeoServiceAreas {
     Table,
     Id,
     TenantId,

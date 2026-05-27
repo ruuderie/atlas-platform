@@ -12,32 +12,32 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasDocument::Table)
+                    .table(AtlasDocuments::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasDocument::Id)
+                        ColumnDef::new(AtlasDocuments::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasDocument::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasDocument::AttachmentId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasDocument::ShareTokenId).uuid().null())
-                    .col(ColumnDef::new(AtlasDocument::DocumentCategory).string().not_null())
-                    .col(ColumnDef::new(AtlasDocument::AppNamespace).string_len(30).not_null())
-                    .col(ColumnDef::new(AtlasDocument::RelatedEntityType).string().null())
-                    .col(ColumnDef::new(AtlasDocument::RelatedEntityId).uuid().null())
-                    .col(ColumnDef::new(AtlasDocument::IsCounterpartyVisible).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocument::RequiresSignature).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocument::IsSigned).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasDocument::SignedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasDocument::SignedByUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasDocument::SignatureBlob).text().null())
-                    .col(ColumnDef::new(AtlasDocument::VersionNumber).integer().not_null().default(1))
-                    .col(ColumnDef::new(AtlasDocument::SupersedesDocumentId).uuid().null())
+                    .col(ColumnDef::new(AtlasDocuments::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasDocuments::AttachmentId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasDocuments::ShareTokenId).uuid().null())
+                    .col(ColumnDef::new(AtlasDocuments::DocumentCategory).string().not_null())
+                    .col(ColumnDef::new(AtlasDocuments::AppNamespace).string_len(30).not_null())
+                    .col(ColumnDef::new(AtlasDocuments::RelatedEntityType).string().null())
+                    .col(ColumnDef::new(AtlasDocuments::RelatedEntityId).uuid().null())
+                    .col(ColumnDef::new(AtlasDocuments::IsCounterpartyVisible).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasDocuments::RequiresSignature).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasDocuments::IsSigned).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasDocuments::SignedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasDocuments::SignedByUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasDocuments::SignatureBlob).text().null())
+                    .col(ColumnDef::new(AtlasDocuments::VersionNumber).integer().not_null().default(1))
+                    .col(ColumnDef::new(AtlasDocuments::SupersedesDocumentId).uuid().null())
                     .col(
-                        ColumnDef::new(AtlasDocument::CreatedAt)
+                        ColumnDef::new(AtlasDocuments::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -50,10 +50,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_documents_entity")
-                    .table(AtlasDocument::Table)
-                    .col(AtlasDocument::TenantId)
-                    .col(AtlasDocument::RelatedEntityType)
-                    .col(AtlasDocument::RelatedEntityId)
+                    .table(AtlasDocuments::Table)
+                    .col(AtlasDocuments::TenantId)
+                    .col(AtlasDocuments::RelatedEntityType)
+                    .col(AtlasDocuments::RelatedEntityId)
                     .to_owned(),
             )
             .await?;
@@ -62,10 +62,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_documents_namespace")
-                    .table(AtlasDocument::Table)
-                    .col(AtlasDocument::TenantId)
-                    .col(AtlasDocument::AppNamespace)
-                    .col(AtlasDocument::DocumentCategory)
+                    .table(AtlasDocuments::Table)
+                    .col(AtlasDocuments::TenantId)
+                    .col(AtlasDocuments::AppNamespace)
+                    .col(AtlasDocuments::DocumentCategory)
                     .to_owned(),
             )
             .await?;
@@ -75,13 +75,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasDocument::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasDocuments::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum AtlasDocument {
+enum AtlasDocuments {
     Table,
     Id,
     TenantId,

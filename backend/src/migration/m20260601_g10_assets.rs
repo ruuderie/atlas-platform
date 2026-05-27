@@ -36,42 +36,42 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasAsset::Table)
+                    .table(AtlasAssets::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasAsset::Id)
+                        ColumnDef::new(AtlasAssets::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasAsset::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasAsset::PortfolioId).uuid().null()) // FK to atlas_portfolios
-                    .col(ColumnDef::new(AtlasAsset::ParentAssetId).uuid().null()) // Self-referential hierarchy
-                    .col(ColumnDef::new(AtlasAsset::OwnerUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasAsset::AssetType).string().not_null())
+                    .col(ColumnDef::new(AtlasAssets::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasAssets::PortfolioId).uuid().null()) // FK to atlas_portfolios
+                    .col(ColumnDef::new(AtlasAssets::ParentAssetId).uuid().null()) // Self-referential hierarchy
+                    .col(ColumnDef::new(AtlasAssets::OwnerUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasAssets::AssetType).string().not_null())
                     // Examples: 'real_estate_property', 'real_estate_unit', 'vehicle', 'equipment', 'hotel_room_type'
-                    .col(ColumnDef::new(AtlasAsset::Name).string().not_null())
-                    .col(ColumnDef::new(AtlasAsset::SerialOrFolioNumber).string())
+                    .col(ColumnDef::new(AtlasAssets::Name).string().not_null())
+                    .col(ColumnDef::new(AtlasAssets::SerialOrFolioNumber).string())
                     .col(
-                        ColumnDef::new(AtlasAsset::Status)
-                            .custom(AtlasAssetStatus::Table)
+                        ColumnDef::new(AtlasAssets::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("active")),
                     )
                     // Address / location fields
-                    .col(ColumnDef::new(AtlasAsset::AddressLine1).string())
-                    .col(ColumnDef::new(AtlasAsset::AddressLine2).string())
-                    .col(ColumnDef::new(AtlasAsset::City).string())
-                    .col(ColumnDef::new(AtlasAsset::StateProvince).string())
-                    .col(ColumnDef::new(AtlasAsset::PostalCode).string())
-                    .col(ColumnDef::new(AtlasAsset::CountryCode).char_len(2).default(Expr::val("US")))
+                    .col(ColumnDef::new(AtlasAssets::AddressLine1).string())
+                    .col(ColumnDef::new(AtlasAssets::AddressLine2).string())
+                    .col(ColumnDef::new(AtlasAssets::City).string())
+                    .col(ColumnDef::new(AtlasAssets::StateProvince).string())
+                    .col(ColumnDef::new(AtlasAssets::PostalCode).string())
+                    .col(ColumnDef::new(AtlasAssets::CountryCode).char_len(2).default(Expr::val("US")))
                     // Geography point (requires PostGIS). Using custom type for now.
-                    .col(ColumnDef::new(AtlasAsset::GeoPoint).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
+                    .col(ColumnDef::new(AtlasAssets::GeoPoint).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
                     // Flexible type-specific attributes (JSONB is the key to avoiding dozens of app-specific tables)
-                    .col(ColumnDef::new(AtlasAsset::Attributes).json_binary().null())
+                    .col(ColumnDef::new(AtlasAssets::Attributes).json_binary().null())
                     .col(
-                        ColumnDef::new(AtlasAsset::CreatedAt)
+                        ColumnDef::new(AtlasAssets::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -85,10 +85,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_assets_tenant_type_status")
-                    .table(AtlasAsset::Table)
-                    .col(AtlasAsset::TenantId)
-                    .col(AtlasAsset::AssetType)
-                    .col(AtlasAsset::Status)
+                    .table(AtlasAssets::Table)
+                    .col(AtlasAssets::TenantId)
+                    .col(AtlasAssets::AssetType)
+                    .col(AtlasAssets::Status)
                     .to_owned(),
             )
             .await?;
@@ -97,8 +97,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_assets_parent")
-                    .table(AtlasAsset::Table)
-                    .col(AtlasAsset::ParentAssetId)
+                    .table(AtlasAssets::Table)
+                    .col(AtlasAssets::ParentAssetId)
                     .to_owned(),
             )
             .await?;
@@ -108,8 +108,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_assets_geo")
-                    .table(AtlasAsset::Table)
-                    .col(AtlasAsset::GeoPoint)
+                    .table(AtlasAssets::Table)
+                    .col(AtlasAssets::GeoPoint)
                     .to_owned(),
             )
             .await?;
@@ -119,7 +119,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasAsset::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasAssets::Table).to_owned())
             .await?;
 
         manager
@@ -129,7 +129,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasAsset {
+enum AtlasAssets {
     Table,
     Id,
     TenantId,
@@ -140,7 +140,9 @@ enum AtlasAsset {
     Name,
     SerialOrFolioNumber,
     Status,
+    #[sea_orm(iden = "address_line_1")]
     AddressLine1,
+    #[sea_orm(iden = "address_line_2")]
     AddressLine2,
     City,
     StateProvince,

@@ -14,39 +14,39 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasAiTask::Table)
+                    .table(AtlasAiTasks::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasAiTask::Id)
+                        ColumnDef::new(AtlasAiTasks::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasAiTask::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasAiTask::TaskType).string().not_null())
-                    .col(ColumnDef::new(AtlasAiTask::Model).string().null())
-                    .col(ColumnDef::new(AtlasAiTask::InputPayload).json_binary().not_null())
-                    .col(ColumnDef::new(AtlasAiTask::OutputPayload).json_binary().null())
-                    .col(ColumnDef::new(AtlasAiTask::SourceEntityType).string().null())
-                    .col(ColumnDef::new(AtlasAiTask::SourceEntityId).uuid().null())
-                    .col(ColumnDef::new(AtlasAiTask::CallbackEntityType).string().null())
-                    .col(ColumnDef::new(AtlasAiTask::CallbackEntityId).uuid().null())
-                    .col(ColumnDef::new(AtlasAiTask::CallbackField).string().null())
-                    .col(ColumnDef::new(AtlasAiTask::Status).string().not_null().default(Expr::val("queued")))
-                    .col(ColumnDef::new(AtlasAiTask::ErrorMessage).text().null())
-                    .col(ColumnDef::new(AtlasAiTask::RetryCount).integer().not_null().default(0))
+                    .col(ColumnDef::new(AtlasAiTasks::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasAiTasks::TaskType).string().not_null())
+                    .col(ColumnDef::new(AtlasAiTasks::Model).string().null())
+                    .col(ColumnDef::new(AtlasAiTasks::InputPayload).json_binary().not_null())
+                    .col(ColumnDef::new(AtlasAiTasks::OutputPayload).json_binary().null())
+                    .col(ColumnDef::new(AtlasAiTasks::SourceEntityType).string().null())
+                    .col(ColumnDef::new(AtlasAiTasks::SourceEntityId).uuid().null())
+                    .col(ColumnDef::new(AtlasAiTasks::CallbackEntityType).string().null())
+                    .col(ColumnDef::new(AtlasAiTasks::CallbackEntityId).uuid().null())
+                    .col(ColumnDef::new(AtlasAiTasks::CallbackField).string().null())
+                    .col(ColumnDef::new(AtlasAiTasks::Status).string().not_null().default(Expr::val("queued")))
+                    .col(ColumnDef::new(AtlasAiTasks::ErrorMessage).text().null())
+                    .col(ColumnDef::new(AtlasAiTasks::RetryCount).integer().not_null().default(0))
                     .col(
-                        ColumnDef::new(AtlasAiTask::QueuedAt)
+                        ColumnDef::new(AtlasAiTasks::QueuedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
-                    .col(ColumnDef::new(AtlasAiTask::StartedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasAiTask::CompletedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasAiTask::InputTokens).integer().null())
-                    .col(ColumnDef::new(AtlasAiTask::OutputTokens).integer().null())
-                    .col(ColumnDef::new(AtlasAiTask::EstimatedCostMicroUsd).integer().null())
+                    .col(ColumnDef::new(AtlasAiTasks::StartedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasAiTasks::CompletedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasAiTasks::InputTokens).integer().null())
+                    .col(ColumnDef::new(AtlasAiTasks::OutputTokens).integer().null())
+                    .col(ColumnDef::new(AtlasAiTasks::EstimatedCostMicroUsd).integer().null())
                     .to_owned(),
             )
             .await?;
@@ -55,10 +55,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_ai_tasks_status")
-                    .table(AtlasAiTask::Table)
-                    .col(AtlasAiTask::TenantId)
-                    .col(AtlasAiTask::Status)
-                    .col(AtlasAiTask::QueuedAt)
+                    .table(AtlasAiTasks::Table)
+                    .col(AtlasAiTasks::TenantId)
+                    .col(AtlasAiTasks::Status)
+                    .col(AtlasAiTasks::QueuedAt)
                     .to_owned(),
             )
             .await?;
@@ -67,10 +67,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_ai_tasks_entity")
-                    .table(AtlasAiTask::Table)
-                    .col(AtlasAiTask::TenantId)
-                    .col(AtlasAiTask::SourceEntityType)
-                    .col(AtlasAiTask::SourceEntityId)
+                    .table(AtlasAiTasks::Table)
+                    .col(AtlasAiTasks::TenantId)
+                    .col(AtlasAiTasks::SourceEntityType)
+                    .col(AtlasAiTasks::SourceEntityId)
                     .to_owned(),
             )
             .await?;
@@ -80,13 +80,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasAiTask::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasAiTasks::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum AtlasAiTask {
+enum AtlasAiTasks {
     Table,
     Id,
     TenantId,

@@ -30,37 +30,37 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasSubscription::Table)
+                    .table(AtlasSubscriptions::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasSubscription::Id)
+                        ColumnDef::new(AtlasSubscriptions::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasSubscription::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscription::SubscriberUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscription::SubscribedToType).string().not_null())
-                    .col(ColumnDef::new(AtlasSubscription::SubscribedToId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasSubscription::BillingPlanId).uuid().null())
-                    .col(ColumnDef::new(AtlasSubscription::PriceCents).big_integer().not_null())
-                    .col(ColumnDef::new(AtlasSubscription::Currency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasSubscription::BillingInterval).string().not_null().default(Expr::val("monthly")))
-                    .col(ColumnDef::new(AtlasSubscription::StripeSubscriptionId).string().null())
-                    .col(ColumnDef::new(AtlasSubscription::StripeCustomerId).string().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasSubscriptions::SubscriberUserId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasSubscriptions::SubscribedToType).string().not_null())
+                    .col(ColumnDef::new(AtlasSubscriptions::SubscribedToId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasSubscriptions::BillingPlanId).uuid().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::PriceCents).big_integer().not_null())
+                    .col(ColumnDef::new(AtlasSubscriptions::Currency).char_len(3).not_null().default(Expr::val("USD")))
+                    .col(ColumnDef::new(AtlasSubscriptions::BillingInterval).string().not_null().default(Expr::val("monthly")))
+                    .col(ColumnDef::new(AtlasSubscriptions::StripeSubscriptionId).string().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::StripeCustomerId).string().null())
                     .col(
-                        ColumnDef::new(AtlasSubscription::Status)
-                            .custom(AtlasSubscriptionStatus::Table)
+                        ColumnDef::new(AtlasSubscriptions::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("active")),
                     )
-                    .col(ColumnDef::new(AtlasSubscription::TrialEndsAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscription::CurrentPeriodStart).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscription::CurrentPeriodEnd).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasSubscription::CanceledAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::TrialEndsAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::CurrentPeriodStart).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::CurrentPeriodEnd).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasSubscriptions::CanceledAt).timestamp_with_time_zone().null())
                     .col(
-                        ColumnDef::new(AtlasSubscription::CreatedAt)
+                        ColumnDef::new(AtlasSubscriptions::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -73,10 +73,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_subscriptions_subscriber")
-                    .table(AtlasSubscription::Table)
-                    .col(AtlasSubscription::TenantId)
-                    .col(AtlasSubscription::SubscriberUserId)
-                    .col(AtlasSubscription::Status)
+                    .table(AtlasSubscriptions::Table)
+                    .col(AtlasSubscriptions::TenantId)
+                    .col(AtlasSubscriptions::SubscriberUserId)
+                    .col(AtlasSubscriptions::Status)
                     .to_owned(),
             )
             .await?;
@@ -85,10 +85,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_subscriptions_entity")
-                    .table(AtlasSubscription::Table)
-                    .col(AtlasSubscription::TenantId)
-                    .col(AtlasSubscription::SubscribedToType)
-                    .col(AtlasSubscription::SubscribedToId)
+                    .table(AtlasSubscriptions::Table)
+                    .col(AtlasSubscriptions::TenantId)
+                    .col(AtlasSubscriptions::SubscribedToType)
+                    .col(AtlasSubscriptions::SubscribedToId)
                     .to_owned(),
             )
             .await?;
@@ -98,7 +98,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasSubscription::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasSubscriptions::Table).to_owned())
             .await?;
 
         manager
@@ -108,7 +108,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasSubscription {
+enum AtlasSubscriptions {
     Table,
     Id,
     TenantId,

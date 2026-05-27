@@ -30,38 +30,38 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasRegulatoryRegistration::Table)
+                    .table(AtlasRegulatoryRegistrations::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasRegulatoryRegistration::Id)
+                        ColumnDef::new(AtlasRegulatoryRegistrations::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::RegistrationType).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::AssetId).uuid().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::ServiceProviderId).uuid().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::JurisdictionCode).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::IssuingAuthority).string().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::RegistrationNumber).string().not_null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::VerificationRequestId).uuid().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationType).string().not_null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AssetId).uuid().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::ServiceProviderId).uuid().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionCode).string().not_null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::IssuingAuthority).string().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::RegistrationNumber).string().not_null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::VerificationRequestId).uuid().null())
                     .col(
-                        ColumnDef::new(AtlasRegulatoryRegistration::Status)
-                            .custom(AtlasRegStatus::Table)
+                        ColumnDef::new(AtlasRegulatoryRegistrations::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("pending_application")),
                     )
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::IssuedDate).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::ExpiresAt).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::LastInspectionDate).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::NextInspectionDue).date().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::AccessToken).string().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::AccessTokenExpiresAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasRegulatoryRegistration::JurisdictionMetadata).json_binary().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::IssuedDate).date().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::ExpiresAt).date().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::LastInspectionDate).date().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::NextInspectionDue).date().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AccessToken).string().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::AccessTokenExpiresAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasRegulatoryRegistrations::JurisdictionMetadata).json_binary().null())
                     .col(
-                        ColumnDef::new(AtlasRegulatoryRegistration::CreatedAt)
+                        ColumnDef::new(AtlasRegulatoryRegistrations::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -74,10 +74,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_reg_tenant_type_status")
-                    .table(AtlasRegulatoryRegistration::Table)
-                    .col(AtlasRegulatoryRegistration::TenantId)
-                    .col(AtlasRegulatoryRegistration::RegistrationType)
-                    .col(AtlasRegulatoryRegistration::Status)
+                    .table(AtlasRegulatoryRegistrations::Table)
+                    .col(AtlasRegulatoryRegistrations::TenantId)
+                    .col(AtlasRegulatoryRegistrations::RegistrationType)
+                    .col(AtlasRegulatoryRegistrations::Status)
                     .to_owned(),
             )
             .await?;
@@ -86,9 +86,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_reg_expiry")
-                    .table(AtlasRegulatoryRegistration::Table)
-                    .col(AtlasRegulatoryRegistration::ExpiresAt)
-                    .col(AtlasRegulatoryRegistration::Status)
+                    .table(AtlasRegulatoryRegistrations::Table)
+                    .col(AtlasRegulatoryRegistrations::ExpiresAt)
+                    .col(AtlasRegulatoryRegistrations::Status)
                     .to_owned(),
             )
             .await?;
@@ -98,11 +98,11 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("uq_atlas_reg_type_number_jurisdiction")
-                    .table(AtlasRegulatoryRegistration::Table)
-                    .col(AtlasRegulatoryRegistration::TenantId)
-                    .col(AtlasRegulatoryRegistration::RegistrationType)
-                    .col(AtlasRegulatoryRegistration::RegistrationNumber)
-                    .col(AtlasRegulatoryRegistration::JurisdictionCode)
+                    .table(AtlasRegulatoryRegistrations::Table)
+                    .col(AtlasRegulatoryRegistrations::TenantId)
+                    .col(AtlasRegulatoryRegistrations::RegistrationType)
+                    .col(AtlasRegulatoryRegistrations::RegistrationNumber)
+                    .col(AtlasRegulatoryRegistrations::JurisdictionCode)
                     .unique()
                     .to_owned(),
             )
@@ -113,7 +113,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasRegulatoryRegistration::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasRegulatoryRegistrations::Table).to_owned())
             .await?;
 
         manager
@@ -123,7 +123,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasRegulatoryRegistration {
+enum AtlasRegulatoryRegistrations {
     Table,
     Id,
     TenantId,

@@ -51,8 +51,6 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
 
                 // ── UNIFIED PLATFORM GENERICS CRM (new canonical surface) ───────────────
                 // Powered by AccountService + ContactService + OpportunityService + CaseService + DocumentService
-                .route("/api/admin/accounts", get(accounts::get_accounts).post(accounts::create_account))
-                .route("/api/admin/accounts/{account_id}", get(accounts::get_account).put(accounts::update_account).delete(accounts::delete_account))
                 // New unified opportunity pipeline (replaces legacy deals + leads in admin)
                 // (handlers::opportunities would be added in follow-up; for now admin can use the service-backed paths)
 

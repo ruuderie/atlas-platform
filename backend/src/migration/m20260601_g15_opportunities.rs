@@ -30,40 +30,40 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasOpportunity::Table)
+                    .table(AtlasOpportunities::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasOpportunity::Id)
+                        ColumnDef::new(AtlasOpportunities::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasOpportunity::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasOpportunity::OpportunityType).string().not_null())
-                    .col(ColumnDef::new(AtlasOpportunity::Name).string().not_null())
-                    .col(ColumnDef::new(AtlasOpportunity::AssetId).uuid().null())
-                    .col(ColumnDef::new(AtlasOpportunity::CrmLeadId).uuid().null())
-                    .col(ColumnDef::new(AtlasOpportunity::OwnerUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasOpportunity::CounterpartyUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasOpportunities::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasOpportunities::OpportunityType).string().not_null())
+                    .col(ColumnDef::new(AtlasOpportunities::Name).string().not_null())
+                    .col(ColumnDef::new(AtlasOpportunities::AssetId).uuid().null())
+                    .col(ColumnDef::new(AtlasOpportunities::CrmLeadId).uuid().null())
+                    .col(ColumnDef::new(AtlasOpportunities::OwnerUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasOpportunities::CounterpartyUserId).uuid().null())
                     .col(
-                        ColumnDef::new(AtlasOpportunity::Status)
-                            .custom(AtlasOpportunityStatus::Table)
+                        ColumnDef::new(AtlasOpportunities::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("prospecting")),
                     )
-                    .col(ColumnDef::new(AtlasOpportunity::DealAmountCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasOpportunity::Currency).char_len(3).not_null().default(Expr::val("USD")))
-                    .col(ColumnDef::new(AtlasOpportunity::CloseDate).date().null())
-                    .col(ColumnDef::new(AtlasOpportunity::ProbabilityPct).small_integer().null())
-                    .col(ColumnDef::new(AtlasOpportunity::FinancialInputs).json_binary().null())
-                    .col(ColumnDef::new(AtlasOpportunity::ComputedOutputs).json_binary().null())
-                    .col(ColumnDef::new(AtlasOpportunity::Notes).text().null())
-                    .col(ColumnDef::new(AtlasOpportunity::WonAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasOpportunity::LostAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasOpportunity::LostReason).text().null())
+                    .col(ColumnDef::new(AtlasOpportunities::DealAmountCents).big_integer().null())
+                    .col(ColumnDef::new(AtlasOpportunities::Currency).char_len(3).not_null().default(Expr::val("USD")))
+                    .col(ColumnDef::new(AtlasOpportunities::CloseDate).date().null())
+                    .col(ColumnDef::new(AtlasOpportunities::ProbabilityPct).small_integer().null())
+                    .col(ColumnDef::new(AtlasOpportunities::FinancialInputs).json_binary().null())
+                    .col(ColumnDef::new(AtlasOpportunities::ComputedOutputs).json_binary().null())
+                    .col(ColumnDef::new(AtlasOpportunities::Notes).text().null())
+                    .col(ColumnDef::new(AtlasOpportunities::WonAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasOpportunities::LostAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasOpportunities::LostReason).text().null())
                     .col(
-                        ColumnDef::new(AtlasOpportunity::CreatedAt)
+                        ColumnDef::new(AtlasOpportunities::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -76,10 +76,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_opportunities_tenant_type_status")
-                    .table(AtlasOpportunity::Table)
-                    .col(AtlasOpportunity::TenantId)
-                    .col(AtlasOpportunity::OpportunityType)
-                    .col(AtlasOpportunity::Status)
+                    .table(AtlasOpportunities::Table)
+                    .col(AtlasOpportunities::TenantId)
+                    .col(AtlasOpportunities::OpportunityType)
+                    .col(AtlasOpportunities::Status)
                     .to_owned(),
             )
             .await?;
@@ -88,8 +88,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_opportunities_asset")
-                    .table(AtlasOpportunity::Table)
-                    .col(AtlasOpportunity::AssetId)
+                    .table(AtlasOpportunities::Table)
+                    .col(AtlasOpportunities::AssetId)
                     .to_owned(),
             )
             .await?;
@@ -98,8 +98,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_opportunities_lead")
-                    .table(AtlasOpportunity::Table)
-                    .col(AtlasOpportunity::CrmLeadId)
+                    .table(AtlasOpportunities::Table)
+                    .col(AtlasOpportunities::CrmLeadId)
                     .to_owned(),
             )
             .await?;
@@ -109,7 +109,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasOpportunity::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasOpportunities::Table).to_owned())
             .await?;
 
         manager
@@ -119,7 +119,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasOpportunity {
+enum AtlasOpportunities {
     Table,
     Id,
     TenantId,

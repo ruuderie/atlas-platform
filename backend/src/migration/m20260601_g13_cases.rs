@@ -46,46 +46,46 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasCase::Table)
+                    .table(AtlasCases::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasCase::Id)
+                        ColumnDef::new(AtlasCases::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasCase::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasCase::CaseType).string().not_null())
-                    .col(ColumnDef::new(AtlasCase::ReportedByUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasCase::AssetId).uuid().null()) // FK to atlas_assets
-                    .col(ColumnDef::new(AtlasCase::ContractId).uuid().null()) // FK to atlas_contracts
-                    .col(ColumnDef::new(AtlasCase::AssignedServiceProviderId).uuid().null())
-                    .col(ColumnDef::new(AtlasCase::AssignedUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasCases::CaseType).string().not_null())
+                    .col(ColumnDef::new(AtlasCases::ReportedByUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::AssetId).uuid().null()) // FK to atlas_assets
+                    .col(ColumnDef::new(AtlasCases::ContractId).uuid().null()) // FK to atlas_contracts
+                    .col(ColumnDef::new(AtlasCases::AssignedServiceProviderId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::AssignedUserId).uuid().null())
                     .col(
-                        ColumnDef::new(AtlasCase::Priority)
-                            .custom(AtlasCasePriority::Table)
+                        ColumnDef::new(AtlasCases::Priority)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("medium")),
                     )
                     .col(
-                        ColumnDef::new(AtlasCase::Status)
-                            .custom(AtlasCaseStatus::Table)
+                        ColumnDef::new(AtlasCases::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("new")),
                     )
-                    .col(ColumnDef::new(AtlasCase::Subject).string().not_null())
-                    .col(ColumnDef::new(AtlasCase::Description).text().null())
-                    .col(ColumnDef::new(AtlasCase::ScheduledAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCase::CompletedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasCase::EstimatedCostCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasCase::ActualCostCents).big_integer().null())
-                    .col(ColumnDef::new(AtlasCase::LedgerEntryId).uuid().null())
-                    .col(ColumnDef::new(AtlasCase::PrimaryAttachmentId).uuid().null())
-                    .col(ColumnDef::new(AtlasCase::WsRoomId).uuid().null())
-                    .col(ColumnDef::new(AtlasCase::CaseMetadata).json_binary().null())
+                    .col(ColumnDef::new(AtlasCases::Subject).string().not_null())
+                    .col(ColumnDef::new(AtlasCases::Description).text().null())
+                    .col(ColumnDef::new(AtlasCases::ScheduledAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasCases::CompletedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasCases::EstimatedCostCents).big_integer().null())
+                    .col(ColumnDef::new(AtlasCases::ActualCostCents).big_integer().null())
+                    .col(ColumnDef::new(AtlasCases::LedgerEntryId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::PrimaryAttachmentId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::WsRoomId).uuid().null())
+                    .col(ColumnDef::new(AtlasCases::CaseMetadata).json_binary().null())
                     .col(
-                        ColumnDef::new(AtlasCase::CreatedAt)
+                        ColumnDef::new(AtlasCases::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -98,10 +98,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_cases_tenant_type_status")
-                    .table(AtlasCase::Table)
-                    .col(AtlasCase::TenantId)
-                    .col(AtlasCase::CaseType)
-                    .col(AtlasCase::Status)
+                    .table(AtlasCases::Table)
+                    .col(AtlasCases::TenantId)
+                    .col(AtlasCases::CaseType)
+                    .col(AtlasCases::Status)
                     .to_owned(),
             )
             .await?;
@@ -110,8 +110,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_cases_asset")
-                    .table(AtlasCase::Table)
-                    .col(AtlasCase::AssetId)
+                    .table(AtlasCases::Table)
+                    .col(AtlasCases::AssetId)
                     .to_owned(),
             )
             .await?;
@@ -120,8 +120,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_cases_provider")
-                    .table(AtlasCase::Table)
-                    .col(AtlasCase::AssignedServiceProviderId)
+                    .table(AtlasCases::Table)
+                    .col(AtlasCases::AssignedServiceProviderId)
                     .to_owned(),
             )
             .await?;
@@ -130,10 +130,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_cases_priority_active")
-                    .table(AtlasCase::Table)
-                    .col(AtlasCase::TenantId)
-                    .col(AtlasCase::Priority)
-                    .col(AtlasCase::Status)
+                    .table(AtlasCases::Table)
+                    .col(AtlasCases::TenantId)
+                    .col(AtlasCases::Priority)
+                    .col(AtlasCases::Status)
                     .to_owned(),
             )
             .await?;
@@ -143,7 +143,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasCase::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasCases::Table).to_owned())
             .await?;
 
         manager
@@ -157,7 +157,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasCase {
+enum AtlasCases {
     Table,
     Id,
     TenantId,

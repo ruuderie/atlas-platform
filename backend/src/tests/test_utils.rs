@@ -32,8 +32,20 @@ pub async fn initialize_database(db: &DatabaseConnection) {
     let db_clone = db.clone();
     DB_INIT.get_or_init(|| async move {
         use sea_orm_migration::MigratorTrait;
-        // Drops tables in case the previous test run crashed. Then immediately rebuilds it via the strict async task lifecycle exactly once.
-        let _ = crate::migration::Migrator::fresh(&db_clone).await;
+        use sea_orm::{ConnectionTrait, Statement};
+        
+        // Drops and recreates the public schema. This completely cleans the database (including extensions)
+        // and safely avoids the PostGIS "cannot drop table spatial_ref_sys" error.
+        let drop_res = db_clone.execute(Statement::from_string(
+            db_clone.get_database_backend(),
+            "DROP SCHEMA public CASCADE;".to_owned()
+        )).await;
+        let create_res = db_clone.execute(Statement::from_string(
+            db_clone.get_database_backend(),
+            "CREATE SCHEMA public;".to_owned()
+        )).await;
+        println!("TEST LOG: Public schema drop result: {:?}, create result: {:?}", drop_res, create_res);
+        
         crate::migration::Migrator::up(&db_clone, None)
             .await
             .expect("Failed to run migrations");

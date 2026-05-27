@@ -40,42 +40,42 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasServiceProvider::Table)
+                    .table(AtlasServiceProviders::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasServiceProvider::Id)
+                        ColumnDef::new(AtlasServiceProviders::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProvider::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasServiceProvider::UserId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasServiceProviders::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasServiceProviders::UserId).uuid().not_null())
                     .col(
-                        ColumnDef::new(AtlasServiceProvider::Scope)
-                            .custom(AtlasProviderScope::Table)
+                        ColumnDef::new(AtlasServiceProviders::Scope)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("tenant")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProvider::BusinessName).string().null())
-                    .col(ColumnDef::new(AtlasServiceProvider::ServiceCategories).json_binary().not_null().default(Expr::val("[]")))
+                    .col(ColumnDef::new(AtlasServiceProviders::BusinessName).string().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::ServiceCategories).json_binary().not_null().default(Expr::val("[]")))
                     .col(
-                        ColumnDef::new(AtlasServiceProvider::Status)
-                            .custom(AtlasProviderStatus::Table)
+                        ColumnDef::new(AtlasServiceProviders::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("active")),
                     )
-                    .col(ColumnDef::new(AtlasServiceProvider::RatingAvg).decimal_len(3, 2).null())
-                    .col(ColumnDef::new(AtlasServiceProvider::RatingCount).integer().not_null().default(0))
-                    .col(ColumnDef::new(AtlasServiceProvider::PreferredPaymentRail).string().null())
-                    .col(ColumnDef::new(AtlasServiceProvider::BtcWalletAddress).string().null())
-                    .col(ColumnDef::new(AtlasServiceProvider::StripeConnectId).string().null())
-                    .col(ColumnDef::new(AtlasServiceProvider::IsInsured).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasServiceProvider::IsBonded).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AtlasServiceProvider::ProfileMetadata).json_binary().null())
-                    .col(ColumnDef::new(AtlasServiceProvider::Notes).text().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::RatingAvg).double().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::RatingCount).integer().not_null().default(0))
+                    .col(ColumnDef::new(AtlasServiceProviders::PreferredPaymentRail).string().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::BtcWalletAddress).string().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::StripeConnectId).string().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::IsInsured).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasServiceProviders::IsBonded).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AtlasServiceProviders::ProfileMetadata).json_binary().null())
+                    .col(ColumnDef::new(AtlasServiceProviders::Notes).text().null())
                     .col(
-                        ColumnDef::new(AtlasServiceProvider::CreatedAt)
+                        ColumnDef::new(AtlasServiceProviders::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -88,10 +88,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_service_providers_scope")
-                    .table(AtlasServiceProvider::Table)
-                    .col(AtlasServiceProvider::TenantId)
-                    .col(AtlasServiceProvider::Scope)
-                    .col(AtlasServiceProvider::Status)
+                    .table(AtlasServiceProviders::Table)
+                    .col(AtlasServiceProviders::TenantId)
+                    .col(AtlasServiceProviders::Scope)
+                    .col(AtlasServiceProviders::Status)
                     .to_owned(),
             )
             .await?;
@@ -100,8 +100,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_service_providers_categories")
-                    .table(AtlasServiceProvider::Table)
-                    .col(AtlasServiceProvider::ServiceCategories)
+                    .table(AtlasServiceProviders::Table)
+                    .col(AtlasServiceProviders::ServiceCategories)
                     .to_owned(),
             )
             .await?;
@@ -111,9 +111,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("uq_atlas_service_providers_tenant_user")
-                    .table(AtlasServiceProvider::Table)
-                    .col(AtlasServiceProvider::TenantId)
-                    .col(AtlasServiceProvider::UserId)
+                    .table(AtlasServiceProviders::Table)
+                    .col(AtlasServiceProviders::TenantId)
+                    .col(AtlasServiceProviders::UserId)
                     .unique()
                     .to_owned(),
             )
@@ -124,7 +124,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasServiceProvider::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasServiceProviders::Table).to_owned())
             .await?;
 
         manager
@@ -138,7 +138,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasServiceProvider {
+enum AtlasServiceProviders {
     Table,
     Id,
     TenantId,

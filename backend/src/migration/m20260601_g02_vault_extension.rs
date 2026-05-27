@@ -35,38 +35,38 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AttachmentShareToken::Table)
+                    .table(AttachmentShareTokens::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AttachmentShareToken::Id)
+                        ColumnDef::new(AttachmentShareTokens::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AttachmentShareToken::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AttachmentShareToken::AttachmentId).uuid().not_null())
+                    .col(ColumnDef::new(AttachmentShareTokens::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AttachmentShareTokens::AttachmentId).uuid().not_null())
                     .col(
-                        ColumnDef::new(AttachmentShareToken::Token)
+                        ColumnDef::new(AttachmentShareTokens::Token)
                             .string_len(128)
                             .not_null()
                             .unique_key()
-                            .default(Expr::cust("encode(gen_random_bytes(48), 'hex')")),
+                            .default(Expr::cust("md5(gen_random_uuid()::text) || md5(gen_random_uuid()::text) || md5(gen_random_uuid()::text)")),
                     )
-                    .col(ColumnDef::new(AttachmentShareToken::ResourceType).string().not_null())
+                    .col(ColumnDef::new(AttachmentShareTokens::ResourceType).string().not_null())
                     .col(
-                        ColumnDef::new(AttachmentShareToken::Permissions)
+                        ColumnDef::new(AttachmentShareTokens::Permissions)
                             .json_binary()
                             .not_null()
                             .default(Expr::val("[]")),
                     )
-                    .col(ColumnDef::new(AttachmentShareToken::RecipientEmail).string().null())
-                    .col(ColumnDef::new(AttachmentShareToken::ExpiresAt).timestamp_with_time_zone().not_null())
-                    .col(ColumnDef::new(AttachmentShareToken::OneTimeUse).boolean().not_null().default(false))
-                    .col(ColumnDef::new(AttachmentShareToken::UsedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AttachmentShareToken::CreatedByUserId).uuid().null())
+                    .col(ColumnDef::new(AttachmentShareTokens::RecipientEmail).string().null())
+                    .col(ColumnDef::new(AttachmentShareTokens::ExpiresAt).timestamp_with_time_zone().not_null())
+                    .col(ColumnDef::new(AttachmentShareTokens::OneTimeUse).boolean().not_null().default(false))
+                    .col(ColumnDef::new(AttachmentShareTokens::UsedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AttachmentShareTokens::CreatedByUserId).uuid().null())
                     .col(
-                        ColumnDef::new(AttachmentShareToken::CreatedAt)
+                        ColumnDef::new(AttachmentShareTokens::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -79,8 +79,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_attachment_share_tokens_token")
-                    .table(AttachmentShareToken::Table)
-                    .col(AttachmentShareToken::Token)
+                    .table(AttachmentShareTokens::Table)
+                    .col(AttachmentShareTokens::Token)
                     .to_owned(),
             )
             .await?;
@@ -89,8 +89,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_attachment_share_tokens_attachment")
-                    .table(AttachmentShareToken::Table)
-                    .col(AttachmentShareToken::AttachmentId)
+                    .table(AttachmentShareTokens::Table)
+                    .col(AttachmentShareTokens::AttachmentId)
                     .to_owned(),
             )
             .await?;
@@ -99,23 +99,23 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AttachmentMultipartUpload::Table)
+                    .table(AttachmentMultipartUploads::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AttachmentMultipartUpload::Id)
+                        ColumnDef::new(AttachmentMultipartUploads::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AttachmentMultipartUpload::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUpload::AttachmentId).uuid().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUpload::R2UploadId).string().not_null())
-                    .col(ColumnDef::new(AttachmentMultipartUpload::TotalParts).integer().null())
-                    .col(ColumnDef::new(AttachmentMultipartUpload::CompletedParts).integer().not_null().default(0))
-                    .col(ColumnDef::new(AttachmentMultipartUpload::Status).string().not_null().default(Expr::val("in_progress")))
+                    .col(ColumnDef::new(AttachmentMultipartUploads::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AttachmentMultipartUploads::AttachmentId).uuid().not_null())
+                    .col(ColumnDef::new(AttachmentMultipartUploads::R2UploadId).string().not_null())
+                    .col(ColumnDef::new(AttachmentMultipartUploads::TotalParts).integer().null())
+                    .col(ColumnDef::new(AttachmentMultipartUploads::CompletedParts).integer().not_null().default(0))
+                    .col(ColumnDef::new(AttachmentMultipartUploads::Status).string().not_null().default(Expr::val("in_progress")))
                     .col(
-                        ColumnDef::new(AttachmentMultipartUpload::CreatedAt)
+                        ColumnDef::new(AttachmentMultipartUploads::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -129,11 +129,11 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AttachmentMultipartUpload::Table).to_owned())
+            .drop_table(Table::drop().table(AttachmentMultipartUploads::Table).to_owned())
             .await?;
 
         manager
-            .drop_table(Table::drop().table(AttachmentShareToken::Table).to_owned())
+            .drop_table(Table::drop().table(AttachmentShareTokens::Table).to_owned())
             .await?;
 
         // Note: We do not drop the added columns on attachment in down() for safety in POC.
@@ -143,7 +143,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AttachmentShareToken {
+enum AttachmentShareTokens {
     Table,
     Id,
     TenantId,
@@ -160,7 +160,7 @@ enum AttachmentShareToken {
 }
 
 #[derive(DeriveIden)]
-enum AttachmentMultipartUpload {
+enum AttachmentMultipartUploads {
     Table,
     Id,
     TenantId,

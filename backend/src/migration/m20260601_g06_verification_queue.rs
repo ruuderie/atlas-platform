@@ -35,35 +35,35 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasVerificationRequest::Table)
+                    .table(AtlasVerificationRequests::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasVerificationRequest::Id)
+                        ColumnDef::new(AtlasVerificationRequests::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasVerificationRequest::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::SubjectType).string().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::SubjectId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::RequestedByUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::AttachmentId).uuid().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::AutoCheckResult).json_binary().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::AutoCheckPassed).boolean().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::SubjectType).string().not_null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::SubjectId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::RequestedByUserId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::AttachmentId).uuid().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::AutoCheckResult).json_binary().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::AutoCheckPassed).boolean().null())
                     .col(
-                        ColumnDef::new(AtlasVerificationRequest::Status)
-                            .custom(AtlasVerificationStatus::Table)
+                        ColumnDef::new(AtlasVerificationRequests::Status)
+                            .string_len(30)
                             .not_null()
                             .default(Expr::val("pending_upload")),
                     )
-                    .col(ColumnDef::new(AtlasVerificationRequest::ReviewedByUserId).uuid().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::ReviewedAt).timestamp_with_time_zone().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::RejectionReason).text().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::VerifiedValue).string().null())
-                    .col(ColumnDef::new(AtlasVerificationRequest::ExpiresAt).date().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::ReviewedByUserId).uuid().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::ReviewedAt).timestamp_with_time_zone().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::RejectionReason).text().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::VerifiedValue).string().null())
+                    .col(ColumnDef::new(AtlasVerificationRequests::ExpiresAt).date().null())
                     .col(
-                        ColumnDef::new(AtlasVerificationRequest::CreatedAt)
+                        ColumnDef::new(AtlasVerificationRequests::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -76,10 +76,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_verification_requests_status")
-                    .table(AtlasVerificationRequest::Table)
-                    .col(AtlasVerificationRequest::TenantId)
-                    .col(AtlasVerificationRequest::SubjectType)
-                    .col(AtlasVerificationRequest::Status)
+                    .table(AtlasVerificationRequests::Table)
+                    .col(AtlasVerificationRequests::TenantId)
+                    .col(AtlasVerificationRequests::SubjectType)
+                    .col(AtlasVerificationRequests::Status)
                     .to_owned(),
             )
             .await?;
@@ -89,7 +89,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasVerificationRequest::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasVerificationRequests::Table).to_owned())
             .await?;
 
         manager
@@ -99,7 +99,7 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum AtlasVerificationRequest {
+enum AtlasVerificationRequests {
     Table,
     Id,
     TenantId,

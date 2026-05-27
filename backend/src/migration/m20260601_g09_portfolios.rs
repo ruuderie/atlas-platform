@@ -14,24 +14,24 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasPortfolio::Table)
+                    .table(AtlasPortfolios::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(AtlasPortfolio::Id)
+                        ColumnDef::new(AtlasPortfolios::Id)
                             .uuid()
                             .not_null()
                             .primary_key()
                             .default(Expr::cust("gen_random_uuid()")),
                     )
-                    .col(ColumnDef::new(AtlasPortfolio::TenantId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasPortfolio::OwnerUserId).uuid().not_null())
-                    .col(ColumnDef::new(AtlasPortfolio::PortfolioType).string().not_null())
+                    .col(ColumnDef::new(AtlasPortfolios::TenantId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasPortfolios::OwnerUserId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasPortfolios::PortfolioType).string().not_null())
                     // Examples: 'real_estate', 'vehicle_fleet', 'equipment', 'insurance_book', 'adjuster_pool'
-                    .col(ColumnDef::new(AtlasPortfolio::Name).string().not_null())
-                    .col(ColumnDef::new(AtlasPortfolio::Description).text())
-                    .col(ColumnDef::new(AtlasPortfolio::Metadata).json_binary())
+                    .col(ColumnDef::new(AtlasPortfolios::Name).string().not_null())
+                    .col(ColumnDef::new(AtlasPortfolios::Description).text())
+                    .col(ColumnDef::new(AtlasPortfolios::Metadata).json_binary())
                     .col(
-                        ColumnDef::new(AtlasPortfolio::CreatedAt)
+                        ColumnDef::new(AtlasPortfolios::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
@@ -45,10 +45,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_atlas_portfolios_owner_type")
-                    .table(AtlasPortfolio::Table)
-                    .col(AtlasPortfolio::TenantId)
-                    .col(AtlasPortfolio::OwnerUserId)
-                    .col(AtlasPortfolio::PortfolioType)
+                    .table(AtlasPortfolios::Table)
+                    .col(AtlasPortfolios::TenantId)
+                    .col(AtlasPortfolios::OwnerUserId)
+                    .col(AtlasPortfolios::PortfolioType)
                     .to_owned(),
             )
             .await?;
@@ -58,13 +58,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasPortfolio::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasPortfolios::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum AtlasPortfolio {
+enum AtlasPortfolios {
     Table,
     Id,
     TenantId,
