@@ -72,3 +72,6 @@ pub mod webauthn_challenge;
 
 // DISTRIBUTED TRANSACTIONAL OUTBOX
 pub mod outbox_job;
+
+// PLATFORM GENERICS v2 (GENERIC-09+)
+pub mod atlas_portfolio;

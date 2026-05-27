@@ -71,8 +71,15 @@ impl AtlasApp for CorePlatformApp {
     /// Core platform schema migrations live in the base mod.rs migrator today.
     /// A follow-up can extract them here for full encapsulation once the migration
     /// runner supports multi-source ordering.
+    ///
+    /// Platform Generics v2 (GENERIC-09+) are intentionally registered here so that
+    /// CorePlatformApp remains the single source of truth for all shared infrastructure
+    /// and domain object tables.
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
-        vec![]
+        vec![
+            // GENERIC-09: Portfolio grouping (prerequisite for atlas_assets, etc.)
+            Box::new(crate::migration::m20260601_g09_portfolios::Migration),
+        ]
     }
 
     fn background_jobs(&self) -> Vec<BackgroundJob> {

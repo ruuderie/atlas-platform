@@ -134,6 +134,11 @@ pub mod m20260523_000006_create_headless_email_tables;
 pub mod m20260524_000001_extend_crm_avatar_attachments;
 pub mod m20260525_000001_extend_notes_and_activities;
 
+// --- Platform Generics v2 (Round 2/3 domain objects) ---
+// These are registered via CorePlatformApp::migrations() for proper encapsulation.
+// See docs/architecture/platform_generics_v2.md
+pub mod m20260601_g09_portfolios;
+
 
 
 pub struct Migrator;
