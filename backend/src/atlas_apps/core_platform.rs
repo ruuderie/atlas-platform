@@ -85,6 +85,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g03_payments::Migration),
             // G-01: Spatial / PostGIS foundation (geo service areas)
             Box::new(crate::migration::m20260601_g01_geo_postgis::Migration),
+            // G-05: External integrations gateway (PMS, OTA, AMS, GDS, Telephony, etc.)
+            Box::new(crate::migration::m20260601_g05_external_integrations::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping

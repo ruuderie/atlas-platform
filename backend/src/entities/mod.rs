@@ -87,6 +87,10 @@ pub mod atlas_payment_credential;
 
 // GENERIC-01: Spatial / PostGIS (geo service areas)
 pub mod geo_service_area;
+
+// GENERIC-05: External integrations gateway
+pub mod atlas_external_integration;
+pub mod atlas_integration_event;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;

@@ -153,6 +153,7 @@ pub mod m20260601_g18_applications;
 pub mod m20260601_g01_geo_postgis;
 pub mod m20260601_g02_vault_extension;
 pub mod m20260601_g03_payments;
+pub mod m20260601_g05_external_integrations;
 
 
 
