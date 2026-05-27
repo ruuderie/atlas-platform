@@ -45,8 +45,20 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* && \
     useradd -m appuser
 WORKDIR /app
+
 ARG BUILD_PROFILE=release
+
+# Main application
 COPY --from=builder /app/target/${BUILD_PROFILE}/atlas_backend .
+
+# Additional admin / migration / tooling binaries (available in dev/uat pods)
+# These are useful for one-off data migrations and operational tasks without
+# needing a separate image or breaking the Docker/CI process.
+COPY --from=builder /app/target/${BUILD_PROFILE}/migrate_legacy_crm ./bin/
+COPY --from=builder /app/target/${BUILD_PROFILE}/migrate ./bin/
+COPY --from=builder /app/target/${BUILD_PROFILE}/seed_db ./bin/
+COPY --from=builder /app/target/${BUILD_PROFILE}/migrate_anchor_users ./bin/
+
 USER appuser
 EXPOSE 8000
 ENV RUST_LOG=info
