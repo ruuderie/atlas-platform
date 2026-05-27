@@ -83,6 +83,8 @@ impl AtlasApp for CorePlatformApp {
             // G-03: Multi-rail payment ledger + extensible credential system
             // (Designed to be provider-agnostic. Bitcoin path allows future self-hosted infrastructure.)
             Box::new(crate::migration::m20260601_g03_payments::Migration),
+            // G-01: Spatial / PostGIS foundation (geo service areas)
+            Box::new(crate::migration::m20260601_g01_geo_postgis::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping

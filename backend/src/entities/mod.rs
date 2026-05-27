@@ -84,6 +84,9 @@ pub mod attachment_multipart_upload;
 pub mod atlas_ledger_entry;
 pub mod atlas_ledger_split;
 pub mod atlas_payment_credential;
+
+// GENERIC-01: Spatial / PostGIS (geo service areas)
+pub mod geo_service_area;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;

@@ -150,6 +150,7 @@ pub mod m20260601_g18_applications;
 
 // --- Original Infrastructure Generics (G-01 to G-08) ---
 // Started with highest priority: G-02 atlas_vault
+pub mod m20260601_g01_geo_postgis;
 pub mod m20260601_g02_vault_extension;
 pub mod m20260601_g03_payments;
 
