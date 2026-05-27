@@ -62,4 +62,19 @@ impl AccountService {
             .await
             .map_err(|e| e.to_string())
     }
+
+    /// Find or create a default organization account for a tenant (useful during migration).
+    pub async fn find_or_create_tenant_account(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        tenant_name: &str,
+    ) -> Result<Uuid, String> {
+        // In a real implementation we would have a better lookup (e.g. by name + type)
+        let existing = Self::list_for_tenant(db, tenant_id, 5).await?;
+        if let Some(acc) = existing.into_iter().find(|a| a.account_type == "organization") {
+            return Ok(acc.id);
+        }
+
+        Self::create_account(db, tenant_id, "organization", tenant_name, None, None).await
+    }
 }

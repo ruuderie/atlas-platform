@@ -10,6 +10,7 @@ pub mod lead_billing; // Legacy - to be migrated
 pub mod ledger;           // New unified ledger service (G-03 + unification)
 pub mod account_service;
 pub mod contact_service;
+pub mod unification_data_migration;
 pub mod audit;
 pub mod user_service;
 pub mod auth_service;

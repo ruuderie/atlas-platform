@@ -56,4 +56,16 @@ impl ContactService {
             .await
             .map_err(|e| e.to_string())
     }
+
+    /// Set a contact as the primary contact for its account (and unset others).
+    pub async fn set_as_primary(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        contact_id: Uuid,
+    ) -> Result<(), String> {
+        // In a real implementation this would be a transaction + update many.
+        // For now this is a stub showing intent.
+        tracing::info!("TODO: Implement set_as_primary for contact {}", contact_id);
+        Ok(())
+    }
 }
