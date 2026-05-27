@@ -114,3 +114,7 @@ pub mod atlas_regulatory_registration;
 pub mod atlas_tax_event;
 pub mod atlas_tax_filing;
 pub mod atlas_application;
+
+// Unified Account + Contact (replaces legacy customer/contact)
+pub mod atlas_account;
+pub mod atlas_contact;
