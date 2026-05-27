@@ -228,6 +228,25 @@ you **must** explicitly extract and forward the browser's `Host` and `Origin` he
 
 Failure to forward `Host` causes the backend router to fail tenant resolution → `404 Not Found`.
 
+### 7. Generic Subsystems — Check Before Creating Net-New Tables
+
+Eight structural patterns appear in 3+ roadmap apps and are implemented **once** in the
+base platform. Before writing a new app-specific migration, check this table:
+
+| Need | Platform Generic | Table(s) |
+|------|-----------------|----------|
+| Store a file in R2, generate presigned URLs, share with guests | `atlas_vault` | `attachment` (extended), `attachment_share_tokens`, `attachment_multipart_uploads` |
+| Record any payment (rent, premium, creator payout, booking) | `atlas_payments` | `atlas_ledger_entries`, `atlas_ledger_splits` |
+| Spatial / geo query (polygon containment, radius search) | `atlas_geo` | `geo_service_areas` (PostGIS GIST) |
+| Connect to PMS / AMS / OTA / GDS third-party API | `atlas_external_integrations` | `atlas_external_integrations`, `atlas_integration_events` |
+| Human trust verification (selfie, GPS, license, permit) | `atlas_verification_queue` | `atlas_verification_requests` |
+| B2C recurring subscription (creator tier, city plan, SaaS) | `atlas_subscriptions` | `atlas_subscriptions` |
+| Real-time WebSocket room scoped to an entity | `atlas_realtime` | `atlas_ws_rooms`, `atlas_ws_messages` |
+| Call an LLM or AI model asynchronously | `atlas_ai_tasks` | `atlas_ai_tasks` |
+
+> **Full DDL, Rust trait signatures, and build priority order:**
+> [`docs/architecture/platform_generics.md`](architecture/platform_generics.md)
+
 ---
 
 ## Registered Apps (as of v0.9.x)
