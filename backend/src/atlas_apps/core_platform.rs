@@ -83,10 +83,20 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g10_assets::Migration),
             // GENERIC-11: Legal agreements / contracts
             Box::new(crate::migration::m20260601_g11_contracts::Migration),
+            // GENERIC-12: Service providers / vendors / agents
+            Box::new(crate::migration::m20260601_g12_service_providers::Migration),
             // GENERIC-13: Universal case / work item object
             Box::new(crate::migration::m20260601_g13_cases::Migration),
             // GENERIC-14: Generic document registry with e-sig & versioning
             Box::new(crate::migration::m20260601_g14_documents::Migration),
+            // GENERIC-15: Deal / pipeline opportunities
+            Box::new(crate::migration::m20260601_g15_opportunities::Migration),
+            // GENERIC-16: Regulatory registrations / permits / licenses
+            Box::new(crate::migration::m20260601_g16_regulatory_registrations::Migration),
+            // GENERIC-17: Tax events and filings
+            Box::new(crate::migration::m20260601_g17_tax::Migration),
+            // GENERIC-18: Structured applications / onboarding
+            Box::new(crate::migration::m20260601_g18_applications::Migration),
         ]
     }
 

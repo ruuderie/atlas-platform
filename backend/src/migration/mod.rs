@@ -140,8 +140,13 @@ pub mod m20260525_000001_extend_notes_and_activities;
 pub mod m20260601_g09_portfolios;
 pub mod m20260601_g10_assets;
 pub mod m20260601_g11_contracts;
+pub mod m20260601_g12_service_providers;
 pub mod m20260601_g13_cases;
 pub mod m20260601_g14_documents;
+pub mod m20260601_g15_opportunities;
+pub mod m20260601_g16_regulatory_registrations;
+pub mod m20260601_g17_tax;
+pub mod m20260601_g18_applications;
 
 
 
