@@ -23,59 +23,91 @@ use uuid::Uuid;
 
 use dotenv::dotenv;
 use crate::entities::{category, tenant, profile, user, user_account};
-use tokio::sync::{Mutex, OnceCell};
+use std::sync::{Mutex, OnceLock};
 
-/// Global mutex: ensures DROP SCHEMA + Migrator::up() runs atomically.
-/// Without this, concurrent test threads race — one drops the schema while
-/// another is mid-migration, causing 25P02 (transaction aborted) cascades.
-static DB_INIT_LOCK: Mutex<()> = Mutex::const_new(());
-pub static DB_INIT: OnceCell<()> = OnceCell::const_new();
+/// Global mutex: serializes DROP SCHEMA + Migrator::up() across all test threads.
+///
+/// Must be std::sync::Mutex — each #[tokio::test] spawns its OWN independent
+/// tokio runtime. tokio::sync::Mutex is only visible within a single runtime;
+/// across runtimes it provides zero synchronization, so every thread races past
+/// it and independently drops the schema mid-migration.
+static DB_INIT_LOCK: Mutex<()> = Mutex::new(());
+
+/// Tracks whether migration has been applied successfully this process.
+/// std::sync::OnceLock — same cross-runtime reason as above.
+pub static DB_INIT: OnceLock<()> = OnceLock::new();
 
 /// Refreshes the test database schema exactly once per test process.
 ///
-/// The Mutex ensures that the DROP SCHEMA → CREATE SCHEMA → Migrator::up()
-/// sequence is serialized: no concurrent thread can start its own drop while
-/// another is actively running migrations. The OnceCell short-circuits all
-/// subsequent calls once the first successful init completes.
+/// Uses double-checked locking with OS-level primitives:
+///   1. Fast path: OnceLock already set → return immediately.
+///   2. Slow path: spawn_blocking thread → acquire std::Mutex → re-check →
+///      drop+migrate via the test runtime's Handle → set OnceLock.
+///
+/// Why spawn_blocking and not block_in_place?
+///   block_in_place requires the multi-thread scheduler; #[tokio::test] defaults
+///   to single-thread. spawn_blocking works on both and offloads the blocking
+///   std::Mutex::lock() call to tokio's dedicated blocking thread pool.
+///
+/// Why std::sync::Mutex and OnceLock?
+///   Each #[tokio::test] creates its own independent tokio runtime.
+///   tokio::sync primitives are scoped to a single runtime — they provide zero
+///   cross-runtime synchronization, so every test thread would race past them.
+///   std primitives are OS-level and work across all threads/runtimes.
 pub async fn initialize_database(db: &DatabaseConnection) {
-    // Fast path: already initialized, nothing to do.
+    // Fast path: already done.
     if DB_INIT.get().is_some() {
         return;
     }
 
-    // Slow path: acquire the lock so only one thread does the reset.
-    let _guard = DB_INIT_LOCK.lock().await;
+    let db = db.clone();
+    // Capture the current runtime handle BEFORE entering spawn_blocking,
+    // so we can drive async futures from inside the blocking thread.
+    let handle = tokio::runtime::Handle::current();
 
-    // Re-check after acquiring the lock — another thread may have finished
-    // while we were waiting.
-    if DB_INIT.get().is_some() {
-        return;
-    }
+    tokio::task::spawn_blocking(move || {
+        // Acquire OS-level mutex — blocking call, safe on a blocking thread.
+        // unwrap_or_else recovers a poisoned lock so retries work after a panic.
+        let _guard = DB_INIT_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
-    use sea_orm_migration::MigratorTrait;
-    use sea_orm::{ConnectionTrait, Statement};
+        // Re-check after acquiring lock — another thread may have just finished.
+        if DB_INIT.get().is_some() {
+            return;
+        }
 
-    // Drop and recreate the public schema for a clean slate.
-    let drop_res = db.execute(Statement::from_string(
-        db.get_database_backend(),
-        "DROP SCHEMA public CASCADE;".to_owned(),
-    )).await;
-    let create_res = db.execute(Statement::from_string(
-        db.get_database_backend(),
-        "CREATE SCHEMA public;".to_owned(),
-    )).await;
-    println!(
-        "TEST LOG: Public schema drop result: {:?}, create result: {:?}",
-        drop_res, create_res
-    );
+        // Drive the migration future to completion using the test's runtime.
+        handle.block_on(async move {
+            use sea_orm_migration::MigratorTrait;
+            use sea_orm::{ConnectionTrait, Statement};
 
-    if let Err(e) = crate::migration::Migrator::up(db, None).await {
-        panic!("Failed to run migrations: {e}\nHint: check that no non-idempotent CREATE TYPE / CREATE TABLE runs twice.");
-    }
+            let drop_res = db.execute(Statement::from_string(
+                db.get_database_backend(),
+                "DROP SCHEMA public CASCADE;".to_owned(),
+            )).await;
+            let create_res = db.execute(Statement::from_string(
+                db.get_database_backend(),
+                "CREATE SCHEMA public;".to_owned(),
+            )).await;
+            println!(
+                "TEST LOG: Public schema drop result: {:?}, create result: {:?}",
+                drop_res, create_res
+            );
 
-    // Mark as initialized — all subsequent callers skip the init entirely.
-    let _ = DB_INIT.set(());
+            if let Err(e) = crate::migration::Migrator::up(&db, None).await {
+                panic!("Failed to run migrations: {e}");
+            }
+        });
+
+        // Mark done — all subsequent callers fast-path out.
+        let _ = DB_INIT.set(());
+    })
+    .await
+    .expect("initialize_database: spawn_blocking panicked");
 }
+
+
 
 pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
     let tenant_id = Uuid::new_v4();
