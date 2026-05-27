@@ -138,6 +138,7 @@ pub mod m20260525_000001_extend_notes_and_activities;
 // These are registered via CorePlatformApp::migrations() for proper encapsulation.
 // See docs/architecture/platform_generics_v2.md
 pub mod m20260601_g09_portfolios;
+pub mod m20260601_g10_assets;
 
 
 

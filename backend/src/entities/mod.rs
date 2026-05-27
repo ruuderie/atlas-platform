@@ -75,3 +75,4 @@ pub mod outbox_job;
 
 // PLATFORM GENERICS v2 (GENERIC-09+)
 pub mod atlas_portfolio;
+pub mod atlas_asset;

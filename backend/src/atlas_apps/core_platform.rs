@@ -79,6 +79,8 @@ impl AtlasApp for CorePlatformApp {
         vec![
             // GENERIC-09: Portfolio grouping (prerequisite for atlas_assets, etc.)
             Box::new(crate::migration::m20260601_g09_portfolios::Migration),
+            // GENERIC-10: Central asset registry (properties, units, vehicles, equipment...)
+            Box::new(crate::migration::m20260601_g10_assets::Migration),
         ]
     }
 
