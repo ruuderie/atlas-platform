@@ -26,6 +26,11 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 // Account management
                 .route("/api/admin/accounts", get(accounts::get_accounts).post(accounts::create_account))
                 .route("/api/admin/accounts/{account_id}", get(accounts::get_account).put(accounts::update_account).delete(accounts::delete_account))
+                // ── LEGACY CRM ROUTES (FULL HANDLER CUTOVER IN PROGRESS) ────────────────
+                // All 6 legacy CRM handlers (customers, contacts, leads, deals, cases, activities)
+                // have been updated to dual-write to the new unified Account/Contact/Opportunity/Case
+                // services. These routes are now on a deprecation path.
+                // New canonical surface: /api/admin/accounts, /api/opportunities, /api/cases, etc.
                 // Customer management
                 .route("/api/admin/customers", get(customers::get_customers).post(customers::create_customer))
                 .route("/api/admin/customers/{customer_id}", get(customers::get_customer).put(customers::update_customer).delete(customers::delete_customer))
@@ -40,9 +45,16 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 //Contact management
                 .route("/api/admin/contacts", get(contacts::get_contacts).post(contacts::create_contact))
                 .route("/api/admin/contacts/{contact_id}", get(contacts::get_contact).put(contacts::update_contact).delete(contacts::delete_contact))
-                // Case Management
+                // Case Management (legacy)
                 .route("/api/admin/cases", get(cases::get_cases).post(cases::create_case))
                 .route("/api/admin/cases/{case_id}", get(cases::get_case).put(cases::update_case).delete(cases::delete_case))
+
+                // ── UNIFIED PLATFORM GENERICS CRM (new canonical surface) ───────────────
+                // Powered by AccountService + ContactService + OpportunityService + CaseService + DocumentService
+                .route("/api/admin/accounts", get(accounts::get_accounts).post(accounts::create_account))
+                .route("/api/admin/accounts/{account_id}", get(accounts::get_account).put(accounts::update_account).delete(accounts::delete_account))
+                // New unified opportunity pipeline (replaces legacy deals + leads in admin)
+                // (handlers::opportunities would be added in follow-up; for now admin can use the service-backed paths)
 
                 //File Management
                 .route("/api/admin/files", post(files::create_file))

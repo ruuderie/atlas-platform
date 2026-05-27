@@ -14,7 +14,16 @@ use uuid::Uuid;
 use chrono::Utc;
 use serde_json::json;
 use crate::entities::{customer, user, contact, note, activity};
+// ============================================================
+// LEGACY CRM HANDLER - CUTOVER IN PROGRESS
+// Prefer AccountService + ContactService going forward.
+// ============================================================
+
 use crate::entities::customer::CustomerType;
+
+// Unified cutover services
+use crate::services::account_service::AccountService;
+use crate::services::contact_service::ContactService;
 use crate::models::customer::{CreateCustomerInput, UpdateCustomerInput};
 use crate::models::contact::{ CreateContactInput};
 use crate::models::note::{CreateNoteInput};

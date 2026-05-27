@@ -24,7 +24,17 @@ use crate::models::case::{CaseModel, CreateCaseInput, UpdateCaseInput};
 use crate::models::activity::ActivityModel;
 use crate::models::note::NoteModel;
 use crate::models::file::FileAssociation;
+// ============================================================
+// LEGACY CRM HANDLER - CUTOVER IN PROGRESS
+// Cases and activities moving to CaseService + RealtimeService.
+// ============================================================
+
 use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
+
+// Cutover: legacy cases/activities → CaseService + RealtimeService + DocumentService
+use crate::services::case_service::CaseService;
+use crate::services::realtime_service::RealtimeService;
+use crate::services::document_service::DocumentService;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()

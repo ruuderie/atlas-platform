@@ -13,7 +13,16 @@ use uuid::Uuid;
 use chrono::Utc;
 use crate::handlers::Validate;
 use crate::models::{address::AddressJson, contact::Contact as ContactModel};
+// ============================================================
+// LEGACY CRM HANDLER - CUTOVER IN PROGRESS
+// Use AccountService + ContactService for new work.
+// ============================================================
+
 use crate::entities::{contact, note, activity, user, user_account};
+
+// Cutover to unified model: Account + Contact services
+use crate::services::account_service::AccountService;
+use crate::services::contact_service::ContactService;
 use crate::models::contact::{ CreateContactInput, UpdateContactInput};
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};

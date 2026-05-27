@@ -1,4 +1,4 @@
-use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait};
+use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
 use uuid::Uuid;
 use chrono::Utc;
 use crate::entities::atlas_account::{self, Entity as AccountEntity, ActiveModel as AccountActiveModel};

@@ -14,7 +14,17 @@ use chrono::Utc;
 use std::collections::HashMap;
 
 use crate::entities::{activity, user};
+// ============================================================
+// LEGACY CRM HANDLER - CUTOVER IN PROGRESS
+// Activities being consolidated into Case + Realtime + Audit services.
+// ============================================================
+
 use crate::entities::activity::{ActivityType, ActivityStatus};
+
+// Cutover in progress — activities moving to Case + Realtime + Audit
+use crate::services::case_service::CaseService;
+use crate::services::realtime_service::RealtimeService;
+use crate::services::audit::AuditService;
 use crate::models::activity::{ActivityModel, CreateActivityInput, UpdateActivityInput};
 use crate::models::file::FileAssociation;
 use crate::handlers::notes::get_user_tenant_id;

@@ -21,3 +21,6 @@ pub mod webauthn_registry_tests;
 pub mod admin_module_tests;
 // Phase 2 — Provisioning API tests
 pub mod provision_tests;
+
+// Complete generics service layer tests
+pub mod services_tests;
