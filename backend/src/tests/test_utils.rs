@@ -23,33 +23,58 @@ use uuid::Uuid;
 
 use dotenv::dotenv;
 use crate::entities::{category, tenant, profile, user, user_account};
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 
+/// Global mutex: ensures DROP SCHEMA + Migrator::up() runs atomically.
+/// Without this, concurrent test threads race — one drops the schema while
+/// another is mid-migration, causing 25P02 (transaction aborted) cascades.
+static DB_INIT_LOCK: Mutex<()> = Mutex::const_new(());
 pub static DB_INIT: OnceCell<()> = OnceCell::const_new();
 
-/// Guarantees that the concurrent test runner accurately refreshes the database schema exactly ONCE natively, avoiding "duplicate key" or "relation does not exist" panics.
+/// Refreshes the test database schema exactly once per test process.
+///
+/// The Mutex ensures that the DROP SCHEMA → CREATE SCHEMA → Migrator::up()
+/// sequence is serialized: no concurrent thread can start its own drop while
+/// another is actively running migrations. The OnceCell short-circuits all
+/// subsequent calls once the first successful init completes.
 pub async fn initialize_database(db: &DatabaseConnection) {
-    let db_clone = db.clone();
-    DB_INIT.get_or_init(|| async move {
-        use sea_orm_migration::MigratorTrait;
-        use sea_orm::{ConnectionTrait, Statement};
-        
-        // Drops and recreates the public schema. This completely cleans the database (including extensions)
-        // and safely avoids the PostGIS "cannot drop table spatial_ref_sys" error.
-        let drop_res = db_clone.execute(Statement::from_string(
-            db_clone.get_database_backend(),
-            "DROP SCHEMA public CASCADE;".to_owned()
-        )).await;
-        let create_res = db_clone.execute(Statement::from_string(
-            db_clone.get_database_backend(),
-            "CREATE SCHEMA public;".to_owned()
-        )).await;
-        println!("TEST LOG: Public schema drop result: {:?}, create result: {:?}", drop_res, create_res);
-        
-        crate::migration::Migrator::up(&db_clone, None)
-            .await
-            .expect("Failed to run migrations");
-    }).await;
+    // Fast path: already initialized, nothing to do.
+    if DB_INIT.get().is_some() {
+        return;
+    }
+
+    // Slow path: acquire the lock so only one thread does the reset.
+    let _guard = DB_INIT_LOCK.lock().await;
+
+    // Re-check after acquiring the lock — another thread may have finished
+    // while we were waiting.
+    if DB_INIT.get().is_some() {
+        return;
+    }
+
+    use sea_orm_migration::MigratorTrait;
+    use sea_orm::{ConnectionTrait, Statement};
+
+    // Drop and recreate the public schema for a clean slate.
+    let drop_res = db.execute(Statement::from_string(
+        db.get_database_backend(),
+        "DROP SCHEMA public CASCADE;".to_owned(),
+    )).await;
+    let create_res = db.execute(Statement::from_string(
+        db.get_database_backend(),
+        "CREATE SCHEMA public;".to_owned(),
+    )).await;
+    println!(
+        "TEST LOG: Public schema drop result: {:?}, create result: {:?}",
+        drop_res, create_res
+    );
+
+    if let Err(e) = crate::migration::Migrator::up(db, None).await {
+        panic!("Failed to run migrations: {e}\nHint: check that no non-idempotent CREATE TYPE / CREATE TABLE runs twice.");
+    }
+
+    // Mark as initialized — all subsequent callers skip the init entirely.
+    let _ = DB_INIT.set(());
 }
 
 pub async fn create_test_tenant<C: ConnectionTrait>(db: &C) -> tenant::Model {
