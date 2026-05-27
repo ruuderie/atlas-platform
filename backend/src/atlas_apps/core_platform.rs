@@ -91,6 +91,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g06_verification_queue::Migration),
             // G-07: Real-time WebSocket room infrastructure
             Box::new(crate::migration::m20260601_g07_realtime::Migration),
+            // G-04: B2C recurring subscriptions (creator tiers, plans, etc.)
+            Box::new(crate::migration::m20260601_g04_subscriptions::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
