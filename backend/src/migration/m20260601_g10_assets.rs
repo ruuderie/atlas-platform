@@ -16,13 +16,13 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Query to check if PostGIS is available as an extension before trying to create tables using geography types.
-        // This is read-only and will never abort the current transaction if the extension is not available.
+        // Query to check if PostGIS is actually installed / enabled in this database.
+        // This is read-only and will never abort the current transaction.
         let check_res = manager
             .get_connection()
             .query_one(sea_orm::Statement::from_string(
                 manager.get_connection().get_database_backend(),
-                "SELECT 1 FROM pg_available_extensions WHERE name = 'postgis';".to_owned(),
+                "SELECT 1 FROM pg_extension WHERE extname = 'postgis';".to_owned(),
             ))
             .await;
 

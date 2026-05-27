@@ -13,46 +13,79 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Query to check if PostGIS is available as an extension before trying to create it.
-        // This is read-only and will never abort the current transaction if the extension is not available.
-        let check_res = manager
+        // 1. Check if PostGIS is already installed in this database
+        let check_installed = manager
             .get_connection()
             .query_one(sea_orm::Statement::from_string(
                 manager.get_connection().get_database_backend(),
-                "SELECT 1 FROM pg_available_extensions WHERE name = 'postgis';".to_owned(),
+                "SELECT 1 FROM pg_extension WHERE extname = 'postgis';".to_owned(),
             ))
             .await;
 
-        let has_postgis = match check_res {
+        let mut has_postgis = match check_installed {
             Ok(Some(_)) => true,
             _ => false,
         };
 
         if !has_postgis {
-            tracing::warn!(
-                "PostGIS extension is not available in the PostgreSQL catalog (common in test/CI DBs without PostGIS installed). \
-                 Geo features (G-01) will be disabled until the extension is available."
-            );
-            // Do not fail the whole migration, and do not execute CREATE EXTENSION (which aborts the transaction).
-            return Ok(());
+            // 2. Check if the extension is available in pg_available_extensions
+            let check_available = manager
+                .get_connection()
+                .query_one(sea_orm::Statement::from_string(
+                    manager.get_connection().get_database_backend(),
+                    "SELECT 1 FROM pg_available_extensions WHERE name = 'postgis';".to_owned(),
+                ))
+                .await;
+
+            let is_available = match check_available {
+                Ok(Some(_)) => true,
+                _ => false,
+            };
+
+            if is_available {
+                // 3. Check if the current user is a superuser (so they have privileges to create it)
+                let check_superuser = manager
+                    .get_connection()
+                    .query_one(sea_orm::Statement::from_string(
+                        manager.get_connection().get_database_backend(),
+                        "SELECT 1 WHERE current_setting('is_superuser') = 'on';".to_owned(),
+                    ))
+                    .await;
+
+                let is_superuser = match check_superuser {
+                    Ok(Some(_)) => true,
+                    _ => false,
+                };
+
+                if is_superuser {
+                    // Try to create the extension
+                    let ext_result = manager
+                        .get_connection()
+                        .execute(sea_orm::Statement::from_string(
+                            manager.get_connection().get_database_backend(),
+                            "CREATE EXTENSION IF NOT EXISTS postgis;".to_owned(),
+                        ))
+                        .await;
+
+                    if ext_result.is_ok() {
+                        has_postgis = true;
+                    } else {
+                        tracing::warn!("Failed to create PostGIS extension even as superuser.");
+                    }
+                } else {
+                    tracing::warn!(
+                        "PostGIS extension is available but current user is not a superuser. \
+                         Cannot run CREATE EXTENSION. Skipping gracefully."
+                    );
+                }
+            }
         }
 
-        // Now safe to run CREATE EXTENSION as we know it's available on the server
-        let ext_result = manager
-            .get_connection()
-            .execute(sea_orm::Statement::from_string(
-                manager.get_connection().get_database_backend(),
-                "CREATE EXTENSION IF NOT EXISTS postgis;".to_owned(),
-            ))
-            .await;
-
-        if let Err(ref e) = ext_result {
+        if !has_postgis {
             tracing::warn!(
-                "PostGIS extension could not be created despite being available. \
-                 Geo features (G-01) will be disabled. Error: {:?}",
-                e
+                "PostGIS extension is not installed or enabled in this database. \
+                 Geo features (G-01) will be disabled."
             );
-            // Do not fail the whole migration — continue so other tests and deploys succeed.
             return Ok(());
         }
 
