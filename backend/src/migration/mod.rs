@@ -155,6 +155,7 @@ pub mod m20260601_g02_vault_extension;
 pub mod m20260601_g03_payments;
 pub mod m20260601_g05_external_integrations;
 pub mod m20260601_g06_verification_queue;
+pub mod m20260601_g07_realtime;
 
 
 

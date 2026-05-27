@@ -89,6 +89,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g05_external_integrations::Migration),
             // G-06: Verification queue (human-in-the-loop trust workflows)
             Box::new(crate::migration::m20260601_g06_verification_queue::Migration),
+            // G-07: Real-time WebSocket room infrastructure
+            Box::new(crate::migration::m20260601_g07_realtime::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping

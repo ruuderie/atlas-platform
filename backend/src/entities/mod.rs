@@ -94,6 +94,10 @@ pub mod atlas_integration_event;
 
 // GENERIC-06: Verification queue (human + automated trust)
 pub mod atlas_verification_request;
+
+// GENERIC-07: Real-time WebSocket rooms + messages
+pub mod atlas_ws_room;
+pub mod atlas_ws_message;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;
