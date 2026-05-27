@@ -101,6 +101,9 @@ pub mod atlas_ws_message;
 
 // GENERIC-04: B2C recurring subscriptions
 pub mod atlas_subscription;
+
+// GENERIC-08: Async AI / LLM task queue
+pub mod atlas_ai_task;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;

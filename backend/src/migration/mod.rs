@@ -157,6 +157,7 @@ pub mod m20260601_g05_external_integrations;
 pub mod m20260601_g06_verification_queue;
 pub mod m20260601_g04_subscriptions;
 pub mod m20260601_g07_realtime;
+pub mod m20260601_g08_ai_tasks;
 
 
 

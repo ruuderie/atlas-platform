@@ -93,6 +93,8 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g07_realtime::Migration),
             // G-04: B2C recurring subscriptions (creator tiers, plans, etc.)
             Box::new(crate::migration::m20260601_g04_subscriptions::Migration),
+            // G-08: Async AI / LLM task queue
+            Box::new(crate::migration::m20260601_g08_ai_tasks::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
