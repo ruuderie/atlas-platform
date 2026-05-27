@@ -147,9 +147,39 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Note: Foreign keys are intentionally omitted in this unification migration for simplicity during the POC phase.
-        // They can be added in a follow-up migration or enforced at the application layer.
-        // This keeps the migration compiling and focused on getting the tables in place quickly.
+        // Foreign key from contacts -> accounts (contacts depend on accounts)
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(AtlasContact::Table)
+                    .add_foreign_key(
+                        ForeignKey::create()
+                            .name("fk_atlas_contacts_account_id")
+                            .from(AtlasContact::Table, AtlasContact::AccountId)
+                            .to(AtlasAccount::Table, AtlasAccount::Id)
+                            .on_delete(ForeignKeyAction::Cascade)
+                            .to_owned(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        // Circular FK: accounts.primary_contact_id -> contacts (after contacts table exists)
+        manager
+            .alter_table(
+                Table::alter()
+                    .table(AtlasAccount::Table)
+                    .add_foreign_key(
+                        ForeignKey::create()
+                            .name("fk_atlas_accounts_primary_contact_id")
+                            .from(AtlasAccount::Table, AtlasAccount::PrimaryContactId)
+                            .to(AtlasContact::Table, AtlasContact::Id)
+                            .on_delete(ForeignKeyAction::SetNull)
+                            .to_owned(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
 
         Ok(())
     }

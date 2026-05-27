@@ -159,6 +159,9 @@ pub mod m20260601_g04_subscriptions;
 pub mod m20260601_g07_realtime;
 pub mod m20260601_g08_ai_tasks;
 
+// Unification: New canonical Account + Contact model (replaces legacy CRM)
+pub mod m20260601_unify_accounts_contacts;
+
 
 
 pub struct Migrator;

@@ -96,6 +96,9 @@ impl AtlasApp for CorePlatformApp {
             // G-08: Async AI / LLM task queue
             Box::new(crate::migration::m20260601_g08_ai_tasks::Migration),
 
+            // === Unification Migration (new canonical model) ===
+            Box::new(crate::migration::m20260601_unify_accounts_contacts::Migration),
+
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
             Box::new(crate::migration::m20260601_g09_portfolios::Migration),
