@@ -1,6 +1,20 @@
-# Business Network
+# Atlas Platform
 
-This project is a high-performance business network website using Svelte/Leptos for the frontend and Rust for the backend API. It allows users to view and search for business listings, register, and login. The architecture natively supports multi-tenant networks driven by a single codebase.
+**For anyone (human or AI) joining this project:**  
+Please start by reading **`docs/CURRENT_STATE.md`**. It contains the most up-to-date high-level overview of the current architecture (including the completed Platform Generics v2 + Legacy CRM Unification effort).
+
+---
+
+This repository contains the Atlas Platform — a multi-tenant application platform built in Rust (Axum + SeaORM) with Leptos SSR frontends. It is designed around strong reuse of 18 platform generics instead of duplicating vertical-specific tables across applications.
+
+## Important Documentation
+
+- **[`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md)** — Start here. Current architecture, status, and what changed in 2026.
+- **[`docs/TEST_ENVIRONMENT_REQUIREMENTS.md`](docs/TEST_ENVIRONMENT_REQUIREMENTS.md)** — How to run the full test suite (PostGIS requirements, etc.).
+- `docs/architecture/platform_generics_v2.md` — The authoritative spec for the 18 reusable generics.
+- `docs/atlas_app_integration.md` — How new applications integrate with the platform (including the "Generic Fitness Test").
+
+The old README content below is retained for historical context but is no longer the best starting point.
 
 ## Project Structure
 

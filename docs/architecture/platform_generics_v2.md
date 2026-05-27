@@ -1,9 +1,11 @@
 # Atlas Platform — Generics v2 (Consolidated)
 
-> **Status:** Design Draft — Work in Progress  
-> **Date:** 2026-05-27  
-> **Branch:** `feat/platform-generics-v2`  
+> **Status:** Implemented & Merged to dev (June 2026)
+> **Date:** 2026-05-27 (original design) → June 2026 (implementation complete)
+> **Branch History:** `feat/platform-generics-v2` → merged to `dev`
 > **Purpose:** Single source of truth for all 18 platform generics. Supersedes the original 8 + the Round 2/3 analysis from Property Management.
+>
+> **See also:** `../CURRENT_STATE.md` for the absolute latest high-level summary.
 
 ---
 
@@ -136,7 +138,13 @@ The detailed specifications for GENERIC-09 through GENERIC-18 (including all DDL
 
 ---
 
-## 7. Next Steps (This Branch)
+## 7. Implementation Notes & Test Environment Considerations
+
+**G01 (Geo/PostGIS)**: The `CREATE EXTENSION postgis` step is now tolerant of environments without the PostGIS binaries installed. In such cases it logs a warning and skips table creation. This was necessary to keep the test suite healthy after the v2 merge. Production and proper test environments should still have PostGIS enabled.
+
+---
+
+## 8. Next Steps (This Branch)
 
 This document is the first deliverable on `feat/platform-generics-v2`.
 

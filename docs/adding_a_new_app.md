@@ -1,5 +1,7 @@
 # Adding a New Application to the Atlas Platform
 
+> **Prerequisite Reading**: [`docs/CURRENT_STATE.md`](CURRENT_STATE.md) — this explains the current state after the Platform Generics v2 + Unification effort, including the mandatory "Generic Fitness Test" before creating new tables.
+
 This document is the definitive checklist for integrating a new frontend application (Leptos/WASM or otherwise) into the Atlas Platform's CI/CD pipeline and Kubernetes infrastructure. Follow every step in order. Skipping any step will result in broken deployments or `ImagePullBackOff` errors.
 
 ---

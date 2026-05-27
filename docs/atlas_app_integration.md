@@ -1,5 +1,9 @@
 # Atlas App Integration Protocol
 
+> **Strongly Recommended First Read**: [`docs/CURRENT_STATE.md`](CURRENT_STATE.md) for the current state of the 18 Platform Generics, the unified Account/Contact model, and the mandatory "Generic Fitness Test" before introducing new tables.
+
+This document contains the technical integration rules. The strategic "why" and current reality are in `CURRENT_STATE.md`.
+
 This protocol determines how applications attach to the Atlas Platform. The `AtlasApp` Rust trait
 is the **only** sanctioned integration point — direct mutation of `api.rs` is forbidden for app routes.
 

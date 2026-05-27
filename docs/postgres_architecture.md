@@ -1,5 +1,7 @@
 # Atlas Platform Database Architecture
 
+> **Note:** This document covers core database principles. For the latest high-level state of the platform after the 2026 Generics v2 and CRM Unification work, start with [`CURRENT_STATE.md`](CURRENT_STATE.md).
+
 The Atlas Platform operates on a **Single-Database, Multi-Tenant** architecture using PostgreSQL. All applications (`backend`, `anchor-app`, `network-app`) communicate with this strict, unified schema. Data segmentation is primarily enforced at the application layer through `tenant_id` foreign keys, preventing data leakage across organizational boundaries while keeping infrastructure costs minimal.
 
 This diagram demonstrates how tables are grouped logically into distinct domains:

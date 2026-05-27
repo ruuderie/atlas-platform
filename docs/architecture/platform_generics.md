@@ -1,4 +1,8 @@
-# Atlas Platform — Generic Subsystems
+# Atlas Platform — Generic Subsystems (Original 8 — Historical Reference)
+
+> **Important**: This document covers the original 8 infrastructure generics. The complete current architecture (all 18 generics + Account/Contact unification + service layer) is documented in:
+> - [`platform_generics_v2.md`](./platform_generics_v2.md)
+> - [`../CURRENT_STATE.md`](../CURRENT_STATE.md)
 
 > See also:
 > - [`docs/atlas_app_integration.md`](../atlas_app_integration.md) — AtlasApp trait and Rule 7 (check generics first)

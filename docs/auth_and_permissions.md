@@ -1,5 +1,7 @@
 # Atlas Platform — Authentication & Permissions
 
+> **For the current platform architecture (post-Generics v2 + Unification):** Read [`CURRENT_STATE.md`](CURRENT_STATE.md) first.
+
 > See also:
 > - [`docs/atlas_app_integration.md`](atlas_app_integration.md) — how apps register routes and provision tenant data
 > - [`docs/platform_overview.md`](platform_overview.md) — system architecture overview
