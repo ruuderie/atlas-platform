@@ -77,10 +77,16 @@ impl AtlasApp for CorePlatformApp {
     /// and domain object tables.
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
         vec![
-            // GENERIC-09: Portfolio grouping (prerequisite for atlas_assets, etc.)
+            // GENERIC-09: Portfolio grouping
             Box::new(crate::migration::m20260601_g09_portfolios::Migration),
-            // GENERIC-10: Central asset registry (properties, units, vehicles, equipment...)
+            // GENERIC-10: Central asset registry
             Box::new(crate::migration::m20260601_g10_assets::Migration),
+            // GENERIC-11: Legal agreements / contracts
+            Box::new(crate::migration::m20260601_g11_contracts::Migration),
+            // GENERIC-13: Universal case / work item object
+            Box::new(crate::migration::m20260601_g13_cases::Migration),
+            // GENERIC-14: Generic document registry with e-sig & versioning
+            Box::new(crate::migration::m20260601_g14_documents::Migration),
         ]
     }
 
