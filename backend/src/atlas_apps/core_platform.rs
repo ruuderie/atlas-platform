@@ -77,6 +77,11 @@ impl AtlasApp for CorePlatformApp {
     /// and domain object tables.
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
         vec![
+            // --- Original Infrastructure Generics (priority order) ---
+            // G-02: Secure file storage + external sharing (highest priority)
+            Box::new(crate::migration::m20260601_g02_vault_extension::Migration),
+
+            // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
             Box::new(crate::migration::m20260601_g09_portfolios::Migration),
             // GENERIC-10: Central asset registry

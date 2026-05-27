@@ -217,6 +217,12 @@ pub async fn create_feed_item(
                 title: Set(attachment_data.title),
                 size_in_bytes: Set(attachment_data.size_in_bytes),
                 duration_in_seconds: Set(attachment_data.duration_in_seconds),
+                // Vault / R2 fields (GENERIC-02) — not used for feed attachments
+                access_level: Set(Some("private".to_string())),
+                r2_bucket: Set(None),
+                r2_key: Set(None),
+                checksum_sha256: Set(None),
+                upload_status: Set(Some("complete".to_string())),
                 created_at: Set(now),
                 updated_at: Set(now),
             };

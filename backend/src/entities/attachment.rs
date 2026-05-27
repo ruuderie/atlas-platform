@@ -14,6 +14,14 @@ pub struct Model {
     pub title: Option<String>,
     pub size_in_bytes: Option<i64>,
     pub duration_in_seconds: Option<i32>,
+
+    // --- Vault / R2 extensions (GENERIC-02) ---
+    pub access_level: Option<String>,      // 'private', 'shared', etc.
+    pub r2_bucket: Option<String>,
+    pub r2_key: Option<String>,
+    pub checksum_sha256: Option<String>,
+    pub upload_status: Option<String>,     // 'pending_upload', 'uploading', 'complete', 'failed'
+
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]

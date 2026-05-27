@@ -148,6 +148,10 @@ pub mod m20260601_g16_regulatory_registrations;
 pub mod m20260601_g17_tax;
 pub mod m20260601_g18_applications;
 
+// --- Original Infrastructure Generics (G-01 to G-08) ---
+// Started with highest priority: G-02 atlas_vault
+pub mod m20260601_g02_vault_extension;
+
 
 
 pub struct Migrator;

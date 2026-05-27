@@ -75,6 +75,10 @@ pub mod outbox_job;
 
 // PLATFORM GENERICS v2 (GENERIC-09+)
 pub mod atlas_portfolio;
+
+// GENERIC-02: Vault extensions (share tokens + multipart)
+pub mod attachment_share_token;
+pub mod attachment_multipart_upload;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;
