@@ -13,11 +13,31 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Enable PostGIS extension (idempotent).
-        // In some test/CI environments the PostGIS binaries may not be installed on the
-        // Postgres server. We make this step non-fatal so the rest of the test suite and
-        // dev deploys can proceed. Geo-dependent features will simply be unavailable until
-        // PostGIS is enabled on the target database.
+        // Query to check if PostGIS is available as an extension before trying to create it.
+        // This is read-only and will never abort the current transaction if the extension is not available.
+        let check_res = manager
+            .get_connection()
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                "SELECT 1 FROM pg_available_extensions WHERE name = 'postgis';".to_owned(),
+            ))
+            .await;
+
+        let has_postgis = match check_res {
+            Ok(Some(_)) => true,
+            _ => false,
+        };
+
+        if !has_postgis {
+            tracing::warn!(
+                "PostGIS extension is not available in the PostgreSQL catalog (common in test/CI DBs without PostGIS installed). \
+                 Geo features (G-01) will be disabled until the extension is available."
+            );
+            // Do not fail the whole migration, and do not execute CREATE EXTENSION (which aborts the transaction).
+            return Ok(());
+        }
+
+        // Now safe to run CREATE EXTENSION as we know it's available on the server
         let ext_result = manager
             .get_connection()
             .execute(sea_orm::Statement::from_string(
@@ -28,8 +48,8 @@ impl MigrationTrait for Migration {
 
         if let Err(ref e) = ext_result {
             tracing::warn!(
-                "PostGIS extension could not be created (common in test/CI DBs without PostGIS installed). \
-                 Geo features (G-01) will be disabled until the extension is available. Error: {:?}",
+                "PostGIS extension could not be created despite being available. \
+                 Geo features (G-01) will be disabled. Error: {:?}",
                 e
             );
             // Do not fail the whole migration — continue so other tests and deploys succeed.

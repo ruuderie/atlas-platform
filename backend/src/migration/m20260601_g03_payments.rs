@@ -18,50 +18,32 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Payment rails (examples — extensible)
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(AtlasPaymentRail::Table)
-                    .values([
-                        AtlasPaymentRail::Stripe,
-                        AtlasPaymentRail::StripeConnect,
-                        AtlasPaymentRail::BtcOnchain,
-                        AtlasPaymentRail::BtcLightning,
-                        AtlasPaymentRail::Zelle,
-                        AtlasPaymentRail::CashApp,
-                        AtlasPaymentRail::ApplePay,
-                        AtlasPaymentRail::GooglePay,
-                        AtlasPaymentRail::Pix,
-                        AtlasPaymentRail::Wire,
-                        AtlasPaymentRail::Ach,
-                        AtlasPaymentRail::WesternUnion,
-                        AtlasPaymentRail::Moneygram,
-                        AtlasPaymentRail::Cash,
-                    ])
-                    .to_owned(),
-            )
-            .await?;
+        // Payment rails (idempotent enum creation)
+        manager.get_connection().execute(sea_orm::Statement::from_string(
+            manager.get_connection().get_database_backend(),
+            r#"
+            DO $$ BEGIN
+                CREATE TYPE atlas_payment_rail AS ENUM (
+                    'stripe', 'stripe_connect', 'btc_onchain', 'btc_lightning',
+                    'zelle', 'cash_app', 'apple_pay', 'google_pay', 'pix',
+                    'wire', 'ach', 'western_union', 'moneygram', 'cash'
+                );
+            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            "#.to_owned()
+        )).await?;
 
-        // Ledger entry status
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(AtlasLedgerStatus::Table)
-                    .values([
-                        AtlasLedgerStatus::Pending,
-                        AtlasLedgerStatus::Processing,
-                        AtlasLedgerStatus::Paid,
-                        AtlasLedgerStatus::PartiallyPaid,
-                        AtlasLedgerStatus::Late,
-                        AtlasLedgerStatus::Failed,
-                        AtlasLedgerStatus::Refunded,
-                        AtlasLedgerStatus::Waived,
-                        AtlasLedgerStatus::Reconciled,
-                    ])
-                    .to_owned(),
-            )
-            .await?;
+        // Ledger entry status (idempotent enum creation)
+        manager.get_connection().execute(sea_orm::Statement::from_string(
+            manager.get_connection().get_database_backend(),
+            r#"
+            DO $$ BEGIN
+                CREATE TYPE atlas_ledger_status AS ENUM (
+                    'pending', 'processing', 'paid', 'partially_paid',
+                    'late', 'failed', 'refunded', 'waived', 'reconciled'
+                );
+            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            "#.to_owned()
+        )).await?;
 
         // Main ledger table
         manager
@@ -172,37 +154,31 @@ impl MigrationTrait for Migration {
 
         // === Payment Credentials (extensible, provider-agnostic) ===
 
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(AtlasPaymentCredentialType::Table)
-                    .values([
-                        // The values below are illustrative examples only.
-                        // The platform is deliberately not tied to any specific provider.
-                        AtlasPaymentCredentialType::StripeConnectExpress,
-                        AtlasPaymentCredentialType::StripeConnectStandard,
-                        AtlasPaymentCredentialType::BtcOnchainAddress,
-                        AtlasPaymentCredentialType::BtcLightningNode,
-                        AtlasPaymentCredentialType::ZelleAccount,
-                        AtlasPaymentCredentialType::PixKey,
-                        // Add more as needed via future migrations or by treating unknown strings gracefully
-                    ])
-                    .to_owned(),
-            )
-            .await?;
+        // Payment credential types (idempotent enum creation)
+        manager.get_connection().execute(sea_orm::Statement::from_string(
+            manager.get_connection().get_database_backend(),
+            r#"
+            DO $$ BEGIN
+                CREATE TYPE atlas_payment_credential_type AS ENUM (
+                    'stripe_connect_express', 'stripe_connect_standard',
+                    'btc_onchain_address', 'btc_lightning_node',
+                    'zelle_account', 'pix_key'
+                );
+            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            "#.to_owned()
+        )).await?;
 
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(AtlasMorType::Table)
-                    .values([
-                        AtlasMorType::Platform,
-                        AtlasMorType::Client,
-                        AtlasMorType::Hybrid,
-                    ])
-                    .to_owned(),
-            )
-            .await?;
+        // Merchant of Record types (idempotent enum creation)
+        manager.get_connection().execute(sea_orm::Statement::from_string(
+            manager.get_connection().get_database_backend(),
+            r#"
+            DO $$ BEGIN
+                CREATE TYPE atlas_mor_type AS ENUM (
+                    'platform', 'client', 'hybrid'
+                );
+            EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+            "#.to_owned()
+        )).await?;
 
         manager
             .create_table(
