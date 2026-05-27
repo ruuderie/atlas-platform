@@ -202,11 +202,24 @@ mod tests {
     }
 
     #[test]
-    fn test_migrations_empty() {
+    fn test_migrations_populated_with_platform_generics() {
         let app = CorePlatformApp;
+        let migrations = app.migrations();
+
+        // As of Platform Generics v2, CorePlatformApp is the canonical place
+        // where all shared infrastructure (G01-G08) + unification + domain
+        // generics (G09-G18) are registered.
         assert!(
-            app.migrations().is_empty(),
-            "CorePlatformApp migrations should be empty until extracted from base migrator"
+            !migrations.is_empty(),
+            "CorePlatformApp should now return the full set of platform generics migrations (was intentionally populated during v2 work)"
+        );
+
+        // Sanity: we expect at least the unification migration + several generics.
+        // Exact count can grow; we just ensure the v2 design is active.
+        assert!(
+            migrations.len() >= 10,
+            "Expected a substantial number of generics migrations, got {}",
+            migrations.len()
         );
     }
 
