@@ -79,6 +79,11 @@ pub mod atlas_portfolio;
 // GENERIC-02: Vault extensions (share tokens + multipart)
 pub mod attachment_share_token;
 pub mod attachment_multipart_upload;
+
+// GENERIC-03: Payments ledger + credentials (provider-agnostic)
+pub mod atlas_ledger_entry;
+pub mod atlas_ledger_split;
+pub mod atlas_payment_credential;
 pub mod atlas_asset;
 pub mod atlas_contract;
 pub mod atlas_case;

@@ -80,6 +80,9 @@ impl AtlasApp for CorePlatformApp {
             // --- Original Infrastructure Generics (priority order) ---
             // G-02: Secure file storage + external sharing (highest priority)
             Box::new(crate::migration::m20260601_g02_vault_extension::Migration),
+            // G-03: Multi-rail payment ledger + extensible credential system
+            // (Designed to be provider-agnostic. Bitcoin path allows future self-hosted infrastructure.)
+            Box::new(crate::migration::m20260601_g03_payments::Migration),
 
             // --- New Domain Generics (G-09+) ---
             // GENERIC-09: Portfolio grouping
