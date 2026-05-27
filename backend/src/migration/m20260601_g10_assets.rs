@@ -16,6 +16,27 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Query to check if PostGIS is available as an extension before trying to create tables using geography types.
+        // This is read-only and will never abort the current transaction if the extension is not available.
+        let check_res = manager
+            .get_connection()
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                "SELECT 1 FROM pg_available_extensions WHERE name = 'postgis';".to_owned(),
+            ))
+            .await;
+
+        let has_postgis = match check_res {
+            Ok(Some(_)) => true,
+            _ => false,
+        };
+
+        let geo_point_type = if has_postgis {
+            sea_orm::sea_query::Alias::new("geography(Point, 4326)")
+        } else {
+            sea_orm::sea_query::Alias::new("text")
+        };
+
         // Create the custom enum type for asset status
         manager
             .create_type(
@@ -66,8 +87,8 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AtlasAssets::StateProvince).string())
                     .col(ColumnDef::new(AtlasAssets::PostalCode).string())
                     .col(ColumnDef::new(AtlasAssets::CountryCode).char_len(2).default(Expr::val("US")))
-                    // Geography point (requires PostGIS). Using custom type for now.
-                    .col(ColumnDef::new(AtlasAssets::GeoPoint).custom(sea_orm::sea_query::Alias::new("geography(Point, 4326)")).null())
+                    // Geography point (requires PostGIS). Using dynamic/fallback type.
+                    .col(ColumnDef::new(AtlasAssets::GeoPoint).custom(geo_point_type).null())
                     // Flexible type-specific attributes (JSONB is the key to avoiding dozens of app-specific tables)
                     .col(ColumnDef::new(AtlasAssets::Attributes).json_binary().null())
                     .col(
@@ -103,16 +124,18 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Note: GIST index on geography requires PostGIS. We add it here; it will only work after G-01 is applied.
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_atlas_assets_geo")
-                    .table(AtlasAssets::Table)
-                    .col(AtlasAssets::GeoPoint)
-                    .to_owned(),
-            )
-            .await?;
+        // Note: GIST index on geography requires PostGIS. We add it here conditionally.
+        if has_postgis {
+            manager
+                .create_index(
+                    Index::create()
+                        .name("idx_atlas_assets_geo")
+                        .table(AtlasAssets::Table)
+                        .col(AtlasAssets::GeoPoint)
+                        .to_owned(),
+                )
+                .await?;
+        }
 
         Ok(())
     }
