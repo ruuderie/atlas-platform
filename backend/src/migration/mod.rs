@@ -148,6 +148,27 @@ pub mod m20260601_g16_regulatory_registrations;
 pub mod m20260601_g17_tax;
 pub mod m20260601_g18_applications;
 
+// --- Platform Generics Round 1 Gap Fills (G-19, G-23, G-25, G-26) ---
+// Identified via horizontal gap analysis (June 2026). Promoted to generics
+// before Direct Booking Engine and CoverFlow wrote conflicting app-specific tables.
+// See docs/architecture/platform_generics_gap_analysis.md
+//
+// ORDERING NOTE: These use the m20260701_ prefix, which sorts AFTER all m20260601_
+// generics alphabetically, ensuring G-01–G-18 are applied before G-19+.
+//
+// G-19: Multi-channel campaign management (atlas_campaigns, atlas_sequence_steps,
+//        atlas_campaign_enrollments, atlas_campaign_events)
+pub mod m20260701_g19_campaigns;
+// G-23: Time-bounded reservation with inventory hold (atlas_reservations)
+//        !! REQUIRES: release_expired_holds background worker registration !!
+pub mod m20260701_g23_reservations;
+// G-25: Commission plan & split governance (atlas_commission_plans,
+//        atlas_commission_plan_splits + backfills atlas_ledger_splits.commission_plan_id)
+pub mod m20260701_g25_commission_plans;
+// G-26: Product catalog, pricebook & availability grid (atlas_catalog_entries,
+//        atlas_catalog_rate_rules, atlas_catalog_availability)
+pub mod m20260701_g26_catalog;
+
 // --- Original Infrastructure Generics (G-01 to G-08) ---
 // Started with highest priority: G-02 atlas_vault
 pub mod m20260601_g01_geo_postgis;

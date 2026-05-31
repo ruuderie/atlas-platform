@@ -120,11 +120,78 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g17_tax::Migration),
             // GENERIC-18: Structured applications / onboarding
             Box::new(crate::migration::m20260601_g18_applications::Migration),
+
+            // ═══════════════════════════════════════════════════════════════════
+            // Platform Generics Round 1 Gap Fills — June 2026
+            //
+            // Identified via horizontal gap analysis across all 14 roadmap apps.
+            // Promoted to generics BEFORE Direct Booking Engine, CoverFlow, and
+            // Revenue Manager wrote conflicting app-specific table definitions.
+            //
+            // Migration prefix m20260701_ ensures these sort AFTER all m20260601_
+            // generics and are applied in the correct dependency order.
+            // ═══════════════════════════════════════════════════════════════════
+
+            // GENERIC-19: Multi-channel campaign management
+            // Covers: atlas_campaigns, atlas_sequence_steps,
+            //         atlas_campaign_enrollments, atlas_campaign_events
+            // Prevents: PM/AgentLink/Clipping Marketplace from building conflicting
+            //           campaign tables independently.
+            Box::new(crate::migration::m20260701_g19_campaigns::Migration),
+
+            // GENERIC-23: Time-bounded reservation with inventory hold
+            // Covers: atlas_reservations (polymorphic asset reservation + hold lifecycle)
+            // Prevents: atlas_ledger_entries.billable_entity_type fragmentation across
+            //           direct_bookings / package_bookings / guest_reservations.
+            // IMPORTANT: Register a release_expired_holds BackgroundJob in background_jobs().
+            Box::new(crate::migration::m20260701_g23_reservations::Migration),
+
+            // GENERIC-25: Commission plan & split governance
+            // Covers: atlas_commission_plans, atlas_commission_plan_splits
+            //         + backfills atlas_ledger_splits.commission_plan_id
+            // Prevents: Commission logic being hardcoded in CoverFlow/AgentLink handlers.
+            Box::new(crate::migration::m20260701_g25_commission_plans::Migration),
+
+            // GENERIC-26: Product catalog, pricebook & availability grid
+            // Covers: atlas_catalog_entries, atlas_catalog_rate_rules,
+            //         atlas_catalog_availability
+            // Prevents: Direct Booking hotel_room_types/room_rates and Revenue Manager
+            //           tenant_room_inventories becoming competing private pricebook schemas.
+            Box::new(crate::migration::m20260701_g26_catalog::Migration),
         ]
     }
 
     fn background_jobs(&self) -> Vec<BackgroundJob> {
-        vec![]
+        vec![
+            // ── G-23 Reservation Hold Expiry Sweeper ─────────────────────────
+            // Fires every 5 minutes. Platform-wide sweep (not per-tenant).
+            // Sets status = 'cancelled' on reservations WHERE status = 'hold'
+            // AND hold_expires_at < NOW(). Prevents ghost inventory locks after
+            // payment abandonment.
+            //
+            // The tenant_id argument is ignored — this job sweeps ALL tenants
+            // in a single UPDATE statement for efficiency.
+            BackgroundJob {
+                job_type: "release_expired_reservation_holds".to_string(),
+                default_interval_seconds: 300, // every 5 minutes
+                is_active_by_default: true,
+                default_config_payload: None,
+                executor: Box::new(|db, _tenant_id, _config| {
+                    Box::pin(async move {
+                        crate::services::reservation_service::ReservationService::release_expired_holds(&db)
+                            .await
+                            .map(|released| {
+                                if released > 0 {
+                                    tracing::info!(
+                                        "BackgroundJob: released {} expired reservation holds",
+                                        released
+                                    );
+                                }
+                            })
+                    })
+                }),
+            },
+        ]
     }
 
     /// Bootstraps a new tenant with the minimal CMS scaffolding every site needs.
@@ -224,9 +291,20 @@ mod tests {
     }
 
     #[test]
-    fn test_background_jobs_empty() {
+    fn test_background_jobs_registered() {
         let app = CorePlatformApp;
-        assert!(app.background_jobs().is_empty());
+        let jobs = app.background_jobs();
+
+        // G-23: The reservation hold expiry sweeper must be present so the
+        // background job poller can sweep expired holds platform-wide every 5 minutes.
+        assert_eq!(jobs.len(), 1, "Expected exactly 1 platform background job registered");
+        assert_eq!(
+            jobs[0].job_type,
+            "release_expired_reservation_holds",
+            "G-23 hold expiry sweeper must be registered as the platform background job"
+        );
+        assert_eq!(jobs[0].default_interval_seconds, 300);
+        assert!(jobs[0].is_active_by_default);
     }
 
     /// `provision()` overrides the default no-op and issues Postgres-specific SQL.

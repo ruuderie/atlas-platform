@@ -22,11 +22,15 @@ pub mod opportunity_service;               // GENERIC-15
 pub mod regulatory_registration_service;   // GENERIC-16
 pub mod tax_service;                       // GENERIC-17
 pub mod application_service;               // GENERIC-18
+// === Platform Generics Round 1 Gap Fills (June 2026) ===
+pub mod reservation_service;               // GENERIC-23 (+ background worker)
 pub mod subscription_service;              // GENERIC-04
 pub mod external_integration_service;      // GENERIC-05
 pub mod verification_service;              // GENERIC-06
 pub mod realtime_service;                  // GENERIC-07
 pub mod ai_task_service;                   // GENERIC-08
+
+
 
 pub mod unification_data_migration;
 pub mod audit;
