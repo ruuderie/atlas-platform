@@ -2,14 +2,14 @@
 //!
 //! # Routes
 //!
-//! ```text
+//! ```ignore
 //! PATCH  /api/scorecard-entries/:entry_id/verify
 //!        Body: { "confirmed": bool }
-//!        → 204 on success
-//!        → 404 if entry not found / wrong tenant
+//!        -> 204 on success
+//!        -> 404 if entry not found / wrong tenant
 //!
 //! GET    /api/scorecard-templates/:template_id/display-rules
-//!        → 200 [DisplayRuleModel] (empty array for Starter tenants)
+//!        -> 200 [DisplayRuleModel] (empty array for Starter tenants)
 //! ```
 
 use axum::{

@@ -5,20 +5,20 @@
 //!
 //! # Routes
 //!
-//! ```text
+//! ```ignore
 //! GET    /api/admin/scorecard-templates/:template_id/display-rules
-//!        → 200 [Model] (all rules, including inactive — admin sees everything)
+//!        -> 200 [Model] (all rules, including inactive — admin sees everything)
 //!
 //! POST   /api/admin/scorecard-display-rules
 //!        Body: CreateDisplayRuleInput
-//!        → 201 Model
+//!        -> 201 Model
 //!
 //! PATCH  /api/admin/scorecard-display-rules/:id
 //!        Body: UpdateDisplayRuleInput
-//!        → 200 Model
+//!        -> 200 Model
 //!
 //! DELETE /api/admin/scorecard-display-rules/:id
-//!        → 204 (soft-delete: sets is_active = false)
+//!        -> 204 (soft-delete: sets is_active = false)
 //! ```
 
 use axum::{

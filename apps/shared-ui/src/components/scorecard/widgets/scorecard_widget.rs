@@ -24,7 +24,7 @@
 
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::SessionDimension;
+use super::super::models::{SessionDimension, ScaleType, RenderMode};
 
 // ── ScorecardWidget ───────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ pub fn ScorecardWidget(
 
     // Alert banner dimensions
     let alert_dims = move || {
-        dims.get().into_iter().filter(|d| d.render_mode == "alert").collect::<Vec<_>>()
+        dims.get().into_iter().filter(|d| d.render_mode == RenderMode::Alert).collect::<Vec<_>>()
     };
 
     let required_unrated = move || {
@@ -355,7 +355,7 @@ pub struct ScoreSubmission {
 /// Renders a slider for rating, toggle for boolean, number for absolute.
 #[component]
 fn WidgetDimensionInput(
-    scale_type: String,
+    scale_type: ScaleType,
     scale_min: f64,
     scale_max: f64,
     #[prop(optional)] unit_label: String,
@@ -371,8 +371,8 @@ fn WidgetDimensionInput(
     let unit = unit_label;
     let range = scale_max - scale_min;
 
-    match scale_type.as_str() {
-        "boolean" => view! {
+    match scale_type {
+        ScaleType::Boolean => view! {
             <div class="sw-input sw-input--boolean">
                 <button
                     class=move || if value.get() == Some(1.0) {
@@ -397,7 +397,7 @@ fn WidgetDimensionInput(
             </div>
         }.into_any(),
 
-        "rating" | "absolute" => view! {
+        ScaleType::Rating | ScaleType::Absolute => view! {
             <div class="sw-input sw-input--slider">
                 <input
                     type="range"

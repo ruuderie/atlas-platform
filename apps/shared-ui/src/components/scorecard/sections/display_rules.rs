@@ -17,7 +17,9 @@
 
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::{DimensionForm, DisplayRuleForm};
+use super::super::models::{
+    DimensionForm, DisplayRuleForm, TriggerCategory, RuleOperator, RuleAction, ModeScope
+};
 
 // ── Trigger category options ─────────────────────────────────────────────────
 
@@ -184,11 +186,11 @@ pub fn DisplayRulesSection(
                                         let trigger_label = rule.trigger_label();
                                         let action = rule.action.clone();
 
-                                        let action_class = match action.as_str() {
-                                            "hide"    => "cfg-rule-action-badge cfg-rule-action-badge--hide",
-                                            "require" => "cfg-rule-action-badge cfg-rule-action-badge--require",
-                                            "surface_as_nudge" => "cfg-rule-action-badge cfg-rule-action-badge--nudge",
-                                            _         => "cfg-rule-action-badge",
+                                        let action_class = match action {
+                                            RuleAction::Hide    => "cfg-rule-action-badge cfg-rule-action-badge--hide",
+                                            RuleAction::Require => "cfg-rule-action-badge cfg-rule-action-badge--require",
+                                            RuleAction::SurfaceAsNudge => "cfg-rule-action-badge cfg-rule-action-badge--nudge",
+                                            _                   => "cfg-rule-action-badge",
                                         };
 
                                         view! {
@@ -292,40 +294,40 @@ fn RuleEditor(
 
     // Operators change based on trigger category
     let available_operators = move || {
-        match rule().map(|r| r.trigger_category).as_deref() {
-            Some("record_state")     => OPERATOR_OPTIONS_RECORD,
-            Some("time_proximity")   => OPERATOR_OPTIONS_TIME,
-            Some("score_gap")        => OPERATOR_OPTIONS_SCORE,
-            Some("activity_trigger") => OPERATOR_OPTIONS_ACTIVITY,
-            _                        => OPERATOR_OPTIONS_RECORD,
+        match rule().map(|r| r.trigger_category) {
+            Some(TriggerCategory::RecordState)     => OPERATOR_OPTIONS_RECORD,
+            Some(TriggerCategory::TimeProximity)   => OPERATOR_OPTIONS_TIME,
+            Some(TriggerCategory::ScoreGap)        => OPERATOR_OPTIONS_SCORE,
+            Some(TriggerCategory::ActivityTrigger) => OPERATOR_OPTIONS_ACTIVITY,
+            None                                   => OPERATOR_OPTIONS_RECORD,
         }
     };
 
-    let trigger_cat = move || rule().map(|r| r.trigger_category).unwrap_or_default();
-    let operator = move || rule().map(|r| r.operator).unwrap_or_default();
-    let action = move || rule().map(|r| r.action).unwrap_or_default();
+    let trigger_cat = move || rule().map(|r| r.trigger_category).unwrap_or(TriggerCategory::RecordState);
+    let operator = move || rule().map(|r| r.operator).unwrap_or(RuleOperator::Equals);
+    let action = move || rule().map(|r| r.action).unwrap_or(RuleAction::Show);
 
     // Show value field for operators that use a scalar
     let needs_scalar_value = move || {
         matches!(
-            operator().as_str(),
-            "equals" | "not_equals" | "within_days" | "overdue_days"
-            | "dimension_score_below" | "dimension_score_above"
+            operator(),
+            RuleOperator::Equals | RuleOperator::NotEquals | RuleOperator::WithinDays | RuleOperator::OverdueDays
+            | RuleOperator::DimensionScoreBelow | RuleOperator::DimensionScoreAbove
         )
     };
 
     // Show value_list field for operators that use a list
     let needs_list_value = move || {
-        matches!(operator().as_str(), "in" | "not_in" | "activity_type_is")
+        matches!(operator(), RuleOperator::In | RuleOperator::NotIn | RuleOperator::ActivityTypeIs)
     };
 
     // Show field_reference for record_state and time_proximity
     let needs_field_ref = move || {
-        matches!(trigger_cat().as_str(), "record_state" | "time_proximity")
+        matches!(trigger_cat(), TriggerCategory::RecordState | TriggerCategory::TimeProximity)
     };
 
     // Show alert_message when action is show_alert_banner
-    let needs_alert_msg = move || action() == "show_alert_banner";
+    let needs_alert_msg = move || action() == RuleAction::ShowAlertBanner;
 
     view! {
         <div class="cfg-rule-editor">
@@ -440,22 +442,24 @@ fn RuleEditor(
                         <div class="cfg-select-wrap">
                             <select
                                 class="cfg-select"
-                                prop:value=move || rule().map(|r| r.trigger_category).unwrap_or_default()
+                                prop:value=move || rule().map(|r| r.trigger_category.to_string()).unwrap_or_default()
                                 on:change=move |ev| {
                                     let v = event_target_value(&ev);
-                                    // Reset operator when trigger type changes
-                                    let default_op = match v.as_str() {
-                                        "time_proximity"   => "within_days",
-                                        "score_gap"        => "dimension_score_below",
-                                        "activity_trigger" => "activity_type_is",
-                                        _                  => "equals",
-                                    }.to_string();
-                                    upd(&move |r| {
-                                        r.trigger_category = v.clone();
-                                        r.operator = default_op.clone();
-                                        r.value = String::new();
-                                        r.value_list_raw = String::new();
-                                    });
+                                    if let Ok(tc) = v.parse::<TriggerCategory>() {
+                                        // Reset operator when trigger type changes
+                                        let default_op = match tc {
+                                            TriggerCategory::TimeProximity   => RuleOperator::WithinDays,
+                                            TriggerCategory::ScoreGap        => RuleOperator::DimensionScoreBelow,
+                                            TriggerCategory::ActivityTrigger => RuleOperator::ActivityTypeIs,
+                                            TriggerCategory::RecordState     => RuleOperator::Equals,
+                                        };
+                                        upd(&move |r| {
+                                            r.trigger_category = tc;
+                                            r.operator = default_op;
+                                            r.value = String::new();
+                                            r.value_list_raw = String::new();
+                                        });
+                                    }
                                 }
                             >
                                 <For
@@ -495,10 +499,12 @@ fn RuleEditor(
                         <div class="cfg-select-wrap">
                             <select
                                 class="cfg-select"
-                                prop:value=move || rule().map(|r| r.operator).unwrap_or_default()
+                                prop:value=move || rule().map(|r| r.operator.to_string()).unwrap_or_default()
                                 on:change=move |ev| {
                                     let v = event_target_value(&ev);
-                                    upd(&|r| r.operator = v.clone());
+                                    if let Ok(op) = v.parse::<RuleOperator>() {
+                                        upd(&move |r| r.operator = op);
+                                    }
                                 }
                             >
                                 <For
@@ -516,11 +522,11 @@ fn RuleEditor(
                     <Show when=needs_scalar_value>
                         <div class="cfg-field">
                             <label class="cfg-label">
-                                {move || match operator().as_str() {
-                                    "within_days" | "overdue_days"     => "Days",
-                                    "dimension_score_below"
-                                    | "dimension_score_above"          => "Score Threshold",
-                                    _                                   => "Value",
+                                {move || match operator() {
+                                    RuleOperator::WithinDays | RuleOperator::OverdueDays     => "Days",
+                                    RuleOperator::DimensionScoreBelow
+                                    | RuleOperator::DimensionScoreAbove                      => "Score Threshold",
+                                    _                                                        => "Value",
                                 }}
                             </label>
                             <input
@@ -540,9 +546,9 @@ fn RuleEditor(
                     <Show when=needs_list_value>
                         <div class="cfg-field">
                             <label class="cfg-label">
-                                {move || match operator().as_str() {
-                                    "activity_type_is" => "Activity Types",
-                                    _                  => "Values",
+                                {move || match operator() {
+                                    RuleOperator::ActivityTypeIs => "Activity Types",
+                                    _                            => "Values",
                                 }}
                             </label>
                             <input
@@ -579,7 +585,7 @@ fn RuleEditor(
                                 let val_str2 = val_str.clone();
                                 view! {
                                     <label class=move || {
-                                        if action() == val_str {
+                                        if action().to_string() == val_str {
                                             "cfg-action-option cfg-action-option--selected"
                                         } else {
                                             "cfg-action-option"
@@ -589,10 +595,12 @@ fn RuleEditor(
                                             type="radio"
                                             name=format!("rule-action-{local_id}")
                                             value={val}
-                                            checked=move || action() == val_str2
+                                            checked=move || action().to_string() == val_str2
                                             on:change=move |ev| {
                                                 let v = event_target_value(&ev);
-                                                upd(&|r| r.action = v.clone());
+                                                if let Ok(act) = v.parse::<RuleAction>() {
+                                                    upd(&move |r| r.action = act);
+                                                }
                                             }
                                         />
                                         <div class="cfg-action-option-content">
@@ -633,10 +641,12 @@ fn RuleEditor(
                             <div class="cfg-select-wrap">
                                 <select
                                     class="cfg-select"
-                                    prop:value=move || rule().map(|r| r.mode_scope).unwrap_or_default()
+                                    prop:value=move || rule().map(|r| r.mode_scope.to_string()).unwrap_or_default()
                                     on:change=move |ev| {
                                         let v = event_target_value(&ev);
-                                        upd(&|r| r.mode_scope = v.clone());
+                                        if let Ok(ms) = v.parse::<ModeScope>() {
+                                            upd(&move |r| r.mode_scope = ms);
+                                        }
                                     }
                                 >
                                     <For
@@ -700,29 +710,28 @@ fn RuleEditor(
                             <span class="cfg-rule-preview-label">"If"</span>
                             <code class="cfg-rule-preview-val">
                                 {move || rule().map(|r| {
-                                    match r.trigger_category.as_str() {
-                                        "record_state" => format!(
+                                    match r.trigger_category {
+                                        TriggerCategory::RecordState => format!(
                                             "{} {} {}",
                                             r.field_reference,
-                                            r.operator.replace('_', " "),
+                                            r.operator.to_string().replace('_', " "),
                                             if r.value_list_raw.is_empty() { r.value.clone() } else { format!("[{}]", r.value_list_raw) }
                                         ),
-                                        "time_proximity" => format!(
+                                        TriggerCategory::TimeProximity => format!(
                                             "{} {} {} days",
                                             r.field_reference,
-                                            r.operator.replace('_', " "),
+                                            r.operator.to_string().replace('_', " "),
                                             r.value
                                         ),
-                                        "activity_trigger" => format!(
+                                        TriggerCategory::ActivityTrigger => format!(
                                             "activity type is one of [{}]",
                                             r.value_list_raw
                                         ),
-                                        "score_gap" => format!(
+                                        TriggerCategory::ScoreGap => format!(
                                             "dimension score {} {}",
-                                            r.operator.replace('_', " "),
+                                            r.operator.to_string().replace('_', " "),
                                             r.value
                                         ),
-                                        _ => "—".to_string(),
                                     }
                                 }).unwrap_or_default()}
                             </code>
@@ -738,14 +747,14 @@ fn RuleEditor(
                                     } else {
                                         "target".to_string()
                                     };
-                                    format!("{} → {}", target, r.action.replace('_', " "))
+                                    format!("{} → {}", target, r.action.to_string().replace('_', " "))
                                 }).unwrap_or_default()}
                             </code>
                         </div>
                         <div class="cfg-rule-preview-line">
                             <span class="cfg-rule-preview-label">"Scope"</span>
                             <code class="cfg-rule-preview-val">
-                                {move || rule().map(|r| r.mode_scope.replace('_', " ")).unwrap_or_default()}
+                                {move || rule().map(|r| r.mode_scope.to_string().replace('_', " ")).unwrap_or_default()}
                             </code>
                             <span class="cfg-rule-preview-sep">"·"</span>
                             <span class="cfg-rule-preview-label">"Priority"</span>

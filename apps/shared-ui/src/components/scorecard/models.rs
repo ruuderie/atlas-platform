@@ -8,9 +8,78 @@
 //!   - `PrepModePanel` — pre-activity dimension guidance panel
 //!   - `RuleBuilder` — display rules configuration section
 
-use leptos::prelude::*;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ScaleType {
+    Rating,
+    Absolute,
+    Boolean,
+    PollSingle,
+    PollMulti,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TriggerCategory {
+    RecordState,
+    TimeProximity,
+    ActivityTrigger,
+    ScoreGap,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RuleOperator {
+    Equals,
+    NotEquals,
+    In,
+    NotIn,
+    WithinDays,
+    OverdueDays,
+    DimensionScoreBelow,
+    DimensionScoreAbove,
+    ActivityTypeIs,
+    DimensionUnrated,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RuleAction {
+    Show,
+    Hide,
+    Require,
+    SurfaceAsNudge,
+    ShowInPrepMode,
+    ShowAlertBanner,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ModeScope {
+    Always,
+    PostActivity,
+    PreActivity,
+    OnScoreGap,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RenderMode {
+    Normal,
+    Nudge,
+    Prep,
+    Alert,
+}
 
 // ── Template ─────────────────────────────────────────────────────────────────
 
@@ -55,8 +124,7 @@ pub struct DimensionForm {
     pub description: String,
     pub category: String,
     pub weight: f64,
-    /// 'rating' | 'absolute' | 'boolean' | 'poll_single' | 'poll_multi'
-    pub scale_type: String,
+    pub scale_type: ScaleType,
     pub scale_min: f64,
     pub scale_max: f64,
     pub unit_label: String,
@@ -84,7 +152,7 @@ impl DimensionForm {
             description: String::new(),
             category: String::new(),
             weight: 1.0,
-            scale_type: "rating".to_string(),
+            scale_type: ScaleType::Rating,
             scale_min: 1.0,
             scale_max: 10.0,
             unit_label: String::new(),
@@ -102,7 +170,7 @@ impl DimensionForm {
 
     /// True if this dimension's scale uses options (poll types).
     pub fn needs_options(&self) -> bool {
-        self.scale_type == "poll_single" || self.scale_type == "poll_multi"
+        self.scale_type == ScaleType::PollSingle || self.scale_type == ScaleType::PollMulti
     }
 }
 
@@ -152,14 +220,10 @@ pub struct DisplayRuleForm {
     pub category_target: String,
 
     // ── Trigger axis ─────────────────────────────────────────────────────────
-    /// 'record_state' | 'time_proximity' | 'activity_trigger' | 'score_gap'
-    pub trigger_category: String,
+    pub trigger_category: TriggerCategory,
     /// Field path on the subject entity. e.g. 'stage', 'close_date'
     pub field_reference: String,
-    /// 'equals' | 'not_equals' | 'in' | 'not_in' | 'within_days' | 'overdue_days'
-    /// | 'dimension_score_below' | 'dimension_score_above'
-    /// | 'activity_type_is' | 'dimension_unrated'
-    pub operator: String,
+    pub operator: RuleOperator,
     /// Scalar comparison value.
     pub value: String,
     /// List values for 'in', 'not_in', 'activity_type_is'.
@@ -167,13 +231,11 @@ pub struct DisplayRuleForm {
     pub value_list_raw: String,
 
     // ── Action axis ───────────────────────────────────────────────────────────
-    /// 'show' | 'hide' | 'require' | 'surface_as_nudge' | 'show_in_prep_mode' | 'show_alert_banner'
-    pub action: String,
+    pub action: RuleAction,
     pub alert_message: String,
 
     // ── Scope ─────────────────────────────────────────────────────────────────
-    /// 'always' | 'post_activity' | 'pre_activity' | 'on_score_gap'
-    pub mode_scope: String,
+    pub mode_scope: ModeScope,
     pub priority: i32,
     pub is_active: bool,
     pub description: String,
@@ -187,14 +249,14 @@ impl DisplayRuleForm {
             dimension_id: None,
             dimension_name: String::new(),
             category_target: String::new(),
-            trigger_category: "record_state".to_string(),
+            trigger_category: TriggerCategory::RecordState,
             field_reference: String::new(),
-            operator: "equals".to_string(),
+            operator: RuleOperator::Equals,
             value: String::new(),
             value_list_raw: String::new(),
-            action: "show".to_string(),
+            action: RuleAction::Show,
             alert_message: String::new(),
-            mode_scope: "always".to_string(),
+            mode_scope: ModeScope::Always,
             priority,
             is_active: true,
             description: String::new(),
@@ -223,32 +285,30 @@ impl DisplayRuleForm {
     }
 
     pub fn trigger_label(&self) -> &'static str {
-        match self.trigger_category.as_str() {
-            "record_state"      => "Record State",
-            "time_proximity"    => "Time Proximity",
-            "activity_trigger"  => "Activity Logged",
-            "score_gap"         => "Score Gap",
-            _                   => "—",
+        match self.trigger_category {
+            TriggerCategory::RecordState     => "Record State",
+            TriggerCategory::TimeProximity   => "Time Proximity",
+            TriggerCategory::ActivityTrigger => "Activity Logged",
+            TriggerCategory::ScoreGap        => "Score Gap",
         }
     }
 
     pub fn action_label(&self) -> &'static str {
-        match self.action.as_str() {
-            "show"              => "Show",
-            "hide"              => "Hide",
-            "require"           => "Require",
-            "surface_as_nudge"  => "Surface as Nudge",
-            "show_in_prep_mode" => "Prep Mode Only",
-            "show_alert_banner" => "Show Alert Banner",
-            _                   => "—",
+        match self.action {
+            RuleAction::Show             => "Show",
+            RuleAction::Hide             => "Hide",
+            RuleAction::Require          => "Require",
+            RuleAction::SurfaceAsNudge   => "Surface as Nudge",
+            RuleAction::ShowInPrepMode   => "Prep Mode Only",
+            RuleAction::ShowAlertBanner  => "Show Alert Banner",
         }
     }
 
     /// True if the action surfaces this dimension in the compact nudge widget.
     pub fn is_nudge_action(&self) -> bool {
         matches!(
-            self.action.as_str(),
-            "surface_as_nudge" | "require"
+            self.action,
+            RuleAction::SurfaceAsNudge | RuleAction::Require
         )
     }
 }
@@ -263,14 +323,13 @@ pub struct SessionDimension {
     pub slug: String,
     pub name: String,
     pub description: String,
-    pub scale_type: String,
+    pub scale_type: ScaleType,
     pub scale_min: f64,
     pub scale_max: f64,
     pub unit_label: Option<String>,
     pub is_inverted: bool,
     pub is_required: bool,
-    /// Rendering mode: 'normal' | 'nudge' | 'prep'
-    pub render_mode: String,
+    pub render_mode: RenderMode,
     /// Current score draft (before submission).
     pub draft_score: Option<f64>,
     /// Pre-filled score from AI transcript inference (is_verified=false).

@@ -17,7 +17,7 @@
 
 use leptos::prelude::*;
 use uuid::Uuid;
-use super::super::models::SessionDimension;
+use super::super::models::{SessionDimension, ScaleType};
 
 // ── NudgePrompt ───────────────────────────────────────────────────────────────
 
@@ -191,7 +191,7 @@ pub fn NudgePrompt(
 /// Compact version for the nudge widget — no labels, minimal chrome.
 #[component]
 fn NudgeDimensionInput(
-    scale_type: String,
+    scale_type: ScaleType,
     scale_min: f64,
     scale_max: f64,
     #[prop(optional)] unit_label: String,
@@ -211,8 +211,8 @@ fn NudgeDimensionInput(
         }
     };
 
-    match scale_type.as_str() {
-        "boolean" => view! {
+    match scale_type {
+        ScaleType::Boolean => view! {
             <div class="nudge-input nudge-input--boolean">
                 <button
                     class=move || if value.get() == Some(1.0) {
@@ -243,7 +243,7 @@ fn NudgeDimensionInput(
             </div>
         }.into_any(),
 
-        "rating" => {
+        ScaleType::Rating => {
             // 5-star compact slider for rating dimensions
             let steps = (scale_max - scale_min).round() as usize + 1;
             let step_values: Vec<f64> = (0..steps)

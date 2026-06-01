@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use crate::components::scorecard::{
     DisplayRulesSection,
-    models::{DisplayRuleForm, TemplateForm, DimensionForm, OptionForm},
+    models::{DisplayRuleForm, TemplateForm, DimensionForm, OptionForm, ScaleType},
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -616,7 +616,7 @@ fn DimensionsSection(
                                         <div class="cfg-dim-summary-main">
                                             <span class=if is_active { "cfg-dim-dot cfg-dim-dot--active" } else { "cfg-dim-dot cfg-dim-dot--inactive" }></span>
                                             <span class="cfg-dim-summary-name">{dim_name}</span>
-                                            <span class="cfg-dim-summary-type">{scale_type}</span>
+                                            <span class="cfg-dim-summary-type">{scale_type.to_string()}</span>
                                         </div>
                                         <div class="cfg-dim-summary-meta">
                                             <span class="cfg-dim-meta-pill">"weight: " {weight_fmt}</span>
@@ -700,7 +700,7 @@ fn DimensionEditor(
     };
 
     let needs_options = move || {
-        dim().map(|d| d.scale_type == "poll_single" || d.scale_type == "poll_multi")
+        dim().map(|d| d.scale_type == ScaleType::PollSingle || d.scale_type == ScaleType::PollMulti)
             .unwrap_or(false)
     };
 
@@ -801,10 +801,12 @@ fn DimensionEditor(
                             <div class="cfg-select-wrap">
                                 <select
                                     class="cfg-select"
-                                    prop:value=move || dim().map(|d| d.scale_type).unwrap_or_default()
+                                    prop:value=move || dim().map(|d| d.scale_type.to_string()).unwrap_or_default()
                                     on:change=move |ev| {
                                         let v = event_target_value(&ev);
-                                        update_dim(&|d| d.scale_type = v.clone());
+                                        if let Ok(st) = v.parse::<ScaleType>() {
+                                            update_dim(&move |d| d.scale_type = st);
+                                        }
                                     }
                                 >
                                     <option value="rating">"Rating (numeric)"</option>
