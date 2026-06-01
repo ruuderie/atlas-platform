@@ -83,3 +83,9 @@ target/
 test-results
 yarn-debug.log*
 yarn-error.log*
+
+# Generated reports and compiled PDFs — not tracked in source control
+docs/reports/market-analysis/pdf/
+docs/reports/sales/pdf/
+docs/reports/**/*.md
+docs/reports/**/*.pdf
