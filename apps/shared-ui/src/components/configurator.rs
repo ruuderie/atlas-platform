@@ -1,6 +1,4 @@
 use leptos::prelude::*;
-use uuid::Uuid;
-use serde::{Deserialize, Serialize};
 use crate::components::scorecard::{
     DisplayRulesSection,
     models::{DisplayRuleForm, TemplateForm, DimensionForm, OptionForm},

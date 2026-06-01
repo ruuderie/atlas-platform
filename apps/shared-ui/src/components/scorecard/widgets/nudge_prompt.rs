@@ -105,7 +105,6 @@ pub fn NudgePrompt(
                     children=move |dim| {
                         let dim_id = dim.dimension_id;
                         let has_inference = dim.has_pending_inference();
-                        let inferred = dim.inferred_score;
                         let confidence = dim.inferred_confidence.unwrap_or(0.0);
                         let reject_cb = on_reject_inference.clone();
 
@@ -127,7 +126,6 @@ pub fn NudgePrompt(
 
                                 // Scale input
                                 <NudgeDimensionInput
-                                    dim_id=dim_id
                                     scale_type=dim.scale_type.clone()
                                     scale_min=dim.scale_min
                                     scale_max=dim.scale_max
@@ -193,7 +191,6 @@ pub fn NudgePrompt(
 /// Compact version for the nudge widget — no labels, minimal chrome.
 #[component]
 fn NudgeDimensionInput(
-    dim_id: Uuid,
     scale_type: String,
     scale_min: f64,
     scale_max: f64,

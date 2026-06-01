@@ -24,12 +24,12 @@
 
 use leptos::prelude::*;
 use uuid::Uuid;
-use std::collections::BTreeMap;
 use super::super::models::SessionDimension;
 
 // ── ScorecardWidget ───────────────────────────────────────────────────────────
 
 #[component]
+#[allow(unused_variables)]
 pub fn ScorecardWidget(
     /// ID of the scorecard being rated.
     scorecard_id: Uuid,
@@ -55,23 +55,6 @@ pub fn ScorecardWidget(
     let show_upload_zone = RwSignal::new(false);
     let upload_hover = RwSignal::new(false);
     let submission_error: RwSignal<Option<String>> = RwSignal::new(None);
-
-    // Group by category for collapsible sections
-    let categories = move || {
-        let mut map: BTreeMap<String, Vec<SessionDimension>> = BTreeMap::new();
-        for dim in dims.get() {
-            let cat = if dim.render_mode == "nudge" || dim.render_mode == "prep" {
-                // Surface nudge/prep dims in their own group at top
-                format!("__priority__{}", dim.render_mode)
-            } else {
-                dim.slug.chars().take(0).collect::<String>(); // placeholder — real category from model
-                // In a real implementation this would be dim.category
-                "General".to_string()
-            };
-            map.entry(cat).or_default().push(dim);
-        }
-        map.into_iter().collect::<Vec<_>>()
-    };
 
     // Alert banner dimensions
     let alert_dims = move || {
@@ -269,7 +252,6 @@ pub fn ScorecardWidget(
 
                                 // Scale input
                                 <WidgetDimensionInput
-                                    dim_id=dim_id
                                     scale_type=scale_type
                                     scale_min=dim.scale_min
                                     scale_max=dim.scale_max
@@ -373,7 +355,6 @@ pub struct ScoreSubmission {
 /// Renders a slider for rating, toggle for boolean, number for absolute.
 #[component]
 fn WidgetDimensionInput(
-    dim_id: Uuid,
     scale_type: String,
     scale_min: f64,
     scale_max: f64,
