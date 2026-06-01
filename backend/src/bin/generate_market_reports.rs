@@ -499,12 +499,28 @@ fn format_target_block_market(profile: &Value) -> String {
 
 fn format_target_block_sales(profile: &Value) -> String {
     let params = &profile["parameters"];
+    
+    let staff_headcount = params["staff_headcount"]
+        .as_str()
+        .or_else(|| params["adjuster_headcount"].as_str())
+        .unwrap_or("N/A");
+        
+    let volume_scale = params["volume_scale"]
+        .as_str()
+        .or_else(|| params["claims_volume"].as_str())
+        .unwrap_or("N/A");
+        
+    let key_relationships = params["key_relationships"]
+        .as_str()
+        .or_else(|| params["carrier_clients"].as_str())
+        .unwrap_or("N/A");
+
     format!(
         "CUSTOMER PROFILE: {}\n\n\
         Company overview:\n\
         - **Vertical/Niche**: {}\n\
         - **Geography**: {}\n\
-        - **Adjuster/Staff Headcount**: {}\n\
+        - **Staff / Headcount**: {}\n\
         - **Volume / Scale**: {}\n\
         - **Key Relationships / Clients**: {}\n\
         - **Current Tools & Incumbents**: {}\n\
@@ -518,9 +534,9 @@ fn format_target_block_sales(profile: &Value) -> String {
         profile["target_market"].as_str().unwrap_or("Undefined Customer"),
         profile["vertical"].as_str().unwrap_or("Unknown"),
         profile["geography"].as_str().unwrap_or("Global"),
-        params["adjuster_headcount"].as_str().unwrap_or("N/A"),
-        params["claims_volume"].as_str().unwrap_or("N/A"),
-        params["carrier_clients"].as_str().unwrap_or("N/A"),
+        staff_headcount,
+        volume_scale,
+        key_relationships,
         params["incumbents"].as_str().unwrap_or("N/A"),
         params["budget_spend"].as_str().unwrap_or("N/A"),
         params["pain_points"].as_str().unwrap_or("N/A"),
@@ -528,6 +544,7 @@ fn format_target_block_sales(profile: &Value) -> String {
         params["core_workflows"].as_str().unwrap_or("N/A")
     )
 }
+
 
 async fn call_gemini_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
     let url = format!(
