@@ -77,7 +77,7 @@ impl ScorecardService {
     /// guarantees exactly-once creation even under concurrent requests.
     ///
     /// # Example
-    /// ```rust
+    /// ```rust,ignore
     /// let scorecard_id = ScorecardService::get_or_create(
     ///     db, tenant_id, city_template_id, "atlas_asset", city_asset_id
     /// ).await?;
@@ -437,7 +437,7 @@ impl ScorecardService {
     /// Returns results ordered by similarity (most similar first).
     ///
     /// # Example — predictive lead scoring
-    /// ```rust
+    /// ```rust,ignore
     /// let similar = ScorecardService::find_similar(
     ///     db, lead_qualification_template_id,
     ///     new_lead_vector, 20, "medium"
