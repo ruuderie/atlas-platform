@@ -131,7 +131,7 @@ pub fn NudgePrompt(
                                     scale_type=dim.scale_type.clone()
                                     scale_min=dim.scale_min
                                     scale_max=dim.scale_max
-                                    unit_label=dim.unit_label.clone()
+                                    unit_label=dim.unit_label.clone().unwrap_or_default()
                                     is_inverted=dim.is_inverted
                                     initial_value=dim.inferred_score.or(dim.draft_score)
                                     on_change=Callback::new(move |score: Option<f64>| {
@@ -197,15 +197,15 @@ fn NudgeDimensionInput(
     scale_type: String,
     scale_min: f64,
     scale_max: f64,
-    #[prop(optional)] unit_label: Option<String>,
+    #[prop(optional)] unit_label: String,
     is_inverted: bool,
-    #[prop(optional)] initial_value: Option<f64>,
+    initial_value: Option<f64>,
     on_change: Callback<Option<f64>>,
 ) -> impl IntoView {
     let value = RwSignal::new(initial_value);
 
     let scale_hint = {
-        let unit = unit_label.clone().unwrap_or_default();
+        let unit = unit_label.clone();
         let inv_note = if is_inverted { " (lower is better)" } else { "" };
         if unit.is_empty() {
             format!("{:.0}–{:.0}{inv_note}", scale_min, scale_max)

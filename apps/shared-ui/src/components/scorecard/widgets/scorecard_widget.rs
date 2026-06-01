@@ -273,7 +273,7 @@ pub fn ScorecardWidget(
                                     scale_type=scale_type
                                     scale_min=dim.scale_min
                                     scale_max=dim.scale_max
-                                    unit_label=dim.unit_label.clone()
+                                    unit_label=dim.unit_label.clone().unwrap_or_default()
                                     is_inverted=is_inverted
                                     initial_value=inferred.or(dim.draft_score)
                                     on_change=Callback::new(move |score: Option<f64>| {
@@ -377,9 +377,9 @@ fn WidgetDimensionInput(
     scale_type: String,
     scale_min: f64,
     scale_max: f64,
-    #[prop(optional)] unit_label: Option<String>,
+    #[prop(optional)] unit_label: String,
     is_inverted: bool,
-    #[prop(optional)] initial_value: Option<f64>,
+    initial_value: Option<f64>,
     on_change: Callback<Option<f64>>,
 ) -> impl IntoView {
     let value = RwSignal::new(initial_value);
@@ -387,7 +387,7 @@ fn WidgetDimensionInput(
     let low_label = if is_inverted { "Best" } else { "Low" };
     let high_label = if is_inverted { "Worst" } else { "High" };
 
-    let unit = unit_label.unwrap_or_default();
+    let unit = unit_label;
     let range = scale_max - scale_min;
 
     match scale_type.as_str() {
@@ -436,12 +436,18 @@ fn WidgetDimensionInput(
                         {low_label}
                         {if !unit.is_empty() { format!(" ({scale_min:.0} {unit})") } else { format!(" ({scale_min:.0})") }}
                     </span>
-                    {move || value.get().map(|v| view! {
-                        <span class="sw-slider-current">
-                            {format!("{v:.1}")}
-                            {if !unit.is_empty() { format!(" {unit}") } else { String::new() }}
-                        </span>
-                    })}
+                    {
+                        let unit_current = unit.clone();
+                        move || value.get().map(|v| {
+                            let unit_current = unit_current.clone();
+                            view! {
+                                <span class="sw-slider-current">
+                                    {format!("{v:.1}")}
+                                    {if !unit_current.is_empty() { format!(" {unit_current}") } else { String::new() }}
+                                </span>
+                            }
+                        })
+                    }
                     <span class="sw-slider-label-high">
                         {high_label}
                         {if !unit.is_empty() { format!(" ({scale_max:.0} {unit})") } else { format!(" ({scale_max:.0})") }}

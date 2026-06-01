@@ -16,6 +16,7 @@
 //! `scorecard_display_rules_enabled`. The parent passes `rules_enabled: bool`.
 
 use leptos::prelude::*;
+use uuid::Uuid;
 use super::super::models::{DimensionForm, DisplayRuleForm};
 
 // ── Trigger category options ─────────────────────────────────────────────────

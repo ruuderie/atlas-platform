@@ -3,122 +3,12 @@ use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use crate::components::scorecard::{
     DisplayRulesSection,
-    models::DisplayRuleForm,
+    models::{DisplayRuleForm, TemplateForm, DimensionForm, OptionForm},
 };
 
-
 // ═══════════════════════════════════════════════════════════════════════════
-// Data Models — mirror the backend entity shapes for form state
+// Data Models — imported from scorecard/models.rs for unified form state
 // ═══════════════════════════════════════════════════════════════════════════
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TemplateForm {
-    pub id: Option<Uuid>,
-    pub name: String,
-    pub entity_type: String,
-    pub description: String,
-    pub scoring_method: String,
-    pub default_scale_min: f64,
-    pub default_scale_max: f64,
-    pub min_entries_to_publish: i32,
-    pub is_published: bool,
-}
-
-impl Default for TemplateForm {
-    fn default() -> Self {
-        Self {
-            id: None,
-            name: String::new(),
-            entity_type: "atlas_lead".to_string(),
-            description: String::new(),
-            scoring_method: "weighted_mean".to_string(),
-            default_scale_min: 1.0,
-            default_scale_max: 10.0,
-            min_entries_to_publish: 3,
-            is_published: false,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DimensionForm {
-    /// Client-side stable key for list keying (not persisted until save)
-    pub local_id: usize,
-    pub id: Option<Uuid>,
-    pub name: String,
-    pub slug: String,
-    pub description: String,
-    pub category: String,
-    pub weight: f64,
-    pub scale_type: String,
-    pub scale_min: f64,
-    pub scale_max: f64,
-    pub unit_label: String,
-    pub is_community_ratable: bool,
-    pub is_active: bool,
-    pub sort_order: i32,
-    pub options: Vec<OptionForm>,
-    // Target criteria fields (inline for The Combinator config)
-    pub ideal_score: Option<f64>,
-    pub range_min: Option<f64>,
-    pub range_max: Option<f64>,
-    pub search_weight: Option<f64>,
-    /// When true: lower score = better (e.g. timeline_slippage, competition_risk).
-    /// Mirrors `atlas_scorecard_dimensions.is_inverted`.
-    pub is_inverted: bool,
-}
-
-impl DimensionForm {
-    pub fn new(local_id: usize, sort_order: i32) -> Self {
-        Self {
-            local_id,
-            id: None,
-            name: String::new(),
-            slug: String::new(),
-            description: String::new(),
-            category: String::new(),
-            weight: 1.0,
-            scale_type: "rating".to_string(),
-            scale_min: 1.0,
-            scale_max: 10.0,
-            unit_label: String::new(),
-            is_community_ratable: true,
-            is_active: true,
-            sort_order,
-            options: Vec::new(),
-            ideal_score: None,
-            range_min: None,
-            range_max: None,
-            search_weight: None,
-            is_inverted: false,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct OptionForm {
-    pub local_id: usize,
-    pub id: Option<Uuid>,
-    pub label: String,
-    pub value_key: String,
-    pub description: String,
-    pub sort_order: i32,
-    pub is_write_in: bool,
-}
-
-impl OptionForm {
-    pub fn new(local_id: usize, sort_order: i32) -> Self {
-        Self {
-            local_id,
-            id: None,
-            label: String::new(),
-            value_key: String::new(),
-            description: String::new(),
-            sort_order,
-            is_write_in: false,
-        }
-    }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Configurator — Top-level entry point
