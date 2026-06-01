@@ -311,7 +311,7 @@
       "name": "atlas_campaigns",
       "models": "Multi-channel sequence steps, enrollments, and metric histories",
       "revenue_cases": "Outbound email campaign engines, Google Ads lead routing integration",
-      "status": "Scored/Approved"
+      "status": "Deployed"
     },
     {
       "code": "G20",
@@ -339,7 +339,7 @@
       "name": "atlas_reservations",
       "models": "Time-bounded reservation booking with auto-release inventory holds",
       "revenue_cases": "Direct hotel booking pipelines, flight/package holds, schedule conflict verification",
-      "status": "Scored/Approved"
+      "status": "Deployed"
     },
     {
       "code": "G24",
@@ -353,14 +353,14 @@
       "name": "atlas_commission_plans",
       "models": "Commission split rules, overrides, caps and clawback governance",
       "revenue_cases": "Multi-tier broker commission plans, franchise operations split calculations",
-      "status": "Scored/Approved"
+      "status": "Deployed"
     },
     {
       "code": "G26",
       "name": "atlas_catalog",
       "models": "Product/service catalog pricebooks, rates, and availability slots",
       "revenue_cases": "Dynamic rate calendars, PMS-synced availability pricing boards",
-      "status": "Scored/Approved"
+      "status": "Deployed"
     },
     {
       "code": "G27",
