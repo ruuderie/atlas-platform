@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
                 FOR v_tenant_id IN
                     SELECT DISTINCT tenant_id
                     FROM atlas_scorecard_templates
-                    WHERE is_active = true
+                    WHERE is_published = true
                 LOOP
                     -- 1. Aggregate recompute (every 5 minutes)
                     IF NOT EXISTS (
