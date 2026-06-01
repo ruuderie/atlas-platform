@@ -5,7 +5,7 @@
 //!
 //! # Routes
 //!
-//! ```
+//! ```text
 //! GET    /api/admin/scorecard-templates/:template_id/display-rules
 //!        → 200 [Model] (all rules, including inactive — admin sees everything)
 //!

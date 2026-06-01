@@ -2,7 +2,7 @@
 //!
 //! # Routes
 //!
-//! ```
+//! ```text
 //! PATCH  /api/scorecard-entries/:entry_id/verify
 //!        Body: { "confirmed": bool }
 //!        → 204 on success
