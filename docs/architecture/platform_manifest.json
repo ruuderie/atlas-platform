@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "1.0.0",
-    "last_updated": "2026-06-01T13:31:00Z"
+    "last_updated": "2026-06-01T19:08:00Z"
   },
   "core_stack": {
     "backend": "Rust (Axum), SeaORM, PostgreSQL, Tokio",
@@ -165,6 +165,17 @@
         "Headless email template system: EmailTemplate with merge fields",
         "Telephony services (under services/telephony/)",
         "SMS notifications via outbox pipeline"
+      ]
+    },
+    {
+      "name": "Universal Scorecard Engine",
+      "status": "Production-Ready",
+      "features": [
+        "G27 — Polymorphic structured evaluation engine: templates, dimensions, dimension options, scorecards, targets, target criteria",
+        "Context-Aware Display Rules engine (atlas_scorecard_display_rules): dynamically renders/toggles dimensions and alerts on the client using algebraic evaluation",
+        "Automatic background outbox worker: seeds scorecard time-series, dimension aggregates, and poll selection counts seamlessly",
+        "The Combinator: similarity search across scorecards to match profiles (e.g. carrier safety, MEDDIC/BANT benchmarks)",
+        "Type-Safe Leptos Component Suite: robust form configurators, nudge widgets, and inline widgets compiled with compile-time enum safety"
       ]
     }
   ],
@@ -350,6 +361,34 @@
       "models": "Product/service catalog pricebooks, rates, and availability slots",
       "revenue_cases": "Dynamic rate calendars, PMS-synced availability pricing boards",
       "status": "Scored/Approved"
+    },
+    {
+      "code": "G27",
+      "name": "atlas_scorecards",
+      "models": "Polymorphic structured evaluation engine, dimension display rules, target similarity search",
+      "revenue_cases": "Carrier USDOT safety ratings, discovery call BANT/MEDDIC assessments, employee 30/60/90 reviews, partner scorecards",
+      "status": "Deployed"
+    },
+    {
+      "code": "G28",
+      "name": "atlas_note",
+      "models": "Universal polymorphic threaded note with role-based visibility and metadata",
+      "revenue_cases": "Timeline comments, broker deal notations, customer communication logs",
+      "status": "Deployed"
+    },
+    {
+      "code": "G29",
+      "name": "atlas_activity",
+      "models": "Universal polymorphic activity log with direction, outcome, and duration",
+      "revenue_cases": "Outbound agent call logging, tenant task history tracking, audit trails",
+      "status": "Deployed"
+    },
+    {
+      "code": "G31",
+      "name": "atlas_lead",
+      "models": "Polymorphic prospect record with import, qualify, convert, and disqualification lifecycle",
+      "revenue_cases": "B2B sales lead pipelines, wholesale distributor funnel management, recruitment candidates",
+      "status": "Deployed"
     }
   ],
   "infrastructure_gaps": [
