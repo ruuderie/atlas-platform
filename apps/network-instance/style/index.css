@@ -1,5 +1,7 @@
 @import url("components.css");
+@import url("configurator.css");
 @import url("pages.css");
+
 
 @tailwind base;
 @tailwind components;

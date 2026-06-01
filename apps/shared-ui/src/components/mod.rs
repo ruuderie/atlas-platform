@@ -17,4 +17,6 @@ pub mod crm_stage_bar;
 pub mod crm_timeline;
 pub mod crm_timeline_generic;
 pub mod email_composer;
+/// G-27 Scorecard Template Configurator — create/edit templates, dimensions, and Combinator config.
+pub mod configurator;
 
