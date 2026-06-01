@@ -45,6 +45,7 @@ impl RateLimiter {
         
         let now = Instant::now();
         let mut should_allow = true;
+        #[allow(unused_assignments)]
         let mut current_count = 0;
 
         // Check if this IP is already in our store

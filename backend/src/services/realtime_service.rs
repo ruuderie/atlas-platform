@@ -1,7 +1,6 @@
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
 use uuid::Uuid;
 use chrono::Utc;
-use serde_json::Value;
 
 use crate::entities::atlas_ws_room::{self, Entity as WsRoomEntity, ActiveModel as WsRoomActiveModel};
 use crate::entities::atlas_ws_message::{self, Entity as WsMessageEntity, ActiveModel as WsMessageActiveModel};

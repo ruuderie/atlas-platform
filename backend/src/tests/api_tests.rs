@@ -8,7 +8,7 @@ use sea_orm_migration::MigratorTrait;
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
-use crate::{api, migration};
+use crate::api;
 use http_body_util::BodyExt;
 use super::test_utils;
 use crate::models::tenant::TenantModel;
@@ -23,7 +23,6 @@ use fake::{Fake, faker::{
 use urlencoding;
 use dotenv::dotenv;
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
-use webauthn_rs::prelude::*;
 use std::sync::Arc;
 use moka::future::Cache;
 use std::time::Duration;

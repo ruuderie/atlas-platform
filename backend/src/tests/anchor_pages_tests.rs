@@ -5,7 +5,7 @@ use axum::{
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 use serde_json::json;
-use crate::{api, tests::test_utils};
+use crate::tests::test_utils;
 use uuid::Uuid;
 
 use crate::tests::api_tests::setup_test_app;

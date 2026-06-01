@@ -1,8 +1,8 @@
+#![allow(dead_code, unused_imports)]
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use serde_json::Value;
 
 /// GENERIC-17 (part 1): AtlasTaxEvent
 /// Individual taxable revenue events.

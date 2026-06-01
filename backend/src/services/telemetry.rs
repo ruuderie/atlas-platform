@@ -1,9 +1,9 @@
 use crate::entities::{platform_metrics_daily, telemetry_events};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, DatabaseTransaction, TransactionTrait
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, TransactionTrait
 };
-use chrono::{Utc, NaiveDate, Datelike};
-use sea_orm::{sea_query::OnConflict, Condition};
+use chrono::{Utc, NaiveDate};
+use sea_orm::sea_query::OnConflict;
 use serde_json::Value;
 use std::collections::HashMap;
 use uuid::Uuid;

@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 //CRM
 pub mod lead;
 pub mod deal;

@@ -24,6 +24,7 @@ pub fn public_routes_raw() -> Router<DatabaseConnection> {
 
 /// State-free authenticated route definitions.
 /// Use inside `AtlasApp::authenticated_router()`. Never call `.with_state()` here.
+#[allow(deprecated)] // provision_admin kept for backward-compat; migrating to /api/admin/tenants/provision
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/tenants", post(create_tenant))

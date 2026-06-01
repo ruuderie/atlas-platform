@@ -5,7 +5,6 @@ use sea_orm::{
 use chrono::Utc;
 use std::time::Duration;
 use tracing::{info, error};
-use uuid::Uuid;
 
 pub struct OutboxWorker;
 

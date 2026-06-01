@@ -3,7 +3,7 @@ use uuid::Uuid;
 use sea_orm::prelude::DateTimeWithTimeZone;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use sea_orm::*;
 use sea_orm::ActiveValue::Set;
 use serde_json::Value;

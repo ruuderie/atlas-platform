@@ -1,10 +1,8 @@
-use chrono::{Utc, Datelike};
-use sea_orm::{Database, DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryFilter, ColumnTrait};
+use chrono::Utc;
+use sea_orm::{Database, DatabaseConnection, EntityTrait, ActiveModelTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
 use crate::services::telemetry::TelemetryService;
 use crate::entities::{telemetry_events, platform_metrics_daily};
-use crate::migration;
-use sea_orm_migration::MigratorTrait;
 use serde_json::json;
 
 async fn setup_db() -> DatabaseConnection {

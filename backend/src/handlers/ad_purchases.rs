@@ -9,7 +9,7 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait,
+    ActiveModelTrait,
 };
 use crate::entities::{
     ad_purchase, profile, user_account, user,

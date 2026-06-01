@@ -16,7 +16,7 @@ use moka::future::Cache;
 use once_cell::sync::Lazy;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{app_domain, magic_link_token, tenant, user, app_instance, account, user_account, outbox_job};
+use crate::entities::{magic_link_token, user, account, user_account, outbox_job};
 use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
 use crate::metrics;  // Prometheus metrics

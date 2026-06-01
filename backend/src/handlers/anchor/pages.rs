@@ -2,14 +2,14 @@ use axum::{
     extract::{Path, State, Extension},
     http::StatusCode,
     Json,
-    routing::{get, post, put, delete},
+    routing::get,
     Router,
 };
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, ModelTrait};
 use crate::entities::app_page::{self, Entity as AppPage};
 use crate::entities::user;
 use crate::config::SiteConfig;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 use chrono::Utc;

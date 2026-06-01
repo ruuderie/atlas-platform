@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use crate::entities::{note, user};
 use crate::models::note::{NoteModel, CreateNoteInput, UpdateNoteInput};
-use crate::models::file::{FileAssociation, FileModel};
+use crate::models::file::FileAssociation;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()

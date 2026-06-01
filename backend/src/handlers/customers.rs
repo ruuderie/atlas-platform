@@ -7,7 +7,7 @@ use axum::{
 };
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait, ModelTrait, PaginatorTrait
+    ActiveModelTrait, PaginatorTrait
 };
 use crate::handlers::Validate;
 use uuid::Uuid;
@@ -22,8 +22,6 @@ use crate::entities::{customer, user, contact, note, activity};
 use crate::entities::customer::CustomerType;
 
 // Unified cutover services
-use crate::services::account_service::AccountService;
-use crate::services::contact_service::ContactService;
 use crate::models::customer::{CreateCustomerInput, UpdateCustomerInput};
 use crate::models::contact::{ CreateContactInput};
 use crate::models::note::{CreateNoteInput};

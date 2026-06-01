@@ -1,3 +1,4 @@
+#![allow(unused_variables, dead_code)]
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
 use uuid::Uuid;
 use chrono::Utc;

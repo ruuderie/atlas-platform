@@ -2,7 +2,6 @@
 //! These are integration-style tests (real DB via test app) but exercise the service
 //! methods directly, matching the style used for AuditService, TelemetryService, etc.
 
-use axum::http::StatusCode;
 use serde_json::json;
 use uuid::Uuid;
 

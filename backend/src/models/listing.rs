@@ -3,7 +3,7 @@ use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use sea_orm::prelude::*;
 use serde_json::Value;
-use sea_orm::{IntoActiveModel, Set, ActiveModelTrait};
+use sea_orm::{IntoActiveModel, Set};
 use crate::entities::listing;
 use std::str::FromStr;
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use uuid::Uuid;
-use tracing::{info, warn, error};
+use tracing::{info, error};
 use sea_orm::DatabaseConnection;
 
 use crate::services::ledger;

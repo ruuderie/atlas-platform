@@ -9,7 +9,7 @@ use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, QueryOrder,
     ActiveModelTrait, Set,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use crate::entities::app_menu::{self, Entity as AppMenu};
 use uuid::Uuid;
 use chrono::Utc;

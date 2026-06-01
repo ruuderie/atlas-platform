@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;

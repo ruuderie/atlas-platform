@@ -32,9 +32,6 @@ use crate::models::file::FileAssociation;
 use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
 
 // Cutover: legacy cases/activities → CaseService + RealtimeService + DocumentService
-use crate::services::case_service::CaseService;
-use crate::services::realtime_service::RealtimeService;
-use crate::services::document_service::DocumentService;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()

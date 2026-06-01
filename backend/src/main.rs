@@ -24,7 +24,7 @@ use axum::{
 };
 use tower_http::cors::CorsLayer;
 use tower::ServiceBuilder;
-use crate::sea_orm::{Database, ConnectionTrait};
+use crate::sea_orm::Database;
 use sea_orm_migration::prelude::*;
 use migration::{Migrator};
 use std::net::SocketAddr;
@@ -395,5 +395,4 @@ async fn main() {
         .await
         .unwrap();
 }
-// Trigger CI
-// Trigger CI
+

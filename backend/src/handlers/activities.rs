@@ -22,9 +22,6 @@ use crate::entities::{activity, user};
 use crate::entities::activity::{ActivityType, ActivityStatus};
 
 // Cutover in progress — activities moving to Case + Realtime + Audit
-use crate::services::case_service::CaseService;
-use crate::services::realtime_service::RealtimeService;
-use crate::services::audit::AuditService;
 use crate::models::activity::{ActivityModel, CreateActivityInput, UpdateActivityInput};
 use crate::models::file::FileAssociation;
 use crate::handlers::notes::get_user_tenant_id;

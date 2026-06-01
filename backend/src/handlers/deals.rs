@@ -20,8 +20,6 @@ use chrono::Utc;
 use crate::entities::{deal, customer, contact, user, note, activity};
 
 // Handler cutover: legacy deal → Opportunity + Contract
-use crate::services::opportunity_service::OpportunityService;
-use crate::services::contract_service::ContractService;
 use crate::models::deal::{DealModel, CreateDealInput, UpdateDealInput};
 use crate::models::file::FileAssociation;
 use crate::models::note::{NoteModel, CreateNoteInput};

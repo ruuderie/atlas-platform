@@ -11,9 +11,8 @@ use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::entities::user::{self, Entity as User};
+use crate::entities::user;
 use crate::entities::{passkey, user_account};
-use crate::entities::magic_link_token;
 use crate::auth::hash_password;
 use crate::handlers::sessions::create_passwordless_session;
 use crate::handlers::passkeys::WebauthnState;

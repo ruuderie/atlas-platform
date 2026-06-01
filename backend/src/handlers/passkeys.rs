@@ -13,7 +13,6 @@ use uuid::Uuid;
 use moka::future::Cache;
 use std::time::Instant;
 use crate::entities::{user, passkey, webauthn_challenge};
-use crate::auth::generate_jwt;
 use crate::handlers::sessions::session_cookie_header;
 use crate::webauthn_registry::WebauthnRegistry;
 use crate::metrics;

@@ -12,7 +12,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use crate::auth::{hash_password, verify_password};
-use crate::models::session::SessionResponse;
 use crate::models::user::UserRegistration;
 use crate::handlers::sessions::{refresh_token, validate_session, create_user_session};
 use crate::handlers::profiles::get_profile_by_id;

@@ -1,6 +1,6 @@
 use crate::entities::{bitcoin_block, tenant_background_job};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, Condition
+    ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set
 };
 use sea_orm::sea_query::OnConflict;
 use chrono::Utc;

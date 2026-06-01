@@ -1,6 +1,5 @@
-use super::test_utils::*;
 use uuid::Uuid;
-use crate::traits::payment::{PaymentProvider, SubscriptionData, TransactionData};
+use crate::traits::payment::PaymentProvider;
 use crate::services::billing::stripe_provider::StripeProvider;
 use crate::services::billing::paddle_provider::PaddleProvider;
 use crate::services::billing::zaprite_provider::ZapriteProvider;

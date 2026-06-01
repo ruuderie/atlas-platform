@@ -1,5 +1,5 @@
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait,
     DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
 };
 use uuid::Uuid;
@@ -12,9 +12,9 @@ use crate::entities::{
     atlas_scorecard_dimension::{self as dimensions, Model as DimensionModel},
     atlas_scorecard_dimension_option::{self as dim_options},
     atlas_scorecard_entry::{self as entries, ActiveModel as EntryActiveModel},
-    atlas_scorecard_dimension_aggregate::{self as aggregates, ActiveModel as AggregateActiveModel},
-    atlas_scorecard_poll_aggregate::{self as poll_aggregates, ActiveModel as PollAggregateActiveModel},
-    atlas_scorecard_time_series::{self as time_series, ActiveModel as TimeSeriesActiveModel},
+    atlas_scorecard_dimension_aggregate::ActiveModel as AggregateActiveModel,
+    atlas_scorecard_poll_aggregate::ActiveModel as PollAggregateActiveModel,
+    atlas_scorecard_time_series::ActiveModel as TimeSeriesActiveModel,
     atlas_rating_session::{self as sessions, ActiveModel as SessionActiveModel},
 };
 

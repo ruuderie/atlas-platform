@@ -13,7 +13,6 @@ use crate::models::user::UserLogin;
 use axum::extract::State;
 use serde::Deserialize;
 use std::time::Instant;
-use crate::metrics;
 
 /// Builds the `Set-Cookie` header value for the session token.
 pub fn session_cookie_header(token: &str, max_age_secs: i64) -> String {

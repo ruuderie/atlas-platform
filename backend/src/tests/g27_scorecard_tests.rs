@@ -26,25 +26,31 @@ async fn create_test_template_and_dimension(
 ) -> (Uuid, Uuid) {
     use sea_orm::{ActiveModelTrait, Set};
     use crate::entities::{
-        atlas_scorecard_template::{self, ActiveModel as TemplateAM},
-        atlas_scorecard_dimension::{self, ActiveModel as DimAM},
+        atlas_scorecard_template::ActiveModel as TemplateAM,
+        atlas_scorecard_dimension::ActiveModel as DimAM,
     };
+    use rust_decimal::Decimal;
+    use serde_json::json;
 
     let template_id = Uuid::new_v4();
     TemplateAM {
         id: Set(template_id),
-        tenant_id: Set(Some(tenant_id)),
+        // tenant_id is Uuid (non-optional) per the entity
+        tenant_id: Set(tenant_id),
         entity_type: Set("atlas_lead".to_owned()),
         name: Set("FMCSA Carrier Safety".to_owned()),
         description: Set(None),
-        scoring_method: Set("weighted_average".to_owned()),
-        scale_min: Set(rust_decimal::Decimal::ZERO),
-        scale_max: Set(rust_decimal::Decimal::from(10)),
-        min_entries_to_publish: Set(1), // low threshold for tests
-        is_active: Set(true),
-        version: Set(1),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
+        // "weighted_mean" is the canonical value per the entity doc comment
+        scoring_method: Set("weighted_mean".to_owned()),
+        // entity uses default_scale_min / default_scale_max
+        default_scale_min: Set(Decimal::ZERO),
+        default_scale_max: Set(Decimal::from(10)),
+        min_entries_to_publish: Set(1),
+        // entity uses is_published (no is_active / version fields)
+        is_published: Set(false),
+        created_by_user_id: Set(None),
+        // created_at / updated_at are managed by the set_updated_at_column trigger
+        ..Default::default()
     }
     .insert(db)
     .await
@@ -54,20 +60,30 @@ async fn create_test_template_and_dimension(
     DimAM {
         id: Set(dim_id),
         template_id: Set(template_id),
-        tenant_id: Set(Some(tenant_id)),
+        // tenant_id is Uuid (non-optional) per the entity
+        tenant_id: Set(tenant_id),
+        // slug is required (non-optional String)
+        slug: Set("safety_score".to_owned()),
         name: Set("Safety Score".to_owned()),
         description: Set(None),
+        category: Set(None),
         scale_type: Set("rating".to_owned()),
-        scale_min: Set(Some(rust_decimal::Decimal::ZERO)),
-        scale_max: Set(Some(rust_decimal::Decimal::from(10))),
-        weight: Set(Some(rust_decimal::Decimal::from(1))),
-        benchmark_tiers: Set(None),
+        // scale_min / scale_max / weight are non-optional Decimal
+        scale_min: Set(Decimal::ZERO),
+        scale_max: Set(Decimal::from(10)),
+        weight: Set(Decimal::from(1)),
+        unit_label: Set(None),
+        // benchmark_tiers is non-optional Value (JsonBinary column)
+        benchmark_tiers: Set(json!([])),
         global_reference_value: Set(None),
-        is_required: Set(false),
-        display_order: Set(1),
+        global_reference_label: Set(None),
+        min_entries_to_show: Set(1),
+        is_community_ratable: Set(true),
         is_active: Set(true),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
+        // sort_order replaces display_order; no is_required field on the entity
+        sort_order: Set(0),
+        // created_at / updated_at are trigger-managed — do not set manually
+        ..Default::default()
     }
     .insert(db)
     .await
@@ -128,6 +144,8 @@ async fn test_scorecard_open_session_and_submit_entry() {
     .await
     .expect("get_or_create failed");
 
+    // open_session(db, scorecard_id, rater_user_id, tenant_id, occurred_at,
+    //              session_type, context_entity_type, context_entity_id, session_label)
     let session_id = ScorecardService::open_session(
         &db,
         scorecard_id,
@@ -137,26 +155,28 @@ async fn test_scorecard_open_session_and_submit_entry() {
         "call",
         None,
         None,
-        Some(json!({"duration_days": 30})),
+        Some("Q1 qualification call"), // session_label: Option<&str>
     )
     .await
     .expect("open_session failed");
 
     assert_ne!(session_id, Uuid::nil());
 
-    // Submit a sparse entry (rating score on the safety dimension)
+    // submit_entry(db, session_id, scorecard_id, dimension_id, tenant_id,
+    //              contributor_user_id, score: Option<f64>, option_id,
+    //              source_type: &str, context: Option<Value>, note: Option<&str>)
     ScorecardService::submit_entry(
         &db,
         session_id,
         scorecard_id,
         dim_id,
-        rater_id,
         tenant.id,
-        Some(rust_decimal::Decimal::from(8)),
-        None, // no option_id (not a poll dimension)
-        Some("Good safety record"),
-        Some(json!({"duration_days": 30})),
-        true, // is_verified
+        rater_id,
+        Some(8.0_f64),                          // score: Option<f64>
+        None,                                    // option_id: not a poll dimension
+        "manual",                                // source_type: &str
+        None,                                    // context: Option<Value>
+        Some("Good safety record"),              // note: Option<&str>
     )
     .await
     .expect("submit_entry failed");
@@ -184,14 +204,14 @@ async fn test_scorecard_submit_entry_is_idempotent_per_contributor() {
 
     // First submit: OK
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, rater_id, tenant.id,
-        Some(rust_decimal::Decimal::from(7)), None, None, None, true,
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
+        Some(7.0_f64), None, "manual", None, None,
     ).await.expect("first submit must succeed");
 
     // Second submit for same (session, dimension, contributor): must fail with DB error
     let result = ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, rater_id, tenant.id,
-        Some(rust_decimal::Decimal::from(9)), None, None, None, true,
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
+        Some(9.0_f64), None, "manual", None, None,
     ).await;
 
     assert!(
@@ -215,13 +235,12 @@ async fn test_recompute_aggregates_smoke() {
 
     let session_id = ScorecardService::open_session(
         &db, scorecard_id, rater_id, tenant.id, chrono::Utc::now(),
-        "inspection", None, None, Some(json!({"duration_days": 90})),
+        "inspection", None, None, Some("90-day review"),
     ).await.unwrap();
 
     ScorecardService::submit_entry(
-        &db, session_id, scorecard_id, dim_id, rater_id, tenant.id,
-        Some(rust_decimal::Decimal::from(8)), None, None,
-        Some(json!({"duration_days": 90})), true,
+        &db, session_id, scorecard_id, dim_id, tenant.id, rater_id,
+        Some(8.0_f64), None, "inspection", Some(json!({"duration_days": 90})), None,
     ).await.unwrap();
 
     // recompute_aggregates should succeed without panicking

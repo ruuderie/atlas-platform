@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait, ActiveModelTrait, ModelTrait,
+    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait, ActiveModelTrait,
 };
 use crate::entities::{
     account, user_account, user, lead_charge,

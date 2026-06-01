@@ -3,7 +3,6 @@ use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde_json::Value;
 use uuid::Uuid;
 use chrono::Utc;
-use std::sync::Arc;
 
 pub struct AuditService;
 

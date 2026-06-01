@@ -5,7 +5,6 @@ use axum::{
 };
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, QueryOrder, QuerySelect, sea_query::Expr};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use crate::entities::platform_metrics_daily;
 use chrono::{NaiveDate, Utc};
 use moka::future::Cache;

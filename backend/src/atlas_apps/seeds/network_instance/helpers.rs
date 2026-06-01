@@ -1,4 +1,4 @@
-use crate::traits::atlas_app::{AppSeedPack, SeedApplyFn};
+#![allow(dead_code, unused_imports)]
 use sea_orm::DatabaseConnection;
 use uuid::Uuid;
 

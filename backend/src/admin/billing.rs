@@ -1,7 +1,7 @@
 use axum::{extract::{Path, State}, Json};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
-use crate::entities::{billing_plan, tenant_subscription, transaction};
+use crate::entities::{billing_plan, transaction};
 
 pub async fn list_billing_plans(
     State(db): State<DatabaseConnection>,

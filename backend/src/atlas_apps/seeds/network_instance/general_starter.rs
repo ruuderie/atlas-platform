@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 use super::helpers::{ensure_network_type, ensure_category, record_seed_application};
 use crate::traits::atlas_app::AppSeedPack;
 use sea_orm::{ConnectionTrait, Statement};

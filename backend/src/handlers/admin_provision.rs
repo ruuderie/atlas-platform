@@ -20,7 +20,6 @@ use crate::middleware::DynamicCorsRegistry;
 use crate::models::provision::{ProvisionTenantPayload, ProvisionTenantResponse, validate_domain};
 use crate::services::auth_service::AuthService;
 use crate::services::ingress_provisioner::IngressProvisioner;
-use crate::webauthn_registry::effective_tld_plus_one;
 use crate::atlas_apps::core_platform::CorePlatformApp;
 use crate::traits::atlas_app::AtlasApp;
 

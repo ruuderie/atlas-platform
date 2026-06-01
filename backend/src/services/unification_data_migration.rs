@@ -15,7 +15,6 @@ use tracing;
 use crate::entities::contact as legacy_contact;
 use crate::entities::lead as legacy_lead;
 use crate::entities::activity as legacy_activity;
-use crate::entities::tenant as platform_tenant;
 
 use crate::services::account_service::AccountService;
 use crate::services::contact_service::ContactService;
@@ -137,7 +136,7 @@ pub async fn migrate_tenant_legacy_crm(
             if dry_run { "[DRY RUN] " } else { "" },
             activity_count
         ));
-        for (i, la) in legacy_activities.iter().take(3).enumerate() {
+        for (_i, la) in legacy_activities.iter().take(3).enumerate() {
             report.notes.push(format!(
                 "  Sample: {} (type={:?})",
                 la.title, la.activity_type

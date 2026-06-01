@@ -114,18 +114,14 @@ pub async fn update_template(
         .ok_or_else(|| (StatusCode::NOT_FOUND, Json(json!({"error": "Template not found"}))))?
         .into_active_model();
     // Update fields based on the payload
-    if let name = payload.name {
-        template.name = Set(name);
-    }
-    if let description = payload.description {
-        template.description = Set(description);
-    }
-    if let template_type = payload.template_type {
-        template.template_type = Set(template_type);
-    }
-    if let is_active = payload.is_active {
-        template.is_active = Set(is_active);
-    }
+    let name = payload.name;
+    template.name = Set(name);
+    let description = payload.description;
+    template.description = Set(description);
+    let template_type = payload.template_type;
+    template.template_type = Set(template_type);
+    let is_active = payload.is_active;
+    template.is_active = Set(is_active);
 
 
     template.updated_at = Set(Utc::now());

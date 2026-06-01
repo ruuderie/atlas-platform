@@ -41,7 +41,7 @@ pub async fn global_search(
         return Ok(Json(vec![]));
     }
 
-    let mut effective_tenant_id = query.tenant_id;
+    let effective_tenant_id = query.tenant_id;
     // is_admin was removed from the user entity (RBAC migration). Check via user_account role.
     let is_admin = {
         use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};

@@ -1,7 +1,6 @@
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait, QuerySelect};
 use uuid::Uuid;
 use chrono::Utc;
-use serde_json::Value;
 
 use crate::entities::atlas_case::{self, Entity as CaseEntity, ActiveModel as CaseActiveModel};
 

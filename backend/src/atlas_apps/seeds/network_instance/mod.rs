@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 pub mod helpers;
 pub mod transportation_logistics;
 pub mod automotive_sales;

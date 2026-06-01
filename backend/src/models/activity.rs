@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use sea_orm::DatabaseConnection;
 use crate::entities::activity::{ActivityType, ActivityStatus, AssociatedEntity, AssociatedEntityType};
 use crate::models::file::{FileModel, FileAssociation};
-use crate::traits::file::FileAssociable;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ActivityModel {
     pub id: Uuid,

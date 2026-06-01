@@ -2,7 +2,6 @@ use chrono::{Utc, DateTime};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
-use sea_orm::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TemplateModel {

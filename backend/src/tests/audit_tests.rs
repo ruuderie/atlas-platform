@@ -1,5 +1,4 @@
-use chrono::Utc;
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
+use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
 use crate::services::audit::AuditService;
 use crate::entities::audit_log;

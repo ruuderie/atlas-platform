@@ -16,7 +16,7 @@ use pulldown_cmark::{Parser as MarkdownParser, Event, Tag};
 #[derive(Parser, Debug)]
 #[command(
     name = "generate_market_reports",
-    author = "Antigravity AI",
+    author = "Ruud Erie",
     version = "2.1.0",
     about = "Compiles Markdown market reports in docs/market-analysis to beautiful, premium LaTeX PDFs",
     long_about = None

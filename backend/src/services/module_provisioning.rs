@@ -6,8 +6,7 @@
 //! Called from `AtlasApp::provision()` implementations. Safe to call multiple
 //! times on the same `app_instance_id` (uses `ON CONFLICT DO NOTHING`).
 
-use sea_orm::{DatabaseConnection, Statement};
-use sea_orm::ConnectionTrait;
+use sea_orm::Statement;
 use uuid::Uuid;
 use crate::models::admin_module::AdminModuleType;
 
