@@ -210,6 +210,16 @@ pub mod m20260705_drop_legacy_lead;
 // refresh_scorecard_time_series for all tenants with active scorecard templates.
 pub mod m20260706_seed_g27_background_jobs;
 
+// G-27 gap fill: Add is_inverted to atlas_scorecard_dimensions.
+// Enables low-score-is-better dimensions (timeline_slippage, competition_risk, etc.)
+pub mod m20260707_g27_is_inverted;
+
+// G-27 gap fill: Context-Aware Display Rules engine.
+// Adds atlas_scorecard_display_rules — the "second axis" of G-27 configurability.
+// Tier-gated: Professional+ tenants only (enforced in ScorecardService).
+pub mod m20260708_g27_display_rules;
+
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -319,6 +329,10 @@ impl MigratorTrait for Migrator {
             // G-27 background job seeding: registers scorecard aggregate + time-series jobs
             // Sorts after G-27 schema (m20260706_ > m20260701_) — schema must exist first.
             Box::new(m20260706_seed_g27_background_jobs::Migration),
+            // G-27 gap fill: is_inverted column on atlas_scorecard_dimensions
+            Box::new(m20260707_g27_is_inverted::Migration),
+            // G-27 gap fill: atlas_scorecard_display_rules (Context-Aware Display Rules engine)
+            Box::new(m20260708_g27_display_rules::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

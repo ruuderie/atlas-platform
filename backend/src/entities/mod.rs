@@ -144,3 +144,6 @@ pub mod atlas_activity;
 // GENERIC-27: The Combinator — target profiles + per-dimension criteria
 pub mod atlas_scorecard_target;
 pub mod atlas_scorecard_target_criteria;
+
+// GENERIC-27 gap fill: Context-Aware Display Rules engine
+pub mod atlas_scorecard_display_rule;

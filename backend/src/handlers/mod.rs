@@ -46,3 +46,7 @@ pub mod app_seeds;
 pub mod onboarding;
 pub mod version;
 pub mod admin_provision;
+
+// G-27 Scorecard
+pub mod scorecard_entries;
+pub mod scorecard_display_rules;

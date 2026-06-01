@@ -188,6 +188,149 @@ impl OutboxWorker {
 
 
 
+                // G-27: Evaluate display rules after an activity is logged and dispatch
+                // the resulting nudge dimensions to the rater via WebSocket (G-07).
+                //
+                // Payload shape:
+                // {
+                //   "template_id":          "<uuid>",
+                //   "subject_entity_type":  "lead" | "deal" | ...,
+                //   "subject_entity_id":    "<uuid>",
+                //   "activity_type":        "call" | "demo" | "meeting" | ...,
+                //   "rater_user_id":        "<uuid>"
+                // }
+                //
+                // Steps:
+                //   1. Gate: scorecard_display_rules_enabled must be true for the tenant.
+                //   2. Call ScorecardService::get_nudge_dimensions_for_activity.
+                //   3. If non-empty: find-or-create the scorecard_nudge WS room for the entity.
+                //   4. Write an atlas_ws_message with the nudge payload to that room.
+                //
+                // The frontend ScorecardWidget subscribes to "scorecard_nudge" rooms on
+                // entity page load and renders NudgePrompt on receipt.
+                "evaluate_scorecard_nudge" => {
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+                    use crate::entities::{tenant_setting, atlas_ws_room, atlas_ws_message};
+
+                    // ── Parse payload ────────────────────────────────────────
+                    let template_id = job.payload.get("template_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok());
+                    let subject_entity_type = job.payload.get("subject_entity_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_owned());
+                    let subject_entity_id = job.payload.get("subject_entity_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok());
+                    let activity_type = job.payload.get("activity_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_owned());
+                    let rater_user_id = job.payload.get("rater_user_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok());
+
+                    let (template_id, entity_type, entity_id, act_type) =
+                        match (template_id, subject_entity_type, subject_entity_id, activity_type) {
+                            (Some(t), Some(et), Some(ei), Some(at)) => (t, et, ei, at),
+                            _ => {
+                                error!("evaluate_scorecard_nudge: missing required payload fields, skipping");
+                                return Ok(());   // early exit from process_next_job — treat as success
+                            }
+                        };
+
+                    // ── Gate: scorecard_display_rules_enabled ────────────────
+                    let enabled = tenant_setting::Entity::find()
+                        .filter(tenant_setting::Column::TenantId.eq(job.tenant_id))
+                        .filter(tenant_setting::Column::Key.eq("scorecard_display_rules_enabled"))
+                        .filter(tenant_setting::Column::Value.eq("true"))
+                        .one(db)
+                        .await
+                        .map_err(|e| format!("evaluate_scorecard_nudge: tenant_setting query: {e}"))
+                        .map_err(|e| sea_orm::DbErr::Custom(e))?;
+
+                    if enabled.is_none() {
+                        info!("evaluate_scorecard_nudge: feature disabled for tenant {}, skipping", job.tenant_id);
+                        return Ok(());
+                    }
+
+                    // ── Get nudge dimensions ─────────────────────────────────
+                    let nudges = crate::services::scorecard_service::ScorecardService::get_nudge_dimensions_for_activity(
+                        db,
+                        job.tenant_id,
+                        template_id,
+                        &entity_type,
+                        entity_id,
+                        &act_type,
+                    )
+                    .await
+                    .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: get_nudge_dimensions: {e}")))?;
+
+                    if nudges.is_empty() {
+                        info!("evaluate_scorecard_nudge: no nudge dimensions for '{}', skipping", act_type);
+                        return Ok(());
+                    }
+
+                    // ── Find or create the scorecard_nudge WS room ───────────
+                    let room = atlas_ws_room::Entity::find()
+                        .filter(atlas_ws_room::Column::TenantId.eq(job.tenant_id))
+                        .filter(atlas_ws_room::Column::RoomType.eq("scorecard_nudge"))
+                        .filter(atlas_ws_room::Column::EntityType.eq(entity_type.clone()))
+                        .filter(atlas_ws_room::Column::EntityId.eq(entity_id))
+                        .filter(atlas_ws_room::Column::IsActive.eq(true))
+                        .one(db)
+                        .await
+                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_room query: {e}")))?;
+
+                    let room_id = if let Some(r) = room {
+                        r.id
+                    } else {
+                        let new_room = atlas_ws_room::ActiveModel {
+                            id: Set(uuid::Uuid::new_v4()),
+                            tenant_id: Set(job.tenant_id),
+                            room_type: Set("scorecard_nudge".to_owned()),
+                            entity_type: Set(entity_type.clone()),
+                            entity_id: Set(entity_id),
+                            is_active: Set(true),
+                            created_at: Set(Utc::now()),
+                        };
+                        new_room.insert(db)
+                            .await
+                            .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_room insert: {e}")))?
+                            .id
+                    };
+
+                    // ── Write the nudge message ──────────────────────────────
+                    // Content is the full NudgeDimension list as JSON.
+                    // The frontend ScorecardWidget deserializes and renders NudgePrompt.
+                    let content = serde_json::to_string(&nudges)
+                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: serialize: {e}")))?;
+
+                    let msg = atlas_ws_message::ActiveModel {
+                        id: Set(uuid::Uuid::new_v4()),
+                        room_id: Set(room_id),
+                        sender_user_id: Set(None), // system-generated
+                        message_type: Set("scorecard_nudge".to_owned()),
+                        content: Set(content),
+                        translated_content: Set(None),
+                        attachment_id: Set(None),
+                        created_at: Set(Utc::now()),
+                    };
+                    msg.insert(db)
+                        .await
+                        .map_err(|e| sea_orm::DbErr::Custom(format!("evaluate_scorecard_nudge: ws_message insert: {e}")))?;
+
+                    info!(
+                        "evaluate_scorecard_nudge: dispatched {} nudge dimensions to room {} ({}/{})",
+                        nudges.len(), room_id, entity_type, entity_id
+                    );
+
+                    if let Some(uid) = rater_user_id {
+                        info!("evaluate_scorecard_nudge: nudge targeted at rater_user_id={uid}");
+                    }
+
+                    Ok(())
+                }
+
                 _ => Err(format!("Unknown job type: {}", job.job_type)),
             };
 

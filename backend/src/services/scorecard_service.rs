@@ -7,6 +7,11 @@ use chrono::{Datelike, Utc};
 use serde_json::{json, Value};
 use anyhow::{anyhow, bail, Result};
 
+use crate::types::scorecard::{
+    ScaleType, SourceType, ConfidenceLevel, BenchmarkTier, BenchmarkTiers,
+    TriggerCategory, RuleAction, ModeScope,
+};
+
 use crate::entities::{
     atlas_scorecard::{self as scorecards, ActiveModel as ScorecardActiveModel},
     atlas_scorecard_dimension::{self as dimensions, Model as DimensionModel},
@@ -16,7 +21,9 @@ use crate::entities::{
     atlas_scorecard_poll_aggregate::ActiveModel as PollAggregateActiveModel,
     atlas_scorecard_time_series::ActiveModel as TimeSeriesActiveModel,
     atlas_rating_session::{self as sessions, ActiveModel as SessionActiveModel},
+    atlas_scorecard_display_rule::{self as display_rules, Model as DisplayRuleModel},
 };
+
 
 pub struct ScorecardService;
 
@@ -33,6 +40,24 @@ pub struct SimilarityResult {
     pub similarity: f64,
     pub composite_score: Option<f64>,
     pub confidence_level: String,
+}
+
+/// A dimension that should be surfaced as a post-activity nudge prompt.
+///
+/// Returned by `ScorecardService::get_nudge_dimensions_for_activity`.
+/// The caller uses this to render the compact rating widget after an activity is logged.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct NudgeDimension {
+    pub dimension_id: Uuid,
+    pub dimension_slug: String,
+    pub dimension_name: String,
+    /// The rule action that matched: 'surface_as_nudge' | 'require' | 'show'
+    pub action: String,
+    /// The dimension's scale_type for the UI to render the correct input.
+    pub scale_type: String,
+    pub scorecard_id: Uuid,
+    /// Hint to the UI for what session_type to open. Derived from the activity_type.
+    pub session_type_hint: String,
 }
 
 // ── Private aggregation intermediate types ───────────────────────────────────
@@ -235,6 +260,12 @@ impl ScorecardService {
             );
         }
 
+        // Parse source_type into the typed enum at the service boundary.
+        // This is the only place in the service where source_type is a &str.
+        // After this point, business logic uses the typed enum exclusively.
+        let typed_source = SourceType::try_from(source_type.to_owned())
+            .map_err(|e| anyhow!("invalid source_type: {e}"))?;
+
         // Validate: exactly one of score or option_id
         match (score.is_some(), option_id.is_some()) {
             (true, true) => bail!("exactly one of score or option_id must be set, not both"),
@@ -247,6 +278,14 @@ impl ScorecardService {
                 .ok_or_else(|| anyhow!("score {s} is not a valid decimal"))
         }).transpose()?;
 
+        // transcript_inferred entries are NEVER auto-verified.
+        // They appear in the session UI for the contributor to confirm or reject.
+        // Only a call to verify_entry(confirmed: true) will set is_verified = true,
+        // which gates their inclusion in composite recomputation.
+        //
+        // official_data entries are pre-verified by definition — no human gate.
+        let is_verified = typed_source.is_auto_verified();
+
         let model = EntryActiveModel {
             id: Set(Uuid::new_v4()),
             session_id: Set(session_id),
@@ -256,10 +295,10 @@ impl ScorecardService {
             contributor_user_id: Set(contributor_user_id),
             score: Set(score_decimal),
             option_id: Set(option_id),
-            source_type: Set(source_type.to_owned()),
+            source_type: Set(typed_source.to_string()),
             context: Set(context),
             note: Set(note.map(|s| s.to_owned())),
-            is_verified: Set(false),
+            is_verified: Set(is_verified),
             verification_request_id: Set(None),
             created_at: Set(Utc::now()),
         };
@@ -269,6 +308,64 @@ impl ScorecardService {
 
         Ok(inserted.id)
     }
+
+    // ── verify_entry ─────────────────────────────────────────────────────────────
+
+    /// Confirm or reject a transcript-inferred (or manually submitted unverified) entry.
+    ///
+    /// Called when a session contributor clicks "Confirm" or "Reject" on an
+    /// AI-suggested scorecard entry in the session form.
+    ///
+    /// - `confirmed = true`:  sets `is_verified = true`, queues aggregate recompute.
+    /// - `confirmed = false`: deletes the entry (rejected suggestions are not kept).
+    ///
+    /// Security: verifies tenant ownership before any mutation.
+    pub async fn verify_entry(
+        db: &DatabaseConnection,
+        entry_id: Uuid,
+        tenant_id: Uuid,
+        confirmed: bool,
+    ) -> Result<()> {
+        use entries::Entity as EntryEntity;
+
+        let entry = EntryEntity::find_by_id(entry_id)
+            .filter(entries::Column::TenantId.eq(tenant_id))
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow!("entry {} not found for tenant {}", entry_id, tenant_id))?;
+
+        if confirmed {
+            let mut am: entries::ActiveModel = entry.clone().into();
+            am.is_verified = Set(true);
+            am.update(db).await?;
+
+            // Queue immediate aggregate recompute for this scorecard.
+            // The outbox worker will process it within 1.5 seconds.
+            use crate::entities::outbox_job;
+            let job = outbox_job::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                tenant_id: Set(tenant_id),
+                job_type: Set("recompute_scorecard_aggregates".to_owned()),
+                payload: Set(json!({ "scorecard_id": entry.scorecard_id })),
+                status: Set("pending".to_owned()),
+                attempts: Set(0),
+                error_message: Set(None),
+                locked_by: Set(None),
+                locked_at: Set(None),
+                run_at: Set(Utc::now()),
+                created_at: Set(Utc::now()),
+            };
+            job.insert(db).await
+                .map_err(|e| anyhow!("failed to queue recompute job: {e}"))?;
+        } else {
+            // Rejected: delete the entry entirely. No audit trail needed—
+            // transcript_inferred entries are AI suggestions, not submitted data.
+            EntryEntity::delete_by_id(entry_id).exec(db).await?;
+        }
+
+        Ok(())
+    }
+
 
     // ── recompute_aggregates ───────────────────────────────────────────────
 
@@ -346,15 +443,31 @@ impl ScorecardService {
             let scale_min: f64 = dim.scale_min.try_into().unwrap_or(1.0);
             let scale_max: f64 = dim.scale_max.try_into().unwrap_or(10.0);
 
-            match dim.scale_type.as_str() {
-                "rating" | "absolute" => {
+            // Parse scale_type into the typed enum at the aggregation boundary.
+            // This is the only place in recompute_aggregates where scale_type is a String.
+            // All branching below uses ScaleType variants — no string comparisons.
+            let scale_type = ScaleType::try_from(dim.scale_type.clone())
+                .unwrap_or_else(|e| {
+                    tracing::error!("scorecard {} dim {}: {e}", scorecard_id, dim.id);
+                    // Treat unknown scale types as Rating to avoid silently dropping data.
+                    // This case should only occur if the DB was written by a newer version
+                    // of the service that added a scale type this binary doesn't know about.
+                    ScaleType::Rating
+                });
+
+            match scale_type {
+                ScaleType::Rating | ScaleType::Absolute => {
                     let agg = Self::compute_numeric_aggregate(dim, &dim_entries)?;
 
                     if let Some(weighted_mean) = agg.weighted_mean {
-                        // Normalized for vector: (score - min) / (max - min) * weight
                         let range = scale_max - scale_min;
                         let normalized = if range > 0.0 {
-                            ((weighted_mean - scale_min) / range * weight).clamp(0.0, weight)
+                            if dim.is_inverted {
+                                // Lower score = better: invert so high contribution = good.
+                                ((scale_max - weighted_mean) / range * weight).clamp(0.0, weight)
+                            } else {
+                                ((weighted_mean - scale_min) / range * weight).clamp(0.0, weight)
+                            }
                         } else {
                             0.0
                         };
@@ -369,14 +482,13 @@ impl ScorecardService {
                     Self::upsert_numeric_aggregate(&txn, scorecard_id, dim, agg).await?;
                 }
 
-                "boolean" => {
+                ScaleType::Boolean => {
                     let agg = Self::compute_boolean_aggregate(dim, &dim_entries)?;
 
                     if let Some(pct) = agg.percent_true {
-                        // Normalize boolean: true_pct as 0.0-1.0
                         let normalized = (pct / 100.0 * weight).clamp(0.0, weight);
                         dimension_vector.push(normalized);
-                        composite_sum += (pct / 10.0) * weight; // boolean on 0-10 scale for composite
+                        composite_sum += (pct / 10.0) * weight;
                         composite_weight_sum += weight;
                     } else {
                         dimension_vector.push(0.0);
@@ -385,17 +497,13 @@ impl ScorecardService {
                     Self::upsert_boolean_aggregate(&txn, scorecard_id, dim, agg).await?;
                 }
 
-                "poll_single" | "poll_multi" => {
-                    // Poll dimensions don't contribute to composite score
+                ScaleType::PollSingle | ScaleType::PollMulti => {
+                    // Poll dimensions do not contribute to composite score.
                     dimension_vector.push(0.0);
                     Self::recompute_poll_aggregate(&txn, scorecard_id, dim, &dim_entries).await?;
                 }
-
-                unknown => {
-                    tracing::warn!("unknown scale_type '{unknown}' on dimension {}", dim.id);
-                    dimension_vector.push(0.0);
-                }
             }
+
         }
 
         // Compute composite score and confidence level
@@ -406,14 +514,15 @@ impl ScorecardService {
         };
 
         let total_entries = all_entries.len() as i32;
-        let confidence_level = Self::compute_confidence_level(total_entries);
+        // Use the typed ConfidenceLevel enum — .to_string() produces the DB string.
+        let confidence_level = ConfidenceLevel::from_entry_count(total_entries);
 
         // Update scorecard
         let mut scorecard_am: scorecards::ActiveModel = scorecard.into();
         scorecard_am.composite_score = Set(
             composite_score.and_then(|s| rust_decimal::Decimal::from_f64_retain(s))
         );
-        scorecard_am.confidence_level = Set(confidence_level);
+        scorecard_am.confidence_level = Set(confidence_level.to_string());
         scorecard_am.total_contributors = Set(total_contributors_set.len() as i32);
         scorecard_am.total_sessions = Set(total_sessions_set.len() as i32);
         scorecard_am.total_entries = Set(total_entries);
@@ -587,10 +696,18 @@ impl ScorecardService {
             else { "disputed".to_owned() }
         });
 
-        // Resolve benchmark tier
-        let (benchmark_label, benchmark_color) = weighted_mean
-            .map(|wm| Self::resolve_rating_tier(wm, &dim.benchmark_tiers))
+        // Resolve benchmark tier using the typed BenchmarkTiers struct.
+        // Deserialize once; no raw JSONB key access in tier logic.
+        let tiers: BenchmarkTiers = serde_json::from_value(dim.benchmark_tiers.clone())
             .unwrap_or_default();
+
+        let (benchmark_label, benchmark_color) = weighted_mean.map(|wm| {
+            if dim.is_inverted {
+                Self::resolve_tier_inverted(wm, &tiers)
+            } else {
+                Self::resolve_tier(wm, &tiers)
+            }
+        }).unwrap_or_default();
 
         // Display value: "Fast: 16 Mbps" or "7.3/10"
         let display_value = weighted_mean.map(|wm| {
@@ -602,16 +719,23 @@ impl ScorecardService {
             }
         });
 
-        // Global reference comparison
         let (vs_global_delta, vs_global_label) = if let (Some(wm), Some(ref_val)) = (
             weighted_mean,
             dim.global_reference_value.as_ref().and_then(|d| <rust_decimal::Decimal as TryInto<f64>>::try_into(*d).ok()),
         ) {
             let delta = wm - ref_val;
-            let tolerance = 0.2; // ±0.2 = "at the bar"
-            let label = if delta > tolerance { "above" }
-                        else if delta < -tolerance { "below" }
-                        else { "at" };
+            let tolerance = 0.2;
+            // For inverted dimensions (lower = better), the label direction is flipped:
+            // a negative delta (score below reference) means the entity is BETTER than reference.
+            let label = if dim.is_inverted {
+                if delta < -tolerance { "above" }
+                else if delta > tolerance { "below" }
+                else { "at" }
+            } else {
+                if delta > tolerance { "above" }
+                else if delta < -tolerance { "below" }
+                else { "at" }
+            };
             (Some(delta), Some(label.to_owned()))
         } else {
             (None, None)
@@ -661,7 +785,7 @@ impl ScorecardService {
 
         // Resolve boolean tier
         let (benchmark_label, benchmark_color) =
-            Self::resolve_boolean_tier(percent_true, &dim.benchmark_tiers);
+            Self::resolve_boolean_tier_typed(percent_true, &dim.benchmark_tiers);
 
         let display_value = Some(format!("{}% yes", percent_true.round() as i32));
 
@@ -844,20 +968,16 @@ impl ScorecardService {
         Ok(())
     }
 
-    // ── Benchmark tier resolution ──────────────────────────────────────────
+    // ── Benchmark tier resolution (typed) ────────────────────────────────────
 
-    /// Resolve a numeric score against the dimension's benchmark_tiers JSONB.
+    /// Resolve a weighted mean against rating/absolute benchmark tiers.
     ///
-    /// Expected tier format:
-    /// `[{"label": "Outstanding", "min_score": 9.0, "color": "#00cc44"}, ...]`
-    /// Tiers are matched by largest `min_score` that the score satisfies.
-    fn resolve_rating_tier(score: f64, tiers: &Value) -> (Option<String>, Option<String>) {
-        let Some(arr) = tiers.as_array() else { return (None, None) };
-
-        // Find the matching tier: highest min_score that score >= min_score
-        let mut best: Option<(&Value, f64)> = None;
-        for tier in arr {
-            if let Some(min) = tier.get("min_score").and_then(|v| v.as_f64()) {
+    /// For non-inverted dimensions: higher score matches tiers with `min_score`.
+    /// Expected tier format (typed): `BenchmarkTier { min_score: Some(f64), label, color, .. }`
+    fn resolve_tier(score: f64, tiers: &BenchmarkTiers) -> (Option<String>, Option<String>) {
+        let mut best: Option<(&BenchmarkTier, f64)> = None;
+        for tier in tiers {
+            if let Some(min) = tier.min_score {
                 if score >= min {
                     if best.map(|(_, b)| min > b).unwrap_or(true) {
                         best = Some((tier, min));
@@ -865,19 +985,36 @@ impl ScorecardService {
                 }
             }
         }
-
-        best.map(|(t, _)| (
-            t.get("label").and_then(|l| l.as_str()).map(|s| s.to_owned()),
-            t.get("color").and_then(|c| c.as_str()).map(|s| s.to_owned()),
-        ))
-        .unwrap_or_default()
+        best.map(|(t, _)| (Some(t.label.clone()), Some(t.color.clone())))
+            .unwrap_or_default()
     }
 
-    /// Resolve a boolean percentage against boolean benchmark_tiers.
+    /// Resolve a weighted mean against inverted benchmark tiers (lower score = better).
     ///
-    /// Expected tier format:
-    /// `[{"label": "Most say clean", "min_pct": 70, "color": "#00cc44"}, ...]`
-    fn resolve_boolean_tier(pct: f64, tiers: &Value) -> (Option<String>, Option<String>) {
+    /// For inverted dimensions: lower score matches tiers with `max_score`.
+    /// Finds the lowest `max_score` that the actual score is still <= (tightest passing tier).
+    /// Expected tier format (typed): `BenchmarkTier { max_score: Some(f64), label, color, .. }`
+    fn resolve_tier_inverted(score: f64, tiers: &BenchmarkTiers) -> (Option<String>, Option<String>) {
+        let mut best: Option<(&BenchmarkTier, f64)> = None;
+        for tier in tiers {
+            if let Some(max) = tier.max_score {
+                if score <= max {
+                    // Prefer the tightest (lowest) max_score that still passes
+                    if best.map(|(_, b)| max < b).unwrap_or(true) {
+                        best = Some((tier, max));
+                    }
+                }
+            }
+        }
+        best.map(|(t, _)| (Some(t.label.clone()), Some(t.color.clone())))
+            .unwrap_or_default()
+    }
+
+    /// Resolve a boolean percentage against boolean benchmark tiers.
+    ///
+    /// For boolean dimensions: `percent_true` matches tiers with `min_pct`.
+    /// Expected tier format (typed): `BenchmarkTier { min_pct: Some(f64), label, color, .. }`
+    fn resolve_boolean_tier_typed(pct: f64, tiers: &Value) -> (Option<String>, Option<String>) {
         let Some(arr) = tiers.as_array() else { return (None, None) };
 
         let mut best: Option<(&Value, f64)> = None;
@@ -898,28 +1035,29 @@ impl ScorecardService {
         .unwrap_or_default()
     }
 
+
     // ── Confidence level helpers ───────────────────────────────────────────
 
+    // Confidence level helpers have been replaced by ConfidenceLevel::from_entry_count().
+    // These stubs are kept for any external callers until migration is complete.
+    #[deprecated(note = "Use ConfidenceLevel::from_entry_count(n).to_string() instead")]
     pub(crate) fn compute_confidence_level(total_entries: i32) -> String {
-        match total_entries {
-            0..=4   => "insufficient".to_owned(),
-            5..=9   => "low".to_owned(),
-            10..=49 => "medium".to_owned(),
-            50..=199 => "high".to_owned(),
-            _       => "very_high".to_owned(),
-        }
+        ConfidenceLevel::from_entry_count(total_entries).to_string()
     }
 
     pub(crate) fn confidence_rank(level: &str) -> u8 {
-        match level {
-            "insufficient" => 0,
-            "low"          => 1,
-            "medium"       => 2,
-            "high"         => 3,
-            "very_high"    => 4,
-            _              => 0,
-        }
+        // Convert through the typed enum for correctness.
+        ConfidenceLevel::try_from(level.to_owned())
+            .map(|c| match c {
+                ConfidenceLevel::Insufficient => 0,
+                ConfidenceLevel::Low          => 1,
+                ConfidenceLevel::Medium       => 2,
+                ConfidenceLevel::High         => 3,
+                ConfidenceLevel::VeryHigh     => 4,
+            })
+            .unwrap_or(0)
     }
+
 
     // ── Time series refresh ────────────────────────────────────────────────
 
@@ -1029,5 +1167,151 @@ impl ScorecardService {
 
         txn.commit().await?;
         Ok(())
+    }
+
+    // ── Display Rules ───────────────────────────────────────────────────────────
+
+    /// Return all active display rules for a template, ordered by priority ascending.
+    ///
+    /// The frontend evaluates these client-side against the current entity field values
+    /// to determine which dimensions to show, hide, require, or surface as nudges.
+    ///
+    /// # Tier gate
+    /// Starter tenants (no `scorecard_display_rules_enabled` setting) receive an empty
+    /// Vec. All dimensions render unconditionally for Starter tier.
+    /// Professional+ tenants receive the full active rule list.
+    ///
+    /// # Performance
+    /// Rules are indexed on (template_id, is_active, priority). This query is O(rules)
+    /// not O(entries) and is called once per session form render.
+    pub async fn get_display_rules(
+        db: &DatabaseConnection,
+        template_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<Vec<DisplayRuleModel>> {
+        use crate::entities::tenant_setting;
+
+        // Tier gate: check tenant setting before querying rules.
+        let enabled = tenant_setting::Entity::find()
+            .filter(tenant_setting::Column::TenantId.eq(tenant_id))
+            .filter(tenant_setting::Column::Key.eq("scorecard_display_rules_enabled"))
+            .one(db)
+            .await?
+            .map(|s| s.value == "true" || s.value == "1")
+            .unwrap_or(false);
+
+        if !enabled {
+            return Ok(vec![]);
+        }
+
+        let rules = display_rules::Entity::find()
+            .filter(display_rules::Column::TemplateId.eq(template_id))
+            .filter(display_rules::Column::TenantId.eq(tenant_id))
+            .filter(display_rules::Column::IsActive.eq(true))
+            .order_by_asc(display_rules::Column::Priority)
+            .all(db)
+            .await?;
+
+        Ok(rules)
+    }
+
+    /// Return the dimensions that should be surfaced as a post-activity nudge prompt.
+    ///
+    /// Called when an `atlas_activity` is created for an entity that has a scorecard.
+    /// Finds all active display rules with:
+    ///   - `trigger_category = 'activity_trigger'`
+    ///   - `value_list` contains the `activity_type`
+    ///   - `action` IN ('surface_as_nudge', 'require', 'show')
+    ///
+    /// Returns an empty Vec if:
+    ///   - No matching rules exist
+    ///   - The tenant's `scorecard_display_rules_enabled` setting is not true
+    ///   - No active scorecard exists for this entity + template combination
+    pub async fn get_nudge_dimensions_for_activity(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        template_id: Uuid,
+        subject_entity_type: &str,
+        subject_entity_id: Uuid,
+        activity_type: &str,
+    ) -> Result<Vec<NudgeDimension>> {
+        // Verify a scorecard exists for this entity (required for the scorecard_id return value).
+        let scorecard = scorecards::Entity::find()
+            .filter(scorecards::Column::TenantId.eq(tenant_id))
+            .filter(scorecards::Column::TemplateId.eq(template_id))
+            .filter(scorecards::Column::SubjectEntityType.eq(subject_entity_type))
+            .filter(scorecards::Column::SubjectEntityId.eq(subject_entity_id))
+            .one(db)
+            .await?;
+
+        let scorecard_id = match scorecard {
+            Some(sc) => sc.id,
+            None => return Ok(vec![]), // No scorecard for this entity yet — nothing to nudge.
+        };
+
+        // Load all active activity_trigger rules for this template.
+        let candidate_rules = display_rules::Entity::find()
+            .filter(display_rules::Column::TemplateId.eq(template_id))
+            .filter(display_rules::Column::TenantId.eq(tenant_id))
+            .filter(display_rules::Column::IsActive.eq(true))
+            .filter(display_rules::Column::TriggerCategory.eq(
+                TriggerCategory::ActivityTrigger.to_string()
+            ))
+            .order_by_asc(display_rules::Column::Priority)
+            .all(db)
+            .await?;
+
+        // Filter client-side: rules whose value_list contains the activity_type.
+        // (SQL JSONB array containment would work but this keeps the query simple
+        // and the rule count per template is small — typically < 50.)
+        let matching_rules: Vec<&DisplayRuleModel> = candidate_rules
+            .iter()
+            .filter(|rule| {
+                let nudge_actions = ["surface_as_nudge", "require", "show"];
+                nudge_actions.contains(&rule.action.as_str())
+                    && rule.value_list_as_strings().iter().any(|v| v == activity_type)
+            })
+            .collect();
+
+        if matching_rules.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Load dimension details for each matching rule.
+        let mut nudge_dims: Vec<NudgeDimension> = Vec::new();
+        for rule in matching_rules {
+            let dim_id = match rule.dimension_id {
+                Some(id) => id,
+                None => continue, // Category-level rules without a dimension ID are skipped for nudge.
+            };
+
+            let dim = dimensions::Entity::find_by_id(dim_id)
+                .filter(dimensions::Column::IsActive.eq(true))
+                .one(db)
+                .await?;
+
+            if let Some(dim) = dim {
+                // Derive a session_type_hint from the activity_type for the UI.
+                let session_type_hint = match activity_type {
+                    "call" | "discovery_call" => "call",
+                    "demo"                    => "demo",
+                    "meeting"                 => "meeting",
+                    "email" | "email_thread"  => "email_thread",
+                    _                         => "meeting",
+                }.to_owned();
+
+                nudge_dims.push(NudgeDimension {
+                    dimension_id: dim.id,
+                    dimension_slug: dim.slug.clone(),
+                    dimension_name: dim.name.clone(),
+                    action: rule.action.clone(),
+                    scale_type: dim.scale_type.clone(),
+                    scorecard_id,
+                    session_type_hint,
+                });
+            }
+        }
+
+        Ok(nudge_dims)
     }
 }

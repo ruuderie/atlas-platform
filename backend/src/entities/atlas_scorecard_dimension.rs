@@ -26,6 +26,7 @@ pub struct Model {
     #[sea_orm(column_type = "Decimal(Some((5, 4)))")]
     pub weight: Decimal,
     /// 'rating' | 'absolute' | 'boolean' | 'poll_single' | 'poll_multi'
+    /// Service layer: convert with `crate::types::scorecard::ScaleType::try_from(scale_type.clone())`.
     pub scale_type: String,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))")]
     pub scale_min: Decimal,
@@ -33,9 +34,11 @@ pub struct Model {
     pub scale_max: Decimal,
     /// Unit label displayed to contributors: 'Mbps', 'USD/mo', '°C', 'hrs', '%'
     pub unit_label: Option<String>,
-    /// JSONB array of tier objects defining what each score range means.
-    /// rating/absolute: [{label, min_score, color}]
-    /// boolean: [{label, min_pct, color}]
+    /// JSONB array of `BenchmarkTier` objects defining what each score range means.
+    /// Typed in service code as `crate::types::scorecard::BenchmarkTiers`.
+    /// rating/absolute (normal):  [{label, min_score, color}]
+    /// rating/absolute (inverted): [{label, max_score, color}]
+    /// boolean:                   [{label, min_pct, color}]
     #[sea_orm(column_type = "JsonBinary")]
     pub benchmark_tiers: Value,
     /// The global "bar" value for above/below-bar comparison.
@@ -46,6 +49,15 @@ pub struct Model {
     pub is_community_ratable: bool,
     pub is_active: bool,
     pub sort_order: i32,
+    /// When true: lower score = better outcome.
+    ///
+    /// Affects `ScorecardService::recompute_aggregates` in three places:
+    ///   1. `dimension_vector` normalization: uses `(max - score)` instead of `(score - min)`
+    ///   2. `vs_global_label`: negative delta from reference = "above" (not "below")
+    ///   3. Benchmark tier resolution: matches `max_score` keys instead of `min_score`
+    ///
+    /// Examples: `timeline_slippage`, `competition_risk`, `ramp_to_close`, `air_pollution`
+    pub is_inverted: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

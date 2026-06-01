@@ -1,6 +1,11 @@
 use leptos::prelude::*;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
+use crate::components::scorecard::{
+    DisplayRulesSection,
+    models::DisplayRuleForm,
+};
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Data Models — mirror the backend entity shapes for form state
@@ -58,6 +63,9 @@ pub struct DimensionForm {
     pub range_min: Option<f64>,
     pub range_max: Option<f64>,
     pub search_weight: Option<f64>,
+    /// When true: lower score = better (e.g. timeline_slippage, competition_risk).
+    /// Mirrors `atlas_scorecard_dimensions.is_inverted`.
+    pub is_inverted: bool,
 }
 
 impl DimensionForm {
@@ -82,6 +90,7 @@ impl DimensionForm {
             range_min: None,
             range_max: None,
             search_weight: None,
+            is_inverted: false,
         }
     }
 }
@@ -134,11 +143,13 @@ pub fn Configurator(
     let template = RwSignal::new(initial_template.unwrap_or_default());
     let dimensions = RwSignal::new(initial_dimensions.unwrap_or_default());
     let next_local_id = RwSignal::new(100usize);
-    // "overview" | "dimensions" | "combinator"
+    // "overview" | "dimensions" | "combinator" | "display_rules"
     let active_section = RwSignal::new("overview".to_string());
     // Which dimension is open in the right-side detail editor
     let editing_dim: RwSignal<Option<usize>> = RwSignal::new(None);
     let save_attempted = RwSignal::new(false);
+    // Display rules — tier-gated. Default empty; populated from backend on load.
+    let display_rules: RwSignal<Vec<DisplayRuleForm>> = RwSignal::new(Vec::new());
 
     let alloc_id = move || {
         let id = next_local_id.get_untracked();
@@ -239,6 +250,15 @@ pub fn Configurator(
                     <Show when=move || active_section.get() == "combinator">
                         <CombinatorSection dimensions=dimensions />
                     </Show>
+                    <Show when=move || active_section.get() == "display_rules">
+                        <DisplayRulesSection
+                            dimensions=dimensions.read_only()
+                            rules=display_rules
+                            next_local_id=next_local_id
+                            // TODO: read from tenant_settings API response
+                            rules_enabled=true
+                        />
+                    </Show>
                 </div>
             </div>
         </div>
@@ -292,14 +312,15 @@ fn ConfiguratorTopBar(
                 </div>
             </div>
             <div class="cfg-topbar-nav">
-                {["overview", "dimensions", "combinator"].iter().map(|&sec| {
+                {["overview", "dimensions", "combinator", "display_rules"].iter().map(|&sec| {
                     let sec_str = sec.to_string();
                     let sec_str2 = sec_str.clone();
                     let label = match sec {
-                        "overview"    => "Template",
-                        "dimensions"  => "Dimensions",
-                        "combinator"  => "Combinator",
-                        _             => sec,
+                        "overview"       => "Template",
+                        "dimensions"     => "Dimensions",
+                        "combinator"     => "Combinator",
+                        "display_rules"  => "Display Rules",
+                        _                => sec,
                     };
                     view! {
                         <button
@@ -386,6 +407,12 @@ fn ConfiguratorSidebar(
                     label="Combinator Config"
                     icon="⊕"
                     section="combinator"
+                    active_section=active_section
+                />
+                <SidebarNavItem
+                    label="Display Rules"
+                    icon="⚡"
+                    section="display_rules"
                     active_section=active_section
                 />
             </nav>
@@ -785,7 +812,7 @@ fn DimensionEditor(
     };
 
     let needs_options = move || {
-        dim().map(|d| d.scale_type == "poll" || d.scale_type == "multiselect")
+        dim().map(|d| d.scale_type == "poll_single" || d.scale_type == "poll_multi")
             .unwrap_or(false)
     };
 
@@ -894,8 +921,9 @@ fn DimensionEditor(
                                 >
                                     <option value="rating">"Rating (numeric)"</option>
                                     <option value="absolute">"Absolute value"</option>
-                                    <option value="poll">"Poll (options)"</option>
-                                    <option value="multiselect">"Multi-select"</option>
+                                    // Backend enum: poll_single / poll_multi
+                                    <option value="poll_single">"Poll (single choice)"</option>
+                                    <option value="poll_multi">"Multi-select poll"</option>
                                     <option value="boolean">"Boolean (yes/no)"</option>
                                 </select>
                             </div>
@@ -961,6 +989,26 @@ fn DimensionEditor(
                                 }
                             />
                         </div>
+                    </div>
+
+                    // is_inverted toggle
+                    <div class="cfg-toggle-row">
+                        <div>
+                            <p class="cfg-label">"Inverted Scale (lower = better)"</p>
+                            <p class="cfg-hint">
+                                "Use for dimensions where low score is a good outcome: "
+                                "timeline slippage, competition risk, churn probability, etc. "
+                                "The service normalizes and labels this correctly."
+                            </p>
+                        </div>
+                        <button
+                            class=move || if dim().map(|d| d.is_inverted).unwrap_or(false) { "cfg-toggle cfg-toggle--on" } else { "cfg-toggle" }
+                            role="switch"
+                            aria-checked=move || dim().map(|d| d.is_inverted).unwrap_or(false).to_string()
+                            on:click=move |_| update_dim(&|d| d.is_inverted = !d.is_inverted)
+                        >
+                            <span class="cfg-toggle-thumb"></span>
+                        </button>
                     </div>
 
                     <div class="cfg-toggle-row">

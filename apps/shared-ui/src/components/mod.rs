@@ -20,3 +20,6 @@ pub mod email_composer;
 /// G-27 Scorecard Template Configurator — create/edit templates, dimensions, and Combinator config.
 pub mod configurator;
 
+/// G-27 Scorecard — component suite (widget, nudge prompt, display rules builder).
+/// Use this for new features; configurator.rs remains for backward compat.
+pub mod scorecard;

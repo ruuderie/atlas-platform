@@ -10,6 +10,7 @@ mod models;
 mod traits;
 mod config;
 mod services;
+mod types;
 mod webauthn_registry;
 pub mod atlas_apps;
 pub mod metrics;

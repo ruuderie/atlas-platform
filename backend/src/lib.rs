@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+pub mod types;
 pub mod api;
 pub mod auth;
 pub mod webauthn_registry;
