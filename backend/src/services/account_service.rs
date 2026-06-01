@@ -1,6 +1,7 @@
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, ActiveModelTrait,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, ActiveModelTrait,
     QueryFilter, QueryOrder, QuerySelect, Set,
+    sea_query::{Expr, Func},
 };
 use uuid::Uuid;
 use chrono::Utc;
@@ -196,9 +197,9 @@ impl AccountService {
             .filter(atlas_account::Column::TenantId.eq(tenant_id))
             .filter(
                 sea_orm::Condition::any()
-                    .add(atlas_account::Column::Name.contains(&pattern))
-                    .add(atlas_account::Column::CompanyEmail.contains(&pattern))
-                    .add(atlas_account::Column::Domain.contains(&pattern))
+                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::Name))).like(&pattern))
+                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::CompanyEmail))).like(&pattern))
+                    .add(Expr::expr(Func::lower(Expr::col(atlas_account::Column::Domain))).like(&pattern))
             )
             .filter(atlas_account::Column::Status.ne("archived"))
             .order_by_asc(atlas_account::Column::Name)

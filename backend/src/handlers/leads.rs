@@ -130,9 +130,20 @@ pub async fn create_lead(
         }
     }
 
-    let mut resolved_tenant_id = None;
+    let mut resolved_tenant_id = input.tenant_id;
     if let Some(Extension(site_config)) = site_config_opt {
         resolved_tenant_id = Some(site_config.tenant_id);
+    }
+    // Final fallback: derive tenant_id from the atlas_account record for the resolved account.
+    // This covers authenticated direct-API calls (no SiteConfig) where the caller
+    // supplies account_id but not tenant_id.
+    if resolved_tenant_id.is_none() {
+        if let Some(acct_id) = resolved_account_id {
+            use crate::entities::atlas_account;
+            if let Ok(Some(acct)) = atlas_account::Entity::find_by_id(acct_id).one(&db).await {
+                resolved_tenant_id = Some(acct.tenant_id);
+            }
+        }
     }
 
     let mut new_lead = lead::ActiveModel {

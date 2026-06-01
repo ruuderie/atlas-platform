@@ -59,6 +59,9 @@ pub struct CreateLeadInput {
     pub lead_status: Option<String>,
     pub _bot_check: Option<String>,
     pub avatar_url: Option<String>,
+    /// Explicit tenant override — used by authenticated API calls and tests
+    /// that operate without a SiteConfig extension. SiteConfig always wins.
+    pub tenant_id: Option<uuid::Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
