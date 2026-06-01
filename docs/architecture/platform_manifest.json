@@ -1,0 +1,397 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "last_updated": "2026-06-01T13:31:00Z"
+  },
+  "core_stack": {
+    "backend": "Rust (Axum), SeaORM, PostgreSQL, Tokio",
+    "frontend": "Leptos (SSR + WASM via wasm-bindgen)",
+    "authentication": "webauthn-rs, argon2, SHA-256 session tokens",
+    "cache": "Moka (in-process LRU)",
+    "storage": "Cloudflare R2 (primary), S3-compatible (pluggable)",
+    "observability": "Prometheus metrics, structured tracing (tracing-subscriber)",
+    "deployment": "Docker, Caddy reverse proxy, K8s-compatible, Woodpecker CI"
+  },
+  "infrastructure_modules": [
+    {
+      "name": "Authentication & Identity",
+      "status": "Production-Ready",
+      "features": [
+        "Passkey (WebAuthn FIDO2) as primary authentication — biometric, hardware-key, zero-password",
+        "Magic Link email fallback with 3-layer deduplication guard (Moka cache + Postgres advisory lock + DB upsert)",
+        "Multi-tenant WebAuthn Registry: each tenant domain gets its own Webauthn instance (eTLD+1 rp_id derivation, DB pre-warmed at startup)",
+        "Session management: cryptographically secure bearer + refresh tokens, SHA-256 hashed in DB",
+        "RBAC: UserAppPermission model (per-user, per-app-instance, role-scoped)",
+        "API token system for programmatic access"
+      ]
+    },
+    {
+      "name": "Multi-Tenancy & Routing",
+      "status": "Production-Ready",
+      "features": [
+        "True multi-tenant: single database, row-level tenant_id scoping",
+        "Tenant → AppInstance → AppDomain model: one tenant can have multiple apps (CMS, listing directory, property management)",
+        "Dynamic host-header resolution: Caddy preserves Host → Axum middleware resolves tenant_id via AppDomain table",
+        "Tenant provisioning: POST /api/admin/platform/provision/{tenant_id} bootstraps CMS + menus",
+        "Moka LRU in-process cache for AppInstance resolution (sub-millisecond tenant resolution)",
+        "TenantSetting: flexible key-value config per tenant",
+        "OnboardingProgress: trackable step-by-step onboarding state machine"
+      ]
+    },
+    {
+      "name": "CMS & Content Layer",
+      "status": "Production-Ready",
+      "features": [
+        "Block-based CMS: AppPage model with blocks_payload JSONB (Anchor-style)",
+        "Navigation menus: AppMenu with hierarchy support (parent_id, display_order)",
+        "Feed system: Feed + FeedItem for activity streams and content feeds",
+        "Template system: reusable content templates scoped per tenant",
+        "Category taxonomy: hierarchical category tree with custom categories",
+        "A/B testing infrastructure: ListingABTest + ListingABVariant with view/conversion tracking"
+      ]
+    },
+    {
+      "name": "Directory & Listings",
+      "status": "Production-Ready",
+      "features": [
+        "Listing entity: geo-tagged (lat/lng, country/state/city), priced, typed, template-backed",
+        "Ad purchase system: AdPurchase for promoted listings",
+        "Global search index: global_search_index for cross-entity search",
+        "Profile system: multi-role profiles per account"
+      ]
+    },
+    {
+      "name": "Payments & Financial",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G03 — Multi-rail ledger: atlas_ledger_entries + atlas_ledger_splits",
+        "atlas_payment_credentials: per-tenant encrypted payment provider config",
+        "Payment rails supported: Stripe, Bitcoin (mempool.space integration), Zelle, Pix (Brazilian), ACH",
+        "Bitcoin: mempool TX hash validation, price lock engine (20-min invoice window)",
+        "Brazilian market: Condomínio expense splitting (Despesas Ordinárias vs Extraordinárias)",
+        "LedgerService: unified billing entry point replacing legacy transaction tables"
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G04 — atlas_subscriptions: B2C recurring billing plans",
+        "SubscriptionService: plan management, status lifecycle (active/paused/cancelled)",
+        "BillingPlan + TenantSubscription for platform-tier SaaS billing"
+      ]
+    },
+    {
+      "name": "File Vault & Storage",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G02 — Secure file vault: attachment table extended with share tokens + multipart upload tracking",
+        "Backend-agnostic: R2 / S3 / local storage switch via storage_backend field",
+        "Cloudflare R2 integration: zero-egress cost for lease PDFs, media, exports",
+        "Pre-signed URL generation for secure tenant document downloads",
+        "VaultService: upload, share token generation, multipart coordination"
+      ]
+    },
+    {
+      "name": "Realtime Infrastructure",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G07 — atlas_ws_rooms_ + atlas_ws_messages: polymorphic WebSocket room model",
+        "Rooms can attach to any entity (a property, a case, a deal)",
+        "RealtimeService: room creation, message broadcast primitives"
+      ]
+    },
+    {
+      "name": "AI Task Queue",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G08 — atlas_ai_tasks: async LLM/model work queue (summarize, classify, extract, generate)",
+        "AITaskService: submit, poll, result retrieval"
+      ]
+    },
+    {
+      "name": "External Integrations",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G05 — atlas_external_integrations: PMS, OTA, AMS, GDS, Telephony connectors",
+        "atlas_integration_events: directional event log (inbound/outbound)",
+        "ExternalIntegrationService: connect, sync, event audit"
+      ]
+    },
+    {
+      "name": "Verification & Trust",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G06 — atlas_verification_requests: human + automated trust workflows (identity, document, background check, license)",
+        "VerificationService: submit, review, approve/reject lifecycle"
+      ]
+    },
+    {
+      "name": "Geographic / Spatial",
+      "status": "Infrastructure Ready",
+      "features": [
+        "G01 — PostGIS-backed: geo_service_areas with geometry boundaries",
+        "GeoService: region lookup, boundary-intersection queries (graceful degradation in environments without PostGIS binary)"
+      ]
+    },
+    {
+      "name": "Observability & Operations",
+      "status": "Production-Ready",
+      "features": [
+        "Prometheus /metrics endpoint (bearer-token protected)",
+        "AuditLog: every user action stamped with IP + user_id",
+        "RequestLog: full HTTP request logging per user",
+        "TelemetryEvents: custom event emission per tenant",
+        "PlatformMetricsDaily: aggregated daily metrics (hourly worker)",
+        "X-Atlas-Version response header: semver + git-sha on every response"
+      ]
+    },
+    {
+      "name": "Background Workers",
+      "status": "Active",
+      "features": [
+        "OutboxWorker: SKIP LOCKED email/webhook delivery (outbox pattern)",
+        "DataSyncService: idempotent background sync (Bitcoin mempool, external data)",
+        "TelemetryService: hourly daily-metrics aggregation",
+        "WebhookSweeper: delivery retry + audit for webhook endpoints"
+      ]
+    },
+    {
+      "name": "Communication Infrastructure",
+      "status": "Production-Ready",
+      "features": [
+        "Webhook system: WebhookEndpoint + WebhookDelivery with retry",
+        "Magic link email delivery via SMTP (outbox-backed, deduplication-safe)",
+        "Headless email template system: EmailTemplate with merge fields",
+        "Telephony services (under services/telephony/)",
+        "SMS notifications via outbox pipeline"
+      ]
+    }
+  ],
+  "platform_generics": [
+    {
+      "code": "G01",
+      "name": "atlas_geo",
+      "models": "Service areas and geographic spatial boundaries",
+      "revenue_cases": "Delivery zone pricing, localized tax enforcement, territory scoping",
+      "status": "Deployed"
+    },
+    {
+      "code": "G02",
+      "name": "atlas_vault",
+      "models": "Secure file attachments, shares, and presigned downloads",
+      "revenue_cases": "Charge for high-capacity secure storage, document sharing audits",
+      "status": "Deployed"
+    },
+    {
+      "code": "G03",
+      "name": "atlas_ledger",
+      "models": "Multi-rail financial entries, Splits, and payouts",
+      "revenue_cases": "Take-rate transaction monetization, programmatic payout splits",
+      "status": "Deployed"
+    },
+    {
+      "code": "G04",
+      "name": "atlas_subscriptions",
+      "models": "Recurring billing plans, pricing tiers, and subscriptions",
+      "revenue_cases": "SaaS recurring MRR collection, tiered access controls",
+      "status": "Deployed"
+    },
+    {
+      "code": "G05",
+      "name": "atlas_integrations",
+      "models": "PMS, OTA, GDS, telephony and third-party event logs",
+      "revenue_cases": "Premium integration add-on fees, synchronization sync charges",
+      "status": "Deployed"
+    },
+    {
+      "code": "G06",
+      "name": "atlas_verifications",
+      "models": "KYC, background check, license validation request queues",
+      "revenue_cases": "Verification markups (charge per background check), trust badges",
+      "status": "Deployed"
+    },
+    {
+      "code": "G07",
+      "name": "atlas_chat",
+      "models": "Polymorphic WebSocket room registry and messaging logs",
+      "revenue_cases": "Paid tenant communication add-ons, structured customer support rooms",
+      "status": "Deployed"
+    },
+    {
+      "code": "G08",
+      "name": "atlas_ai_tasks",
+      "models": "Async task queues for classification, summarization, generation",
+      "revenue_cases": "AI credit packs, automated listing translation, automatic contract parsing",
+      "status": "Deployed"
+    },
+    {
+      "code": "G09",
+      "name": "atlas_portfolios",
+      "models": "Groupings of assets for reporting, billing, and access control",
+      "revenue_cases": "Portfolio management dashboards, roll-up holding report feeds",
+      "status": "Deployed"
+    },
+    {
+      "code": "G10",
+      "name": "atlas_assets",
+      "models": "Physical or digital items with full hierarchical layout",
+      "revenue_cases": "Asset listing directories, hierarchical unit management fees",
+      "status": "Deployed"
+    },
+    {
+      "code": "G11",
+      "name": "atlas_contracts",
+      "models": "Legal agreements, leases, insurance policies, SLAs",
+      "revenue_cases": "Auto-lease generation, policy dispatch, SLA enforcement audits",
+      "status": "Deployed"
+    },
+    {
+      "code": "G12",
+      "name": "atlas_service_providers",
+      "models": "Vendors, contractors, agents, brokers, adjusters",
+      "revenue_cases": "Vendor marketplaces, contractor dispatch fees, dispatch split capture",
+      "status": "Deployed"
+    },
+    {
+      "code": "G13",
+      "name": "atlas_cases",
+      "models": "Work items, support tickets, claims, maintenance tasks",
+      "revenue_cases": "Claim processing fees, field service dispatch markups",
+      "status": "Deployed"
+    },
+    {
+      "code": "G14",
+      "name": "atlas_documents",
+      "models": "Polymorphic files with e-sig versioning and linkage",
+      "revenue_cases": "E-signature ceremony transaction markups, automated auditing logs",
+      "status": "Deployed"
+    },
+    {
+      "code": "G15",
+      "name": "atlas_opportunities",
+      "models": "Sales pipelines and deals with integrated financial models",
+      "revenue_cases": "Deal flow capture, pipeline conversion analysis, financing opportunities",
+      "status": "Deployed"
+    },
+    {
+      "code": "G16",
+      "name": "atlas_regulatory",
+      "models": "Government permits, licenses, and zoning registrations",
+      "revenue_cases": "Short Term Rental (STR) permit trackers, compliance dashboard upsells",
+      "status": "Deployed"
+    },
+    {
+      "code": "G17",
+      "name": "atlas_tax",
+      "models": "Taxable events and periodic government tax filings",
+      "revenue_cases": "Tourist Development Tax (TDT), VAT automated filings, 1099-K filings",
+      "status": "Deployed"
+    },
+    {
+      "code": "G18",
+      "name": "atlas_applications",
+      "models": "Structured multi-step intake and user onboarding flows",
+      "revenue_cases": "Tenant screening fee markups, agent recruitment onboarding packages",
+      "status": "Deployed"
+    },
+    {
+      "code": "G19",
+      "name": "atlas_campaigns",
+      "models": "Multi-channel sequence steps, enrollments, and metric histories",
+      "revenue_cases": "Outbound email campaign engines, Google Ads lead routing integration",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G20",
+      "name": "atlas_attribution",
+      "models": "Multi-channel UTM touchpoints, identity mapping, conversion values",
+      "revenue_cases": "Calculated Cost Per Acquisition (CAC) attribution, Google/Facebook pixel spend auditing",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G21",
+      "name": "atlas_events",
+      "models": "Public gatherings, virtual conferences, ticketing and check-in",
+      "revenue_cases": "Ticket sales commissions, webinar registration fees, event attribution mapping",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G22",
+      "name": "atlas_record_relationships",
+      "models": "Universal M:M polymorphic junctions and related record lists",
+      "revenue_cases": "Dynamic CRM related list builder without custom schema updates",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G23",
+      "name": "atlas_reservations",
+      "models": "Time-bounded reservation booking with auto-release inventory holds",
+      "revenue_cases": "Direct hotel booking pipelines, flight/package holds, schedule conflict verification",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G24",
+      "name": "atlas_quotes",
+      "models": "Pre-purchase pricing proposals and line items",
+      "revenue_cases": "Insurance premium submissions, wholesale product quotes, dynamic flight-hotel package bids",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G25",
+      "name": "atlas_commission_plans",
+      "models": "Commission split rules, overrides, caps and clawback governance",
+      "revenue_cases": "Multi-tier broker commission plans, franchise operations split calculations",
+      "status": "Scored/Approved"
+    },
+    {
+      "code": "G26",
+      "name": "atlas_catalog",
+      "models": "Product/service catalog pricebooks, rates, and availability slots",
+      "revenue_cases": "Dynamic rate calendars, PMS-synced availability pricing boards",
+      "status": "Scored/Approved"
+    }
+  ],
+  "infrastructure_gaps": [
+    {
+      "gap": "Vertical app UI screens",
+      "impact": "Need specific views assembled per vertical",
+      "resolution": "Customer/team builds utilizing shared-ui component wrappers"
+    },
+    {
+      "gap": "Granular RBAC enforcement",
+      "impact": "Axum route handlers need concrete permission boundary checks",
+      "resolution": "Wiring UserAppPermission scopes to middleware handlers"
+    },
+    {
+      "gap": "Realtime WebSocket Server integration",
+      "impact": "Wired primitives exist, but active WS server execution is pending",
+      "resolution": "Deploy standard Tokio-tungstenite WebSocket relay"
+    },
+    {
+      "gap": "AI Task Queue Workers",
+      "impact": "Tasks queue is defined, but concrete LLM executor background jobs are not yet wired",
+      "resolution": "Register LLM workers to background outbox pipelines"
+    },
+    {
+      "gap": "Payment Gateway SDK Integrations",
+      "impact": "Ledger splits are active, but Stripe/Pix SDK calls are not fully wired to active payouts",
+      "resolution": "Integrate async-stripe crate calls directly inside LedgerService"
+    },
+    {
+      "gap": "E-Signature Ceremony UI",
+      "impact": "Document signature status exists, but active signing screens are not yet designed",
+      "resolution": "Deploy secure PDF signing panel utilizing canvas rendering in Leptos"
+    },
+    {
+      "gap": "Full PostGIS spatial capabilities",
+      "impact": "PostgreSQL schema is ready, but local CI pipelines skip binary PostGIS validation",
+      "resolution": "Configure standard spatial engine inside Docker/CI runners"
+    },
+    {
+      "gap": "External Integration Connectors",
+      "impact": "Connector schemas ready, but concrete PMS/OTA relays are not yet written",
+      "resolution": "Implement concrete integration drivers (e.g. Guesty, Sabre, Salesforce AppExchange)"
+    }
+  ]
+}

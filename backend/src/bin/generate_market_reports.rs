@@ -12,13 +12,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use clap::Parser;
 use pulldown_cmark::{Parser as MarkdownParser, Event, Tag};
+use serde_json::Value;
 
 #[derive(Parser, Debug)]
 #[command(
     name = "generate_market_reports",
     author = "Ruud Erie",
-    version = "2.1.0",
-    about = "Compiles Markdown market reports in docs/market-analysis to beautiful, premium LaTeX PDFs",
+    version = "3.0.0",
+    about = "Compiles, generates, and synchronizes strategic vertical and sales reports dynamically in Rust",
     long_about = None
 )]
 struct Args {
@@ -33,9 +34,668 @@ struct Args {
     /// Custom output directory or path for the generated PDF(s)
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Synchronize prompt templates with the platform manifest SSoT
+    #[arg(long)]
+    sync: bool,
+
+    /// Generate a new report using a niche profile key (e.g., 'insurance_adjusting_us')
+    #[arg(long)]
+    niche: Option<String>,
+
+    /// Type of report to generate: 'market_analysis' or 'sales'
+    #[arg(long)]
+    report_type: Option<String>,
+
+    /// Compile/stitch the prompt locally without making an API call
+    #[arg(long)]
+    dry_run: bool,
+
+    /// Generate a unified strategic reports catalog in docs/reports/niches_tracked.md
+    #[arg(long)]
+    catalog: bool,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+struct ReportItem {
+    filename: String,
+    title: String,
+    sector: String,
+    geo: String,
+    pdf_status: String,
+    pdf_file: Option<String>,
+    report_type: String,
+    rel_path: String,
+}
+
+fn get_sector(filename: &str) -> &'static str {
+    let lower = filename.to_lowercase();
+    
+    let sectors = [
+        ("Real Estate & Construction", vec!["real_estate", "property", "brokerage", "construction", "ny_real", "nyc_real", "sao_paulo", "sao_bernardo"]),
+        ("Financial Services & Fintech", vec!["lending", "finance", "factoring", "fintech", "stablecoins", "traders", "rollup", "holding", "mergers"]),
+        ("Logistics & Infrastructure", vec!["freight", "logistics", "trucking", "equipment_rental", "parking", "energy"]),
+        ("Creative, Media & Festivals", vec!["creator", "music", "studio", "festivals", "media", "entertainment"]),
+        ("Healthcare & MedTech", vec!["health", "dental", "odontologia", "medical", "beauty"]),
+        ("Retail & Consumer Commerce", vec!["grocers", "supermercados", "retail", "reseller", "luxury"]),
+        ("Services & Local Governance", vec!["agency", "churches", "legal", "recruiting", "education", "vocational", "haiti", "dominican", "military"]),
+        ("Hospitality & Experiential", vec!["tourism", "passport_bros", "usvi", "restaurants", "catering"])
+    ];
+    
+    for (sector, keywords) in &sectors {
+        for kw in keywords {
+            if lower.contains(kw) {
+                return sector;
+            }
+        }
+    }
+    
+    "Specialized & Emerging Niches"
+}
+
+fn parse_geo(filename: &str) -> String {
+    let cleaned = filename.replace('-', "_");
+    let parts: Vec<&str> = cleaned.split('_').collect();
+    let mut geos = std::collections::HashSet::new();
+    
+    let known_geos = [
+        ("us", "United States"),
+        ("brazil", "Brazil"),
+        ("br", "Brazil"),
+        ("haiti", "Haiti"),
+        ("uae", "United Arab Emirates"),
+        ("europe", "Europe"),
+        ("global", "Global"),
+        ("nyc", "New York City"),
+        ("ny", "New York"),
+        ("sp", "São Paulo"),
+        ("usvi", "US Virgin Islands"),
+        ("ae", "United Arab Emirates"),
+        ("ht", "Haiti")
+    ];
+    
+    for p in parts {
+        let pl = p.to_lowercase();
+        for (kw, name) in &known_geos {
+            if pl == *kw {
+                geos.insert(*name);
+            }
+        }
+    }
+    
+    if geos.is_empty() {
+        "Not Specified".to_string()
+    } else {
+        let mut v: Vec<&str> = geos.into_iter().collect();
+        v.sort();
+        v.join(" & ")
+    }
+}
+
+fn check_pdf_status(directory: &Path, filename_stem: &str) -> (String, Option<String>) {
+    let pdf_dir = directory.join("pdf");
+    if !pdf_dir.exists() || !pdf_dir.is_dir() {
+        return ("[NO] Pending".to_string(), None);
+    }
+    
+    let mut newest_pdf: Option<(PathBuf, std::time::SystemTime)> = None;
+    
+    if let Ok(entries) = fs::read_dir(pdf_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "pdf") {
+                let name = path.file_stem().unwrap().to_str().unwrap();
+                if name == filename_stem || (name.starts_with(filename_stem) && name.len() > filename_stem.len() && name.chars().nth(filename_stem.len()) == Some('_')) {
+                    if let Ok(meta) = fs::metadata(&path) {
+                        if let Ok(modified) = meta.modified() {
+                            if newest_pdf.is_none() || modified > newest_pdf.as_ref().unwrap().1 {
+                                newest_pdf = Some((path, modified));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if let Some((pdf_path, modified)) = newest_pdf {
+        let date: chrono::DateTime<chrono::Local> = modified.into();
+        let date_str = date.format("%Y-%m-%d").to_string();
+        let filename = pdf_path.file_name().unwrap().to_str().unwrap().to_string();
+        (format!("[YES] Compiled ({})", date_str), Some(filename))
+    } else {
+        ("[NO] Pending".to_string(), None)
+    }
+}
+
+fn run_catalog(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let market_dir = docs_root.join("reports").join("market-analysis");
+    let sales_dir = docs_root.join("reports").join("sales");
+    let output_path = docs_root.join("reports").join("niches_tracked.md");
+    
+    if !market_dir.exists() || !sales_dir.exists() {
+        return Err("Reports directories do not exist. Check structure.".into());
+    }
+    
+    let mut reports = Vec::new();
+    
+    // Scan market analyses
+    if let Ok(entries) = fs::read_dir(&market_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                if name.to_lowercase() != "readme.md" {
+                    let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
+                    let (pdf_status, pdf_file) = check_pdf_status(&market_dir, &stem);
+                    let title = format_title_case(&stem);
+                    let sector = get_sector(&stem).to_string();
+                    let geo = parse_geo(&stem);
+                    
+                    reports.push(ReportItem {
+                        filename: name.to_string(),
+                        title,
+                        sector,
+                        geo,
+                        pdf_status,
+                        pdf_file,
+                        report_type: "Market Analysis".to_string(),
+                        rel_path: format!("market-analysis/{}", name),
+                    });
+                }
+            }
+        }
+    }
+
+    // Scan sales analyses
+    if let Ok(entries) = fs::read_dir(&sales_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
+                let name = path.file_name().unwrap().to_str().unwrap();
+                if name.to_lowercase() != "readme.md" {
+                    let stem = path.file_stem().unwrap().to_str().unwrap().to_string();
+                    let (pdf_status, pdf_file) = check_pdf_status(&sales_dir, &stem);
+                    let title = format_title_case(&stem);
+                    let sector = get_sector(&stem).to_string();
+                    let geo = parse_geo(&stem);
+                    
+                    reports.push(ReportItem {
+                        filename: name.to_string(),
+                        title,
+                        sector,
+                        geo,
+                        pdf_status,
+                        pdf_file,
+                        report_type: "Technical Sales".to_string(),
+                        rel_path: format!("sales/{}", name),
+                    });
+                }
+            }
+        }
+    }
+    
+    // Sort alphabetically by title
+    reports.sort_by(|a, b| a.title.cmp(&b.title));
+    
+    // Group by sector
+    let mut sectors: std::collections::BTreeMap<String, Vec<ReportItem>> = std::collections::BTreeMap::new();
+    for r in reports {
+        sectors.entry(r.sector.clone()).or_insert_with(Vec::new).push(r);
+    }
+    
+    let total_market = sectors.values().flatten().filter(|r| r.report_type == "Market Analysis").count();
+    let total_sales = sectors.values().flatten().filter(|r| r.report_type == "Technical Sales").count();
+    let total_all = total_market + total_sales;
+    
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    
+    let mut md = Vec::new();
+    md.push("# 📋 Strategic Niches & Go-To-Market Reports Catalog".to_string());
+    md.push(format!("**Last Scanned:** {}  ", now));
+    md.push(format!("**Total Reports Scanned:** {} ({} Market Analyses, {} Sales Analyses)  ", total_all, total_market, total_sales));
+    md.push("".to_string());
+    md.push("This dynamic catalog indexes every vertical niche we are currently tracking, mapping them to major economic sectors, geographic scopes, and compiled PDF version-controlled assets.".to_string());
+    md.push("".to_string());
+    
+    md.push("## 📊 Sector Summary Breakdown".to_string());
+    md.push("".to_string());
+    md.push("| Economic Sector | Active Reports | Market Analyses | Sales Analyses | PDF Compiled Ratio |".to_string());
+    md.push("|-----------------|----------------|-----------------|----------------|--------------------|".to_string());
+    
+    for (sec, items) in &sectors {
+        let m_count = items.iter().filter(|r| r.report_type == "Market Analysis").count();
+        let s_count = items.iter().filter(|r| r.report_type == "Technical Sales").count();
+        let compiled = items.iter().filter(|r| r.pdf_status.contains("[YES]")).count();
+        let ratio = format!("{}/{} ({}%)", compiled, items.len(), (compiled * 100) / items.len());
+        md.push(format!("| {} | **{}** | {} | {} | {} |", sec, items.len(), m_count, s_count, ratio));
+    }
+    md.push("".to_string());
+    md.push("---".to_string());
+    md.push("".to_string());
+    
+    md.push("## 🗂️ Detailed Sector Index".to_string());
+    md.push("".to_string());
+    
+    for (sec, items) in &sectors {
+        md.push(format!("### {}", sec));
+        md.push("".to_string());
+        md.push("| Report Document Name | Type | Geographic Scope | PDF Output Status |".to_string());
+        md.push("|----------------------|------|------------------|-------------------|".to_string());
+        
+        for r in items {
+            let md_link = format!("[{}]({})", r.title, r.rel_path);
+            let pdf_link = match &r.pdf_file {
+                Some(pdf) => format!("[{}](pdf/{})", r.pdf_status, pdf),
+                None => r.pdf_status.clone(),
+            };
+            md.push(format!("| {} | {} | {} | {} |", md_link, r.report_type, r.geo, pdf_link));
+        }
+        md.push("".to_string());
+    }
+    
+    fs::write(&output_path, md.join("\n"))?;
+    println!("Successfully compiled dynamic strategy catalog natively in Rust to: {}", output_path.display());
+    println!("Tracking {} total reports across {} economic sectors.", total_all, sectors.len());
+    
+    Ok(())
+}
+
+fn format_title_case(stem: &str) -> String {
+    stem.replace('-', " ")
+        .replace('_', " ")
+        .split_whitespace()
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
+fn generate_shared_markdown(manifest: &Value) -> Result<String, Box<dyn std::error::Error>> {
+    let mut lines = Vec::new();
+
+    lines.push("## PRODUCTION-READY INFRASTRUCTURE & ENGINES".to_string());
+    lines.push("".to_string());
+    
+    let modules = manifest["infrastructure_modules"].as_array().ok_or("Missing infrastructure_modules in manifest")?;
+    
+    lines.push("### Production-Ready Infrastructure (Available Now)".to_string());
+    lines.push("".to_string());
+    for m in modules {
+        if m["status"].as_str().unwrap_or("") == "Production-Ready" {
+            lines.push(format!("**{}**", m["name"].as_str().unwrap_or("")));
+            if let Some(feats) = m["features"].as_array() {
+                for f in feats {
+                    lines.push(format!("- {}", f.as_str().unwrap_or("")));
+                }
+            }
+            lines.push("".to_string());
+        }
+    }
+
+    lines.push("### Infrastructure Primitives & Background Services (Active/Wired)".to_string());
+    lines.push("".to_string());
+    for m in modules {
+        let status = m["status"].as_str().unwrap_or("");
+        if status == "Infrastructure Ready" || status == "Active" {
+            lines.push(format!("**{}**", m["name"].as_str().unwrap_or("")));
+            if let Some(feats) = m["features"].as_array() {
+                for f in feats {
+                    lines.push(format!("- {}", f.as_str().unwrap_or("")));
+                }
+            }
+            lines.push("".to_string());
+        }
+    }
+
+    lines.push("### Platform Generics (Generics G01–G26+)".to_string());
+    lines.push("".to_string());
+    lines.push("These are the platform generics that allow vertical apps to be rapidly assembled without re-building core business objects:".to_string());
+    lines.push("".to_string());
+    lines.push("| Generic | What It Models | Revenue-Generating Use Case / Example | Status |".to_string());
+    lines.push("|---------|---------------|---------------------------------------|--------|".to_string());
+    
+    let generics = manifest["platform_generics"].as_array().ok_or("Missing platform_generics in manifest")?;
+    for g in generics {
+        let status = g["status"].as_str().unwrap_or("");
+        let status_tag = if status == "Deployed" {
+            format!("**{}**", status)
+        } else {
+            status.to_string()
+        };
+        lines.push(format!(
+            "| {} {} | {} | {} | {} |",
+            g["code"].as_str().unwrap_or(""),
+            g["name"].as_str().unwrap_or(""),
+            g["models"].as_str().unwrap_or(""),
+            g["revenue_cases"].as_str().unwrap_or(""),
+            status_tag
+        ));
+    }
+    lines.push("".to_string());
+
+    lines.push("### Infrastructure Gaps & Core Requirements".to_string());
+    lines.push("".to_string());
+    lines.push("The following outlines what requires additional development or third-party integrations to reach a first-customer-ready state in specialized verticals:".to_string());
+    lines.push("".to_string());
+    lines.push("| Missing Capability / Gap | Operational Impact | Resolution Path |".to_string());
+    lines.push("|--------------------------|--------------------|-----------------|".to_string());
+    
+    let gaps = manifest["infrastructure_gaps"].as_array().ok_or("Missing infrastructure_gaps in manifest")?;
+    for gap in gaps {
+        lines.push(format!(
+            "| {} | {} | {} |",
+            gap["gap"].as_str().unwrap_or(""),
+            gap["impact"].as_str().unwrap_or(""),
+            gap["resolution"].as_str().unwrap_or("")
+        ));
+    }
+    lines.push("".to_string());
+
+    lines.push("### Platform Technology Stack".to_string());
+    lines.push("".to_string());
+    let stack = &manifest["core_stack"];
+    lines.push(format!("- **Backend**: {}", stack["backend"].as_str().unwrap_or("")));
+    lines.push(format!("- **Frontend**: {}", stack["frontend"].as_str().unwrap_or("")));
+    lines.push(format!("- **Authentication**: {}", stack["authentication"].as_str().unwrap_or("")));
+    lines.push(format!("- **Cache**: {}", stack["cache"].as_str().unwrap_or("")));
+    lines.push(format!("- **Storage**: {}", stack["storage"].as_str().unwrap_or("")));
+    lines.push(format!("- **Observability**: {}", stack["observability"].as_str().unwrap_or("")));
+    lines.push(format!("- **Deployment**: {}", stack["deployment"].as_str().unwrap_or("")));
+    lines.push("".to_string());
+
+    Ok(lines.join("\n"))
+}
+
+fn update_prompt_file(
+    file_path: &Path,
+    header_content: &str,
+    shared_markdown: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let content = fs::read_to_string(file_path)?;
+    
+    let start_tag = "<!-- PLATFORM_ARCH_START -->";
+    let end_tag = "<!-- PLATFORM_ARCH_END -->";
+    
+    let start_idx = content.find(start_tag).ok_or_else(|| {
+        format!("Error: Start tag '{}' not found in {}", start_tag, file_path.display())
+    })?;
+    
+    let end_idx = content.find(end_tag).ok_or_else(|| {
+        format!("Error: End tag '{}' not found in {}", end_tag, file_path.display())
+    })?;
+    
+    let injected_segment = format!("{}\n{}\n\n{}\n{}", start_tag, header_content, shared_markdown, end_tag);
+    
+    let new_content = format!(
+        "{}{}{}",
+        &content[..start_idx],
+        injected_segment,
+        &content[end_idx + end_tag.len()..]
+    );
+    
+    fs::write(file_path, new_content)?;
+    println!("Successfully synchronized template prompt: {}", file_path.file_name().unwrap().to_str().unwrap());
+    Ok(())
+}
+
+fn run_sync(docs_root: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_path = docs_root.join("architecture").join("platform_manifest.json");
+    if !manifest_path.exists() {
+        return Err(format!("Manifest file not found at {}", manifest_path.display()).into());
+    }
+    
+    let manifest_str = fs::read_to_string(&manifest_path)?;
+    let manifest: Value = serde_json::from_str(&manifest_str)?;
+    
+    let shared_markdown = generate_shared_markdown(&manifest)?;
+    
+    let market_prompt_path = docs_root.join("prompts").join("market_analysis_prompt.md");
+    update_prompt_file(&market_prompt_path, "## PLATFORM ARCHITECTURE SUMMARY", &shared_markdown)?;
+    
+    let sales_prompt_path = docs_root.join("prompts").join("technical_sales_analysis_prompt.md");
+    let sales_header = "## ATLAS PLATFORM — WHAT IT IS\n\n\
+        Atlas is a **multi-tenant, vertically-agnostic SaaS substrate** built in Rust (Axum) + Leptos (SSR/WASM) + PostgreSQL. It is not a finished product — it is a **platform-as-substrate**: a composable infrastructure layer from which vertical SaaS applications (\"AtlasApps\") are assembled without rebuilding common infrastructure.\n\n\
+        Think of Atlas as the operating system your business runs on — not a tool you add to your stack, but the stack itself.";
+    update_prompt_file(&sales_prompt_path, sales_header, &shared_markdown)?;
+    
+    println!("All template prompts are now synchronized natively in Rust!");
+    Ok(())
+}
+
+fn format_target_block_market(profile: &Value) -> String {
+    let params = &profile["parameters"];
+    format!(
+        "## TARGET MARKET INFORMATION\n\n\
+        TARGET MARKET: {}\n\n\
+        Analyze the Atlas Platform for this vertical target based on the following specific context parameters:\n\
+        - **Niche/Vertical**: {}\n\
+        - **Geography**: {}\n\
+        - **Size and Sweet Spot**: {}\n\
+        - **Asset/Property Types**: {}\n\
+        - **Legal & Regulatory Scope**: {}\n\
+        - **Core Workflows**: {}\n\
+        - **Local Incumbents**: {}\n\
+        - **Cross-Border / Multi-Rail Payout Cases**: {}\n\
+        - **Expected Customer Revenue Model**: {}\n\
+        - **Existing Legacy Software Spend / WTP Signals**: {}\n",
+        profile["target_market"].as_str().unwrap_or("Undefined Vertical"),
+        profile["vertical"].as_str().unwrap_or("Unknown"),
+        profile["geography"].as_str().unwrap_or("Global"),
+        params["size_and_sweet_spot"].as_str().unwrap_or("N/A"),
+        params["property_types"].as_str().unwrap_or("N/A"),
+        params["legal_and_regulatory"].as_str().unwrap_or("N/A"),
+        params["core_workflows"].as_str().unwrap_or("N/A"),
+        params["incumbents"].as_str().unwrap_or("N/A"),
+        params["cross_border_cases"].as_str().unwrap_or("N/A"),
+        params["revenue_model"].as_str().unwrap_or("N/A"),
+        params["budget_spend"].as_str().unwrap_or("N/A")
+    )
+}
+
+fn format_target_block_sales(profile: &Value) -> String {
+    let params = &profile["parameters"];
+    format!(
+        "CUSTOMER PROFILE: {}\n\n\
+        Company overview:\n\
+        - **Vertical/Niche**: {}\n\
+        - **Geography**: {}\n\
+        - **Adjuster/Staff Headcount**: {}\n\
+        - **Volume / Scale**: {}\n\
+        - **Key Relationships / Clients**: {}\n\
+        - **Current Tools & Incumbents**: {}\n\
+        - **Budget / Current Software Spend**: {}\n\n\
+        Key pain points:\n\
+        - {}\n\n\
+        Revenue model today:\n\
+        - {}\n\n\
+        What they want from Atlas:\n\
+        - Standardize and automate core workflows: {}\n",
+        profile["target_market"].as_str().unwrap_or("Undefined Customer"),
+        profile["vertical"].as_str().unwrap_or("Unknown"),
+        profile["geography"].as_str().unwrap_or("Global"),
+        params["adjuster_headcount"].as_str().unwrap_or("N/A"),
+        params["claims_volume"].as_str().unwrap_or("N/A"),
+        params["carrier_clients"].as_str().unwrap_or("N/A"),
+        params["incumbents"].as_str().unwrap_or("N/A"),
+        params["budget_spend"].as_str().unwrap_or("N/A"),
+        params["pain_points"].as_str().unwrap_or("N/A"),
+        params["revenue_model"].as_str().unwrap_or("N/A"),
+        params["core_workflows"].as_str().unwrap_or("N/A")
+    )
+}
+
+async fn call_gemini_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = format!(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={}",
+        api_key
+    );
+    
+    let client = reqwest::Client::new();
+    
+    let payload = serde_json::json!({
+        "contents": [
+            {
+                "parts": [
+                    { "text": prompt }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 8192
+        }
+    });
+    
+    println!("Sending request to Google Gemini API (gemini-1.5-pro)...");
+    
+    let response = client.post(&url)
+        .json(&payload)
+        .send()
+        .await?;
+        
+    if !response.status().is_success() {
+        let err_text = response.text().await?;
+        return Err(format!("Gemini API error: {}", err_text).into());
+    }
+    
+    let res_json: serde_json::Value = response.json().await?;
+    let content = &res_json["candidates"][0]["content"]["parts"][0]["text"];
+    let text = content.as_str().ok_or("Gemini returned empty or invalid text part")?;
+    
+    Ok(text.to_string())
+}
+
+async fn call_claude_api(api_key: &str, prompt: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let url = "https://api.anthropic.com/v1/messages";
+    
+    let client = reqwest::Client::new();
+    
+    let payload = serde_json::json!({
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 8000,
+        "temperature": 0.1,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    });
+    
+    println!("Sending request to Anthropic Claude API (claude-3-5-sonnet)...");
+    
+    let response = client.post(url)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&payload)
+        .send()
+        .await?;
+        
+    if !response.status().is_success() {
+        let err_text = response.text().await?;
+        return Err(format!("Anthropic API error: {}", err_text).into());
+    }
+    
+    let res_json: serde_json::Value = response.json().await?;
+    let content = &res_json["content"][0]["text"];
+    let text = content.as_str().ok_or("Anthropic returned empty or invalid text part")?;
+    
+    Ok(text.to_string())
+}
+
+async fn run_generate(
+    docs_root: &Path,
+    niche: &str,
+    report_type: &str,
+    dry_run: bool,
+    custom_output: &Option<PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let profile_path = docs_root.join("reports").join("profiles").join(format!("{}.json", niche));
+    if !profile_path.exists() {
+        return Err(format!(
+            "Error: Target profile not found at: {}\nAvailable profiles are under docs/reports/profiles/",
+            profile_path.display()
+        ).into());
+    }
+    
+    let profile_str = fs::read_to_string(&profile_path)?;
+    let profile: Value = serde_json::from_str(&profile_str)?;
+    
+    let prompt_file = if report_type == "market_analysis" {
+        "market_analysis_prompt.md"
+    } else {
+        "technical_sales_analysis_prompt.md"
+    };
+    let prompt_path = docs_root.join("prompts").join(prompt_file);
+    if !prompt_path.exists() {
+        return Err(format!("Prompt template not found at: {}", prompt_path.display()).into());
+    }
+    
+    let template = fs::read_to_string(&prompt_path)?;
+    
+    let (niche_block, placeholder) = if report_type == "market_analysis" {
+        (format_target_block_market(&profile), "[TARGET MARKET BLOCK GOES HERE]")
+    } else {
+        (format_target_block_sales(&profile), "[CUSTOMER PROFILE BLOCK GOES HERE]")
+    };
+    
+    let final_prompt = if template.contains(placeholder) {
+        template.replace(placeholder, &niche_block)
+    } else {
+        println!("Warning: Placeholder '{}' not found in template. Appending niche block to end.", placeholder);
+        format!("{}\n\n{}", template, niche_block)
+    };
+    
+    if dry_run {
+        let tmp_path = docs_root.join("reports").join("tmp_prompt.md");
+        fs::write(&tmp_path, &final_prompt)?;
+        println!("\n[DRY RUN SUCCESS]");
+        println!("Surgically stitched SSoT Platform specifications with your '{}' parameters!", niche);
+        println!("Saved complete prompt block to: {}", tmp_path.display());
+        println!("\nPreview of injected Niche Block:\n----------------------------------------------------------------");
+        println!("{}", niche_block);
+        println!("----------------------------------------------------------------\nRun again without --dry-run to compile live via the API.");
+        return Ok(());
+    }
+    
+    // Live Generation: read environment variables
+    let gemini_key = std::env::var("GEMINI_API_KEY").ok();
+    let anthropic_key = std::env::var("ANTHROPIC_API_KEY").ok();
+    
+    let report_content = if let Some(ref key) = gemini_key {
+        call_gemini_api(key, &final_prompt).await?
+    } else if let Some(ref key) = anthropic_key {
+        call_claude_api(key, &final_prompt).await?
+    } else {
+        return Err("Error: No API key found. Please export GEMINI_API_KEY or ANTHROPIC_API_KEY in your terminal session or .env file.".into());
+    };
+    
+    let out_dir = if report_type == "market_analysis" {
+        docs_root.join("reports").join("market-analysis")
+    } else {
+        docs_root.join("reports").join("sales")
+    };
+    
+    fs::create_dir_all(&out_dir)?;
+    let out_md_path = out_dir.join(format!("{}.md", niche));
+    fs::write(&out_md_path, &report_content)?;
+    println!("Saved generated Markdown report to: {}", out_md_path.display());
+    
+    // Native compilation to PDF
+    compile_report(&out_md_path, custom_output)?;
+    println!("\nSuccessfully generated and compiled report PDF natively in Rust!");
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv::dotenv().ok();
     let args = Args::parse();
 
     // 1. Resolve the docs root directory relative to the current working directory
@@ -47,7 +707,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let reports_root = docs_root.join("reports");
 
-    // 2. Process according to command line flags
+    // 2. Handle sync flag
+    if args.sync {
+        println!("Synchronizing template prompts with SSoT Platform Manifest...");
+        run_sync(&docs_root)?;
+        return Ok(());
+    }
+
+    // 3. Handle catalog flag
+    if args.catalog {
+        println!("Compiling dynamic niches catalog...");
+        run_catalog(&docs_root)?;
+        return Ok(());
+    }
+
+    // 4. Handle generation flag
+    if let Some(ref niche) = args.niche {
+        let report_type = args.report_type.as_ref().ok_or_else(|| {
+            "Error: --report-type <market_analysis|sales> is required when --niche is specified."
+        })?;
+        
+        run_generate(&docs_root, niche, report_type, args.dry_run, &args.output).await?;
+        return Ok(());
+    }
+
+    // 5. Process according to command line flags
     if args.all {
         if !reports_root.exists() || !reports_root.is_dir() {
             return Err(format!(
@@ -152,7 +836,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         compile_report(&file_path, &args.output)?;
         println!("\nSuccessfully generated report PDF!");
     } else {
-        println!("Error: Please specify either --all or --file <PATH>");
+        println!("Error: Please specify either --all, --file <PATH>, --sync, --niches, or --catalog");
         println!("Run with --help for all available options.");
         std::process::exit(1);
     }
