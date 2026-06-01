@@ -1,0 +1,45 @@
+flowchart TB
+    subgraph G_Infra ["Infrastructure Generics (G01–G08) — All Implemented"]
+        G01["G01 atlas_geo\nPostGIS spatial queries\ngeo_service_areas"]
+        G02["G02 atlas_vault\nSecure file storage + sharing\nattachment + share_tokens + multipart"]
+        G03["G03 atlas_payments\nMulti-rail ledger\natlas_ledger_entries + splits\natlas_payment_credentials\nRails: Stripe | BTC | Zelle | Pix | ACH"]
+        G04["G04 atlas_subscriptions\nB2C recurring billing\natlas_subscriptions"]
+        G05["G05 atlas_external_integrations\nPMS / OTA / AMS / GDS / Telephony\natlas_external_integrations + events"]
+        G06["G06 atlas_verification_queue\nHuman + automated trust workflows\natlas_verification_requests"]
+        G07["G07 atlas_realtime\nWebSocket entity rooms\natlas_ws_rooms + messages"]
+        G08["G08 atlas_ai_tasks\nAsync LLM / model work queue\natlas_ai_tasks"]
+    end
+
+    subgraph G_Domain ["Domain Generics (G09–G18) — All Implemented"]
+        G09["G09 atlas_portfolios\nGrouping for reporting / billing / access\natlas_portfolios"]
+        G10["G10 atlas_assets\nPhysical + digital ledger items\nproperties | units | rooms | equipment\natlas_assets (hierarchy + JSONB attrs)"]
+        G11["G11 atlas_contracts\nLegal agreements\nleases | policies | SLAs | rate agreements\natlas_contracts (terms_metadata JSONB)"]
+        G12["G12 atlas_service_providers\nVendors | contractors | agents | adjusters\natlas_service_providers (scope JSONB)"]
+        G13["G13 atlas_cases\nWork items | tickets | claims | tasks\natlas_cases (case_type + metadata JSONB)"]
+        G14["G14 atlas_documents\nDocs with e-sig + versioning + polymorphic\natlas_documents (app_namespace + category)"]
+        G15["G15 atlas_opportunities\nDeal / pipeline with financial modeling\natlas_opportunities (financial JSONB)"]
+        G16["G16 atlas_regulatory_registrations\nPermits | licenses | STR registrations\natlas_regulatory_registrations"]
+        G17["G17 atlas_tax\nTaxable events + periodic filings\natlas_tax_events + atlas_tax_filings"]
+        G18["G18 atlas_applications\nStructured multi-step intake + onboarding\natlas_applications (application_type JSONB)"]
+    end
+
+    subgraph Party ["Unified Party Model (Post-Unification)"]
+        PA["atlas_accounts\nTop-level party (individual | organization)\nReplaces: customer + lead (top level)"]
+        PC["atlas_contacts\nLightweight people records\nBelongs to an Account"]
+        PA --> PC
+    end
+
+    subgraph Apps ["Known App Consumers (Cross-Generic Benefit)"]
+        PM["Property Management\nG09 G10 G11 G12 G13 G14 G15 G16 G17 G18"]
+        CS["ClaimSwift\nG10 G11 G12 G13 G14 G15 G16"]
+        DB["Direct Booking Engine\nG10 G11 G04 G15 G16 G17"]
+        FA["Famtasm\nG04 G02 G14 G06 G18"]
+        AL["AgentLink\nG09 G11 G12 G15 G16 G18"]
+        NL["Nomad List\nG01 G07 G13 G08"]
+        CF["CoverFlow\nG11 G13 G14 G15 G17"]
+        CL["Clipping Marketplace\nG03 G04 G02 G17"]
+    end
+
+    G_Infra --> Apps
+    G_Domain --> Apps
+    Party --> Apps

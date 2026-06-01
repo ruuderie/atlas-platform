@@ -2,48 +2,135 @@ flowchart TB
     subgraph Clients ["Client Layer"]
         User[End Users / Tenant Visitors]
         Admin[Platform Administrators]
+        Tenant_User[Tenant Sub-users]
     end
 
     subgraph Edge ["Routing & Proxy Tier"]
-        Caddy[Caddy Reverse Proxy / K8s Ingress]
+        Caddy[Caddy Reverse Proxy / K8s Ingress\nPreserves Host Header for Tenant Resolution]
     end
 
-    subgraph Frontends ["Frontend Applications (Leptos)"]
-        Anchor[Anchor CMS App<br/>SSR + WASM Client]
-        NetInst[Network Instance App<br/>SSR + WASM Client]
-        PlatAdmin[Platform Admin Portal<br/>CSR Application]
+    subgraph Frontends ["Frontend Applications (Leptos SSR + WASM)"]
+        Anchor[Anchor CMS App\nSSR + WASM Client\napp_type = anchor]
+        NetInst[Network Instance App\nSSR + WASM Client\napp_type = network_instance]
+        PlatAdmin[Platform Admin Portal\nCSR Application\napp_type = platform_admin]
+        PropMgmt[Property Management App\nSSR + WASM\napp_type = property_management\n⟨In Development⟩]
     end
 
-    subgraph Backend ["Atlas API Backend Service (Rust Axum)"]
-        Router[Axum Headless API Router]
-        Middleware[AppInstance & Tenant Resolution Middleware]
-        Registry[Multi-Tenant WebAuthn Registry]
-        BackgroundJob[Async Background Polling Service]
+    subgraph Backend ["Atlas API Backend (Rust Axum)"]
+        subgraph AppRegistry ["AtlasApp Registry"]
+            CoreApp[CorePlatformApp\nTier 1 — CMS base routes\nregistered FIRST]
+            AnchorApp[AnchorApp\nTier 2 — Listings / CRM / Profiles]
+            PMApp[PropertyManagementApp\nTier 2 — Assets / Contracts / Cases\n⟨Planned⟩]
+        end
+
+        subgraph Infra ["Platform Infrastructure (Tier 3 — api.rs)"]
+            AuthRouter[Auth Routes\nMagic Links / Sessions]
+            PasskeyRouter[Passkey / WebAuthn Routes]
+            AdminRouter[Admin API Routes]
+        end
+
+        subgraph Middleware ["Middleware Stack"]
+            CorsReg[Dynamic CORS Registry\nper-domain allow-list]
+            AppInst[AppInstance & Tenant\nResolution Middleware\nHost → tenant_id]
+            ReqLog[Request Logger + Rate Limiter]
+            ReqID[Request ID Middleware]
+            VerHeader[X-Atlas-Version Header]
+        end
+
+        subgraph Workers ["Background Workers"]
+            OutboxW[OutboxWorker\nSKIP LOCKED email/webhook delivery]
+            DataSync[DataSyncService\nIdempotent background sync]
+            Telemetry[TelemetryService\nHourly metrics aggregation]
+            WebhookSweep[Webhook Sweeper\nDelivery retry & auditing]
+        end
+
+        subgraph Services ["Platform Generic Services (v2)"]
+            AccountSvc[AccountService]
+            ContactSvc[ContactService]
+            AssetSvc[AssetService G10]
+            ContractSvc[ContractService G11]
+            CaseSvc[CaseService G13]
+            OpptySvc[OpportunityService G15]
+            LedgerSvc[LedgerService G03]
+            DocSvc[DocumentService G14]
+            SubSvc[SubscriptionService G04]
+            RegSvc[RegulatoryRegService G16]
+            TaxSvc[TaxService G17]
+            AppSvc[ApplicationService G18]
+            RealtimeSvc[RealtimeService G07]
+            AITaskSvc[AITaskService G08]
+            VaultSvc[VaultService G02]
+            GeoSvc[GeoService G01]
+            VerifSvc[VerificationService G06]
+            IntegSvc[ExternalIntegrationService G05]
+            PortfolioSvc[PortfolioService G09]
+            SvcProvSvc[ServiceProviderService G12]
+        end
+
+        WebAuthnReg[Multi-Tenant WebauthnRegistry\nMoka LRU Cache\neTLD+1 rp_id derivation]
+        IngressProv[IngressProvisioner\nDynamic domain provisioning]
+        PrometheusEndpoint[/metrics\nPrometheus scrape endpoint\nbearer-token protected]
     end
 
-    subgraph DB ["Database & Storage (PostgreSQL)"]
-        Postgres[(PostgreSQL Shared Database)]
-        Cache[(Moka LRU In-Memory Cache)]
+    subgraph DB ["Data & Storage Layer"]
+        Postgres[(PostgreSQL\nShared Multi-Tenant DB\nRLS via tenant_id scoping)]
+        MokaCache[(Moka In-Memory Cache\nAppInstance / WebAuthn)]
+        R2[Cloudflare R2\nObject Storage\nLease PDFs / Media / Vault]
     end
 
-    %% Routing lines
-    User -->|dev.buildwithruud.com| Caddy
+    subgraph ExtSvc ["External Services"]
+        SMTP[SMTP Email Gateway]
+        Mempool[mempool.space API\nBTC TX validation]
+        Stripe[Stripe\nPayment Rails]
+        Twilio[Telephony / SMS]
+        PMS_OTA[PMS / OTA / AMS\nExternal Integrations G05]
+    end
+
+    %% Client routing
+    User -->|Visits tenant domain| Caddy
     Admin -->|admin.domain.com| Caddy
+    Tenant_User -->|Visits app subdomain| Caddy
 
+    %% Caddy to frontends
     Caddy -->|SSR / WASM| Anchor
     Caddy -->|SSR / WASM| NetInst
+    Caddy -->|SSR / WASM| PropMgmt
     Caddy -->|CSR Assets| PlatAdmin
 
-    Anchor -->|API request with Host| Router
-    NetInst -->|API request with Host| Router
-    PlatAdmin -->|API request with tenant_id| Router
+    %% Frontend to backend API
+    Anchor -->|API request + Host header| AppInst
+    NetInst -->|API request + Host header| AppInst
+    PropMgmt -->|API request + Host header| AppInst
+    PlatAdmin -->|API request + tenant_id| AdminRouter
 
-    Router --> Middleware
-    Middleware -->|Cache lookup| Cache
-    Middleware -->|Verify & Fetch| Postgres
-    
-    Router --> Registry
-    Registry -->|DoS check domain| Postgres
-    Registry -->|Cache RP ID instance| Cache
+    %% Middleware chain
+    AppInst -->|Cache lookup| MokaCache
+    AppInst -->|Verify tenant| Postgres
+    AppInst --> CoreApp
+    AppInst --> AnchorApp
+    AppInst --> PMApp
 
-    BackgroundJob -->|Idempotent updates| Postgres
+    %% Services → DB
+    Services --> Postgres
+    Services -->|File upload| R2
+
+    %% Workers → DB/External
+    OutboxW --> Postgres
+    OutboxW --> SMTP
+    DataSync --> Postgres
+    DataSync --> Mempool
+    Telemetry --> Postgres
+    WebhookSweep --> Postgres
+
+    %% WebAuthn
+    PasskeyRouter --> WebAuthnReg
+    WebAuthnReg -->|DoS check | Postgres
+    WebAuthnReg -->|Cache instance| MokaCache
+
+    %% Payment external services
+    LedgerSvc --> Stripe
+    DataSync --> Mempool
+
+    %% Integrations
+    IntegSvc --> PMS_OTA
+    Workers --> Twilio

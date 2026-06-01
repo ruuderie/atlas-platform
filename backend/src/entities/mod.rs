@@ -118,3 +118,28 @@ pub mod atlas_application;
 // Unified Account + Contact (replaces legacy customer/contact)
 pub mod atlas_account;
 pub mod atlas_contact;
+
+// GENERIC-31: Canonical lead / prospect entity
+pub mod atlas_lead;
+
+// GENERIC-27: Atlas Scorecards — Universal Structured Evaluation Engine
+// 10 entity files covering all 11 tables (composite-PK tables share one file each).
+pub mod atlas_scorecard_template;
+pub mod atlas_scorecard_dimension;
+pub mod atlas_scorecard_dimension_option;
+pub mod atlas_scorecard;
+pub mod atlas_rating_session;
+pub mod atlas_scorecard_entry;
+pub mod atlas_scorecard_dimension_aggregate;
+pub mod atlas_scorecard_poll_aggregate;
+pub mod atlas_scorecard_time_series;
+
+// GENERIC-28: atlas_note — Universal Polymorphic Note (promotes `notes` table)
+pub mod atlas_note;
+
+// GENERIC-29: atlas_activity — Universal Polymorphic Activity Log (promotes `activity` table)
+pub mod atlas_activity;
+
+// GENERIC-27: The Combinator — target profiles + per-dimension criteria
+pub mod atlas_scorecard_target;
+pub mod atlas_scorecard_target_criteria;

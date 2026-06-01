@@ -183,7 +183,32 @@ pub mod m20260601_g08_ai_tasks;
 // Unification: New canonical Account + Contact model (replaces legacy CRM)
 pub mod m20260601_unify_accounts_contacts;
 
+// GENERIC-31: Canonical lead / prospect entity
+pub mod m20260601_g31_atlas_lead;
 
+// Gap-fill: atlas_accounts + atlas_contacts firmographic promotion
+// Sorts after G-31 (m20260702_ > m20260601_) so set_updated_at_column() exists.
+pub mod m20260702_gap_fill_accounts_contacts;
+
+// GENERIC-27: Atlas Scorecards — Universal Structured Evaluation Engine (11 tables)
+// Sorts as m20260701_ alongside G-19/G-25/G-26. set_updated_at_column() from G-31 exists.
+pub mod m20260701_g27_scorecards;
+
+// GENERIC-28: atlas_note — Promotes `notes` table to platform generic.
+// Adds note_type, visibility, is_pinned, parent_note_id, note_metadata.
+pub mod m20260703_g28_atlas_note;
+
+// GENERIC-29: atlas_activity — Promotes `activity` table to platform generic.
+// Adds polymorphic subject, direction, outcome, duration, scheduled_at, activity_metadata.
+pub mod m20260704_g29_atlas_activity;
+
+// Drop legacy `lead` table + rename compat view.
+// Requires G-31 (atlas_lead + atlas_lead_compat_view) to exist.
+pub mod m20260705_drop_legacy_lead;
+
+// G-27 background job seeding: registers recompute_scorecard_aggregates +
+// refresh_scorecard_time_series for all tenants with active scorecard templates.
+pub mod m20260706_seed_g27_background_jobs;
 
 pub struct Migrator;
 
@@ -276,6 +301,24 @@ impl MigratorTrait for Migrator {
             Box::new(m20260523_000006_create_headless_email_tables::Migration),
             Box::new(m20260524_000001_extend_crm_avatar_attachments::Migration),
             Box::new(m20260525_000001_extend_notes_and_activities::Migration),
+            // GENERIC-31: Canonical lead / prospect entity (G-31)
+            // Includes set_updated_at_column() trigger function — must run before gap-fill.
+            Box::new(m20260601_g31_atlas_lead::Migration),
+            // Gap-fill: atlas_accounts + atlas_contacts firmographic promotion
+            // Sorts after G-31 alphabetically (m20260702_ > m20260601_).
+            Box::new(m20260702_gap_fill_accounts_contacts::Migration),
+            // GENERIC-27: Atlas Scorecards — Universal Structured Evaluation Engine (11 tables)
+            // m20260701_ sorts before m20260702_ so G-27 runs before gap-fill (name sort).
+            Box::new(m20260701_g27_scorecards::Migration),
+            // GENERIC-28: atlas_note — promotes notes table
+            Box::new(m20260703_g28_atlas_note::Migration),
+            // GENERIC-29: atlas_activity — promotes activity table
+            Box::new(m20260704_g29_atlas_activity::Migration),
+            // Drop legacy lead table + compat view rename
+            Box::new(m20260705_drop_legacy_lead::Migration),
+            // G-27 background job seeding: registers scorecard aggregate + time-series jobs
+            // Sorts after G-27 schema (m20260706_ > m20260701_) — schema must exist first.
+            Box::new(m20260706_seed_g27_background_jobs::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

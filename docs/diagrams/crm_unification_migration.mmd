@@ -1,0 +1,38 @@
+flowchart LR
+    subgraph LegacyCRM ["Legacy CRM (Deprecation Path — Dual-Write Active)"]
+        direction TB
+        LC1[customer]
+        LC2[contact]
+        LC3[lead]
+        LC4[deal]
+        LC5[case]
+        LC6[activity]
+        LC7[notes]
+    end
+
+    subgraph Bridge ["Migration Bridge Layer\n(handlers + unification_data_migration.rs)"]
+        direction TB
+        DW["Dual-Write\nLegacy handlers write to both\nold tables AND new generics\nvia services"]
+        MigBin["migrate_legacy_crm binary\ncargo run --bin migrate_legacy_crm\n--dry-run / --all / --tenant=UUID"]
+    end
+
+    subgraph NewModel ["Platform Generics v2 (Canonical)"]
+        direction TB
+        NA[atlas_accounts\nindividual or organization]
+        NC[atlas_contacts\nlightweight people records]
+        NOpp[atlas_opportunities\nreplaces deal]
+        NCase[atlas_cases\nreplaces case + old crm case]
+        NApp[atlas_applications\nreplaces lead intake]
+        NAsset[atlas_assets\nhierarchical entity registry]
+        NContract[atlas_contracts\nreplaces recurring deal patterns]
+    end
+
+    LC1 -->|"AccountService.create()\n(organization type)"| NA
+    LC2 -->|"ContactService.create()"| NC
+    LC3 -->|"ApplicationService.create()\n+ OpportunityService"| NApp
+    LC4 -->|"OpportunityService.create()"| NOpp
+    LC5 -->|"CaseService.create()"| NCase
+    LC6 -->|"AtlasWsMessage / AtlasCase notes"| NCase
+
+    LegacyCRM --> Bridge
+    Bridge --> NewModel

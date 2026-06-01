@@ -1,9 +1,9 @@
 # Atlas Platform — Generics v2 (Consolidated)
 
-> **Status:** Implemented & Merged to dev (June 2026)
-> **Date:** 2026-05-27 (original design) → June 2026 (implementation complete)
+> **Status:** Implemented & Merged to dev (June 2026 — Rev 2: G27–G31 complete)
+> **Date:** 2026-05-27 (original design) → June 2026 (G01-G18 complete) → June 2026 (G27-G31 complete)
 > **Branch History:** `feat/platform-generics-v2` → merged to `dev`
-> **Purpose:** Single source of truth for all 18 platform generics. Supersedes the original 8 + the Round 2/3 analysis from Property Management.
+> **Purpose:** Single source of truth for all platform generics (G01–G31+). Supersedes the original 8 + Round 2/3 analysis.
 >
 > **See also:** `../CURRENT_STATE.md` for the absolute latest high-level summary.
 
@@ -62,6 +62,24 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 | ID | Name | Core Need | Key Tables |
 |----|------|-----------|------------|
 | 18 | `atlas_applications` | Structured multi-step intake, screening, and onboarding workflows | `atlas_applications` (with `application_type` + `application_metadata JSONB`) |
+
+### Round 1 Gap-Fill Additions (G19, G23, G25, G26)
+
+| ID | Name | Core Need | Key Tables |
+|----|------|-----------|------------|
+| 19 | `atlas_reservations` + `atlas_availability` | Time-bound reservations with slot-conflict detection and availability calendar | `atlas_reservations`, `atlas_availability` |
+| 23 | `atlas_campaigns` | Marketing campaign + member attribution | `atlas_campaigns`, `atlas_campaign_members` |
+| 25 | `atlas_commission_plans` | Commission agreement governing ledger splits | `atlas_commission_plans`, `atlas_commission_splits` |
+| 26 | `atlas_workflows` | Multi-step approval / workflow automation | `atlas_workflow_definitions`, `atlas_workflow_instances` |
+
+### Round 2 CRM & Intelligence Layer (G27–G31)
+
+| ID | Name | Core Need | Key Tables |
+|----|------|-----------|------------|
+| 27 | `atlas_scorecards` | Universal Structured Evaluation Engine + The Combinator similarity search | `atlas_scorecard_templates`, `atlas_scorecard_dimensions`, `atlas_scorecard_dimension_options`, `atlas_scorecards`, `atlas_rating_sessions`, `atlas_scorecard_entries`, `atlas_scorecard_dimension_aggregates`, `atlas_scorecard_poll_aggregates`, `atlas_scorecard_time_series`, `atlas_scorecard_targets`, `atlas_scorecard_target_criteria` |
+| 28 | `atlas_note` | Universal polymorphic note with threading, visibility, and metadata | `atlas_notes` (promoted from legacy `notes`) |
+| 29 | `atlas_activity` | Universal polymorphic activity log with direction, outcome, duration, category | `activity` (promoted in-place with polymorphic columns + `activity_category`) |
+| 31 | `atlas_lead` | Canonical lead/prospect entity with full import→qualify→convert→disqualify lifecycle | `atlas_lead`, `atlas_lead_compat_view` |
 
 ---
 
@@ -144,19 +162,15 @@ The detailed specifications for GENERIC-09 through GENERIC-18 (including all DDL
 
 ---
 
-## 8. Next Steps (This Branch)
+## 8. Current Gaps & Next Build Priorities
 
-This document is the first deliverable on `feat/platform-generics-v2`.
+After G-27 through G-31, the platform's immediate open items are:
 
-Subsequent work on this branch (in priority order):
-
-1. Finish and review this consolidated v2 spec.
-2. Implement the first 3–4 highest-value new generics as a proof-of-concept (recommended: `atlas_assets`, `atlas_cases`, `atlas_contracts`, `atlas_documents`).
-3. Validate the JSONB + service-layer typing pattern in real code.
-4. Update `atlas_app_integration.md` with the formal "Generic Fitness Test".
-5. Update the most referenced Property Management requirements documents with correct entity names.
-6. Lightweight Postgres performance review of the new generic DDLs.
-7. Define clear ownership boundaries for the generics.
+1. **shared-ui Configurator** — Needed for G-27 template/dimension admin UI. Not yet built.
+2. **G-27 HTTP Handler Layer** — `ScorecardService` methods are not yet wired to REST endpoints.
+3. **G-28/G-29 Handler Migration** — `notes.rs` / `activities.rs` handlers still reference legacy entity files.
+4. **Legacy CRM Teardown** — Dual-write bridge still active for `customer`, `deal`, `activity`, `note`. Drop after PM app validation.
+5. **Compiler warnings** — ~126 remaining (`cargo fix --lib -p atlas_backend`).
 
 ---
 

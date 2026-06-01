@@ -80,6 +80,115 @@ impl OutboxWorker {
                         Err(e) => Err(format!("Failed to deserialize email payload: {:?}", e)),
                     }
                 }
+
+                // G-27: Recompute dimension aggregates, composite score, confidence level,
+                // and dimension_vector for all scorecards that have new verified entries
+                // since the last run. Runs every 5 minutes (interval_seconds = 300).
+                //
+                // The payload may contain {"scorecard_id": "<uuid>"} to target a single
+                // scorecard, or be absent to scan all stale scorecards for the tenant.
+                "recompute_scorecard_aggregates" => {
+                    let maybe_id = job.payload
+                        .get("scorecard_id")
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| uuid::Uuid::parse_str(s).ok());
+
+                    if let Some(scorecard_id) = maybe_id {
+                        crate::services::scorecard_service::ScorecardService::recompute_aggregates(
+                            db,
+                            scorecard_id,
+                        )
+                        .await
+                        .map_err(|e| format!("recompute_aggregates({scorecard_id}) failed: {e}"))
+                    } else {
+                        // Tenant-wide sweep: recompute all stale scorecards for this tenant.
+                        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+                        use crate::entities::atlas_scorecard;
+
+                        let stale = match atlas_scorecard::Entity::find()
+                            .filter(atlas_scorecard::Column::TenantId.eq(job.tenant_id))
+                            .all(db)
+                            .await
+                        {
+                            Ok(v) => v,
+                            Err(e) => return Err(sea_orm::DbErr::Custom(
+                                format!("recompute_scorecard_aggregates: failed to fetch scorecards: {e}")
+                            )),
+                        };
+
+                        let mut errors: Vec<String> = Vec::new();
+                        for sc in stale {
+                            if let Err(e) = crate::services::scorecard_service::ScorecardService::recompute_aggregates(db, sc.id).await {
+                                errors.push(format!("{}: {}", sc.id, e));
+                            }
+                        }
+
+                        if errors.is_empty() {
+                            Ok(())
+                        } else {
+                            Err(format!("recompute_aggregates sweep had {} failures: {}", errors.len(), errors.join("; ")))
+                        }
+                    }
+                }
+
+                // G-27: Rebuild monthly + quarterly time-series trend buckets for all
+                // scorecard dimensions for this tenant. Runs hourly (interval_seconds = 3600).
+                //
+                // refresh_time_series_for_dimension internally handles both period types
+                // (monthly and quarterly) — no period arg needed.
+                "refresh_scorecard_time_series" => {
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+                    use crate::entities::{atlas_scorecard, atlas_scorecard_dimension};
+
+                    let scorecards = match atlas_scorecard::Entity::find()
+                        .filter(atlas_scorecard::Column::TenantId.eq(job.tenant_id))
+                        .all(db)
+                        .await
+                    {
+                        Ok(v) => v,
+                        Err(e) => return Err(sea_orm::DbErr::Custom(
+                            format!("refresh_scorecard_time_series: failed to fetch scorecards: {e}")
+                        )),
+                    };
+
+                    let mut errors: Vec<String> = Vec::new();
+
+                    for sc in &scorecards {
+                        let dimensions = match atlas_scorecard_dimension::Entity::find()
+                            .filter(atlas_scorecard_dimension::Column::TemplateId.eq(sc.template_id))
+                            .filter(atlas_scorecard_dimension::Column::IsActive.eq(true))
+                            .all(db)
+                            .await
+                        {
+                            Ok(v) => v,
+                            Err(e) => {
+                                errors.push(format!("{}: failed to fetch dimensions: {e}", sc.id));
+                                continue;
+                            }
+                        };
+
+                        for dim in &dimensions {
+                            if let Err(e) = crate::services::scorecard_service::ScorecardService::refresh_time_series_for_dimension(
+                                db,
+                                sc.id,
+                                dim.id,
+                            )
+                            .await
+                            {
+                                errors.push(format!("{}:{}: {}", sc.id, dim.id, e));
+                            }
+                        }
+                    }
+
+                    if errors.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(format!("refresh_scorecard_time_series had {} failures: {}", errors.len(), errors.join("; ")))
+                    }
+                }
+
+
+
                 _ => Err(format!("Unknown job type: {}", job.job_type)),
             };
 

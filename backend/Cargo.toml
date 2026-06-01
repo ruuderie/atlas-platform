@@ -8,7 +8,7 @@ default-run = "atlas_backend"
 anyhow = "1.0.97"
 axum = {version = "0.8.4", features = ["macros"]}
 tokio = { version = "1.28.2", features = ["full", "test-util", "macros"] }
-sea-orm = { version = "1.0.1", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros"] }
+sea-orm = { version = "1.0.1", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros", "with-rust_decimal"] }
 tower-http = { version = "0.6.6", features = ["trace", "cors"] }
 tower = { version = "0.5.2", features = ["util"] }
 serde = { version = "1.0.163", features = ["derive"] }
@@ -66,6 +66,9 @@ rustls = { version = "0.23", features = ["ring"] }
 printpdf = "0.7"
 pulldown-cmark = "0.12"
 clap = { version = "4.5", features = ["derive"] }
+# Decimal type for firmographic fields (annual_revenue) — already a transitive
+# dep via sea-orm; declared directly so entity files can use rust_decimal::Decimal.
+rust_decimal = "1.37"
 
 
 

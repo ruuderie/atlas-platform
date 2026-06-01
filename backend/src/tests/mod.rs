@@ -24,3 +24,9 @@ pub mod provision_tests;
 
 // Complete generics service layer tests
 pub mod services_tests;
+
+// G-27 ScorecardService integration tests
+pub mod g27_scorecard_tests;
+
+// G-31 LeadService + AccountService integration tests
+pub mod lead_account_tests;

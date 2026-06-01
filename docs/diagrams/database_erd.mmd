@@ -1,14 +1,22 @@
 erDiagram
-    %% Core Tenancy & Routing
+    %% ==========================================
+    %% SECTION 1: Core Tenancy & Identity
+    %% ==========================================
+
     User ||--o{ UserAccount : has
     User ||--o{ Session : has
     User ||--o{ Passkey : registers
     User ||--o{ WebauthnChallenge : requests
     User ||--o{ MagicLinkToken : generates
     User ||--o{ ApiToken : owns
+    User ||--o{ UserAppPermission : granted
+    User ||--o{ AuditLog : signs
+    User ||--o{ RequestLog : generates
+
     Account ||--o{ UserAccount : has
     Account ||--o{ Profile : has
     Account }|--|| Tenant : belongs_to
+
     Tenant ||--o{ AppInstance : installs
     Tenant ||--|{ Profile : has
     Tenant ||--|{ Listing : has
@@ -18,124 +26,70 @@ erDiagram
     Tenant ||--o{ TenantSubscription : holds
     Tenant ||--o{ OnboardingProgress : tracks
     Tenant ||--o{ OutboxJob : schedules
-    AppInstance ||--|{ AppDomain : routes
-    AppInstance ||--o{ AppInstanceModule : configures
-    Tenant ||--o{ EmailTemplate : manages
-    Tenant ||--o{ CrmStatusOption : configures
-    Activity ||--o{ ActivityAttachment : contains
-
-    %% CMS System
-    Tenant ||--o{ AppPage : manages
-    Tenant ||--o{ AppMenu : manages
-
-    %% Directory & Listings
-    Profile ||--o{ Listing : creates
-    Listing }|--|| Category : belongs_to
-    Listing ||--o{ AdPurchase : has
-    Listing ||--o{ Attachment : holds
-    Listing ||--o{ ListingABTest : tests
-    ListingABTest ||--|{ ListingABVariant : contains
-    Template }|--|| Category : belongs_to
-    Template }|--|| Tenant : belongs_to
-
-    %% Billing & Ledger
-    TenantSubscription }|--|| BillingPlan : references
-    Tenant ||--o{ Transaction : records
-    Transaction ||--o{ LeadCharge : processes
-
-    %% Webhooks
     Tenant ||--o{ WebhookEndpoint : configures
-    WebhookEndpoint ||--o{ WebhookDelivery : records
-
-    %% Telemetry & Search
-    User ||--o{ RequestLog : generates
+    Tenant ||--o{ CrmStatusOption : configures
     Tenant ||--o{ PageView : tracks
     Tenant ||--o{ TelemetryEvents : emits
     Tenant ||--o{ PlatformMetricsDaily : aggregates
-    User ||--o{ AuditLog : signs
+    Tenant ||--o{ AppPage : manages
+    Tenant ||--o{ AppMenu : manages
+    Tenant ||--o{ EmailTemplate : manages
+    Tenant ||--o{ Transaction : records
 
-    %% Dynamic Data Sync
-    Tenant ||--o{ BitcoinBlock : syncs
+    AppInstance ||--|{ AppDomain : routes
+    AppInstance ||--o{ AppInstanceModule : configures
+    TenantSubscription }|--|| BillingPlan : references
+    WebhookEndpoint ||--o{ WebhookDelivery : records
+    Transaction ||--o{ LeadCharge : processes
 
     %% ==========================================
-    %% Entity Definitions (Alphabetical Order)
+    %% SECTION 2: UNIFIED PARTY MODEL (new canonical)
     %% ==========================================
 
-    Account {
+    AtlasAccount {
         UUID id PK
         UUID tenant_id FK
+        string account_type "individual | organization"
         string name
+        string first_name
+        string last_name
+        string email
+        string phone
+        jsonb attributes
         boolean is_active
         datetime created_at
         datetime updated_at
     }
 
-    AdPurchase {
+    AtlasContact {
         UUID id PK
-        UUID listing_id FK
-        UUID profile_id FK
-        datetime start_date
-        datetime end_date
-        float price
-        string status
+        UUID account_id FK
+        UUID tenant_id FK
+        string first_name
+        string last_name
+        string email
+        string phone
+        string role
+        jsonb attributes
+        datetime created_at
+        datetime updated_at
     }
 
-    ApiToken {
+    AtlasAccount ||--o{ AtlasContact : has
+    AtlasAccount }|--|| Tenant : scoped_to
+
+    %% ==========================================
+    %% SECTION 3: INFRASTRUCTURE GENERICS (G01-G08)
+    %% ==========================================
+
+    GeoServiceArea {
         UUID id PK
-        UUID user_id FK
-        string token_hash
+        UUID tenant_id FK
         string name
-        datetime expires_at
+        string region_type
+        geometry boundary
+        jsonb metadata
         datetime created_at
-    }
-
-    AppDomain {
-        UUID id PK
-        UUID app_instance_id FK
-        string domain
-        boolean is_primary
-    }
-
-    AppInstance {
-        UUID id PK
-        UUID tenant_id FK
-        string app_type
-        string database_url
-        json settings
-        datetime created_at
-        datetime updated_at
-    }
-
-    AppInstanceModule {
-        UUID id PK
-        UUID app_instance_id FK
-        string module_type
-        string display_name
-        int sort_order
-        boolean is_enabled
-    }
-
-    AppMenu {
-        UUID id PK
-        UUID tenant_id FK
-        string menu_type
-        string label
-        string url
-        int display_order
-        datetime created_at
-        datetime updated_at
-    }
-
-    AppPage {
-        UUID id PK
-        UUID tenant_id FK
-        string slug
-        string title
-        string page_type
-        json blocks_json
-        boolean is_published
-        datetime created_at
-        datetime updated_at
     }
 
     Attachment {
@@ -144,276 +98,335 @@ erDiagram
         string name
         string file_type
         string storage_path
-        int64 size
+        int64 size_bytes
+        string storage_backend "r2 | s3 | local"
         datetime created_at
     }
-
-    AuditLog {
+    AttachmentShareToken {
         UUID id PK
-        UUID user_id FK
-        string action_type
-        string description
-        string ip_address
-        datetime created_at
-    }
-
-    EmailTemplate {
-        UUID id PK
-        UUID tenant_id FK
-        string template_name
-        string subject_line
-        string html_body
-        jsonb merge_fields
-        datetime created_at
-        datetime updated_at
-    }
-
-    BillingPlan {
-        UUID id PK
-        string name
-        string description
-        int price_cents
-        string billing_interval
-        boolean is_active
-    }
-
-    BitcoinBlock {
-        UUID id PK
-        UUID tenant_id FK
-        int block_height
-        string block_hash
-        int tx_count
-        datetime synchronized_at
-    }
-
-    Category {
-        UUID id PK
-        UUID parent_category_id FK
-        string name
-        string description
-        boolean is_custom
-        boolean is_active
-        datetime created_at
-        datetime updated_at
-    }
-
-    MagicLinkToken {
-        UUID id PK
-        UUID user_id FK
+        UUID attachment_id FK
         string token
-        boolean is_used
         datetime expires_at
         datetime created_at
     }
+    AttachmentMultipartUpload {
+        UUID id PK
+        UUID attachment_id FK
+        string upload_id
+        string status
+        datetime created_at
+    }
+    Attachment ||--o{ AttachmentShareToken : issues
+    Attachment ||--o{ AttachmentMultipartUpload : tracks
 
-    OnboardingProgress {
+    AtlasLedgerEntry {
         UUID id PK
         UUID tenant_id FK
-        string step_id
-        boolean is_completed
+        UUID account_id FK
+        string entity_type
+        UUID entity_id
+        string payment_rail "stripe | btc | zelle | pix | ach"
+        int64 amount_cents
+        string currency
+        string status "pending | settled | failed | refunded"
+        string provider_tx_id
+        datetime settled_at
+        jsonb metadata
+        datetime created_at
+    }
+    AtlasLedgerSplit {
+        UUID id PK
+        UUID ledger_entry_id FK
+        string party_type
+        UUID party_id
+        int64 amount_cents
+        string description
+        datetime created_at
+    }
+    AtlasPaymentCredential {
+        UUID id PK
+        UUID tenant_id FK
+        string provider "stripe | bitcoin | zelle | pix"
+        jsonb encrypted_credentials
+        boolean is_active
+        datetime created_at
+    }
+    AtlasLedgerEntry ||--o{ AtlasLedgerSplit : splits
+
+    AtlasSubscription {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        string plan_name
+        int64 price_cents
+        string billing_interval "monthly | annual"
+        string status "active | paused | cancelled"
+        datetime current_period_end
+        datetime created_at
+        datetime updated_at
+    }
+
+    AtlasExternalIntegration {
+        UUID id PK
+        UUID tenant_id FK
+        string provider_name "pms | ota | ams | gds | telephony"
+        string integration_type
+        jsonb config
+        boolean is_active
+        datetime last_synced_at
+        datetime created_at
+    }
+    AtlasIntegrationEvent {
+        UUID id PK
+        UUID integration_id FK
+        string event_type
+        string direction "inbound | outbound"
+        jsonb payload
+        string status
+        datetime created_at
+    }
+    AtlasExternalIntegration ||--o{ AtlasIntegrationEvent : logs
+
+    AtlasVerificationRequest {
+        UUID id PK
+        UUID tenant_id FK
+        string entity_type
+        UUID entity_id
+        string verification_type "identity | document | background | license"
+        string status "pending | approved | rejected"
+        UUID reviewed_by FK
+        jsonb metadata
+        datetime created_at
+        datetime resolved_at
+    }
+
+    AtlasWsRoom {
+        UUID id PK
+        UUID tenant_id FK
+        string entity_type
+        UUID entity_id
+        string room_type
+        datetime created_at
+    }
+    AtlasWsMessage {
+        UUID id PK
+        UUID room_id FK
+        UUID sender_id FK
+        string content
+        jsonb metadata
+        datetime created_at
+    }
+    AtlasWsRoom ||--o{ AtlasWsMessage : contains
+
+    AtlasAiTask {
+        UUID id PK
+        UUID tenant_id FK
+        string task_type "summarize | classify | extract | generate"
+        string model
+        jsonb input_payload
+        jsonb output_payload
+        string status "queued | processing | complete | failed"
+        datetime created_at
         datetime completed_at
     }
 
-    OutboxJob {
+    %% ==========================================
+    %% SECTION 4: DOMAIN GENERICS (G09-G18)
+    %% ==========================================
+
+    AtlasPortfolio {
         UUID id PK
         UUID tenant_id FK
-        string job_type
-        json payload
-        string status
-        int retry_count
-        string error_message
-        datetime created_at
-        datetime scheduled_at
-    }
-
-    PageView {
-        UUID id PK
-        UUID tenant_id FK
-        string path
-        string referrer
-        string user_agent
-        datetime created_at
-    }
-
-    Passkey {
-        UUID id PK
-        UUID user_id FK
-        string credential_id
-        string public_key
-        int counter
-        datetime created_at
-    }
-
-    PlatformMetricsDaily {
-        UUID id PK
-        UUID tenant_id FK
-        int active_users
-        int listing_count
-        int api_requests
-        date metric_date
-    }
-
-    Profile {
-        UUID id PK
         UUID account_id FK
-        UUID tenant_id FK
-        string profile_type
-        string display_name
-        string contact_info
-        string business_name
-        string business_address
-        string business_phone
-        string business_website
-        json additional_info
-        boolean is_active
-        datetime created_at
-        datetime updated_at
-    }
-
-    RequestLog {
-        UUID id PK
-        UUID user_id FK
-        string ip_address
-        string path
-        string method
-        int status_code
-        string request_type
-    }
-
-    Session {
-        UUID id PK
-        UUID user_id FK
-        string bearer_token_hash
-        string refresh_token_hash
-        datetime token_expiration
-        boolean is_active
-    }
-
-    TelemetryEvents {
-        UUID id PK
-        UUID tenant_id FK
-        string event_name
-        json event_metadata
-        datetime created_at
-    }
-
-    Template {
-        UUID id PK
-        UUID tenant_id FK
-        UUID category_id FK
         string name
-        string description
-        string template_type
+        string portfolio_type "real_estate | investment | equipment | digital"
+        string base_currency "USD | BRL | BTC | EUR"
+        jsonb attributes
         boolean is_active
         datetime created_at
         datetime updated_at
     }
 
-    Tenant {
+    AtlasAsset {
         UUID id PK
+        UUID tenant_id FK
+        UUID portfolio_id FK
+        UUID parent_asset_id FK
+        UUID account_id FK
+        string asset_type "property | unit | room | equipment | vehicle | digital"
         string name
-        string description
-        string site_status
-        json custom_settings
+        string address
+        string country
+        float latitude
+        float longitude
+        string status "active | inactive | maintenance | archived"
+        jsonb attributes
         datetime created_at
         datetime updated_at
     }
+    AtlasPortfolio ||--o{ AtlasAsset : groups
+    AtlasAsset ||--o{ AtlasAsset : contains
 
-    TenantBackgroundJob {
+    AtlasContract {
         UUID id PK
         UUID tenant_id FK
-        string job_type
-        int interval_seconds
+        UUID account_id FK
+        UUID asset_id FK
+        string contract_type "lease | policy | sla | rate_agreement | wholesaling"
+        string status "draft | active | expired | terminated"
+        date start_date
+        date end_date
+        boolean auto_renew
+        jsonb terms_metadata
+        datetime created_at
+        datetime updated_at
+    }
+    AtlasAsset ||--o{ AtlasContract : governs
+
+    AtlasServiceProvider {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        string provider_type "contractor | agent | adjuster | housekeeping | vendor"
+        string scope "tenant | platform | marketplace"
+        jsonb service_categories
+        jsonb contact_info
         boolean is_active
-        json config_payload
-    }
-
-    TenantSetting {
-        UUID id PK
-        UUID tenant_id FK
-        string key
-        string value
         datetime created_at
         datetime updated_at
     }
 
-    TenantSubscription {
+    AtlasCase {
         UUID id PK
         UUID tenant_id FK
-        UUID billing_plan_id FK
-        string status
-        datetime current_period_end
+        UUID account_id FK
+        UUID asset_id FK
+        UUID contract_id FK
+        UUID assigned_to FK
+        string case_type "maintenance | compliance | claim | support | task | inspection"
+        string title
+        string description
+        string status "open | in_progress | pending | resolved | closed"
+        string priority "low | medium | high | emergency"
+        boolean is_emergency
+        jsonb case_metadata
+        datetime due_date
+        datetime closed_at
         datetime created_at
+        datetime updated_at
+    }
+    AtlasAsset ||--o{ AtlasCase : generates
+    AtlasContract ||--o{ AtlasCase : triggers
+
+    AtlasDocument {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        string entity_type
+        UUID entity_id
+        string document_category "lease | disclosure | permit | invoice | report | id"
+        string app_namespace
+        string storage_path
+        boolean is_signed
+        boolean requires_esig
+        int version
+        jsonb metadata
+        datetime signed_at
+        datetime created_at
+        datetime updated_at
     }
 
-    Transaction {
+    AtlasOpportunity {
         UUID id PK
         UUID tenant_id FK
-        int amount_cents
+        UUID account_id FK
+        UUID asset_id FK
+        string opportunity_type "acquisition | wholesale | insurance_submission | booking"
+        string title
+        string stage "prospect | qualified | proposal | negotiation | won | lost"
+        jsonb financial_inputs
+        jsonb financial_outputs
+        date close_date
+        datetime created_at
+        datetime updated_at
+    }
+    AtlasAsset ||--o{ AtlasOpportunity : targets
+
+    AtlasRegulatoryRegistration {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        UUID asset_id FK
+        string registration_type "str_permit | business_license | insurance | tax_id | hoa"
+        string jurisdiction
+        string registration_number
+        string status "pending | active | expired | revoked"
+        date issue_date
+        date expiry_date
+        jsonb jurisdiction_metadata
+        datetime created_at
+        datetime updated_at
+    }
+    AtlasAsset ||--o{ AtlasRegulatoryRegistration : requires
+
+    AtlasTaxEvent {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        UUID ledger_entry_id FK
+        string tax_type "tdt | vat | income | occupancy | withholding | sales"
+        string jurisdiction
+        int64 taxable_amount_cents
+        int64 tax_amount_cents
         string currency
-        string provider
-        string provider_tx_id
-        string status
+        string status "pending | filed | paid | waived"
+        date event_date
         datetime created_at
     }
-
-    User {
-        UUID id PK
-        string username
-        string email
-        string password_hash
-        boolean is_admin
-        boolean is_active
-        datetime created_at
-        datetime updated_at
-    }
-
-    UserAccount {
-        UUID id PK
-        UUID user_id FK
-        UUID account_id FK
-        string role
-        boolean is_active
-        datetime created_at
-        datetime updated_at
-    }
-
-    UserAppPermission {
-        UUID id PK
-        UUID user_id FK
-        UUID app_instance_id FK
-        string permission
-        datetime created_at
-    }
-
-    WebauthnChallenge {
-        UUID id PK
-        UUID user_id FK
-        string challenge
-        datetime expires_at
-    }
-
-    WebhookDelivery {
-        UUID id PK
-        UUID endpoint_id FK
-        string event_type
-        int status_code
-        string request_payload
-        string response_payload
-        datetime delivered_at
-    }
-
-    WebhookEndpoint {
+    AtlasTaxFiling {
         UUID id PK
         UUID tenant_id FK
-        string url
-        string secret_key
-        boolean is_active
+        UUID account_id FK
+        string filing_period
+        string jurisdiction
+        int64 total_tax_cents
+        string status "draft | submitted | accepted | rejected"
+        jsonb filing_metadata
+        datetime submitted_at
         datetime created_at
     }
+    AtlasTaxEvent }|--|| AtlasTaxFiling : included_in
+
+    AtlasApplication {
+        UUID id PK
+        UUID tenant_id FK
+        UUID account_id FK
+        UUID opportunity_id FK
+        string application_type "tenancy | membership | agent | creator | mortgage"
+        string status "draft | submitted | under_review | approved | rejected"
+        jsonb application_metadata
+        datetime submitted_at
+        datetime reviewed_at
+        datetime created_at
+        datetime updated_at
+    }
+    AtlasOpportunity ||--o{ AtlasApplication : spawns
 
     %% ==========================================
-    %% CRM Entities (Integrated Sub-domain)
+    %% SECTION 5: CMS & DIRECTORY (Anchor/Network)
+    %% ==========================================
+
+    Profile ||--o{ Listing : creates
+    Listing }|--|| Category : belongs_to
+    Listing ||--o{ AdPurchase : has
+    Listing ||--o{ Attachment : holds
+    Listing ||--o{ ListingABTest : tests
+    ListingABTest ||--|{ ListingABVariant : contains
+    Template }|--|| Category : belongs_to
+
+    %% ==========================================
+    %% SECTION 6: LEGACY CRM (Deprecation Path)
+    %% (Dual-write bridge — to be retired)
     %% ==========================================
 
     Customer {
@@ -423,12 +436,29 @@ erDiagram
         string customer_type
         json attributes
         string email
-        string phone
         boolean is_active
         datetime created_at
-        datetime updated_at
     }
-
+    Contact {
+        UUID id PK
+        UUID customer_id FK
+        string name
+        string email
+        string phone
+        string role
+        json billing_address
+        datetime created_at
+    }
+    Lead {
+        UUID id PK
+        UUID associated_deal_id FK
+        string name
+        string email
+        string status
+        string company
+        boolean is_converted
+        datetime created_at
+    }
     Deal {
         UUID id PK
         UUID customer_id FK
@@ -437,102 +467,26 @@ erDiagram
         string status
         string stage
         datetime close_date
-        boolean is_active
         datetime created_at
-        datetime updated_at
     }
-
-    CrmStatusOption {
-        UUID id PK
-        UUID tenant_id FK
-        string object_type
-        string status_key
-        string label
-        string color
-        int sort_order
-        boolean is_system
-        datetime created_at
-        datetime updated_at
-    }
-
-    Contact {
-        UUID id PK
-        UUID customer_id FK
-        string name
-        string first_name
-        string last_name
-        string middle_name
-        string email
-        string phone
-        string role
-        json billing_address
-        json shipping_address
-        datetime created_at
-        datetime updated_at
-    }
-
-    Lead {
-        UUID id PK
-        UUID associated_deal_id FK
-        string name
-        string first_name
-        string last_name
-        string email
-        string phone
-        string status
-        string company
-        string title
-        string lead_status
-        json billing_address
-        json shipping_address
-        boolean is_converted
-        datetime created_at
-        datetime updated_at
-    }
-
     Case {
         UUID id PK
         UUID customer_id FK
         string title
-        string description
         string status
         string priority
-        UUID assigned_to FK
-        datetime closed_at
         datetime created_at
-        datetime updated_at
     }
-
     Activity {
         UUID id PK
         UUID tenant_id FK
         UUID account_id FK
-        UUID deal_id FK
-        UUID customer_id FK
-        UUID lead_id FK
-        UUID contact_id FK
-        UUID case_id FK
         string activity_type
         string title
-        string description
         string status
         datetime due_date
-        datetime completed_at
-        json associated_entities
-        UUID created_by FK
-        UUID assigned_to FK
-        datetime created_at
-        datetime updated_at
-    }
-
-    ActivityAttachment {
-        UUID activity_id FK
-        string file_url PK
-        string file_name
-        string mime_type
         datetime created_at
     }
-
     Notes {
         UUID id PK
         string content
@@ -540,71 +494,104 @@ erDiagram
         string entity_type
         UUID entity_id
         datetime created_at
-        datetime updated_at
     }
 
-    File {
+    %% ==========================================
+    %% SECTION 7: CORE ENTITY DEFINITIONS (abbreviated)
+    %% ==========================================
+
+    User {
         UUID id PK
-        string name
-        string file_type
-        string storage_path
-        int64 size
+        string username
+        string email
+        string password_hash
+        boolean is_active
         datetime created_at
         datetime updated_at
     }
-
-    FileAssociation {
+    Tenant {
         UUID id PK
-        UUID file_id FK
-        string associated_entity_type
-        UUID associated_entity_id
+        string name
+        string slug
+        string site_status "active | suspended | provisioning"
+        json custom_settings
+        datetime created_at
+        datetime updated_at
     }
-
-    DealContact {
-        UUID deal_id FK
-        UUID contact_id FK
+    AppInstance {
+        UUID id PK
+        UUID tenant_id FK
+        string app_type "anchor | network_instance | property_management"
+        string database_url
+        json settings
+        datetime created_at
     }
-
+    AppDomain {
+        UUID id PK
+        UUID app_instance_id FK
+        string domain
+        boolean is_primary
+    }
+    AppInstanceModule {
+        UUID id PK
+        UUID app_instance_id FK
+        string module_type
+        string display_name
+        int sort_order
+        boolean is_enabled
+    }
+    Session {
+        UUID id PK
+        UUID user_id FK
+        string bearer_token_hash
+        string refresh_token_hash
+        datetime token_expiration
+        boolean is_active
+    }
+    Passkey {
+        UUID id PK
+        UUID user_id FK
+        string credential_id
+        string public_key
+        int counter
+        datetime created_at
+    }
+    OutboxJob {
+        UUID id PK
+        UUID tenant_id FK
+        string job_type "email | sms | webhook | data_export"
+        json payload
+        string status "pending | processing | completed | failed"
+        int retry_count
+        datetime scheduled_at
+        datetime created_at
+    }
+    MagicLinkToken {
+        UUID id PK
+        UUID user_id FK
+        string token
+        boolean is_used
+        boolean is_setup
+        string redirect_url
+        datetime expires_at
+        datetime created_at
+    }
     Listing {
         UUID id PK
         UUID profile_id FK
         UUID tenant_id FK
         UUID category_id FK
-        UUID based_on_template_id FK
         string title
         string description
         string listing_type
         int64 price
-        string price_type
         string country
         string state
         string city
-        string neighborhood
         float latitude
         float longitude
         json additional_info
         string status
-        boolean is_featured
-        boolean is_based_on_template
-        boolean is_ad_placement
         boolean is_active
         datetime created_at
-        datetime updated_at
-    }
-
-    ListingABTest {
-        UUID id PK
-        UUID listing_id FK
-        string test_name
-        boolean is_active
-        datetime created_at
-    }
-
-    ListingABVariant {
-        UUID id PK
-        UUID test_id FK
-        string variant_name
-        json config
-        int views
-        int conversions
     }
