@@ -22,7 +22,7 @@ use sea_orm::{
 };
 use uuid::Uuid;
 use chrono::Utc;
-use crate::entities::{lead, listing, account, note, user, activity, contact, user_account};
+use crate::entities::{lead, listing, account, note, user, activity, contact, user_account, atlas_lead};
 use crate::models::lead::{LeadModel, CreateLeadInput, UpdateLeadInput};
 
 // New unified services (cutover in progress)
@@ -134,61 +134,88 @@ pub async fn create_lead(
     if let Some(Extension(site_config)) = site_config_opt {
         resolved_tenant_id = Some(site_config.tenant_id);
     }
-    // Final fallback: derive tenant_id from the atlas_account record for the resolved account.
-    // This covers authenticated direct-API calls (no SiteConfig) where the caller
-    // supplies account_id but not tenant_id.
+    // Final fallback: derive tenant_id from the account record for the resolved account.
+    // Covers authenticated direct-API calls (no SiteConfig) where the caller
+    // supplies account_id but not tenant_id (e.g. POST /api/me/accounts creates
+    // a legacy `account` row whose tenant_id we inherit here).
     if resolved_tenant_id.is_none() {
         if let Some(acct_id) = resolved_account_id {
-            use crate::entities::atlas_account;
-            if let Ok(Some(acct)) = atlas_account::Entity::find_by_id(acct_id).one(&db).await {
+            if let Ok(Some(acct)) = account::Entity::find_by_id(acct_id).one(&db).await {
                 resolved_tenant_id = Some(acct.tenant_id);
             }
         }
     }
 
-    let mut new_lead = lead::ActiveModel {
+    // `lead` is now a read-only compat VIEW (m20260705_drop_legacy_lead).
+    // All writes must go to `atlas_lead` — the canonical G-31 table.
+    let tenant_id = resolved_tenant_id.ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let new_lead = atlas_lead::ActiveModel {
         id: Set(Uuid::new_v4()),
-        name: Set(input.name),
+        tenant_id: Set(tenant_id),
+        name: Set(input.name.clone()),
+        first_name: Set(input.first_name.clone()),
+        last_name: Set(input.last_name.clone()),
+        email: Set(input.email.clone()),
+        phone: Set(input.phone.clone()),
+        whatsapp: Set(input.whatsapp.clone()),
+        telegram: Set(input.telegram.clone()),
+        twitter: Set(input.twitter.clone()),
+        instagram: Set(input.instagram.clone()),
+        facebook: Set(input.facebook.clone()),
+        avatar_url: Set(input.avatar_url.clone()),
+        company: Set(input.company.clone()),
+        title: Set(input.title.clone()),
+        message: Set(input.message.clone()),
+        source: Set(input.source.clone()),
         listing_id: Set(input.listing_id),
         account_id: Set(resolved_account_id),
-        first_name: Set(input.first_name),
-        last_name: Set(input.last_name),
-        email: Set(input.email),
-        phone: Set(input.phone),
-        whatsapp: Set(input.whatsapp),
-        telegram: Set(input.telegram),
-        twitter: Set(input.twitter),
-        instagram: Set(input.instagram),
-        facebook: Set(input.facebook),
-        message: Set(input.message),
-        source: Set(input.source),
         is_converted: Set(false),
-        converted_to_contact: Set(false),
-        associated_deal_id: Set(None),
-        converted_customer_id: Set(None),
-        converted_contact_id: Set(None),
-        company: Set(input.company),
-        title: Set(input.title),
-        lead_status: Set(input.lead_status.or(Some("New".to_string()))),
+        lead_status: Set(input.lead_status.unwrap_or_else(|| "New".to_string())),
+        country: Set(String::new()),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
-        tenant_id: Set(resolved_tenant_id),
-        properties: Set(None),
-        avatar_url: Set(input.avatar_url),
         ..Default::default()
     };
 
-    if let Some(billing_address) = input.billing_address {
-        new_lead.billing_address = Set(Some(billing_address));
-    }
+    let inserted = new_lead.insert(&db).await.map_err(|e| {
+        tracing::error!("create_lead insert error: {e}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    if let Some(shipping_address) = input.shipping_address {
-        new_lead.shipping_address = Set(Some(shipping_address));
-    }
+    // Build a LeadModel from the atlas_lead row for the response.
+    let model = LeadModel {
+        id: inserted.id,
+        name: inserted.name,
+        listing_id: inserted.listing_id,
+        account_id: inserted.account_id,
+        first_name: inserted.first_name,
+        last_name: inserted.last_name,
+        email: inserted.email,
+        phone: inserted.phone,
+        whatsapp: inserted.whatsapp,
+        telegram: inserted.telegram,
+        twitter: inserted.twitter,
+        instagram: inserted.instagram,
+        facebook: inserted.facebook,
+        billing_address: None,
+        shipping_address: None,
+        message: inserted.message,
+        source: inserted.source,
+        is_converted: inserted.is_converted,
+        converted_to_contact: false,
+        associated_deal_id: None,
+        converted_customer_id: None,
+        converted_contact_id: inserted.converted_contact_id,
+        company: inserted.company,
+        title: inserted.title,
+        lead_status: Some(inserted.lead_status),
+        created_at: inserted.created_at,
+        updated_at: inserted.updated_at,
+        avatar_url: inserted.avatar_url,
+    };
 
-    let lead = new_lead.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(LeadModel::from(lead))))
+    Ok((StatusCode::CREATED, JsonResponse(model)))
 }
 
 pub async fn ingest_lead(
