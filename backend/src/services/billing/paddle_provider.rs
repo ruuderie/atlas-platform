@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -29,7 +31,7 @@ impl PaddleProvider {
 
 #[async_trait]
 impl PaymentProvider for PaddleProvider {
-    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, price_cents: i64, currency: &str) -> Result<SubscriptionData> {
+    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, _price_cents: i64, _currency: &str) -> Result<SubscriptionData> {
         tracing::info!("Creating Paddle Subscription for tenant {}", tenant_id);
         
         // Paddle uses proper API requests over reqwest because there's no official rust SDK
@@ -47,7 +49,7 @@ impl PaymentProvider for PaddleProvider {
         })
     }
 
-    async fn capture_payment(&self, tenant_id: Uuid, amount_cents: i64, currency: &str) -> Result<TransactionData> {
+    async fn capture_payment(&self, _tenant_id: Uuid, amount_cents: i64, currency: &str) -> Result<TransactionData> {
         tracing::info!("Capturing Paddle Payment (MOR routing)");
         Ok(TransactionData {
             transaction_id: format!("txn_paddle_{}", Uuid::new_v4()),
@@ -57,12 +59,12 @@ impl PaymentProvider for PaddleProvider {
         })
     }
 
-    async fn setup_tenant_payout_route(&self, tenant_id: Uuid) -> Result<String> {
+    async fn setup_tenant_payout_route(&self, _tenant_id: Uuid) -> Result<String> {
         // Paddle handles Merchant of Record so payout routing is simpler but less flexible for strict dual-wallets
         Ok(format!("paddle_payee_{}", Uuid::new_v4()))
     }
 
-    async fn process_webhook(&self, payload: &WebhookPayload) -> Result<()> {
+    async fn process_webhook(&self, _payload: &WebhookPayload) -> Result<()> {
         tracing::info!("Processing Paddle webhook...");
         // Implement Paddle signature verification (usually via public key)
         Ok(())

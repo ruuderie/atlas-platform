@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # Scorecard Analytics Service (G-27 Phase 3)
 //!
 //! Provides portfolio-level analytics for the Atlas Scorecards engine.

@@ -110,6 +110,7 @@ pub struct ScorecardService;
 /// ```
 /// Removing or setting to `'local'` reverts to in-process compute.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum ComputeBackend {
     /// In-process execution via `atlas-compute-sdk` — default for all tenants.
     Local,
@@ -118,6 +119,7 @@ pub enum ComputeBackend {
     Byoc(String),
 }
 
+#[allow(dead_code)]
 impl ComputeBackend {
     /// Resolve the compute backend for a tenant from `tenant_settings`.
     ///
@@ -147,6 +149,7 @@ impl ComputeBackend {
 // ── Result types ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[allow(dead_code)]
 pub struct SimilarityResult {
     pub scorecard_id: Uuid,
     pub subject_entity_type: String,
@@ -208,6 +211,7 @@ struct BooleanAgg {
 
 // ── Core service ─────────────────────────────────────────────────────────────
 
+#[allow(dead_code)]
 impl ScorecardService {
     // ── get_or_create ──────────────────────────────────────────────────────
 

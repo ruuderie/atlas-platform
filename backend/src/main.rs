@@ -43,7 +43,7 @@ use crate::middleware::{
     DynamicCorsRegistry,
     dynamic_cors_layer,
 };
-use webauthn_rs::prelude::*;
+// webauthn_rs::prelude::* intentionally not imported — symbols pulled in via explicit crate::handlers::passkeys items
 use crate::handlers::passkeys::{WebauthnStateRaw, WebauthnState};
 use crate::webauthn_registry::WebauthnRegistry;
 use moka::future::Cache;
@@ -51,11 +51,13 @@ use std::sync::Arc;
 use std::time::Duration;
 use crate::services::ingress_provisioner::IngressProvisioner;
 
+#[allow(dead_code)]
 async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http::StatusCode, String) {
     tracing::error!("Unhandled error: {:?}", error);
     (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error".to_string())
 }
 
+#[allow(dead_code)]
 fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
     let is_dev = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string()) == "development";
 
@@ -260,7 +262,7 @@ async fn main() {
     // get_or_create via the DB-verify path — no pod restart needed.
     {
         use crate::entities::app_domain;
-        use crate::webauthn_registry::effective_tld_plus_one;
+        
         use sea_orm::EntityTrait;
         match app_domain::Entity::find().all(&conn).await {
             Ok(domains) => {
@@ -317,7 +319,7 @@ async fn main() {
     // pre-warm loop above. Using the full host (e.g. "dev.buildwithruud.com") as rp_id
     // would cause browsers to reject challenges for passkeys registered under "buildwithruud.com".
     if let Ok(additional_origins) = std::env::var("ADDITIONAL_ALLOWED_ORIGINS") {
-        use crate::webauthn_registry::effective_tld_plus_one;
+        
         for origin in additional_origins.split(',') {
             let trimmed = origin.trim();
             if let Ok(parsed) = url::Url::parse(trimmed) {

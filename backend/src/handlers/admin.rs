@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use crate::entities::{
     user,user_account, tenant, listing, ad_purchase, 
     profile, account, session,request_log

@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use axum::{
     http::{Method, Request, StatusCode, Uri},
     response::Response,

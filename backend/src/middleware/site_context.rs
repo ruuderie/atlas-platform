@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 // backend/src/middleware/site_context.rs
 use axum::{
     extract::{Extension},

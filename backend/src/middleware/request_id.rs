@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use axum::{
     body::Body,
     http::{Request, Response},

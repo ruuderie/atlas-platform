@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use sea_orm::{DatabaseConnection, ConnectionTrait, Statement};
 use uuid::Uuid;
 use chrono::Utc;

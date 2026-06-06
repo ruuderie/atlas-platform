@@ -392,21 +392,7 @@ pub async fn ingest_lead(
         }
     }
 
-    // Legacy billing path kept during transition
-    if let Some(acct_id) = legacy_lead.account_id {
-        let db_clone = db.clone();
-        let l_id = legacy_lead.id;
-        let tenant_for_billing = resolved_tenant_id;
-        
-        tokio::spawn(async move {
-            let account_res = crate::entities::account::Entity::find_by_id(acct_id).one(&db_clone).await;
-            if let Ok(Some(acct)) = account_res {
-                if let Some(tid) = tenant_for_billing {
-                    let _ = crate::services::lead_billing::charge_for_lead(&db_clone, tid, acct_id, l_id, acct.stripe_customer_id).await;
-                }
-            }
-        });
-    }
+
     
     Ok((StatusCode::CREATED, JsonResponse(LeadModel::from(legacy_lead))))
 }
@@ -734,6 +720,7 @@ pub async fn get_lead_activities(
 
 use crate::handlers::notes::get_user_tenant_id;
 
+#[allow(dead_code)]
 pub async fn create_lead_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -765,6 +752,7 @@ pub async fn create_lead_note(
     Ok((StatusCode::CREATED, JsonResponse(NoteModel::from(inserted_note))))
 }
 
+#[allow(dead_code)]
 pub async fn create_lead_activity(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

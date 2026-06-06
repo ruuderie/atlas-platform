@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::{Result, Context, anyhow};
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -17,7 +19,7 @@ impl StripeProvider {
 
 #[async_trait]
 impl PaymentProvider for StripeProvider {
-    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, price_cents: i64, currency: &str) -> Result<SubscriptionData> {
+    async fn create_subscription(&self, tenant_id: Uuid, plan_name: &str, _price_cents: i64, _currency: &str) -> Result<SubscriptionData> {
         tracing::info!("Creating Stripe Subscription for tenant {} (Plan: {})", tenant_id, plan_name);
         
         // In a fully integrated flow, we would map the local plan_id to a Stripe Price ID

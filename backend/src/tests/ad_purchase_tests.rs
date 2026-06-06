@@ -3,7 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use sea_orm::ActiveModelTrait;
-use sea_orm_migration::MigratorTrait;
+// use sea_orm_migration::MigratorTrait; // unused - removed
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;

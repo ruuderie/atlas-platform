@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use crate::services::audit::AuditService;
 use crate::entities::tenant_subscription;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set};

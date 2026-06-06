@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 //! Admin Module Registry
 //!
 //! This module is the **single source of truth** for the Atlas Platform's

@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;

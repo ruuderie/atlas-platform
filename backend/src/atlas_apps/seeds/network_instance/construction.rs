@@ -12,7 +12,7 @@ pub fn pack() -> AppSeedPack {
         title: "Construction & Contracting Starter",
         description: "Seeds the Construction & Contracting network type with a full category tree, plus 24 sample Connecticut-based contractor listings covering HVAC, plumbing, electrical, and renovation services.",
         content_summary: "~5 parent categories, ~20 sub-categories, 24 sample listings",
-        apply: Box::new(|db, tenant_id, app_instance_id| {
+        apply: Box::new(|db, tenant_id, _app_instance_id| {
             Box::pin(async move {
                 let nt_id = ensure_network_type(
                     &db,

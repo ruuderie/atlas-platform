@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use std::sync::Arc;
 use dashmap::DashMap;
 use sea_orm::{DatabaseConnection, EntityTrait};

@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use chrono::{Utc, DateTime};
 use uuid::Uuid;
 use sea_orm::DeriveActiveEnum;

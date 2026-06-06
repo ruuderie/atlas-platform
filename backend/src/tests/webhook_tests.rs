@@ -1,4 +1,4 @@
-use sea_orm::{Set, EntityTrait, ActiveModelTrait};
+use sea_orm::{Set, ActiveModelTrait};
 use uuid::Uuid;
 use wiremock::matchers::{method, path, header, body_json};
 use wiremock::{Mock, MockServer, ResponseTemplate};

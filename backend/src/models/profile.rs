@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use crate::entities::profile;

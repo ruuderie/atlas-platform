@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use sea_orm_migration::MigratorTrait;
+// use sea_orm_migration::MigratorTrait; // unused - removed
 use tower::ServiceExt;
 use serde_json::json;
 use super::test_utils;

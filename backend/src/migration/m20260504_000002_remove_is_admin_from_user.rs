@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]

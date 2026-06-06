@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::Result;
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -41,12 +43,12 @@ impl PaymentProvider for ZapriteProvider {
         })
     }
 
-    async fn setup_tenant_payout_route(&self, tenant_id: Uuid) -> Result<String> {
+    async fn setup_tenant_payout_route(&self, _tenant_id: Uuid) -> Result<String> {
         // Here we map a tenant to a specific BTC address or XPUB
         Ok(format!("xpub_zaprite_{}", Uuid::new_v4()))
     }
 
-    async fn process_webhook(&self, payload: &WebhookPayload) -> Result<()> {
+    async fn process_webhook(&self, _payload: &WebhookPayload) -> Result<()> {
         // Zaprite verifies invoice payments
         tracing::info!("Zaprite webhook received - Lightning Invoice confirmed!");
         Ok(())

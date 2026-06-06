@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use sea_orm::{DatabaseConnection, EntityTrait, ActiveModelTrait, Set, QueryFilter, ColumnTrait};
 use uuid::Uuid;
 use chrono::Utc;
@@ -59,8 +60,8 @@ impl ContactService {
 
     /// Set a contact as the primary contact for its account (and unset others).
     pub async fn set_as_primary(
-        db: &DatabaseConnection,
-        tenant_id: Uuid,
+        _db: &DatabaseConnection,
+        _tenant_id: Uuid,
         contact_id: Uuid,
     ) -> Result<(), String> {
         // In a real implementation this would be a transaction + update many.

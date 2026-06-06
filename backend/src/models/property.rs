@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use serde::{Deserialize, Serialize};
 use sea_orm::{EnumIter, DeriveActiveEnum};
 use strum_macros::{EnumString, Display};

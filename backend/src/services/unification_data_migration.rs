@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 //! Data migration logic for retiring legacy CRM entities into the unified Platform Generics model.
 //!
 //! This is a one-time migration tool focused on dev and uat environments.

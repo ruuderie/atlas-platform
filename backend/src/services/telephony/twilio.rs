@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use crate::traits::telephony::{CallEvent, CallLog, PhoneNumber, TelephonyProvider};

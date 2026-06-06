@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};

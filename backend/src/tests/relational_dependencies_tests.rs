@@ -2,8 +2,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use sea_orm::{EntityTrait, ActiveModelTrait};
-use sea_orm_migration::MigratorTrait;
+use sea_orm::EntityTrait;
+// use sea_orm_migration::MigratorTrait; // unused - removed
 use tower::ServiceExt;
 use serde_json::json;
 use crate::entities::tenant;

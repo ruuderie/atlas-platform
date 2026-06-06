@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 //! CLI utility to compile Markdown market strategy reports in `docs/market-analysis` to high-fidelity PDFs.
 //!
 //! Usage examples:

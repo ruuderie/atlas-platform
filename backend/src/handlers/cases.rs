@@ -302,12 +302,12 @@ pub async fn create_case_note(
 }
 
 #[derive(Debug, Deserialize)]
-struct CreateCaseActivityInput {
+pub struct CreateCaseActivityInput {
     title: String,
     description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-struct CreateCaseNoteInput {
+pub struct CreateCaseNoteInput {
     content: String,
 }

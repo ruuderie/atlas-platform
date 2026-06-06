@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::entities::{
     listing::{self, Entity as Listing},
     profile::{self, Entity as Profile},

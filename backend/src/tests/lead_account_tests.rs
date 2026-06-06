@@ -15,7 +15,7 @@
 
 use uuid::Uuid;
 use serde_json::json;
-use sea_orm::{EntityTrait, IntoActiveModel};
+use sea_orm::EntityTrait;
 
 use crate::tests::api_tests::setup_test_app;
 use crate::tests::test_utils;

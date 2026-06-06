@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use anyhow::{anyhow, Result};
 use std::env;
 

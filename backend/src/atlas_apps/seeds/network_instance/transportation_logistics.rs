@@ -10,7 +10,7 @@ pub fn pack() -> AppSeedPack {
         title: "Transportation & Logistics Starter",
         description: "Seeds the Transportation & Logistics network type with a full category tree covering freight, warehousing, supply chain, courier services, and fleet management.",
         content_summary: "~5 parent categories, ~25 sub-categories",
-        apply: Box::new(|db, tenant_id, app_instance_id| {
+        apply: Box::new(|db, tenant_id, _app_instance_id| {
             Box::pin(async move {
                 let nt_id = ensure_network_type(
                     &db,

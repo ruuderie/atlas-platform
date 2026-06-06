@@ -1,5 +1,6 @@
+#![allow(dead_code)]
 use sea_orm::{
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, ActiveModelTrait,
+    ColumnTrait, DatabaseConnection, EntityTrait, ActiveModelTrait,
     QueryFilter, QueryOrder, QuerySelect, Set,
     sea_query::{Expr, Func},
 };

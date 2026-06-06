@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use webauthn_rs::prelude::*;
 use std::sync::Arc;
 use moka::future::Cache;

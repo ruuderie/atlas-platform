@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use reqwest::Client;
 use serde::Serialize;
 

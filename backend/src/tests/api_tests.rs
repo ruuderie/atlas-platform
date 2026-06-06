@@ -4,7 +4,7 @@ use axum::{
     Router,
 };
 use sea_orm::{Database, DatabaseConnection, EntityTrait};
-use sea_orm_migration::MigratorTrait;
+// use sea_orm_migration::MigratorTrait; // unused - removed
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;

@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};

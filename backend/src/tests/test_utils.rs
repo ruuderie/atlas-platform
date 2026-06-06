@@ -1,3 +1,4 @@
+#![allow(dead_code, non_snake_case)]
 use http_body_util::BodyExt; // Brings collect() into scope
 use axum::{
     body::Body,

@@ -30,7 +30,7 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        let db = manager.get_connection();
+        let _db = manager.get_connection();
 
         // ── atlas_catalog_entries ─────────────────────────────────────────────
         manager

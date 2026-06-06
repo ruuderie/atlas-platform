@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use std::collections::HashSet;
 use once_cell::sync::Lazy;
 

@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_comparisons)]
 //! Comprehensive tests for the complete Platform Generics service layer.
 //! These are integration-style tests (real DB via test app) but exercise the service
 //! methods directly, matching the style used for AuditService, TelemetryService, etc.

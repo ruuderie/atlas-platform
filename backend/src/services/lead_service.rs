@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
     TransactionTrait,
@@ -485,7 +486,7 @@ impl LeadService {
     async fn create_opportunity_from_lead(
         db: &impl sea_orm::ConnectionTrait,
         tenant_id: Uuid,
-        account_id: Uuid,
+        _account_id: Uuid,
         _contact_id: Uuid,
         lead: &atlas_lead::Model,
     ) -> Result<Uuid, sea_orm::DbErr> {

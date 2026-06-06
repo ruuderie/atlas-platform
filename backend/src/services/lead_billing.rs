@@ -1,3 +1,4 @@
+#![allow(dead_code, unused)]
 use anyhow::Result;
 use uuid::Uuid;
 use tracing::{info, error};

@@ -1,5 +1,6 @@
+#![allow(dead_code)]
 use chrono::Utc;
-use sea_orm::{Database, DatabaseConnection, EntityTrait, ActiveModelTrait, QueryFilter, ColumnTrait};
+use sea_orm::{Database, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
 use crate::services::telemetry::TelemetryService;
 use crate::entities::{telemetry_events, platform_metrics_daily};
