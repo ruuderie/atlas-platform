@@ -225,7 +225,7 @@ async fn verify_template_tenant(
     template_id: Uuid,
     tenant_id: Uuid,
 ) -> Result<(), StatusCode> {
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    use sea_orm::EntityTrait;
 
     let template = crate::entities::atlas_scorecard_template::Entity::find_by_id(template_id)
         .one(db)

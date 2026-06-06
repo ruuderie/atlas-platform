@@ -266,6 +266,7 @@ async fn test_find_similar_returns_empty_when_no_qualified_scorecards() {
         tenant.id,
         template_id,
         vec![8.0, 7.0, 9.0],
+        vec![true, true, true], // target_mask: all 3 dims present
         10,
         "medium",
     )

@@ -69,7 +69,7 @@ use anyhow::{anyhow, bail, Result};
 
 use crate::types::scorecard::{
     ScaleType, SourceType, ConfidenceLevel, BenchmarkTier, BenchmarkTiers,
-    TriggerCategory, RuleAction, ModeScope,
+    TriggerCategory,
     ScoringMethod, ColdStartStrategy, PercentileBand,
 };
 
@@ -1500,6 +1500,9 @@ impl ScorecardService {
     // Confidence level helpers have been replaced by ConfidenceLevel::from_entry_count().
     // These stubs are kept for any external callers until migration is complete.
     #[deprecated(note = "Use ConfidenceLevel::from_entry_count(n).to_string() instead")]
+    // Used by unit tests (scorecard_lead_unit_tests) and callers that need a
+    // string confidence label without a full DB round-trip.
+    #[allow(dead_code)]
     pub(crate) fn compute_confidence_level(total_entries: i32) -> String {
         ConfidenceLevel::from_entry_count(total_entries).to_string()
     }
@@ -1959,7 +1962,6 @@ impl ScorecardService {
 
         // ── Step 5: Upsert calibration rows ────────────────────────────────────
         let mut upserted = 0usize;
-        let now = chrono::Utc::now();
 
         for ((contributor_id, dim_id), scores) in &contributor_scores {
             if scores.len() < min_entries {
