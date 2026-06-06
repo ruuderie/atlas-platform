@@ -72,6 +72,11 @@ pub struct Model {
     pub created_at: DateTime<Utc>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub updated_at: DateTime<Utc>,
+    /// Soft-delete sentinel. NULL = active; non-null = archived.
+    /// Set by DELETE /api/scorecards/:id — never hard-deletes.
+    /// All views and queries should filter `WHERE deleted_at IS NULL`.
+    #[sea_orm(column_type = "TimestampWithTimeZone", nullable)]
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -230,6 +230,10 @@ pub mod m20260709_g27_data_science_v1;
 //       z_score + is_anomaly + anomaly_direction on time_series;
 //       atlas_scorecard_contributor_calibration table.
 pub mod m20260710_g27_data_science_v2;
+// G-27 Patch: Add deleted_at soft-delete column to atlas_scorecards.
+// Sorts before v3 (m20260711_0_ < m20260711_g_) — column must exist when the
+// portfolio analytics MV and v_scorecard_recent_anomalies views reference sc.deleted_at.
+pub mod m20260711_0_g27_add_deleted_at_scorecards;
 // G-27 Data Science Upgrade Phase 3: mv_scorecard_portfolio_analytics materialized view
 // + v_scorecard_recent_anomalies live view. Powers portfolio API + BYOC peer pool.
 pub mod m20260711_g27_data_science_v3;
@@ -355,6 +359,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260709_g27_data_science_v1::Migration),
             // G-27 Data Science Upgrade Phase 2: masked vectors + anomaly detection + calibration
             Box::new(m20260710_g27_data_science_v2::Migration),
+            // G-27 Patch: Add deleted_at to atlas_scorecards before v3 creates views that
+            // reference sc.deleted_at. m20260711_0_ sorts before m20260711_g_ in the vec.
+            Box::new(m20260711_0_g27_add_deleted_at_scorecards::Migration),
             // G-27 Data Science Upgrade Phase 3: portfolio analytics materialized view
             // + recent anomalies live view. Sorts after v2 (m20260711_ > m20260710_).
             Box::new(m20260711_g27_data_science_v3::Migration),

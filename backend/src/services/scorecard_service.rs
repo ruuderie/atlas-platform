@@ -265,6 +265,7 @@ impl ScorecardService {
             last_computed_at: Set(None),
             created_at: Set(now),
             updated_at: Set(now),
+            deleted_at: Set(None),
         };
 
         let inserted = model.insert(db).await;

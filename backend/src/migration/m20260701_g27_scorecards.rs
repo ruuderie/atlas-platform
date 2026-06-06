@@ -751,14 +751,18 @@ impl MigrationTrait for Migration {
             .await?;
         }
 
-        // Add updated_at columns to templates and scorecards (not in DDL above to keep
-        // the builder blocks clean — easier to add via ALTER)
+        // Add updated_at + deleted_at to templates and scorecards (not in DDL above to keep
+        // the builder blocks clean — easier to add via ALTER).
+        // deleted_at: soft-delete sentinel. NULL = active, non-null = archived.
+        // Required by mv_scorecard_portfolio_analytics and v_scorecard_recent_anomalies.
         for table in &["atlas_scorecard_templates", "atlas_scorecards"] {
             db.execute(sea_orm::Statement::from_string(
                 backend,
                 format!(
                     "ALTER TABLE {t} \
-                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();",
+                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(); \
+                     ALTER TABLE {t} \
+                     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;",
                     t = table
                 ),
             ))
