@@ -161,7 +161,6 @@ impl MigrationTrait for Migration {
             backend,
             "CREATE OR REPLACE VIEW v_scorecard_recent_anomalies AS
              SELECT
-               ts.id                 AS time_series_id,
                ts.scorecard_id,
                ts.dimension_id,
                sc.tenant_id,
@@ -169,13 +168,11 @@ impl MigrationTrait for Migration {
                d.slug                AS dimension_slug,
                d.name                AS dimension_name,
                ts.period_start,
-               ts.period_end,
                ts.mean_score,
                ts.z_score,
                ts.is_anomaly,
                ts.anomaly_direction,
-               ts.trend_direction,
-               ts.created_at
+               ts.trend_direction
              FROM   atlas_scorecard_time_series ts
              JOIN   atlas_scorecards            sc ON sc.id = ts.scorecard_id
              JOIN   atlas_scorecard_dimensions  d  ON d.id  = ts.dimension_id
