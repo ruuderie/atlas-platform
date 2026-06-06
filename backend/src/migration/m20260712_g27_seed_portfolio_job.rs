@@ -32,7 +32,7 @@ impl MigrationTrait for Migration {
                     SELECT DISTINCT tenant_id
                     FROM atlas_scorecard_templates
                     WHERE is_published = true
-                      AND is_deleted   = false
+                      AND deleted_at IS NULL
                 LOOP
                     -- 3. Portfolio analytics refresh + percentile re-rank (every 4 hours)
                     IF NOT EXISTS (

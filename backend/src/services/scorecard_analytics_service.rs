@@ -65,15 +65,15 @@ pub struct PortfolioStats {
 /// A single entry in the leaderboard — one scorecard ranked by composite score.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LeaderboardEntry {
-    pub rank:            i64,
-    pub scorecard_id:    Uuid,
-    pub subject_id:      String,
-    pub subject_type:    String,
-    pub composite_score: Option<f64>,
-    pub confidence_level: String,
+    pub rank:                i64,
+    pub scorecard_id:        Uuid,
+    pub subject_entity_id:   String,
+    pub subject_entity_type: String,
+    pub composite_score:     Option<f64>,
+    pub confidence_level:    String,
     /// Percentile rank computed from the materialized view pool.
-    pub percentile_rank: Option<f64>,
-    pub trend_direction: Option<String>,
+    pub percentile_rank:     Option<f64>,
+    pub trend_direction:     Option<String>,
 }
 
 /// A recent anomaly alert — one time series row with is_anomaly = true.
@@ -218,9 +218,9 @@ impl ScorecardAnalyticsService {
         let rows = db.query_all(Statement::from_sql_and_values(
             backend,
             "SELECT
-               sc.id                   AS scorecard_id,
-               sc.subject_id,
-               sc.subject_type,
+               sc.id                     AS scorecard_id,
+               sc.subject_entity_id,
+               sc.subject_entity_type,
                sc.composite_score,
                sc.confidence_level,
                sc.trend_direction,
@@ -232,10 +232,10 @@ impl ScorecardAnalyticsService {
                    ) OVER ()::numeric
                  ) / NULLIF(COUNT(*) OVER (), 1),
                  1
-               )                       AS percentile_rank,
+               )                         AS percentile_rank,
                RANK() OVER (
                  ORDER BY sc.composite_score DESC NULLS LAST
-               )                       AS rank
+               )                         AS rank
              FROM atlas_scorecards sc
              -- Self-join to get the full ordered set for window functions
              JOIN atlas_scorecards sc2
@@ -248,7 +248,7 @@ impl ScorecardAnalyticsService {
                AND sc.deleted_at  IS NULL
                AND sc.composite_score IS NOT NULL
              GROUP BY
-               sc.id, sc.subject_id, sc.subject_type,
+               sc.id, sc.subject_entity_id, sc.subject_entity_type,
                sc.composite_score, sc.confidence_level, sc.trend_direction
              ORDER BY sc.composite_score DESC NULLS LAST
              LIMIT $3",
@@ -263,14 +263,14 @@ impl ScorecardAnalyticsService {
         let mut entries = Vec::with_capacity(rows.len());
         for row in &rows {
             entries.push(LeaderboardEntry {
-                rank:             row.try_get("", "rank")?,
-                scorecard_id:     row.try_get("", "scorecard_id")?,
-                subject_id:       row.try_get("", "subject_id")?,
-                subject_type:     row.try_get("", "subject_type")?,
-                composite_score:  row.try_get::<Option<f64>>("", "composite_score").ok().flatten(),
-                confidence_level: row.try_get("", "confidence_level").unwrap_or_default(),
-                percentile_rank:  row.try_get::<Option<f64>>("", "percentile_rank").ok().flatten(),
-                trend_direction:  row.try_get::<Option<String>>("", "trend_direction").ok().flatten(),
+                rank:                row.try_get("", "rank")?,
+                scorecard_id:        row.try_get("", "scorecard_id")?,
+                subject_entity_id:   row.try_get("", "subject_entity_id")?,
+                subject_entity_type: row.try_get("", "subject_entity_type")?,
+                composite_score:     row.try_get::<Option<f64>>("", "composite_score").ok().flatten(),
+                confidence_level:    row.try_get("", "confidence_level").unwrap_or_default(),
+                percentile_rank:     row.try_get::<Option<f64>>("", "percentile_rank").ok().flatten(),
+                trend_direction:     row.try_get::<Option<String>>("", "trend_direction").ok().flatten(),
             });
         }
 
