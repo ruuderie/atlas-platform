@@ -144,15 +144,19 @@ impl MigrationTrait for Migration {
         ))
         .await?;
 
-        db.execute(sea_orm::Statement::from_string(
-            backend,
-            "DROP INDEX IF EXISTS idx_notes_entity_feed; \
-             DROP INDEX IF EXISTS idx_notes_pinned; \
-             DROP INDEX IF EXISTS idx_notes_thread; \
-             DROP INDEX IF EXISTS idx_notes_type; \
-             DROP INDEX IF EXISTS idx_notes_visibility;",
-        ))
-        .await?;
+        for idx in &[
+            "idx_notes_entity_feed",
+            "idx_notes_pinned",
+            "idx_notes_thread",
+            "idx_notes_type",
+            "idx_notes_visibility",
+        ] {
+            db.execute(sea_orm::Statement::from_string(
+                backend,
+                format!("DROP INDEX IF EXISTS {};", idx),
+            ))
+            .await?;
+        }
 
         db.execute(sea_orm::Statement::from_string(
             backend,

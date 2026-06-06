@@ -760,8 +760,16 @@ impl MigrationTrait for Migration {
                 backend,
                 format!(
                     "ALTER TABLE {t} \
-                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(); \
-                     ALTER TABLE {t} \
+                     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();",
+                    t = table
+                ),
+            ))
+            .await?;
+
+            db.execute(sea_orm::Statement::from_string(
+                backend,
+                format!(
+                    "ALTER TABLE {t} \
                      ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;",
                     t = table
                 ),

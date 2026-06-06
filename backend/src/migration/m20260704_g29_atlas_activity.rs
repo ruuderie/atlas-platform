@@ -197,15 +197,19 @@ impl MigrationTrait for Migration {
         ))
         .await?;
 
-        db.execute(sea_orm::Statement::from_string(
-            backend,
-            "DROP INDEX IF EXISTS idx_activity_subject_feed; \
-             DROP INDEX IF EXISTS idx_activity_tenant_type; \
-             DROP INDEX IF EXISTS idx_activity_scheduled; \
-             DROP INDEX IF EXISTS idx_activity_outcome; \
-             DROP INDEX IF EXISTS idx_activity_created_by;",
-        ))
-        .await?;
+        for idx in &[
+            "idx_activity_subject_feed",
+            "idx_activity_tenant_type",
+            "idx_activity_scheduled",
+            "idx_activity_outcome",
+            "idx_activity_created_by",
+        ] {
+            db.execute(sea_orm::Statement::from_string(
+                backend,
+                format!("DROP INDEX IF EXISTS {};", idx),
+            ))
+            .await?;
+        }
 
         db.execute(sea_orm::Statement::from_string(
             backend,
