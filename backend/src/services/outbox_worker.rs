@@ -331,6 +331,150 @@ impl OutboxWorker {
                     Ok(())
                 }
 
+
+                // G-27 Phase 3: Refresh mv_scorecard_portfolio_analytics + batch-update
+                // percentile ranks for all scorecards in every template for this tenant.
+                // Runs every 4 hours (interval_seconds = 14400).
+                //
+                // Uses REFRESH MATERIALIZED VIEW CONCURRENTLY — readers are never blocked.
+                // After the MV refresh, writes updated percentile_rank, percentile_band,
+                // and percentile_cohort_size to atlas_scorecard_dimension_aggregates for
+                // every dimension of every scorecard in the template's pool.
+                //
+                // Also serves as the source of the BYOC peer_pool snapshot (Phase 5):
+                // the freshly-refreshed MV data is used by peer_pool_snapshot() in
+                // G27SC_ByocComputeCalloutController requests.
+                "refresh_scorecard_portfolio" => {
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+                    use crate::entities::atlas_scorecard_template;
+
+                    let templates = match atlas_scorecard_template::Entity::find()
+                        .filter(atlas_scorecard_template::Column::TenantId.eq(job.tenant_id))
+                        .filter(atlas_scorecard_template::Column::IsPublished.eq(true))
+                        .all(db)
+                        .await
+                    {
+                        Ok(v) => v,
+                        Err(e) => return Err(sea_orm::DbErr::Custom(
+                            format!("refresh_scorecard_portfolio: failed to fetch templates: {e}")
+                        )),
+                    };
+
+                    if templates.is_empty() {
+                        info!(
+                            "refresh_scorecard_portfolio: no published templates for tenant {}, skipping",
+                            job.tenant_id
+                        );
+                        return Ok(());
+                    }
+
+                    let mut errors: Vec<String> = Vec::new();
+
+                    for template in &templates {
+                        if let Err(e) = crate::services::scorecard_analytics_service::ScorecardAnalyticsService::refresh_and_rerank(
+                            db,
+                            template.id,
+                            job.tenant_id,
+                        )
+                        .await
+                        {
+                            errors.push(format!("template {}: {e}", template.id));
+                        } else {
+                            info!(
+                                "refresh_scorecard_portfolio: template {} refreshed successfully",
+                                template.id
+                            );
+                        }
+                    }
+
+                    if errors.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(format!(
+                            "refresh_scorecard_portfolio had {} failures: {}",
+                            errors.len(),
+                            errors.join("; ")
+                        ))
+                    }
+                }
+
+
+                // G-27 Phase 4: Compute per-contributor bias_offset + scale_factor for all
+                // published templates for this tenant. Runs weekly (interval_seconds = 604800).
+                //
+                // Reads all verified entries for the template, groups by (contributor, dimension),
+                // and writes calibration rows to atlas_scorecard_contributor_calibration.
+                //
+                // Gate: only contributors with entry_count >= template.calibration_minimum_entries
+                // (default 100) receive calibration rows. Below threshold, raw scores are used.
+                //
+                // Applied automatically on the next recompute_scorecard_aggregates run — the
+                // calibration map is loaded once per scorecard recompute (keyed by
+                // (contributor_user_id, dimension_id)) and applied per-entry in
+                // compute_numeric_aggregate.
+                "calibrate_scorecard_contributors" => {
+                    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+                    use crate::entities::atlas_scorecard_template;
+
+                    let templates = match atlas_scorecard_template::Entity::find()
+                        .filter(atlas_scorecard_template::Column::TenantId.eq(job.tenant_id))
+                        .filter(atlas_scorecard_template::Column::IsPublished.eq(true))
+                        .all(db)
+                        .await
+                    {
+                        Ok(v) => v,
+                        Err(e) => return Err(sea_orm::DbErr::Custom(
+                            format!("calibrate_scorecard_contributors: failed to fetch templates: {e}")
+                        )),
+                    };
+
+                    if templates.is_empty() {
+                        info!(
+                            "calibrate_scorecard_contributors: no published templates for tenant {}, skipping",
+                            job.tenant_id
+                        );
+                        return Ok(());
+                    }
+
+                    let mut errors: Vec<String> = Vec::new();
+                    let mut total_upserted: usize = 0;
+
+                    for template in &templates {
+                        match crate::services::scorecard_service::ScorecardService::calibrate_contributor_bias(
+                            db,
+                            template.id,
+                        )
+                        .await
+                        {
+                            Ok(upserted) => {
+                                total_upserted += upserted;
+                                info!(
+                                    "calibrate_scorecard_contributors: template {} → {} calibration rows upserted",
+                                    template.id, upserted
+                                );
+                            }
+                            Err(e) => {
+                                errors.push(format!("template {}: {e}", template.id));
+                            }
+                        }
+                    }
+
+                    info!(
+                        "calibrate_scorecard_contributors: tenant {} → {} total rows upserted across {} templates",
+                        job.tenant_id, total_upserted, templates.len()
+                    );
+
+                    if errors.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(format!(
+                            "calibrate_scorecard_contributors had {} failures: {}",
+                            errors.len(),
+                            errors.join("; ")
+                        ))
+                    }
+                }
+
                 _ => Err(format!("Unknown job type: {}", job.job_type)),
             };
 

@@ -147,3 +147,6 @@ pub mod atlas_scorecard_target_criteria;
 
 // GENERIC-27 gap fill: Context-Aware Display Rules engine
 pub mod atlas_scorecard_display_rule;
+
+// GENERIC-27 data science upgrade: Contributor bias calibration (Gap 2 / Phase 4)
+pub mod atlas_scorecard_contributor_calibration;

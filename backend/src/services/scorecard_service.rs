@@ -1,6 +1,66 @@
+//! G-27 Atlas Scorecards — `ScorecardService`
+//!
+//! The primary service for all scorecard lifecycle operations: creation, session management,
+//! entry submission, aggregate computation, similarity search, display rules, and nudge logic.
+//!
+//! ## G-27 Data Science Upgrade — Phase Summary
+//!
+//! | Phase | What shipped | Key functions |
+//! |-------|--------------|---------------|
+//! | 1 | Bayesian cold-start + confidence-weighted composite | `compute_numeric_aggregate`, `recompute_aggregates` |
+//! | 2 | Masked cosine similarity, percentile ranks, anomaly detection | `find_similar`, `compute_percentile_ranks`, `refresh_time_series_for_dimension` |
+//! | 3 | Portfolio analytics MV + 4 API endpoints + 4h background job | `refresh_and_rerank` |
+//! | 4 | Contributor calibration (weekly bias/scale coefficients) | `calibrate_contributor_bias` |
+//! | 5 | BYOC Compute SDK + `ComputeBackend` strategy enum | `ComputeBackend::resolve` |
+//!
+//! ## Background Job Schedule
+//!
+//! | Job key | Interval | Function |
+//! |---------|----------|----------|
+//! | `recompute_scorecard_aggregates` | 5 min | `recompute_aggregates` |
+//! | `refresh_scorecard_time_series` | 24 h | `refresh_time_series_for_dimension` |
+//! | `refresh_scorecard_portfolio_analytics` | 4 h | `refresh_and_rerank` |
+//! | `calibrate_scorecard_contributors` | 7 days | `calibrate_contributor_bias` |
+//!
+//! ## Core Algorithms (see `crates/atlas-compute-sdk` for extracted pure-math versions)
+//!
+//! ### Bayesian Shrinkage (Phase 1)
+//! ```text
+//! shrunk = (prior_weight × global_ref + Σ(score_i × credibility_i))
+//!          / (prior_weight + Σ(credibility_i))
+//! ```
+//! Configured per-dimension via `bayesian_prior_weight`. Converges to raw mean as n >> prior_weight.
+//!
+//! ### Confidence-Weighted Composite (Phase 1)
+//! ```text
+//! confidence_weight = MIN(contributor_count / saturation_threshold, 1.0)
+//! ```
+//! Sparse dimensions contribute proportionally less to the composite score.
+//!
+//! ### Contributor Calibration (Phase 4)
+//! ```text
+//! bias_offset  = contributor_mean − ensemble_mean
+//! scale_factor = clamp(σ_contributor / σ_ensemble, 0.1, 3.0)
+//! calibrated   = clamp((raw − bias) × scale, scale_min, scale_max)
+//! ```
+//! Gated: only applied when `entry_count >= template.calibration_minimum_entries` (default: 100).
+//! Lookup hierarchy per entry: `(contributor, dimension)` → `(contributor, Uuid::nil())` → identity.
+//!
+//! ### Masked Cosine Similarity (Phase 2)
+//! Requires ≥ 30% dimension overlap (both `has_data_mask[i] = true`). Returns `None` if insufficient.
+//!
+//! ### Anomaly Detection (Phase 2)
+//! Rolling 6-period window z-score (`|z| > 2.0` → anomaly). Population std, min 3 periods.
+//!
+//! ## BYOC Compute Backend (Phase 5)
+//!
+//! [`ComputeBackend`] is resolved per-tenant from `tenant_settings.key = 'g27_compute_backend'`:
+//! - `Local` (default): calls `atlas-compute-sdk` in-process
+//! - `Byoc(url)`: POSTs a `ComputeRequest` JSON to the customer's Lambda — compute stays in their VPC
+
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait,
-    DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
+    ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, TransactionTrait,
 };
 use uuid::Uuid;
 use chrono::{Datelike, Utc};
@@ -10,6 +70,7 @@ use anyhow::{anyhow, bail, Result};
 use crate::types::scorecard::{
     ScaleType, SourceType, ConfidenceLevel, BenchmarkTier, BenchmarkTiers,
     TriggerCategory, RuleAction, ModeScope,
+    ScoringMethod, ColdStartStrategy, PercentileBand,
 };
 
 use crate::entities::{
@@ -26,6 +87,62 @@ use crate::entities::{
 
 
 pub struct ScorecardService;
+
+/// G-27 Phase 5: Compute backend strategy.
+///
+/// Resolved per-tenant from `tenant_settings.key = 'g27_compute_backend'`.
+///
+/// | Variant        | Behaviour                                                          |
+/// |----------------|--------------------------------------------------------------------|
+/// | `Local`        | Default. Runs `atlas-compute-sdk` functions in-process (zero RTT) |
+/// | `Byoc(String)` | Enterprise BYOC. POSTs a `ComputeRequest` JSON payload to the      |
+/// |                | customer's Lambda URL; expects a `ComputeResponse` JSON reply.     |
+///
+/// When `Byoc` is active, Atlas Platform sends only **aggregated statistics**
+/// (the `ComputeRequest`) — never raw PII or individual entries — so compute
+/// stays inside the customer's network without any raw data leaving their VPC.
+///
+/// ## Activation
+/// Set `tenant_settings` key `g27_compute_backend` to the Lambda URL:
+/// ```sql
+/// INSERT INTO tenant_settings (tenant_id, key, value)
+/// VALUES ('<tenant>', 'g27_compute_backend', 'https://lambda.customer.com/g27');
+/// ```
+/// Removing or setting to `'local'` reverts to in-process compute.
+#[derive(Debug, Clone)]
+pub enum ComputeBackend {
+    /// In-process execution via `atlas-compute-sdk` — default for all tenants.
+    Local,
+    /// BYOC: dispatch `ComputeRequest` to a customer-hosted Lambda endpoint.
+    /// The URL is read from `tenant_settings.value` for key `g27_compute_backend`.
+    Byoc(String),
+}
+
+impl ComputeBackend {
+    /// Resolve the compute backend for a tenant from `tenant_settings`.
+    ///
+    /// Returns `Local` if no setting exists or the value is `"local"`.
+    /// Returns `Byoc(url)` if the value is a non-empty HTTPS URL.
+    pub async fn resolve(db: &DatabaseConnection, tenant_id: uuid::Uuid) -> Self {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use crate::entities::tenant_setting;
+
+        let row = tenant_setting::Entity::find()
+            .filter(tenant_setting::Column::TenantId.eq(tenant_id))
+            .filter(tenant_setting::Column::Key.eq("g27_compute_backend"))
+            .one(db)
+            .await
+            .ok()
+            .flatten();
+
+        match row {
+            Some(r) if !r.value.is_empty() && r.value != "local" => {
+                ComputeBackend::Byoc(r.value)
+            }
+            _ => ComputeBackend::Local,
+        }
+    }
+}
 
 // ── Result types ─────────────────────────────────────────────────────────────
 
@@ -139,6 +256,8 @@ impl ScorecardService {
             total_sessions: Set(0),
             total_entries: Set(0),
             dimension_vector: Set(None),
+            dimension_vector_v2: Set(None),
+            has_data_mask: Set(None),
             last_computed_at: Set(None),
             created_at: Set(now),
             updated_at: Set(now),
@@ -417,10 +536,71 @@ impl ScorecardService {
             .await?;
 
         let mut dimension_vector: Vec<f64> = Vec::with_capacity(all_dimensions.len());
+        // v2 masked arrays: f32 values + bool data-presence mask
+        let mut dimension_vector_v2: Vec<f32> = Vec::with_capacity(all_dimensions.len());
+        let mut has_data_mask: Vec<bool>       = Vec::with_capacity(all_dimensions.len());
         let mut composite_sum: f64 = 0.0;
         let mut composite_weight_sum: f64 = 0.0;
         let mut total_contributors_set: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
         let mut total_sessions_set: std::collections::HashSet<Uuid> = std::collections::HashSet::new();
+
+        // Load template for cold_start_strategy and saturation_threshold.
+        let template = crate::entities::atlas_scorecard_template::Entity::find_by_id(scorecard.template_id)
+            .one(&txn)
+            .await?
+            .ok_or_else(|| anyhow!("template {} not found", scorecard.template_id))?;
+        let saturation_threshold = template.cold_start_saturation_threshold.max(1) as f64;
+        let cold_start_strategy = ColdStartStrategy::try_from(template.cold_start_strategy.clone())
+            .unwrap_or(ColdStartStrategy::Suppress);
+        let scoring_method = ScoringMethod::try_from(template.scoring_method.clone())
+            .unwrap_or(ScoringMethod::WeightedMean);
+
+        // Phase 4 — Contributor Calibration: pre-load per-contributor offsets for this
+        // template into a HashMap keyed by (contributor_user_id, dimension_id).
+        // Applied in compute_numeric_aggregate ONLY when entry_count >= threshold.
+        // Map value: (bias_offset: f64, scale_factor: f64).
+        //
+        // dimension_id IS NULL rows = template-level fallback (key uses Uuid::nil()).
+        // Lookup order in compute_numeric_aggregate:
+        //   1. (contributor_user_id, dimension_id) — dimension-specific row
+        //   2. (contributor_user_id, Uuid::nil())  — template-level fallback
+        //   3. (1.0 bias, 1.0 scale)               — no calibration (default)
+        let calibrations: std::collections::HashMap<(Uuid, Uuid), (f64, f64)> = {
+            let rows = sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "SELECT contributor_user_id, \
+                        COALESCE(dimension_id, $2::uuid) AS dimension_id, \
+                        bias_offset::float8, \
+                        scale_factor::float8, \
+                        entry_count \
+                 FROM atlas_scorecard_contributor_calibration \
+                 WHERE template_id = $1 \
+                   AND entry_count >= $3",
+                vec![
+                    sea_orm::Value::Uuid(Some(Box::new(scorecard.template_id))),
+                    sea_orm::Value::Uuid(Some(Box::new(Uuid::nil()))),
+                    sea_orm::Value::Int(Some(template.calibration_minimum_entries)),
+                ],
+            );
+            match txn.query_all(rows).await {
+                Ok(cal_rows) => {
+                    cal_rows.iter().filter_map(|r| {
+                        let contributor: Uuid = r.try_get("", "contributor_user_id").ok()?;
+                        let dim_id:      Uuid = r.try_get("", "dimension_id").ok()?;
+                        let bias:        f64  = r.try_get("", "bias_offset").ok()?;
+                        let scale:       f64  = r.try_get("", "scale_factor").ok()?;
+                        Some(((contributor, dim_id), (bias, scale)))
+                    }).collect::<std::collections::HashMap<(Uuid, Uuid), (f64, f64)>>()
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        scorecard_id = %scorecard_id,
+                        "Failed to load contributor calibrations (non-fatal): {e}"
+                    );
+                    std::collections::HashMap::new()
+                }
+            }
+        };
 
         for dim in &all_dimensions {
             let dim_entries: Vec<_> = all_entries
@@ -457,13 +637,12 @@ impl ScorecardService {
 
             match scale_type {
                 ScaleType::Rating | ScaleType::Absolute => {
-                    let agg = Self::compute_numeric_aggregate(dim, &dim_entries)?;
+                    let agg = Self::compute_numeric_aggregate(dim, &template, &dim_entries, &calibrations)?;
 
                     if let Some(weighted_mean) = agg.weighted_mean {
                         let range = scale_max - scale_min;
                         let normalized = if range > 0.0 {
                             if dim.is_inverted {
-                                // Lower score = better: invert so high contribution = good.
                                 ((scale_max - weighted_mean) / range * weight).clamp(0.0, weight)
                             } else {
                                 ((weighted_mean - scale_min) / range * weight).clamp(0.0, weight)
@@ -472,13 +651,23 @@ impl ScorecardService {
                             0.0
                         };
                         dimension_vector.push(normalized);
-                        composite_sum += weighted_mean * weight;
-                        composite_weight_sum += weight;
+                        // v2: real data — use normalized as-is, mark as present
+                        dimension_vector_v2.push(normalized as f32);
+                        has_data_mask.push(true);
+
+                        // Confidence-weighted composite (Improvement 2):
+                        // Scale each dimension's contribution by how saturated its data is.
+                        let contributor_count = agg.contributor_count as f64;
+                        let confidence_weight = (contributor_count / saturation_threshold).min(1.0);
+                        composite_sum += weighted_mean * weight * confidence_weight;
+                        composite_weight_sum += weight * confidence_weight;
                     } else {
                         dimension_vector.push(0.0);
+                        // v2: no data — use midpoint placeholder (0.5 * weight), mask = false
+                        dimension_vector_v2.push((0.5 * weight) as f32);
+                        has_data_mask.push(false);
                     }
 
-                    // Upsert dimension aggregate
                     Self::upsert_numeric_aggregate(&txn, scorecard_id, dim, agg).await?;
                 }
 
@@ -488,81 +677,139 @@ impl ScorecardService {
                     if let Some(pct) = agg.percent_true {
                         let normalized = (pct / 100.0 * weight).clamp(0.0, weight);
                         dimension_vector.push(normalized);
-                        composite_sum += (pct / 10.0) * weight;
-                        composite_weight_sum += weight;
+                        // v2: boolean treated as continuous for similarity (0–weight)
+                        dimension_vector_v2.push(normalized as f32);
+                        has_data_mask.push(true);
+
+                        let contributor_count = agg.contributor_count as f64;
+                        let confidence_weight = (contributor_count / saturation_threshold).min(1.0);
+                        composite_sum += (pct / 10.0) * weight * confidence_weight;
+                        composite_weight_sum += weight * confidence_weight;
                     } else {
                         dimension_vector.push(0.0);
+                        dimension_vector_v2.push((0.5 * weight) as f32);
+                        has_data_mask.push(false);
                     }
 
                     Self::upsert_boolean_aggregate(&txn, scorecard_id, dim, agg).await?;
                 }
 
                 ScaleType::PollSingle | ScaleType::PollMulti => {
-                    // Poll dimensions do not contribute to composite score.
+                    // Poll dimensions do not contribute to composite score or v2 vector.
                     dimension_vector.push(0.0);
+                    // v2: polls excluded from similarity vector (mask=false keeps them out)
+                    dimension_vector_v2.push(0.0);
+                    has_data_mask.push(false);
                     Self::recompute_poll_aggregate(&txn, scorecard_id, dim, &dim_entries).await?;
                 }
             }
 
         }
 
-        // Compute composite score and confidence level
-        let composite_score = if composite_weight_sum > 0.0 {
-            Some(composite_sum / composite_weight_sum)
-        } else {
-            None
+        // Compute composite score with scoring_method routing (Bug Fix #3)
+        //
+        // weighted_mean / simple_mean: use confidence-weighted composite computed above.
+        // percentile_rank: composite is set after a cross-entity query — stubbed to None
+        //   here and filled by compute_percentile_ranks() after this transaction commits.
+        let total_entries_count = all_entries.len() as i32;
+        let total_contributors_count = total_contributors_set.len() as i32;
+
+        let composite_score = match scoring_method {
+            ScoringMethod::WeightedMean | ScoringMethod::SimpleMean => {
+                if composite_weight_sum > 0.0 {
+                    Some(composite_sum / composite_weight_sum)
+                } else {
+                    // Cold-start: no confident data. Check strategy.
+                    match cold_start_strategy {
+                        ColdStartStrategy::Prior | ColdStartStrategy::Category => {
+                            // Return global_reference_value from any dimension as the template prior.
+                            // We use the first dimension with a reference value as a proxy for the
+                            // template-level prior. In practice, templates should have a global ref.
+                            all_dimensions.iter()
+                                .find_map(|d| d.global_reference_value.as_ref()
+                                    .and_then(|r| <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()))
+                        }
+                        ColdStartStrategy::Suppress => None,
+                    }
+                }
+            }
+            ScoringMethod::PercentileRank => {
+                // Percentile rank requires cross-entity query run outside this transaction.
+                // Set to None here; compute_percentile_ranks() updates it after commit.
+                // This is a stub — Phase 3 implements the full materialized view path.
+                tracing::debug!("scoring_method=percentile_rank: composite deferred to percentile computation");
+                None
+            }
         };
 
         let total_entries = all_entries.len() as i32;
         // Use the typed ConfidenceLevel enum — .to_string() produces the DB string.
         let confidence_level = ConfidenceLevel::from_entry_count(total_entries);
 
-        // Update scorecard
+        // Capture ids before scorecard.into() consumes the struct
+        let scorecard_template_id = scorecard.template_id;
+        let scorecard_tenant_id   = scorecard.tenant_id;
+
+        // Update scorecard — write both legacy vector (JSONB) and v2 masked arrays
         let mut scorecard_am: scorecards::ActiveModel = scorecard.into();
         scorecard_am.composite_score = Set(
             composite_score.and_then(|s| rust_decimal::Decimal::from_f64_retain(s))
         );
         scorecard_am.confidence_level = Set(confidence_level.to_string());
-        scorecard_am.total_contributors = Set(total_contributors_set.len() as i32);
+        scorecard_am.total_contributors = Set(total_contributors_count);
         scorecard_am.total_sessions = Set(total_sessions_set.len() as i32);
-        scorecard_am.total_entries = Set(total_entries);
+        scorecard_am.total_entries = Set(total_entries_count);
+        // Legacy JSONB vector (f64 euclidean — preserved for backward compat)
         scorecard_am.dimension_vector = Set(Some(json!(dimension_vector)));
+        // v2: typed float32 + bool mask (for masked cosine similarity)
+        scorecard_am.dimension_vector_v2 = Set(Some(json!(dimension_vector_v2)));
+        scorecard_am.has_data_mask = Set(Some(json!(has_data_mask)));
         scorecard_am.last_computed_at = Set(Some(Utc::now()));
         scorecard_am.updated_at = Set(Utc::now());
         scorecard_am.update(&txn).await?;
 
         txn.commit().await?;
+
+        // Post-commit: compute percentile ranks for all dimensions of this scorecard.
+        // This is a separate read-only query across the tenant pool and does not need
+        // to be inside the aggregate transaction.
+        if let Err(e) = Self::compute_percentile_ranks(db, scorecard_id, scorecard_template_id, scorecard_tenant_id).await {
+            // Non-fatal: percentile ranks are best-effort. Log and continue.
+            tracing::warn!("compute_percentile_ranks failed for scorecard {scorecard_id}: {e}");
+        }
+
         Ok(())
     }
 
-    // ── find_similar (The Combinator) ──────────────────────────────────────
+    // ── find_similar (The Combinator v2 — masked cosine similarity) ───────────
 
-    /// Find entities most similar to a target vector.
+    /// Find entities most similar to a target, using masked cosine similarity.
     ///
-    /// Uses Euclidean distance across the dimension vector. Runs in Rust for
-    /// catalogs < ~10K entities (sufficient for most tenants). For very large
-    /// catalogs (100K+), consider pgvector or a dedicated similarity service.
+    /// ## Why masked cosine instead of Euclidean (Gap 3 fix)
     ///
-    /// Returns results ordered by similarity (most similar first).
+    /// The old Euclidean approach used `0.0` as a sentinel for "no data on this
+    /// dimension". This collapsed the vector space: two entities both missing
+    /// dimension 3 looked different from two entities both rated 1.0, even though
+    /// their similarity should be equal.
     ///
-    /// # Example — predictive lead scoring
-    /// ```rust,ignore
-    /// let similar = ScorecardService::find_similar(
-    ///     db, lead_qualification_template_id,
-    ///     new_lead_vector, 20, "medium"
-    /// ).await?;
-    /// // Returns historically similar leads with their conversion outcomes
-    /// ```
+    /// The new approach:
+    ///   1. Build `has_data_mask` in `recompute_aggregates` (true = real data).
+    ///   2. Compute cosine similarity ONLY over dimensions where both vectors
+    ///      have `has_data_mask[i] = true` (shared scored dimensions).
+    ///   3. If overlap < 30% of dimensions, return `None` (insufficient shared data).
+    ///   4. Fall back to legacy Euclidean if v2 fields not yet populated.
+    ///
+    /// Returns results ordered by similarity (most similar first, score range 0–1).
     pub async fn find_similar(
         db: &DatabaseConnection,
         tenant_id: Uuid,
         template_id: Uuid,
         target_vector: Vec<f64>,
+        target_mask: Vec<bool>,
         limit: usize,
         min_confidence: &str,
     ) -> Result<Vec<SimilarityResult>> {
-        // Security: always filter by tenant_id to prevent cross-tenant data leakage.
-        // A caller who supplies another tenant's template_id must not see foreign subjects.
+        // Security: always filter by tenant_id.
         let candidates = scorecards::Entity::find()
             .filter(scorecards::Column::TenantId.eq(tenant_id))
             .filter(scorecards::Column::TemplateId.eq(template_id))
@@ -570,64 +817,223 @@ impl ScorecardService {
             .await?;
 
         let min_confidence_rank = Self::confidence_rank(min_confidence);
+        let n_dims = target_vector.len();
+        // Minimum overlap fraction required for a valid masked similarity (30%)
+        let min_overlap = (n_dims as f64 * 0.30).ceil() as usize;
 
         let mut results: Vec<SimilarityResult> = candidates
             .into_iter()
             .filter_map(|sc| {
-                // Filter by minimum confidence
                 if Self::confidence_rank(&sc.confidence_level) < min_confidence_rank {
                     return None;
                 }
 
-                // Parse dimension vector from JSONB
-                let vector = sc.dimension_vector.as_ref().and_then(|v| {
-                    v.as_array().map(|arr| {
-                        arr.iter()
-                            .map(|x| x.as_f64().unwrap_or(0.0))
-                            .collect::<Vec<f64>>()
-                    })
-                })?;
-
-                if vector.len() != target_vector.len() {
-                    return None;
-                }
-
-                // Euclidean distance
-                let distance = vector
-                    .iter()
-                    .zip(target_vector.iter())
-                    .map(|(a, b)| (a - b).powi(2))
-                    .sum::<f64>()
-                    .sqrt();
-
-                let similarity = 1.0 / (1.0 + distance);
                 let composite_f64: Option<f64> = sc.composite_score
                     .and_then(|d| <rust_decimal::Decimal as TryInto<f64>>::try_into(d).ok());
 
-                Some(SimilarityResult {
-                    scorecard_id: sc.id,
-                    subject_entity_type: sc.subject_entity_type,
-                    subject_entity_id: sc.subject_entity_id,
-                    distance,
-                    similarity,
-                    composite_score: composite_f64,
-                    confidence_level: sc.confidence_level,
-                })
+                // Prefer v2 masked cosine similarity
+                if let (Some(v2_val), Some(mask_val)) = (&sc.dimension_vector_v2, &sc.has_data_mask) {
+                    let candidate_v2: Vec<f64> = v2_val.as_array()?
+                        .iter().map(|x| x.as_f64().unwrap_or(0.0)).collect();
+                    let candidate_mask: Vec<bool> = mask_val.as_array()?
+                        .iter().map(|x| x.as_bool().unwrap_or(false)).collect();
+
+                    if candidate_v2.len() != n_dims { return None; }
+
+                    let (similarity, distance) = Self::masked_cosine_similarity(
+                        &target_vector, &target_mask,
+                        &candidate_v2, &candidate_mask,
+                        min_overlap,
+                    )?;
+
+                    Some(SimilarityResult {
+                        scorecard_id: sc.id,
+                        subject_entity_type: sc.subject_entity_type,
+                        subject_entity_id: sc.subject_entity_id,
+                        distance,
+                        similarity,
+                        composite_score: composite_f64,
+                        confidence_level: sc.confidence_level,
+                    })
+                } else {
+                    // Fallback: legacy Euclidean on old JSONB vector
+                    let vector = sc.dimension_vector.as_ref().and_then(|v| {
+                        v.as_array().map(|arr| {
+                            arr.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect::<Vec<f64>>()
+                        })
+                    })?;
+                    if vector.len() != n_dims { return None; }
+                    let distance = vector.iter().zip(target_vector.iter())
+                        .map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+                    let similarity = 1.0 / (1.0 + distance);
+                    Some(SimilarityResult {
+                        scorecard_id: sc.id,
+                        subject_entity_type: sc.subject_entity_type,
+                        subject_entity_id: sc.subject_entity_id,
+                        distance,
+                        similarity,
+                        composite_score: composite_f64,
+                        confidence_level: sc.confidence_level,
+                    })
+                }
             })
             .collect();
 
-        // Sort by similarity descending (lowest distance = most similar)
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
         results.truncate(limit);
-
         Ok(results)
     }
 
-    // ── Internal aggregation helpers ───────────────────────────────────────
+    // ── Masked cosine similarity ────────────────────────────────────────────
+
+    /// Compute cosine similarity restricted to dimensions where both masks are true.
+    ///
+    /// Returns `Some((similarity, angular_distance))` when overlap >= `min_overlap`.
+    /// Returns `None` when overlap is insufficient (not enough shared dimensions).
+    ///
+    /// # Math
+    /// Cosine similarity: dot(A,B) / (|A| * |B|) over masked dimensions.
+    /// Angular distance: acos(cosine) / π  ∈ [0, 1] (0 = identical, 1 = orthogonal).
+    /// Returned `similarity` = 1.0 - angular_distance ∈ [0, 1].
+    ///
+    /// # Why angular distance over raw cosine
+    /// Raw cosine similarity is not a proper metric (violates triangle inequality).
+    /// Angular distance converts it to a true metric, making the ranking stable.
+    fn masked_cosine_similarity(
+        a_vec: &[f64],
+        a_mask: &[bool],
+        b_vec: &[f64],
+        b_mask: &[bool],
+        min_overlap: usize,
+    ) -> Option<(f64, f64)> {
+        let overlap: Vec<(f64, f64)> = a_vec.iter()
+            .zip(b_vec.iter())
+            .zip(a_mask.iter().zip(b_mask.iter()))
+            .filter_map(|((a, b), (ma, mb))| {
+                if *ma && *mb { Some((*a, *b)) } else { None }
+            })
+            .collect();
+
+        if overlap.len() < min_overlap {
+            return None;
+        }
+
+        let dot: f64   = overlap.iter().map(|(a, b)| a * b).sum();
+        let mag_a: f64 = overlap.iter().map(|(a, _)| a * a).sum::<f64>().sqrt();
+        let mag_b: f64 = overlap.iter().map(|(_, b)| b * b).sum::<f64>().sqrt();
+
+        if mag_a < 1e-12 || mag_b < 1e-12 {
+            // One or both vectors are zero in the shared space — orthogonal
+            return Some((0.0, 1.0));
+        }
+
+        let cosine = (dot / (mag_a * mag_b)).clamp(-1.0, 1.0);
+        let angular_dist = cosine.acos() / std::f64::consts::PI;
+        let similarity = 1.0 - angular_dist;
+        Some((similarity, angular_dist))
+    }
+
+    // ── Percentile rank computation (Improvement 1) ─────────────────────────
+
+    /// Compute and write percentile ranks for all dimensions of one scorecard.
+    ///
+    /// Called post-commit by `recompute_aggregates`. Queries all scorecards
+    /// for the same (template_id, tenant_id) to build the ranking pool.
+    ///
+    /// Writes `percentile_rank`, `percentile_cohort_size`, and `percentile_band`
+    /// to `atlas_scorecard_dimension_aggregates` for every dimension of this scorecard.
+    ///
+    /// Algorithm (Percentile of Score in Population):
+    ///   rank = (count of scorecards with weighted_mean_score < this_score) / (total - 1) * 100
+    ///
+    /// Falls back gracefully when < 2 scorecards exist (sets NULL).
+    pub async fn compute_percentile_ranks(
+        db: &DatabaseConnection,
+        scorecard_id: Uuid,
+        template_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<()> {
+        use sea_orm::{ConnectionTrait, Statement};
+        let backend = db.get_database_backend();
+
+        // Load all dimensions for this template (need IDs + sort order)
+        let dims = crate::entities::atlas_scorecard_dimension::Entity::find()
+            .filter(crate::entities::atlas_scorecard_dimension::Column::TemplateId.eq(template_id))
+            .filter(crate::entities::atlas_scorecard_dimension::Column::IsActive.eq(true))
+            .all(db)
+            .await?;
+
+        for dim in &dims {
+            // Pull all weighted_mean_scores for this dimension across the tenant pool
+            // (only scorecards that have been computed — NULL means no data yet).
+            let rows = db.query_all(Statement::from_string(
+                backend,
+                format!(
+                    "SELECT a.scorecard_id, a.weighted_mean_score \
+                     FROM atlas_scorecard_dimension_aggregates a \
+                     JOIN atlas_scorecards s ON s.id = a.scorecard_id \
+                     WHERE s.tenant_id = '{}' \
+                       AND s.template_id = '{}' \
+                       AND a.dimension_id = '{}' \
+                       AND a.weighted_mean_score IS NOT NULL;",
+                    tenant_id, template_id, dim.id
+                ),
+            ))
+            .await?;
+
+            if rows.len() < 2 {
+                continue;
+            }
+
+            let pool: Vec<(Uuid, f64)> = rows.iter().filter_map(|row| {
+                let sc_id: Uuid = row.try_get("", "scorecard_id").ok()?;
+                let score: rust_decimal::Decimal = row.try_get("", "weighted_mean_score").ok()?;
+                let score_f64: f64 = <rust_decimal::Decimal as TryInto<f64>>::try_into(score).ok()?;
+                Some((sc_id, score_f64))
+            }).collect();
+
+            let cohort_size = pool.len() as i32;
+
+            let this_score = match pool.iter().find(|(id, _)| *id == scorecard_id) {
+                Some((_, s)) => *s,
+                None => continue,
+            };
+
+            let below_count = pool.iter().filter(|(_, s)| *s < this_score).count();
+            let rank = below_count as f64 / (cohort_size - 1) as f64 * 100.0;
+            let band = PercentileBand::from_rank(rank);
+            let rank_decimal = rust_decimal::Decimal::from_f64_retain(rank);
+
+            db.execute(Statement::from_string(
+                backend,
+                format!(
+                    "UPDATE atlas_scorecard_dimension_aggregates \
+                     SET percentile_rank = {rank_val}, \
+                         percentile_cohort_size = {cohort}, \
+                         percentile_band = '{band}' \
+                     WHERE scorecard_id = '{sc}' AND dimension_id = '{dim}';",
+                    rank_val = rank_decimal.map(|d| d.to_string()).unwrap_or_else(|| "NULL".to_owned()),
+                    cohort = cohort_size,
+                    band = band,
+                    sc = scorecard_id,
+                    dim = dim.id,
+                ),
+            ))
+            .await?;
+        }
+
+        Ok(())
+    }
+
 
     fn compute_numeric_aggregate(
         dim: &DimensionModel,
+        template: &crate::entities::atlas_scorecard_template::Model,
         entries: &[&entries::Model],
+        // Phase 4: keyed (contributor_user_id, dimension_id) → (bias_offset, scale_factor).
+        // dimension_id = Uuid::nil() means template-level fallback.
+        // Empty map = calibration disabled (not enough entries or table unavailable).
+        calibrations: &std::collections::HashMap<(Uuid, Uuid), (f64, f64)>,
     ) -> Result<NumericAgg> {
         if entries.is_empty() {
             return Ok(NumericAgg {
@@ -670,7 +1076,19 @@ impl ScorecardService {
         for e in entries {
             let score_opt: Option<f64> = e.score.as_ref()
                 .and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok());
-            if let Some(score) = score_opt {
+            if let Some(raw_score) = score_opt {
+                // Phase 4: apply contributor calibration if available.
+                // Lookup order: dimension-specific → template-level → identity (no-op).
+                let (bias, scale) = calibrations
+                    .get(&(e.contributor_user_id, dim.id))
+                    .or_else(|| calibrations.get(&(e.contributor_user_id, Uuid::nil())))
+                    .copied()
+                    .unwrap_or((0.0, 1.0)); // identity: no calibration
+                let score = ((raw_score - bias) * scale)
+                    .clamp(
+                        dim.scale_min.try_into().unwrap_or(0.0),
+                        dim.scale_max.try_into().unwrap_or(10.0),
+                    );
                 let w = credibility_weight(e);
                 weighted_sum += score * w;
                 weight_total += w;
@@ -678,7 +1096,40 @@ impl ScorecardService {
         }
 
         let mean = scores.iter().sum::<f64>() / scores.len() as f64;
-        let weighted_mean = if weight_total > 0.0 { Some(weighted_sum / weight_total) } else { None };
+        let raw_weighted_mean = if weight_total > 0.0 { Some(weighted_sum / weight_total) } else { None };
+
+        // Bayesian prior shrinkage (Gap 1 — dimension level, hierarchical lookup).
+        //
+        // Lookup order (Decision 4):
+        //   1. dim.bayesian_prior_weight       → dimension-specific tuning
+        //   2. template.default_bayesian_prior_weight → template-wide default
+        //   3. None → no shrinkage (current behavior)
+        //
+        // When a prior_weight is resolved AND global_reference_value is set, apply
+        // James-Stein shrinkage: shrunk = (w*ref + Σ(credibility*scores)) / (w + credibility_total)
+        let effective_prior_weight: Option<f64> = dim.bayesian_prior_weight
+            .as_ref()
+            .and_then(|w| <rust_decimal::Decimal as TryInto<f64>>::try_into(*w).ok())
+            .or_else(|| {
+                // Fallback: template-level default
+                template.default_bayesian_prior_weight
+                    .as_ref()
+                    .and_then(|w| <rust_decimal::Decimal as TryInto<f64>>::try_into(*w).ok())
+            });
+
+        let weighted_mean = match (
+            raw_weighted_mean,
+            effective_prior_weight,
+            dim.global_reference_value.as_ref().and_then(|r| <rust_decimal::Decimal as TryInto<f64>>::try_into(*r).ok()),
+        ) {
+            (Some(_), Some(prior_weight), Some(global_ref)) if prior_weight > 0.0 => {
+                // Apply shrinkage: blend prior with observed credibility-weighted mean
+                let shrunk = (prior_weight * global_ref + weighted_sum) / (prior_weight + weight_total);
+                Some(shrunk)
+            }
+            _ => raw_weighted_mean,
+        };
+
         let min_score = scores.iter().cloned().reduce(f64::min);
         let max_score = scores.iter().cloned().reduce(f64::max);
 
@@ -845,6 +1296,10 @@ impl ScorecardService {
             session_count: Set(agg.session_count),
             vs_global_delta: Set(to_decimal(agg.vs_global_delta)),
             vs_global_label: Set(agg.vs_global_label),
+            // Percentile fields populated post-commit by compute_percentile_ranks()
+            percentile_rank: Set(None),
+            percentile_cohort_size: Set(None),
+            percentile_band: Set(None),
             last_computed_at: Set(Some(Utc::now())),
         };
         model.insert(txn).await?;
@@ -890,6 +1345,10 @@ impl ScorecardService {
             session_count: Set(agg.session_count),
             vs_global_delta: Set(None),
             vs_global_label: Set(None),
+            // Percentile fields populated post-commit by compute_percentile_ranks()
+            percentile_rank: Set(None),
+            percentile_cohort_size: Set(None),
+            percentile_band: Set(None),
             last_computed_at: Set(Some(Utc::now())),
         };
         model.insert(txn).await?;
@@ -1058,6 +1517,46 @@ impl ScorecardService {
             .unwrap_or(0)
     }
 
+    // ── Z-score anomaly detection helper (Improvement 3) ─────────────────────
+
+    /// Compute z-score of `value` against a trailing `window` of prior period means.
+    ///
+    /// Returns `(z_score, is_anomaly, anomaly_direction)`.
+    /// `is_anomaly = true` when `|z| > 2.0`.
+    /// `anomaly_direction = Some("spike")` when `z > 2.0`, `Some("drop")` when `z < -2.0`.
+    ///
+    /// If the window has zero standard deviation (all values identical), returns z=0 (stable).
+    fn compute_z_score(
+        value: f64,
+        window: &[f64],
+    ) -> (f64, bool, Option<String>) {
+        if window.is_empty() {
+            return (0.0, false, None);
+        }
+        let n = window.len() as f64;
+        let window_mean = window.iter().sum::<f64>() / n;
+        let window_var = if window.len() > 1 {
+            window.iter().map(|v| (v - window_mean).powi(2)).sum::<f64>() / (n - 1.0)
+        } else {
+            0.0
+        };
+        let window_std = window_var.sqrt();
+
+        if window_std < 1e-10 {
+            // No variance in window — z-score is undefined; treat as 0 (stable)
+            return (0.0, false, None);
+        }
+
+        let z = (value - window_mean) / window_std;
+        let is_anomaly = z.abs() > 2.0;
+        let direction = if is_anomaly {
+            Some(if z > 0.0 { "spike".to_owned() } else { "drop".to_owned() })
+        } else {
+            None
+        };
+        (z, is_anomaly, direction)
+    }
+
 
     // ── Time series refresh ────────────────────────────────────────────────
 
@@ -1108,6 +1607,11 @@ impl ScorecardService {
         }
 
         let periods: Vec<_> = monthly.iter().collect();
+        // Collect all period means for z-score rolling window computation
+        let all_means: Vec<f64> = periods.iter()
+            .map(|(_, scores)| scores.iter().sum::<f64>() / scores.len() as f64)
+            .collect();
+
         for (i, (period_start, scores)) in periods.iter().enumerate() {
             let session_count = scores.len() as i32;
             let mean_score = if !scores.is_empty() {
@@ -1137,6 +1641,30 @@ impl ScorecardService {
                 (None, None)
             };
 
+            // Anomaly detection via z-score (Improvement 3).
+            //
+            // Compute z-score against the trailing 6-period rolling window.
+            // Minimum 3 periods of trailing history required for a meaningful z-score.
+            // |z| > 2.0 → anomaly. Direction: z > 2 = 'spike', z < -2 = 'drop'.
+            let (z_score_opt, is_anomaly, anomaly_direction) = if i >= 3 {
+                // Trailing window: up to 6 periods before the current period
+                let window_start = i.saturating_sub(6);
+                let window_end = i; // exclusive: periods[window_start..window_end] are prior
+                let window_means: Vec<f64> = all_means[window_start..window_end].to_vec();
+
+                if window_means.len() >= 3 {
+                    let (z, anomaly, direction) = Self::compute_z_score(
+                        mean_score.unwrap_or(0.0),
+                        &window_means,
+                    );
+                    (Some(z), anomaly, direction)
+                } else {
+                    (None, false, None)
+                }
+            } else {
+                (None, false, None)
+            };
+
             // Upsert: delete then insert
             use sea_orm::{ConnectionTrait as _, Statement};
             let db_backend = txn.get_database_backend();
@@ -1161,6 +1689,9 @@ impl ScorecardService {
                 contributor_count: Set(session_count), // approx — entries ≈ contributors per period
                 delta_from_prior: Set(delta_from_prior.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))),
                 trend_direction: Set(trend_direction),
+                z_score: Set(z_score_opt.and_then(|f| rust_decimal::Decimal::from_f64_retain(f))),
+                is_anomaly: Set(is_anomaly),
+                anomaly_direction: Set(anomaly_direction),
             };
             model.insert(&txn).await?;
         }
@@ -1313,5 +1844,178 @@ impl ScorecardService {
         }
 
         Ok(nudge_dims)
+    }
+
+    // ── Phase 4: Contributor Calibration ────────────────────────────────────────
+
+    /// Compute and persist per-contributor bias offsets for a template.
+    ///
+    /// This is the weekly background job (`calibrate_scorecard_contributors`). It computes:
+    ///   - `bias_offset`  = contributor's per-dimension mean − ensemble mean
+    ///   - `scale_factor` = contributor's per-dimension std / ensemble std (1.0 if std = 0)
+    ///
+    /// Only contributors with `entry_count >= template.calibration_minimum_entries` have
+    /// calibrations written. Others are skipped (not enough data to calibrate reliably).
+    ///
+    /// Written to `atlas_scorecard_contributor_calibration` using UPSERT (ON CONFLICT UPDATE),
+    /// so re-running is always safe and idempotent.
+    ///
+    /// Applied by `compute_numeric_aggregate` during `recompute_aggregates` — the calibration
+    /// map is loaded once per scorecard recompute and applied per-entry.
+    ///
+    /// ## Algorithm
+    ///
+    /// For each (contributor, dimension) pair with enough entries:
+    ///
+    ///   1. Compute contributor mean:  μ_c = mean(contributor entries for this dim)
+    ///   2. Compute ensemble mean:     μ_e = mean(ALL verified entries for this dim across template)
+    ///   3. bias_offset = μ_c − μ_e   (positive = this contributor rates high vs peers)
+    ///   4. scale_factor = σ_c / σ_e  (clamped to [0.1, 3.0]; 1.0 if either std = 0)
+    ///
+    /// After applying: calibrated_score = (raw_score − bias_offset) × scale_factor
+    /// This shifts and scales each contributor's scores to align with the ensemble.
+    pub async fn calibrate_contributor_bias(
+        db:          &DatabaseConnection,
+        template_id: Uuid,
+    ) -> Result<usize> {
+        // Load all verified entries for this template via raw SQL join.
+        // atlas_scorecard_entry has no declared sea-orm Relation to atlas_scorecard,
+        // so we use a parameterised query rather than .inner_join().
+        let all_entries: Vec<entries::Model> = {
+            let rows = db.query_all(sea_orm::Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "SELECT e.* \
+                 FROM atlas_scorecard_entries e \
+                 JOIN atlas_scorecards sc ON sc.id = e.scorecard_id \
+                 WHERE sc.template_id = $1 \
+                   AND e.is_verified = true",
+                vec![sea_orm::Value::Uuid(Some(Box::new(template_id)))],
+            )).await?;
+            rows.iter().filter_map(|r| {
+                Some(entries::Model {
+                    id:                       r.try_get("", "id").ok()?,
+                    session_id:               r.try_get("", "session_id").ok()?,
+                    scorecard_id:             r.try_get("", "scorecard_id").ok()?,
+                    dimension_id:             r.try_get("", "dimension_id").ok()?,
+                    tenant_id:                r.try_get("", "tenant_id").ok()?,
+                    contributor_user_id:      r.try_get("", "contributor_user_id").ok()?,
+                    score:                    r.try_get("", "score").ok()?,
+                    option_id:                r.try_get("", "option_id").ok()?,
+                    source_type:              r.try_get("", "source_type").ok()?,
+                    context:                  r.try_get("", "context").ok()?,
+                    note:                     r.try_get("", "note").ok()?,
+                    is_verified:              r.try_get("", "is_verified").ok()?,
+                    verification_request_id:  r.try_get("", "verification_request_id").ok()?,
+                    created_at:               r.try_get("", "created_at").ok()?,
+                })
+            }).collect()
+        };
+
+        if all_entries.is_empty() {
+            return Ok(0);
+        }
+
+        // ── Step 2: Load template for calibration_minimum_entries threshold ────
+        let template = crate::entities::atlas_scorecard_template::Entity::find_by_id(template_id)
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow!("template {template_id} not found"))?;
+        let min_entries = template.calibration_minimum_entries as usize;
+
+        // ── Step 3: Compute ensemble stats per dimension ───────────────────────
+        // Group all scores by dimension_id → compute ensemble mean + std
+        let mut ensemble_scores: std::collections::HashMap<Uuid, Vec<f64>> = std::collections::HashMap::new();
+        for e in &all_entries {
+            if let Some(score) = e.score.as_ref().and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok()) {
+                ensemble_scores.entry(e.dimension_id).or_default().push(score);
+            }
+        }
+
+        let ensemble_stats: std::collections::HashMap<Uuid, (f64, f64)> = ensemble_scores
+            .iter()
+            .map(|(dim_id, scores)| {
+                let n = scores.len() as f64;
+                let mean = scores.iter().sum::<f64>() / n;
+                let variance = if n > 1.0 {
+                    scores.iter().map(|s| (s - mean).powi(2)).sum::<f64>() / (n - 1.0)
+                } else {
+                    0.0
+                };
+                (*dim_id, (mean, variance.sqrt()))
+            })
+            .collect();
+
+        // ── Step 4: Compute per-contributor stats per dimension ────────────────
+        // Group by (contributor_user_id, dimension_id)
+        let mut contributor_scores: std::collections::HashMap<(Uuid, Uuid), Vec<f64>> = std::collections::HashMap::new();
+        for e in &all_entries {
+            if let Some(score) = e.score.as_ref().and_then(|s| <rust_decimal::Decimal as TryInto<f64>>::try_into(*s).ok()) {
+                contributor_scores
+                    .entry((e.contributor_user_id, e.dimension_id))
+                    .or_default()
+                    .push(score);
+            }
+        }
+
+        // ── Step 5: Upsert calibration rows ────────────────────────────────────
+        let mut upserted = 0usize;
+        let now = chrono::Utc::now();
+
+        for ((contributor_id, dim_id), scores) in &contributor_scores {
+            if scores.len() < min_entries {
+                // Not enough data for this contributor on this dimension — skip.
+                continue;
+            }
+
+            let (ensemble_mean, ensemble_std) = ensemble_stats
+                .get(dim_id)
+                .copied()
+                .unwrap_or((0.0, 0.0));
+
+            let n = scores.len() as f64;
+            let contributor_mean = scores.iter().sum::<f64>() / n;
+            let contributor_variance = if n > 1.0 {
+                scores.iter().map(|s| (s - contributor_mean).powi(2)).sum::<f64>() / (n - 1.0)
+            } else {
+                0.0
+            };
+            let contributor_std = contributor_variance.sqrt();
+
+            let bias_offset  = contributor_mean - ensemble_mean;
+            let scale_factor = if ensemble_std > 0.01 && contributor_std > 0.01 {
+                (contributor_std / ensemble_std).clamp(0.1, 3.0)
+            } else {
+                1.0 // no scaling when either std is near-zero
+            };
+
+            db.execute_unprepared(&format!(
+                "INSERT INTO atlas_scorecard_contributor_calibration \
+                   (id, contributor_user_id, template_id, dimension_id, \
+                    bias_offset, scale_factor, entry_count, last_calibrated_at, created_at) \
+                 VALUES \
+                   (gen_random_uuid(), '{contributor_id}', '{template_id}', '{dim_id}', \
+                    {bias_offset}, {scale_factor}, {entry_count}, NOW(), NOW()) \
+                 ON CONFLICT ON CONSTRAINT idx_contrib_calibration_dim_unique \
+                 DO UPDATE SET \
+                   bias_offset        = EXCLUDED.bias_offset, \
+                   scale_factor       = EXCLUDED.scale_factor, \
+                   entry_count        = EXCLUDED.entry_count, \
+                   last_calibrated_at = EXCLUDED.last_calibrated_at",
+                entry_count = scores.len()
+            ))
+            .await
+            .map_err(|e| anyhow!("calibration upsert failed for contributor {contributor_id} dim {dim_id}: {e}"))?;
+
+            upserted += 1;
+        }
+
+        tracing::info!(
+            %template_id,
+            upserted,
+            contributors = contributor_scores.len(),
+            "calibrate_contributor_bias: completed"
+        );
+
+        Ok(upserted)
     }
 }

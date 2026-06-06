@@ -58,6 +58,17 @@ pub struct Model {
     ///
     /// Examples: `timeline_slippage`, `competition_risk`, `ramp_to_close`, `air_pollution`
     pub is_inverted: bool,
+    /// Bayesian prior weight for cold-start shrinkage.
+    ///
+    /// NULL = disabled (pure observed mean). Non-null requires `global_reference_value`.
+    ///
+    /// Applied in `compute_numeric_aggregate`:
+    ///   shrunk_mean = (weight × global_reference_value + Σscores) / (weight + n)
+    ///
+    /// Denominated in equivalent prior observations (weight = 5 → prior = 5 real entries).
+    /// Converges to observed mean as n >> weight.
+    #[sea_orm(column_type = "Decimal(Some((6, 2)))", nullable)]
+    pub bayesian_prior_weight: Option<rust_decimal::Decimal>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

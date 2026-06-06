@@ -41,6 +41,19 @@ pub struct Model {
     pub delta_from_prior: Option<Decimal>,
     /// 'improving' | 'stable' | 'declining' | 'insufficient_data'
     pub trend_direction: Option<String>,
+    /// Z-score of this period's mean against the trailing 6-period rolling window.
+    ///
+    /// z = (current_mean - rolling_mean) / rolling_std
+    /// NULL for the first 3 periods (insufficient history for meaningful z-score).
+    /// |z| > 2.0 → is_anomaly = true. Computed by refresh_time_series_for_dimension.
+    #[sea_orm(column_type = "Decimal(Some((6, 3)))", nullable)]
+    pub z_score: Option<rust_decimal::Decimal>,
+    /// True when |z_score| > 2.0 (statistically unusual period).
+    /// Surfaced in UI as <AnomalyAlert> and <TrendSparkline> markers.
+    pub is_anomaly: bool,
+    /// Direction of the anomaly when is_anomaly = true.
+    /// 'spike': z_score > 2.0 (unusually high). 'drop': z_score < -2.0 (unusually low).
+    pub anomaly_direction: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -52,6 +52,23 @@ pub struct Model {
     pub vs_global_delta: Option<Decimal>,
     /// 'above' | 'at' | 'below'
     pub vs_global_label: Option<String>,
+    /// Percentile rank within the tenant pool for this (template, dimension).
+    ///
+    /// Range: 0.0–100.0. Computed by `ScorecardService::compute_percentile_ranks()`
+    /// after the aggregate is written. NULL until computed (requires >= 2 scorecards).
+    /// Interpretation: rank=85 means this entity outperforms 85% of the tenant pool.
+    #[sea_orm(column_type = "Decimal(Some((5, 2)))", nullable)]
+    pub percentile_rank: Option<Decimal>,
+    /// Number of entities in the comparison cohort.
+    /// Shown as "Top X% of N entities" in UI.
+    pub percentile_cohort_size: Option<i32>,
+    /// Categorical band derived from percentile_rank.
+    ///
+    /// 'top_10'       : rank >= 90
+    /// 'top_quartile' : rank >= 75
+    /// 'median'       : rank >= 50
+    /// 'bottom_quartile': rank < 50
+    pub percentile_band: Option<String>,
     #[sea_orm(column_type = "TimestampWithTimeZone", nullable)]
     pub last_computed_at: Option<DateTime<Utc>>,
 }

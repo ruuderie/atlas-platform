@@ -219,6 +219,24 @@ pub mod m20260707_g27_is_inverted;
 // Tier-gated: Professional+ tenants only (enforced in ScorecardService).
 pub mod m20260708_g27_display_rules;
 
+// G-27 Data Science Upgrade — Phase 1: Cold-start strategy + Bayesian prior weight
+// Adds: cold_start_strategy, cold_start_saturation_threshold on templates;
+//       bayesian_prior_weight on dimensions.
+pub mod m20260709_g27_data_science_v1;
+
+// G-27 Data Science Upgrade — Phase 2: Masked vectors + anomaly detection + calibration
+// Adds: dimension_vector_v2 + has_data_mask on scorecards;
+//       percentile_rank fields on aggregates;
+//       z_score + is_anomaly + anomaly_direction on time_series;
+//       atlas_scorecard_contributor_calibration table.
+pub mod m20260710_g27_data_science_v2;
+// G-27 Data Science Upgrade Phase 3: mv_scorecard_portfolio_analytics materialized view
+// + v_scorecard_recent_anomalies live view. Powers portfolio API + BYOC peer pool.
+pub mod m20260711_g27_data_science_v3;
+// G-27 Phase 3: Seed refresh_scorecard_portfolio background job (every 4 hours).
+pub mod m20260712_g27_seed_portfolio_job;
+// G-27 Phase 4: Seed calibrate_scorecard_contributors weekly background job.
+pub mod m20260713_g27_seed_calibration_job;
 
 pub struct Migrator;
 
@@ -333,6 +351,19 @@ impl MigratorTrait for Migrator {
             Box::new(m20260707_g27_is_inverted::Migration),
             // G-27 gap fill: atlas_scorecard_display_rules (Context-Aware Display Rules engine)
             Box::new(m20260708_g27_display_rules::Migration),
+            // G-27 Data Science Upgrade Phase 1: cold_start_strategy + bayesian_prior_weight
+            Box::new(m20260709_g27_data_science_v1::Migration),
+            // G-27 Data Science Upgrade Phase 2: masked vectors + anomaly detection + calibration
+            Box::new(m20260710_g27_data_science_v2::Migration),
+            // G-27 Data Science Upgrade Phase 3: portfolio analytics materialized view
+            // + recent anomalies live view. Sorts after v2 (m20260711_ > m20260710_).
+            Box::new(m20260711_g27_data_science_v3::Migration),
+            // G-27 Phase 3: Register refresh_scorecard_portfolio background job.
+            // Sorts after the MV creation (m20260712_ > m20260711_) — view must exist first.
+            Box::new(m20260712_g27_seed_portfolio_job::Migration),
+            // G-27 Phase 4: Register calibrate_scorecard_contributors weekly job.
+            // Sorts after portfolio job seed (m20260713_ > m20260712_).
+            Box::new(m20260713_g27_seed_calibration_job::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

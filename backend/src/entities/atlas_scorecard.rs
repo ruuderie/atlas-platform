@@ -13,11 +13,13 @@ use rust_decimal::Decimal;
 /// (template_id, subject_entity_type, subject_entity_id) ensures one scorecard
 /// per entity per template.
 ///
-/// `composite_score` and `dimension_vector` are recomputed by the background job
+/// `composite_score` and `dimension_vector_v2` are recomputed by the background job
 /// `recompute_scorecard_aggregates` (5-min interval). Never write these directly.
 ///
-/// `dimension_vector` is stored as JSONB (Vec<f64>) because SeaORM has no native
-/// DECIMAL[] type. The Combinator similarity search reads and computes in Rust.
+/// `dimension_vector` (legacy JSONB) is preserved for backward compatibility.
+/// New code should use `dimension_vector_v2` (float4[]) + `has_data_mask` (bool[]).
+/// The v2 masked cosine similarity in The Combinator ignores dimensions where
+/// `has_data_mask[i] = false` on either entity being compared.
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "atlas_scorecards")]
 pub struct Model {
@@ -40,12 +42,30 @@ pub struct Model {
     pub total_contributors: i32,
     pub total_sessions: i32,
     pub total_entries: i32,
-    /// Ordered Vec<f64> of weighted normalized scores per dimension (by sort_order).
-    /// Normalized: (score - scale_min) / (scale_max - scale_min) * weight
-    /// Zero-filled for dimensions with no entries.
-    /// Used by The Combinator for Euclidean distance similarity search.
+    /// Legacy: ordered Vec<f64> of weighted normalized scores per dimension (by sort_order).
+    /// Zero-filled for dimensions with no entries — use dimension_vector_v2 for new code.
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub dimension_vector: Option<Value>,
+    /// Typed float4 parallel array for masked cosine similarity (Gap 3 fix).
+    ///
+    /// Values: normalized (score - scale_min) / (scale_max - scale_min) * weight.
+    /// For dimensions with no data: 0.5 * weight (midpoint placeholder, NOT sentinel zero).
+    /// Only Rating/Absolute/Boolean dimensions are included; Poll dims are excluded.
+    /// Updated alongside dimension_vector by recompute_scorecard_aggregates.
+    ///
+    /// SeaORM note: float4[] stored as JSONB in entity layer; converted to/from Vec<f32>
+    /// in service code via serde_json::from_value / serde_json::to_value.
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub dimension_vector_v2: Option<Value>,
+    /// Parallel bool array to dimension_vector_v2.
+    ///
+    /// true = this dimension has at least one verified entry (real observed data).
+    /// false = no data yet; vector value is the midpoint placeholder.
+    ///
+    /// The Combinator requires >= 30% overlap (both masks true) to compute similarity.
+    /// Stored as JSONB (Vec<bool>) in SeaORM; typed in service layer.
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub has_data_mask: Option<Value>,
     #[sea_orm(column_type = "TimestampWithTimeZone", nullable)]
     pub last_computed_at: Option<DateTime<Utc>>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]

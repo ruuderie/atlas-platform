@@ -50,3 +50,4 @@ pub mod admin_provision;
 // G-27 Scorecard
 pub mod scorecard_entries;
 pub mod scorecard_display_rules;
+pub mod scorecard_analytics;    // Phase 3 — portfolio analytics, leaderboard, anomalies

@@ -20,6 +20,133 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
+// ── Scoring method ────────────────────────────────────────────────────────────
+
+/// How a template computes its composite score.
+///
+/// Stored as VARCHAR in `atlas_scorecard_templates.scoring_method`.
+/// The existing `weighted_mean` and `simple_mean` paths are extended;
+/// `percentile_rank` is the new path enabled by Phase 3 analytics.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScoringMethod {
+    /// Dimension-weight-scaled average (confidence-weighted in Phase 1).
+    WeightedMean,
+    /// Simple unweighted arithmetic mean.
+    SimpleMean,
+    /// Composite = percentile rank in tenant pool / 10.0. Requires Phase 3.
+    PercentileRank,
+}
+
+impl fmt::Display for ScoringMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::WeightedMean   => "weighted_mean",
+            Self::SimpleMean     => "simple_mean",
+            Self::PercentileRank => "percentile_rank",
+        })
+    }
+}
+
+impl TryFrom<String> for ScoringMethod {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "weighted_mean"   => Ok(Self::WeightedMean),
+            "simple_mean"     => Ok(Self::SimpleMean),
+            "percentile_rank" => Ok(Self::PercentileRank),
+            other => Err(format!("unknown ScoringMethod: '{other}'")),
+        }
+    }
+}
+
+// ── Cold-start strategy ───────────────────────────────────────────────────────
+
+/// Strategy for displaying a scorecard when entry count < `min_entries_to_publish`.
+///
+/// Stored as VARCHAR in `atlas_scorecard_templates.cold_start_strategy`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColdStartStrategy {
+    /// Show nothing until min_entries_to_publish is met. (Default)
+    Suppress,
+    /// Show `global_reference_value` as a labelled Bayesian estimate.
+    Prior,
+    /// Show category-pool average as estimate. Currently maps to `Prior`.
+    Category,
+}
+
+impl fmt::Display for ColdStartStrategy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Suppress => "suppress",
+            Self::Prior    => "prior",
+            Self::Category => "category",
+        })
+    }
+}
+
+impl TryFrom<String> for ColdStartStrategy {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "suppress" => Ok(Self::Suppress),
+            "prior"    => Ok(Self::Prior),
+            "category" => Ok(Self::Category),
+            other => Err(format!("unknown ColdStartStrategy: '{other}'")),
+        }
+    }
+}
+
+// ── Percentile band ───────────────────────────────────────────────────────────
+
+/// Categorical band from `percentile_rank` for `<PercentileRankBadge>` UI component.
+///
+/// Stored as VARCHAR in `atlas_scorecard_dimension_aggregates.percentile_band`.
+/// Computed by `ScorecardService::compute_percentile_ranks()` after aggregation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PercentileBand {
+    Top10,
+    TopQuartile,
+    Median,
+    BottomQuartile,
+}
+
+impl PercentileBand {
+    /// Derive the band from a 0–100 percentile rank.
+    pub fn from_rank(rank: f64) -> Self {
+        if rank >= 90.0      { Self::Top10 }
+        else if rank >= 75.0 { Self::TopQuartile }
+        else if rank >= 50.0 { Self::Median }
+        else                 { Self::BottomQuartile }
+    }
+}
+
+impl fmt::Display for PercentileBand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Top10          => "top_10",
+            Self::TopQuartile    => "top_quartile",
+            Self::Median         => "median",
+            Self::BottomQuartile => "bottom_quartile",
+        })
+    }
+}
+
+impl TryFrom<String> for PercentileBand {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "top_10"          => Ok(Self::Top10),
+            "top_quartile"    => Ok(Self::TopQuartile),
+            "median"          => Ok(Self::Median),
+            "bottom_quartile" => Ok(Self::BottomQuartile),
+            other => Err(format!("unknown PercentileBand: '{other}'")),
+        }
+    }
+}
+
 // ── Scale types ───────────────────────────────────────────────────────────────
 
 /// How a dimension collects and aggregates contributor input.

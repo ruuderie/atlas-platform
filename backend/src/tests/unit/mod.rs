@@ -6,3 +6,5 @@ pub mod atlas_note_unit_tests;
 pub mod atlas_activity_unit_tests;
 // G-27 ScorecardService helpers + G-31 Lead entity helpers
 pub mod scorecard_lead_unit_tests;
+// G-27 Phase 5: atlas-compute-sdk pure-math unit tests
+pub mod g27_unit_tests;

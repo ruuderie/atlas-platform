@@ -87,7 +87,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::notes::routes())
         .merge(crate::handlers::activities::routes())
         .merge(crate::handlers::scorecard_entries::routes())
-        .merge(crate::handlers::scorecard_display_rules::routes());
+        .merge(crate::handlers::scorecard_display_rules::routes())
+        .merge(crate::handlers::scorecard_analytics::routes()); // Phase 3 — portfolio analytics
 
     for app in crate::atlas_apps::get_active_apps() {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));

@@ -12,6 +12,7 @@ pub mod account_service;
 pub mod contact_service;
 pub mod lead_service;                      // GENERIC-31
 pub mod scorecard_service;                 // GENERIC-27
+pub mod scorecard_analytics_service;      // GENERIC-27 Phase 3 — portfolio analytics
 
 // === Complete Platform Generics Service Layer (v2) ===
 pub mod portfolio_service;                 // GENERIC-09

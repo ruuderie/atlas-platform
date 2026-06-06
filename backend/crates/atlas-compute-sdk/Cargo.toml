@@ -1,0 +1,24 @@
+[package]
+name    = "atlas-compute-sdk"
+version = "0.1.0"
+edition = "2024"
+description = "G-27 pure-math scoring algorithms. Compiles to native (rlib) for in-process use and to WebAssembly (cdylib) for BYOC enterprise deployments."
+license = "UNLICENSED"
+
+[lib]
+# cdylib  → produces a .wasm / .so for BYOC Lambda / Wasmtime execution
+# rlib    → used by atlas_backend (in-process Local backend) and unit tests
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde      = { version = "1", features = ["derive"], default-features = false }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+
+[dev-dependencies]
+# serde_json std features needed for test assertions only
+serde_json = { version = "1", features = ["std"] }
+
+[profile.release]
+opt-level = "z"   # minimize .wasm size
+lto       = true
+codegen-units = 1
