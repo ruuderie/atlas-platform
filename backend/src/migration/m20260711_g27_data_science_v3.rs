@@ -95,11 +95,8 @@ impl MigrationTrait for Migration {
              JOIN atlas_scorecards                       sc  ON sc.id = agg.scorecard_id
              JOIN atlas_scorecard_dimensions             d   ON d.id = agg.dimension_id
              JOIN atlas_scorecard_templates              t   ON t.id = sc.template_id
-             -- Only include dimensions with valid computed data
-             WHERE agg.weighted_mean_score IS NOT NULL
-               AND d.is_active = TRUE
-               AND sc.deleted_at IS NULL
-             -- Left join to the most recent time series period for trend_direction
+             -- Left join to the most recent time series period for trend_direction.
+             -- Must appear before WHERE — all JOINs precede the filter clause in SQL.
              LEFT JOIN LATERAL (
                SELECT ts2.trend_direction
                FROM   atlas_scorecard_time_series ts2
@@ -108,6 +105,10 @@ impl MigrationTrait for Migration {
                ORDER BY ts2.period_start DESC
                LIMIT 1
              ) ts ON TRUE
+             -- Only include dimensions with valid computed data
+             WHERE agg.weighted_mean_score IS NOT NULL
+               AND d.is_active = TRUE
+               AND sc.deleted_at IS NULL
              GROUP BY t.id, sc.tenant_id, d.id, d.slug, d.name
              WITH NO DATA;"
                 .to_owned(),

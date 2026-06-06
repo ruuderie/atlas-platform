@@ -210,7 +210,7 @@ async fn test_application_tax_verification_services() {
         .await
         .expect("submit failed");
 
-    let tax_event = TaxService::create_tax_event(
+    let _tax_event = TaxService::create_tax_event(
         &db,
         tenant.id,
         "property_tax",
