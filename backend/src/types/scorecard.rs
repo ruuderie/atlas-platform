@@ -786,3 +786,244 @@ pub enum EntryContext {
     /// that do not yet have a typed struct. Preserved as-is.
     Generic(serde_json::Value),
 }
+
+// ── Template display configuration ───────────────────────────────────────────
+//
+// `ScorecardTemplateDisplayConfig` is the authoritative Rust type for the
+// `display_config` JSONB column on `atlas_scorecard_templates`.
+//
+// Contract (same as all other typed JSONB types in this module):
+//   Entity layer:  `pub display_config: Option<serde_json::Value>`
+//   Service layer: `ScorecardTemplateDisplayConfig::from_json(model.display_config.as_ref())?`
+//                  `.to_json()?` before writing back to the entity.
+//   Serde default: all bool fields default to `false`; all Option fields default to
+//                  `None`. Rows where `display_config` IS NULL deserialize to the
+//                  all-off default — no migration default value required.
+//
+// Adding a new surface:
+//   1. Add a new field here with `#[serde(default)]` (implied by struct-level attr).
+//   2. Read it in the relevant service check.
+//   3. Add a toggle in the Configurator "Display Rules" tab.
+//   No schema migration needed — JSONB is schema-flexible at the column level.
+
+/// Per-surface display control for a scorecard template.
+///
+/// Stored as JSONB in `atlas_scorecard_templates.display_config`.
+/// The `<Configurator>` template editor exposes this struct as a "Display Rules" tab —
+/// a toggle grid where the landlord/admin enables surfaces without code changes.
+/// All fields default to `false` / `None` — explicit opt-in required.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScorecardTemplateDisplayConfig {
+    // ── Landlord dashboard surfaces ───────────────────────────────────────────
+
+    /// Show composite score badge in the PortfolioTable row for this template's entity.
+    /// Surface: Landlord God View `/dashboard` → PortfolioTable G27ScoreBadge column.
+    pub show_on_portfolio_table: bool,
+
+    /// Render this template's entities in the G-27 anomaly panel widget.
+    /// Surface: Landlord God View `/dashboard` → G27AnomalyPanel sidebar.
+    pub show_on_anomaly_panel: bool,
+
+    /// Include entities rated by this template in the vendor/entity leaderboard widget.
+    /// Surface: Landlord God View `/dashboard` → VendorLeaderboard sidebar.
+    pub show_on_leaderboard: bool,
+
+    /// Show the score badge inline on the maintenance dispatch queue vendor column.
+    /// Surface: `/portfolio/maintenance` → assigned-vendor score badge.
+    pub show_on_maintenance_queue: bool,
+
+    /// Show the ScorecardDisplay drawer in the property detail unit tab.
+    /// Surface: `/portfolio/properties/{id}` → Units tab score column.
+    pub show_on_property_detail: bool,
+
+    // ── Wholesaling surfaces ──────────────────────────────────────────────────
+
+    /// Show the ScorecardDisplay inline on the lead detail page.
+    /// Surface: `/wholesaling/leads/{id}` → Lead Quality Assessment inline widget.
+    pub show_on_lead_card: bool,
+
+    // ── Public / tenant-facing surfaces ──────────────────────────────────────
+
+    /// Show the composite score badge on the public PropertyForge listing card.
+    /// Surface: `/listings` and `/listings/{property_id}`.
+    /// Requires explicit landlord opt-in — scores are NOT shown publicly by default.
+    pub show_on_public_listing: bool,
+
+    /// Allow the rated subject (e.g. tenant) to see their own score in their portal.
+    /// Surface: `/tenant/dashboard` — optional "Your rental quality score" card.
+    pub tenant_visible: bool,
+
+    // ── Nudge / activity-trigger surfaces ────────────────────────────────────
+
+    /// Fire a `<ScoreNudge>` WebSocket push when an `atlas_case` of type `maintenance`
+    /// transitions to `status = closed`.
+    /// Surface: any authenticated landlord page → toast overlay.
+    /// Typically enabled on the Contractor Performance template.
+    pub nudge_on_maintenance_case_close: bool,
+
+    /// Fire a `<ScoreNudge>` WebSocket push when an STR reservation reaches `checked_out`.
+    /// Surface: any authenticated page → toast overlay.
+    /// Typically enabled on the STR Property Assessment template.
+    pub nudge_on_str_checkout: bool,
+
+    // ── Display gate ──────────────────────────────────────────────────────────
+
+    /// Minimum number of verified entries before any display surface renders the score.
+    /// `None` = fall through to `atlas_scorecard_templates.min_entries_to_publish`.
+    ///
+    /// Useful when a landlord wants a stricter public display gate (e.g. require 10
+    /// public entries before showing the score on `/listings`, even if
+    /// `min_entries_to_publish = 3` for internal dashboard use).
+    pub min_entries_before_display: Option<i32>,
+
+    /// When `true`, the `<ScorecardDisplay>` widget renders collapsed and expands on click.
+    /// When `false` (default), it renders expanded inline.
+    pub collapsed_by_default: bool,
+}
+
+impl ScorecardTemplateDisplayConfig {
+    /// Deserialize from the raw JSONB value stored in the entity layer.
+    ///
+    /// Returns the all-false/all-None default if `raw` is `None`
+    /// (template row predates this field — backward compatible).
+    pub fn from_json(raw: Option<&serde_json::Value>) -> Result<Self, serde_json::Error> {
+        match raw {
+            Some(v) => serde_json::from_value(v.clone()),
+            None    => Ok(Self::default()),
+        }
+    }
+
+    /// Serialize to a `serde_json::Value` for writing back to the entity.
+    pub fn to_json(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(self)
+    }
+
+    /// Returns `true` if at least one display surface is enabled.
+    ///
+    /// Used by the Configurator "Display Rules" tab to render the active indicator dot.
+    pub fn any_surface_enabled(&self) -> bool {
+        self.show_on_portfolio_table
+            || self.show_on_anomaly_panel
+            || self.show_on_leaderboard
+            || self.show_on_maintenance_queue
+            || self.show_on_property_detail
+            || self.show_on_lead_card
+            || self.show_on_public_listing
+            || self.tenant_visible
+            || self.nudge_on_maintenance_case_close
+            || self.nudge_on_str_checkout
+    }
+}
+
+// ── Scorecard entity type ─────────────────────────────────────────────────────
+
+/// Discriminator for the type of entity a scorecard template targets or a
+/// scorecard record is attached to.
+///
+/// Used in:
+///  - `atlas_scorecard_templates.entity_type` (what kinds of entities use this template)
+///  - `atlas_scorecards.subject_entity_type` (the specific entity this scorecard is for)
+///
+/// Both columns store the same domain of values — this enum is shared.
+///
+/// Stored as VARCHAR in both columns. Services call `TryFrom<String>` after
+/// reading; `Display::fmt` before writing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScorecardEntityType {
+    // ── Geographic / place ────────────────────────────────────────────────────
+    City,
+    Property,
+    Hotel,
+    // ── People / professionals ────────────────────────────────────────────────
+    Person,
+    Agent,
+    /// Service provider (contractor, vendor, etc.)
+    Contractor,
+    // ── Products / experiences ────────────────────────────────────────────────
+    Restaurant,
+    Product,
+    Event,
+    // ── Transport ────────────────────────────────────────────────────────────
+    Airline,
+    Carrier,
+    // ── Platform generic entities ─────────────────────────────────────────────
+    AtlasLead,
+    AtlasOpportunity,
+    AtlasAccount,
+    AtlasAsset,
+    AtlasCatalogEntry,
+    AtlasServiceProvider,
+    AtlasContact,
+    AtlasPortfolio,
+    /// Legacy — `listing` table (pre-G-10 `atlas_assets` promotion).
+    Listing,
+    /// Legacy — `profile` table.
+    Profile,
+}
+
+impl fmt::Display for ScorecardEntityType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::City                 => "city",
+            Self::Property             => "property",
+            Self::Hotel                => "hotel",
+            Self::Person               => "person",
+            Self::Agent                => "agent",
+            Self::Contractor           => "contractor",
+            Self::Restaurant           => "restaurant",
+            Self::Product              => "product",
+            Self::Event                => "event",
+            Self::Airline              => "airline",
+            Self::Carrier              => "carrier",
+            Self::AtlasLead            => "atlas_lead",
+            Self::AtlasOpportunity     => "atlas_opportunity",
+            Self::AtlasAccount         => "atlas_account",
+            Self::AtlasAsset           => "atlas_asset",
+            Self::AtlasCatalogEntry    => "atlas_catalog_entry",
+            Self::AtlasServiceProvider => "atlas_service_provider",
+            Self::AtlasContact         => "atlas_contact",
+            Self::AtlasPortfolio       => "atlas_portfolio",
+            Self::Listing              => "listing",
+            Self::Profile              => "profile",
+        })
+    }
+}
+
+impl TryFrom<String> for ScorecardEntityType {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "city"                  => Ok(Self::City),
+            "property"              => Ok(Self::Property),
+            "hotel"                 => Ok(Self::Hotel),
+            "person"                => Ok(Self::Person),
+            "agent"                 => Ok(Self::Agent),
+            "contractor"            => Ok(Self::Contractor),
+            "restaurant"            => Ok(Self::Restaurant),
+            "product"               => Ok(Self::Product),
+            "event"                 => Ok(Self::Event),
+            "airline"               => Ok(Self::Airline),
+            "carrier"               => Ok(Self::Carrier),
+            "atlas_lead"            => Ok(Self::AtlasLead),
+            "atlas_opportunity"     => Ok(Self::AtlasOpportunity),
+            "atlas_account"         => Ok(Self::AtlasAccount),
+            "atlas_asset"           => Ok(Self::AtlasAsset),
+            "atlas_catalog_entry"   => Ok(Self::AtlasCatalogEntry),
+            "atlas_service_provider" => Ok(Self::AtlasServiceProvider),
+            "atlas_contact"         => Ok(Self::AtlasContact),
+            "atlas_portfolio"       => Ok(Self::AtlasPortfolio),
+            "listing"               => Ok(Self::Listing),
+            "profile"               => Ok(Self::Profile),
+            other                   => Err(format!("unknown ScorecardEntityType: '{other}'")),
+        }
+    }
+}
+
+impl TryFrom<&str> for ScorecardEntityType {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::try_from(s.to_string())
+    }
+}

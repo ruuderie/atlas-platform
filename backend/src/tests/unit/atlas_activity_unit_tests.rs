@@ -104,7 +104,7 @@ mod tests {
         assert!(activity.primary_subject().is_none());
     }
 
-    // ── is_completed_communication ────────────────────────────────────────────
+    // ── is_completed_communication (now delegates to outcome_typed) ──────────
 
     #[test]
     fn connected_call_is_completed_communication() {
@@ -146,6 +146,45 @@ mod tests {
     fn none_outcome_is_not_completed_communication() {
         let a = make_activity(None, None, None, None, None, None);
         assert!(!a.is_completed_communication());
+    }
+
+    // ── Typed helper: outcome_typed ───────────────────────────────────────────
+
+    #[test]
+    fn outcome_typed_returns_none_for_null_outcome() {
+        let a = make_activity(None, None, None, None, None, None);
+        assert!(a.outcome_typed().is_none());
+    }
+
+    #[test]
+    fn outcome_typed_returns_ok_for_known_outcome() {
+        let a = make_activity(None, None, None, None, None, Some("connected"));
+        let outcome = a.outcome_typed().expect("should be Some").expect("should be Ok");
+        assert_eq!(outcome, crate::types::activity::ActivityOutcome::Connected);
+    }
+
+    #[test]
+    fn outcome_typed_returns_err_for_unknown_outcome() {
+        let a = make_activity(None, None, None, None, None, Some("hung_up"));
+        let result = a.outcome_typed().expect("should be Some");
+        assert!(result.is_err(), "unknown outcome should be Err");
+    }
+
+    // ── Typed helper: activity_category_typed ────────────────────────────────
+
+    #[test]
+    fn activity_category_typed_returns_none_for_null() {
+        let mut a = make_activity(None, None, None, None, None, None);
+        a.activity_category = None;
+        assert!(a.activity_category_typed().is_none());
+    }
+
+    #[test]
+    fn activity_category_typed_parses_communication() {
+        let mut a = make_activity(None, None, None, None, None, None);
+        a.activity_category = Some("communication".to_owned());
+        let cat = a.activity_category_typed().unwrap().unwrap();
+        assert_eq!(cat, crate::types::activity::ActivityCategory::Communication);
     }
 
     // ── Polymorphic subject type exhaustion ───────────────────────────────────

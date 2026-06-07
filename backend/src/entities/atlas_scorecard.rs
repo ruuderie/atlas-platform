@@ -83,3 +83,71 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
+
+// ── Typed JSONB helpers ───────────────────────────────────────────────────────
+
+impl Model {
+    /// Deserialize `dimension_vector` (legacy) into a `Vec<f64>`.
+    ///
+    /// Returns `None` if the column is NULL. Returns `Err` if the stored
+    /// value is not a JSON array of numbers — this indicates data corruption
+    /// and should be treated as a hard error in the recompute pipeline.
+    pub fn dimension_vector_typed(&self) -> Result<Option<Vec<f64>>, serde_json::Error> {
+        match &self.dimension_vector {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
+        }
+    }
+
+    /// Deserialize `dimension_vector_v2` (masked cosine similarity vector) into `Vec<f32>`.
+    ///
+    /// # Safety Contract
+    /// The length of the returned vec MUST equal the number of active non-Poll
+    /// dimensions for `self.template_id`. The Combinator assumes this invariant
+    /// and panics (via `zip`) if lengths diverge.
+    ///
+    /// Returns `None` if the column is NULL (scorecard not yet computed).
+    pub fn dimension_vector_v2_typed(&self) -> Result<Option<Vec<f32>>, serde_json::Error> {
+        match &self.dimension_vector_v2 {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
+        }
+    }
+
+    /// Deserialize `has_data_mask` into `Vec<bool>`.
+    ///
+    /// `true` at index `i` means dimension `i` has at least one verified entry.
+    /// `false` means the vector value is the midpoint placeholder — this dimension
+    /// is excluded from The Combinator's cosine similarity when either entity's mask is false.
+    ///
+    /// Returns `None` if the column is NULL (scorecard not yet computed).
+    pub fn has_data_mask_typed(&self) -> Result<Option<Vec<bool>>, serde_json::Error> {
+        match &self.has_data_mask {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
+        }
+    }
+
+    /// Parse `confidence_level` into the typed `ConfidenceLevel` enum.
+    ///
+    /// Returns `Err` if the stored value is not a known variant — this should
+    /// never happen in production but is checked defensively.
+    pub fn confidence_level_typed(
+        &self,
+    ) -> Result<crate::types::scorecard::ConfidenceLevel, String> {
+        crate::types::scorecard::ConfidenceLevel::try_from(self.confidence_level.clone())
+    }
+
+    /// Parse `subject_entity_type` into the typed `ScorecardEntityType` enum.
+    pub fn subject_entity_type_typed(
+        &self,
+    ) -> Result<crate::types::scorecard::ScorecardEntityType, String> {
+        crate::types::scorecard::ScorecardEntityType::try_from(self.subject_entity_type.clone())
+    }
+
+    /// Returns `true` if this scorecard has been computed at least once
+    /// and has enough entries to produce a non-trivial composite score.
+    pub fn is_published(&self) -> bool {
+        self.composite_score.is_some() && self.last_computed_at.is_some()
+    }
+}

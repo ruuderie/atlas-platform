@@ -5,10 +5,11 @@
 mod tests {
     use uuid::Uuid;
     use crate::entities::atlas_note::Model;
+    use crate::types::note::NoteVisibility;
 
     // ── Helper: construct a minimal note ──────────────────────────────────────
 
-    fn make_note(visibility: &str, is_private: bool, is_pinned: bool, parent: Option<Uuid>) -> Model {
+    fn make_note(visibility: &str, is_pinned: bool, parent: Option<Uuid>) -> Model {
         use chrono::Utc;
         Model {
             id: Uuid::new_v4(),
@@ -23,7 +24,7 @@ mod tests {
             is_pinned,
             parent_note_id: parent,
             note_metadata: None,
-            is_private,
+            is_private: false, // always false — legacy field not used in logic
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }
@@ -49,7 +50,6 @@ mod tests {
         assert!(!note.is_pinned);
         assert!(note.parent_note_id.is_none());
         assert!(note.note_metadata.is_none());
-        assert!(!note.is_private, "legacy is_private should default false");
     }
 
     #[test]
@@ -64,66 +64,96 @@ mod tests {
 
     #[test]
     fn is_reply_true_when_parent_set() {
-        let note = make_note("internal", false, false, Some(Uuid::new_v4()));
+        let note = make_note("internal", false, Some(Uuid::new_v4()));
         assert!(note.is_reply());
     }
 
     #[test]
     fn is_reply_false_when_no_parent() {
-        let note = make_note("internal", false, false, None);
+        let note = make_note("internal", false, None);
         assert!(!note.is_reply());
     }
 
-    // ── effective_visibility ──────────────────────────────────────────────────
+    // ── visibility_typed ──────────────────────────────────────────────────────
 
     #[test]
-    fn effective_visibility_returns_visibility_field_by_default() {
-        let public = make_note("public", false, false, None);
-        assert_eq!(public.effective_visibility(), "public");
-
-        let internal = make_note("internal", false, false, None);
-        assert_eq!(internal.effective_visibility(), "internal");
+    fn visibility_typed_returns_correct_variant_for_each_slug() {
+        for (slug, expected) in &[
+            ("public",   NoteVisibility::Public),
+            ("internal", NoteVisibility::Internal),
+            ("private",  NoteVisibility::Private),
+        ] {
+            let note = make_note(slug, false, None);
+            assert_eq!(
+                note.visibility_typed().unwrap(),
+                *expected,
+                "visibility_typed failed for '{}'",
+                slug
+            );
+        }
     }
 
     #[test]
-    fn effective_visibility_is_private_when_legacy_flag_set() {
-        // Legacy is_private=true overrides the visibility field
-        let note = make_note("internal", true, false, None);
-        assert_eq!(
-            note.effective_visibility(),
-            "private",
-            "is_private=true must override visibility field for backward compat"
-        );
+    fn visibility_typed_err_for_unknown_slug() {
+        let note = make_note("confidential", false, None);
+        assert!(note.visibility_typed().is_err());
     }
 
     #[test]
-    fn effective_visibility_public_and_is_private_false_stays_public() {
-        let note = make_note("public", false, false, None);
-        assert_eq!(note.effective_visibility(), "public");
+    fn public_note_is_externally_visible() {
+        let note = make_note("public", false, None);
+        assert!(note.visibility_typed().unwrap().is_external_visible());
+    }
+
+    #[test]
+    fn internal_note_is_not_externally_visible() {
+        let note = make_note("internal", false, None);
+        assert!(!note.visibility_typed().unwrap().is_external_visible());
     }
 
     // ── note_type discriminator ───────────────────────────────────────────────
 
     #[test]
-    fn note_type_can_be_any_string() {
-        // The entity doesn't validate note_type — that's a service concern.
-        // This test documents that arbitrary values don't panic.
-        for t in &["general", "call_log", "site_visit", "underwriting_comment", "legal_memo"] {
-            let note = Model::new_general("body", Uuid::new_v4(), "atlas_case", Uuid::new_v4(), Uuid::new_v4());
-            // new_general hardcodes "general" — this tests the field is a String, not an enum
-            assert_eq!(note.note_type, "general");
-            let _ = t; // document the intended domain values
+    fn new_general_note_type_typed_returns_general() {
+        let note = Model::new_general("body", Uuid::new_v4(), "atlas_lead", Uuid::new_v4(), Uuid::new_v4());
+        assert_eq!(note.note_type_typed().to_string(), "general");
+    }
+
+    #[test]
+    fn note_type_typed_known_slugs_roundtrip() {
+        use crate::types::note::NoteType;
+        let cases = [
+            ("call_log",             NoteType::CallLog),
+            ("site_visit",           NoteType::SiteVisit),
+            ("inspection",           NoteType::Inspection),
+            ("underwriting_comment", NoteType::UnderwritingComment),
+            ("legal_memo",           NoteType::LegalMemo),
+            ("compliance_note",      NoteType::ComplianceNote),
+            ("coach_feedback",       NoteType::CoachFeedback),
+        ];
+        for (slug, expected) in &cases {
+            let mut note = make_note("internal", false, None);
+            note.note_type = slug.to_string();
+            assert_eq!(note.note_type_typed(), *expected);
         }
+    }
+
+    #[test]
+    fn note_type_typed_unknown_slug_produces_other_variant() {
+        use crate::types::note::NoteType;
+        let mut note = make_note("internal", false, None);
+        note.note_type = "deal_memo".to_owned();
+        assert!(matches!(note.note_type_typed(), NoteType::Other(ref s) if s == "deal_memo"));
     }
 
     // ── pinning ───────────────────────────────────────────────────────────────
 
     #[test]
     fn pinned_note_is_accessible() {
-        let pinned = make_note("internal", false, true, None);
+        let pinned = make_note("internal", true, None);
         assert!(pinned.is_pinned);
 
-        let unpinned = make_note("internal", false, false, None);
+        let unpinned = make_note("internal", false, None);
         assert!(!unpinned.is_pinned);
     }
 }

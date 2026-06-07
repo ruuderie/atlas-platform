@@ -130,11 +130,68 @@ impl Model {
         None
     }
 
-    /// True if this is a completed communication activity (call connected, meeting held).
+    /// True if this activity represents a completed substantive interaction.
+    ///
+    /// Panics in debug if `outcome` contains an unregistered value — all writes
+    /// must go through `ActivityOutcome::to_string()`, so this should never fire.
     pub fn is_completed_communication(&self) -> bool {
-        matches!(
-            self.outcome.as_deref(),
-            Some("connected" | "meeting_held" | "completed")
-        )
+        self.outcome_typed()
+            .map(|r| {
+                r.unwrap_or_else(|e| panic!("corrupt activity outcome '{}': {}", 
+                    self.outcome.as_deref().unwrap_or(""), e))
+                 .is_completed_interaction()
+            })
+            .unwrap_or(false)
+    }
+
+    /// Parse `outcome` into the typed `ActivityOutcome` enum.
+    ///
+    /// Returns `None` if `outcome` is `NULL` (task/event without an outcome).
+    /// Returns `Err` if the stored value is not a known variant.
+    pub fn outcome_typed(
+        &self,
+    ) -> Option<Result<crate::types::activity::ActivityOutcome, String>> {
+        self.outcome
+            .as_ref()
+            .map(|s| crate::types::activity::ActivityOutcome::try_from(s.clone()))
+    }
+
+    /// Parse `activity_category` into the typed `ActivityCategory` enum.
+    ///
+    /// Returns `None` if the column is NULL (legacy rows without a category).
+    pub fn activity_category_typed(
+        &self,
+    ) -> Option<Result<crate::types::activity::ActivityCategory, String>> {
+        self.activity_category
+            .as_ref()
+            .map(|s| crate::types::activity::ActivityCategory::try_from(s.clone()))
+    }
+
+    /// Parse `direction` into the typed `ActivityDirection` enum.
+    pub fn direction_typed(
+        &self,
+    ) -> Option<Result<crate::types::activity::ActivityDirection, String>> {
+        self.direction
+            .as_ref()
+            .map(|s| crate::types::activity::ActivityDirection::try_from(s.clone()))
+    }
+
+    /// Parse `activity_type` into the typed `ActivityType` enum.
+    pub fn activity_type_typed(
+        &self,
+    ) -> Result<crate::types::activity::ActivityType, String> {
+        crate::types::activity::ActivityType::try_from(self.activity_type.clone())
+    }
+
+    /// Deserialize `activity_metadata` JSONB into the typed `ActivityMetadata` union.
+    ///
+    /// Returns `None` if the column is NULL.
+    pub fn activity_metadata_typed(
+        &self,
+    ) -> Result<Option<crate::types::activity::ActivityMetadata>, serde_json::Error> {
+        match &self.activity_metadata {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
+        }
     }
 }

@@ -68,7 +68,7 @@ impl LeadService {
             source: Set(source.map(|s| s.to_string())),
             listing_id: Set(listing_id),
             account_id: Set(account_id),
-            lead_status: Set("new".to_string()),
+            lead_status: Set(crate::types::lead::LeadStatus::New.to_string()),
             is_converted: Set(false),
             is_duplicate: Set(false),
             email_verified: Set(false),
@@ -120,7 +120,7 @@ impl LeadService {
             is_duplicate: Set(is_duplicate),
             duplicate_of_lead_id: Set(duplicate_of_lead_id),
             source: Set(Some("import".to_string())),
-            lead_status: Set("new".to_string()),
+            lead_status: Set(crate::types::lead::LeadStatus::New.to_string()),
             is_converted: Set(false),
             email_verified: Set(false),
             phone_verified: Set(false),
@@ -226,7 +226,7 @@ impl LeadService {
                     LeadActiveModel {
                         id: Set(lead.id),
                         is_converted: Set(true),
-                        lead_status: Set("converted".to_string()),
+                        lead_status: Set(crate::types::lead::LeadStatus::Converted.to_string()),
                         converted_at: Set(Some(now)),
                         converted_account_id: Set(Some(account_id)),
                         converted_contact_id: Set(Some(contact_id)),
@@ -281,7 +281,7 @@ impl LeadService {
         let now = Utc::now();
         LeadActiveModel {
             id: Set(lead_id),
-            lead_status: Set("disqualified".to_string()),
+            lead_status: Set(crate::types::lead::LeadStatus::Disqualified.to_string()),
             disqualified_at: Set(Some(now)),
             disqualification_reason: Set(Some(reason.to_string())),
             updated_at: Set(now),
@@ -395,7 +395,7 @@ impl LeadService {
         let account = AccountActiveModel {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant_id),
-            account_type: Set("organization".to_string()),
+            account_type: Set(crate::types::account::AccountType::Organization.to_string()),
             name: Set(lead.company.clone().unwrap_or_else(|| lead.name.clone())),
             dba_name: Set(lead.company_dba.clone()),
             website: Set(lead.company_website.clone()),
@@ -420,7 +420,7 @@ impl LeadService {
             data_source: Set(lead.data_source.clone()),
             data_source_id: Set(lead.data_source_id.clone()),
             account_metadata: Set(lead.lead_metadata.clone()),
-            status: Set("prospect".to_string()),
+            status: Set(crate::types::account::AccountStatus::Prospect.to_string()),
             is_duplicate: Set(false),
             created_at: Set(now),
             updated_at: Set(now),
@@ -499,10 +499,10 @@ impl LeadService {
         let opportunity = OpportunityActiveModel {
             id: Set(Uuid::new_v4()),
             tenant_id: Set(tenant_id),
-            opportunity_type: Set("crm_lead_conversion".to_string()),
+            opportunity_type: Set(crate::types::lead::OpportunityType::CrmLeadConversion.to_string()),
             name: Set(opp_name),
             crm_lead_id: Set(Some(lead.id)),
-            status: Set("prospecting".to_string()),
+            status: Set(crate::types::lead::OpportunityStatus::Prospecting.to_string()),
             currency: Set("USD".to_string()),
             created_at: Set(Utc::now()),
             ..Default::default()

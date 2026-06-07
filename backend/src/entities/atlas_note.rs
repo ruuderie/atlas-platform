@@ -103,11 +103,32 @@ impl Model {
         self.parent_note_id.is_some()
     }
 
-    /// Resolved visibility — canonical check that handles legacy `is_private`.
-    pub fn effective_visibility(&self) -> &str {
-        if self.is_private {
-            return "private";
+    /// Parse `visibility` into the typed `NoteVisibility` enum.
+    ///
+    /// Returns `Err` if the stored value is not a known variant.
+    /// The `is_private` column is intentionally ignored — the `visibility`
+    /// column is the canonical source of truth going forward.
+    pub fn visibility_typed(&self) -> Result<crate::types::note::NoteVisibility, String> {
+        crate::types::note::NoteVisibility::try_from(self.visibility.as_str())
+    }
+
+    /// Parse `note_type` into the typed `NoteType` enum.
+    ///
+    /// Infallible — unknown types map to `NoteType::Other(String)` rather than failing.
+    pub fn note_type_typed(&self) -> crate::types::note::NoteType {
+        crate::types::note::NoteType::from(self.note_type.as_str())
+    }
+
+    /// Deserialize `note_metadata` JSONB into the typed `NoteMetadata` union.
+    ///
+    /// Returns `None` if the column is NULL.
+    /// Returns `Err` if the stored JSON cannot be deserialized into any known variant.
+    pub fn note_metadata_typed(
+        &self,
+    ) -> Result<Option<crate::types::note::NoteMetadata>, serde_json::Error> {
+        match &self.note_metadata {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
         }
-        &self.visibility
     }
 }

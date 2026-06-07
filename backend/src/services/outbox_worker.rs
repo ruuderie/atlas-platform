@@ -64,8 +64,25 @@ impl OutboxWorker {
             let start_time = std::time::Instant::now();
             let tenant_str = job.tenant_id.to_string();
 
-            let result = match job.job_type.as_str() {
-                "send_magic_link_email" => {
+            // Parse job type at the read boundary — unknown type is an immediate
+            // logged error rather than a silent _ arm match.
+            let job_type_enum = match crate::types::outbox::OutboxJobType::try_from(job.job_type.as_str()) {
+                Ok(jt) => jt,
+                Err(e) => {
+                    error!("OutboxWorker: unregistered job type '{}': {}", job.job_type, e);
+                    // Mark as failed so it is not retried forever
+                    let mut active: outbox_job::ActiveModel = job.into();
+                    active.status = Set(crate::types::outbox::OutboxJobStatus::Failed.to_string());
+                    active.error_message = Set(Some(format!("unregistered job type: {e}")));
+                    active.locked_by = Set(None);
+                    active.locked_at = Set(None);
+                    active.update(db).await?;
+                    return Ok(());
+                }
+            };
+
+            let result = match job_type_enum {
+                crate::types::outbox::OutboxJobType::SendMagicLinkEmail => {
                     match serde_json::from_value::<crate::handlers::communications::SendEmailPayload>(job.payload.clone()) {
                         Ok(email_payload) => {
                             match crate::handlers::communications::send_email_handler(
@@ -86,7 +103,7 @@ impl OutboxWorker {
                 //
                 // The payload may contain {"scorecard_id": "<uuid>"} to target a single
                 // scorecard, or be absent to scan all stale scorecards for the tenant.
-                "recompute_scorecard_aggregates" => {
+                crate::types::outbox::OutboxJobType::RecomputeScorecardAggregates => {
                     let maybe_id = job.payload
                         .get("scorecard_id")
                         .and_then(|v| v.as_str())
@@ -135,7 +152,7 @@ impl OutboxWorker {
                 //
                 // refresh_time_series_for_dimension internally handles both period types
                 // (monthly and quarterly) — no period arg needed.
-                "refresh_scorecard_time_series" => {
+                crate::types::outbox::OutboxJobType::RefreshScorecardTimeSeries => {
                     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::{atlas_scorecard, atlas_scorecard_dimension};
 
@@ -208,7 +225,7 @@ impl OutboxWorker {
                 //
                 // The frontend ScorecardWidget subscribes to "scorecard_nudge" rooms on
                 // entity page load and renders NudgePrompt on receipt.
-                "evaluate_scorecard_nudge" => {
+                crate::types::outbox::OutboxJobType::EvaluateScorecardNudge => {
                     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::{tenant_setting, atlas_ws_room, atlas_ws_message};
 
@@ -344,7 +361,7 @@ impl OutboxWorker {
                 // Also serves as the source of the BYOC peer_pool snapshot (Phase 5):
                 // the freshly-refreshed MV data is used by peer_pool_snapshot() in
                 // G27SC_ByocComputeCalloutController requests.
-                "refresh_scorecard_portfolio" => {
+                crate::types::outbox::OutboxJobType::RefreshScorecardPortfolio => {
                     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::atlas_scorecard_template;
 
@@ -412,7 +429,7 @@ impl OutboxWorker {
                 // calibration map is loaded once per scorecard recompute (keyed by
                 // (contributor_user_id, dimension_id)) and applied per-entry in
                 // compute_numeric_aggregate.
-                "calibrate_scorecard_contributors" => {
+                crate::types::outbox::OutboxJobType::CalibrateScorecardContributors => {
                     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
                     use crate::entities::atlas_scorecard_template;
 
@@ -475,7 +492,13 @@ impl OutboxWorker {
                     }
                 }
 
-                _ => Err(format!("Unknown job type: {}", job.job_type)),
+                // G-19: release hold — handled by core_platform background_jobs
+                // This variant is registered here so it is part of the enum and does
+                // not fall through to an unknown-type error. The actual execution runs
+                // in the tenant_background_job loop, not the outbox worker.
+                crate::types::outbox::OutboxJobType::ReleaseExpiredReservationHolds => {
+                    Ok(()) // delegated — outbox worker is not the executor for this type
+                }
             };
 
             let duration = start_time.elapsed().as_secs_f64();
@@ -488,7 +511,7 @@ impl OutboxWorker {
             let job_id = active.id.as_ref().clone();
             match result {
                 Ok(_) => {
-                    active.status = Set("completed".to_string());
+                    active.status = Set(crate::types::outbox::OutboxJobStatus::Completed.to_string());
                     active.error_message = Set(None);
                     active.locked_by = Set(None);
                     active.locked_at = Set(None);
@@ -506,7 +529,7 @@ impl OutboxWorker {
                         .with_label_values(&[&tenant_str, &job_type, &err_msg])
                         .inc();
 
-                    active.status = Set("failed".to_string());
+                    active.status = Set(crate::types::outbox::OutboxJobStatus::Failed.to_string());
                     active.error_message = Set(Some(err_msg));
                     active.locked_by = Set(None);
                     active.locked_at = Set(None);

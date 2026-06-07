@@ -8,3 +8,5 @@ pub mod atlas_activity_unit_tests;
 pub mod scorecard_lead_unit_tests;
 // G-27 Phase 5: atlas-compute-sdk pure-math unit tests
 pub mod g27_unit_tests;
+// Type-system: TryFrom/Display roundtrips + entity typed helper methods
+pub mod type_system_unit_tests;

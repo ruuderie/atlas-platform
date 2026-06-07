@@ -246,6 +246,11 @@ pub mod m20260712_g27_seed_portfolio_job;
 // G-27 Phase 4: Seed calibrate_scorecard_contributors weekly background job.
 pub mod m20260713_g27_seed_calibration_job;
 
+// G-27 gap fill: Add display_config JSONB to atlas_scorecard_templates.
+// This column was added to the entity and types in the type-safety refactor
+// but the migration was never written. Required by all scorecard template inserts.
+pub mod m20260714_g27_display_config;
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -379,6 +384,9 @@ impl MigratorTrait for Migrator {
             // G-27 Phase 4: Register calibrate_scorecard_contributors weekly job.
             // Sorts after portfolio job seed (m20260713_ > m20260712_).
             Box::new(m20260713_g27_seed_calibration_job::Migration),
+            // G-27 gap fill: display_config JSONB on atlas_scorecard_templates.
+            // Added in type-safety refactor; migration was missing from previous runs.
+            Box::new(m20260714_g27_display_config::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

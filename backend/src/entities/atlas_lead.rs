@@ -186,8 +186,44 @@ impl Model {
     }
 
     /// Return true if this lead is in a terminal state (converted or disqualified).
+    ///
+    /// Panics in debug if `lead_status` contains an unregistered value — all writes
+    /// must go through `LeadStatus::to_string()`, so this should never fire in practice.
     pub fn is_terminal(&self) -> bool {
-        self.lead_status == "converted" || self.lead_status == "disqualified"
+        self.lead_status_typed()
+            .unwrap_or_else(|e| panic!("corrupt lead_status '{}': {}", self.lead_status, e))
+            .is_terminal()
+    }
+
+    /// Parse `lead_status` into the typed `LeadStatus` enum.
+    ///
+    /// Returns `Err` if the stored value is not a known variant — this should
+    /// never happen in production but is caught defensively at the read boundary.
+    pub fn lead_status_typed(
+        &self,
+    ) -> Result<crate::types::lead::LeadStatus, String> {
+        crate::types::lead::LeadStatus::try_from(self.lead_status.as_str())
+    }
+
+    /// Deserialize `mailing_address` JSONB into the typed `MailingAddress` struct.
+    ///
+    /// Returns `None` if the column is NULL.
+    /// Returns `Err` if the stored JSON does not match the expected shape.
+    pub fn mailing_address_typed(
+        &self,
+    ) -> Result<Option<crate::types::shared::MailingAddress>, serde_json::Error> {
+        match &self.mailing_address {
+            Some(v) => serde_json::from_value(v.clone()).map(Some),
+            None    => Ok(None),
+        }
+    }
+
+    /// Parse `data_source` into the typed `DataSource` enum.
+    ///
+    /// Uses `From<String>` (not `TryFrom`) because `DataSource` has an `Other(String)` catch-all
+    /// variant that ensures this never fails for unknown import sources.
+    pub fn data_source_typed(&self) -> Option<crate::types::lead::DataSource> {
+        self.data_source.as_ref().map(|s| crate::types::lead::DataSource::from(s.as_str()))
     }
 }
 

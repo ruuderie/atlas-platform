@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+use serde_json::Value;
 
 /// G-27: atlas_scorecard_templates — defines what traits exist for an entity type.
 ///
@@ -67,6 +68,16 @@ pub struct Model {
     /// - Enterprise deal health template: may take 18 months → need lower threshold
     /// Default: 100 (backward compatible — calibration not yet activated anywhere).
     pub calibration_minimum_entries: i32,
+    /// Per-surface display control for this template.
+    ///
+    /// Typed: `crate::types::scorecard::ScorecardTemplateDisplayConfig`
+    /// Use `self.display_config_typed()` in service code — never read this field directly.
+    ///
+    /// NULL = all surfaces off (backward compatible default — no migration value needed).
+    /// Landlord/admin edits this via the Configurator "Display Rules" tab.
+    /// Added by migration `m20260801_pm_g27_template_scope` alongside `template_scope`.
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub display_config: Option<Value>,
     pub created_by_user_id: Option<Uuid>,
     #[sea_orm(column_type = "TimestampWithTimeZone")]
     pub created_at: DateTime<Utc>,
@@ -78,3 +89,20 @@ pub struct Model {
 pub enum Relation {}
 
 impl ActiveModelBehavior for ActiveModel {}
+
+impl Model {
+    /// Deserialize `display_config` into the typed struct.
+    ///
+    /// Returns the all-off default if `display_config` is NULL (backward compatible —
+    /// template rows that predate this column behave as though all surfaces are off).
+    ///
+    /// Returns `Err` if the stored JSON is structurally invalid. This indicates a bug
+    /// in a previous write path — surface the error to the caller, do not swallow it.
+    pub fn display_config_typed(
+        &self,
+    ) -> Result<crate::types::scorecard::ScorecardTemplateDisplayConfig, serde_json::Error> {
+        crate::types::scorecard::ScorecardTemplateDisplayConfig::from_json(
+            self.display_config.as_ref(),
+        )
+    }
+}
