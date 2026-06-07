@@ -44,8 +44,8 @@ impl MigrationTrait for Migration {
         db.execute(sea_orm::Statement::from_string(
             backend,
             "ALTER TABLE atlas_scorecards \
-             ADD COLUMN IF NOT EXISTS dimension_vector_v2  float4[] DEFAULT NULL, \
-             ADD COLUMN IF NOT EXISTS has_data_mask        bool[]   DEFAULT NULL;"
+             ADD COLUMN IF NOT EXISTS dimension_vector_v2  JSONB DEFAULT NULL, \
+             ADD COLUMN IF NOT EXISTS has_data_mask        JSONB DEFAULT NULL;"
                 .to_owned(),
         ))
         .await?;
