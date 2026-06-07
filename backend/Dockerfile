@@ -17,11 +17,18 @@ CMD ["cargo", "run"]
 # Build stage
 FROM base AS builder
 ARG BUILD_PROFILE=release
+# Copy workspace manifests for dependency caching
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir -p src && \
+COPY crates/atlas-compute-sdk/Cargo.toml ./crates/atlas-compute-sdk/Cargo.toml
+# Stub sources for every workspace member so `cargo build` can resolve the
+# workspace and pre-compile all external dependencies before copying real source.
+#   - atlas_backend  → src/main.rs  (binary)
+#   - atlas-compute-sdk → crates/atlas-compute-sdk/src/lib.rs  (library)
+RUN mkdir -p src crates/atlas-compute-sdk/src && \
     echo "fn main() {println!(\"Dummy main\");}" > src/main.rs && \
+    echo "// stub" > crates/atlas-compute-sdk/src/lib.rs && \
     if [ "$BUILD_PROFILE" = "release" ]; then cargo build --release; else cargo build; fi && \
-    rm -rf src
+    rm -rf src crates/atlas-compute-sdk/src
 # Copy the actual source code
 COPY . .
 # Declare build args for versioning
