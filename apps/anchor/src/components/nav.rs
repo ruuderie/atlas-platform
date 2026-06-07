@@ -1,5 +1,16 @@
 use leptos::prelude::*;
 
+/// Normalize a DB-stored href to a safe anchor value.
+/// - `None` → `"#"` (no link set)
+/// - `Some("")` → `"#"` (empty string in DB — avoids same-page reload)
+/// - `Some(url)` → `url` (real path or URL)
+fn normalize_href(href: Option<&str>) -> String {
+    match href {
+        Some(h) if !h.trim().is_empty() => h.to_string(),
+        _ => "#".to_string(),
+    }
+}
+
 #[server(GetBlockHeight, "/api")]
 pub async fn get_block_height() -> Result<Option<u64>, ServerFnError> {
     use axum::Extension;
@@ -231,21 +242,21 @@ pub fn Nav() -> impl IntoView {
 
                                         if children.is_empty() {
                                             view! {
-                                                <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class=root_class>
+                                                <a href=normalize_href(root.href.as_deref()) class=root_class>
                                                     {root.label.clone()}
                                                 </a>
                                             }.into_any()
                                         } else {
                                             view! {
                                                 <div class="relative group cursor-pointer font-medium transition-colors uppercase text-sm tracking-wide text-on-surface-variant flex items-center gap-1 z-50">
-                                                    <a href=root.href.clone().unwrap_or_else(|| "#".to_string()) class="hover:text-primary block py-2 select-none">
+                                                    <a href=normalize_href(root.href.as_deref()) class="hover:text-primary block py-2 select-none">
                                                         {root.label.clone()}
                                                     </a>
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 group-hover:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                                                     <div class="absolute top-full left-0 mt-1 w-52 bg-surface border border-outline-variant/30 shadow-xl opacity-0 invisible group-hover:visible group-hover:opacity-100 transition-all flex flex-col pointer-events-none group-hover:pointer-events-auto rounded-sm">
                                                         {children.into_iter().map(|child| {
                                                             view! {
-                                                                <a href=child.href.clone().unwrap_or_else(|| "#".to_string()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
+                                                                <a href=normalize_href(child.href.as_deref()) class="block px-4 py-3 text-sm text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 uppercase font-medium">
                                                                     {child.label.clone()}
                                                                 </a>
                                                             }
@@ -339,7 +350,7 @@ pub fn Nav() -> impl IntoView {
                                         if children.is_empty() {
                                             view! {
                                                 <a
-                                                    href=root.href.clone().unwrap_or_else(|| "#".to_string())
+                                                    href=normalize_href(root.href.as_deref())
                                                     on:click=move |_| set_mobile_menu_open.set(false)
                                                     class="py-4 text-2xl font-bold text-on-surface uppercase hover:text-primary transition-colors border-b border-outline-variant/15 last:border-0"
                                                 >
@@ -356,7 +367,7 @@ pub fn Nav() -> impl IntoView {
                                                         {children.into_iter().map(|child| {
                                                             view! {
                                                                 <a
-                                                                    href=child.href.clone().unwrap_or_else(|| "#".to_string())
+                                                                    href=child.href.clone().map(|h| normalize_href(Some(h.as_str()))).unwrap_or("#".to_string())
                                                                     on:click=move |_| set_mobile_menu_open.set(false)
                                                                     class="py-3 text-lg font-medium text-on-surface-variant hover:text-primary transition-colors border-b border-outline-variant/10 last:border-0 block"
                                                                 >

@@ -101,8 +101,7 @@ BEGIN
         -- Insert footer menus
         INSERT INTO app_menus (id, tenant_id, menu_type, label, href, display_order, is_visible, created_at, updated_at) VALUES
         (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'TERMS OF SERVICE', '/terms', 10, true, NOW(), NOW()),
-        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'PRIVACY POLICY', '/privacy', 20, true, NOW(), NOW()),
-        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'SITEMAP', '/sitemap', 30, true, NOW(), NOW());
+        (gen_random_uuid(), v_bwr_tenant_id, 'footer', 'PRIVACY POLICY', '/privacy', 20, true, NOW(), NOW());
     END;
 
     -- Replace landing_pages map into app_pages 
