@@ -124,40 +124,21 @@ impl AtlasApp for CorePlatformApp {
             // ═══════════════════════════════════════════════════════════════════
             // Platform Generics Round 1 Gap Fills — June 2026
             //
-            // Identified via horizontal gap analysis across all 14 roadmap apps.
-            // Promoted to generics BEFORE Direct Booking Engine, CoverFlow, and
-            // Revenue Manager wrote conflicting app-specific table definitions.
+            // NOTE — Supersession: G-19, G-23, and G-26 were initially registered
+            // here as m20260701_ migrations. They have since been replaced by more
+            // complete versions registered directly in the Migrator base vec:
+            //   G-19 → m20260804_g19_atlas_campaigns  (base vec)
+            //   G-23 → m20260802_g23_atlas_reservations (base vec)
+            //   G-26 → m20260803_g26_atlas_catalog      (base vec)
             //
-            // Migration prefix m20260701_ ensures these sort AFTER all m20260601_
-            // generics and are applied in the correct dependency order.
+            // G-25 remains here because it has no newer base-vec replacement.
             // ═══════════════════════════════════════════════════════════════════
-
-            // GENERIC-19: Multi-channel campaign management
-            // Covers: atlas_campaigns, atlas_sequence_steps,
-            //         atlas_campaign_enrollments, atlas_campaign_events
-            // Prevents: PM/AgentLink/Clipping Marketplace from building conflicting
-            //           campaign tables independently.
-            Box::new(crate::migration::m20260701_g19_campaigns::Migration),
-
-            // GENERIC-23: Time-bounded reservation with inventory hold
-            // Covers: atlas_reservations (polymorphic asset reservation + hold lifecycle)
-            // Prevents: atlas_ledger_entries.billable_entity_type fragmentation across
-            //           direct_bookings / package_bookings / guest_reservations.
-            // IMPORTANT: Register a release_expired_holds BackgroundJob in background_jobs().
-            Box::new(crate::migration::m20260701_g23_reservations::Migration),
 
             // GENERIC-25: Commission plan & split governance
             // Covers: atlas_commission_plans, atlas_commission_plan_splits
             //         + backfills atlas_ledger_splits.commission_plan_id
             // Prevents: Commission logic being hardcoded in CoverFlow/AgentLink handlers.
             Box::new(crate::migration::m20260701_g25_commission_plans::Migration),
-
-            // GENERIC-26: Product catalog, pricebook & availability grid
-            // Covers: atlas_catalog_entries, atlas_catalog_rate_rules,
-            //         atlas_catalog_availability
-            // Prevents: Direct Booking hotel_room_types/room_rates and Revenue Manager
-            //           tenant_room_inventories becoming competing private pricebook schemas.
-            Box::new(crate::migration::m20260701_g26_catalog::Migration),
         ]
     }
 
