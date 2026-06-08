@@ -162,36 +162,66 @@ async fn main() {
 
     let _request_logger = RequestLogger::new(conn.clone());
 
+    use sea_orm::{ConnectionTrait, Statement};
+
     if std::env::var("WIPE_DB_ON_STARTUP").unwrap_or_else(|_| "false".to_string()) == "true" {
         tracing::warn!("WIPE_DB_ON_STARTUP is enabled! Wiping the database to start from scratch...");
-        use sea_orm::{ConnectionTrait, Statement};
         conn.execute(Statement::from_string(
             sea_orm::DatabaseBackend::Postgres,
             "DROP SCHEMA public CASCADE; CREATE SCHEMA public;".to_owned(),
         )).await.expect("Failed to recreate public schema");
     }
 
-    // Fix renamed migrations in the database before running Migrator
+    // Fix renamed migrations in the database before running Migrator.
+    // Each pair is handled with two independent single-statement executes:
+    //   1. DELETE old if new already exists (resolves the "both applied" conflict
+    //      that occurs when a unique-key violation silently aborts a multi-statement batch)
+    //   2. UPDATE old → new if only old exists (normal rename path)
+    // Both steps are idempotent via EXISTS / NOT EXISTS guards.
     tracing::info!("Ensuring legacy migration names are updated in seaql_migrations...");
-    use sea_orm::{ConnectionTrait, Statement};
-    let _ = conn.execute(Statement::from_string(
-        sea_orm::DatabaseBackend::Postgres,
-        "
-        UPDATE seaql_migrations SET version = 'm20230912_000000_create_users_table' WHERE version = 'm20230912_create_users_table';
-        UPDATE seaql_migrations SET version = 'm20230912_000001_create_user_accounts_table' WHERE version = 'm20230912_create_user_accounts_table';
-        -- G19/G23/G26 were originally registered via CorePlatformApp with 'm20260701_*' names.
-        -- They were superseded by standalone base-vec migrations with new timestamps.
-        -- Rename seaql_migrations rows so SeaORM's integrity check finds the correct files.
-        UPDATE seaql_migrations SET version = 'm20260802_g23_atlas_reservations' WHERE version = 'm20260701_g23_reservations';
-        UPDATE seaql_migrations SET version = 'm20260803_g26_atlas_catalog'      WHERE version = 'm20260701_g26_catalog';
-        UPDATE seaql_migrations SET version = 'm20260804_g19_atlas_campaigns'    WHERE version = 'm20260701_g19_campaigns';
-        ".to_owned()
-    )).await;
+    let legacy_renames: &[(&str, &str)] = &[
+        // 2023 renames — original filename-based names → timestamped names
+        ("m20230912_create_users_table",         "m20230912_000000_create_users_table"),
+        ("m20230912_create_user_accounts_table", "m20230912_000001_create_user_accounts_table"),
+        // G19/G23/G26 — registered via CorePlatformApp as m20260701_* names,
+        // superseded by standalone base-vec migrations with new timestamps.
+        ("m20260701_g23_reservations",           "m20260802_g23_atlas_reservations"),
+        ("m20260701_g26_catalog",                "m20260803_g26_atlas_catalog"),
+        ("m20260701_g19_campaigns",              "m20260804_g19_atlas_campaigns"),
+    ];
+    for (old_ver, new_ver) in legacy_renames {
+        // Step 1: If BOTH old and new exist, delete the old (new is already applied).
+        let sql_delete = format!(
+            "DELETE FROM seaql_migrations WHERE version = '{old_ver}' \
+             AND EXISTS (SELECT 1 FROM seaql_migrations WHERE version = '{new_ver}')"
+        );
+        match conn.execute(Statement::from_string(sea_orm::DatabaseBackend::Postgres, sql_delete)).await {
+            Ok(r) if r.rows_affected() > 0 => {
+                tracing::info!("seaql_migrations: removed duplicate old row '{}' (new '{}' already applied)", old_ver, new_ver);
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!("seaql_migrations DELETE '{}' failed: {}", old_ver, e),
+        }
+        // Step 2: If only old exists, rename it.
+        let sql_update = format!(
+            "UPDATE seaql_migrations SET version = '{new_ver}' \
+             WHERE version = '{old_ver}' \
+             AND NOT EXISTS (SELECT 1 FROM seaql_migrations WHERE version = '{new_ver}')"
+        );
+        match conn.execute(Statement::from_string(sea_orm::DatabaseBackend::Postgres, sql_update)).await {
+            Ok(r) if r.rows_affected() > 0 => {
+                tracing::info!("seaql_migrations: renamed '{}' → '{}'", old_ver, new_ver);
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!("seaql_migrations rename '{}' → '{}' failed: {}", old_ver, new_ver, e),
+        }
+    }
 
     // Run migrations
     Migrator::up(&conn, None).await.unwrap();
 
     tracing::info!("Migrations completed");
+
     let table_exists = &conn.execute_unprepared("SELECT 1 FROM request_log LIMIT 1").await.is_ok();
     tracing::info!("request_log table exists: {}", table_exists);
 
