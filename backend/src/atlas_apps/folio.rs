@@ -1,9 +1,20 @@
 use crate::traits::atlas_app::{AtlasApp, BackgroundJob, OnboardingStep, StepCompletionCheck};
-use axum::Router;
+use axum::{
+    Router,
+    extract::{Extension, FromRequestParts},
+    http::StatusCode,
+    middleware::{self, Next},
+    response::Response,
+};
+use axum::http::Request;
+use axum::body::Body;
 use sea_orm::DatabaseConnection;
 use sea_orm_migration::MigrationTrait;
 use async_trait::async_trait;
 use uuid::Uuid;
+
+use crate::extractors::folio_role::RequireFolioRole;
+use crate::types::pm::FolioRole;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // FolioApp — Property Management Application
@@ -57,56 +68,63 @@ impl AtlasApp for FolioApp {
             .with_state(db)
     }
 
-    /// Authenticated routes — landlord, tenant, STR compliance, vault, applications, G-27.
+    /// Authenticated routes split into three role-gated sub-routers.
     ///
-    /// All handler modules expose state-free `*_routes_raw()` constructors.
-    /// `.with_state(db)` is applied exactly once here.
+    /// # Role segmentation
+    ///
+    /// | Sub-router | Allowed roles | Middleware |
+    /// |---|---|---|
+    /// | `landlord_router` | Landlord (+ platform Owner/Admin) | `require_landlord` |
+    /// | `tenant_router` | Tenant | `require_tenant` |
+    /// | `vendor_router` | Vendor | `VendorOnly` extractor (per-handler) |
+    /// | `shared_router` | any authenticated Folio user | none (role resolved in handler) |
+    ///
+    /// Adding a new landlord route: merge it into `landlord_router`.
+    /// It is automatically blocked for Tenant/Vendor users — no per-handler guard needed.
     fn authenticated_router(&self, db: DatabaseConnection) -> Router<DatabaseConnection> {
-        Router::new()
-            // ── Landlord routes ─────────────────────────────────────────────
+        // ── Landlord-only sub-router ──────────────────────────────────────────
+        // All routes in this group require FolioRole::Landlord (or platform admin).
+        let landlord_router = Router::new()
             .merge(crate::handlers::folio::portfolio::authenticated_routes_raw())
             .merge(crate::handlers::folio::assets::authenticated_routes_raw())
             .merge(crate::handlers::folio::leases::authenticated_routes_raw())
-            .merge(crate::handlers::folio::maintenance::authenticated_routes_raw())
             .merge(crate::handlers::folio::vendors::authenticated_routes_raw())
             .merge(crate::handlers::folio::wholesale::authenticated_routes_raw())
             .merge(crate::handlers::folio::billing::authenticated_routes_raw())
-            // ── STR compliance (Phase 4) ────────────────────────────────────
             .merge(crate::handlers::folio::str::authenticated_routes_raw())
-            // ── Document vault (Phase 5) ────────────────────────────────────
             .merge(crate::handlers::folio::vault::authenticated_routes_raw())
-            // ── Renter applications (Phase 5) ───────────────────────────────
-            .merge(crate::handlers::folio::applications::authenticated_routes_raw())
-            // ── STR reservations / bookings (Phase 6 — G23) ───────────────────
-            .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
-            // ── Product catalog / pricebook (Phase 6 — G26) ───────────────────
             .merge(crate::handlers::folio::catalog::authenticated_routes_raw())
-            // ── G-27 scorecard routes are registered in the core api.rs router ──
-            // crate::handlers::folio::scorecards re-wraps the same handlers as
-            // scorecard_entries / scorecard_analytics / scorecard_display_rules which
-            // api.rs already merges directly — including it here would cause an Axum
-            // "Overlapping method route" panic at startup.
-            // ── G19 Campaign management ───────────────────────────────────────
             .merge(crate::handlers::folio::campaigns::authenticated_routes_raw())
-            // ── G20 Attribution touchpoints ───────────────────────────────────
             .merge(crate::handlers::folio::attribution::authenticated_routes_raw())
-            // ── G21 Event management, ticketing & check-in ────────────────────
             .merge(crate::handlers::folio::events::authenticated_routes_raw())
-            // ── G22 Universal M:M record relationships ────────────────────────
             .merge(crate::handlers::folio::relationships::authenticated_routes_raw())
-            // ── G24 Pre-purchase pricing proposals ───────────────────────────
             .merge(crate::handlers::folio::quotes::authenticated_routes_raw())
-            // ── G15 Sales pipeline & deal management ─────────────────────────
             .merge(crate::handlers::folio::opportunities::authenticated_routes_raw())
-            // ── G25 Commission plan application & splits ──────────────────────
             .merge(crate::handlers::folio::commission_plans::authenticated_routes_raw())
-            // ── G31 PM-tier lead lifecycle ──────────────────────────────────────────
             .merge(crate::handlers::folio::leads::authenticated_routes_raw())
-            // ── G01 PostGIS spatial routes ──────────────────────────────────────────
             .merge(crate::handlers::folio::geo::authenticated_routes_raw())
-            // ── G-32 Vendor-role routes (work orders + invoices) ───────────────────
+            .layer(middleware::from_fn(require_landlord));
+
+        // ── Tenant-only sub-router ────────────────────────────────────────────
+        // Tenant role: own lease/payments/maintenance/reservations.
+        // Applications (rental apps) are accessible to Tenants too.
+        let tenant_router = Router::new()
+            .merge(crate::handlers::folio::maintenance::authenticated_routes_raw())
+            .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
+            .merge(crate::handlers::folio::applications::authenticated_routes_raw())
+            .layer(middleware::from_fn(require_tenant));
+
+        // ── Vendor-only sub-router ────────────────────────────────────────────
+        // VendorOnly extractor on each handler provides the per-handler guard.
+        // Grouped here for organisational clarity.
+        let vendor_router = Router::new()
             .merge(crate::handlers::folio::vendor::work_orders::authenticated_routes_raw())
-            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw())
+            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw());
+
+        Router::new()
+            .merge(landlord_router)
+            .merge(tenant_router)
+            .merge(vendor_router)
             .with_state(db)
     }
 
@@ -524,5 +542,71 @@ mod tests {
         sorted.sort();
         sorted.dedup();
         assert_eq!(positions, sorted, "Onboarding step positions must be unique and ascending");
+    }
+}
+
+// ── Role-gate middleware functions ────────────────────────────────────────────
+//
+// These are Axum `from_fn` middleware applied at the sub-router level.
+// They run before any handler in the sub-router, returning 403 immediately
+// if the role check fails — the handler body never executes.
+//
+// Platform design note: these functions use `RequireFolioRole` which internally
+// calls `TenantContext` and `RbacService`. TenantContext caches the resolution
+// in `request.extensions()` so subsequent extractor calls in the handler body
+// (e.g. `Extension<user::Model>`) do not incur extra DB round-trips.
+
+/// Middleware: allows only `FolioRole::Landlord` (+ platform Owner/Admin/PSA).
+/// Applied to the entire `landlord_router` sub-router in `authenticated_router`.
+async fn require_landlord(
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    // We need to extract RequireFolioRole from the request parts.
+    // from_fn middleware receives the whole Request, so we split parts.
+    let (mut parts, body) = req.into_parts();
+
+    // Resolve role — TenantContext + G-32 lookup
+    // The state is already injected as an Extension by the time middleware runs.
+    let role_result = RequireFolioRole::from_request_parts(
+        &mut parts,
+        &(),
+    ).await;
+
+    req = Request::from_parts(parts, body);
+
+    match role_result {
+        Ok(RequireFolioRole(FolioRole::Landlord)) => Ok(next.run(req).await),
+        Ok(RequireFolioRole(role)) => {
+            tracing::warn!(
+                "require_landlord: denied — user has role '{role}', need Landlord"
+            );
+            Err(StatusCode::FORBIDDEN)
+        }
+        Err(status) => Err(status),
+    }
+}
+
+/// Middleware: allows only `FolioRole::Tenant`.
+/// Applied to the `tenant_router` sub-router.
+async fn require_tenant(
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let (mut parts, body) = req.into_parts();
+
+    let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
+
+    req = Request::from_parts(parts, body);
+
+    match role_result {
+        Ok(RequireFolioRole(FolioRole::Tenant)) => Ok(next.run(req).await),
+        Ok(RequireFolioRole(role)) => {
+            tracing::warn!(
+                "require_tenant: denied — user has role '{role}', need Tenant"
+            );
+            Err(StatusCode::FORBIDDEN)
+        }
+        Err(status) => Err(status),
     }
 }

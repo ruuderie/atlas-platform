@@ -77,14 +77,23 @@ pub async fn get_folio_me(
         .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok());
 
     // ── 5. Resolve FolioRole via G-32 RbacService ────────────────────────────
-    let folio_role = if let Some(tid) = tenant_id {
-        RbacService::get_user_app_role(&db, session_row.user_id, tid, "folio")
-            .await
-            .and_then(|slug| FolioRole::try_from(slug).ok())
-            .unwrap_or_default()
-    } else {
-        FolioRole::Landlord
-    };
+    // No role assignment = 403. Defaulting to Landlord was a security gap:
+    // any authenticated user without an explicit role silently got full PM access.
+    let tid = tenant_id.ok_or_else(|| {
+        tracing::warn!(user_id = %session_row.user_id, "folio/me: no tenant context");
+        StatusCode::FORBIDDEN
+    })?;
+
+    let folio_role = RbacService::get_user_app_role(&db, session_row.user_id, tid, "folio")
+        .await
+        .and_then(|slug| FolioRole::try_from(slug).ok())
+        .ok_or_else(|| {
+            tracing::warn!(
+                user_id = %session_row.user_id, tenant_id = %tid,
+                "folio/me: no folio role assigned"
+            );
+            StatusCode::FORBIDDEN
+        })?;
 
     let display_name = format!("{} {}", user_row.first_name, user_row.last_name)
         .trim()
