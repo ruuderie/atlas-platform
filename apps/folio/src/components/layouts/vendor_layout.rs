@@ -41,7 +41,7 @@ fn NavLink(href: &'static str, label: &'static str, icon: &'static str) -> impl 
 fn LogoutButton() -> impl IntoView {
     view! {
         <button class="nav-logout" on:click=move |_| {
-            leptos::spawn_local(async {
+            leptos::task::spawn_local(async {
                 let _ = crate::auth::revoke_session().await;
                 let _ = web_sys::window().map(|w| { let _ = w.location().set_href("/login"); });
             });

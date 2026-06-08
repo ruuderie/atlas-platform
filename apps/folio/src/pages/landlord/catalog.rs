@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Ucatalog() -> impl IntoView {
+pub fn Catalog() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"catalog"</h1>
+            <h1 class="page-title">"Catalog"</h1>
+            <p class="page-subtitle">"Product and service pricebook."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/catalog"</p>
+            <p>"Catalog data loading — connect to /api/folio/catalog"</p>
         </div>
     }
 }

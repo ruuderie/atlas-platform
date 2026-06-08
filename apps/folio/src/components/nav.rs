@@ -18,7 +18,7 @@ pub fn Nav() -> impl IntoView {
                 <button
                     class="nav-logout"
                     on:click=move |_| {
-                        leptos::spawn_local(async {
+                        leptos::task::spawn_local(async {
                             let _ = crate::auth::revoke_session().await;
                             let _ = web_sys::window()
                                 .and_then(|w| w.location().href().ok())

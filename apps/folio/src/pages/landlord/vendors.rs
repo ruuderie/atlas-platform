@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Uvendors() -> impl IntoView {
+pub fn Vendors() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"vendors"</h1>
+            <h1 class="page-title">"Vendors"</h1>
+            <p class="page-subtitle">"Contractors and service providers."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/vendors"</p>
+            <p>"Vendor data loading — connect to /api/folio/vendors"</p>
         </div>
     }
 }

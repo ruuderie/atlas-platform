@@ -7,8 +7,9 @@ use leptos_router::components::Redirect;
 #[component]
 pub fn Verify() -> impl IntoView {
     let query   = use_query_map();
-    let token   = move || query.read().get("token").cloned().unwrap_or_default();
-    let result  = Resource::new(token, |t| crate::auth::verify_magic_link(t));
+    let token   = move || query.read().get("token").map(|s| s.clone()).unwrap_or_default();
+    let result: Resource<Result<crate::auth::SessionInfo, _>> =
+        Resource::new(token, |t| crate::auth::verify_magic_link(t));
 
     view! {
         <div class="verify-page">

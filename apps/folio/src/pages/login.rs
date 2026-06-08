@@ -14,7 +14,7 @@ pub fn Login() -> impl IntoView {
         pending.set(true);
         error.set(None);
         let e = email.get();
-        leptos::spawn_local(async move {
+        leptos::task::spawn_local(async move {
             match crate::auth::request_magic_link(e).await {
                 Ok(_)  => { sent.set(true); }
                 Err(e) => { error.set(Some(e.to_string())); }

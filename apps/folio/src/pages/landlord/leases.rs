@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Uleases() -> impl IntoView {
+pub fn Leases() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"leases"</h1>
+            <h1 class="page-title">"Leases"</h1>
+            <p class="page-subtitle">"Active lease contracts."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/leases"</p>
+            <p>"Lease data loading — connect to /api/folio/leases"</p>
         </div>
     }
 }

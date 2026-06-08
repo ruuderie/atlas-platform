@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn UworkUorders() -> impl IntoView {
+pub fn WorkOrders() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"work orders"</h1>
+            <h1 class="page-title">"Work Orders"</h1>
+            <p class="page-subtitle">"Assigned work orders — open and in progress."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/vendor/work_orders"</p>
+            <p>"Work order data loading — connect to /api/folio/vendor/work-orders"</p>
         </div>
     }
 }

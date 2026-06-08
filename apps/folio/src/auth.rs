@@ -1,4 +1,5 @@
 use leptos::prelude::*;
+pub use server_fn::error::ServerFnError;
 use serde::{Deserialize, Serialize};
 
 // ── FolioRole — shared between SSR and WASM ───────────────────────────────────

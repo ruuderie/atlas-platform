@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::components::{Redirect, Route, Router, Routes};
+use leptos_router::components::{Redirect, Route, Router, Routes, ParentRoute};
 use leptos_router::path;
 
 use crate::auth::{FolioRole, SessionInfo, check_session};
@@ -39,7 +39,7 @@ use crate::pages::vendor::{
     invoices::VendorInvoices,
 };
 
-// Layouts
+// Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
     landlord_layout::LandlordLayout,
     tenant_layout::TenantLayout,
@@ -67,9 +67,9 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/") view=RoleRedirect/>
 
                 // ── Landlord namespace /l/** ───────────────────────────────────
-                <Route path=path!("/l") view=move || {
-                    view! { <RoleShell required=FolioRole::Landlord><LandlordLayout/></RoleShell> }
-                }>
+                // LandlordShell: checks role, redirects if wrong, then renders
+                // LandlordLayout which contains <Outlet/> for child routes.
+                <ParentRoute path=path!("/l") view=LandlordShell>
                     <Route path=path!("")             view=LandlordDashboard/>
                     <Route path=path!("/portfolio")   view=Portfolio/>
                     <Route path=path!("/assets")      view=Assets/>
@@ -81,29 +81,68 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/catalog")     view=Catalog/>
                     <Route path=path!("/vendors")     view=Vendors/>
                     <Route path=path!("/reservations") view=LandlordReservations/>
-                </Route>
+                </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
-                <Route path=path!("/t") view=move || {
-                    view! { <RoleShell required=FolioRole::Tenant><TenantLayout/></RoleShell> }
-                }>
+                <ParentRoute path=path!("/t") view=TenantShell>
                     <Route path=path!("")              view=TenantDashboard/>
                     <Route path=path!("/my-lease")     view=MyLease/>
                     <Route path=path!("/payments")     view=TenantPayments/>
                     <Route path=path!("/maintenance")  view=MaintenanceRequests/>
                     <Route path=path!("/reservations") view=TenantReservations/>
-                </Route>
+                </ParentRoute>
 
                 // ── Vendor namespace /v/** ─────────────────────────────────────
-                <Route path=path!("/v") view=move || {
-                    view! { <RoleShell required=FolioRole::Vendor><VendorLayout/></RoleShell> }
-                }>
+                <ParentRoute path=path!("/v") view=VendorShell>
                     <Route path=path!("")              view=VendorDashboard/>
                     <Route path=path!("/work-orders")  view=WorkOrders/>
                     <Route path=path!("/invoices")     view=VendorInvoices/>
-                </Route>
+                </ParentRoute>
             </Routes>
         </Router>
+    }
+}
+
+// ── Per-role shell components ─────────────────────────────────────────────────
+//
+// Each shell:
+//   1. Reads the shared session resource
+//   2. Redirects to /login if unauthenticated
+//   3. Redirects to the correct namespace if wrong role
+//   4. Renders the layout (which includes <Outlet/>) if authorized
+//
+// No children prop needed — the child routes render into <Outlet/>
+// inside the layout, which is how Leptos 0.8 ParentRoute works.
+
+#[component]
+fn LandlordShell() -> impl IntoView {
+    role_shell_view(FolioRole::Landlord, || view! { <LandlordLayout/> }.into_any())
+}
+
+#[component]
+fn TenantShell() -> impl IntoView {
+    role_shell_view(FolioRole::Tenant, || view! { <TenantLayout/> }.into_any())
+}
+
+#[component]
+fn VendorShell() -> impl IntoView {
+    role_shell_view(FolioRole::Vendor, || view! { <VendorLayout/> }.into_any())
+}
+
+/// Shared guard logic for all role shells.
+fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sync + 'static) -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
+        .expect("Session context missing");
+
+    view! {
+        <Suspense fallback=|| view! { <FullPageLoader/> }>
+            {move || session.get().map(|result| match result {
+                Err(_) => view! { <Redirect path="/login"/> }.into_any(),
+                Ok(ref info) if info.folio_role != required =>
+                    view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
+                Ok(_) => layout(),
+            })}
+        </Suspense>
     }
 }
 
@@ -111,7 +150,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn RoleRedirect() -> impl IntoView {
-    let session = use_context::<Resource<Result<SessionInfo, ServerFnError>>>()
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
         .expect("Session context missing");
 
     view! {
@@ -119,29 +158,6 @@ fn RoleRedirect() -> impl IntoView {
             {move || session.get().map(|r| match r {
                 Ok(info) => view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
                 Err(_)   => view! { <Redirect path="/login"/> }.into_any(),
-            })}
-        </Suspense>
-    }
-}
-
-// ── RoleShell — auth + role guard wrapping each namespace ────────────────────
-//
-// Layer 1 (UX): Redirects unauthenticated users to /login.
-// Layer 2 (UX): Redirects users with wrong role to their own namespace.
-// The authoritative check is always Layer 3 — the backend API itself.
-
-#[component]
-fn RoleShell(required: FolioRole, children: Children) -> impl IntoView {
-    let session = use_context::<Resource<Result<SessionInfo, ServerFnError>>>()
-        .expect("Session context missing");
-
-    view! {
-        <Suspense fallback=|| view! { <FullPageLoader/> }>
-            {move || session.get().map(|result| match result {
-                Err(_) => view! { <Redirect path="/login"/> }.into_any(),
-                Ok(info) if info.folio_role != required =>
-                    view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
-                Ok(_) => children().into_any(),
             })}
         </Suspense>
     }

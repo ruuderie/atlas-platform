@@ -1,6 +1,6 @@
 use axum::http::{HeaderValue, header};
 use folio::app::App;
-use folio::state::AppState;
+use folio::state::{AppState, AtlasApiUrl, PublicApiBaseUrl};
 use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, generate_route_list};
 use tower::ServiceBuilder;
@@ -13,9 +13,7 @@ async fn main() {
     dotenvy::dotenv().ok();
 
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::new(rust_log))
-        .init();
+    eprintln!("[folio] log level: {rust_log}");
 
     // cargo-leptos writes the leptos.toml next to the binary in the site root.
     let conf = leptos_config::get_configuration(None).unwrap();
@@ -29,9 +27,9 @@ async fn main() {
         .unwrap_or_else(|_| atlas_api_url.clone());
 
     let app_state = AppState {
-        leptos_options: leptos_options.clone(),
-        atlas_api_url: atlas_api_url.clone(),
-        public_api_base_url: public_api_base_url.clone(),
+        leptos_options:      leptos_options.clone(),
+        atlas_api_url:       AtlasApiUrl(atlas_api_url.clone()),
+        public_api_base_url: PublicApiBaseUrl(public_api_base_url.clone()),
     };
 
     let routes = generate_route_list(App);
@@ -81,7 +79,7 @@ async fn main() {
         .layer(axum::Extension(app_state.clone()))
         .with_state(app_state);
 
-    tracing::info!("Folio listening on http://{}", &addr);
+    eprintln!("[folio] listening on http://{}", &addr);
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app.into_make_service()).await.unwrap();
 }

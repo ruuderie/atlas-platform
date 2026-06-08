@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Udashboard() -> impl IntoView {
+pub fn TenantDashboard() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"dashuoard"</h1>
+            <h1 class="page-title">"My Dashboard"</h1>
+            <p class="page-subtitle">"Your lease, payments, and requests at a glance."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/tenant/dashboard"</p>
+            <p>"Tenant dashboard — connecting to Folio backend."</p>
         </div>
     }
 }

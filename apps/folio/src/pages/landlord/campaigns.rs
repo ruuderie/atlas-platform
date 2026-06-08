@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Ucampaigns() -> impl IntoView {
+pub fn Campaigns() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"campaigns"</h1>
+            <h1 class="page-title">"Campaigns"</h1>
+            <p class="page-subtitle">"Marketing campaigns and outreach."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/campaigns"</p>
+            <p>"Campaign data loading — connect to /api/folio/campaigns"</p>
         </div>
     }
 }

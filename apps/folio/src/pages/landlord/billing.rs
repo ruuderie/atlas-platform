@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn Ubilling() -> impl IntoView {
+pub fn Billing() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"uilling"</h1>
+            <h1 class="page-title">"Billing"</h1>
+            <p class="page-subtitle">"Invoices, payments, and ledger."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/billing"</p>
+            <p>"Billing data loading — connect to /api/folio/billing/invoice/fiat"</p>
         </div>
     }
 }

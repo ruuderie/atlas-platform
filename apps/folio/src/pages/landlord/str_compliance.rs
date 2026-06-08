@@ -1,12 +1,14 @@
 use leptos::prelude::*;
+
 #[component]
-pub fn UstrUcompliance() -> impl IntoView {
+pub fn StrCompliance() -> impl IntoView {
     view! {
         <div class="page-header">
-            <h1 class="page-title">"str compliance"</h1>
+            <h1 class="page-title">"STR Compliance"</h1>
+            <p class="page-subtitle">"Short-term rental permits and regulatory status."</p>
         </div>
         <div class="page-placeholder">
-            <p>"Connect to /api/folio/str_compliance"</p>
+            <p>"STR data loading — connect to /api/folio/str/permits"</p>
         </div>
     }
 }
