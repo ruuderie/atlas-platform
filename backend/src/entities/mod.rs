@@ -115,6 +115,25 @@ pub mod atlas_regulatory_registration;
 pub mod atlas_tax_event;
 pub mod atlas_tax_filing;
 pub mod atlas_application;
+pub mod atlas_reservation; // GENERIC-23: Time-bounded reservation with inventory hold
+
+// GENERIC-26: Product catalog, pricebook & availability grid
+pub mod atlas_catalog_entry;        // Saleable product definition (room type, package, subscription)
+pub mod atlas_catalog_rate_rule;    // Dynamic pricing overrides (date range, channel, min-stay)
+pub mod atlas_catalog_availability;  // G26 — per-date slot grid
+pub mod atlas_campaign;              // G19 — campaign definition
+pub mod atlas_sequence_step;         // G19 — sequence step
+pub mod atlas_campaign_enrollment;   // G19 — contact enrollment + progress
+pub mod atlas_campaign_event;        // G19 — interaction event (open/click/convert)
+pub mod atlas_attribution_touchpoint; // G20 — marketing touchpoint + identity resolution
+pub mod atlas_event;                  // G21 — event definition
+pub mod atlas_event_ticket_type;      // G21 — ticket tier (free, paid, VIP)
+pub mod atlas_event_registration;     // G21 — attendee registration + QR check-in
+pub mod atlas_record_relationship;    // G22 — universal M:M junction table
+pub mod atlas_quote;                  // G24 — pre-purchase pricing proposals
+pub mod atlas_quote_line_item;        // G24 — quote line items
+pub mod atlas_commission_plan;        // G25 — commission plan header
+pub mod atlas_commission_plan_split;  // G25 — commission split rules
 
 // Unified Account + Contact (replaces legacy customer/contact)
 pub mod atlas_account;

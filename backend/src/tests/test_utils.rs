@@ -83,21 +83,56 @@ pub async fn initialize_database(db: &DatabaseConnection) {
             use sea_orm_migration::MigratorTrait;
             use sea_orm::{ConnectionTrait, Statement};
 
+            let backend = db.get_database_backend();
+
+            // ── Step 1: attempt a clean schema wipe ────────────────────────────
             let drop_res = db.execute(Statement::from_string(
-                db.get_database_backend(),
-                "DROP SCHEMA public CASCADE;".to_owned(),
+                backend,
+                "DROP SCHEMA IF EXISTS public CASCADE;".to_owned(),
             )).await;
+
             let create_res = db.execute(Statement::from_string(
-                db.get_database_backend(),
+                backend,
                 "CREATE SCHEMA public;".to_owned(),
             )).await;
+
             println!(
-                "TEST LOG: Public schema drop result: {:?}, create result: {:?}",
-                drop_res, create_res
+                "TEST LOG: schema reset — drop: {:?}, create: {:?}",
+                drop_res.as_ref().map(|_| "ok"),
+                create_res.as_ref().map(|_| "ok").map_err(|e| e.to_string()),
             );
 
-            if let Err(e) = crate::migration::Migrator::up(&db, None).await {
-                panic!("Failed to run migrations: {e}");
+            // After re-creating the schema, grant back permissions that
+            // Postgres 15+ removes when the public schema is dropped/recreated.
+            if create_res.is_ok() {
+                for sql in [
+                    "GRANT ALL ON SCHEMA public TO postgres;",
+                    "GRANT ALL ON SCHEMA public TO PUBLIC;",
+                ] {
+                    let _ = db.execute(Statement::from_string(backend, sql.to_owned())).await;
+                }
+
+                // Fresh schema — run all migrations from scratch.
+                if let Err(e) = crate::migration::Migrator::up(&db, None).await {
+                    panic!("Failed to run migrations on fresh schema: {e}");
+                }
+            } else {
+                // ── Step 2 fallback: schema survived the DROP ─────────────────
+                // This happens in some Postgres 15+ setups where pg_database_owner
+                // owns `public` and the test user lacks the privilege to drop it.
+                // Roll back all tracked migrations via their `down()` functions,
+                // then re-apply cleanly.
+                println!("TEST LOG: schema wipe failed — falling back to Migrator::down + up");
+
+                if let Err(e) = crate::migration::Migrator::down(&db, None).await {
+                    // `down` may legitimately warn if seaql_migrations was already
+                    // empty (e.g. very first test run on an incompletely migrated DB).
+                    eprintln!("TEST LOG: Migrator::down warning (may be normal): {e}");
+                }
+
+                if let Err(e) = crate::migration::Migrator::up(&db, None).await {
+                    panic!("Failed to run migrations after rollback: {e}");
+                }
             }
         });
 

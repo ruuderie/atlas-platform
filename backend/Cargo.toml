@@ -13,7 +13,7 @@ default-run = "atlas_backend"
 
 [dependencies]
 anyhow = "1.0.97"
-axum = {version = "0.8.4", features = ["macros"]}
+axum = {version = "0.8.4", features = ["macros", "ws"]}
 tokio = { version = "1.28.2", features = ["full", "test-util", "macros"] }
 sea-orm = { version = "1.0.1", features = ["sqlx-postgres", "runtime-tokio-native-tls", "macros", "with-rust_decimal"] }
 tower-http = { version = "0.6.6", features = ["trace", "cors"] }

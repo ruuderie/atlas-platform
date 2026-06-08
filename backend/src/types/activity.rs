@@ -263,6 +263,7 @@ impl TryFrom<String> for ActivityOutcome {
 
 /// Metadata for a recorded call activity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CallMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recording_url: Option<String>,
@@ -274,6 +275,7 @@ pub struct CallMetadata {
 
 /// Metadata for an email activity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EmailMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
@@ -287,6 +289,7 @@ pub struct EmailMetadata {
 
 /// Metadata for a meeting activity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MeetingMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,

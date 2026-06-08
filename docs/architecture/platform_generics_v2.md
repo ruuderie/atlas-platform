@@ -1,11 +1,14 @@
 # Atlas Platform — Generics v2 (Consolidated)
 
+> [!WARNING]
+> **SUPERSEDED.** This document has been superseded by [`platform_generics_v3.md`](./platform_generics_v3.md) which adds G-32 (`atlas_memberships`), G-33 (`atlas_entitlements`), and field enhancements to G-01/G-16/Party model. Do not extend v2 — all new generics belong in v3.
+
 > **Status:** Implemented & Merged to dev (June 2026 — Rev 2: G27–G31 complete)
 > **Date:** 2026-05-27 (original design) → June 2026 (G01-G18 complete) → June 2026 (G27-G31 complete)
 > **Branch History:** `feat/platform-generics-v2` → merged to `dev`
-> **Purpose:** Single source of truth for all platform generics (G01–G31+). Supersedes the original 8 + Round 2/3 analysis.
+> **Purpose:** Historical record for G01–G31. Superseded by v3 for G32+.
 >
-> **See also:** `../CURRENT_STATE.md` for the absolute latest high-level summary.
+> **See also:** [`platform_generics_v3.md`](./platform_generics_v3.md) — current authoritative source.
 
 ---
 

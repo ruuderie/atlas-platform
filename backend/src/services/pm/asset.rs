@@ -1,0 +1,196 @@
+//! Folio — Asset Service (PM wrapper over G-10 `atlas_assets`)
+//!
+//! Property/unit creation with folio number, asset code, G-27 auto-provisioning.
+//!
+//! Entity field map:
+//!   `serial_or_folio_number` — county folio number OR generated asset code
+//!   `address_line_1` / `address_line_2` — address fields (underscored)
+//!   `attributes` — JSONB for property_type, coordinates, etc.
+//!   `status` — required; defaults to "active"
+
+use anyhow::{anyhow, Result};
+use sea_orm::DatabaseConnection;
+use uuid::Uuid;
+use serde::{Deserialize, Serialize};
+
+use crate::types::pm::PropertyType;
+use crate::services::pm::scorecard_provisioner::get_pm_template;
+use crate::services::scorecard_service::ScorecardService;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateUnitInput {
+    pub portfolio_id: Uuid,
+    pub parent_asset_id: Option<Uuid>,
+    pub name: String,
+    pub address_line_1: String,
+    pub address_line_2: Option<String>,
+    pub city: String,
+    pub state_province: String,
+    pub postal_code: String,
+    pub country_code: String,
+    pub property_type: PropertyType,
+    /// County appraiser folio number (e.g. "01-4141-008-0010"). If provided,
+    /// stored as-is in `serial_or_folio_number`. If None, the generated asset
+    /// code (e.g. "US-FL-001") is stored there instead.
+    pub folio_number: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+pub struct AssetService;
+
+impl AssetService {
+    /// Create a property unit in `atlas_assets`.
+    ///
+    /// `serial_or_folio_number` receives the county folio number if provided,
+    /// otherwise the auto-generated asset code (`US-FL-001`).
+    ///
+    /// Phase 2: auto-provisions the correct G-27 scorecard via
+    /// `property_type.scorecard_entity_type()`.
+    pub async fn create_unit(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        input: CreateUnitInput,
+    ) -> Result<Uuid> {
+        use sea_orm::{Set, ActiveModelTrait};
+        use chrono::Utc;
+
+        // Generate asset code for tracking even when a folio number is provided.
+        let asset_code = crate::services::pm::portfolio::PortfolioService::next_asset_code(
+            db, tenant_id, &input.country_code, &input.state_province,
+        )
+        .await?
+        .display();
+
+        // serial_or_folio_number: prefer the official county folio, fall back to asset code.
+        let serial_or_folio = input.folio_number.clone().unwrap_or_else(|| asset_code.clone());
+
+        let scorecard_entity_type = input.property_type.scorecard_entity_type();
+
+        let id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let attributes = serde_json::json!({
+            "property_type": input.property_type.to_string(),
+            "scorecard_entity_type": scorecard_entity_type.to_string(),
+            "asset_code": asset_code,
+            "folio_number": input.folio_number,
+            "coordinates": { "lat": input.latitude, "lng": input.longitude },
+        });
+
+        let model = crate::entities::atlas_asset::ActiveModel {
+            id: Set(id),
+            tenant_id: Set(tenant_id),
+            portfolio_id: Set(Some(input.portfolio_id)),
+            parent_asset_id: Set(input.parent_asset_id),
+            owner_user_id: Set(None),
+            asset_type: Set(input.property_type.to_string()),
+            name: Set(input.name),
+            serial_or_folio_number: Set(Some(serial_or_folio)),
+            status: Set("active".to_string()),
+            address_line_1: Set(Some(input.address_line_1)),
+            address_line_2: Set(input.address_line_2),
+            city: Set(Some(input.city)),
+            state_province: Set(Some(input.state_province)),
+            postal_code: Set(Some(input.postal_code)),
+            country_code: Set(Some(input.country_code)),
+            geo_point: Set(None),
+            attributes: Set(Some(attributes)),
+            created_at: Set(now),
+        };
+        model.insert(db).await?;
+
+        tracing::info!(
+            asset_id = %id, %tenant_id,
+            scorecard_entity = %scorecard_entity_type,
+            "AssetService: created PM unit"
+        );
+
+        // Phase 2: auto-provision G-27 scorecard for this asset.
+        //
+        // Template name is derived from property_type:
+        //   STR  → "STR Property Assessment"
+        //   else → "Rental Unit Quality"
+        //
+        // If FolioApp::provision() has not been called yet (dev env, test tenant),
+        // this is non-fatal — we log a warning and continue. The scorecard can be
+        // provisioned retroactively once the tenant runs through onboarding.
+        let template_name = match scorecard_entity_type {
+            crate::types::pm::ScorecardEntityType::StrProperty => "STR Property Assessment",
+            _ => "Rental Unit Quality",
+        };
+
+        match get_pm_template(db, tenant_id, template_name).await {
+            Ok(template) => {
+                match ScorecardService::get_or_create(
+                    db,
+                    tenant_id,
+                    template.id,
+                    "atlas_asset",
+                    id,
+                ).await {
+                    Ok(scorecard_id) => {
+                        tracing::info!(
+                            asset_id = %id, %tenant_id,
+                            %scorecard_id,
+                            template = template_name,
+                            "AssetService: G-27 scorecard provisioned"
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            asset_id = %id, %tenant_id,
+                            "AssetService: G-27 scorecard creation failed (non-fatal): {e:#}"
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    asset_id = %id, %tenant_id,
+                    template = template_name,
+                    "AssetService: PM template not found — was FolioApp::provision() called? {e:#}"
+                );
+            }
+        }
+
+        Ok(id)
+    }
+
+    pub async fn list_units(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        portfolio_id: Option<Uuid>,
+    ) -> Result<Vec<crate::entities::atlas_asset::Model>> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+        let mut query = crate::entities::atlas_asset::Entity::find()
+            .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::atlas_asset::Column::Status.eq("active"));
+
+        if let Some(pid) = portfolio_id {
+            query = query.filter(crate::entities::atlas_asset::Column::PortfolioId.eq(pid));
+        }
+
+        Ok(query.all(db).await?)
+    }
+
+    pub async fn get_unit(
+        db: &DatabaseConnection,
+        tenant_id: Uuid,
+        asset_id: Uuid,
+    ) -> Result<crate::entities::atlas_asset::Model> {
+        use sea_orm::EntityTrait;
+
+        let asset = crate::entities::atlas_asset::Entity::find_by_id(asset_id)
+            .one(db)
+            .await?
+            .ok_or_else(|| anyhow!("Asset {asset_id} not found"))?;
+
+        if asset.tenant_id != tenant_id {
+            return Err(anyhow!("Asset {asset_id} not found for tenant {tenant_id}"));
+        }
+
+        Ok(asset)
+    }
+}

@@ -86,6 +86,7 @@ yarn-error.log*
 
 # Generated reports and compiled PDFs — not tracked in source control
 docs/reports/market-analysis/pdf/
+docs/agprov/
 docs/reports/sales/pdf/
 docs/reports/**/*.md
 docs/reports/**/*.pdf

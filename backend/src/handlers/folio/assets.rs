@@ -1,0 +1,235 @@
+//! Folio — Assets handler.
+//!
+//! # Routes
+//!
+//! ```ignore
+//! GET  /api/folio/assets
+//!      List all assets for the tenant (properties + units).
+//!      -> 200 [AssetSummary]
+//!
+//! POST /api/folio/assets
+//!      Register a new property or unit.
+//!      Body: CreateAssetHttpInput
+//!      -> 201 { "id": uuid }
+//!
+//! GET  /api/folio/assets/:id
+//!      Fetch a single asset with folio number and attributes.
+//!      -> 200 AssetDetail
+//! ```
+
+use axum::{
+    extract::{Extension, Json, Path},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::entities::user;
+use crate::services::pm::asset::{AssetService, CreateUnitInput};
+use crate::types::pm::PropertyType;
+
+// ── Route registration ────────────────────────────────────────────────────────
+
+pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/folio/assets", get(list_assets).post(create_asset))
+        .route("/api/folio/assets/{id}", get(get_asset))
+}
+
+// ── Request / response types ──────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct AssetSummary {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub portfolio_id: Option<Uuid>,
+    /// `asset_type` in the DB — property type string e.g. "residential_unit"
+    pub asset_type: String,
+    pub name: String,
+    pub serial_or_folio_number: Option<String>,
+    pub status: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAssetHttpInput {
+    pub portfolio_id: Uuid,
+    pub parent_asset_id: Option<Uuid>,
+    pub property_type: String,
+    pub name: String,
+    pub address_line_1: String,
+    pub address_line_2: Option<String>,
+    pub city: String,
+    pub state_province: String,
+    pub postal_code: String,
+    pub country_code: String,
+    /// County appraiser folio number (e.g. "01-4141-008-0010"). Optional —
+    /// if absent, an asset code (e.g. "US-FL-001") is auto-generated.
+    pub folio_number: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+#[derive(Debug, Serialize)]
+struct CreateAssetResponse {
+    pub id: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+struct AssetDetail {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub portfolio_id: Option<Uuid>,
+    pub asset_type: String,
+    pub name: String,
+    pub serial_or_folio_number: Option<String>,
+    pub status: String,
+    pub address_line_1: Option<String>,
+    pub address_line_2: Option<String>,
+    pub city: Option<String>,
+    pub state_province: Option<String>,
+    pub country_code: Option<String>,
+    pub postal_code: Option<String>,
+    pub attributes: Option<serde_json::Value>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+// ── Handlers ──────────────────────────────────────────────────────────────────
+
+/// GET /api/folio/assets
+async fn list_assets(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let assets = crate::entities::atlas_asset::Entity::find()
+        .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_assets error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let summaries: Vec<AssetSummary> = assets
+        .into_iter()
+        .map(|a| AssetSummary {
+            id: a.id,
+            tenant_id: a.tenant_id,
+            portfolio_id: a.portfolio_id,
+            asset_type: a.asset_type,
+            name: a.name,
+            serial_or_folio_number: a.serial_or_folio_number,
+            status: a.status,
+            created_at: a.created_at,
+        })
+        .collect();
+
+    Ok(axum::response::Json(summaries))
+}
+
+/// POST /api/folio/assets
+async fn create_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<CreateAssetHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let property_type = PropertyType::try_from(input.property_type.clone()).map_err(|_| {
+        tracing::warn!("create_asset: invalid property_type '{}'", input.property_type);
+        StatusCode::UNPROCESSABLE_ENTITY
+    })?;
+
+    let id = AssetService::create_unit(
+        &db,
+        tenant_id,
+        CreateUnitInput {
+            portfolio_id: input.portfolio_id,
+            parent_asset_id: input.parent_asset_id,
+            name: input.name,
+            address_line_1: input.address_line_1,
+            address_line_2: input.address_line_2,
+            city: input.city,
+            state_province: input.state_province,
+            postal_code: input.postal_code,
+            country_code: input.country_code,
+            property_type,
+            folio_number: input.folio_number,
+            latitude: input.latitude,
+            longitude: input.longitude,
+        },
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, "create_asset error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok((StatusCode::CREATED, axum::response::Json(CreateAssetResponse { id })))
+}
+
+/// GET /api/folio/assets/:id
+async fn get_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "get_asset error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    Ok(axum::response::Json(AssetDetail {
+        id: asset.id,
+        tenant_id: asset.tenant_id,
+        portfolio_id: asset.portfolio_id,
+        asset_type: asset.asset_type,
+        name: asset.name,
+        serial_or_folio_number: asset.serial_or_folio_number,
+        status: asset.status,
+        address_line_1: asset.address_line_1,
+        address_line_2: asset.address_line_2,
+        city: asset.city,
+        state_province: asset.state_province,
+        country_code: asset.country_code,
+        postal_code: asset.postal_code,
+        attributes: asset.attributes,
+        created_at: asset.created_at,
+    }))
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
+    let user_accounts = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(user_id))
+        .all(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+
+    let profile = crate::entities::profile::Entity::find()
+        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+        .one(db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::FORBIDDEN)?;
+
+    Ok(profile.tenant_id)
+}

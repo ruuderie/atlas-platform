@@ -33,7 +33,8 @@ pub mod verification_service;              // GENERIC-06
 pub mod realtime_service;                  // GENERIC-07
 pub mod ai_task_service;                   // GENERIC-08
 
-
+// === Folio — Property Management App ===
+pub mod pm;                                // Domain services (zero net-new tables)
 
 pub mod unification_data_migration;
 pub mod audit;

@@ -33,6 +33,17 @@ pub struct Model {
     pub default_scale_max: Decimal,
     pub min_entries_to_publish: i32,
     pub is_published: bool,
+    /// Template scope — controls cross-tenant benchmark aggregation.
+    ///
+    /// Values:
+    ///   'platform' = canonical template; eligible for cross-tenant benchmark pool.
+    ///   'tenant'   = private per-landlord template; excluded from cross-tenant pool.
+    ///
+    /// PM canonical templates (STR Property, Rental Unit Quality, Contractor Performance)
+    /// use 'platform'. Lead Quality Assessment uses 'tenant' (private per operator).
+    ///
+    /// Added by migration `m20260801_pm_g27_template_scope`.
+    pub template_scope: String,
     /// Cold-start display strategy when entry_count < min_entries_to_publish.
     ///
     /// Values (see `crate::types::scorecard::ColdStartStrategy`):

@@ -30,3 +30,6 @@ pub mod g27_scorecard_tests;
 
 // G-31 LeadService + AccountService integration tests
 pub mod lead_account_tests;
+
+// Pure unit tests (no DB, no I/O) — fast feedback on service logic
+pub mod unit;

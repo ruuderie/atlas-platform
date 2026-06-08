@@ -51,3 +51,9 @@ pub mod admin_provision;
 pub mod scorecard_entries;
 pub mod scorecard_display_rules;
 pub mod scorecard_analytics;    // Phase 3 — portfolio analytics, leaderboard, anomalies
+
+// Folio — Property Management App
+pub mod folio;
+
+// G07 — WebSocket Relay (realtime rooms, broadcast, message persistence)
+pub mod ws;

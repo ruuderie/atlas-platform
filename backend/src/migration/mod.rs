@@ -251,6 +251,19 @@ pub mod m20260713_g27_seed_calibration_job;
 // but the migration was never written. Required by all scorecard template inserts.
 pub mod m20260714_g27_display_config;
 
+// Phase 0 — PM G-27 prerequisites: template_scope + is_tenant_extension.
+// Required before PropertyManagementApp::provision() seeds PM scorecard templates.
+pub mod m20260801_pm_g27_template_scope;
+// GENERIC-23: atlas_reservations — Time-bounded reservation with inventory hold.
+// Unifies STR bookings, hotel rooms, equipment rentals, truck parking, appointments.
+pub mod m20260802_g23_atlas_reservations;
+pub mod m20260803_g26_atlas_catalog; // GENERIC-26: Product catalog, pricebook & availability grid
+pub mod m20260804_g19_atlas_campaigns; // GENERIC-19: Multi-channel campaign management
+pub mod m20260805_g20_atlas_attribution; // GENERIC-20: Multi-channel attribution touchpoints
+pub mod m20260806_g21_atlas_events;      // GENERIC-21: Event management, ticketing & check-in
+pub mod m20260807_g22_atlas_record_relationships; // GENERIC-22: Universal M:M junction table
+pub mod m20260808_g24_atlas_quotes;               // GENERIC-24: Pre-purchase pricing proposals
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -387,6 +400,35 @@ impl MigratorTrait for Migrator {
             // G-27 gap fill: display_config JSONB on atlas_scorecard_templates.
             // Added in type-safety refactor; migration was missing from previous runs.
             Box::new(m20260714_g27_display_config::Migration),
+            // Phase 0 — PM: template_scope (platform/tenant) + is_tenant_extension (bool).
+            // Must run before PropertyManagementApp::provision() seeds PM scorecard templates.
+            Box::new(m20260801_pm_g27_template_scope::Migration),
+            // GENERIC-23: atlas_reservations — Time-bounded reservation with inventory hold.
+            // Sorts after all G-27 work (m20260802_ > m20260801_) — schema must be stable first.
+            Box::new(m20260802_g23_atlas_reservations::Migration),
+            // GENERIC-26: atlas_catalog — Product catalog, pricebook & availability grid.
+            // Three tables: atlas_catalog_entries, atlas_catalog_rate_rules, atlas_catalog_availability.
+            // Sorts after G23 (m20260803_ > m20260802_) — no FK dependency on G23, but sequenced
+            // for stability in the migration vector.
+            Box::new(m20260803_g26_atlas_catalog::Migration),
+            // GENERIC-19: atlas_campaigns — Multi-channel campaign management.
+            // 4 tables (atlas_campaigns, atlas_sequence_steps, atlas_campaign_enrollments,
+            // atlas_campaign_events) + 3 enums + 6 indexes.
+            Box::new(m20260804_g19_atlas_campaigns::Migration),
+            // GENERIC-20: atlas_attribution — Multi-channel attribution touchpoints.
+            // Depends on G19 (FKs to atlas_campaigns + atlas_campaign_enrollments).
+            Box::new(m20260805_g20_atlas_attribution::Migration),
+            // GENERIC-21: atlas_events — Event management, ticketing & check-in.
+            // 3 tables (atlas_events, atlas_event_ticket_types, atlas_event_registrations)
+            // + 6 indexes. Integrates with G19 (campaign FK), G03 (ledger FK), G20 (attribution FK).
+            Box::new(m20260806_g21_atlas_events::Migration),
+            // GENERIC-22: atlas_record_relationships — Universal polymorphic M:M junction table.
+            // Salesforce Junction Object pattern. 1 table + 3 indexes (unique, source, target).
+            Box::new(m20260807_g22_atlas_record_relationships::Migration),
+            // GENERIC-24: atlas_quotes — Pre-purchase pricing proposals + line items.
+            // Closes the commerce chain: G26 catalog → G24 quotes → G23 reservations.
+            // Both G23 migrations have nullable quote_id FKs pointing to this table.
+            Box::new(m20260808_g24_atlas_quotes::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

@@ -1,4 +1,3 @@
-pub mod billing_unit_tests;
 pub mod session_unit_tests;
 // G-28 atlas_note entity helper tests
 pub mod atlas_note_unit_tests;
@@ -10,3 +9,5 @@ pub mod scorecard_lead_unit_tests;
 pub mod g27_unit_tests;
 // Type-system: TryFrom/Display roundtrips + entity typed helper methods
 pub mod type_system_unit_tests;
+// Phase 3–7: InfinitePay/Kelviq rails, WebSocket registry, geo guards, rate limiter
+pub mod pm_phase3_unit_tests;

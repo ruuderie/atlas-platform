@@ -1,5 +1,6 @@
 pub mod anchor;
 pub mod core_platform;
+pub mod folio;
 pub mod network_instance;
 pub mod seeds;
 
@@ -15,6 +16,7 @@ pub fn get_active_apps() -> Vec<Box<dyn AtlasApp>> {
     vec![
         Box::new(core_platform::CorePlatformApp), // MUST be first — owns Tier 1 routes
         Box::new(anchor::AnchorApp),
+        Box::new(folio::FolioApp),
         Box::new(network_instance::NetworkInstanceApp),
     ]
 }

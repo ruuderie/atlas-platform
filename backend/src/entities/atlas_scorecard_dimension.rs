@@ -69,6 +69,16 @@ pub struct Model {
     /// Converges to observed mean as n >> weight.
     #[sea_orm(column_type = "Decimal(Some((6, 2)))", nullable)]
     pub bayesian_prior_weight: Option<rust_decimal::Decimal>,
+    /// Tenant extension flag — controls cross-tenant benchmark inclusion.
+    ///
+    /// true  = landlord-added custom dimension; excluded from the cross-tenant benchmark
+    ///         aggregation pool. Landlords can add arbitrary custom dimensions for their
+    ///         own tracking without polluting the platform canonical benchmark.
+    /// false = canonical platform dimension; included in the cross-tenant benchmark pool.
+    ///
+    /// Default: false (all existing dimensions are canonical — backward compatible).
+    /// Added by migration `m20260801_pm_g27_template_scope`.
+    pub is_tenant_extension: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

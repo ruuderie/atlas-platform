@@ -5,3 +5,4 @@ pub mod note;
 pub mod account;
 pub mod outbox;
 pub mod shared;
+pub mod pm;  // Folio Property Management canonical types
