@@ -8,7 +8,7 @@
 //!
 //! ## Identity resolution lifecycle
 //!
-//! ```
+//! ```text
 //! 1. Visitor lands anonymously
 //!    → capture_touchpoint(anonymous_id="abc123", user_id=None)
 //!

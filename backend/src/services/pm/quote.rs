@@ -1,7 +1,7 @@
 //! # G24 QuoteService — Pre-purchase Pricing Proposals
 //!
 //! ## Commerce chain position
-//! ```
+//! ```text
 //! G26 atlas_catalog  →  atlas_quotes  →  G23 atlas_reservations
 //!                            ↓
 //!                   atlas_quote_line_items

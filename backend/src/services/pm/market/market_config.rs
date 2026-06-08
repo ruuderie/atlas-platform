@@ -219,7 +219,7 @@ pub trait TaxEngine: Send + Sync {
 /// `applicant_id_field()` returns `CreditIdField` — not a string.
 /// The service reads the correct field off `ApplicantProfile` via the enum:
 ///
-/// ```rust
+/// ```rust,ignore
 /// let id_value = match market.credit_bureau().applicant_id_field() {
 ///     CreditIdField::Cpf      => profile.cpf.as_deref(),
 ///     CreditIdField::SsnLast4 => profile.ssn_last4.as_deref(),

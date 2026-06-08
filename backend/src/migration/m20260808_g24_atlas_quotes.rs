@@ -9,7 +9,7 @@
 //!
 //! ## Commerce chain position
 //!
-//! ```
+//! ```text
 //! G26 atlas_catalog_entries  →  atlas_quotes  →  G23 atlas_reservations
 //!                                             ↓
 //!                                   atlas_quote_line_items

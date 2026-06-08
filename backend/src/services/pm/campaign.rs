@@ -5,7 +5,7 @@
 //! Manages the four `atlas_campaign_*` tables that cover the **Awareness** and
 //! **Acquisition** legs of the platform commerce chain:
 //!
-//! ```
+//! ```text
 //! (Awareness)          (Acquisition)          (Conversion)
 //! atlas_campaigns  →   atlas_campaign_enrollments  →  any platform entity
 //!      ↓                        ↓
@@ -260,7 +260,7 @@ impl CampaignService {
     /// Transition campaign status. Enforces valid state machine transitions.
     ///
     /// Allowed transitions:
-    /// ```
+    /// ```text
     /// Draft      → Scheduled | Active
     /// Scheduled  → Active | Archived
     /// Active     → Paused | Completed | Archived

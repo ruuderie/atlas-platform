@@ -4,7 +4,7 @@
 //!
 //! Manages the three `atlas_event_*` tables covering the full event lifecycle:
 //!
-//! ```
+//! ```text
 //! atlas_events  →  atlas_event_ticket_types  →  atlas_event_registrations
 //!      ↑                                              ↓
 //!   G19 atlas_campaigns               G20 atlas_attribution_touchpoints
@@ -21,7 +21,7 @@
 //!
 //! ## Status state machine (EventStatus)
 //!
-//! ```
+//! ```text
 //! Draft  →  Published  →  Active  →  RegistrationClosed  →  InProgress  →  Completed
 //!                  ↓                          ↓                  ↓
 //!               Cancelled               Cancelled            Cancelled
@@ -214,7 +214,7 @@ impl EventService {
     /// Transition event status with state machine validation.
     ///
     /// Valid transitions:
-    /// ```
+    /// ```text
     /// Draft        → Published | Cancelled
     /// Published    → Active | Cancelled
     /// Active       → RegistrationClosed | InProgress | Cancelled

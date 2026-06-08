@@ -3,7 +3,7 @@
 //! Manages the three-table `atlas_catalog_*` generic that sits between
 //! G10 Assets (what you own) and G24 Quotes (what you're proposing to sell):
 //!
-//! ```
+//! ```text
 //! G10 atlas_assets          → atlas_catalog_entries  → G24 atlas_quotes
 //!   (owned inventory)           (saleable product)        (priced proposal)
 //!                                      ↓
