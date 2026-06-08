@@ -335,6 +335,10 @@ impl MigrationTrait for Migration {
 
 #[derive(Iden)]
 pub enum AtlasReservation {
+    // Explicit override: default Iden for enum `AtlasReservation` would produce
+    // `atlas_reservation` (singular). All raw SQL and index names in this migration
+    // use `atlas_reservations` (plural), so we pin the table name here.
+    #[iden = "atlas_reservations"]
     Table,
     Id,
     TenantId,
