@@ -3,7 +3,8 @@ members = [
     "platform-admin",
     "network-instance",
     "shared-ui",
-    "anchor"
+    "anchor",
+    "folio",
 ]
 resolver = "2"
 

@@ -263,6 +263,7 @@ pub mod m20260805_g20_atlas_attribution; // GENERIC-20: Multi-channel attributio
 pub mod m20260806_g21_atlas_events;      // GENERIC-21: Event management, ticketing & check-in
 pub mod m20260807_g22_atlas_record_relationships; // GENERIC-22: Universal M:M junction table
 pub mod m20260808_g24_atlas_quotes;               // GENERIC-24: Pre-purchase pricing proposals
+pub mod m20260809_g26_catalog_forward;             // G26 forward: enum, GENERATED column, triggers, indexes
 
 pub struct Migrator;
 
@@ -429,6 +430,11 @@ impl MigratorTrait for Migrator {
             // Closes the commerce chain: G26 catalog → G24 quotes → G23 reservations.
             // Both G23 migrations have nullable quote_id FKs pointing to this table.
             Box::new(m20260808_g24_atlas_quotes::Migration),
+            // G26 forward: backfills atlas_catalog_entry_type enum, available_count GENERATED column,
+            // update_updated_at_column() triggers, and performance indexes on live DBs that had the
+            // original G26 (m20260701_g26_catalog, renamed to m20260803_g26_atlas_catalog) applied
+            // before the enum/column additions were written. All steps are fully idempotent.
+            Box::new(m20260809_g26_catalog_forward::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
