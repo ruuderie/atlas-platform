@@ -265,6 +265,10 @@ pub mod m20260807_g22_atlas_record_relationships; // GENERIC-22: Universal M:M j
 pub mod m20260808_g24_atlas_quotes;               // GENERIC-24: Pre-purchase pricing proposals
 pub mod m20260809_g26_catalog_forward;             // G26 forward: enum, GENERATED column, triggers, indexes
 pub mod m20260810_add_folio_role_to_user_account;  // Folio multi-role: folio_role column on user_account
+pub mod m20260811_g32_atlas_rbac;                  // G-32: atlas_role_profiles, atlas_user_app_roles, atlas_role_profile_permissions
+pub mod m20260812_g32_folio_role_seed;             // G-32: platform-default Folio role profiles seed
+pub mod m20260813_g32_migrate_folio_roles;         // G-32: backfill atlas_user_app_roles from folio_role column
+pub mod m20260814_g32_drop_folio_role_column;      // G-32: drop user_account.folio_role (superseded by G-32)
 
 pub struct Migrator;
 
@@ -437,10 +441,17 @@ impl MigratorTrait for Migrator {
             // before the enum/column additions were written. All steps are fully idempotent.
             Box::new(m20260809_g26_catalog_forward::Migration),
             // Folio multi-role: adds folio_role VARCHAR(20) DEFAULT 'landlord' to user_account.
-            // Enables the Folio frontend to route users to their persona-specific namespace
-            // (landlord /l/**, tenant /t/**, vendor /v/**) and backend endpoints to enforce
-            // per-role authorization independently of the platform UserRole.
+            // Transitional — superseded by G-32. Column is dropped by m20260814 after backfill.
             Box::new(m20260810_add_folio_role_to_user_account::Migration),
+            // G-32: Platform-generic RBAC — App→Profile→Role→User hierarchy.
+            // Adds atlas_role_profiles, atlas_user_app_roles, atlas_role_profile_permissions.
+            Box::new(m20260811_g32_atlas_rbac::Migration),
+            // G-32: Seeds platform-default Folio role profiles (landlord/tenant/vendor).
+            Box::new(m20260812_g32_folio_role_seed::Migration),
+            // G-32: Backfills atlas_user_app_roles from existing user_account.folio_role values.
+            Box::new(m20260813_g32_migrate_folio_roles::Migration),
+            // G-32: Drops user_account.folio_role column now that G-32 owns role storage.
+            Box::new(m20260814_g32_drop_folio_role_column::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

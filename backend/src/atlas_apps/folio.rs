@@ -104,6 +104,9 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::leads::authenticated_routes_raw())
             // ── G01 PostGIS spatial routes ──────────────────────────────────────────
             .merge(crate::handlers::folio::geo::authenticated_routes_raw())
+            // ── G-32 Vendor-role routes (work orders + invoices) ───────────────────
+            .merge(crate::handlers::folio::vendor::work_orders::authenticated_routes_raw())
+            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw())
             .with_state(db)
     }
 

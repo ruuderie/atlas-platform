@@ -89,7 +89,8 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::scorecard_entries::routes())
         .merge(crate::handlers::scorecard_display_rules::routes())
         .merge(crate::handlers::scorecard_analytics::routes()) // Phase 3 — portfolio analytics
-        .merge(crate::handlers::ws::authenticated_routes_raw()); // G07 — WebSocket relay
+        .merge(crate::handlers::ws::authenticated_routes_raw()) // G07 — WebSocket relay
+        .merge(crate::handlers::rbac::authenticated_routes_raw()); // G-32 — RBAC management
 
     for app in crate::atlas_apps::get_active_apps() {
         authenticated_routes = authenticated_routes.merge(app.authenticated_router(db.clone()));

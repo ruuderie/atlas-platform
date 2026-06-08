@@ -67,6 +67,9 @@ pub mod tenant_background_job;
 // ONBOARDING
 pub mod onboarding_progress;
 pub mod user_app_permission;
+pub mod atlas_role_profiles;           // G-32: role profile templates (platform or tenant-scoped)
+pub mod atlas_user_app_roles;          // G-32: user↔role assignments per app+tenant
+pub mod atlas_role_profile_permissions; // G-32: permission slugs per role profile
 
 // WEBAUTHN SESSION PERSISTENCE
 pub mod webauthn_challenge;

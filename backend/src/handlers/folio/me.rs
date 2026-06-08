@@ -3,7 +3,8 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{session, user, user_account};
+use crate::entities::{session, user};
+use crate::services::rbac::RbacService;
 use crate::types::pm::FolioRole;
 
 /// Response body for `GET /api/folio/me`.
@@ -19,9 +20,10 @@ pub struct FolioMeResponse {
 
 /// `GET /api/folio/me`
 ///
-/// Returns the authenticated user's folio-specific profile and role.
-/// The role determines which frontend namespace (`/l`, `/t`, `/v`) the
-/// client is routed to, and which backend endpoints it may call.
+/// Returns the authenticated user's Folio identity and role.
+/// Role is resolved from `atlas_user_app_roles` via `RbacService::get_user_app_role`.
+/// Falls back to `FolioRole::Landlord` if no role assignment exists (safe default
+/// for existing accounts created before G-32 was seeded).
 ///
 /// Authorization: self-contained — validates Bearer token / atlas_session cookie
 /// directly against the sessions table. Listed in FolioApp::public_router() to
@@ -34,7 +36,7 @@ pub async fn get_folio_me(
     let token = extract_bearer(&headers).ok_or(StatusCode::UNAUTHORIZED)?;
     let token_hash = crate::auth::hash_token(&token);
 
-    // ── 2. Resolve session → user_id ──────────────────────────────────────────
+    // ── 2. Resolve session → user_id + tenant context ─────────────────────────
     let session_row = session::Entity::find()
         .filter(session::Column::BearerTokenHash.eq(&token_hash))
         .filter(session::Column::IsActive.eq(true))
@@ -43,7 +45,6 @@ pub async fn get_folio_me(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    // Guard expiry manually (token_expiration field)
     if session_row.token_expiration < chrono::Utc::now() {
         return Err(StatusCode::UNAUTHORIZED);
     }
@@ -55,16 +56,13 @@ pub async fn get_folio_me(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    // ── 4. Fetch user_account — get folio_role and tenant_id ──────────────────
-    // folio_role is a raw column added by m20260810_. SeaORM entity doesn't
-    // have it yet (entity field is deferred to avoid re-generating). We use a
-    // raw SQL fetch via sea_orm::Statement.
+    // ── 4. Resolve tenant_id from user_account ────────────────────────────────
     use sea_orm::{ConnectionTrait, DbBackend, Statement};
 
-    let row = db
+    let tenant_id: Option<Uuid> = db
         .query_one(Statement::from_sql_and_values(
             DbBackend::Postgres,
-            r#"SELECT ua.folio_role, a.tenant_id
+            r#"SELECT a.tenant_id
                FROM user_account ua
                JOIN account a ON ua.account_id = a.id
                WHERE ua.user_id = $1
@@ -74,21 +72,23 @@ pub async fn get_folio_me(
             [session_row.user_id.into()],
         ))
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .ok()
+        .flatten()
+        .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok());
 
-    let (folio_role, tenant_id) = match row {
-        Some(r) => {
-            let raw_role: Option<String> = r.try_get("", "folio_role").ok();
-            let role = raw_role
-                .and_then(|s| FolioRole::try_from(s).ok())
-                .unwrap_or_default();
-            let tid: Option<Uuid> = r.try_get("", "tenant_id").ok().flatten();
-            (role, tid)
-        }
-        None => (FolioRole::Landlord, None),
+    // ── 5. Resolve FolioRole via G-32 RbacService ────────────────────────────
+    let folio_role = if let Some(tid) = tenant_id {
+        RbacService::get_user_app_role(&db, session_row.user_id, tid, "folio")
+            .await
+            .and_then(|slug| FolioRole::try_from(slug).ok())
+            .unwrap_or_default()
+    } else {
+        FolioRole::Landlord
     };
 
-    let display_name = format!("{} {}", user_row.first_name, user_row.last_name).trim().to_owned();
+    let display_name = format!("{} {}", user_row.first_name, user_row.last_name)
+        .trim()
+        .to_owned();
     let display_name = if display_name.is_empty() { None } else { Some(display_name) };
 
     Ok(Json(FolioMeResponse {

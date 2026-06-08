@@ -57,3 +57,6 @@ pub mod folio;
 
 // G07 — WebSocket Relay (realtime rooms, broadcast, message persistence)
 pub mod ws;
+
+// G-32 — Platform-generic RBAC management API (role assignment, inspection)
+pub mod rbac;
