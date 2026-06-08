@@ -174,11 +174,22 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // updated_at trigger
+        // ── updated_at trigger function + trigger ─────────────────────────────
+        // update_updated_at_column() is a generic shared function used by several
+        // platform migrations. Define it here with CREATE OR REPLACE so it is
+        // always present regardless of prior migration history.
         manager
             .get_connection()
             .execute_unprepared(
-                "CREATE TRIGGER atlas_catalog_entries_updated_at
+                "CREATE OR REPLACE FUNCTION update_updated_at_column()
+                 RETURNS TRIGGER LANGUAGE plpgsql AS $$
+                 BEGIN
+                     NEW.updated_at = NOW();
+                     RETURN NEW;
+                 END;
+                 $$;
+
+                 CREATE TRIGGER atlas_catalog_entries_updated_at
                  BEFORE UPDATE ON atlas_catalog_entries
                  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();",
             )
