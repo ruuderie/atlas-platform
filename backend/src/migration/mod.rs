@@ -264,6 +264,7 @@ pub mod m20260806_g21_atlas_events;      // GENERIC-21: Event management, ticket
 pub mod m20260807_g22_atlas_record_relationships; // GENERIC-22: Universal M:M junction table
 pub mod m20260808_g24_atlas_quotes;               // GENERIC-24: Pre-purchase pricing proposals
 pub mod m20260809_g26_catalog_forward;             // G26 forward: enum, GENERATED column, triggers, indexes
+pub mod m20260810_add_folio_role_to_user_account;  // Folio multi-role: folio_role column on user_account
 
 pub struct Migrator;
 
@@ -435,6 +436,11 @@ impl MigratorTrait for Migrator {
             // original G26 (m20260701_g26_catalog, renamed to m20260803_g26_atlas_catalog) applied
             // before the enum/column additions were written. All steps are fully idempotent.
             Box::new(m20260809_g26_catalog_forward::Migration),
+            // Folio multi-role: adds folio_role VARCHAR(20) DEFAULT 'landlord' to user_account.
+            // Enables the Folio frontend to route users to their persona-specific namespace
+            // (landlord /l/**, tenant /t/**, vendor /v/**) and backend endpoints to enforce
+            // per-role authorization independently of the platform UserRole.
+            Box::new(m20260810_add_folio_role_to_user_account::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

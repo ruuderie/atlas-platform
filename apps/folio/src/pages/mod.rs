@@ -1,8 +1,6 @@
-pub mod dashboard;
-pub mod leases;
-pub mod leads;
+pub mod landlord;
+pub mod tenant;
+pub mod vendor;
 pub mod login;
-pub mod not_found;
-pub mod portfolio;
-pub mod reservations;
 pub mod verify;
+pub mod not_found;

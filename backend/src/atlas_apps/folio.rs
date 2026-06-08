@@ -47,6 +47,13 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::billing::public_routes_raw())
             // ── G31 lead ingest: no session, rate-limited, honeypot-guarded ─
             .merge(crate::handlers::folio::leads::public_routes_raw())
+            // ── Multi-role identity endpoint — validates bearer internally ───
+            // Listed here so no outer session middleware wraps it twice;
+            // me.rs validates the bearer token and session expiry itself.
+            .route(
+                "/api/folio/me",
+                axum::routing::get(crate::handlers::folio::me::get_folio_me),
+            )
             .with_state(db)
     }
 

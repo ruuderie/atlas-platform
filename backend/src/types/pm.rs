@@ -903,6 +903,58 @@ impl TryFrom<String> for ScorecardEntityType {
     }
 }
 
+// ── Folio role ────────────────────────────────────────────────────────────────
+
+/// The PM-context role of a user within the Folio application.
+///
+/// Stored as VARCHAR in `user_account.folio_role` (added by
+/// `m20260810_add_folio_role_to_user_account`). Determines which Folio
+/// frontend namespace the user is routed to and which backend endpoints
+/// they are permitted to call.
+///
+/// - `Landlord` — property manager / PM operator. Full access to the PM suite.
+/// - `Tenant`   — renter or STR guest. Access to their own lease, payments,
+///               maintenance requests, and reservations only.
+/// - `Vendor`   — contractor / service provider. Access to work orders and
+///               invoices assigned to their service-provider profile.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum FolioRole {
+    #[default]
+    Landlord,
+    Tenant,
+    Vendor,
+}
+
+impl fmt::Display for FolioRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Landlord => "landlord",
+            Self::Tenant   => "tenant",
+            Self::Vendor   => "vendor",
+        })
+    }
+}
+
+impl TryFrom<String> for FolioRole {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "landlord" => Ok(Self::Landlord),
+            "tenant"   => Ok(Self::Tenant),
+            "vendor"   => Ok(Self::Vendor),
+            other      => Err(format!("unknown FolioRole: '{other}'")),
+        }
+    }
+}
+
+impl TryFrom<&str> for FolioRole {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        FolioRole::try_from(s.to_string())
+    }
+}
+
 // ── Template scope ────────────────────────────────────────────────────────────
 
 /// G-27 template scope — controls cross-tenant benchmark aggregation.
