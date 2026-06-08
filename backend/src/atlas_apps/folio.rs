@@ -74,8 +74,11 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
             // ── Product catalog / pricebook (Phase 6 — G26) ───────────────────
             .merge(crate::handlers::folio::catalog::authenticated_routes_raw())
-            // ── G-27 scorecard routes (PM entity types) ─────────────────────
-            .merge(crate::handlers::folio::scorecards::authenticated_routes_raw())
+            // ── G-27 scorecard routes are registered in the core api.rs router ──
+            // crate::handlers::folio::scorecards re-wraps the same handlers as
+            // scorecard_entries / scorecard_analytics / scorecard_display_rules which
+            // api.rs already merges directly — including it here would cause an Axum
+            // "Overlapping method route" panic at startup.
             // ── G19 Campaign management ───────────────────────────────────────
             .merge(crate::handlers::folio::campaigns::authenticated_routes_raw())
             // ── G20 Attribution touchpoints ───────────────────────────────────
