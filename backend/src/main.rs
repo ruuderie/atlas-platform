@@ -179,6 +179,12 @@ async fn main() {
         "
         UPDATE seaql_migrations SET version = 'm20230912_000000_create_users_table' WHERE version = 'm20230912_create_users_table';
         UPDATE seaql_migrations SET version = 'm20230912_000001_create_user_accounts_table' WHERE version = 'm20230912_create_user_accounts_table';
+        -- G19/G23/G26 were originally registered via CorePlatformApp with 'm20260701_*' names.
+        -- They were superseded by standalone base-vec migrations with new timestamps.
+        -- Rename seaql_migrations rows so SeaORM's integrity check finds the correct files.
+        UPDATE seaql_migrations SET version = 'm20260802_g23_atlas_reservations' WHERE version = 'm20260701_g23_reservations';
+        UPDATE seaql_migrations SET version = 'm20260803_g26_atlas_catalog'      WHERE version = 'm20260701_g26_catalog';
+        UPDATE seaql_migrations SET version = 'm20260804_g19_atlas_campaigns'    WHERE version = 'm20260701_g19_campaigns';
         ".to_owned()
     )).await;
 
