@@ -4,21 +4,20 @@
 //! `billable_entity_type = 'service_provider'` and
 //! `billable_entity_id` matches the vendor's `atlas_service_provider.id`.
 //!
+//! # Authorization
+//! All routes use the `VendorOnly` extractor — declarative role gate.
+//!
 //! # Routes
 //!
 //! ```ignore
-//! GET  /api/folio/vendor/invoices
-//!      List all invoices for this vendor.
-//!      Query: ?status=pending|paid|all  (default: pending)
+//! GET  /api/folio/vendor/invoices           ?status=pending|paid|all
 //!      -> 200 [VendorInvoiceSummary]
 //!
 //! GET  /api/folio/vendor/invoices/:id
-//!      Invoice detail.
 //!      -> 200 VendorInvoiceDetail
 //!
 //! POST /api/folio/vendor/invoices
 //!      Submit a new invoice against a completed work order.
-//!      Body: SubmitInvoiceInput
 //!      -> 201 { "id": uuid }
 //! ```
 
@@ -26,7 +25,7 @@ use axum::{
     extract::{Extension, Json, Path, Query},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use sea_orm::{
@@ -37,14 +36,14 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::{atlas_ledger_entry, atlas_service_provider, user};
-use crate::services::rbac::RbacService;
+use crate::extractors::folio_role::VendorOnly;
 
 // ── Route constructors ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/vendor/invoices",      get(list_invoices).post(submit_invoice))
-        .route("/api/folio/vendor/invoices/:id",  get(get_invoice))
+        .route("/api/folio/vendor/invoices",     get(list_invoices).post(submit_invoice))
+        .route("/api/folio/vendor/invoices/:id", get(get_invoice))
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -58,29 +57,29 @@ fn default_invoice_status() -> String { "pending".to_string() }
 
 #[derive(Debug, Serialize)]
 pub struct VendorInvoiceSummary {
-    pub id:                  Uuid,
-    pub gross_amount_cents:  i64,
-    pub currency:            String,
-    pub status:              String,
-    pub due_date:            Option<chrono::NaiveDate>,
-    pub paid_at:             Option<chrono::DateTime<chrono::Utc>>,
-    pub created_at:          chrono::DateTime<chrono::Utc>,
+    pub id:                 Uuid,
+    pub gross_amount_cents: i64,
+    pub currency:           String,
+    pub status:             String,
+    pub due_date:           Option<chrono::NaiveDate>,
+    pub paid_at:            Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at:         chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct VendorInvoiceDetail {
-    pub id:                  Uuid,
-    pub gross_amount_cents:  i64,
-    pub fee_amount_cents:    i64,
-    pub net_amount_cents:    i64,
-    pub currency:            String,
-    pub payment_rail:        Option<String>,
-    pub external_tx_id:      Option<String>,
-    pub status:              String,
-    pub due_date:            Option<chrono::NaiveDate>,
-    pub paid_at:             Option<chrono::DateTime<chrono::Utc>>,
-    pub billable_entity_id:  Uuid,
-    pub created_at:          chrono::DateTime<chrono::Utc>,
+    pub id:                 Uuid,
+    pub gross_amount_cents: i64,
+    pub fee_amount_cents:   i64,
+    pub net_amount_cents:   i64,
+    pub currency:           String,
+    pub payment_rail:       Option<String>,
+    pub external_tx_id:     Option<String>,
+    pub status:             String,
+    pub due_date:           Option<chrono::NaiveDate>,
+    pub paid_at:            Option<chrono::DateTime<chrono::Utc>>,
+    pub billable_entity_id: Uuid,
+    pub created_at:         chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,13 +95,12 @@ pub struct SubmitInvoiceInput {
 
 /// GET /api/folio/vendor/invoices
 async fn list_invoices(
+    _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Query(params): Query<ListInvoicesQuery>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    ensure_vendor_role(&db, current_user.id, tenant_id).await?;
-    let sp = resolve_service_provider(&db, current_user.id, tenant_id).await?;
+    let (tenant_id, sp) = resolve_vendor_context(&db, current_user.id).await?;
 
     let mut query = atlas_ledger_entry::Entity::find()
         .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
@@ -139,13 +137,12 @@ async fn list_invoices(
 
 /// GET /api/folio/vendor/invoices/:id
 async fn get_invoice(
+    _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    ensure_vendor_role(&db, current_user.id, tenant_id).await?;
-    let sp = resolve_service_provider(&db, current_user.id, tenant_id).await?;
+    let (tenant_id, sp) = resolve_vendor_context(&db, current_user.id).await?;
 
     let entry = atlas_ledger_entry::Entity::find_by_id(id)
         .filter(atlas_ledger_entry::Column::TenantId.eq(tenant_id))
@@ -157,31 +154,32 @@ async fn get_invoice(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     Ok(Json(VendorInvoiceDetail {
-        id:                  entry.id,
-        gross_amount_cents:  entry.gross_amount_cents,
-        fee_amount_cents:    entry.fee_amount_cents,
-        net_amount_cents:    entry.net_amount_cents,
-        currency:            entry.currency,
-        payment_rail:        entry.payment_rail,
-        external_tx_id:      entry.external_tx_id,
-        status:              entry.status,
-        due_date:            entry.due_date,
-        paid_at:             entry.paid_at,
-        billable_entity_id:  entry.billable_entity_id,
-        created_at:          entry.created_at,
+        id:                 entry.id,
+        gross_amount_cents: entry.gross_amount_cents,
+        fee_amount_cents:   entry.fee_amount_cents,
+        net_amount_cents:   entry.net_amount_cents,
+        currency:           entry.currency,
+        payment_rail:       entry.payment_rail,
+        external_tx_id:     entry.external_tx_id,
+        status:             entry.status,
+        due_date:           entry.due_date,
+        paid_at:            entry.paid_at,
+        billable_entity_id: entry.billable_entity_id,
+        created_at:         entry.created_at,
     }))
 }
 
 /// POST /api/folio/vendor/invoices
 async fn submit_invoice(
+    _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Json(input): Json<SubmitInvoiceInput>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    ensure_vendor_role(&db, current_user.id, tenant_id).await?;
-    let sp = resolve_service_provider(&db, current_user.id, tenant_id).await?;
+    let (tenant_id, sp) = resolve_vendor_context(&db, current_user.id).await?;
 
+    // Platform takes 0% fee on vendor invoices — net = gross.
+    // Billing admin may add adjustments via ledger splits in a later reconciliation pass.
     let new_entry = atlas_ledger_entry::ActiveModel {
         id:                    Set(Uuid::new_v4()),
         tenant_id:             Set(tenant_id),
@@ -207,54 +205,44 @@ async fn submit_invoice(
     };
 
     let saved = new_entry.insert(&db).await.map_err(|e| {
-        tracing::error!("vendor::submit_invoice insert failed: {e}");
+        tracing::error!("vendor::submit_invoice failed: {e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
     Ok((StatusCode::CREATED, Json(serde_json::json!({ "id": saved.id }))))
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Shared helper ─────────────────────────────────────────────────────────────
 
-async fn ensure_vendor_role(
-    db:        &DatabaseConnection,
-    user_id:   Uuid,
-    tenant_id: Uuid,
-) -> Result<(), StatusCode> {
-    match RbacService::get_user_app_role(db, user_id, tenant_id, "folio").await.as_deref() {
-        Some("vendor") => Ok(()),
-        _ => Err(StatusCode::FORBIDDEN),
-    }
-}
-
-async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uuid, StatusCode> {
-    use sea_orm::QueryFilter;
+async fn resolve_vendor_context(
+    db:      &DatabaseConnection,
+    user_id: Uuid,
+) -> Result<(Uuid, atlas_service_provider::Model), StatusCode> {
     let user_accounts = crate::entities::user_account::Entity::find()
         .filter(crate::entities::user_account::Column::UserId.eq(user_id))
         .all(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::FORBIDDEN)?;
-    Ok(profile.tenant_id)
-}
 
-async fn resolve_service_provider(
-    db:        &DatabaseConnection,
-    user_id:   Uuid,
-    tenant_id: Uuid,
-) -> Result<atlas_service_provider::Model, StatusCode> {
-    atlas_service_provider::Entity::find()
+    let tenant_id = profile.tenant_id;
+
+    let sp = atlas_service_provider::Entity::find()
         .filter(atlas_service_provider::Column::TenantId.eq(tenant_id))
         .filter(atlas_service_provider::Column::UserId.eq(user_id))
         .filter(atlas_service_provider::Column::Status.ne("inactive"))
         .one(db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)
+        .ok_or(StatusCode::FORBIDDEN)?;
+
+    Ok((tenant_id, sp))
 }

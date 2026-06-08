@@ -62,6 +62,13 @@ impl RbacService {
 
     /// Returns true if the user has the given `permission_slug` in the app,
     /// either via their role profile OR via a `user_app_permission` override.
+    ///
+    /// Slug matching supports two forms:
+    ///   - Exact:    `"billing:read"`  matches stored slug `"billing:read"`
+    ///   - Wildcard: stored slug `"billing:*"` matches any `"billing:*"` query
+    ///
+    /// Wildcard evaluation is done in Rust after fetching, not in SQL, to keep
+    /// the query simple and avoid regex injection surface.
     pub async fn has_permission(
         db:             &DatabaseConnection,
         user_id:        Uuid,
@@ -71,34 +78,46 @@ impl RbacService {
     ) -> bool {
         use sea_orm::ConnectionTrait;
 
-        // Layer 1: profile-level permission
-        let profile_check = db
-            .query_one(Statement::from_sql_and_values(
-                DbBackend::Postgres,
-                r#"SELECT 1
-                   FROM atlas_user_app_roles uar
-                   JOIN atlas_role_profile_permissions rpp
-                     ON rpp.role_profile_id = uar.role_profile_id
-                   WHERE uar.user_id   = $1
-                     AND uar.tenant_id = $2
-                     AND uar.app_slug  = $3
-                     AND uar.is_active = true
-                     AND (uar.expires_at IS NULL OR uar.expires_at > NOW())
-                     AND rpp.permission_slug = $4
-                     AND rpp.is_allowed      = true
-                   LIMIT 1"#,
-                [
-                    user_id.into(),
-                    tenant_id.into(),
-                    app_slug.into(),
-                    permission_slug.into(),
-                ],
-            ))
-            .await
-            .ok()
-            .flatten();
+        // Derive the namespace prefix for wildcard matching: "billing:read" → "billing:"
+        let slug_prefix = permission_slug
+            .split_once(':')
+            .map(|(ns, _)| format!("{}:*", ns));
 
-        if profile_check.is_some() {
+        // Layer 1: profile-level permission (exact match OR wildcard slug stored in DB)
+        // We fetch all permission slugs for the user's profile and evaluate in Rust.
+        let profile_slugs: Vec<String> = {
+            let rows = db
+                .query_all(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    r#"SELECT rpp.permission_slug
+                       FROM atlas_user_app_roles uar
+                       JOIN atlas_role_profile_permissions rpp
+                         ON rpp.role_profile_id = uar.role_profile_id
+                       WHERE uar.user_id   = $1
+                         AND uar.tenant_id = $2
+                         AND uar.app_slug  = $3
+                         AND uar.is_active = true
+                         AND (uar.expires_at IS NULL OR uar.expires_at > NOW())
+                         AND rpp.is_allowed = true"#,
+                    [
+                        user_id.into(),
+                        tenant_id.into(),
+                        app_slug.into(),
+                    ],
+                ))
+                .await
+                .unwrap_or_default();
+            rows.into_iter()
+                .filter_map(|r| r.try_get::<String>("", "permission_slug").ok())
+                .collect()
+        };
+
+        let profile_match = profile_slugs.iter().any(|stored| {
+            stored == permission_slug
+                || slug_prefix.as_deref().map_or(false, |pfx| stored == pfx)
+        });
+
+        if profile_match {
             return true;
         }
 
@@ -168,6 +187,13 @@ impl RbacService {
 
         let assignment_id = Uuid::new_v4();
 
+        // Fix: granted_by must be passed as Option<Uuid> sea_orm Value, not as a string.
+        // Passing None as an empty string caused a type mismatch on the UUID column.
+        let granted_by_value: sea_orm::Value = match granted_by {
+            Some(uid) => uid.into(),
+            None      => sea_orm::Value::Uuid(None),
+        };
+
         db.execute(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"INSERT INTO atlas_user_app_roles
@@ -186,7 +212,7 @@ impl RbacService {
                 tenant_id.into(),
                 app_slug.into(),
                 profile_id.into(),
-                granted_by.map(|u| u.to_string()).unwrap_or_default().into(),
+                granted_by_value,
             ],
         ))
         .await?;

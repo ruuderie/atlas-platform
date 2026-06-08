@@ -9,7 +9,8 @@ use sea_orm_migration::prelude::*;
 ///   tenant   — Renter: own lease, payments, maintenance, reservations
 ///   vendor   — Contractor: assigned work orders + invoices
 ///
-/// Also inserts the permission slugs for each profile.
+/// Permission slugs are individual rows (no wildcard syntax) so that
+/// has_permission() can do exact-match lookups without glob evaluation.
 ///
 /// All inserts use ON CONFLICT DO NOTHING so re-runs are safe.
 #[derive(DeriveMigrationName)]
@@ -45,34 +46,56 @@ impl MigrationTrait for Migration {
             .await?;
 
         // ── 2. Landlord permission slugs ──────────────────────────────────────
+        // Expanded individually — no wildcard syntax. has_permission() does
+        // exact-match string comparison only.
         manager
             .get_connection()
             .execute_unprepared(
                 "INSERT INTO atlas_role_profile_permissions (role_profile_id, permission_slug)
                  VALUES
+                    -- portfolio
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'portfolio:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'portfolio:write'),
+                    -- assets
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'asset:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'asset:write'),
+                    -- leases
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'lease:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'lease:write'),
+                    -- leads
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'lead:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'lead:write'),
+                    -- billing (all three levels)
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'billing:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'billing:write'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'billing:admin'),
+                    -- STR
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'str:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'str:write'),
+                    -- catalog
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'catalog:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'catalog:write'),
+                    -- vendor management
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'vendor:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'vendor:manage'),
+                    -- campaigns
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'campaign:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'campaign:write'),
+                    -- reservations
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'reservation:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'reservation:write'),
+                    -- maintenance
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'maintenance:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'maintenance:dispatch'),
+                    -- work orders (landlord can read/dispatch all)
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'work_order:read'),
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'work_order:complete'),
+                    -- invoices (landlord can approve/reconcile)
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'invoice:read'),
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'invoice:write'),
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'invoice:approve'),
+                    -- RBAC management (landlord is the role admin for their tenant)
+                    ('00000000-0000-0000-0001-000000000001'::uuid, 'rbac:read'),
                     ('00000000-0000-0000-0001-000000000001'::uuid, 'rbac:assign')
                  ON CONFLICT (role_profile_id, permission_slug) DO NOTHING;",
             )

@@ -17,3 +17,4 @@ pub mod config;
 pub mod services;
 pub mod atlas_apps;
 pub mod metrics;
+pub mod extractors; // G-32: Axum extractors for declarative role enforcement

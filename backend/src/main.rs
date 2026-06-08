@@ -11,6 +11,7 @@ mod traits;
 mod config;
 mod services;
 mod types;
+mod extractors; // G-32: Axum extractors for declarative role enforcement
 mod webauthn_registry;
 pub mod atlas_apps;
 pub mod metrics;
