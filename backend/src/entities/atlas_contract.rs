@@ -30,6 +30,8 @@ pub struct Model {
     pub termination_reason: Option<String>,
     pub terms_metadata: Option<Value>,
     pub created_at: DateTime<Utc>,
+    /// PMC: which client account this contract belongs to. NULL = PM's own. (m20260817)
+    pub managed_account_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

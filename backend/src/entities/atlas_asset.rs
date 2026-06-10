@@ -2,7 +2,7 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::Value;
 
 /// GENERIC-10: AtlasAsset
@@ -11,12 +11,17 @@ use serde_json::Value;
 /// Replaces the need for per-app tables like pm_properties, pm_units, vehicle tables, equipment registers, etc.
 ///
 /// Key design:
-/// - `asset_type` acts as a discriminator (real_estate_property, real_estate_unit, vehicle, etc.)
-/// - `parent_asset_id` enables hierarchy (Property → Units, Fleet → Trucks, etc.)
-/// - `attributes` JSONB holds strongly-typed data per asset_type (defined in app service layers)
+/// - `asset_type` acts as a discriminator (real_estate_property, real_estate_unit, appliance, vehicle, etc.)
+/// - `parent_asset_id` enables hierarchy (Property → Units → Appliances, Fleet → Trucks, etc.)
+/// - `attributes` JSONB holds strongly-typed spatial/financial data per asset_type
+/// - `lifecycle_metadata` JSONB holds app-owned typed maintenance/identity data (see asset_metadata_shapes.md)
+/// - `scheduled_service_date` + `expiry_date` are indexed first-class columns for alert queries
 /// - `geo_point` links to GENERIC-01 (atlas_geo / PostGIS)
 ///
-/// This is one of the most important new platform generics.
+/// G-10 Lifecycle Extension (m20260900):
+/// Added `scheduled_service_date`, `expiry_date`, `condition`, `lifecycle_metadata`
+/// to support universal asset lifecycle tracking without per-vertical extension tables.
+/// See: docs/architecture/platform_generics_v3.md §4 and §8 Risk #8
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "atlas_assets")]
 pub struct Model {
@@ -37,13 +42,29 @@ pub struct Model {
     pub postal_code: Option<String>,
     pub country_code: Option<String>,
     /// Stored as GEOGRAPHY(Point, 4326) in the database (requires PostGIS / GENERIC-01).
-    /// For the initial POC we represent it as String on the Rust side.
-    /// Full geo support (with the `geo` + `postgis` crates) can be added later without schema change.
     pub geo_point: Option<String>,
-    /// Flexible attributes. Each asset_type defines its own Rust struct that serializes here.
-    /// Example for real_estate_unit:
-    /// { "bedrooms": 2, "bathrooms": 1.5, "sqft": 950, "floor": 4 }
+    /// Flexible spatial/financial attributes per asset_type.
     pub attributes: Option<Value>,
+
+    // ── G-10 Lifecycle Extension (m20260900) ─────────────────────────────────
+
+    /// Next scheduled maintenance / calibration / inspection due date.
+    /// Indexed. Written by each app; queried platform-wide for alert generation.
+    pub scheduled_service_date: Option<NaiveDate>,
+
+    /// Warranty / cert / license / registration expiry date.
+    /// Indexed. Written by each app; queried platform-wide for expiry alerts.
+    pub expiry_date: Option<NaiveDate>,
+
+    /// Current operational state. Validated at the service layer per app.
+    /// Standard values: "excellent" | "good" | "fair" | "poor" | "retired"
+    pub condition: Option<String>,
+
+    /// App-owned typed metadata sidecar. Shape varies per `asset_type`.
+    /// Keys treated as stable public API — rename via versioned backfill migration.
+    /// See: docs/architecture/asset_metadata_shapes.md for registered shapes.
+    pub lifecycle_metadata: Option<Value>,
+
     pub created_at: DateTime<Utc>,
 }
 

@@ -97,6 +97,9 @@ impl AssetService {
             geo_point: Set(None),
             attributes: Set(Some(attributes)),
             created_at: Set(now),
+            // G-10 lifecycle fields: not applicable to property/unit records.
+            // Appliances set these via ApplianceService::create.
+            ..Default::default()
         };
         model.insert(db).await?;
 

@@ -56,7 +56,13 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
         .merge(crate::handlers::version::public_routes()) // GET /api/version
-        .route("/health", get(health::health_check));
+        .route("/health", get(health::health_check))
+        // ── Product Launch Engine — zero-auth, CDN-cacheable ─────────────────
+        // Public product pages, variant pages, waitlist, pre-order, sitemap
+        .merge(crate::handlers::pub_products::public_routes_raw())
+        // Domain resolver: folio.app / miami.folio.app → product/variant context
+        .route("/api/pub/resolve", get(crate::handlers::pub_resolve::resolve_domain));
+
 
     for app in crate::atlas_apps::get_active_apps() {
         public_routes = public_routes.merge(app.public_router(db.clone()));

@@ -22,3 +22,12 @@ pub mod leads;            // Phase 6 — PM-tier lead lifecycle: qualify, conver
 pub mod geo;              // G01  — PostGIS spatial query routes (radius, nearest, containment)
 pub mod me;               // GET /api/folio/me — multi-role identity & FolioRole resolution
 pub mod vendor;           // G-32 — Vendor-role routes: work orders + invoices
+pub mod pm;               // G-33 — PMC routes: clients, client detail, analytics, app config
+pub mod marketplace;      // G-34 — Vendor marketplace: discovery, endorsements, listing mgmt
+pub mod appliances;       // G-10 lifecycle — Appliance CRUD + lifecycle alerts
+pub mod building_systems; // G-10 lifecycle — Building system CRUD + canonical lifecycle alert query
+pub mod household;        // G-22 — Vehicle & occupant registration (lease-scoped, type-safe)
+pub mod violations;       // G-13 — Compliance violation filing + cure status transitions
+pub mod reporting;        // Cross-table — Tenant reports + landlord/vendor analytics
+pub mod owner;            // G-22 — Beneficial owner read-only portal + PMC link management
+pub mod str_guest;        // G-22 — STR guest/vehicle registration + special requests per booking

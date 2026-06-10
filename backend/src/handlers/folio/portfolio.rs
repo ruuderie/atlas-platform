@@ -135,6 +135,7 @@ async fn create_portfolio(
         portfolio_type: Set("real_estate".to_string()),
         name: Set(input.name),
         description: Set(input.description),
+        managed_account_id: sea_orm::ActiveValue::NotSet, // NULL for standard (non-PMC) portfolios
         metadata: Set(None),
         created_at: Set(now),
     };

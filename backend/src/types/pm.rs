@@ -351,16 +351,25 @@ pub enum PmCaseType {
     LeaseRenewal,
     /// Eviction or move-out process case.
     MoveOut,
+    /// Landlord-initiated proactive inspection. Linked to an asset (appliance or
+    /// building system). Completion rolls forward `atlas_assets.scheduled_service_date`.
+    ScheduledInspection,
+    /// Tenant-initiated request for a portable report (rental history, payment
+    /// history, full profile export). The generated file is attached to the case
+    /// via `case_metadata.download_attachment_id` when ready.
+    ReportRequest,
 }
 
 impl fmt::Display for PmCaseType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Maintenance        => "maintenance",
+            Self::Maintenance         => "maintenance",
             Self::ComplianceViolation => "compliance_violation",
-            Self::ApplicationReview  => "application_review",
-            Self::LeaseRenewal       => "lease_renewal",
-            Self::MoveOut            => "move_out",
+            Self::ApplicationReview   => "application_review",
+            Self::LeaseRenewal        => "lease_renewal",
+            Self::MoveOut             => "move_out",
+            Self::ScheduledInspection => "scheduled_inspection",
+            Self::ReportRequest       => "report_request",
         })
     }
 }
@@ -374,6 +383,8 @@ impl TryFrom<String> for PmCaseType {
             "application_review"   => Ok(Self::ApplicationReview),
             "lease_renewal"        => Ok(Self::LeaseRenewal),
             "move_out"             => Ok(Self::MoveOut),
+            "scheduled_inspection" => Ok(Self::ScheduledInspection),
+            "report_request"       => Ok(Self::ReportRequest),
             other => Err(format!("unknown PmCaseType: '{other}'")),
         }
     }
@@ -912,11 +923,11 @@ impl TryFrom<String> for ScorecardEntityType {
 /// frontend namespace the user is routed to and which backend endpoints
 /// they are permitted to call.
 ///
-/// - `Landlord` — property manager / PM operator. Full access to the PM suite.
-/// - `Tenant`   — renter or STR guest. Access to their own lease, payments,
-///               maintenance requests, and reservations only.
-/// - `Vendor`   — contractor / service provider. Access to work orders and
-///               invoices assigned to their service-provider profile.
+/// - `Landlord`        — single property manager / PM operator. Full PM suite.
+/// - `Tenant`          — renter or STR guest. Own lease, payments, maintenance.
+/// - `Vendor`          — contractor. Assigned work orders and invoices.
+/// - `PropertyManager` — PMC operator. Cross-client view of multiple landlord books.
+///                       Only valid when deployment config `mode = "property_management_co"`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum FolioRole {
@@ -924,14 +935,47 @@ pub enum FolioRole {
     Landlord,
     Tenant,
     Vendor,
+    /// Property Management Company operator — manages multiple client landlord accounts.
+    /// Requires `atlas_app_deployment_config.mode = "property_management_co"` for the tenant.
+    PropertyManager,
+    /// Beneficial property owner who has delegated day-to-day management to a PMC.
+    /// Has **read-only** visibility into their own portfolio — cannot create, edit,
+    /// or delete any resource. Home path: `/owner`.
+    Owner,
+}
+
+impl FolioRole {
+    /// Returns the home path for this role's frontend namespace.
+    /// Used by the frontend router to redirect after login.
+    pub fn home_path(&self) -> &'static str {
+        match self {
+            Self::Landlord        => "/dashboard",
+            Self::Tenant          => "/my-home",
+            Self::Vendor          => "/work-orders",
+            Self::PropertyManager => "/pm",
+            Self::Owner           => "/owner",
+        }
+    }
+
+    /// Returns true if this role has cross-client (PMC) capabilities.
+    pub fn is_pmc(&self) -> bool {
+        matches!(self, Self::PropertyManager)
+    }
+
+    /// Returns true if this is a read-only beneficial owner.
+    pub fn is_owner(&self) -> bool {
+        matches!(self, Self::Owner)
+    }
 }
 
 impl fmt::Display for FolioRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Landlord => "landlord",
-            Self::Tenant   => "tenant",
-            Self::Vendor   => "vendor",
+            Self::Landlord        => "landlord",
+            Self::Tenant          => "tenant",
+            Self::Vendor          => "vendor",
+            Self::PropertyManager => "property_manager",
+            Self::Owner           => "owner",
         })
     }
 }
@@ -940,10 +984,12 @@ impl TryFrom<String> for FolioRole {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "landlord" => Ok(Self::Landlord),
-            "tenant"   => Ok(Self::Tenant),
-            "vendor"   => Ok(Self::Vendor),
-            other      => Err(format!("unknown FolioRole: '{other}'")),
+            "landlord"          => Ok(Self::Landlord),
+            "tenant"            => Ok(Self::Tenant),
+            "vendor"            => Ok(Self::Vendor),
+            "property_manager"  => Ok(Self::PropertyManager),
+            "owner"             => Ok(Self::Owner),
+            other               => Err(format!("unknown FolioRole: '{other}'")),
         }
     }
 }

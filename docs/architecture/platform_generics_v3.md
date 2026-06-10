@@ -382,6 +382,88 @@ reconcile_entitlement      → drift check: Atlas is_active vs external system s
 
 These are **additive, non-breaking column additions** to existing deployed generics. Each is a new migration.
 
+### G-10: `atlas_assets` — Universal Lifecycle Extension
+
+**Migration:** `m20260900_g10_asset_lifecycle`
+
+```sql
+ALTER TABLE atlas_assets
+    ADD COLUMN scheduled_service_date  DATE,
+    ADD COLUMN expiry_date             DATE,
+    ADD COLUMN condition               VARCHAR(30),
+    ADD COLUMN lifecycle_metadata      JSONB;
+
+-- Universal alert index — works for every asset_type, every vertical
+CREATE INDEX idx_assets_service_due
+    ON atlas_assets (tenant_id, scheduled_service_date)
+    WHERE scheduled_service_date IS NOT NULL;
+
+CREATE INDEX idx_assets_expiry
+    ON atlas_assets (tenant_id, expiry_date)
+    WHERE expiry_date IS NOT NULL;
+
+CREATE INDEX idx_assets_condition
+    ON atlas_assets (tenant_id, condition)
+    WHERE condition IS NOT NULL;
+```
+
+**Column semantics:**
+
+| Column | Type | Universal meaning | Example values |
+|---|---|---|---|
+| `scheduled_service_date` | `DATE` | Next scheduled maintenance / calibration / inspection | Annual boiler service, DOT inspection, MRI calibration |
+| `expiry_date` | `DATE` | Warranty / certificate / license / registration expiry | Manufacturer warranty, FDA cert, vehicle registration |
+| `condition` | `VARCHAR(30)` | Current operational state | `excellent` \| `good` \| `fair` \| `poor` \| `retired` |
+| `lifecycle_metadata` | `JSONB` | App-owned typed sidecar — make, model, serial, domain-specific identity | Varies per `asset_type`; see app service layer for shape |
+
+**Why now:** Every vertical that tracks physical or managed assets needs scheduled-maintenance alerts and expiry notifications. Without indexed columns for these dates, each app would write JSONB expression queries that cannot use standard B-tree indexes. Adding these four columns once gives every current and future vertical efficient date-range queries with zero additional migrations.
+
+**Cross-app benefit:**
+
+| Vertical | `asset_type` | `scheduled_service_date` | `expiry_date` | `lifecycle_metadata` shape |
+|---|---|---|---|---|
+| Property Mgmt (Folio) | `appliance` | Annual service | Manufacturer warranty | `ApplianceMetadata` |
+| Healthcare | `medical_device` | Calibration due | FDA cert expiry | `MedicalDeviceMetadata` |
+| Fleet / Logistics | `vehicle` | DOT inspection | Registration expiry | `VehicleMetadata` |
+| IT / SaaS | `it_device` | Patch cycle | Warranty / OS EOL | `ItDeviceMetadata` |
+| Energy / Utilities | `meter` | Calibration due | Manufacturer warranty | `MeterMetadata` |
+| Insurance | `insured_item` | Appraisal renewal | Policy expiry | `InsuredItemMetadata` |
+
+**App-layer Rust pattern:**
+
+Each AtlasApp defines its own typed struct for `lifecycle_metadata` and implements `TryFrom<&AssetModel>` to deserialize and validate domain rules:
+
+```rust
+// Each app owns its metadata shape — DB enforces nothing beyond JSONB validity
+#[derive(Serialize, Deserialize)]
+pub struct ApplianceMetadata {           // Folio
+    pub appliance_type: ApplianceType,
+    pub make: String,
+    pub model: String,
+    pub fuel_type: Option<FuelType>,
+    // ...
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct VehicleMetadata {             // FleetOps
+    pub vin: String,                     // validated: must be 17 chars
+    pub make: String,
+    pub vehicle_class: VehicleClass,
+    pub dot_number: Option<String>,      // required if Commercial
+    // ...
+}
+
+// The universal alert query — identical for every vertical
+SELECT * FROM atlas_assets
+WHERE tenant_id = $1
+  AND (scheduled_service_date < NOW() + INTERVAL '30 days'
+       OR expiry_date          < NOW() + INTERVAL '30 days')
+ORDER BY LEAST(scheduled_service_date, expiry_date) ASC;
+```
+
+> **See §8 Risk #8** for documented tradeoffs of this approach and the conditions under which
+> typed extension tables should be preferred.
+
 ### Party Model: `atlas_accounts`
 
 **Migration:** `m20260901_party_account_hierarchy`
@@ -456,26 +538,30 @@ This table maps every entity in [`../agprov/agency_provisioning_spec.md`](../agp
 
 > Phases 0-A and 0-B from v2 are complete. New ordering below covers v3 only.
 
-### Phase v3-A: Party Model Enhancement
+### Phase v3-A: G-10 Lifecycle Enhancement (no dependency — run first)
 
-1. `m20260901_party_account_hierarchy` — `atlas_accounts`: add `parent_id`, `entity_subtype`
+1. `m20260900_g10_asset_lifecycle` — G-10: add `scheduled_service_date`, `expiry_date`, `condition`, `lifecycle_metadata` + indexes
 
-### Phase v3-B: Existing Generic Enhancements
+### Phase v3-B: Party Model Enhancement
 
-2. `m20260902_geo_regulatory_status` — G-01: add `regulatory_status`, `regulatory_notes`
-3. `m20260903_regulatory_registrations_extend` — G-16: add `account_id`, `contact_id`, `npn`, `license_type`, `lines_of_authority`
+2. `m20260901_party_account_hierarchy` — `atlas_accounts`: add `parent_id`, `entity_subtype`
 
-### Phase v3-C: New Generics
+### Phase v3-C: Existing Generic Enhancements
 
-4. `m20260904_g32_atlas_memberships` — G-32: full table + indexes
-5. `m20260905_g33_atlas_entitlements` — G-33: full table + indexes
+3. `m20260902_geo_regulatory_status` — G-01: add `regulatory_status`, `regulatory_notes`
+4. `m20260903_regulatory_registrations_extend` — G-16: add `account_id`, `contact_id`, `npn`, `license_type`, `lines_of_authority`
 
-### Phase v3-D: OutboxWorker Extensions
+### Phase v3-D: New Generics
 
-6. Register job types: `provision_entitlement`, `deprovision_entitlement`, `reconcile_entitlement`
-7. Seed `UserRoleTierMatrix` config rows via `atlas_catalog_rate_rules` for all known downstream systems
+5. `m20260904_g32_atlas_memberships` — G-32: full table + indexes
+6. `m20260905_g33_atlas_entitlements` — G-33: full table + indexes
 
-**Rule:** v3 generics must be registered in `CorePlatformApp::migrations()` after all v2 generics. G-33 depends on G-32 (via `membership_id` FK).
+### Phase v3-E: OutboxWorker Extensions
+
+7. Register job types: `provision_entitlement`, `deprovision_entitlement`, `reconcile_entitlement`
+8. Seed `UserRoleTierMatrix` config rows via `atlas_catalog_rate_rules` for all known downstream systems
+
+**Rule:** v3 generics must be registered in `CorePlatformApp::migrations()` after all v2 generics. G-33 depends on G-32 (via `membership_id` FK). G-10 lifecycle enhancement has no inter-generic dependency and may be applied independently.
 
 ---
 
@@ -510,6 +596,27 @@ This table maps every entity in [`../agprov/agency_provisioning_spec.md`](../agp
 5. **G-16 backward compatibility** — Adding `account_id` / `contact_id` as nullable columns to `atlas_regulatory_registrations` is non-breaking. However, PM services that currently key regulatory registrations off `asset_id` will coexist with insurance provisioning that keys off `account_id` + `contact_id`. The `registration_type` field disambiguates.
 6. **`atlas_accounts` parent_id cycle guard** — Self-referential FKs can create cycles. Enforce a maximum hierarchy depth (e.g. 3 levels: Carrier → Agency → Sub-Agency) at the service layer, not the DB.
 7. **`atlas_catalog_rate_rules` semantic stretch** — Using G-26 rate rules as the `UserRoleTierMatrix` is structurally sound but semantically indirect. If this causes confusion in admin UIs, consider a purpose-built `atlas_scoring_rules` sub-table or a `tenant_settings` JSON blob.
+8. **G-10 `lifecycle_metadata` JSONB — deliberate tradeoff, optimization triggers documented.**
+
+   The decision to store domain-specific asset fields in `lifecycle_metadata JSONB` rather than typed extension tables is a deliberate tradeoff. It is the correct choice for the current stage of the platform but has known future costs:
+
+   | Risk | Impact | Mitigation in place |
+   |---|---|---|
+   | DB-level type enforcement is absent | A serialization bug stores corrupt JSONB silently; discovered at read time | `TryFrom<&AssetModel>` in every app service; panic-on-deserialize in staging |
+   | Schema is opaque to non-Rust tooling | BI tools, data analysts, admin scripts cannot introspect field structure | Per-app `lifecycle_metadata` shape documented in `docs/architecture/asset_metadata_shapes.md` (to be created) |
+   | JSONB key renames require data backfills | Renaming `fuel_type` → `energy_source` across 50k rows needs a script | Treat JSONB keys as stable public API; version with `metadata_version` field |
+   | Cross-app field queries are fragile | Platform-level queries on metadata fields need expression indexes and return TEXT not typed values | Only `scheduled_service_date`, `expiry_date`, `condition` are queried platform-wide; metadata is app-private |
+   | Compliance tooling expects typed schema | Audit, SOC 2, HIPAA tooling may require queryable typed fields | Not a current requirement; re-evaluate at compliance certification stage |
+
+   **Optimization triggers — convert `lifecycle_metadata` fields to typed extension tables when ANY of these occur:**
+
+   - A platform-level feature needs to `WHERE` on a `lifecycle_metadata` field across multiple `asset_type` values
+   - A compliance audit requires typed, queryable schema documentation
+   - More than 3 apps need to share a subset of lifecycle fields (at that point the field is generic, not app-specific)
+   - `lifecycle_metadata` deserialization errors appear in production error tracking
+   - A vertical reaches >500k asset rows and JSONB write amplification becomes measurable
+
+   The migration path when a trigger fires: create `atlas_asset_{capability}` table (e.g. `atlas_asset_lifecycle`), backfill from JSONB, add FK, deprecate JSONB key. The `asset_type` discriminator on `atlas_assets` ensures the backfill scope is bounded per vertical.
 
 ---
 

@@ -171,3 +171,41 @@ where
         }
     }
 }
+
+/// Rejects any user whose Folio role is not `PropertyManager`. Returns 403.
+///
+/// Also validates that the tenant's Folio deployment config is in
+/// `property_management_co` mode — a `PropertyManager` role assignment
+/// alone is not sufficient; the org must be configured as a PMC.
+pub struct PropertyManagerOnly;
+
+impl<S> FromRequestParts<S> for PropertyManagerOnly
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, StatusCode> {
+        use crate::extractors::app_config::{AppDeploymentConfig, FOLIO_MODE_PMC};
+
+        let RequireFolioRole(role) = RequireFolioRole::from_request_parts(parts, state).await?;
+        if role != FolioRole::PropertyManager {
+            tracing::warn!("PropertyManagerOnly: access denied (role={role})");
+            return Err(StatusCode::FORBIDDEN);
+        }
+
+        // Double-check: the tenant must also be in PMC mode.
+        // Prevents a stale role assignment from granting PMC access on a standard deployment.
+        let cfg = AppDeploymentConfig::from_request_parts(parts, state).await?;
+        if !cfg.is_mode(FOLIO_MODE_PMC) {
+            tracing::warn!(
+                tenant_id = %cfg.tenant_id,
+                mode = %cfg.mode,
+                "PropertyManagerOnly: PMC role assigned but tenant is not in pmc mode"
+            );
+            return Err(StatusCode::FORBIDDEN);
+        }
+
+        Ok(PropertyManagerOnly)
+    }
+}

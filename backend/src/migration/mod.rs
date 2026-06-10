@@ -269,6 +269,17 @@ pub mod m20260811_g32_atlas_rbac;                  // G-32: atlas_role_profiles,
 pub mod m20260812_g32_folio_role_seed;             // G-32: platform-default Folio role profiles seed
 pub mod m20260813_g32_migrate_folio_roles;         // G-32: backfill atlas_user_app_roles from folio_role column
 pub mod m20260814_g32_drop_folio_role_column;      // G-32: drop user_account.folio_role (superseded by G-32)
+pub mod m20260815_g33_app_deployment_config;       // G-33: atlas_app_deployment_config — platform-generic app mode config
+pub mod m20260816_g33_folio_pmc_seed;              // G-33/Folio: property_manager role profile + permissions seed
+pub mod m20260817_folio_managed_account_id;        // Folio PMC: managed_account_id FK on contract/asset/portfolio/lead
+pub mod m20260818_folio_client_role_scope;         // Folio PMC: client_account_id scope FK on atlas_user_app_roles
+pub mod m20260819_g34_vendor_marketplace;          // G-34: vendor marketplace opt-in columns on atlas_service_providers
+pub mod m20260900_g10_asset_lifecycle;             // G-10: universal asset lifecycle extension (scheduled_service_date, expiry_date, condition, lifecycle_metadata)
+pub mod m20260901_platform_products;              // Platform Admin: platform_products registry (Folio, Anchor, Network, Meridian) + deploy hooks
+pub mod m20260902_app_instance_public_config;    // Platform Admin: public_slug + custom_domain + instance_status on atlas_app_deployment_config
+pub mod m20260903_platform_products_launch_engine; // Product Launch Engine: launch_mode, pre-order, waitlist_count on platform_products
+pub mod m20260904_product_page_variants;          // Product Launch Engine: product_page_templates + product_page_variants (programmatic SEO)
+pub mod m20260905_product_domain_localization;    // Product Launch Engine: apex_domain, AI localization fields, product_domain_aliases
 
 pub struct Migrator;
 
@@ -452,6 +463,30 @@ impl MigratorTrait for Migrator {
             Box::new(m20260813_g32_migrate_folio_roles::Migration),
             // G-32: Drops user_account.folio_role column now that G-32 owns role storage.
             Box::new(m20260814_g32_drop_folio_role_column::Migration),
+            // G-33: atlas_app_deployment_config — platform-generic app mode + config table.
+            // Any app (Folio, future CRM, HR, etc.) uses this to declare its deployment mode.
+            Box::new(m20260815_g33_app_deployment_config::Migration),
+            // Folio PMC: client_account_id scope column on atlas_user_app_roles.
+            // Enables scoped Landlord role assignment for PMC client invite flow.
+            Box::new(m20260818_folio_client_role_scope::Migration),
+            // G-34: vendor marketplace opt-in columns (is_marketplace_visible, bio, location).
+            // Reuses atlas_service_providers + G-22 endorsements + G-01 PostGIS.
+            Box::new(m20260819_g34_vendor_marketplace::Migration),
+            // G-10: universal asset lifecycle extension.
+            // Adds scheduled_service_date, expiry_date, condition, lifecycle_metadata + 3 indexes.
+            // Powers cross-vertical alert queries. No per-vertical migrations needed after this.
+            Box::new(m20260900_g10_asset_lifecycle::Migration),
+            // Platform Admin: platform_products — product registry with deploy hooks (zero-tenant marketing management)
+            Box::new(m20260901_platform_products::Migration),
+            // Platform Admin: public_slug + custom_domain + instance_status on atlas_app_deployment_config
+            Box::new(m20260902_app_instance_public_config::Migration),
+            // Product Launch Engine: launch_mode, pre-order, founding cap, waitlist_count
+            Box::new(m20260903_platform_products_launch_engine::Migration),
+            // Product Launch Engine: product_page_templates + product_page_variants
+            // Enables programmatic hyperlocalized SEO pages (100+ market variants per product)
+            Box::new(m20260904_product_page_variants::Migration),
+            // Product Launch Engine: apex_domain per product, AI localization columns on variants, product_domain_aliases
+            Box::new(m20260905_product_domain_localization::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

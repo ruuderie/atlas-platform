@@ -27,6 +27,7 @@ impl PortfolioService {
             portfolio_type: Set(portfolio_type.to_string()),
             name: Set(name.to_string()),
             description: Set(description.map(|s| s.to_string())),
+            managed_account_id: sea_orm::ActiveValue::NotSet,
             metadata: Set(metadata),
             created_at: Set(Utc::now()),
         };

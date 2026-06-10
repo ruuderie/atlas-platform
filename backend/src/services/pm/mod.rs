@@ -59,3 +59,11 @@ pub mod opportunity;         // Phase 6 — Sales pipeline & deal management (G1
 pub mod commission;          // Phase 6 — Commission plan application & splits (G25)
 pub mod lead;                // Phase 6 — Lead lifecycle: qualify, convert, disqualify (G31)
 pub mod geo;                 // G01  — PostGIS spatial query wrappers (radius, nearest, containment)
+pub mod aggregates;          // G-33/PMC — Per-client aggregate metrics (single CTE SQL query)
+pub mod appliance;           // G-10 lifecycle — Appliance tracking (ApplianceMetadata + lifecycle alerts)
+pub mod building_system;     // G-10 lifecycle — Building system tracking (elevator, roof, HVAC, fire suppression)
+pub mod household;           // G-22 — Lease-scoped tenant declarations: vehicles + occupants (type-safe)
+pub mod violation;           // G-13 — Compliance violation lifecycle (typed category + cure status transitions)
+pub mod reporting;           // Cross-table aggregation: tenant reports, landlord KPIs, vendor analytics
+pub mod owner;               // G-22 — Beneficial owner read-only portfolio visibility
+pub mod str_guest;           // G-22 — STR guest registration, vehicle declarations, special requests

@@ -70,6 +70,7 @@ pub mod user_app_permission;
 pub mod atlas_role_profiles;           // G-32: role profile templates (platform or tenant-scoped)
 pub mod atlas_user_app_roles;          // G-32: user↔role assignments per app+tenant
 pub mod atlas_role_profile_permissions; // G-32: permission slugs per role profile
+pub mod atlas_app_deployment_config;   // G-33: per-tenant app deployment mode + config
 
 // WEBAUTHN SESSION PERSISTENCE
 pub mod webauthn_challenge;
@@ -172,3 +173,7 @@ pub mod atlas_scorecard_display_rule;
 
 // GENERIC-27 data science upgrade: Contributor bias calibration (Gap 2 / Phase 4)
 pub mod atlas_scorecard_contributor_calibration;
+
+// PRODUCT LAUNCH ENGINE
+pub mod platform_product;        // Platform product registry (Folio, Anchor, Network, Meridian)
+pub mod product_page;            // product_page_templates + product_page_variants (programmatic SEO)

@@ -103,6 +103,11 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::commission_plans::authenticated_routes_raw())
             .merge(crate::handlers::folio::leads::authenticated_routes_raw())
             .merge(crate::handlers::folio::geo::authenticated_routes_raw())
+            .merge(crate::handlers::folio::appliances::authenticated_routes_raw())
+            .merge(crate::handlers::folio::building_systems::authenticated_routes_raw())
+            .merge(crate::handlers::folio::violations::authenticated_routes())
+            .merge(crate::handlers::folio::owner::pmc_write_routes())
+            .merge(crate::handlers::folio::str_guest::authenticated_routes())
             .layer(middleware::from_fn(require_landlord));
 
         // ── Tenant-only sub-router ────────────────────────────────────────────
@@ -112,6 +117,7 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::maintenance::authenticated_routes_raw())
             .merge(crate::handlers::folio::reservations::authenticated_routes_raw())
             .merge(crate::handlers::folio::applications::authenticated_routes_raw())
+            .merge(crate::handlers::folio::household::authenticated_routes())
             .layer(middleware::from_fn(require_tenant));
 
         // ── Vendor-only sub-router ────────────────────────────────────────────
@@ -121,10 +127,43 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::vendor::work_orders::authenticated_routes_raw())
             .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw());
 
+        // ── PMC sub-router (PropertyManager role + PMC mode) ─────────────────
+        // Each handler extracts `PropertyManagerOnly` which verifies:
+        //   1. FolioRole::PropertyManager is assigned
+        //   2. atlas_app_deployment_config.mode = "property_management_co"
+        // No sub-router-level middleware needed — the extractor is the guard.
+        let pm_router = Router::new()
+            .merge(crate::handlers::folio::pm::clients::authenticated_routes_raw())
+            .merge(crate::handlers::folio::pm::client_detail::authenticated_routes_raw())
+            .merge(crate::handlers::folio::pm::analytics::authenticated_routes_raw())
+            .merge(crate::handlers::folio::pm::invite::authenticated_routes_raw());
+
+        // ── Shared routes (any authenticated Folio user) ─────────────────────
+        // App config read is available to all roles (frontend needs to know mode).
+        // App config write is Owner/Admin-gated inside the handler itself.
+        // Marketplace browse is available to all roles — role restrictions are
+        // enforced per-handler (endorse requires Landlord/PM, listing PATCH requires Landlord).
+        let shared_router = Router::new()
+            .merge(crate::handlers::folio::pm::app_config::authenticated_routes_raw())
+            .merge(crate::handlers::folio::marketplace::vendors::authenticated_routes_raw())
+            .merge(crate::handlers::folio::marketplace::endorse::authenticated_routes_raw())
+            .merge(crate::handlers::folio::marketplace::listing::authenticated_routes_raw())
+            .merge(crate::handlers::folio::reporting::authenticated_routes());
+
+        // ── Owner-only sub-router ─────────────────────────────────────────────
+        // Beneficial property owners — read-only visibility into their portfolio.
+        // All write operations are blocked at this middleware layer.
+        let owner_router = Router::new()
+            .merge(crate::handlers::folio::owner::authenticated_routes())
+            .layer(middleware::from_fn(require_owner));
+
         Router::new()
             .merge(landlord_router)
             .merge(tenant_router)
             .merge(vendor_router)
+            .merge(pm_router)
+            .merge(owner_router)
+            .merge(shared_router)
             .with_state(db)
     }
 
@@ -134,7 +173,18 @@ impl AtlasApp for FolioApp {
     /// in the base migration vec in migration/mod.rs — they are platform generics,
     /// not app-specific, and must run before any AtlasApp provisions templates.
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
-        vec![] // Zero — by design. Rule 7 Generic Fitness Test.
+        use crate::migration::{
+            m20260816_g33_folio_pmc_seed,
+            m20260817_folio_managed_account_id,
+        };
+        vec![
+            // G-33 / Folio: Seeds the property_manager role profile + permissions.
+            // Requires G-33 atlas_app_deployment_config (base vec) and G-32 RBAC tables.
+            Box::new(m20260816_g33_folio_pmc_seed::Migration),
+            // Folio PMC: nullable managed_account_id FK on contract/asset/portfolio/lead.
+            // Non-breaking: NULL = single-landlord (default). UUID = PMC client book.
+            Box::new(m20260817_folio_managed_account_id::Migration),
+        ]
     }
 
     fn background_jobs(&self) -> Vec<BackgroundJob> {
@@ -604,6 +654,26 @@ async fn require_tenant(
         Ok(RequireFolioRole(role)) => {
             tracing::warn!(
                 "require_tenant: denied — user has role '{role}', need Tenant"
+            );
+            Err(StatusCode::FORBIDDEN)
+        }
+        Err(status) => Err(status),
+    }
+}
+/// Middleware: allows only `FolioRole::Owner` (beneficial property owner).
+/// Applied to the `owner_router` sub-router — all routes behind this are read-only.
+async fn require_owner(
+    mut req: Request<Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let (mut parts, body) = req.into_parts();
+    let role_result = RequireFolioRole::from_request_parts(&mut parts, &()).await;
+    req = Request::from_parts(parts, body);
+    match role_result {
+        Ok(RequireFolioRole(FolioRole::Owner)) => Ok(next.run(req).await),
+        Ok(RequireFolioRole(role)) => {
+            tracing::warn!(
+                "require_owner: denied — user has role '{role}', need Owner"
             );
             Err(StatusCode::FORBIDDEN)
         }

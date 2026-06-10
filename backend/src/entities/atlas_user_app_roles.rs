@@ -5,19 +5,24 @@ use uuid::Uuid;
 
 /// G-32: Binds a user to a role profile within an app+tenant context.
 /// One active row per (user_id, tenant_id, app_slug) — enforced by unique constraint.
+///
+/// `client_account_id` (added m20260818): nullable. When set, this Landlord user's
+/// role is scoped to a specific client account within a PMC tenant. NULL = org-level role.
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "atlas_user_app_roles")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
-    pub id:              Uuid,
-    pub user_id:         Uuid,
-    pub tenant_id:       Uuid,
-    pub app_slug:        String,
-    pub role_profile_id: Uuid,
-    pub granted_by:      Option<Uuid>,
-    pub granted_at:      DateTimeUtc,
-    pub expires_at:      Option<DateTimeUtc>,
-    pub is_active:       bool,
+    pub id:                Uuid,
+    pub user_id:           Uuid,
+    pub tenant_id:         Uuid,
+    pub app_slug:          String,
+    pub role_profile_id:   Uuid,
+    pub granted_by:        Option<Uuid>,
+    pub granted_at:        DateTimeUtc,
+    pub expires_at:        Option<DateTimeUtc>,
+    pub is_active:         bool,
+    /// PMC client scope. NULL = org-level. UUID = scoped to this specific client account.
+    pub client_account_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

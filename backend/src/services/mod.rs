@@ -48,3 +48,4 @@ pub mod ingress_provisioner;
 pub mod outbox_worker;
 pub mod crm_validator;
 pub mod rbac;              // G-32: platform-generic RBAC — role resolution, assignment, permission checks
+pub mod product_localization; // Product Launch Engine: AI-powered variant localization via G-08

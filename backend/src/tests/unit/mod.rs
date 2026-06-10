@@ -11,3 +11,5 @@ pub mod g27_unit_tests;
 pub mod type_system_unit_tests;
 // Phase 3–7: InfinitePay/Kelviq rails, WebSocket registry, geo guards, rate limiter
 pub mod pm_phase3_unit_tests;
+// G-33 PMC + G-34 Vendor Marketplace: aggregates, invite flow, geo SQL, endorsements, RBAC scoping
+pub mod pmc_marketplace_unit_tests;

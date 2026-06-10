@@ -33,6 +33,18 @@ pub struct Model {
     pub profile_metadata: Option<Value>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
+    // ── G-34: Vendor Marketplace fields (m20260819) ───────────────────────────
+    /// When true, this vendor is discoverable cross-tenant in the marketplace.
+    /// Default false — opt-in only.
+    pub is_marketplace_visible: bool,
+    /// Short public-facing bio shown on marketplace cards (max 500 chars).
+    pub marketplace_bio: Option<String>,
+    /// Trade type slugs advertised in the marketplace (TEXT[] in Postgres).
+    /// Sea-ORM maps TEXT[] as Vec<String>.
+    pub marketplace_trade_types: Vec<String>,
+    /// WKT POINT string for PostGIS proximity queries.
+    /// e.g. "SRID=4326;POINT(-80.1918 25.7617)"
+    pub marketplace_location: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

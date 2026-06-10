@@ -94,6 +94,7 @@ impl PortfolioService {
             portfolio_type: Set("real_estate".to_string()),
             name: Set("My Portfolio".to_string()),
             description: Set(Some("Default Folio property portfolio".to_string())),
+            managed_account_id: sea_orm::ActiveValue::NotSet, // NULL for standard portfolios
             metadata: Set(None),
             created_at: Set(now),
         };

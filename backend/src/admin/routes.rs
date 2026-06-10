@@ -130,6 +130,15 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/developer/tenant/{tenant_id}/webhooks", get(crate::admin::developer_console::list_webhook_endpoints).post(crate::admin::developer_console::create_webhook_endpoint))
                 .route("/api/admin/developer/tenant/{tenant_id}/webhooks/{endpoint_id}", delete(crate::admin::developer_console::delete_webhook_endpoint))
                 .route("/api/admin/developer/tenant/{tenant_id}/webhook-deliveries", get(crate::admin::developer_console::list_webhook_deliveries))
+
+                // ── Product Launch Engine (platform super-admin) ───────────────────
+                // Platform product registry (Folio, Anchor, Network, Meridian)
+                .merge(crate::admin::platform_products::routes_raw())
+                // App instance public config + lifecycle (suspend / resume / archive)
+                .merge(crate::admin::app_instance::routes_raw())
+                // Product page variants: bulk-generate, AI localize, waitlist analytics + CSV export
+                .merge(crate::admin::product_variants::routes_raw())
+
                 //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
                 .with_state(db)
         })

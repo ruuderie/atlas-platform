@@ -19,6 +19,8 @@ pub struct Model {
     pub portfolio_type: String,
     pub name: String,
     pub description: Option<String>,
+    /// PMC: which client account owns this portfolio. NULL = PM's own. (m20260817)
+    pub managed_account_id: Option<Uuid>,
     /// Flexible, app-specific configuration (e.g. reporting settings, visibility rules)
     pub metadata: Option<Value>,
     pub created_at: DateTime<Utc>,

@@ -60,3 +60,7 @@ pub mod ws;
 
 // G-32 — Platform-generic RBAC management API (role assignment, inspection)
 pub mod rbac;
+
+// PRODUCT LAUNCH ENGINE — public zero-auth endpoints
+pub mod pub_products;   // Product pages, variant pages, waitlist, pre-order, sitemap, view-count
+pub mod pub_resolve;    // Domain resolver: folio.app, miami.folio.app → product/variant context

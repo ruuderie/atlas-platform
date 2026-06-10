@@ -4,23 +4,38 @@
 //!
 //! ```ignore
 //! GET  /api/folio/maintenance
-//!      List all open maintenance cases for the tenant.
+//!      List all open reactive maintenance cases.
 //!      -> 200 [MaintenanceSummary]
 //!
 //! POST /api/folio/maintenance
-//!      File a new maintenance ticket (standard or emergency).
+//!      File a reactive maintenance ticket (standard or emergency).
 //!      Body: CreateTicketInput
 //!      -> 201 { "id": uuid }
 //!
-//! Emergency tickets (`is_emergency: true`) are logged at WARN level and
-//! bypass standard scheduling — Phase 4 will queue immediate dispatch.
+//! GET  /api/folio/inspections
+//!      List all upcoming scheduled inspections (status = "scheduled").
+//!      -> 200 [InspectionDetail]
+//!
+//! POST /api/folio/inspections
+//!      Schedule a proactive inspection on any lifecycle asset.
+//!      Body: ScheduleInspectionHttpInput
+//!      -> 201 { "id": uuid }
+//!
+//! POST /api/folio/inspections/:id/complete
+//!      Complete an inspection — records findings + rolls asset lifecycle forward.
+//!      Body: CompleteInspectionInput
+//!      -> 200 {}
+//!
+//! GET  /api/folio/assets/:asset_id/inspections
+//!      List all inspections (any status) for a specific asset.
+//!      -> 200 [InspectionDetail]
 //! ```
 
 use axum::{
-    extract::{Extension, Json},
+    extract::{Extension, Json, Path},
     http::StatusCode,
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
@@ -28,7 +43,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::user;
-use crate::services::pm::maintenance::{CreateMaintenanceTicketInput, MaintenanceService};
+use crate::services::pm::maintenance::{
+    CompleteInspectionInput, CreateMaintenanceTicketInput, MaintenanceService,
+    ScheduleInspectionInput,
+};
 use crate::types::pm::MaintenanceCategory;
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -36,6 +54,10 @@ use crate::types::pm::MaintenanceCategory;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/maintenance", get(list_tickets).post(create_ticket))
+        // Inspection scheduling routes
+        .route("/api/folio/inspections", get(list_upcoming_inspections).post(schedule_inspection))
+        .route("/api/folio/inspections/:id/complete", post(complete_inspection))
+        .route("/api/folio/assets/:asset_id/inspections", get(list_inspections_for_asset))
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -64,6 +86,19 @@ pub struct CreateTicketHttpInput {
 #[derive(Debug, Serialize)]
 struct CreateTicketResponse {
     pub id: Uuid,
+}
+
+/// HTTP input for scheduling an inspection (maps to ScheduleInspectionInput).
+#[derive(Debug, Deserialize)]
+pub struct ScheduleInspectionHttpInput {
+    pub asset_id: Uuid,
+    pub subject: String,
+    pub notes: Option<String>,
+    /// ISO 8601 DateTime string e.g. "2026-09-15T09:00:00Z".
+    pub scheduled_at: chrono::DateTime<chrono::Utc>,
+    pub service_provider_id: Option<Uuid>,
+    pub assigned_user_id: Option<Uuid>,
+    pub estimated_cost_cents: Option<i64>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -135,6 +170,91 @@ async fn create_ticket(
     })?;
 
     Ok((StatusCode::CREATED, axum::response::Json(CreateTicketResponse { id })))
+}
+
+
+/// GET /api/folio/inspections
+async fn list_upcoming_inspections(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let inspections = MaintenanceService::list_upcoming_inspections(&db, tenant_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_upcoming_inspections error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(axum::response::Json(inspections))
+}
+
+/// POST /api/folio/inspections
+async fn schedule_inspection(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Json(input): Json<ScheduleInspectionHttpInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let id = MaintenanceService::schedule_inspection(
+        &db,
+        tenant_id,
+        ScheduleInspectionInput {
+            asset_id: input.asset_id,
+            subject: input.subject,
+            notes: input.notes,
+            scheduled_at: input.scheduled_at,
+            service_provider_id: input.service_provider_id,
+            assigned_user_id: input.assigned_user_id,
+            estimated_cost_cents: input.estimated_cost_cents,
+        },
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, "schedule_inspection error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok((StatusCode::CREATED, axum::response::Json(serde_json::json!({ "id": id }))))
+}
+
+/// POST /api/folio/inspections/:id/complete
+async fn complete_inspection(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(case_id): Path<Uuid>,
+    Json(mut input): Json<CompleteInspectionInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    input.case_id = case_id;
+    MaintenanceService::complete_inspection(&db, tenant_id, input)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else if msg.contains("already completed") {
+                StatusCode::CONFLICT
+            } else {
+                tracing::error!(%tenant_id, "complete_inspection error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+    Ok(StatusCode::OK)
+}
+
+/// GET /api/folio/assets/:asset_id/inspections
+async fn list_inspections_for_asset(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+    let inspections = MaintenanceService::list_inspections_for_asset(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %asset_id, "list_inspections_for_asset error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(axum::response::Json(inspections))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
