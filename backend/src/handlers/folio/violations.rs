@@ -10,11 +10,11 @@
 //!      Body: FileViolationHttpInput
 //!      -> 201 ViolationRecord
 //!
-//! GET  /api/folio/assets/:asset_id/violations
+//! GET  /api/folio/assets/{asset_id}/violations
 //!      All violations on a specific unit/property.
 //!      -> 200 [ViolationRecord]
 //!
-//! PATCH /api/folio/violations/:id/status
+//! PATCH /api/folio/violations/{id}/status
 //!       Transition cure status (open → cured/escalated/dismissed).
 //!       Body: UpdateCureStatusInput
 //!       -> 200 ViolationRecord
@@ -47,8 +47,8 @@ use crate::services::pm::violation::{
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/violations", post(file_violation))
-        .route("/api/folio/violations/:id/status", patch(update_cure_status))
-        .route("/api/folio/assets/:asset_id/violations", get(list_for_asset))
+        .route("/api/folio/violations/{id}/status", patch(update_cure_status))
+        .route("/api/folio/assets/{asset_id}/violations", get(list_for_asset))
         .route("/api/folio/tenant/violations", get(list_for_tenant))
 }
 

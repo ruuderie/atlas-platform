@@ -21,12 +21,12 @@
 //!      Body: ScheduleInspectionHttpInput
 //!      -> 201 { "id": uuid }
 //!
-//! POST /api/folio/inspections/:id/complete
+//! POST /api/folio/inspections/{id}/complete
 //!      Complete an inspection — records findings + rolls asset lifecycle forward.
 //!      Body: CompleteInspectionInput
 //!      -> 200 {}
 //!
-//! GET  /api/folio/assets/:asset_id/inspections
+//! GET  /api/folio/assets/{asset_id}/inspections
 //!      List all inspections (any status) for a specific asset.
 //!      -> 200 [InspectionDetail]
 //! ```
@@ -56,8 +56,8 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/maintenance", get(list_tickets).post(create_ticket))
         // Inspection scheduling routes
         .route("/api/folio/inspections", get(list_upcoming_inspections).post(schedule_inspection))
-        .route("/api/folio/inspections/:id/complete", post(complete_inspection))
-        .route("/api/folio/assets/:asset_id/inspections", get(list_inspections_for_asset))
+        .route("/api/folio/inspections/{id}/complete", post(complete_inspection))
+        .route("/api/folio/assets/{asset_id}/inspections", get(list_inspections_for_asset))
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -216,7 +216,7 @@ async fn schedule_inspection(
     Ok((StatusCode::CREATED, axum::response::Json(serde_json::json!({ "id": id }))))
 }
 
-/// POST /api/folio/inspections/:id/complete
+/// POST /api/folio/inspections/{id}/complete
 async fn complete_inspection(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -241,7 +241,7 @@ async fn complete_inspection(
     Ok(StatusCode::OK)
 }
 
-/// GET /api/folio/assets/:asset_id/inspections
+/// GET /api/folio/assets/{asset_id}/inspections
 async fn list_inspections_for_asset(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

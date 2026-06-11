@@ -5,42 +5,42 @@
 //! ```ignore
 //! --- Tenant routes (FolioRole::Tenant, LTR only) ---
 //!
-//! GET    /api/folio/leases/:lease_id/vehicles
+//! GET    /api/folio/leases/{lease_id}/vehicles
 //!        List registered vehicles on this lease.
 //!        -> 200 [VehicleRecord]
 //!
-//! POST   /api/folio/leases/:lease_id/vehicles
+//! POST   /api/folio/leases/{lease_id}/vehicles
 //!        Register a vehicle. Body: RegisterVehicleHttpInput
 //!        -> 201 VehicleRecord
 //!
-//! PATCH  /api/folio/leases/:lease_id/vehicles/:entry_id
+//! PATCH  /api/folio/leases/{lease_id}/vehicles/{entry_id}
 //!        Update vehicle details mid-lease (new car, plate change, parking spot).
 //!        Body: UpdateVehicleHttpInput
 //!        -> 200 VehicleRecord
 //!
-//! DELETE /api/folio/leases/:lease_id/vehicles/:entry_id
+//! DELETE /api/folio/leases/{lease_id}/vehicles/{entry_id}
 //!        Remove a vehicle (hard delete — no legal retention need).
 //!        -> 204
 //!
-//! GET    /api/folio/leases/:lease_id/occupants
+//! GET    /api/folio/leases/{lease_id}/occupants
 //!        List current active occupants. Query: ?include_former=true for history.
 //!        -> 200 { active: [ActiveOccupant], former: [FormerOccupant] }
 //!
-//! POST   /api/folio/leases/:lease_id/occupants
+//! POST   /api/folio/leases/{lease_id}/occupants
 //!        Register a household member. Body: RegisterOccupantHttpInput
 //!        -> 201 ActiveOccupant
 //!
-//! PATCH  /api/folio/leases/:lease_id/occupants/:entry_id
+//! PATCH  /api/folio/leases/{lease_id}/occupants/{entry_id}
 //!        Correct occupant details (name typo, add doc). Body: UpdateOccupantHttpInput
 //!        -> 200 ActiveOccupant
 //!
-//! POST   /api/folio/leases/:lease_id/occupants/:entry_id/depart
+//! POST   /api/folio/leases/{lease_id}/occupants/{entry_id}/depart
 //!        Record departure (soft delete). Body: DepartOccupantInput
 //!        -> 200 FormerOccupant
 //!
 //! --- Landlord routes ---
 //!
-//! GET    /api/folio/units/:unit_id/occupants
+//! GET    /api/folio/units/{unit_id}/occupants
 //!        All current occupants across active leases for this unit.
 //!        -> 200 [{ lease_id, occupants, vehicles }]
 //! ```
@@ -71,28 +71,28 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         // Vehicles
         .route(
-            "/api/folio/leases/:lease_id/vehicles",
+            "/api/folio/leases/{lease_id}/vehicles",
             get(list_vehicles).post(register_vehicle),
         )
         .route(
-            "/api/folio/leases/:lease_id/vehicles/:entry_id",
+            "/api/folio/leases/{lease_id}/vehicles/{entry_id}",
             patch(update_vehicle).delete(remove_vehicle),
         )
         // Occupants
         .route(
-            "/api/folio/leases/:lease_id/occupants",
+            "/api/folio/leases/{lease_id}/occupants",
             get(list_occupants).post(register_occupant),
         )
         .route(
-            "/api/folio/leases/:lease_id/occupants/:entry_id",
+            "/api/folio/leases/{lease_id}/occupants/{entry_id}",
             patch(update_occupant),
         )
         .route(
-            "/api/folio/leases/:lease_id/occupants/:entry_id/depart",
+            "/api/folio/leases/{lease_id}/occupants/{entry_id}/depart",
             post(depart_occupant),
         )
         // Landlord unit view
-        .route("/api/folio/units/:unit_id/occupants", get(list_unit_occupants))
+        .route("/api/folio/units/{unit_id}/occupants", get(list_unit_occupants))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

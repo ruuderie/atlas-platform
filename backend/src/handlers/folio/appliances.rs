@@ -3,20 +3,20 @@
 //! # Routes
 //!
 //! ```ignore
-//! GET  /api/folio/assets/:unit_id/appliances
+//! GET  /api/folio/assets/{unit_id}/appliances
 //!      List all appliances for a unit.
 //!      -> 200 [ApplianceDetail]
 //!
-//! POST /api/folio/assets/:unit_id/appliances
+//! POST /api/folio/assets/{unit_id}/appliances
 //!      Register a new appliance on a unit.
 //!      Body: CreateApplianceHttpInput
 //!      -> 201 { "id": uuid }
 //!
-//! GET  /api/folio/appliances/:id
+//! GET  /api/folio/appliances/{id}
 //!      Fetch a single appliance with full lifecycle data.
 //!      -> 200 ApplianceDetail
 //!
-//! PATCH /api/folio/appliances/:id/lifecycle
+//! PATCH /api/folio/appliances/{id}/lifecycle
 //!      Update condition, next service date, expiry, or metadata after a service event.
 //!      Body: UpdateApplianceLifecycleInput
 //!      -> 200 {}
@@ -49,13 +49,13 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Unit-scoped routes
         .route(
-            "/api/folio/assets/:unit_id/appliances",
+            "/api/folio/assets/{unit_id}/appliances",
             get(list_appliances).post(create_appliance),
         )
         // Appliance-scoped routes
-        .route("/api/folio/appliances/:id", get(get_appliance))
+        .route("/api/folio/appliances/{id}", get(get_appliance))
         .route(
-            "/api/folio/appliances/:id/lifecycle",
+            "/api/folio/appliances/{id}/lifecycle",
             patch(update_lifecycle),
         )
         // Platform-level alert query (any asset_type)
@@ -72,7 +72,7 @@ struct AlertQuery {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-/// GET /api/folio/assets/:unit_id/appliances
+/// GET /api/folio/assets/{unit_id}/appliances
 async fn list_appliances(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -90,7 +90,7 @@ async fn list_appliances(
     Ok(axum::response::Json(appliances))
 }
 
-/// POST /api/folio/assets/:unit_id/appliances
+/// POST /api/folio/assets/{unit_id}/appliances
 async fn create_appliance(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -119,7 +119,7 @@ async fn create_appliance(
     ))
 }
 
-/// GET /api/folio/appliances/:id
+/// GET /api/folio/appliances/{id}
 async fn get_appliance(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -141,7 +141,7 @@ async fn get_appliance(
     Ok(axum::response::Json(appliance))
 }
 
-/// PATCH /api/folio/appliances/:id/lifecycle
+/// PATCH /api/folio/appliances/{id}/lifecycle
 async fn update_lifecycle(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

@@ -46,13 +46,13 @@ use crate::entities::{
 pub fn public_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/pub/products",                                 get(list_products))
-        .route("/api/pub/products/:slug",                           get(get_product_master))
-        .route("/api/pub/products/:slug/sitemap.xml",               get(get_product_sitemap))
-        .route("/api/pub/products/:slug/waitlist",                  post(join_waitlist_product))
-        .route("/api/pub/products/:slug/pre-order",                 post(create_pre_order))
-        .route("/api/pub/products/:slug/:variant",                  get(get_product_variant))
-        .route("/api/pub/products/:slug/:variant/waitlist",         post(join_waitlist_variant))
-        .route("/api/pub/products/:slug/:variant/view",             post(record_view))
+        .route("/api/pub/products/{slug}",                          get(get_product_master))
+        .route("/api/pub/products/{slug}/sitemap.xml",              get(get_product_sitemap))
+        .route("/api/pub/products/{slug}/waitlist",                 post(join_waitlist_product))
+        .route("/api/pub/products/{slug}/pre-order",                post(create_pre_order))
+        .route("/api/pub/products/{slug}/{variant}",                get(get_product_variant))
+        .route("/api/pub/products/{slug}/{variant}/waitlist",       post(join_waitlist_variant))
+        .route("/api/pub/products/{slug}/{variant}/view",           post(record_view))
 }
 
 pub fn public_routes(db: DatabaseConnection) -> Router {

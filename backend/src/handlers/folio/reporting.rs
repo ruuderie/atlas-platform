@@ -21,7 +21,7 @@
 //!
 //! --- Vendor analytics ---
 //!
-//! GET  /api/folio/analytics/vendor/:sp_id
+//! GET  /api/folio/analytics/vendor/{sp_id}
 //!      Work order stats for a specific service provider.
 //!      -> 200 VendorOverview
 //! ```
@@ -45,7 +45,7 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/tenant/reports", get(list_reports).post(request_report))
         .route("/api/folio/analytics/landlord", get(landlord_overview))
-        .route("/api/folio/analytics/vendor/:sp_id", get(vendor_overview))
+        .route("/api/folio/analytics/vendor/{sp_id}", get(vendor_overview))
 }
 
 // ── HTTP input types ──────────────────────────────────────────────────────────

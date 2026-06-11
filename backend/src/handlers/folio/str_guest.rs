@@ -10,29 +10,29 @@
 //! ## Landlord / operator (gated by landlord_router)
 //!
 //! ```ignore
-//! GET  /api/folio/reservations/:id/manifest
+//! GET  /api/folio/reservations/{id}/manifest
 //!      Full guest + vehicle + special requests manifest.
 //!      -> 200 ReservationManifest
 //!
-//! POST /api/folio/reservations/:id/guests
+//! POST /api/folio/reservations/{id}/guests
 //!      Register a guest on this booking.
 //!      Body: { full_name, nationality, date_of_birth, document_type, document_number, is_lead_guest }
 //!      -> 201 { rel_id }
 //!
-//! DELETE /api/folio/reservations/:id/guests/:rel_id
+//! DELETE /api/folio/reservations/{id}/guests/{rel_id}
 //!      Remove a guest registration (hard delete).
 //!      -> 204
 //!
-//! POST /api/folio/reservations/:id/vehicles
+//! POST /api/folio/reservations/{id}/vehicles
 //!      Register a vehicle on this booking.
 //!      Body: { license_plate, make?, model?, color?, parking_spot? }
 //!      -> 201 { rel_id }
 //!
-//! DELETE /api/folio/reservations/:id/vehicles/:rel_id
+//! DELETE /api/folio/reservations/{id}/vehicles/{rel_id}
 //!      Remove a vehicle registration (hard delete).
 //!      -> 204
 //!
-//! PUT /api/folio/reservations/:id/special-requests
+//! PUT /api/folio/reservations/{id}/special-requests
 //!      Overwrite the special requests list.
 //!      Body: { requests: ["Late check-in", "Baby cot"] }
 //!      -> 200
@@ -63,12 +63,12 @@ use crate::services::pm::str_guest::{
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/reservations/:id/manifest",         get(get_manifest))
-        .route("/api/folio/reservations/:id/guests",           post(register_guest))
-        .route("/api/folio/reservations/:id/guests/:rel_id",   delete(remove_guest))
-        .route("/api/folio/reservations/:id/vehicles",         post(register_vehicle))
-        .route("/api/folio/reservations/:id/vehicles/:rel_id", delete(remove_vehicle))
-        .route("/api/folio/reservations/:id/special-requests", put(set_special_requests))
+        .route("/api/folio/reservations/{id}/manifest",         get(get_manifest))
+        .route("/api/folio/reservations/{id}/guests",           post(register_guest))
+        .route("/api/folio/reservations/{id}/guests/{rel_id}",   delete(remove_guest))
+        .route("/api/folio/reservations/{id}/vehicles",         post(register_vehicle))
+        .route("/api/folio/reservations/{id}/vehicles/{rel_id}", delete(remove_vehicle))
+        .route("/api/folio/reservations/{id}/special-requests", put(set_special_requests))
 }
 
 // ── HTTP input types ──────────────────────────────────────────────────────────

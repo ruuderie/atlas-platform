@@ -1,4 +1,4 @@
-//! GET /api/folio/pm/clients/:account_id — single client detail
+//! GET /api/folio/pm/clients/{account_id} — single client detail
 //!
 //! Returns the full portfolio snapshot for one client account.
 //! The PM must pass `X-Folio-Client-Account` header matching the path param.
@@ -20,7 +20,7 @@ use crate::extractors::tenant::TenantContext;
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/pm/clients/:account_id", get(get_client_detail))
+        .route("/api/folio/pm/clients/{account_id}", get(get_client_detail))
 }
 
 #[derive(Serialize)]

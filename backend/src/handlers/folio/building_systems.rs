@@ -3,20 +3,20 @@
 //! # Routes
 //!
 //! ```ignore
-//! GET  /api/folio/assets/:property_id/systems
+//! GET  /api/folio/assets/{property_id}/systems
 //!      List all building systems for a property.
 //!      -> 200 [BuildingSystemDetail]
 //!
-//! POST /api/folio/assets/:property_id/systems
+//! POST /api/folio/assets/{property_id}/systems
 //!      Register a new building system (elevator, roof, HVAC, etc.).
 //!      Body: CreateBuildingSystemInput
 //!      -> 201 { "id": uuid }
 //!
-//! GET  /api/folio/systems/:id
+//! GET  /api/folio/systems/{id}
 //!      Fetch a single building system with full lifecycle data.
 //!      -> 200 BuildingSystemDetail
 //!
-//! PATCH /api/folio/systems/:id/lifecycle
+//! PATCH /api/folio/systems/{id}/lifecycle
 //!      Update condition, next inspection date, cert expiry, or metadata.
 //!      Body: UpdateBuildingSystemLifecycleInput
 //!      -> 200 {}
@@ -50,12 +50,12 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Property-scoped building system routes
         .route(
-            "/api/folio/assets/:property_id/systems",
+            "/api/folio/assets/{property_id}/systems",
             get(list_systems).post(create_system),
         )
         // Building system instance routes
-        .route("/api/folio/systems/:id", get(get_system))
-        .route("/api/folio/systems/:id/lifecycle", patch(update_lifecycle))
+        .route("/api/folio/systems/{id}", get(get_system))
+        .route("/api/folio/systems/{id}/lifecycle", patch(update_lifecycle))
         // Combined lifecycle alert query (all asset_types — appliances + systems)
         .route("/api/folio/lifecycle/alerts", get(get_lifecycle_alerts))
 }
@@ -70,7 +70,7 @@ struct AlertQuery {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-/// GET /api/folio/assets/:property_id/systems
+/// GET /api/folio/assets/{property_id}/systems
 async fn list_systems(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -88,7 +88,7 @@ async fn list_systems(
     Ok(axum::response::Json(systems))
 }
 
-/// POST /api/folio/assets/:property_id/systems
+/// POST /api/folio/assets/{property_id}/systems
 async fn create_system(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -117,7 +117,7 @@ async fn create_system(
     ))
 }
 
-/// GET /api/folio/systems/:id
+/// GET /api/folio/systems/{id}
 async fn get_system(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -139,7 +139,7 @@ async fn get_system(
     Ok(axum::response::Json(system))
 }
 
-/// PATCH /api/folio/systems/:id/lifecycle
+/// PATCH /api/folio/systems/{id}/lifecycle
 async fn update_lifecycle(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

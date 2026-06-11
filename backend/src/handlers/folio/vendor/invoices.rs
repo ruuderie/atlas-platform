@@ -13,7 +13,7 @@
 //! GET  /api/folio/vendor/invoices           ?status=pending|paid|all
 //!      -> 200 [VendorInvoiceSummary]
 //!
-//! GET  /api/folio/vendor/invoices/:id
+//! GET  /api/folio/vendor/invoices/{id}
 //!      -> 200 VendorInvoiceDetail
 //!
 //! POST /api/folio/vendor/invoices
@@ -43,7 +43,7 @@ use crate::extractors::folio_role::VendorOnly;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/vendor/invoices",     get(list_invoices).post(submit_invoice))
-        .route("/api/folio/vendor/invoices/:id", get(get_invoice))
+        .route("/api/folio/vendor/invoices/{id}", get(get_invoice))
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -135,7 +135,7 @@ async fn list_invoices(
     Ok(Json(summaries))
 }
 
-/// GET /api/folio/vendor/invoices/:id
+/// GET /api/folio/vendor/invoices/{id}
 async fn get_invoice(
     _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,

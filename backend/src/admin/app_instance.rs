@@ -7,25 +7,25 @@
 //! # Routes
 //!
 //! ```ignore
-//! GET  /api/admin/app-instances/:id/public-config
+//! GET  /api/admin/app-instances/{id}/public-config
 //!      Returns the current public_slug, custom_domain, and instance_status.
 //!      -> 200 PublicConfigResponse
 //!
-//! PUT  /api/admin/app-instances/:id/public-config
+//! PUT  /api/admin/app-instances/{id}/public-config
 //!      Set/update public_slug and/or custom_domain.
 //!      Validates global uniqueness. Returns DNS CNAME instructions.
 //!      Body: { public_slug?, custom_domain? }
 //!      -> 200 PublicConfigResponse (includes dns_instructions)
 //!
-//! POST /api/admin/app-instances/:id/suspend
+//! POST /api/admin/app-instances/{id}/suspend
 //!      Sets instance_status = "suspended".  Body: { reason }
 //!      -> 200
 //!
-//! POST /api/admin/app-instances/:id/resume
+//! POST /api/admin/app-instances/{id}/resume
 //!      Sets instance_status = "active".
 //!      -> 200
 //!
-//! POST /api/admin/app-instances/:id/archive
+//! POST /api/admin/app-instances/{id}/archive
 //!      Sets instance_status = "archived".  Body: { reason, data_retention_days? }
 //!      -> 200
 //! ```
@@ -52,12 +52,12 @@ use crate::entities::atlas_app_deployment_config;
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route(
-            "/api/admin/app-instances/:id/public-config",
+            "/api/admin/app-instances/{id}/public-config",
             get(get_public_config).put(update_public_config),
         )
-        .route("/api/admin/app-instances/:id/suspend", post(suspend_instance))
-        .route("/api/admin/app-instances/:id/resume",  post(resume_instance))
-        .route("/api/admin/app-instances/:id/archive", post(archive_instance))
+        .route("/api/admin/app-instances/{id}/suspend", post(suspend_instance))
+        .route("/api/admin/app-instances/{id}/resume",  post(resume_instance))
+        .route("/api/admin/app-instances/{id}/archive", post(archive_instance))
 }
 
 /// Convenience wrapper with state applied (for standalone use / tests).

@@ -13,9 +13,9 @@
 //!
 //! ```ignore
 //! GET  /api/rbac/roles?app_slug=folio               — list profiles (rbac:read or Owner/Admin)
-//! GET  /api/rbac/users/:user_id/roles?app_slug=folio — get user role (rbac:read or Owner/Admin)
-//! POST /api/rbac/users/:user_id/roles                — assign role   (rbac:assign or Owner/Admin)
-//! DELETE /api/rbac/users/:user_id/roles/:app_slug    — revoke role   (rbac:assign or Owner/Admin)
+//! GET  /api/rbac/users/{user_id}/roles?app_slug=folio — get user role (rbac:read or Owner/Admin)
+//! POST /api/rbac/users/{user_id}/roles                — assign role   (rbac:assign or Owner/Admin)
+//! DELETE /api/rbac/users/{user_id}/roles/{app_slug}    — revoke role   (rbac:assign or Owner/Admin)
 //! ```
 
 use axum::{
@@ -72,8 +72,8 @@ pub struct AssignRoleResponse {
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/rbac/roles",                          get(list_role_profiles))
-        .route("/api/rbac/users/:user_id/roles",           get(get_user_role).post(assign_role))
-        .route("/api/rbac/users/:user_id/roles/:app_slug", delete(revoke_role))
+        .route("/api/rbac/users/{user_id}/roles",           get(get_user_role).post(assign_role))
+        .route("/api/rbac/users/{user_id}/roles/{app_slug}", delete(revoke_role))
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ async fn list_role_profiles(
     Ok(Json(response))
 }
 
-/// GET /api/rbac/users/:user_id/roles?app_slug=folio
+/// GET /api/rbac/users/{user_id}/roles?app_slug=folio
 async fn get_user_role(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -119,7 +119,7 @@ async fn get_user_role(
     Ok(Json(UserRoleResponse { user_id, app_slug: params.app_slug, role_slug }))
 }
 
-/// POST /api/rbac/users/:user_id/roles
+/// POST /api/rbac/users/{user_id}/roles
 /// Body: { "app_slug": "folio", "role_slug": "tenant" }
 async fn assign_role(
     Extension(db): Extension<DatabaseConnection>,
@@ -153,7 +153,7 @@ async fn assign_role(
     Ok(Json(AssignRoleResponse { assignment_id }))
 }
 
-/// DELETE /api/rbac/users/:user_id/roles/:app_slug
+/// DELETE /api/rbac/users/{user_id}/roles/{app_slug}
 async fn revoke_role(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,

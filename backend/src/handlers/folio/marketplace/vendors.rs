@@ -1,5 +1,5 @@
 //! GET  /api/folio/marketplace/vendors     — list marketplace-visible vendors by proximity + trade
-//! GET  /api/folio/marketplace/vendors/:id — vendor detail card
+//! GET  /api/folio/marketplace/vendors/{id} — vendor detail card
 //!
 //! Both routes require any authenticated Folio user (any role can browse the marketplace).
 //! Available to Landlord, PropertyManager, and even Tenant (read-only discovery).
@@ -20,7 +20,7 @@ use crate::extractors::tenant::TenantContext;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/marketplace/vendors", get(list_vendors))
-        .route("/api/folio/marketplace/vendors/:id", get(get_vendor_detail))
+        .route("/api/folio/marketplace/vendors/{id}", get(get_vendor_detail))
 }
 
 // ── Query params ──────────────────────────────────────────────────────────────

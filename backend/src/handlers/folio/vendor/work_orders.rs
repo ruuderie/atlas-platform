@@ -15,11 +15,11 @@
 //!      List work orders assigned to this vendor. ?status=open|in_progress|completed|all
 //!      -> 200 [WorkOrderSummary]
 //!
-//! GET  /api/folio/vendor/work-orders/:id
+//! GET  /api/folio/vendor/work-orders/{id}
 //!      Work order detail + cost breakdown.
 //!      -> 200 WorkOrderDetail
 //!
-//! POST /api/folio/vendor/work-orders/:id/complete
+//! POST /api/folio/vendor/work-orders/{id}/complete
 //!      Mark complete, record actual_cost_cents, optional completion note.
 //!      -> 200 { "id": uuid, "status": "completed" }
 //! ```
@@ -46,8 +46,8 @@ use crate::extractors::folio_role::VendorOnly;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/vendor/work-orders",              get(list_work_orders))
-        .route("/api/folio/vendor/work-orders/:id",          get(get_work_order))
-        .route("/api/folio/vendor/work-orders/:id/complete", post(complete_work_order))
+        .route("/api/folio/vendor/work-orders/{id}",          get(get_work_order))
+        .route("/api/folio/vendor/work-orders/{id}/complete", post(complete_work_order))
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -146,7 +146,7 @@ async fn list_work_orders(
     Ok(Json(summaries))
 }
 
-/// GET /api/folio/vendor/work-orders/:id
+/// GET /api/folio/vendor/work-orders/{id}
 async fn get_work_order(
     _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,
@@ -180,7 +180,7 @@ async fn get_work_order(
     }))
 }
 
-/// POST /api/folio/vendor/work-orders/:id/complete
+/// POST /api/folio/vendor/work-orders/{id}/complete
 async fn complete_work_order(
     _guard: VendorOnly,
     Extension(db): Extension<DatabaseConnection>,
