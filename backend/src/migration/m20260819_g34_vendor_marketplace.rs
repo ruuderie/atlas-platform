@@ -39,6 +39,7 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // ── Non-geo columns (no PostGIS dependency) ───────────────────────────
         manager
             .get_connection()
             .execute_unprepared(
@@ -57,21 +58,9 @@ impl MigrationTrait for Migration {
                  ALTER TABLE atlas_service_providers
                      ADD COLUMN IF NOT EXISTS marketplace_trade_types TEXT[] NOT NULL DEFAULT '{}';
 
-                 -- Public location for proximity matching. Separate from any internal
-                 -- geo_service_area rows — vendors may advertise a city center point.
-                 -- Using GEOGRAPHY type for accurate distance calculations in meters.
-                 -- Requires PostGIS (already installed for G-01).
-                 ALTER TABLE atlas_service_providers
-                     ADD COLUMN IF NOT EXISTS marketplace_location GEOGRAPHY(Point, 4326);
-
                  -- Partial indexes — only fire for marketplace-visible vendors.
                  CREATE INDEX IF NOT EXISTS idx_sp_marketplace_visible
                      ON atlas_service_providers(is_marketplace_visible)
-                     WHERE is_marketplace_visible = true;
-
-                 -- GiST spatial index for proximity queries.
-                 CREATE INDEX IF NOT EXISTS idx_sp_marketplace_location
-                     ON atlas_service_providers USING GIST(marketplace_location)
                      WHERE is_marketplace_visible = true;
 
                  -- Trade-type containment index (GIN for TEXT[]).
@@ -80,6 +69,54 @@ impl MigrationTrait for Migration {
                      WHERE is_marketplace_visible = true;",
             )
             .await?;
+
+        // ── PostGIS-dependent: marketplace_location + GIST index ─────────────
+        // G-01 installs PostGIS only when available. In plain postgres environments
+        // (e.g. CI without the postgis package), it returns Ok(()) with no-op.
+        // We must guard here the same way G-10 does, falling back to TEXT.
+        let has_postgis = match manager
+            .get_connection()
+            .query_one(sea_orm::Statement::from_string(
+                manager.get_connection().get_database_backend(),
+                "SELECT 1 FROM pg_extension WHERE extname = 'postgis';".to_owned(),
+            ))
+            .await
+        {
+            Ok(Some(_)) => true,
+            _ => false,
+        };
+
+        if has_postgis {
+            manager
+                .get_connection()
+                .execute_unprepared(
+                    "-- Public location for proximity matching.
+                     -- Using GEOGRAPHY type for accurate distance calculations in meters.
+                     ALTER TABLE atlas_service_providers
+                         ADD COLUMN IF NOT EXISTS marketplace_location GEOGRAPHY(Point, 4326);
+
+                     -- GiST spatial index for proximity queries.
+                     CREATE INDEX IF NOT EXISTS idx_sp_marketplace_location
+                         ON atlas_service_providers USING GIST(marketplace_location)
+                         WHERE is_marketplace_visible = true;",
+                )
+                .await?;
+        } else {
+            // PostGIS unavailable (e.g. plain postgres in CI). Store as TEXT so the
+            // column exists for ORM mapping; proximity search is skipped at runtime.
+            tracing::warn!(
+                "G-34: PostGIS not available — marketplace_location stored as TEXT (no GIST index). \
+                 Proximity search will be disabled until PostGIS is installed."
+            );
+            manager
+                .get_connection()
+                .execute_unprepared(
+                    "ALTER TABLE atlas_service_providers
+                         ADD COLUMN IF NOT EXISTS marketplace_location TEXT;",
+                )
+                .await?;
+        }
+
         Ok(())
     }
 
