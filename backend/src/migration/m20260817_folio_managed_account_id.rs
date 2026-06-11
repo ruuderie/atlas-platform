@@ -39,15 +39,15 @@ impl MigrationTrait for Migration {
                 "-- Core Folio tables that need per-client scoping in PMC mode.
                  -- Nullable: NULL = single-landlord (unchanged). UUID = PMC client book.
 
-                 ALTER TABLE atlas_contract
+                 ALTER TABLE atlas_contracts
                      ADD COLUMN IF NOT EXISTS managed_account_id UUID
                          REFERENCES account(id) ON DELETE SET NULL;
 
-                 ALTER TABLE atlas_asset
+                 ALTER TABLE atlas_assets
                      ADD COLUMN IF NOT EXISTS managed_account_id UUID
                          REFERENCES account(id) ON DELETE SET NULL;
 
-                 ALTER TABLE atlas_portfolio
+                 ALTER TABLE atlas_portfolios
                      ADD COLUMN IF NOT EXISTS managed_account_id UUID
                          REFERENCES account(id) ON DELETE SET NULL;
 
@@ -58,15 +58,15 @@ impl MigrationTrait for Migration {
                  -- Partial indexes: only index rows with a client scope (PMC mode).
                  -- Keeps index overhead zero for single-landlord deployments.
                  CREATE INDEX IF NOT EXISTS idx_contract_managed_account
-                     ON atlas_contract (tenant_id, managed_account_id)
+                     ON atlas_contracts (tenant_id, managed_account_id)
                      WHERE managed_account_id IS NOT NULL;
 
                  CREATE INDEX IF NOT EXISTS idx_asset_managed_account
-                     ON atlas_asset (tenant_id, managed_account_id)
+                     ON atlas_assets (tenant_id, managed_account_id)
                      WHERE managed_account_id IS NOT NULL;
 
                  CREATE INDEX IF NOT EXISTS idx_portfolio_managed_account
-                     ON atlas_portfolio (tenant_id, managed_account_id)
+                     ON atlas_portfolios (tenant_id, managed_account_id)
                      WHERE managed_account_id IS NOT NULL;
 
                  CREATE INDEX IF NOT EXISTS idx_lead_managed_account
@@ -87,10 +87,10 @@ impl MigrationTrait for Migration {
                  DROP INDEX IF EXISTS idx_asset_managed_account;
                  DROP INDEX IF EXISTS idx_contract_managed_account;
 
-                 ALTER TABLE atlas_lead      DROP COLUMN IF EXISTS managed_account_id;
-                 ALTER TABLE atlas_portfolio DROP COLUMN IF EXISTS managed_account_id;
-                 ALTER TABLE atlas_asset     DROP COLUMN IF EXISTS managed_account_id;
-                 ALTER TABLE atlas_contract  DROP COLUMN IF EXISTS managed_account_id;",
+                 ALTER TABLE atlas_lead        DROP COLUMN IF EXISTS managed_account_id;
+                 ALTER TABLE atlas_portfolios  DROP COLUMN IF EXISTS managed_account_id;
+                 ALTER TABLE atlas_assets      DROP COLUMN IF EXISTS managed_account_id;
+                 ALTER TABLE atlas_contracts   DROP COLUMN IF EXISTS managed_account_id;",
             )
             .await?;
         Ok(())
