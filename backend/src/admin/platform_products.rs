@@ -50,15 +50,15 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/platform/products", get(list_products))
         .route(
-            "/api/admin/platform/products/:id",
+            "/api/admin/platform/products/{id}",
             get(get_product).patch(update_product),
         )
         .route(
-            "/api/admin/platform/products/:id/publish-marketing",
+            "/api/admin/platform/products/{id}/publish-marketing",
             post(publish_marketing),
         )
         .route(
-            "/api/admin/platform/products/:id/deploy-status",
+            "/api/admin/platform/products/{id}/deploy-status",
             get(get_deploy_status),
         )
 }

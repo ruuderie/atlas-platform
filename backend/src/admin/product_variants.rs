@@ -6,23 +6,23 @@
 //! # Routes
 //!
 //! ```ignore
-//! GET  /api/admin/platform/products/:id/template
-//! POST /api/admin/platform/products/:id/template
+//! GET  /api/admin/platform/products/{id}/template
+//! POST /api/admin/platform/products/{id}/template
 //!
-//! GET  /api/admin/platform/products/:id/variants
-//! POST /api/admin/platform/products/:id/variants          (single)
-//! POST /api/admin/platform/products/:id/variants/bulk-generate
+//! GET  /api/admin/platform/products/{id}/variants
+//! POST /api/admin/platform/products/{id}/variants          (single)
+//! POST /api/admin/platform/products/{id}/variants/bulk-generate
 //!
-//! PATCH  /api/admin/platform/products/:id/variants/:vid
-//! POST   /api/admin/platform/products/:id/variants/:vid/publish
-//! POST   /api/admin/platform/products/:id/variants/:vid/localize
-//! DELETE /api/admin/platform/products/:id/variants/:vid
+//! PATCH  /api/admin/platform/products/{id}/variants/{vid}
+//! POST   /api/admin/platform/products/{id}/variants/{vid}/publish
+//! POST   /api/admin/platform/products/{id}/variants/{vid}/localize
+//! DELETE /api/admin/platform/products/{id}/variants/{vid}
 //!
-//! POST   /api/admin/platform/products/:id/variants/bulk-publish
-//! POST   /api/admin/platform/products/:id/variants/bulk-localize
+//! POST   /api/admin/platform/products/{id}/variants/bulk-publish
+//! POST   /api/admin/platform/products/{id}/variants/bulk-localize
 //!
-//! GET    /api/admin/platform/products/:id/waitlist
-//! GET    /api/admin/platform/products/:id/waitlist/export  (CSV)
+//! GET    /api/admin/platform/products/{id}/waitlist
+//! GET    /api/admin/platform/products/{id}/waitlist/export  (CSV)
 //! ```
 
 use axum::{
@@ -59,47 +59,47 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         // Template
         .route(
-            "/api/admin/platform/products/:id/template",
+            "/api/admin/platform/products/{id}/template",
             get(get_template).post(upsert_template),
         )
         // Variant list + create
         .route(
-            "/api/admin/platform/products/:id/variants",
+            "/api/admin/platform/products/{id}/variants",
             get(list_variants).post(create_variant),
         )
         // Bulk operations
         .route(
-            "/api/admin/platform/products/:id/variants/bulk-generate",
+            "/api/admin/platform/products/{id}/variants/bulk-generate",
             post(bulk_generate_variants),
         )
         .route(
-            "/api/admin/platform/products/:id/variants/bulk-publish",
+            "/api/admin/platform/products/{id}/variants/bulk-publish",
             post(bulk_publish_variants),
         )
         .route(
-            "/api/admin/platform/products/:id/variants/bulk-localize",
+            "/api/admin/platform/products/{id}/variants/bulk-localize",
             post(bulk_localize_variants),
         )
         // Single variant operations
         .route(
-            "/api/admin/platform/products/:id/variants/:vid",
+            "/api/admin/platform/products/{id}/variants/{vid}",
             patch(update_variant).delete(delete_variant),
         )
         .route(
-            "/api/admin/platform/products/:id/variants/:vid/publish",
+            "/api/admin/platform/products/{id}/variants/{vid}/publish",
             post(publish_variant),
         )
         .route(
-            "/api/admin/platform/products/:id/variants/:vid/localize",
+            "/api/admin/platform/products/{id}/variants/{vid}/localize",
             post(localize_variant),
         )
         // Waitlist analytics
         .route(
-            "/api/admin/platform/products/:id/waitlist",
+            "/api/admin/platform/products/{id}/waitlist",
             get(get_waitlist_analytics),
         )
         .route(
-            "/api/admin/platform/products/:id/waitlist/export",
+            "/api/admin/platform/products/{id}/waitlist/export",
             get(export_waitlist_csv),
         )
 }

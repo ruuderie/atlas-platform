@@ -1,5 +1,5 @@
-//! POST   /api/folio/marketplace/vendors/:id/endorse — endorse a vendor
-//! DELETE /api/folio/marketplace/vendors/:id/endorse — retract endorsement
+//! POST   /api/folio/marketplace/vendors/{id}/endorse — endorse a vendor
+//! DELETE /api/folio/marketplace/vendors/{id}/endorse — retract endorsement
 //!
 //! An endorsement is a G-22 `atlas_record_relationships` row:
 //!   source_entity_type = "atlas_account"           (the landlord's account)
@@ -38,7 +38,7 @@ const VENDOR_ENTITY_TYPE: &str = "atlas_service_providers";
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route(
-            "/api/folio/marketplace/vendors/:id/endorse",
+            "/api/folio/marketplace/vendors/{id}/endorse",
             post(endorse_vendor).delete(retract_endorsement),
         )
 }

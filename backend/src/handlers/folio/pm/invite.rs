@@ -1,4 +1,4 @@
-//! POST /api/folio/pm/clients/:account_id/invite
+//! POST /api/folio/pm/clients/{account_id}/invite
 //!
 //! Invites an external landlord to manage a specific client account within the
 //! PMC tenant. The flow:
@@ -46,7 +46,7 @@ use crate::services::auth_service::AuthService;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route(
-            "/api/folio/pm/clients/:account_id/invite",
+            "/api/folio/pm/clients/{account_id}/invite",
             post(invite_client_landlord),
         )
 }
