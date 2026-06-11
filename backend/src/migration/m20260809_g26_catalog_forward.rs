@@ -74,7 +74,7 @@ impl MigrationTrait for Migration {
             .get_connection()
             .execute_unprepared(
                 "
-                ALTER TABLE atlas_catalog_entries
+                ALTER TABLE atlas_catalog_availability
                     ADD COLUMN IF NOT EXISTS available_count INT
                         GENERATED ALWAYS AS (total_inventory - reserved_count) STORED;
                 ",
@@ -136,8 +136,8 @@ impl MigrationTrait for Migration {
                     ON atlas_catalog_entries (tenant_id);
                 CREATE INDEX IF NOT EXISTS idx_catalog_entries_entry_type
                     ON atlas_catalog_entries (entry_type);
-                CREATE INDEX IF NOT EXISTS idx_catalog_entries_available
-                    ON atlas_catalog_entries (tenant_id)
+                CREATE INDEX IF NOT EXISTS idx_catalog_availability_available
+                    ON atlas_catalog_availability (tenant_id, catalog_entry_id, slot_date)
                     WHERE available_count > 0 AND NOT is_blocked;
                 ",
             )
@@ -156,7 +156,7 @@ impl MigrationTrait for Migration {
                 DROP TRIGGER IF EXISTS set_updated_at_catalog_rate_rules ON atlas_catalog_rate_rules;
                 DROP INDEX IF EXISTS idx_catalog_entries_tenant;
                 DROP INDEX IF EXISTS idx_catalog_entries_entry_type;
-                DROP INDEX IF EXISTS idx_catalog_entries_available;
+                DROP INDEX IF EXISTS idx_catalog_availability_available;
 
                 ALTER TABLE atlas_catalog_entries
                     ALTER COLUMN entry_type TYPE VARCHAR USING entry_type::VARCHAR;

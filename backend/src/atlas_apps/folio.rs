@@ -172,19 +172,14 @@ impl AtlasApp for FolioApp {
     /// Phase 0 prerequisites (template_scope, is_tenant_extension) are registered
     /// in the base migration vec in migration/mod.rs — they are platform generics,
     /// not app-specific, and must run before any AtlasApp provisions templates.
+    /// FolioApp has zero net-new migrations — all PM data lives in platform generics
+    /// (G01–G18, G23, G26, G27, G31–G34). Rule 7 is enforced by test_zero_migrations.
+    ///
+    /// The G-33 PMC seed (m20260816_g33_folio_pmc_seed) and managed_account_id FK
+    /// (m20260817_folio_managed_account_id) are platform-generic schema changes and
+    /// are registered in the base migration vec in migration/mod.rs.
     fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
-        use crate::migration::{
-            m20260816_g33_folio_pmc_seed,
-            m20260817_folio_managed_account_id,
-        };
-        vec![
-            // G-33 / Folio: Seeds the property_manager role profile + permissions.
-            // Requires G-33 atlas_app_deployment_config (base vec) and G-32 RBAC tables.
-            Box::new(m20260816_g33_folio_pmc_seed::Migration),
-            // Folio PMC: nullable managed_account_id FK on contract/asset/portfolio/lead.
-            // Non-breaking: NULL = single-landlord (default). UUID = PMC client book.
-            Box::new(m20260817_folio_managed_account_id::Migration),
-        ]
+        vec![]
     }
 
     fn background_jobs(&self) -> Vec<BackgroundJob> {

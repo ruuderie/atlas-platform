@@ -270,8 +270,10 @@ pub mod m20260812_g32_folio_role_seed;             // G-32: platform-default Fol
 pub mod m20260813_g32_migrate_folio_roles;         // G-32: backfill atlas_user_app_roles from folio_role column
 pub mod m20260814_g32_drop_folio_role_column;      // G-32: drop user_account.folio_role (superseded by G-32)
 pub mod m20260815_g33_app_deployment_config;       // G-33: atlas_app_deployment_config — platform-generic app mode config
-pub mod m20260816_g33_folio_pmc_seed;              // G-33/Folio: property_manager role profile + permissions seed
-pub mod m20260817_folio_managed_account_id;        // Folio PMC: managed_account_id FK on contract/asset/portfolio/lead
+// G-33/Folio: property_manager role profile + permissions seed (base vec — platform generic schema change)
+pub mod m20260816_g33_folio_pmc_seed;
+// Folio PMC: managed_account_id FK on contract/asset/portfolio/lead (base vec — platform generic schema change)
+pub mod m20260817_folio_managed_account_id;
 pub mod m20260818_folio_client_role_scope;         // Folio PMC: client_account_id scope FK on atlas_user_app_roles
 pub mod m20260819_g34_vendor_marketplace;          // G-34: vendor marketplace opt-in columns on atlas_service_providers
 pub mod m20260900_g10_asset_lifecycle;             // G-10: universal asset lifecycle extension (scheduled_service_date, expiry_date, condition, lifecycle_metadata)
@@ -466,6 +468,14 @@ impl MigratorTrait for Migrator {
             // G-33: atlas_app_deployment_config — platform-generic app mode + config table.
             // Any app (Folio, future CRM, HR, etc.) uses this to declare its deployment mode.
             Box::new(m20260815_g33_app_deployment_config::Migration),
+            // G-33/Folio: Seeds the property_manager role profile + permissions into RBAC tables.
+            // Requires G-33 atlas_app_deployment_config and G-32 RBAC tables to already exist.
+            // Moved from FolioApp::migrations() to the base vec — Rule 7 forbids app-scoped migrations.
+            Box::new(m20260816_g33_folio_pmc_seed::Migration),
+            // Folio PMC: nullable managed_account_id FK on contract/asset/portfolio/lead tables.
+            // Non-breaking: NULL = single-landlord mode (default). UUID = PMC client book assignment.
+            // Moved from FolioApp::migrations() to the base vec — Rule 7 forbids app-scoped migrations.
+            Box::new(m20260817_folio_managed_account_id::Migration),
             // Folio PMC: client_account_id scope column on atlas_user_app_roles.
             // Enables scoped Landlord role assignment for PMC client invite flow.
             Box::new(m20260818_folio_client_role_scope::Migration),
