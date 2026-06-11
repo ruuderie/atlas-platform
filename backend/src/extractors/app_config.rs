@@ -14,7 +14,7 @@
 //!
 //! # Usage in a handler (recommended)
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use crate::extractors::app_config::AppDeploymentConfig;
 //!
 //! async fn my_pm_handler(
@@ -31,7 +31,7 @@
 //!
 //! # Usage in middleware (for sub-router gating)
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! async fn require_pmc_mode(
 //!     cfg: AppDeploymentConfig,
 //!     request: Request<Body>,
@@ -92,7 +92,7 @@ impl AppDeploymentConfig {
     /// Returns true if the current mode equals the given slug.
     ///
     /// # Example
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// cfg.is_mode("property_management_co")
     /// ```
     pub fn is_mode(&self, mode: &str) -> bool {

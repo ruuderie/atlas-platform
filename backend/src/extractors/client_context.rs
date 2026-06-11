@@ -14,7 +14,7 @@
 //!
 //! # Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! async fn list_client_assets(
 //!     client: ClientContext,
 //!     Extension(db): Extension<DatabaseConnection>,

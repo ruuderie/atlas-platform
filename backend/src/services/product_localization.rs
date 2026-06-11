@@ -7,7 +7,7 @@
 //!
 //! ## Task lifecycle
 //!
-//! ```
+//! ```text
 //! bulk-generate (copy_strategy="ai_localize")
 //!   └─► ProductLocalizationService::enqueue_variant_localization()
 //!         └─► atlas_ai_task { task_type="localize_product_page", status="queued" }

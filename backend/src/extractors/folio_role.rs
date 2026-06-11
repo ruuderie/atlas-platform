@@ -16,7 +16,7 @@
 //!
 //! # Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use crate::extractors::folio_role::VendorOnly;
 //!
 //! async fn vendor_handler(

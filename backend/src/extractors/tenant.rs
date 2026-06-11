@@ -16,7 +16,7 @@
 //!
 //! # Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use crate::extractors::tenant::TenantContext;
 //!
 //! async fn my_handler(
