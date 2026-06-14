@@ -1,4 +1,4 @@
-use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+use super::client::{api_url, create_client, with_credentials};
 use super::models::TemplateModel;
 use reqwest::StatusCode;
 

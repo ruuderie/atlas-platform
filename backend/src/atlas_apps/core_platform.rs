@@ -64,6 +64,7 @@ impl AtlasApp for CorePlatformApp {
             .merge(crate::handlers::search::authenticated_routes()) // already state-free
             .merge(crate::handlers::audit_logs::authenticated_routes()) // already state-free
             .merge(crate::handlers::app_seeds::authenticated_routes_raw())
+            .merge(crate::handlers::geo::authenticated_routes_raw())
             .with_state(db)
     }
 

@@ -21,6 +21,7 @@ pub fn FileAttachments(
     #[prop(optional)] on_download: Option<Callback<String>>, // file_url/file_key -> triggers download link generation
     #[prop(optional)] on_file_drop: Option<Callback<String>>, // backwards compatibility
 ) -> impl IntoView {
+    let _ = entity_id;
     let (is_dragging, set_dragging) = signal(false);
     let (is_uploading, set_uploading) = signal(false);
     let (error_msg, set_error_msg) = signal::<Option<String>>(None);
@@ -40,7 +41,6 @@ pub fn FileAttachments(
         
         let on_upload = on_upload.clone();
         let on_file_drop = on_file_drop.clone();
-        let filename = file.name();
         
         leptos::task::spawn_local(async move {
             #[cfg(not(feature = "ssr"))]

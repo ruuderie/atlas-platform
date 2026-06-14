@@ -1,6 +1,6 @@
-use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+use super::client::{api_url, create_client, with_credentials};
 use super::models::{
-    AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, CreateDeal, UserInfo,
+    AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, UserInfo,
     ContactModel, CreateContact, CrmNote, CrmActivity, CrmStatusOption
 };
 use reqwest::StatusCode;

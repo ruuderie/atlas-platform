@@ -39,3 +39,29 @@ pub async fn get_trends(metric_key: &str, days: u32) -> Result<Vec<TrendPoint>, 
     let path = format!("/api/admin/analytics/trends?metric_key={}&days={}", metric_key, days);
     api_get(&path).await
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ExemptionSummary {
+    pub tenant_name: String,
+    pub app_slug: String,
+    pub lost_revenue: String,
+    pub reason: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct BillingSummaryResponse {
+    pub active_subscriptions: usize,
+    pub in_trial: usize,
+    pub in_grace_period: usize,
+    pub suspended: usize,
+    pub canceled: usize,
+    pub gross_churn_rate: f32,
+    pub collection_success_rate: f32,
+    pub failed_invoices_count: usize,
+    pub failed_invoices_value: f32,
+    pub exemptions: Vec<ExemptionSummary>,
+}
+
+pub async fn get_billing_summary() -> Result<BillingSummaryResponse, String> {
+    api_get("/api/admin/analytics/billing_summary").await
+}

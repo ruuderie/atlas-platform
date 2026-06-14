@@ -40,7 +40,6 @@ pub fn UpsellBanner(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use leptos::prelude::*;
     use wasm_bindgen_test::*;
     
     wasm_bindgen_test_configure!(run_in_browser);

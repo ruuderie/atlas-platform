@@ -55,6 +55,9 @@ pub mod scorecard_analytics;    // Phase 3 — portfolio analytics, leaderboard,
 // Folio — Property Management App
 pub mod folio;
 
+// G01 — PostGIS spatial query routes (radius, nearest, containment)
+pub mod geo;
+
 // G07 — WebSocket Relay (realtime rooms, broadcast, message persistence)
 pub mod ws;
 

@@ -10,12 +10,11 @@ use sea_orm_migration::prelude::*;
 ///
 /// | App slug             | Mode slug                    | Meaning |
 /// |---|---|---|
-/// | folio                | standard                     | Single-landlord (default) |
-/// | folio                | property_management_co       | PMC: manages multiple client books |
-/// | crm (future)         | standard                     | In-house sales team |
-/// | crm (future)         | agency                       | CRM-as-a-service for multiple end clients |
-/// | hr (future)          | single_company               | Internal HR |
-/// | hr (future)          | peo_bureau                   | PEO managing multiple employer clients |
+/// | folio                | standard                     | Standard deployment topology (default) |
+/// | folio                | internal_operator            | Internal deployment run by operator (billing exempt) |
+///
+/// Note: App-specific configurations (such as Folio's PMC mode) are toggled via
+/// JSON properties in the `config` payload, rather than platform mode slugs.
 ///
 /// # Schema
 ///
@@ -40,8 +39,7 @@ impl MigrationTrait for Migration {
                     id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
                     tenant_id   UUID        NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
                     app_slug    VARCHAR(100) NOT NULL,
-                    -- mode is app-defined. The platform stores the string; the app interprets it.
-                    -- Examples: 'standard', 'property_management_co', 'agency', 'peo_bureau'
+                    -- mode is platform-defined topology. Valid options: 'standard', 'internal_operator'.
                     mode        VARCHAR(100) NOT NULL DEFAULT 'standard',
                     -- Arbitrary JSON for mode-specific settings, e.g.:
                     --   { \"max_clients\": 50, \"billing_model\": \"per_unit\" }

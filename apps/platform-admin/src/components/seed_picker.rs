@@ -16,7 +16,6 @@ fn SeedPackCard(
     let result_msg = RwSignal::new(Option::<(bool, String)>::None); // (success, message)
 
     let pack_id = pack.id.clone();
-    let pack_title = pack.title.clone();
     let ai = app_instance_id.clone();
 
     let apply = move |_| {

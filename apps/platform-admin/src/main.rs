@@ -1,4 +1,3 @@
-use leptos::prelude::*;
 use crate::app::App;
 
 mod app;

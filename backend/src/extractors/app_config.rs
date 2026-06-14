@@ -66,14 +66,14 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::entities::atlas_app_deployment_config;
+use crate::entities::atlas_app_deployment_config::{self, AppDeploymentMode};
 use crate::extractors::tenant::TenantContext;
 
 // Cache key — one per app slug per request
 #[derive(Clone, Debug)]
 struct CachedAppConfig {
     app_slug: String,
-    mode:     String,
+    mode:     AppDeploymentMode,
     config:   Value,
 }
 
@@ -82,23 +82,13 @@ struct CachedAppConfig {
 pub struct AppDeploymentConfig {
     pub tenant_id: Uuid,
     pub app_slug:  String,
-    /// Mode string — app-defined. "standard" if no config row exists.
-    pub mode:      String,
-    /// Arbitrary JSON config for this mode. `{}` if not configured.
+    /// Deployment mode topology.
+    pub mode:      AppDeploymentMode,
+    /// Arbitrary JSON config for this deployment. `{}` if not configured.
     pub config:    Value,
 }
 
 impl AppDeploymentConfig {
-    /// Returns true if the current mode equals the given slug.
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// cfg.is_mode("property_management_co")
-    /// ```
-    pub fn is_mode(&self, mode: &str) -> bool {
-        self.mode.as_str() == mode
-    }
-
     /// Reads a string value from the config JSON.
     pub fn config_str(&self, key: &str) -> Option<&str> {
         self.config.get(key)?.as_str()
@@ -115,10 +105,6 @@ impl AppDeploymentConfig {
 /// For other apps, implement a newtype wrapper or call the internal resolver
 /// directly. The extractor defaulting to "folio" is a convenience for
 /// the most common case on this platform right now.
-///
-/// Future: a `AppDeploymentConfigFor<const APP: &str>` const-generic form
-/// can be added once Rust const generics for &str are stable. For now,
-/// each app that needs this creates its own thin extractor wrapper.
 impl<S> FromRequestParts<S> for AppDeploymentConfig
 where
     S: Send + Sync,
@@ -127,7 +113,6 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, StatusCode> {
         // Re-use cached result if the same request already resolved it.
-        // Clone early to drop the immutable borrow before calling from_request_parts (mut borrow).
         if let Some((cached_slug, cached_mode, cached_config)) = parts
             .extensions
             .get::<CachedAppConfig>()
@@ -149,9 +134,6 @@ where
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .0;
 
-        // Determine app slug from context — currently defaults to "folio".
-        // Handlers for non-Folio apps should use a newtype wrapper that
-        // overrides this default.
         let app_slug = parts
             .extensions
             .get::<&'static str>()
@@ -169,7 +151,7 @@ where
         let (mode, config) = match row {
             Some(r) => (r.mode, r.config),
             // Missing row = standard mode, empty config (backward compatible)
-            None => ("standard".to_string(), Value::Object(Default::default())),
+            None => (AppDeploymentMode::Standard, Value::Object(Default::default())),
         };
 
         let cached = CachedAppConfig {
@@ -187,12 +169,3 @@ where
         })
     }
 }
-
-// ── Folio PMC mode constants ─────────────────────────────────────────────────
-
-/// Mode slug for a standard single-landlord Folio deployment.
-pub const FOLIO_MODE_STANDARD: &str = "standard";
-
-/// Mode slug for a Property Management Company Folio deployment.
-/// Enables the `property_manager` role and client account scoping.
-pub const FOLIO_MODE_PMC: &str = "property_management_co";

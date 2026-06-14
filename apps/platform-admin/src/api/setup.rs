@@ -35,7 +35,7 @@ pub async fn get_setup_status() -> Result<SetupStatusResponse, String> {
     }
 }
 
-pub async fn initialize_system(req: SetupInitializeRequest) -> Result<crate::api::models::SessionResponse, String> {
+pub async fn initialize_system(req: SetupInitializeRequest) -> Result<SessionResponse, String> {
     let client = create_client();
     let res = client
         .post(api_url("/setup/initialize"))

@@ -388,3 +388,139 @@ pub struct CrmStatusOption {
     pub sort_order: i32,
     pub is_system: bool,
 }
+
+// ==== PLATFORM PRODUCTS ====
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlatformProductModel {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub slug: String,
+    pub tagline: Option<String>,
+    pub status: String,
+    pub marketing_page_cms_id: Option<uuid::Uuid>,
+    pub deploy_hook_url: Option<String>,
+    pub launch_mode: String,
+    pub pre_order_enabled: bool,
+    pub pre_order_price_cents: Option<i32>,
+    pub pre_order_currency: String,
+    pub stripe_price_id: Option<String>,
+    pub pre_order_cap: Option<i32>,
+    pub pre_order_sold: i32,
+    pub waitlist_count: i32,
+    pub sentinel_tenant_id: Option<uuid::Uuid>,
+    pub apex_domain: Option<String>,
+    pub apex_domain_verified: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateProductBody {
+    pub name: Option<String>,
+    pub tagline: Option<String>,
+    pub status: Option<String>,
+    pub deploy_hook_url: Option<String>,
+    pub marketing_page_cms_id: Option<uuid::Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeployStatusResponse {
+    pub product_id: uuid::Uuid,
+    pub status: String,
+    pub deployed_at: Option<String>,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductTemplateModel {
+    pub id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
+    pub hero_payload: serde_json::Value,
+    pub blocks_payload: serde_json::Value,
+    pub meta_title: Option<String>,
+    pub meta_description: Option<String>,
+    pub og_image_url: Option<String>,
+    pub structured_data: serde_json::Value,
+    pub cta_label: String,
+    pub cta_action: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProductVariantModel {
+    pub id: uuid::Uuid,
+    pub product_id: uuid::Uuid,
+    pub template_id: uuid::Uuid,
+    pub variant_slug: String,
+    pub locale: String,
+    pub country_code: Option<String>,
+    pub region: Option<String>,
+    pub city: Option<String>,
+    pub geo_lat: Option<f64>,
+    pub geo_lng: Option<f64>,
+    pub hero_overrides: serde_json::Value,
+    pub block_overrides: serde_json::Value,
+    pub meta_title: Option<String>,
+    pub meta_description: Option<String>,
+    pub og_image_url: Option<String>,
+    pub canonical_url: Option<String>,
+    pub structured_data: Option<serde_json::Value>,
+    pub launch_mode: String,
+    pub is_published: bool,
+    pub cta_label: Option<String>,
+    pub cta_action: Option<String>,
+    pub pre_order_cap: Option<i32>,
+    pub pre_order_sold: i32,
+    pub lead_count: i32,
+    pub view_count: i32,
+    pub copy_strategy: String,
+    pub localization_status: String,
+    pub localization_task_id: Option<uuid::Uuid>,
+    pub subdomain_override: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MarketSpec {
+    pub slug: String,
+    pub locale: String,
+    pub city: Option<String>,
+    pub region: Option<String>,
+    pub country_code: Option<String>,
+    pub geo_lat: Option<f64>,
+    pub geo_lng: Option<f64>,
+    pub subdomain_override: Option<String>,
+    pub pre_order_cap: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkGenerateBody {
+    pub markets: Vec<MarketSpec>,
+    pub launch_mode: Option<String>,
+    pub copy_strategy: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WaitlistMarketSummary {
+    pub variant_id: uuid::Uuid,
+    pub variant_slug: String,
+    pub city: Option<String>,
+    pub country_code: Option<String>,
+    pub locale: String,
+    pub launch_mode: String,
+    pub is_published: bool,
+    pub lead_count: i32,
+    pub view_count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WaitlistAnalyticsResponse {
+    pub product_id: uuid::Uuid,
+    pub product_name: String,
+    pub total_leads: i32,
+    pub waitlist_count: i32,
+    pub variant_count: usize,
+    pub by_market: Vec<WaitlistMarketSummary>,
+}
+

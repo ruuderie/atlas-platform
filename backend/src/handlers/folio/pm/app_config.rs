@@ -2,13 +2,7 @@
 //! PUT  /api/folio/config  — update deployment mode (Owner/Admin only)
 //!
 //! This is the app-level configuration API. An org admin can switch their
-//! Folio instance between `standard` and `property_management_co` mode
-//! without touching the database directly.
-//!
-//! # Cross-app applicability
-//!
-//! The same pattern is reusable for any app. Replace "folio" with the
-//! target `app_slug` and register the routes under that app's router.
+//! Folio instance deployment mode and update the configuration JSON.
 
 use axum::{
     Extension, Json, Router,
@@ -22,7 +16,7 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::atlas_app_deployment_config;
+use crate::entities::atlas_app_deployment_config::{self, AppDeploymentMode};
 use crate::extractors::tenant::TenantContext;
 use crate::entities::user_account::UserRole;
 
@@ -39,14 +33,14 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 pub struct AppConfigResponse {
     pub tenant_id: Uuid,
     pub app_slug:  &'static str,
-    pub mode:      String,
+    pub mode:      AppDeploymentMode,
     pub config:    serde_json::Value,
 }
 
 #[derive(Deserialize)]
 pub struct UpdateConfigRequest {
-    /// New mode slug. Validated against known Folio modes.
-    pub mode:   String,
+    /// New platform deployment mode.
+    pub mode:   AppDeploymentMode,
     /// Arbitrary config JSON — passed through as-is.
     #[serde(default)]
     pub config: Option<serde_json::Value>,
@@ -65,19 +59,21 @@ async fn get_config(
         .await;
 
     match row {
-        Ok(Some(r)) => Json(AppConfigResponse {
-            tenant_id: ctx.tenant_id,
-            app_slug:  "folio",
-            mode:      r.mode,
-            config:    r.config,
-        })
-        .into_response(),
+        Ok(Some(r)) => {
+            Json(AppConfigResponse {
+                tenant_id: ctx.tenant_id,
+                app_slug:  "folio",
+                mode:      r.mode,
+                config:    r.config,
+            })
+            .into_response()
+        }
 
         // No row = standard mode, no config
         Ok(None) => Json(AppConfigResponse {
             tenant_id: ctx.tenant_id,
             app_slug:  "folio",
-            mode:      "standard".to_string(),
+            mode:      AppDeploymentMode::Standard,
             config:    serde_json::json!({}),
         })
         .into_response(),
@@ -91,9 +87,6 @@ async fn get_config(
 
 // ── Update config (Owner/Admin only) ─────────────────────────────────────────
 
-/// Known Folio deployment modes. Reject unknown modes to prevent typos.
-const KNOWN_FOLIO_MODES: &[&str] = &["standard", "property_management_co"];
-
 async fn update_config(
     ctx: TenantContext,
     Extension(db): Extension<DatabaseConnection>,
@@ -104,21 +97,7 @@ async fn update_config(
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    // Validate the mode slug
-    if !KNOWN_FOLIO_MODES.contains(&body.mode.as_str()) {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(serde_json::json!({
-                "error": format!(
-                    "Unknown Folio mode '{}'. Valid modes: {:?}",
-                    body.mode, KNOWN_FOLIO_MODES
-                )
-            })),
-        )
-            .into_response();
-    }
-
-    let config = body.config.unwrap_or_else(|| serde_json::json!({}));
+    let final_config = body.config.unwrap_or_else(|| serde_json::json!({}));
 
     // Upsert: INSERT … ON CONFLICT (tenant_id, app_slug) DO UPDATE
     let existing = atlas_app_deployment_config::Entity::find()
@@ -132,7 +111,7 @@ async fn update_config(
         Ok(Some(row)) => {
             let mut active: atlas_app_deployment_config::ActiveModel = row.into();
             active.mode   = Set(body.mode.clone());
-            active.config = Set(config.clone());
+            active.config = Set(final_config.clone());
             match active.update(&db).await {
                 Ok(_) => {}
                 Err(e) => {
@@ -147,7 +126,7 @@ async fn update_config(
                 tenant_id: Set(ctx.tenant_id),
                 app_slug:  Set("folio".to_string()),
                 mode:      Set(body.mode.clone()),
-                config:    Set(config.clone()),
+                config:    Set(final_config.clone()),
                 ..Default::default()
             };
             match new_row.insert(&db).await {
@@ -163,7 +142,7 @@ async fn update_config(
 
     tracing::info!(
         tenant_id = %ctx.tenant_id,
-        new_mode = %body.mode,
+        new_mode = ?body.mode,
         "folio/config: deployment mode updated"
     );
 
@@ -171,7 +150,9 @@ async fn update_config(
         tenant_id: ctx.tenant_id,
         app_slug:  "folio",
         mode:      body.mode,
-        config,
+        config:    final_config,
     })
     .into_response()
 }
+
+

@@ -30,7 +30,6 @@ fn StepDot(is_complete: bool, is_current: bool, is_required: bool) -> impl IntoV
 
 #[component]
 fn IdentityStep(
-    tenant_id: String,
     app_instance_id: String,
     on_complete: Callback<()>,
 ) -> impl IntoView {
@@ -368,7 +367,6 @@ fn GenericCustomStep(
     let saving = RwSignal::new(false);
     let step_id = step.id.clone();
     let ai = app_instance_id.clone();
-    let is_required = step.is_required;
 
     let mark_done = move |_| {
         let ai = ai.clone();
@@ -659,7 +657,7 @@ pub fn OnboardingWizard(
                                                 view! {
                                                     <StepDot
                                                         is_complete=step.is_complete
-                                                        is_current=(i == current)
+                                                        is_current=i == current
                                                         is_required=step.is_required
                                                     />
                                                 }
@@ -693,7 +691,6 @@ pub fn OnboardingWizard(
                                                         </div>
                                                     };
 
-                                                    let step_id = step.id.clone();
                                                     let ai_s = ai.clone();
                                                     let tid_s = tid.clone();
 
@@ -703,7 +700,6 @@ pub fn OnboardingWizard(
                                                     let step_body = match step.id.as_str() {
                                                         "identity" => view! {
                                                             <IdentityStep
-                                                                tenant_id=tid_s.clone()
                                                                 app_instance_id=ai_s.clone()
                                                                 on_complete=go_next_cb.clone()
                                                             />

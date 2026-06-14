@@ -57,6 +57,7 @@ pub fn set_auth_token(_token: &str) {}
 pub fn clear_auth_token() {}
 
 pub fn api_url(path: &str) -> String {
+    #[allow(unused_mut)]
     let mut base_url = "http://api.localhost".to_string();
     
     #[cfg(target_arch = "wasm32")]

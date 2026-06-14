@@ -23,6 +23,7 @@ use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 use crate::components::auth::passkey_login::PasskeyLoginButton;
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 enum TokenFailure {
     /// Token string exists in DB but the 15-minute window has passed.
     Expired,
@@ -35,6 +36,7 @@ enum TokenFailure {
 }
 
 #[derive(Clone, PartialEq)]
+#[allow(dead_code)]
 enum TokenState {
     /// Resource not yet resolved — WASM is still verifying.
     Pending,

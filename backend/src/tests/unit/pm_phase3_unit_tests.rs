@@ -9,7 +9,7 @@
 //! | `rails::kelviq` | `KelviqRail::new` merchant_id forwarding |
 //! | `handlers::ws` | Room registry lifecycle, broadcast fan-out |
 //! | `handlers::folio::leads` | Rate limiter logic (windowed counter) |
-//! | `services::pm::geo` | PostGIS guard, coordinate convention docs |
+//! | `services::geo_service` | PostGIS guard, coordinate convention docs |
 //! | `types::lead::LeadStatus` | Terminal-state detection, TryFrom roundtrip |
 //! | `payment_rail::resolve_adapter` | All five rail credential shapes |
 //!

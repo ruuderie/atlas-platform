@@ -540,17 +540,17 @@ mod marketplace_listing_tests {
 // ── App config extractor: mode comparisons ────────────────────────────────────
 
 mod app_config_tests {
-    use crate::extractors::app_config::{FOLIO_MODE_PMC, FOLIO_MODE_STANDARD};
+    use crate::entities::atlas_app_deployment_config::AppDeploymentMode;
 
     /// Standalone struct mirroring `AppDeploymentConfig` public surface.
     struct Config {
-        mode: String,
+        mode: AppDeploymentMode,
         config: serde_json::Value,
     }
 
     impl Config {
-        fn is_mode(&self, mode: &str) -> bool {
-            self.mode.as_str() == mode
+        fn is_mode(&self, mode: AppDeploymentMode) -> bool {
+            self.mode == mode
         }
 
         fn config_str(&self, key: &str) -> Option<&str> {
@@ -560,53 +560,60 @@ mod app_config_tests {
         fn config_u64(&self, key: &str) -> Option<u64> {
             self.config.get(key)?.as_u64()
         }
+
+        fn is_pmc_enabled(&self) -> bool {
+            self.config.get("pmc_enabled").and_then(|v| v.as_bool()).unwrap_or(false)
+        }
     }
 
     fn standard_config() -> Config {
         Config {
-            mode:   "standard".to_string(),
+            mode:   AppDeploymentMode::Standard,
             config: serde_json::json!({}),
         }
     }
 
     fn pmc_config() -> Config {
         Config {
-            mode:   "property_management_co".to_string(),
+            mode:   AppDeploymentMode::Standard,
             config: serde_json::json!({
+                "pmc_enabled": true,
                 "max_clients": 100,
                 "region": "us-southeast"
             }),
         }
     }
 
-    #[test]
-    fn standard_mode_constant_matches_string() {
-        assert_eq!(FOLIO_MODE_STANDARD, "standard");
-    }
-
-    #[test]
-    fn pmc_mode_constant_matches_string() {
-        assert_eq!(FOLIO_MODE_PMC, "property_management_co");
+    fn internal_operator_config() -> Config {
+        Config {
+            mode:   AppDeploymentMode::InternalOperator,
+            config: serde_json::json!({}),
+        }
     }
 
     #[test]
     fn standard_config_is_mode_standard() {
-        assert!(standard_config().is_mode("standard"));
+        assert!(standard_config().is_mode(AppDeploymentMode::Standard));
     }
 
     #[test]
-    fn standard_config_is_not_pmc_mode() {
-        assert!(!standard_config().is_mode("property_management_co"));
+    fn standard_config_is_not_internal_operator() {
+        assert!(!standard_config().is_mode(AppDeploymentMode::InternalOperator));
     }
 
     #[test]
-    fn pmc_config_is_mode_pmc() {
-        assert!(pmc_config().is_mode("property_management_co"));
+    fn internal_operator_config_is_mode_internal_operator() {
+        assert!(internal_operator_config().is_mode(AppDeploymentMode::InternalOperator));
     }
 
     #[test]
-    fn pmc_config_is_not_standard_mode() {
-        assert!(!pmc_config().is_mode("standard"));
+    fn standard_config_does_not_have_pmc_enabled() {
+        assert!(!standard_config().is_pmc_enabled());
+    }
+
+    #[test]
+    fn pmc_config_has_pmc_enabled() {
+        assert!(pmc_config().is_pmc_enabled());
     }
 
     #[test]
@@ -638,13 +645,6 @@ mod app_config_tests {
         let cfg = standard_config();
         assert!(cfg.config_str("anything").is_none());
         assert!(cfg.config_u64("anything").is_none());
-    }
-
-    #[test]
-    fn mode_comparison_is_case_sensitive() {
-        let cfg = standard_config();
-        assert!(!cfg.is_mode("Standard")); // uppercase not matched
-        assert!(!cfg.is_mode("STANDARD"));
     }
 }
 
@@ -710,38 +710,7 @@ mod client_context_header_tests {
     }
 }
 
-// ── G-33 PMC: mode slug validation ────────────────────────────────────────────
 
-mod pmc_mode_slug_tests {
-    use crate::extractors::app_config::{FOLIO_MODE_PMC, FOLIO_MODE_STANDARD};
-
-    #[test]
-    fn pmc_mode_slug_has_no_spaces() {
-        assert!(!FOLIO_MODE_PMC.contains(' '));
-    }
-
-    #[test]
-    fn standard_mode_slug_has_no_spaces() {
-        assert!(!FOLIO_MODE_STANDARD.contains(' '));
-    }
-
-    #[test]
-    fn pmc_and_standard_slugs_are_distinct() {
-        assert_ne!(FOLIO_MODE_PMC, FOLIO_MODE_STANDARD);
-    }
-
-    #[test]
-    fn pmc_slug_is_snake_case_with_underscores() {
-        // property_management_co uses underscores as separators
-        assert!(FOLIO_MODE_PMC.contains('_'));
-    }
-
-    #[test]
-    fn mode_slugs_are_lowercase() {
-        assert_eq!(FOLIO_MODE_PMC, FOLIO_MODE_PMC.to_lowercase());
-        assert_eq!(FOLIO_MODE_STANDARD, FOLIO_MODE_STANDARD.to_lowercase());
-    }
-}
 
 // ── PropertyType: commercial variants ─────────────────────────────────────────
 

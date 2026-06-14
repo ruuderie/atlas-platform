@@ -282,6 +282,7 @@ pub mod m20260902_app_instance_public_config;    // Platform Admin: public_slug 
 pub mod m20260903_platform_products_launch_engine; // Product Launch Engine: launch_mode, pre-order, waitlist_count on platform_products
 pub mod m20260904_product_page_variants;          // Product Launch Engine: product_page_templates + product_page_variants (programmatic SEO)
 pub mod m20260905_product_domain_localization;    // Product Launch Engine: apex_domain, AI localization fields, product_domain_aliases
+pub mod m20260906_subscription_grace_period;       // Billing Grace Period: adds is_billing_exempt, billing_exemption_reason, grace_period_ends_at
 
 pub struct Migrator;
 
@@ -497,6 +498,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20260904_product_page_variants::Migration),
             // Product Launch Engine: apex_domain per product, AI localization columns on variants, product_domain_aliases
             Box::new(m20260905_product_domain_localization::Migration),
+            // Billing Grace Period and Exemption Override fields
+            Box::new(m20260906_subscription_grace_period::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

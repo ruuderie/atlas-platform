@@ -1,3 +1,93 @@
-/* Page Layouts removed in favor of Tailwind CSS */
+/* Page Layouts and Leaflet Map Custom Styles */
 
+/* Custom map pin marker */
+.map-pin {
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: center;
+}
+.map-pin.enterprise { background: #7C3AED; }
+.map-pin.growth { background: #069669; }
+.map-pin.starter { background: #1C2236; border-color: rgba(255,255,255,0.14); color: #8B92A8; }
+.map-pin.critical { background: #E5484D; border-color: #E5484D; }
 
+/* Leaflet dark-theme overrides */
+.leaflet-popup-content-wrapper {
+  background: #1C2236 !important;
+  color: #E8EAF0 !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: 240px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.leaflet-popup-tip {
+  background: #1C2236 !important;
+  border-left: 1px solid rgba(255,255,255,0.14) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.14) !important;
+}
+
+.popup-body {
+  padding: 12px 14px;
+}
+.popup-hdr-strip {
+  height: 4px;
+  margin: -12px -14px 10px -14px;
+}
+.popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #E8EAF0;
+}
+.popup-slug {
+  font-size: 10px;
+  font-family: monospace;
+  color: #8B92A8;
+  margin-top: 1px;
+}
+.popup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 6px;
+}
+.popup-label {
+  color: #8B92A8;
+}
+.popup-value {
+  font-weight: 600;
+  color: #E8EAF0;
+}
+.popup-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  text-align: center;
+  background: #0A84FF;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px;
+  border-radius: 5px;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s;
+}
+.popup-btn:hover {
+  opacity: 0.9;
+}

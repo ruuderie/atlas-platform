@@ -927,7 +927,7 @@ impl TryFrom<String> for ScorecardEntityType {
 /// - `Tenant`          — renter or STR guest. Own lease, payments, maintenance.
 /// - `Vendor`          — contractor. Assigned work orders and invoices.
 /// - `PropertyManager` — PMC operator. Cross-client view of multiple landlord books.
-///                       Only valid when deployment config `mode = "property_management_co"`.
+///                       Only valid when app config has `"pmc_enabled": true`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum FolioRole {
@@ -936,7 +936,7 @@ pub enum FolioRole {
     Tenant,
     Vendor,
     /// Property Management Company operator — manages multiple client landlord accounts.
-    /// Requires `atlas_app_deployment_config.mode = "property_management_co"` for the tenant.
+    /// Requires `"pmc_enabled": true` inside `atlas_app_deployment_config.config` for the tenant.
     PropertyManager,
     /// Beneficial property owner who has delegated day-to-day management to a PMC.
     /// Has **read-only** visibility into their own portfolio — cannot create, edit,

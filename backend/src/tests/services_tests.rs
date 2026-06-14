@@ -307,7 +307,7 @@ async fn test_subscription_and_external_integration() {
     let user = Uuid::new_v4();
 
     let sub_id = SubscriptionService::create_subscription(
-        &db, tenant.id, user, "app", Uuid::new_v4(), "active", 2900, "USD", "monthly"
+        &db, tenant.id, user, "app", Uuid::new_v4(), crate::entities::atlas_subscription::SubscriptionStatus::Active, 2900, "USD", "monthly"
     ).await.expect("subscription");
 
     assert!(sub_id != Uuid::nil());

@@ -66,7 +66,7 @@ pub fn DynamicForm(
         })
         .collect();
 
-    let signals_store = store_value(field_signals);
+    let signals_store = StoredValue::new(field_signals);
 
     let handle_submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();

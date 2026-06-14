@@ -3,7 +3,7 @@ use wasm_bindgen_test::*;
 use chrono::{TimeZone, Utc};
 use serde_json::json;
 
-use crate::pages::audit_logs::{format_datetime_diff, format_json_diff};
+use crate::pages::logs::{format_datetime_diff, format_json_diff};
 // Depending on module structure, we might test svg logic if it was extracted, 
 // but it currently has unit tests in `svg_charts.rs` directly.
 

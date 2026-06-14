@@ -8,9 +8,129 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <link data-trunk rel="css" href="style/tailwind-out.css" />
     <link data-trunk rel="rust" data-target-name="atlas_platform_admin" />
+    
+    <!-- Leaflet Map dependencies -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <script>
       window.__ENV__ = {
         API_BASE_URL: "__API_BASE_URL__"
+      };
+
+      // JS-Rust bridge for Leaflet map initialization
+      window.initPlatformMap = function(tenantsJson, onImpersonate) {
+        try {
+          const tenants = JSON.parse(tenantsJson);
+          window.onImpersonateTenant = onImpersonate;
+
+          if (window.leafletMap) {
+            window.leafletMap.remove();
+            window.leafletMap = null;
+          }
+
+          const mapContainer = document.getElementById('map');
+          if (!mapContainer) {
+            console.error("Map container element #map not found.");
+            return;
+          }
+
+          const map = L.map('map', { zoomControl: false }).setView([15, -30], 2);
+          window.leafletMap = map;
+
+          L.control.zoom({ position: 'topright' }).addTo(map);
+
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © Carto',
+            subdomains: 'abcd',
+            maxZoom: 19
+          }).addTo(map);
+
+          const planColors = { enterprise: '#7C3AED', growth: '#069669', starter: '#1C2236' };
+          const markers = {};
+
+          tenants.forEach(t => {
+            const pinClass = t.health === 'critical' ? 'critical' : t.plan;
+            const label = t.name.split(' ')[0];
+            const icon = L.divIcon({
+              className: '',
+              html: `<div class="map-pin ${pinClass}" id="pin-${t.id}">${label}</div>`,
+              iconSize: [null, null],
+              iconAnchor: [0, 10]
+            });
+
+            const m = L.marker([t.lat, t.lng], { icon });
+            const colorStrip = t.health === 'critical' ? '#E5484D' : planColors[t.plan];
+
+            const popupHtml = `
+              <div class="popup-body">
+                <div class="popup-hdr-strip" style="background:${colorStrip};"></div>
+                <div class="popup-title">${t.name}</div>
+                <div class="popup-slug">${t.slug}</div>
+                <div class="popup-row" style="margin-top:8px;">
+                  <span class="popup-label">Location</span>
+                  <span class="popup-value">${t.location}</span>
+                </div>
+                <div class="popup-row">
+                  <span class="popup-label">Monthly Billing</span>
+                  <span class="popup-value">${t.mrr}</span>
+                </div>
+                <div class="popup-row">
+                  <span class="popup-label">Health Status</span>
+                  <span class="popup-value" style="color:${t.health==='critical'?'#E5484D':t.health==='warning'?'#F5A623':'#069669'};">${t.health_label}</span>
+                </div>
+                <button class="popup-btn" onclick="if (window.onImpersonateTenant) { window.onImpersonateTenant('${t.id}') }">Impersonate Tenant</button>
+              </div>
+            `;
+
+            m.bindPopup(L.popup({ closeButton: false, offset: [0, -4] }).setContent(popupHtml));
+            
+            m.on('click', () => {
+              if (window.onFocusTenantFromMap) {
+                window.onFocusTenantFromMap(t.id);
+              }
+            });
+
+            map.addLayer(m);
+            markers[t.id] = m;
+          });
+
+          if (tenants.length > 0) {
+            const bounds = L.latLngBounds(tenants.map(t => [t.lat, t.lng]));
+            map.fitBounds(bounds, { padding: [50, 50] });
+          }
+
+          // Map controller API for Rust
+          window.platformMapController = {
+            focusTenant: function(id) {
+              const t = tenants.find(x => x.id === id);
+              if (!t) return;
+              map.setView([t.lat, t.lng], 12, { animate: true });
+              const m = markers[id];
+              if (m) {
+                m.openPopup();
+              }
+            },
+            updateVisibility: function(filteredIdsJson) {
+              const filteredIds = JSON.parse(filteredIdsJson);
+              tenants.forEach(t => {
+                const m = markers[t.id];
+                if (!m) return;
+                if (filteredIds.includes(t.id)) {
+                  if (!map.hasLayer(m)) {
+                    map.addLayer(m);
+                  }
+                } else {
+                  if (map.hasLayer(m)) {
+                    map.removeLayer(m);
+                  }
+                }
+              });
+            }
+          };
+        } catch (err) {
+          console.error("Failed to initialize Leaflet map:", err);
+        }
       };
     </script>
   </head>

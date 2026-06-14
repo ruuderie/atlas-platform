@@ -186,7 +186,7 @@ where
     type Rejection = StatusCode;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, StatusCode> {
-        use crate::extractors::app_config::{AppDeploymentConfig, FOLIO_MODE_PMC};
+        use crate::extractors::app_config::AppDeploymentConfig;
 
         let RequireFolioRole(role) = RequireFolioRole::from_request_parts(parts, state).await?;
         if role != FolioRole::PropertyManager {
@@ -194,14 +194,14 @@ where
             return Err(StatusCode::FORBIDDEN);
         }
 
-        // Double-check: the tenant must also be in PMC mode.
+        // Double-check: the tenant must also have PMC mode enabled in their configuration.
         // Prevents a stale role assignment from granting PMC access on a standard deployment.
         let cfg = AppDeploymentConfig::from_request_parts(parts, state).await?;
-        if !cfg.is_mode(FOLIO_MODE_PMC) {
+        let is_pmc = cfg.config.get("pmc_enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+        if !is_pmc {
             tracing::warn!(
                 tenant_id = %cfg.tenant_id,
-                mode = %cfg.mode,
-                "PropertyManagerOnly: PMC role assigned but tenant is not in pmc mode"
+                "PropertyManagerOnly: PMC role assigned but tenant does not have pmc_enabled in config"
             );
             return Err(StatusCode::FORBIDDEN);
         }

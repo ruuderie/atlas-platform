@@ -129,7 +129,7 @@ pub async fn get_public_config(
                 app_slug:    cfg.app_slug.clone(),
                 public_slug:     cfg.public_slug.clone(),
                 custom_domain:   cfg.custom_domain.clone(),
-                instance_status: cfg.instance_status.clone(),
+                instance_status: cfg.instance_status.to_string(),
                 dns_instructions: None,
             };
             (StatusCode::OK, Json(resp)).into_response()
@@ -195,7 +195,7 @@ pub async fn update_public_config(
                 app_slug:     updated.app_slug,
                 public_slug:  updated.public_slug,
                 custom_domain: updated.custom_domain,
-                instance_status: updated.instance_status,
+                instance_status: updated.instance_status.to_string(),
                 dns_instructions,
             };
             (StatusCode::OK, Json(resp)).into_response()
@@ -243,6 +243,7 @@ async fn set_instance_status(
     status: &str,
     reason: &str,
 ) -> axum::response::Response {
+    use crate::entities::atlas_app_deployment_config::AppInstanceStatus;
     let existing = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
         .one(db)
         .await
@@ -252,8 +253,15 @@ async fn set_instance_status(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
+    let status_enum = match status {
+        "active" => AppInstanceStatus::Active,
+        "suspended" => AppInstanceStatus::Suspended,
+        "archived" => AppInstanceStatus::Archived,
+        _ => return (StatusCode::BAD_REQUEST, "invalid status").into_response(),
+    };
+
     let mut active: atlas_app_deployment_config::ActiveModel = existing.into();
-    active.instance_status = Set(status.to_string());
+    active.instance_status = Set(status_enum);
 
     match active.update(db).await {
         Ok(_) => {

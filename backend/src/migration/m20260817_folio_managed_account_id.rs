@@ -4,8 +4,8 @@ use sea_orm_migration::prelude::*;
 ///
 /// # Purpose
 ///
-/// Enables a Property Management Company (PMC) running in
-/// `mode = 'property_management_co'` to scope assets, leases,
+/// Enables a Property Management Company (PMC) configured with
+/// `"pmc_enabled": true` in its config payload to scope assets, leases,
 /// portfolios, and leads to a specific client account within their tenant.
 ///
 /// # Existing behavior unchanged

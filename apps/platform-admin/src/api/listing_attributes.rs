@@ -1,7 +1,6 @@
-use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
+use super::client::{api_url, create_client, with_credentials};
 use super::models::ListingAttributeModel;
 use reqwest::StatusCode;
-use serde_json::json;
 
 pub async fn get_listing_attributes() -> Result<Vec<ListingAttributeModel>, String> {
     let client = create_client();

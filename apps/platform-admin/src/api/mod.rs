@@ -22,3 +22,5 @@ pub mod provision;
 pub mod pages;
 pub mod menus;
 pub mod version;
+pub mod products;
+

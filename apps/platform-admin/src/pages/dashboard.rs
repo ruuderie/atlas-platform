@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::api::analytics::{get_business_kpis, get_engagement, get_trends, BusinessKpisResponse, EngagementResponse};
+use crate::api::analytics::{get_business_kpis, get_engagement, get_trends};
 use crate::pages::shared::svg_charts::SvgLineChart;
 
 #[component]

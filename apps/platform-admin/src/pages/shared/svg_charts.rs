@@ -1,11 +1,6 @@
 use leptos::prelude::*;
 use std::cmp::max;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Point {
-    pub x: f32,
-    pub y: f32,
-}
 
 #[component]
 pub fn SvgLineChart(
@@ -64,7 +59,6 @@ pub fn SvgLineChart(
 // Ensure the module is configured for unit testing the math
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_svg_path_generation() {
@@ -72,7 +66,6 @@ mod tests {
         let width = 300.0;
         let height = 100.0;
 
-        let max_val = 30.0_f32;
         let min_val = 10.0_f32;
         let range = 20.0_f32;
 

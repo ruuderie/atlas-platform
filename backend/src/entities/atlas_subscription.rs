@@ -23,12 +23,30 @@ pub struct Model {
     pub billing_interval: String,
     pub stripe_subscription_id: Option<String>,
     pub stripe_customer_id: Option<String>,
-    pub status: String,
+    pub status: SubscriptionStatus,
     pub trial_ends_at: Option<DateTime<Utc>>,
     pub current_period_start: Option<DateTime<Utc>>,
     pub current_period_end: Option<DateTime<Utc>>,
     pub canceled_at: Option<DateTime<Utc>>,
+    pub is_billing_exempt: bool,
+    pub billing_exemption_reason: Option<String>,
+    pub grace_period_ends_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, strum_macros::Display)]
+#[sea_orm(rs_type = "String", db_type = "String(StringLen::N(50))")]
+pub enum SubscriptionStatus {
+    #[sea_orm(string_value = "active")]
+    Active,
+    #[sea_orm(string_value = "trial")]
+    Trial,
+    #[sea_orm(string_value = "past_due")]
+    PastDue,
+    #[sea_orm(string_value = "suspended")]
+    Suspended,
+    #[sea_orm(string_value = "canceled")]
+    Canceled,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

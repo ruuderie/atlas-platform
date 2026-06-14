@@ -23,6 +23,11 @@ async fn test_magic_link_flow() {
         .as_str()
         .expect("No email returned in register response")
         .to_string();
+    let user_id = Uuid::parse_str(
+        json_body["user"]["id"]
+            .as_str()
+            .expect("No user id returned")
+    ).expect("Invalid user Uuid");
 
     // 1. Request Magic Link for correct email
     let req_res = app.clone()
@@ -47,6 +52,7 @@ async fn test_magic_link_flow() {
     use chrono::{Utc, Duration};
     
     let token_model = magic_link_token::Entity::find()
+        .filter(magic_link_token::Column::UserId.eq(user_id))
         .order_by_desc(magic_link_token::Column::CreatedAt)
         .one(&db)
         .await

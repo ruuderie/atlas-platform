@@ -18,26 +18,41 @@ use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;
 
 use crate::pages::dashboard::Dashboard;
-use crate::pages::apps::Apps;
-use crate::pages::crm_grid::CrmGrid;
-use crate::pages::cms_editor::CmsEditor;
-use crate::pages::menu_editor::MenuEditor;
-use crate::pages::login::Login;
-use crate::pages::verify_token::VerifyToken;
-use crate::pages::setup::Setup;
-use crate::pages::network::network_types::NetworkTypes;
-use crate::pages::network::network_type_detail::NetworkTypeDetail;
-use crate::pages::network::network_type_create::NetworkTypeCreate;
-use crate::pages::network::categories::Categories;
-use crate::pages::network::category_detail::CategoryDetail;
-use crate::pages::network::category_create::CategoryCreate;
-use crate::pages::network::templates::Templates;
-use crate::pages::network::template_detail::TemplateDetail;
-use crate::pages::network::template_create::TemplateCreate;
-use crate::pages::network::listings::Listings;
-use crate::pages::network::listing_create::ListingCreate;
-use crate::pages::network::listing_detail::ListingDetail;
-use crate::pages::platform_admins::PlatformAdmins;
+use crate::pages::apps::index::Apps;
+use crate::pages::crm::grid::CrmGrid;
+use crate::pages::products::index::PlatformProducts;
+use crate::pages::products::detail::ProductDetail;
+use crate::pages::billing::scorecards::Scorecards;
+use crate::pages::billing::scorecard_session::ScorecardSession;
+use crate::pages::network::syndication::SyndicationManager;
+use crate::pages::network::index::NetworkRegistry;
+use crate::pages::network::create::NetworkCreate;
+use crate::pages::network::detail::NetworkDetail;
+use crate::pages::marketing::index::MarketingLanding;
+use crate::pages::auth::login::Login;
+use crate::pages::auth::verify_token::VerifyToken;
+use crate::pages::auth::setup::Setup;
+use crate::pages::network::types::index::NetworkTypes;
+use crate::pages::network::types::detail::NetworkTypeDetail;
+use crate::pages::network::types::create::NetworkTypeCreate;
+use crate::pages::network::categories::index::Categories;
+use crate::pages::network::categories::detail::CategoryDetail;
+use crate::pages::network::categories::create::CategoryCreate;
+use crate::pages::network::templates::index::Templates;
+use crate::pages::network::templates::detail::TemplateDetail;
+use crate::pages::network::templates::create::TemplateCreate;
+use crate::pages::network::listings::index::Listings;
+use crate::pages::network::listings::create::ListingCreate;
+use crate::pages::network::listings::detail::ListingDetail;
+use crate::pages::admin::users::PlatformAdmins;
+use crate::pages::apps::instance::AppInstance;
+use crate::pages::analytics::index::Analytics;
+use crate::pages::verification::index::Verification;
+use crate::pages::admin::ai_tasks::AiTasks;
+use crate::pages::admin::integrations::Integrations;
+use crate::pages::admin::compliance::Compliance;
+use crate::pages::flags::index::FeatureFlags;
+use crate::pages::support::index::SupportQueue;
 use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, PlatformAppModel};
 use crate::api::networks::get_networks;
@@ -73,7 +88,7 @@ pub fn App() -> impl IntoView {
     provide_context(toast);
 
     // Validate session on load
-    let session_check = leptos::task::spawn_local(async move {
+    let _session_check = leptos::task::spawn_local(async move {
         if let Ok(valid_user) = validate_session().await {
             set_user.set(Some(valid_user));
         }
@@ -94,7 +109,7 @@ pub fn App() -> impl IntoView {
             <Routes fallback=|| "Not found.">
                 <Route path=path!("/login") view=Login />
                 <Route path=path!("/verify-token/:token") view=VerifyToken />
-                <Route path=path!("/magic-login") view=crate::pages::magic_login::MagicLogin />
+                <Route path=path!("/magic-login") view=crate::pages::auth::magic_login::MagicLogin />
                 <Route path=path!("/setup") view=Setup />
                 <Route path=path!("/*any") view=AuthenticatedLayout />
             </Routes>
@@ -108,7 +123,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     let set_user = use_context::<WriteSignal<Option<crate::api::models::UserInfo>>>().expect("set user context");
     let auth_checked = use_context::<ReadSignal<bool>>().expect("auth checked context");
     let dirs_res = use_context::<LocalResource<Vec<PlatformAppModel>>>().expect("dirs context");
-    let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network");
+    let _active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network");
     let set_active_network = use_context::<WriteSignal<Option<uuid::Uuid>>>().expect("set active network");
     let navigate = leptos_router::hooks::use_navigate();
     let location = leptos_router::hooks::use_location();
@@ -127,14 +142,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     // Derive active nav state from the current path
     let current_path = Signal::derive(move || location.pathname.get());
 
-    let nav_active_class = move |path: &'static str| {
-        let p = current_path.get();
-        if (path == "/" && p == "/") || (path != "/" && p.starts_with(path)) {
-            "text-[#7bd0ff] border-b-2 border-[#7bd0ff] pb-1 font-semibold tracking-[-0.02em]"
-        } else {
-            "text-[#91aaeb] hover:text-[#dee5ff] font-semibold tracking-[-0.02em] transition-colors"
-        }
-    };
 
     let side_active_class = move |path: &'static str| {
         let p = current_path.get();
@@ -230,99 +237,122 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 </header>
 
                 // ── Side Nav Bar ──
-                <aside class="fixed left-0 top-16 bottom-0 w-64 flex flex-col py-4 px-3 bg-[#06122d]">
-                    <div class="px-3 mb-6 flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
-                            <span class="material-symbols-outlined text-primary">"terminal"</span>
+                <aside class="fixed left-0 top-16 bottom-0 w-64 flex flex-col py-4 px-3 bg-[#06122d] overflow-y-auto">
+                    <div class="px-3 mb-4 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+                            <span class="material-symbols-outlined text-primary text-sm">"terminal"</span>
                         </div>
                         <div>
-                            <div class="text-on-surface font-bold text-sm">"Admin Console"</div>
-                            <div class="text-on-surface-variant text-[10px] uppercase tracking-widest">"Network Root"</div>
+                            <div class="text-on-surface font-bold text-xs">"Admin Console"</div>
+                            <div class="text-on-surface-variant text-[9px] uppercase tracking-widest">"Network Root"</div>
                         </div>
                     </div>
                     <nav class="flex-1 space-y-1">
+                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-2">"Overview"</div>
                         <a href="/" class=move || side_active_class("/")>
-                            <span class="material-symbols-outlined">"dashboard"</span>
-                            <span>"Overview"</span>
+                            <span class="material-symbols-outlined text-sm">"grid_view"</span>
+                            <span class="text-xs">"Command Center"</span>
                         </a>
-                        <a href="/apps" class=move || side_active_class("/apps")>
-                            <span class="material-symbols-outlined">"dns"</span>
-                            <span>"Applications"</span>
+                        <a href="/analytics" class=move || side_active_class("/analytics")>
+                            <span class="material-symbols-outlined text-sm">"analytics"</span>
+                            <span class="text-xs">"Analytics"</span>
                         </a>
-                        <div class="pt-4 pb-2">
-                            <div class="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">"App Architectures"</div>
-                            <details class="group" open=true>
-                                <summary class="flex items-center gap-3 px-3 py-2.5 text-[#91aaeb] hover:bg-[#05183c]/50 hover:text-[#dee5ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase cursor-pointer transition-all list-none select-none">
-                                    <div class="flex items-center gap-3 flex-1">
-                                        <span class="material-symbols-outlined">"dns"</span>
-                                        <span>"Network Instance"</span>
-                                    </div>
-                                    <span class="material-symbols-outlined text-[16px] group-open:-scale-y-100 transition-transform duration-200">"expand_more"</span>
-                                </summary>
-                                <div class="pl-8 pr-3 pt-1 pb-2 space-y-1 border-l border-outline-variant/10 ml-5 mt-1 border-dashed">
-                                    <a href="/network/network-types" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Schema Types"</span>
-                                    </a>
-                                    <a href="/network/categories" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Categories"</span>
-                                    </a>
-                                    <a href="/network/templates" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Templates"</span>
-                                    </a>
-                                    <a href="/network/listings" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Global Listings"</span>
-                                    </a>
-                                </div>
-                            </details>
-                            
-                            <details class="group">
-                                <summary class="flex items-center gap-3 px-3 py-2.5 text-[#91aaeb] hover:bg-[#05183c]/50 hover:text-[#dee5ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase cursor-pointer transition-all list-none select-none">
-                                    <div class="flex items-center gap-3 flex-1">
-                                        <span class="material-symbols-outlined">"anchor"</span>
-                                        <span>"Anchor Instance"</span>
-                                    </div>
-                                    <span class="material-symbols-outlined text-[16px] group-open:-scale-y-100 transition-transform duration-200">"expand_more"</span>
-                                </summary>
-                                <div class="pl-8 pr-3 pt-1 pb-2 space-y-1 border-l border-outline-variant/10 ml-5 mt-1 border-dashed">
-                                    <a href="#" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Identities"</span>
-                                    </a>
-                                    <a href="#" class="block w-full px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] hover:bg-[#05183c]/50 rounded-md text-xs font-medium uppercase tracking-wider transition-colors">
-                                        <span>"Service Offerings"</span>
-                                    </a>
-                                </div>
-                            </details>
-                        </div>
+                        <a href="/map" class=move || side_active_class("/map")>
+                            <span class="material-symbols-outlined text-sm">"map"</span>
+                            <span class="text-xs">"Platform Map"</span>
+                        </a>
+
+                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"CRM"</div>
                         <a href="/crm" class=move || side_active_class("/crm")>
-                            <span class="material-symbols-outlined">"handshake"</span>
-                            <span>"Sales"</span>
+                            <span class="material-symbols-outlined text-sm">"person"</span>
+                            <span class="text-xs">"Leads"</span>
+                            <span class="ml-auto text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full">"6"</span>
                         </a>
-                        <div class="pt-2">
-                            <div class="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1 mt-2">"Content"</div>
-                            <a href="/cms" class=move || side_active_class("/cms")>
-                                <span class="material-symbols-outlined">"article"</span>
-                                <span>"Pages"</span>
-                            </a>
-                            <a href="/menus" class=move || side_active_class("/menus")>
-                                <span class="material-symbols-outlined">"menu"</span>
-                                <span>"Navigation"</span>
-                            </a>
-                        </div>
-                        <a href="/admins" class=move || side_active_class("/admins")>
-                            <span class="material-symbols-outlined">"group"</span>
-                            <span>"Users"</span>
+                        <a href="/crm" class=move || side_active_class("/crm")>
+                            <span class="material-symbols-outlined text-sm">"domain"</span>
+                            <span class="text-xs">"Accounts"</span>
+                        </a>
+                        <a href="/crm" class=move || side_active_class("/crm")>
+                            <span class="material-symbols-outlined text-sm">"contacts"</span>
+                            <span class="text-xs">"Contacts"</span>
+                        </a>
+                        <a href="/crm" class=move || side_active_class("/crm")>
+                            <span class="material-symbols-outlined text-sm">"radio_button_checked"</span>
+                            <span class="text-xs">"Opportunities"</span>
+                        </a>
+
+                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Platform"</div>
+                        <a href="/apps" class=move || side_active_class("/apps")>
+                            <span class="material-symbols-outlined text-sm">"dns"</span>
+                            <span class="text-xs">"Tenants"</span>
                         </a>
                         <a href="/billing" class=move || side_active_class("/billing")>
-                            <span class="material-symbols-outlined">"payments"</span>
-                            <span>"Financials"</span>
+                            <span class="material-symbols-outlined text-sm">"payments"</span>
+                            <span class="text-xs">"Billing"</span>
                         </a>
-                        <a href="/developer" class=move || side_active_class("/developer")>
-                            <span class="material-symbols-outlined">"code"</span>
-                            <span>"Developer"</span>
+                        <a href="/billing/products" class=move || side_active_class("/billing/products")>
+                            <span class="material-symbols-outlined text-sm">"sell"</span>
+                            <span class="text-xs">"Products & Plans"</span>
+                        </a>
+                        <a href="/products" class=move || side_active_class("/products")>
+                            <span class="material-symbols-outlined text-sm">"store"</span>
+                            <span class="text-xs">"Storefront Pages"</span>
+                        </a>
+                        <a href="/network" class=move || side_active_class("/network")>
+                            <span class="material-symbols-outlined text-sm">"lan"</span>
+                            <span class="text-xs">"Network Instances"</span>
+                        </a>
+                        <a href="/network/syndication" class=move || side_active_class("/network/syndication")>
+                            <span class="material-symbols-outlined text-sm">"sync_alt"</span>
+                            <span class="text-xs">"Syndication"</span>
+                        </a>
+                        <a href="/verification" class=move || side_active_class("/verification")>
+                            <span class="material-symbols-outlined text-sm">"verified_user"</span>
+                            <span class="text-xs">"Verification"</span>
+                            <span class="ml-auto text-[9px] font-bold bg-error-container/20 text-error border border-error/20 px-1.5 py-0.5 rounded-full">"3"</span>
+                        </a>
+                        <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
+                            <span class="material-symbols-outlined text-sm">"star"</span>
+                            <span class="text-xs">"Scorecards"</span>
+                        </a>
+
+                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Operations"</div>
+                        <a href="/flags" class=move || side_active_class("/flags")>
+                            <span class="material-symbols-outlined text-sm">"flag"</span>
+                            <span class="text-xs">"Feature Flags"</span>
+                            <span class="ml-auto text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full">"1"</span>
+                        </a>
+                        <a href="/support" class=move || side_active_class("/support")>
+                            <span class="material-symbols-outlined text-sm">"support_agent"</span>
+                            <span class="text-xs">"Support Queue"</span>
+                            <span class="ml-auto text-[9px] font-bold bg-error-container/20 text-error border border-error/20 px-1.5 py-0.5 rounded-full">"4"</span>
+                        </a>
+                        <a href="/logs" class=move || side_active_class("/logs")>
+                            <span class="material-symbols-outlined text-sm">"history"</span>
+                            <span class="text-xs">"Audit Logs"</span>
+                        </a>
+                        <a href="/admin/aitasks" class=move || side_active_class("/admin/aitasks")>
+                            <span class="material-symbols-outlined text-sm">"smart_toy"</span>
+                            <span class="text-xs">"AI Task Monitor"</span>
+                        </a>
+
+                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Admin"</div>
+                        <a href="/admins" class=move || side_active_class("/admins")>
+                            <span class="material-symbols-outlined text-sm">"group"</span>
+                            <span class="text-xs">"User Access & Auth"</span>
+                        </a>
+                        <a href="/admin/integrations" class=move || side_active_class("/admin/integrations")>
+                            <span class="material-symbols-outlined text-sm">"integration_instructions"</span>
+                            <span class="text-xs">"Integrations & Webhooks"</span>
+                        </a>
+                        <a href="/admin/compliance" class=move || side_active_class("/admin/compliance")>
+                            <span class="material-symbols-outlined text-sm">"gavel"</span>
+                            <span class="text-xs">"Contracts & Compliance"</span>
                         </a>
                     </nav>
+
                     // ── Sidebar Footer: version + utility links ──
-                    <div class="mt-auto border-t border-outline-variant/10 pt-4 space-y-1">
+                    <div class="border-t border-outline-variant/10 pt-4 mt-4 space-y-1">
                         // Version chip — fetched once on mount
                         <Suspense fallback=|| ()>
                             {move || version_res.get().map(|v| {
@@ -356,13 +386,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                 }
                             })}
                         </Suspense>
-                        <a href="/support" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
-                            <span class="material-symbols-outlined text-sm">"help"</span>
-                            <span>"Support"</span>
-                        </a>
-                        <a href="/logs" class="flex items-center gap-3 px-3 py-2 text-[#91aaeb] hover:text-[#dee5ff] font-['Inter'] text-xs font-medium tracking-wide uppercase">
-                            <span class="material-symbols-outlined text-sm">"terminal"</span>
-                            <span>"Logs"</span>
+                        <a href="/settings" class=move || side_active_class("/settings")>
+                            <span class="material-symbols-outlined text-sm">"settings"</span>
+                            <span>"My Profile & Settings"</span>
                         </a>
                         <a href="/apps/new" class="block w-full mt-4">
                             <button class="w-full btn-primary-gradient text-on-primary-container py-2.5 rounded-md text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/10 hover:opacity-90 transition-opacity">
@@ -376,9 +402,16 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 <main class="ml-64 mt-16 p-8 h-[calc(100vh-64px)] overflow-y-auto bg-surface-container">
                     <Routes fallback=|| "Not found.">
                         <Route path=path!("/") view=Dashboard />
+                        <Route path=path!("/analytics") view=Analytics />
+                        <Route path=path!("/map") view=crate::pages::map::index::PlatformMap />
                         <Route path=path!("/apps") view=Apps />
-                        <Route path=path!("/apps/new") view=crate::pages::app_create::AppCreate />
-                        <Route path=path!("/apps/:id") view=crate::pages::app_dashboard::AppDashboard />
+                        <Route path=path!("/apps/new") view=crate::pages::apps::create::AppCreate />
+                        <Route path=path!("/apps/:id") view=crate::pages::apps::detail::AppDashboard />
+                        <Route path=path!("/apps/:id/instance") view=AppInstance />
+                        <Route path=path!("/network") view=NetworkRegistry />
+                        <Route path=path!("/network/new") view=NetworkCreate />
+                        <Route path=path!("/network/:id") view=NetworkDetail />
+                        <Route path=path!("/network/syndication") view=SyndicationManager />
                         <Route path=path!("/network/network-types") view=NetworkTypes />
                         <Route path=path!("/network/network-types/new") view=NetworkTypeCreate />
                         <Route path=path!("/network/network-types/:id") view=NetworkTypeDetail />
@@ -392,16 +425,26 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/network/listings/new") view=ListingCreate />
                         <Route path=path!("/network/listings/:id") view=ListingDetail />
                         <Route path=path!("/crm") view=CrmGrid />
-                        <Route path=path!("/crm/new") view=crate::pages::crm_create::CrmCreate />
-                        <Route path=path!("/crm/:entity/:id") view=crate::pages::crm_detail::CrmDetail />
-                        <Route path=path!("/cms") view=CmsEditor />
-                        <Route path=path!("/menus") view=MenuEditor />
+                        <Route path=path!("/crm/new") view=crate::pages::crm::create::CrmCreate />
+                        <Route path=path!("/crm/:entity/:id") view=crate::pages::crm::detail::CrmDetail />
+                        <Route path=path!("/products") view=PlatformProducts />
+                        <Route path=path!("/products/:id") view=ProductDetail />
                         <Route path=path!("/admins") view=PlatformAdmins />
-                        <Route path=path!("/billing") view=crate::pages::billing::billing_dashboard::BillingDashboard />
-                        <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant_ledger::TenantLedger />
-                        <Route path=path!("/developer") view=crate::pages::developer_console::DeveloperConsole />
-                        <Route path=path!("/settings") view=crate::pages::settings::Settings />
-                        <Route path=path!("/logs") view=crate::pages::audit_logs::AuditLogs />
+                        <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />
+                        <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant::TenantLedger />
+                        <Route path=path!("/billing/products") view=crate::pages::billing::products::BillingProducts />
+                        <Route path=path!("/billing/scorecards") view=Scorecards />
+                        <Route path=path!("/billing/scorecards/session") view=ScorecardSession />
+                        <Route path=path!("/verification") view=Verification />
+                        <Route path=path!("/developer") view=crate::pages::admin::developer::DeveloperConsole />
+                        <Route path=path!("/settings") view=crate::pages::admin::profile::Settings />
+                        <Route path=path!("/logs") view=crate::pages::logs::index::AuditLogs />
+                        <Route path=path!("/admin/aitasks") view=AiTasks />
+                        <Route path=path!("/admin/integrations") view=Integrations />
+                        <Route path=path!("/admin/compliance") view=Compliance />
+                        <Route path=path!("/flags") view=FeatureFlags />
+                        <Route path=path!("/support") view=SupportQueue />
+                        <Route path=path!("/marketing") view=MarketingLanding />
                     </Routes>
                 </main>
             </div>

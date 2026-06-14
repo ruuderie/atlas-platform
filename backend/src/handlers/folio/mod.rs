@@ -19,7 +19,6 @@ pub mod quotes;           // Phase 6 — Pre-purchase pricing proposals (G24)
 pub mod opportunities;    // Phase 6 — Sales pipeline & deal management (G15)
 pub mod commission_plans; // Phase 6 — Commission plan application & splits (G25)
 pub mod leads;            // Phase 6 — PM-tier lead lifecycle: qualify, convert, disqualify (G31)
-pub mod geo;              // G01  — PostGIS spatial query routes (radius, nearest, containment)
 pub mod me;               // GET /api/folio/me — multi-role identity & FolioRole resolution
 pub mod vendor;           // G-32 — Vendor-role routes: work orders + invoices
 pub mod pm;               // G-33 — PMC routes: clients, client detail, analytics, app config

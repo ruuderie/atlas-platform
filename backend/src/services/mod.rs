@@ -32,6 +32,7 @@ pub mod external_integration_service;      // GENERIC-05
 pub mod verification_service;              // GENERIC-06
 pub mod realtime_service;                  // GENERIC-07
 pub mod ai_task_service;                   // GENERIC-08
+pub mod geo_service;                       // GENERIC-01: Spatial context
 
 // === Folio — Property Management App ===
 pub mod pm;                                // Domain services (zero net-new tables)

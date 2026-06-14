@@ -4,8 +4,8 @@ use sea_orm_migration::prelude::*;
 ///
 /// Adds the `property_manager` role to the Folio app's role catalog.
 /// This role is only meaningful when the tenant's app deployment config
-/// has `mode = 'property_management_co'` — the `AppDeploymentConfig`
-/// extractor enforces this at the handler level.
+/// has `"pmc_enabled": true` inside the `config` payload — the `AppDeploymentConfig`
+/// extractor parses this at the handler level.
 ///
 /// UUID: 00000000-0000-0000-0001-000000000004 (follows the existing 001/002/003 sequence)
 ///
@@ -33,7 +33,7 @@ impl MigrationTrait for Migration {
                      'property_manager',
                      'Property Manager (PMC)',
                      'Cross-client property management: manages multiple landlord client accounts \
-                      within a single PMC tenant. Requires mode=property_management_co in \
+                      within a single PMC tenant. Requires pmc_enabled=true inside config in \
                       atlas_app_deployment_config.',
                      true)
                  ON CONFLICT (tenant_id, app_slug, role_slug) DO NOTHING;",

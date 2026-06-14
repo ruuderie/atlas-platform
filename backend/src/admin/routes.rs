@@ -119,11 +119,15 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/analytics/business_kpis", get(crate::admin::analytics::get_business_kpis))
                 .route("/api/admin/analytics/engagement", get(crate::admin::analytics::get_engagement))
                 .route("/api/admin/analytics/trends", get(crate::admin::analytics::get_trends))
+                .route("/api/admin/analytics/billing_summary", get(crate::admin::analytics::get_billing_summary))
                 
                 // Billing & Monetization
                 .route("/api/admin/billing/plans", get(crate::admin::billing::list_billing_plans))
                 .route("/api/admin/billing/transactions", get(crate::admin::billing::list_transactions))
                 .route("/api/admin/billing/tenant/{tenant_id}", get(crate::admin::billing::get_tenant_ledger))
+                .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/exemption", post(crate::admin::billing::set_subscription_exemption))
+                .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/suspend", post(crate::admin::billing::suspend_subscription))
+                .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/reactivate", post(crate::admin::billing::reactivate_subscription))
                 // Developer Console
                 .route("/api/admin/developer/tenant/{tenant_id}/api-tokens", get(crate::admin::developer_console::list_api_tokens).post(crate::admin::developer_console::create_api_token))
                 .route("/api/admin/developer/tenant/{tenant_id}/api-tokens/{token_id}", delete(crate::admin::developer_console::revoke_api_token))

@@ -1,7 +1,6 @@
 use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
 use super::models::{SessionResponse, UserInfo, UserLogin};
 use reqwest::StatusCode;
-use std::error::Error;
 
 pub async fn login(credentials: UserLogin) -> Result<SessionResponse, String> {
     let client = create_client();
@@ -70,7 +69,6 @@ pub async fn impersonate_user(user_id: &str) -> Result<SessionResponse, String> 
 
     if res.status() == StatusCode::OK {
         let session = res.json::<SessionResponse>().await.map_err(|e| e.to_string())?;
-        crate::api::client::set_auth_token(&session.token);
         Ok(session)
     } else {
         let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
