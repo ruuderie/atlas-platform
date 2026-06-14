@@ -42,7 +42,8 @@ pub async fn validate_session() -> Result<UserInfo, String> {
             Err("User payload missing".into())
         }
     } else {
-        Err("Session invalid".into())
+        let text = res.text().await.unwrap_or_else(|_| "Session invalid".into());
+        Err(text)
     }
 }
 

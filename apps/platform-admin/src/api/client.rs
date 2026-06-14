@@ -31,11 +31,12 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
     if res.status().is_success() {
         res.json::<T>().await.map_err(|e| e.to_string())
     } else {
-        let err: ApiErrorResponse = res.json().await.unwrap_or(ApiErrorResponse {
-            message: Some("Failed to parse API error response".into()),
-            error: None,
-        });
-        Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| "API Error".into())))
+        let text = res.text().await.unwrap_or_else(|_| "API Error".into());
+        if let Ok(err) = serde_json::from_str::<ApiErrorResponse>(&text) {
+            Err(err.message.unwrap_or_else(|| err.error.unwrap_or_else(|| text.clone())))
+        } else {
+            Err(text)
+        }
     }
 }
 

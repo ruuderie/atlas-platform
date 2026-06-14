@@ -165,7 +165,18 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
     let res = req.send().await;
     match res {
         Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
-        _ => Err(ServerFnError::ServerError("Failed to verify magic link".into()))
+        Ok(r) => {
+            let body = r.text().await.unwrap_or_default();
+            let code = if body.contains("token_already_used") {
+                "error_code:token_already_used"
+            } else if body.contains("token_expired") {
+                "error_code:token_expired"
+            } else {
+                "error_code:token_not_found"
+            };
+            Err(ServerFnError::ServerError(code.into()))
+        }
+        Err(e) => Err(ServerFnError::ServerError(e.to_string())),
     }
 }
 
