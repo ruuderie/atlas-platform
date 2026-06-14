@@ -186,7 +186,7 @@ pub struct UnitOccupantsResponse {
 
 async fn list_vehicles(
     Extension(db): Extension<DatabaseConnection>,
-    Extension(user_id): Extension<Uuid>,
+    Extension(_user_id): Extension<Uuid>,
     Extension(tenant_id): Extension<Uuid>,
     Path(lease_id): Path<Uuid>,
 ) -> impl IntoResponse {

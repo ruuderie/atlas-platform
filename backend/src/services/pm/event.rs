@@ -459,14 +459,14 @@ impl EventService {
             .map_err(|e| anyhow!("Invalid stored registration status: {e}"))?;
 
         // Only Confirmed and Waitlisted can check in.
-        let can_check_in = match &current_status {
-            RegistrationStatus::Confirmed  => true,
-            RegistrationStatus::Waitlisted => true, // walk-up admission
+        match &current_status {
+            RegistrationStatus::Confirmed  => {}
+            RegistrationStatus::Waitlisted => {} // walk-up admission
             RegistrationStatus::CheckedIn  => return Err(anyhow!("Already checked in")),
             RegistrationStatus::Cancelled  => return Err(anyhow!("Registration is cancelled")),
             RegistrationStatus::NoShow     => return Err(anyhow!("Marked as no-show")),
             RegistrationStatus::PendingPayment => return Err(anyhow!("Payment not confirmed")),
-        };
+        }
 
         let event_id = reg.event_id;
         let tenant_id = reg.tenant_id;
