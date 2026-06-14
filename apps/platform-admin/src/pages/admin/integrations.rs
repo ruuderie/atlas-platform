@@ -38,6 +38,7 @@ pub fn Integrations() -> impl IntoView {
     let active_tab = RwSignal::new("services".to_string());
     let selected_delivery_id = RwSignal::new(None::<String>);
     let refetch_trigger = RwSignal::new(0);
+    let panel_tab = RwSignal::new("payload".to_string());
     
     // Modal states
     let show_key_modal = RwSignal::new(false);
@@ -54,7 +55,7 @@ pub fn Integrations() -> impl IntoView {
             event_type: "lead.created".to_string(),
             target_url: "https://api.nexus.com/webhooks".to_string(),
             status: "200 OK".to_string(),
-            status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+            status_class: "tag tag-ok",
             attempts: 1,
             time: "2 mins ago".to_string(),
             duration: "142ms".to_string(),
@@ -72,7 +73,7 @@ pub fn Integrations() -> impl IntoView {
             event_type: "ledger.split_reconciled".to_string(),
             target_url: "https://biscayne.io/webhooks/atlas".to_string(),
             status: "200 OK".to_string(),
-            status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+            status_class: "tag tag-ok",
             attempts: 1,
             time: "14 mins ago".to_string(),
             duration: "214ms".to_string(),
@@ -90,7 +91,7 @@ pub fn Integrations() -> impl IntoView {
             event_type: "subscription.updated".to_string(),
             target_url: "https://southbeachnets.io/webhook".to_string(),
             status: "500 Fail".to_string(),
-            status_class: "bg-red-500/10 border-red-500/30 text-red-400",
+            status_class: "tag tag-error",
             attempts: 3,
             time: "1 hour ago".to_string(),
             duration: "4.2s".to_string(),
@@ -111,7 +112,7 @@ pub fn Integrations() -> impl IntoView {
             name: "Internal Platform CLI".to_string(),
             scopes: "read:all, write:all, root".to_string(),
             status: "Active".to_string(),
-            status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+            status_class: "tag tag-ok",
             created: "Jan 2025".to_string(),
         },
         MockApiCredential {
@@ -119,7 +120,7 @@ pub fn Integrations() -> impl IntoView {
             name: "Nexus CRM Bridge".to_string(),
             scopes: "read:leads, write:leads".to_string(),
             status: "Active".to_string(),
-            status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+            status_class: "tag tag-ok",
             created: "Feb 2025".to_string(),
         },
         MockApiCredential {
@@ -127,7 +128,7 @@ pub fn Integrations() -> impl IntoView {
             name: "Biscayne Ledger Exporter".to_string(),
             scopes: "read:ledger".to_string(),
             status: "Active".to_string(),
-            status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+            status_class: "tag tag-ok",
             created: "Jun 2025".to_string(),
         },
     ]);
@@ -262,427 +263,439 @@ pub fn Integrations() -> impl IntoView {
     });
 
     view! {
-        <div class="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
-            // Header
-            <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
-                <div>
-                    <h1 class="text-3xl font-light tracking-tight text-on-surface mb-2 font-headline">"Integrations & Webhooks"</h1>
-                    <p class="text-on-surface-variant text-sm tracking-wide">"Manage platform-wide API connections and webhook dispatch systems · G-05"</p>
-                </div>
-                <div>
-                    <button 
-                        on:click=move |_| {
-                            new_key_name.set(String::new());
-                            new_key_scope.set("read:leads".to_string());
-                            generated_secret_key.set(None);
-                            show_key_modal.set(true);
-                        }
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-                    >
-                        "+ Create Client Credential"
-                    </button>
-                </div>
-            </header>
-
-            // KPIs
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Connected Services"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">"4"</span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Webhook deliveries (24h)"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">"8,642"</span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Successful Deliveries"</span>
-                    <span class="text-3xl font-bold font-mono text-success">"99.64%"</span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Active API Credentials"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">
-                        {move || {
-                            if active_network.get().is_some() {
-                                api_keys_res.get().map(|k| k.unwrap_or_default().len()).unwrap_or(0).to_string()
-                            } else {
-                                mock_credentials.get().iter().filter(|c| c.status == "Active").count().to_string()
-                            }
-                        }}
-                    </span>
-                </div>
+        // Page Header
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">"Integrations & Webhooks"</h1>
+                <p class="page-subtitle">"Manage platform-wide API connections and webhook dispatch systems · G-05"</p>
             </div>
-
-            // Tabs
-            <div class="flex border-b border-outline-variant/15 flex-shrink-0">
-                {
-                    let tab_btn = move |id: &'static str, label: &'static str| {
-                        let id_str = id.to_string();
-                        let active_id = id_str.clone();
-                        let click_id = id_str.clone();
-                        view! {
-                            <button 
-                                class=move || if active_tab.get() == active_id { "px-4 py-2 text-sm font-semibold border-b-2 border-primary text-on-surface transition-all" } else { "px-4 py-2 text-sm text-on-surface-variant hover:text-on-surface transition-all" }
-                                on:click=move |_| active_tab.set(click_id.clone())
-                            >
-                                {label}
-                            </button>
-                        }
-                    };
-                    view! {
-                        {tab_btn("services", "Connected Services")}
-                        {tab_btn("webhooks", "Webhook Logs (G-05)")}
-                        {tab_btn("credentials", "API Credentials")}
+            <div class="page-actions">
+                <button 
+                    on:click=move |_| {
+                        new_key_name.set(String::new());
+                        new_key_scope.set("read:leads".to_string());
+                        generated_secret_key.set(None);
+                        show_key_modal.set(true);
                     }
-                }
+                    class="btn btn-primary btn-sm"
+                >
+                    "+ Create Client Credential"
+                </button>
             </div>
+        </div>
 
-            // Connected Services Tab Content
-            <Show when=move || active_tab.get() == "services">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-lg">"💳"</div>
-                            <div>
-                                <h3 class="font-semibold text-on-surface">"Stripe Connect"</h3>
-                                <p class="text-xs text-on-surface-variant">"Payment splits and MRR collecting (MoR). Status: "<span class="text-success font-bold">"Active"</span></p>
-                            </div>
-                        </div>
-                        <button on:click=move |_| handle_test_connection("stripe") class="px-3 py-1.5 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all">"Test Connection"</button>
+        // KPI Row
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <span class="kpi-label">"Connected Services"</span>
+                <span class="kpi-value">"4"</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Webhook deliveries (24h)"</span>
+                <span class="kpi-value">"8,642"</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Successful Deliveries"</span>
+                <span class="kpi-value" style="color:var(--green)">"99.64%"</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Active API Credentials"</span>
+                <span class="kpi-value">
+                    {move || {
+                        if active_network.get().is_some() {
+                            api_keys_res.get().map(|k| k.unwrap_or_default().len()).unwrap_or(0).to_string()
+                        } else {
+                            mock_credentials.get().iter().filter(|c| c.status == "Active").count().to_string()
+                        }
+                    }}
+                </span>
+            </div>
+        </div>
+
+        // Tabs
+        <div class="tab-bar">
+            <button 
+                class=move || if active_tab.get() == "services" { "tab active" } else { "tab" }
+                on:click=move |_| active_tab.set("services".to_string())
+            >
+                "Connected Services"
+            </button>
+            <button 
+                class=move || if active_tab.get() == "webhooks" { "tab active" } else { "tab" }
+                on:click=move |_| active_tab.set("webhooks".to_string())
+            >
+                "Webhook Logs (G-05)"
+            </button>
+            <button 
+                class=move || if active_tab.get() == "credentials" { "tab active" } else { "tab" }
+                on:click=move |_| active_tab.set("credentials".to_string())
+            >
+                "API Credentials"
+            </button>
+        </div>
+
+        // Connected Services Content
+        <Show when=move || active_tab.get() == "services">
+            <div class="grid-cards">
+                <div class="card-item">
+                    <div class="card-icon" style="background:#635BFF22;color:#635BFF">"💳"</div>
+                    <div class="card-info">
+                        <div class="card-name">"Stripe Connect"</div>
+                        <div class="card-desc">"Payment splits and MRR collecting (MoR). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
                     </div>
-                    <div class="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">"🗺"</div>
-                            <div>
-                                <h3 class="font-semibold text-on-surface">"PostGIS Geography Engine"</h3>
-                                <p class="text-xs text-on-surface-variant">"Geo boundaries and PostGIS queries (G-01). Status: "<span class="text-success font-bold">"Active"</span></p>
-                            </div>
-                        </div>
-                        <button on:click=move |_| handle_test_connection("postgis") class="px-3 py-1.5 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all">"Test Connection"</button>
-                    </div>
-                    <div class="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-lg">"📧"</div>
-                            <div>
-                                <h3 class="font-semibold text-on-surface">"SendGrid Transactional"</h3>
-                                <p class="text-xs text-on-surface-variant">"Outgoing SMTP transactional and campaigns (G-19). Status: "<span class="text-success font-bold">"Active"</span></p>
-                            </div>
-                        </div>
-                        <button on:click=move |_| handle_test_connection("sendgrid") class="px-3 py-1.5 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all">"Test Connection"</button>
-                    </div>
-                    <div class="bg-surface-container border border-outline-variant/10 rounded-xl p-5 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-lg">"🔑"</div>
-                            <div>
-                                <h3 class="font-semibold text-on-surface">"WebAuthn (Passkeys) Registry"</h3>
-                                <p class="text-xs text-on-surface-variant">"Dynamic multi-tenant passkey authentication. Status: "<span class="text-success font-bold">"Active"</span></p>
-                            </div>
-                        </div>
-                        <button on:click=move |_| handle_test_connection("webauthn") class="px-3 py-1.5 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all">"Test Connection"</button>
-                    </div>
+                    <button on:click=move |_| handle_test_connection("stripe") class="btn btn-ghost btn-sm">"Test Connection"</button>
                 </div>
-            </Show>
-
-            // Webhook Logs Tab Content
-            <Show when=move || active_tab.get() == "webhooks">
-                <div class="bg-surface border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm">
-                    <div class="px-5 py-4 bg-surface-container/30 border-b border-outline-variant/10 flex justify-between items-center">
-                        <span class="font-semibold text-sm">"Recent Dispatched Events"</span>
-                        <button on:click=move |_| refetch_trigger.update(|v| *v += 1) class="px-3 py-1.5 text-xs font-semibold bg-[#05183c] border border-[#7bd0ff]/20 text-[#7bd0ff] rounded hover:bg-[#05183c]/50 transition-all">"Refresh"</button>
+                <div class="card-item">
+                    <div class="card-icon" style="background:#00A86B22;color:#00A86B">"🗺"</div>
+                    <div class="card-info">
+                        <div class="card-name">"PostGIS Geography Engine"</div>
+                        <div class="card-desc">"Geo boundaries and PostGIS queries (G-01). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
                     </div>
-                    <div class="overflow-x-auto w-full">
-                        <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-surface-container-highest/60 text-[#91aaeb] text-xs font-medium uppercase tracking-wider">
-                                <tr>
-                                    <th class="px-6 py-4">"Event ID"</th>
-                                    <th class="px-6 py-4">"Tenant"</th>
-                                    <th class="px-6 py-4">"Event Type"</th>
-                                    <th class="px-6 py-4">"Target URL"</th>
-                                    <th class="px-6 py-4">"Status"</th>
-                                    <th class="px-6 py-4">"Attempts"</th>
-                                    <th class="px-6 py-4">"Time"</th>
-                                    <th class="px-6 py-4"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-outline-variant/10 text-on-surface">
-                                <For 
-                                    each=move || mock_webhooks.get() 
-                                    key=|w| w.id.clone() 
-                                    children=move |w| {
-                                        let wid = w.id.clone();
+                    <button on:click=move |_| handle_test_connection("postgis") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                </div>
+                <div class="card-item">
+                    <div class="card-icon" style="background:#E5484D22;color:#E5484D">"📧"</div>
+                    <div class="card-info">
+                        <div class="card-name">"SendGrid transactional"</div>
+                        <div class="card-desc">"Outgoing SMTP transactional and campaigns (G-19). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                    </div>
+                    <button on:click=move |_| handle_test_connection("sendgrid") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                </div>
+                <div class="card-item">
+                    <div class="card-icon" style="background:#7C3AED22;color:#7C3AED">"🔑"</div>
+                    <div class="card-info">
+                        <div class="card-name">"WebAuthn (Passkeys) Registry"</div>
+                        <div class="card-desc">"Dynamic multi-tenant passkey authentication. Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                    </div>
+                    <button on:click=move |_| handle_test_connection("webauthn") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                </div>
+            </div>
+        </Show>
+
+        // Webhook Logs Content
+        <Show when=move || active_tab.get() == "webhooks">
+            <div class="section">
+                <div class="section-hdr">
+                    <span class="section-title">"Recent Dispatched Events"</span>
+                    <button on:click=move |_| refetch_trigger.update(|v| *v += 1) class="btn btn-ghost btn-sm">"Refresh"</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>"Event ID"</th>
+                            <th>"Tenant"</th>
+                            <th>"Event Type"</th>
+                            <th>"Target URL"</th>
+                            <th>"Status"</th>
+                            <th>"Attempts"</th>
+                            <th>"Time"</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <For 
+                            each=move || mock_webhooks.get() 
+                            key=|w| w.id.clone() 
+                            children=move |w| {
+                                let wid = w.id.clone();
+                                let wid_for_click = wid.clone();
+                                let wid_for_btn = wid.clone();
+                                view! {
+                                    <tr on:click=move |_| {
+                                        panel_tab.set("payload".to_string());
+                                        selected_delivery_id.set(Some(wid_for_click.clone()));
+                                    } style="cursor:pointer">
+                                        <td class="mono font-semibold">{w.id.clone()}</td>
+                                        <td>{w.tenant.clone()}</td>
+                                        <td><span class="mono">{w.event_type.clone()}</span></td>
+                                        <td class="mono muted">{w.target_url.clone()}</td>
+                                        <td><span class=w.status_class>{w.status.clone()}</span></td>
+                                        <td class="mono muted">{w.attempts}</td>
+                                        <td class="muted">{w.time.clone()}</td>
+                                        <td>
+                                            <button 
+                                                on:click=move |e| {
+                                                    e.stop_propagation();
+                                                    panel_tab.set("payload".to_string());
+                                                    selected_delivery_id.set(Some(wid_for_btn.clone()));
+                                                }
+                                                class="btn btn-ghost btn-sm"
+                                            >
+                                                "Payload"
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        />
+                    </tbody>
+                </table>
+            </div>
+        </Show>
+
+        // API Credentials Content
+        <Show when=move || active_tab.get() == "credentials">
+            <div class="section">
+                <div class="section-hdr">
+                    <span class="section-title">"Client API Credentials"</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>"Client Name"</th>
+                            <th>"Client ID"</th>
+                            <th>"Scopes"</th>
+                            <th>"Status"</th>
+                            <th>"Created"</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {move || {
+                            if let Some(keys) = api_keys_res.get().flatten() {
+                                view! {
+                                    <For each=move || keys.clone() key=|k| k.id children=move |key| {
+                                        let kid = key.id.to_string();
+                                        let kid_clone = kid.clone();
                                         view! {
-                                            <tr on:click=move |_| selected_delivery_id.set(Some(wid.clone())) class="hover:bg-surface-bright/5 cursor-pointer">
-                                                <td class="px-6 py-4 font-mono font-semibold text-xs">{w.id.clone()}</td>
-                                                <td class="px-6 py-4 font-medium">{w.tenant.clone()}</td>
-                                                <td class="px-6 py-4 font-mono text-xs text-primary">{w.event_type.clone()}</td>
-                                                <td class="px-6 py-4 font-mono text-xs text-on-surface-variant break-all max-w-[200px] truncate">{w.target_url.clone()}</td>
-                                                <td class="px-6 py-4">
-                                                    <span class=format!("px-2 py-0.5 rounded text-[10px] uppercase font-bold border {}", w.status_class)>
-                                                        {w.status.clone()}
-                                                    </span>
-                                                </td>
-                                                <td class="px-6 py-4 font-mono text-xs text-on-surface-variant text-center">{w.attempts}</td>
-                                                <td class="px-6 py-4 text-xs text-on-surface-variant">{w.time.clone()}</td>
-                                                <td class="px-6 py-4 text-right">
-                                                    <button class="px-2.5 py-1 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all">"Payload"</button>
+                                            <tr>
+                                                <td><strong>"REST API Token"</strong></td>
+                                                <td class="mono">{key.id.to_string()}</td>
+                                                <td class="muted mono">{key.scopes.to_string()}</td>
+                                                <td><span class="tag tag-ok">"Active"</span></td>
+                                                <td class="muted">{key.created_at.clone().unwrap_or_else(|| "-".to_string())}</td>
+                                                <td>
+                                                    <button 
+                                                        on:click=move |_| show_revoke_modal.set(Some(kid_clone.clone()))
+                                                        class="btn btn-ghost btn-sm"
+                                                        style="color:var(--red)"
+                                                    >
+                                                        "Revoke"
+                                                    </button>
                                                 </td>
                                             </tr>
                                         }
-                                    }
-                                />
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </Show>
-
-            // API Credentials Tab Content
-            <Show when=move || active_tab.get() == "credentials">
-                <div class="bg-surface border border-outline-variant/10 rounded-xl overflow-hidden shadow-sm">
-                    <div class="px-5 py-4 bg-surface-container/30 border-b border-outline-variant/10 flex justify-between items-center">
-                        <span class="font-semibold text-sm">"Client API Credentials"</span>
-                    </div>
-                    <div class="overflow-x-auto w-full">
-                        <table class="w-full text-left text-sm whitespace-nowrap">
-                            <thead class="bg-surface-container-highest/60 text-[#91aaeb] text-xs font-medium uppercase tracking-wider">
-                                <tr>
-                                    <th class="px-6 py-4">"Client Name"</th>
-                                    <th class="px-6 py-4">"Client ID"</th>
-                                    <th class="px-6 py-4">"Scopes"</th>
-                                    <th class="px-6 py-4">"Status"</th>
-                                    <th class="px-6 py-4">"Created"</th>
-                                    <th class="px-6 py-4"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-outline-variant/10 text-on-surface">
-                                {move || {
-                                    if let Some(keys) = api_keys_res.get().flatten() {
-                                        view! {
-                                            <For each=move || keys.clone() key=|k| k.id children=move |key| {
-                                                let kid = key.id.to_string();
-                                                let kid_clone = kid.clone();
-                                                view! {
-                                                    <tr class="hover:bg-surface-bright/5">
-                                                        <td class="px-6 py-4 font-bold">"REST API Token"</td>
-                                                        <td class="px-6 py-4 font-mono text-xs">{key.id.to_string()}</td>
-                                                        <td class="px-6 py-4 font-mono text-xs text-on-surface-variant">{key.scopes.to_string()}</td>
-                                                        <td class="px-6 py-4">
-                                                            <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
-                                                                "Active"
-                                                            </span>
-                                                        </td>
-                                                        <td class="px-6 py-4 text-xs text-on-surface-variant">{key.created_at.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                        <td class="px-6 py-4 text-right">
-                                                            <button 
-                                                                on:click=move |_| show_revoke_modal.set(Some(kid_clone.clone()))
-                                                                class="px-2.5 py-1 text-xs font-semibold bg-red-600/15 border border-red-500/30 hover:bg-red-600/25 rounded transition-all text-red-400"
-                                                            >
-                                                                "Revoke"
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            }/>
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <For each=move || mock_credentials.get() key=|k| k.id.clone() children=move |k| {
-                                                 let k_val = StoredValue::new(k);
-                                                 let is_active = k_val.with_value(|v| v.status == "Active");
-                                                 view! {
-                                                     <tr class="hover:bg-surface-bright/5">
-                                                         <td class="px-6 py-4 font-bold">{move || k_val.with_value(|v| v.name.clone())}</td>
-                                                         <td class="px-6 py-4 font-mono text-xs">{move || k_val.with_value(|v| v.id.clone())}</td>
-                                                         <td class="px-6 py-4 font-mono text-xs text-on-surface-variant">{move || k_val.with_value(|v| v.scopes.clone())}</td>
-                                                         <td class="px-6 py-4">
-                                                             <span class=move || k_val.with_value(|v| format!("px-2 py-0.5 rounded text-[10px] uppercase font-bold border {}", v.status_class))>
-                                                                 {move || k_val.with_value(|v| v.status.clone())}
-                                                             </span>
-                                                         </td>
-                                                         <td class="px-6 py-4 text-xs text-on-surface-variant">{move || k_val.with_value(|v| v.created.clone())}</td>
-                                                         <td class="px-6 py-4 text-right">
-                                                             <Show when=move || is_active>
-                                                                 <button 
-                                                                     on:click=move |_| show_revoke_modal.set(Some(k_val.with_value(|v| v.id.clone())))
-                                                                     class="px-2.5 py-1 text-xs font-semibold bg-red-600/15 border border-red-500/30 hover:bg-red-600/25 rounded transition-all text-red-400"
-                                                                 >
-                                                                     "Revoke"
-                                                                 </button>
-                                                             </Show>
-                                                         </td>
-                                                     </tr>
-                                                 }
-                                             }/>
-                                        }.into_any()
-                                    }
-                                }}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </Show>
-
-            // Webhook details panel overlay
-            <div 
-                class=move || if selected_delivery_id.get().is_some() { "panel-backdrop open" } else { "panel-backdrop" }
-                on:click=move |_| selected_delivery_id.set(None)
-                style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.2s;"
-            ></div>
-            <div 
-                class=move || if selected_delivery_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
-                style="position: fixed; top: 0; right: -560px; width: 560px; height: 100vh; background: #111520; border-left: 1px solid rgba(255,255,255,0.08); z-index: 400; display: flex; flex-direction: column; transition: right 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94); overflow: hidden;"
-            >
-                {move || selected_delivery.get().map(|evt| {
-                    let evt_clone = evt.clone();
-                    view! {
-                        <div class="panel-header" style="padding: 16px 20px 0; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0;">
-                            <div class="panel-header-top" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
-                                <div class="panel-identity" style="flex: 1; min-width: 0;">
-                                    <div class="panel-title-text font-mono" style="font-size: 18px; font-weight: 700; color: #E8EAF0;">{evt.id.clone()}</div>
-                                    <div class="panel-subtitle-text" style="font-size: 12.5px; color: #8B92A8; margin-top: 3px;">{evt.event_type.clone()} " · " {evt.tenant.clone()}</div>
-                                </div>
-                                <button 
-                                    class="panel-close" 
-                                    on:click=move |_| selected_delivery_id.set(None)
-                                    style="width: 28px; height: 28px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.08); background: transparent; color: #525A72; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s;"
-                                >
-                                    "✕"
-                                </button>
-                            </div>
-                            <div class="panel-actions" style="display: flex; align-items: center; gap: 6px; padding-bottom: 12px;">
-                                <button 
-                                    on:click=move |_| handle_retrigger_webhook(evt_clone.id.clone())
-                                    class="btn-primary-gradient px-3 py-1.5 text-xs font-bold text-on-primary rounded-lg shadow-sm"
-                                >
-                                    "Resend Event"
-                                </button>
-                            </div>
-                        </div>
-                        <div class="panel-content" style="flex: 1; overflow-y: auto; padding: 16px 20px;">
-                            <div class="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
-                                <div class="col-span-2 text-[10px] font-bold text-[#8B92A8] uppercase tracking-widest border-b border-white/5 pb-2">"HTTP Response Telemetry"</div>
-                                <div class="space-y-1">
-                                    <span class="text-xs text-[#8B92A8]">"Status Code"</span>
-                                    <p class={format!("font-medium {}", if evt.status.contains("200") { "text-emerald-400" } else { "text-red-400" })}>{evt.status.clone()}</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <span class="text-xs text-[#8B92A8]">"Duration"</span>
-                                    <p class="font-mono text-xs text-[#E8EAF0]">{evt.duration.clone()}</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <span class="text-xs text-[#8B92A8]">"Attempt Count"</span>
-                                    <p class="font-mono text-xs text-[#E8EAF0]">{evt.attempts}</p>
-                                </div>
-                                <div class="space-y-1">
-                                    <span class="text-xs text-[#8B92A8]">"Next Retry"</span>
-                                    <p class="font-medium text-[#E8EAF0]">{evt.retry.clone()}</p>
-                                </div>
-                                <div class="col-span-2 text-[10px] font-bold text-[#8B92A8] uppercase tracking-widest border-b border-white/5 pb-2 mt-4">"JSON Payload"</div>
-                                <div class="col-span-2">
-                                    <pre style="font-family:monospace; font-size:11px; background:#05070B; padding:14px; border-radius:6px; color:#00D2FF; overflow-x:auto; border:1px solid rgba(255,255,255,0.08);">
-                                        {serde_json::to_string_pretty(&evt.payload).unwrap_or_default()}
-                                    </pre>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                })}
+                                    }/>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <For each=move || mock_credentials.get() key=|k| k.id.clone() children=move |k| {
+                                         let k_val = StoredValue::new(k);
+                                         let is_active = k_val.with_value(|v| v.status == "Active");
+                                         let k_status_class = k_val.with_value(|v| if v.status == "Active" { "tag tag-ok" } else { "tag tag-error" });
+                                         view! {
+                                             <tr>
+                                                 <td><strong>{move || k_val.with_value(|v| v.name.clone())}</strong></td>
+                                                 <td class="mono">{move || k_val.with_value(|v| v.id.clone())}</td>
+                                                 <td class="muted mono">{move || k_val.with_value(|v| v.scopes.clone())}</td>
+                                                 <td>
+                                                     <span class=k_status_class>
+                                                         {move || k_val.with_value(|v| v.status.clone())}
+                                                     </span>
+                                                 </td>
+                                                 <td class="muted">{move || k_val.with_value(|v| v.created.clone())}</td>
+                                                 <td>
+                                                     <Show when=move || is_active>
+                                                         <button 
+                                                             on:click=move |_| show_revoke_modal.set(Some(k_val.with_value(|v| v.id.clone())))
+                                                             class="btn btn-ghost btn-sm"
+                                                             style="color:var(--red)"
+                                                         >
+                                                             "Revoke"
+                                                         </button>
+                                                     </Show>
+                                                 </td>
+                                             </tr>
+                                         }
+                                     }/>
+                                }.into_any()
+                            }
+                        }}
+                    </tbody>
+                </table>
             </div>
+        </Show>
 
-            // Create Key Dialog Modal
-            <Show when=move || show_key_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_key_modal.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"Generate Client API Credential"</h3>
-                        
-                        <Show when=move || generated_secret_key.get().is_none() fallback=move || {
-                            let key = generated_secret_key.get().unwrap_or_default();
-                            view! {
-                                <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-4">
-                                    <p class="text-xs text-[#8B92A8]">"SAVE THIS SECRET KEY. IT WILL NOT BE SHOWN AGAIN."</p>
-                                    <div class="flex items-center gap-2 bg-[#05070B] p-3 rounded-lg border border-white/5 font-mono text-sm text-emerald-400 justify-between">
-                                        <span class="truncate pr-4">{key.clone()}</span>
-                                        <button 
-                                            on:click=move |_| {
-                                                let _ = web_sys::window().unwrap().navigator().clipboard().write_text(&key);
-                                                toast.show_toast("Success", "Key copied to clipboard.", "success");
-                                            }
-                                            class="px-2 py-1 text-xs bg-surface-container-high border border-outline-variant/30 rounded"
-                                        >
-                                            "Copy"
-                                        </button>
+        // Webhook detail panel overlay drawer
+        <div 
+            class=move || if selected_delivery_id.get().is_some() { "panel-backdrop open" } else { "panel-backdrop" }
+            on:click=move |_| selected_delivery_id.set(None)
+        ></div>
+        <div 
+            class=move || if selected_delivery_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
+        >
+            {move || selected_delivery.get().map(|evt| {
+                let evt_clone = evt.clone();
+                view! {
+                    <div class="panel-header">
+                        <div class="panel-header-top">
+                            <div class="panel-identity">
+                                <div class="panel-title-text mono">{evt.id.clone()}</div>
+                                <div class="panel-subtitle-text">{evt.event_type.clone()} " · " {evt.tenant.clone()}</div>
+                            </div>
+                            <button 
+                                class="panel-close" 
+                                on:click=move |_| selected_delivery_id.set(None)
+                            >
+                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+                            </button>
+                        </div>
+                        <div class="panel-actions">
+                            <button 
+                                on:click=move |_| handle_retrigger_webhook(evt_clone.id.clone())
+                                class="btn btn-primary btn-sm"
+                            >
+                                "Resend Event"
+                            </button>
+                        </div>
+                        <div class="panel-tabs">
+                            <button 
+                                class=move || if panel_tab.get() == "payload" { "panel-tab active" } else { "panel-tab" }
+                                on:click=move |_| panel_tab.set("payload".to_string())
+                            >
+                                "JSON Payload"
+                            </button>
+                            <button 
+                                class=move || if panel_tab.get() == "overview" { "panel-tab active" } else { "panel-tab" }
+                                on:click=move |_| panel_tab.set("overview".to_string())
+                            >
+                                "Delivery Info"
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content">
+                        // Payload Tab Pane
+                        <Show when=move || panel_tab.get() == "payload">
+                            <div class="tab-pane active">
+                                <pre style="font-family:monospace; font-size:11px; background:#05070B; padding:14px; border-radius:6px; color:#00D2FF; overflow-x:auto; border:1px solid var(--border-default)">
+                                    {serde_json::to_string_pretty(&evt.payload).unwrap_or_default()}
+                                </pre>
+                            </div>
+                        </Show>
+                        // Overview Tab Pane
+                        <Show when=move || panel_tab.get() == "overview">
+                            <div class="tab-pane active">
+                                <div class="detail-grid">
+                                    <span class="detail-section-label">"HTTP Response Telemetry"</span>
+                                    <div class="detail-field">
+                                        <div class="detail-label">"Status Code"</div>
+                                        <div class="detail-value"><span class=evt.status_class>{evt.status.clone()}</span></div>
                                     </div>
-                                    <div class="flex justify-end pt-2">
-                                        <button 
-                                            on:click=move |_| {
-                                                show_key_modal.set(false);
-                                                new_key_name.set(String::new());
-                                                refetch_trigger.update(|v| *v += 1);
-                                            } 
-                                            class="btn-primary-gradient px-4 py-2 rounded text-xs font-bold text-on-primary"
-                                        >
-                                            "Done"
-                                        </button>
+                                    <div class="detail-field">
+                                        <div class="detail-label">"Duration"</div>
+                                        <div class="detail-value mono">{evt.duration.clone()}</div>
                                     </div>
-                                </div>
-                            }.into_any()
-                        }>
-                            <div class="space-y-4 mt-4">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-xs font-medium text-on-surface-variant">"Client Name"</label>
-                                        <input 
-                                            type="text" 
-                                            class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                            placeholder="e.g. Ruud Ledger Exporter"
-                                            prop:value=new_key_name
-                                            on:input=move |ev| new_key_name.set(event_target_value(&ev))
-                                        />
+                                    <div class="detail-field">
+                                        <div class="detail-label">"Attempt Count"</div>
+                                        <div class="detail-value mono">{evt.attempts}</div>
                                     </div>
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-xs font-medium text-on-surface-variant">"Scope Privilege Level"</label>
-                                        <select 
-                                            class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                            on:change=move |ev| new_key_scope.set(event_target_value(&ev))
-                                        >
-                                            <option value="read:leads">"read:leads"</option>
-                                            <option value="read:leads, write:leads">"read:leads, write:leads"</option>
-                                            <option value="read:ledger">"read:ledger"</option>
-                                            <option value="read:all, write:all, root">"root super-admin"</option>
-                                        </select>
+                                    <div class="detail-field">
+                                        <div class="detail-label">"Next Retry"</div>
+                                        <div class="detail-value">{evt.retry.clone()}</div>
                                     </div>
-                                </div>
-                                <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
-                                    <button on:click=move |_| show_key_modal.set(false) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                                    <button on:click=submit_key_generation class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-bold text-on-primary">"Generate Key"</button>
                                 </div>
                             </div>
                         </Show>
                     </div>
-                </div>
-            </Show>
+                }
+            })}
+        </div>
 
-            // Revoke Confirmation Dialog Modal
-            <Show when=move || show_revoke_modal.get().is_some()>
-                {let target = show_revoke_modal.get().unwrap_or_default();
-                 let target_clone = target.clone();
-                 view! {
-                    <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                            <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_revoke_modal.set(None)>"✕"</button>
-                            <h3 class="text-xl font-semibold mb-2">"Revoke Credential"</h3>
-                            <div class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2">
-                                <p class="text-xs text-red-400">"Are you sure you want to revoke this credential?"</p>
-                                <p class="text-xs text-[#8B92A8]">"All active API applications running under Client ID " <code class="bg-[#05070B] px-1 py-0.5 rounded font-mono text-[11px]">{target.clone()}</code> " will fail immediately."</p>
+        // Create Key Dialog Modal
+        <Show when=move || show_key_modal.get()>
+            <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-[#111520] w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                    <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_key_modal.set(false)>"✕"</button>
+                    <h3 class="text-xl font-semibold mb-2">"Generate Client API Credential"</h3>
+                    
+                    <Show when=move || generated_secret_key.get().is_none() fallback=move || {
+                        let key = generated_secret_key.get().unwrap_or_default();
+                        view! {
+                            <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-4">
+                                <p class="text-xs text-[#8B92A8]">"SAVE THIS SECRET KEY. IT WILL NOT BE SHOWN AGAIN."</p>
+                                <div class="flex items-center gap-2 bg-[#05070B] p-3 rounded-lg border border-white/5 font-mono text-sm text-emerald-400 justify-between">
+                                    <span class="truncate pr-4">{key.clone()}</span>
+                                    <button 
+                                        on:click=move |_| {
+                                            let _ = web_sys::window().unwrap().navigator().clipboard().write_text(&key);
+                                            toast.show_toast("Success", "Key copied to clipboard.", "success");
+                                        }
+                                        class="btn btn-ghost btn-sm"
+                                    >
+                                        "Copy"
+                                    </button>
+                                </div>
+                                <div class="flex justify-end pt-2">
+                                    <button 
+                                        on:click=move |_| {
+                                            show_key_modal.set(false);
+                                            new_key_name.set(String::new());
+                                            refetch_trigger.update(|v| *v += 1);
+                                        } 
+                                        class="btn btn-primary"
+                                    >
+                                        "Done"
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex justify-end gap-3 pt-6 border-t border-white/5 mt-4">
-                                <button on:click=move |_| show_revoke_modal.set(None) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                                <button on:click=move |_| handle_revoke_key(target_clone.clone()) class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors">"Revoke Access"</button>
+                        }.into_any()
+                    }>
+                        <div class="space-y-4 mt-4">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"Client Name"</label>
+                                    <input 
+                                        type="text" 
+                                        class="n-form-input"
+                                        placeholder="e.g. Ruud Ledger Exporter"
+                                        prop:value=new_key_name
+                                        on:input=move |ev| new_key_name.set(event_target_value(&ev))
+                                    />
+                                </div>
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"Scope Privilege Level"</label>
+                                    <select 
+                                        class="n-form-select"
+                                        on:change=move |ev| new_key_scope.set(event_target_value(&ev))
+                                    >
+                                        <option value="read:leads">"read:leads"</option>
+                                        <option value="read:leads, write:leads">"read:leads, write:leads"</option>
+                                        <option value="read:ledger">"read:ledger"</option>
+                                        <option value="read:all, write:all, root">"root super-admin"</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
+                                <button on:click=move |_| show_key_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                                <button on:click=submit_key_generation class="btn btn-primary">"Generate Key"</button>
                             </div>
                         </div>
+                    </Show>
+                </div>
+            </div>
+        </Show>
+
+        // Revoke Confirmation Dialog Modal
+        <Show when=move || show_revoke_modal.get().is_some()>
+            {let target = show_revoke_modal.get().unwrap_or_default();
+             let target_clone = target.clone();
+             view! {
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-[#111520] w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_revoke_modal.set(None)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2">"Revoke Credential"</h3>
+                        <div class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2">
+                            <p class="text-xs text-red-400">"Are you sure you want to revoke this credential?"</p>
+                            <p class="text-xs text-[#8B92A8]">"All active API applications running under Client ID " <code class="bg-[#05070B] px-1 py-0.5 rounded font-mono text-[11px]">{target.clone()}</code> " will fail immediately."</p>
+                        </div>
+                        <div class="flex justify-end gap-3 pt-6 border-t border-white/5 mt-4">
+                            <button on:click=move |_| show_revoke_modal.set(None) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=move |_| handle_revoke_key(target_clone.clone()) class="btn btn-primary" style="background-color:var(--red); border-color:var(--red);">"Revoke Access"</button>
+                        </div>
                     </div>
-                }}
-            </Show>
-        </div>
+                </div>
+            }}
+        </Show>
     }
 }
+
