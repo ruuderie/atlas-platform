@@ -309,6 +309,35 @@ pub async fn validate_session(
     updated_session.last_accessed_at = Set(Utc::now());
     updated_session.update(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let user = match user::Entity::find_by_id(session.user_id)
+        .one(&db)
+        .await
+    {
+        Ok(Some(user)) => user,
+        Ok(None) => {
+            tracing::warn!("User not found for session during validation");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        Err(e) => {
+            tracing::error!("Database error when finding user in session validation: {:?}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let app_permissions: Vec<crate::models::session::AppPermission> =
+        crate::entities::user_app_permission::Entity::find()
+            .filter(crate::entities::user_app_permission::Column::UserId.eq(user.id))
+            .all(&db)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| crate::models::session::AppPermission {
+                tenant_id: p.tenant_id,
+                app_slug: p.app_slug,
+                permissions: p.permissions,
+            })
+            .collect();
+
     tracing::info!(
         event = "session.validated",
         request_id = %request_id,
@@ -318,7 +347,14 @@ pub async fn validate_session(
     );
 
     Ok(Json(SessionResponse {
-        user: None,
+        user: Some(UserInfo {
+            id: user.id,
+            email: user.email.clone(),
+            first_name: user.first_name.clone(),
+            last_name: user.last_name.clone(),
+            is_admin: session.is_admin,
+            app_permissions,
+        }),
         token: session.bearer_token.clone(),
         refresh_token: session.refresh_token.clone(),
     }))
