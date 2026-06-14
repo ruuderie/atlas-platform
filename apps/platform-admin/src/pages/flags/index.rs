@@ -542,7 +542,7 @@ pub fn FeatureFlags() -> impl IntoView {
             // Flags list
             <div class="space-y-4">
                 <For 
-                    each=filtered_flags 
+                    each=move || filtered_flags.get()
                     key=|f| f.key.clone()
                     children=move |f| {
                         let f_val = StoredValue::new(f);

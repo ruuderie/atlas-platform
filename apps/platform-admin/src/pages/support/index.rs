@@ -398,7 +398,7 @@ pub fn SupportQueue() -> impl IntoView {
                 // Ticket Items Scroller
                 <div class="flex-1 overflow-y-auto divide-y divide-outline-variant/5">
                     <For 
-                        each=filtered_tickets
+                        each=move || filtered_tickets.get()
                         key=|t| t.id.clone()
                         children=move |t| {
                             let t_val = StoredValue::new(t);
@@ -538,7 +538,7 @@ pub fn SupportQueue() -> impl IntoView {
                         // Conversation message threads scroll box
                         <div class="flex-1 overflow-y-auto p-5 space-y-4">
                             <For 
-                                each=active_thread
+                                each=move || active_thread.get()
                                 key=|msg| format!("{}-{}-{}", msg.author, msg.time, msg.content.chars().take(20).collect::<String>())
                                 children=move |msg| {
                                     view! {

@@ -357,7 +357,7 @@ pub fn AiTasks() -> impl IntoView {
                         </thead>
                         <tbody class="divide-y divide-outline-variant/10 text-on-surface">
                             <For 
-                                each=filtered_tasks 
+                                each=move || filtered_tasks.get()
                                 key=|t| t.id.clone() 
                                 children=move |t| {
                                     let tid = t.id.clone();

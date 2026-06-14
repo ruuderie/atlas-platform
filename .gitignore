@@ -71,7 +71,7 @@ dist/
 docker_build.log
 ehthumbs.db
 guide_d/
-logs
+/logs
 nix_sample/
 node_modules
 node_modules/
