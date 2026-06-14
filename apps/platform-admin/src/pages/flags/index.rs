@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use serde::{Serialize, Deserialize};
+use shared_ui::components::ui::switch::Switch;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MockOverride {
@@ -427,19 +428,19 @@ pub fn FeatureFlags() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in text-on-surface">
-            // Page Header
-            <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
+        <div style="margin: -20px -24px; display: flex; flex-direction: column; height: calc(100vh - 48px); overflow: hidden; background: var(--bg-base);">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-3xl font-light tracking-tight text-on-surface mb-2 font-headline">"Feature Flags"</h1>
-                    <p class="text-on-surface-variant text-sm tracking-wide">"Manage real-time rollout percentages, plan gates, and tenant-level overrides"</p>
+                    <div class="page-title">"Feature Flags"</div>
+                    <div class="page-subtitle">"Flag registry · Each flag may have a Global variant, Plan gate, and per-NI overrides — all managed here"</div>
                 </div>
-                <div class="flex gap-3">
+                <div class="page-actions">
                     <button 
                         on:click=move |_| toast.show_toast("Info", "Exporting flag audit logs to CSV...", "info")
-                        class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#05183c] border border-outline-variant/30 text-[#91aaeb] hover:bg-[#05183c]/60 active:scale-95 transition-all shadow-sm"
+                        class="btn btn-ghost btn-sm"
                     >
-                        "Export Audit"
+                        "↓ Export"
                     </button>
                     <button 
                         on:click=move |_| {
@@ -449,98 +450,112 @@ pub fn FeatureFlags() -> impl IntoView {
                             new_flag_has_global.set(true);
                             show_new_flag_modal.set(true);
                         }
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                        class="btn btn-primary"
                     >
-                        "+ New Flag"
+                        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:4px; display:inline-block; vertical-align:middle;">
+                            <line x1="8" y1="2" x2="8" y2="14"/>
+                            <line x1="2" y1="8" x2="14" y2="8"/>
+                        </svg>
+                        "New Flag"
                     </button>
-                </div>
-            </header>
-
-            // Stat Strip Indicators
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Total Flags"</span>
-                    <span class="text-2xl font-bold font-mono text-on-surface">{move || flags.get().len().to_string()}</span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Globally On"</span>
-                    <span class="text-2xl font-bold font-mono text-emerald-400">
-                        {move || flags.get().iter().filter(|f| f.is_enabled.get() && f.has_global && f.global_rollout.get() == 100).count().to_string()}
-                    </span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Dark / Off"</span>
-                    <span class="text-2xl font-bold font-mono text-on-surface-variant/50">
-                        {move || flags.get().iter().filter(|f| !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0)).count().to_string()}
-                    </span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Plan-Gated"</span>
-                    <span class="text-2xl font-bold font-mono text-purple-400">
-                        {move || flags.get().iter().filter(|f| f.is_plan_gated).count().to_string()}
-                    </span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"NI Overrides"</span>
-                    <span class="text-2xl font-bold font-mono text-emerald-400">
-                        {move || flags.get().iter().map(|f| f.overrides.get().len()).sum::<usize>().to_string()}
-                    </span>
-                </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Canary (<100%)"</span>
-                    <span class="text-2xl font-bold font-mono text-amber-500">
-                        {move || flags.get().iter().filter(|f| f.is_enabled.get() && f.has_global && f.global_rollout.get() > 0 && f.global_rollout.get() < 100).count().to_string()}
-                    </span>
                 </div>
             </div>
 
-            // Filter Bar & Search
-            <div class="flex flex-wrap items-center justify-between gap-4 bg-surface-container/30 border border-outline-variant/10 px-5 py-3 rounded-xl">
-                <div class="relative w-full md:w-80">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">"search"</span>
+            // ── Stat Strip ──
+            <div class="stat-strip">
+                <div class="stat">
+                    <span class="stat-val">{move || flags.get().len().to_string()}</span>
+                    <span class="stat-lbl">"Total Flags"</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" style="color:var(--green)">
+                        {move || flags.get().iter().filter(|f| f.is_enabled.get() && f.has_global && f.global_rollout.get() == 100).count().to_string()}
+                    </span>
+                    <span class="stat-lbl">"Globally On"</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" style="color:var(--text-muted)">
+                        {move || flags.get().iter().filter(|f| !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0)).count().to_string()}
+                    </span>
+                    <span class="stat-lbl">"Dark / Off"</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" style="color:var(--violet)">
+                        {move || flags.get().iter().filter(|f| f.is_plan_gated).count().to_string()}
+                    </span>
+                    <span class="stat-lbl">"Plan-Gated"</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" style="color:var(--green)">
+                        {move || flags.get().iter().map(|f| f.overrides.get().len()).sum::<usize>().to_string()}
+                    </span>
+                    <span class="stat-lbl">"NI Overrides"</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-val" style="color:var(--amber)">
+                        {move || flags.get().iter().filter(|f| f.is_enabled.get() && f.has_global && f.global_rollout.get() > 0 && f.global_rollout.get() < 100).count().to_string()}
+                    </span>
+                    <span class="stat-lbl">"Canary <100%"</span>
+                </div>
+            </div>
+
+            // ── Filter Bar ──
+            <div class="filter-bar">
+                <div class="flag-search-wrap">
+                    <span class="si">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="6.5" cy="6.5" r="4"/>
+                            <line x1="10" y1="10" x2="14" y2="14"/>
+                        </svg>
+                    </span>
                     <input 
                         type="text" 
-                        placeholder="Search key, description, Jira, tenant..." 
-                        class="bg-[#06122d] border border-outline-variant/30 text-on-surface text-sm rounded-lg pl-10 pr-4 py-2 w-full focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/40"
+                        placeholder="Search flag key, Jira, NI slug…" 
                         prop:value=search_query
                         on:input=move |ev| search_query.set(event_target_value(&ev))
                     />
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    {
-                        let filter_pill = move |scope: &'static str, label: &'static str, active_bg: &'static str| {
-                            let s_str = scope.to_string();
-                            let active_s = s_str.clone();
-                            let click_s = s_str.clone();
-                            view! {
-                                <button 
-                                    on:click=move |_| filter_scope.set(click_s.clone())
-                                    class=move || format!(
-                                        "px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all {}",
-                                        if filter_scope.get() == active_s {
-                                            active_bg.to_string()
-                                        } else {
-                                            "bg-[#05183c]/20 border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-[#05183c]/50".to_string()
-                                        }
-                                    )
-                                >
-                                    {label}
-                                </button>
-                            }
-                        };
+                {
+                    let filter_pill = move |scope: &'static str, label: &'static str, active_class_name: &'static str| {
                         view! {
-                            {filter_pill("all", "All Flags", "bg-primary-container border-primary text-primary")}
-                            {filter_pill("global", "Has Global", "bg-blue-500/10 border-blue-500/30 text-blue-400")}
-                            {filter_pill("plan", "Plan-Gated", "bg-purple-500/10 border-purple-500/30 text-purple-400")}
-                            {filter_pill("ni", "Has NI Overrides", "bg-emerald-500/10 border-emerald-500/30 text-emerald-400")}
-                            {filter_pill("off", "Off / Dark", "bg-amber-500/10 border-amber-500/30 text-amber-400")}
+                            <button 
+                                on:click=move |_| filter_scope.set(scope.to_string())
+                                class=move || format!(
+                                    "fpill {}",
+                                    if filter_scope.get() == scope {
+                                        active_class_name
+                                    } else {
+                                        ""
+                                    }
+                                )
+                            >
+                                <Show when=move || scope != "all">
+                                    <span style=move || format!(
+                                        "width:6px;height:6px;border-radius:50%;background:{};display:inline-block;margin-right:4px;",
+                                        match scope {
+                                            "global" => "var(--cobalt)",
+                                            "plan" => "var(--violet)",
+                                            "ni" => "var(--green)",
+                                            _ => "var(--amber)"
+                                        }
+                                    )></span>
+                                </Show>
+                                {label}
+                            </button>
                         }
+                    };
+                    view! {
+                        {filter_pill("all", "All Flags", "a-all")}
+                        {filter_pill("global", "Has Global", "a-global")}
+                        {filter_pill("plan", "Plan-Gated", "a-plan")}
+                        {filter_pill("ni", "Has NI Overrides", "a-ni")}
+                        {filter_pill("off", "Off / Dark", "a-off")}
                     }
-                </div>
+                }
             </div>
 
-            // Flags list
-            <div class="space-y-4">
+            // ── Flags List Container ──
+            <div class="flags-body">
                 <For 
                     each=move || filtered_flags.get()
                     key=|f| f.key.clone()
@@ -567,325 +582,377 @@ pub fn FeatureFlags() -> impl IntoView {
 
                         view! {
                             <div class=move || format!(
-                                "bg-surface border rounded-xl overflow-hidden shadow-sm transition-all {}",
-                                if is_expanded.get() { "border-outline-variant" } else { "border-outline-variant/10 hover:border-outline-variant/30" }
+                                "flag-card {}",
+                                if is_expanded.get() { "expanded" } else { "" }
                             )>
-                                // Header row
+                                // Card Header
                                 <div 
                                     on:click=move |_| is_expanded.update(|v| *v = !*v)
-                                    class="px-5 py-4 flex flex-wrap items-center justify-between gap-4 cursor-pointer select-none"
+                                    class="flag-card-hdr"
                                 >
-                                    <div class="flex items-center gap-4">
-                                        // Toggle Switch
-                                        <div on:click=move |e: leptos::ev::MouseEvent| e.stop_propagation() class="flex items-center">
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="sr-only peer"
-                                                    prop:checked=is_enabled
-                                                    on:change={
-                                                        let fk = fkey.clone();
-                                                        move |ev| handle_global_toggle(fk.get_value(), event_target_checked(&ev))
-                                                    }
-                                                />
-                                                <div class="w-9 h-5 bg-[#2b4680]/30 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                                            </label>
-                                        </div>
+                                    <div class="flag-toggle" on:click=move |e| e.stop_propagation()>
+                                        <Switch 
+                                            variant="compact"
+                                            checked=is_enabled
+                                            on_checked_change=Callback::new({
+                                                let fk = fkey.clone();
+                                                move |next_val| handle_global_toggle(fk.get_value(), next_val)
+                                            })
+                                        />
+                                    </div>
 
-                                        <div class="space-y-1">
-                                            <div class="flex items-center gap-3">
-                                                <span class="font-mono text-sm font-bold tracking-tight text-on-surface">{fkey.get_value()}</span>
-                                                <Show when={
-                                                    let jr = jira.clone();
-                                                    move || {
-                                                        let j = jr.get_value();
-                                                        !j.is_empty() && j != "None"
-                                                    }
-                                                }>
-                                                    <span class="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400">{jira.get_value()}</span>
-                                                </Show>
-                                            </div>
-                                            <p class="text-xs text-on-surface-variant max-w-2xl">{description.get_value()}</p>
+                                    <div class="flag-identity">
+                                        <div class="flag-key">{fkey.get_value()}</div>
+                                        <div class="flag-desc-text">{description.get_value()}</div>
+                                        <div class="flag-meta-row">
+                                            <Show when=move || has_global>
+                                                <span class="scope-chip sc-global">"Global · " {move || global_rollout.get().to_string()} "%"</span>
+                                            </Show>
+                                            <Show when=move || is_plan_gated>
+                                                <span class="scope-chip sc-plan">"Plan · " {plan_gate_tier.get_value()}</span>
+                                            </Show>
+                                            <Show when=move || has_overrides.get()>
+                                                <span class="scope-chip sc-ni">{move || count_overrides.get().to_string()} " NI overrides"</span>
+                                            </Show>
+                                            <Show when=move || !has_global && !is_plan_gated && !has_overrides.get()>
+                                                <span class="scope-chip sc-off">"No Global"</span>
+                                            </Show>
+                                            <Show when={
+                                                let jr = jira.clone();
+                                                move || {
+                                                    let j = jr.get_value();
+                                                    !j.is_empty() && j != "None"
+                                                }
+                                            }>
+                                                <a class="jira-link" href="#" on:click=move |e| { e.stop_propagation(); e.prevent_default(); }>{jira.get_value()}</a>
+                                            </Show>
+                                            <span style="font-size:10.5px;color:var(--text-muted);">{owner.get_value()} " · " {f_val.with_value(|v| v.date_created.clone())}</span>
                                         </div>
                                     </div>
 
-                                    <div class="flex items-center gap-4" on:click=move |e: leptos::ev::MouseEvent| e.stop_propagation()>
-                                        <div class="flex items-center gap-2">
-                                            <Show when=move || has_global>
-                                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-blue-500/30 text-blue-400 bg-blue-500/5">
-                                                    "Global: " {move || global_rollout.get().to_string()} "%"
-                                                </span>
-                                            </Show>
-                                            <Show when=move || is_plan_gated>
-                                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-purple-500/30 text-purple-400 bg-purple-500/5">
-                                                    {plan_gate_tier.get_value()} " Gate"
-                                                </span>
-                                            </Show>
-                                            <Show when=move || has_overrides.get()>
-                                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400 bg-emerald-500/5">
-                                                    {move || count_overrides.get().to_string()} " Overrides"
-                                                </span>
-                                            </Show>
+                                    <div class="flag-card-right">
+                                        <div class="effective-badge">
+                                            {move || {
+                                                let total_nis = 24;
+                                                if !is_enabled.get() {
+                                                    view! { <span style="color:var(--amber)">"⚠ Dark launch"</span> }.into_any()
+                                                } else if !has_global && has_overrides.get() {
+                                                    view! { <strong>{count_overrides.get().to_string()}</strong> "/" {total_nis.to_string()} " NIs active" }.into_any()
+                                                } else if is_plan_gated {
+                                                    view! { <strong>"9"</strong> "/" {total_nis.to_string()} " NIs active" }.into_any()
+                                                } else {
+                                                    let pct = global_rollout.get();
+                                                    if pct == 100 {
+                                                        view! { <strong>{total_nis.to_string()}</strong> "/" {total_nis.to_string()} " NIs active" }.into_any()
+                                                    } else if pct == 0 {
+                                                        view! { <span style="color:var(--amber)">"⚠ Dark launch"</span> }.into_any()
+                                                    } else {
+                                                        let active_est = (total_nis as f32 * (pct as f32 / 100.0)).round() as i32;
+                                                        view! { <strong>"~" {active_est.to_string()}</strong> "/" {total_nis.to_string()} " NIs active" }.into_any()
+                                                    }
+                                                }
+                                            }}
                                         </div>
 
                                         <button 
+                                            class="btn btn-ghost btn-sm" 
                                             on:click={
                                                 let fk = fkey.clone();
-                                                move |_| open_override_drawer(fk.get_value())
+                                                move |e| { e.stop_propagation(); open_override_drawer(fk.get_value()); }
                                             }
-                                            class="px-2.5 py-1 text-xs font-semibold bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all"
                                         >
-                                            "+ Override"
+                                            "+ Assign NI Override"
                                         </button>
-                                        
-                                        <button 
-                                            on:click=move |_| is_expanded.update(|v| *v = !*v)
-                                            class="text-on-surface-variant hover:text-on-surface p-1 transition-colors"
-                                        >
-                                            <span class=move || format!("material-symbols-outlined text-lg transition-transform duration-200 {}", if is_expanded.get() { "-scale-y-100" } else { "" })>
-                                                "expand_more"
-                                            </span>
-                                        </button>
+                                        <span class="expand-caret">"▾"</span>
                                     </div>
                                 </div>
 
                                 // Expanded details body
-                                <Show when=move || is_expanded.get()>
-                                    <div class="border-t border-outline-variant/10 bg-[#05122d]/30">
-                                        // Tabs
-                                        <div class="flex border-b border-outline-variant/10 px-5 pt-1">
-                                            {
-                                                let tab_btn = move |tab_id: &'static str, label: &'static str| {
-                                                    let id_str = tab_id.to_string();
-                                                    let active_id = id_str.clone();
-                                                    let click_id = id_str.clone();
-                                                    view! {
-                                                        <button 
-                                                            on:click=move |_| active_tab.set(click_id.clone())
-                                                            class=move || format!(
-                                                                "px-4 py-2.5 text-xs font-semibold border-b-2 transition-all {}",
-                                                                if active_tab.get() == active_id { "border-primary text-on-surface" } else { "border-transparent text-on-surface-variant hover:text-on-surface" }
-                                                            )
-                                                        >
-                                                            {label}
-                                                        </button>
-                                                    }
-                                                };
-                                                view! {
-                                                    {tab_btn("variants", "Variants & Rollout")}
-                                                    {tab_btn("overrides", "NI Overrides")}
-                                                    {tab_btn("audit", "Audit Log")}
-                                                }
+                                <div class="flag-card-body">
+                                    <div class="flag-card-tabs">
+                                        <button 
+                                            class=move || format!("fct {}", if active_tab.get() == "variants" { "active" } else { "" })
+                                            on:click={
+                                                let tab_sig = active_tab;
+                                                move |e| { e.stop_propagation(); tab_sig.set("variants".to_string()); }
                                             }
-                                        </div>
+                                        >
+                                            "Variants & Rollout"
+                                        </button>
+                                        <button 
+                                            class=move || format!("fct {}", if active_tab.get() == "overrides" { "active" } else { "" })
+                                            on:click={
+                                                let tab_sig = active_tab;
+                                                move |e| { e.stop_propagation(); tab_sig.set("overrides".to_string()); }
+                                            }
+                                        >
+                                            "NI Overrides "
+                                            <span style=move || format!("background:{};border:1px solid {};border-radius:8px;padding:0 5px;font-size:9px;color:{}", 
+                                                if count_overrides.get() > 0 { "var(--green-dim)" } else { "var(--bg-elevated)" },
+                                                if count_overrides.get() > 0 { "var(--green)" } else { "var(--border-default)" },
+                                                if count_overrides.get() > 0 { "var(--green)" } else { "var(--text-muted)" }
+                                            )>
+                                                {move || count_overrides.get().to_string()}
+                                            </span>
+                                        </button>
+                                        <button 
+                                            class=move || format!("fct {}", if active_tab.get() == "audit" { "active" } else { "" })
+                                            on:click={
+                                                let tab_sig = active_tab;
+                                                move |e| { e.stop_propagation(); tab_sig.set("audit".to_string()); }
+                                            }
+                                        >
+                                            "Audit Log"
+                                        </button>
+                                    </div>
 
-                                        // Tab Pane: Variants & Rollout
-                                        <Show when=move || active_tab.get() == "variants">
-                                            <div class="p-5 overflow-x-auto w-full">
-                                                <table class="w-full text-left text-xs whitespace-nowrap">
-                                                    <thead class="bg-surface-container-highest/60 text-[#91aaeb] font-semibold uppercase tracking-wider">
+                                    // Tab Pane: Variants & Rollout
+                                    <Show when=move || active_tab.get() == "variants">
+                                        <div class="fct-pane active" on:click=move |e| e.stop_propagation()>
+                                            <table class="variant-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>"Scope"</th>
+                                                        <th>"State"</th>
+                                                        <th>"Rollout"</th>
+                                                        <th>"Applies To"</th>
+                                                        <th>"Changed"</th>
+                                                        <th>""</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <Show when=move || has_global fallback=move || view! {
                                                         <tr>
-                                                            <th class="px-4 py-3">"Scope"</th>
-                                                            <th class="px-4 py-3">"State"</th>
-                                                            <th class="px-4 py-3">"Rollout %"</th>
-                                                            <th class="px-4 py-3">"Applies To"</th>
-                                                            <th class="px-4 py-3">"Changed By"</th>
-                                                            <th class="px-4 py-3"></th>
+                                                            <td><span class="scope-chip sc-off">"Global"</span></td>
+                                                            <td style="color:var(--text-muted);font-style:italic;">"Not configured — NI override only"</td>
+                                                            <td>"—"</td>
+                                                            <td style="color:var(--text-secondary);font-size:11.5px;">"Only tenants with an explicit NI grant see this feature"</td>
+                                                            <td>"—"</td>
+                                                            <td>""</td>
                                                         </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-outline-variant/10 text-on-surface">
-                                                        <Show when=move || has_global>
-                                                            <tr class="hover:bg-surface-bright/5">
-                                                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border border-blue-500/30 text-blue-400 bg-blue-500/5">"Global"</span></td>
-                                                                <td class="px-4 py-3">
-                                                                    {move || if global_rollout.get() == 0 {
-                                                                        view! { <span class="text-amber-500">"● Dark (0%)"</span> }.into_any()
+                                                    }>
+                                                        <tr>
+                                                            <td><span class="scope-chip sc-global">"Global"</span></td>
+                                                            <td>
+                                                                {move || {
+                                                                    if !is_enabled.get() || global_rollout.get() == 0 {
+                                                                        view! { <span style="color:var(--amber);font-weight:600;">"● Dark (0%)"</span> }.into_any()
                                                                     } else if global_rollout.get() == 100 {
-                                                                        view! { <span class="text-emerald-400">"● Enabled"</span> }.into_any()
+                                                                        view! { <span style="color:var(--green);font-weight:600;">"● Enabled"</span> }.into_any()
                                                                     } else {
-                                                                        view! { <span class="text-blue-400">"⏳ Canary"</span> }.into_any()
-                                                                    }}
-                                                                </td>
-                                                                <td class="px-4 py-3">
-                                                                    <div class="flex items-center gap-2.5">
-                                                                        <div class="w-20 bg-[#06122d] border border-outline-variant/30 h-2 rounded-full overflow-hidden">
-                                                                            <div class="bg-blue-500 h-full rounded-full" style=move || format!("width: {}%", global_rollout.get())></div>
-                                                                        </div>
-                                                                        <span class="font-mono">{move || global_rollout.get().to_string()} "%"</span>
+                                                                        view! { <span style="color:var(--cobalt);font-weight:600;">"⏳ Canary"</span> }.into_any()
+                                                                    }
+                                                                }}
+                                                            </td>
+                                                            <td>
+                                                                <div class="rb-inline">
+                                                                    <div class="rb">
+                                                                        <div class="rf" style=move || format!("width: {}%; background: {}", 
+                                                                            global_rollout.get(),
+                                                                            if global_rollout.get() == 100 { "var(--green)" } else { "var(--cobalt)" }
+                                                                        )></div>
                                                                     </div>
-                                                                </td>
-                                                                <td class="px-4 py-3 text-on-surface-variant">"All connected NIs"</td>
-                                                                <td class="px-4 py-3 text-on-surface-variant">{owner.get_value()}</td>
-                                                                <td class="px-4 py-3 text-right">
-                                                                    <button 
-                                                                        on:click={
-                                                                            let fk = fkey.clone();
-                                                                            move |_| {
-                                                                                temp_rollout_val.set(global_rollout.get());
-                                                                                show_rollout_modal.set(Some((fk.get_value(), "Global".to_string(), global_rollout.get())));
-                                                                            }
+                                                                    <span class="rl">{move || global_rollout.get().to_string()} "%"</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style="color:var(--text-secondary);font-size:11.5px;">
+                                                                {move || {
+                                                                    let pct = global_rollout.get();
+                                                                    if pct == 100 {
+                                                                        "All 24 NIs".to_string()
+                                                                    } else if pct == 0 {
+                                                                        "Awaiting legal + QA".to_string()
+                                                                    } else {
+                                                                        format!("~{} of 24 NIs", (24.0 * (pct as f32 / 100.0)).round() as i32)
+                                                                    }
+                                                                }}
+                                                            </td>
+                                                            <td style="font-size:11px;color:var(--text-muted);">{f_val.with_value(|v| v.date_created.clone())} " · " {owner.get_value()}</td>
+                                                            <td>
+                                                                <button 
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    on:click={
+                                                                        let fk = fkey.clone();
+                                                                        let cur = global_rollout;
+                                                                        move |_| {
+                                                                            temp_rollout_val.set(cur.get());
+                                                                            show_rollout_modal.set(Some((fk.get_value(), "Global".to_string(), cur.get())));
                                                                         }
-                                                                        class="px-2 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 rounded transition-all"
-                                                                    >
-                                                                        "Edit %"
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        </Show>
-                                                        <Show when=move || is_plan_gated>
-                                                            <tr class="hover:bg-surface-bright/5">
-                                                                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold border border-purple-500/30 text-purple-400 bg-purple-500/5">"Plan Gate"</span></td>
-                                                                <td class="px-4 py-3"><span class="text-purple-400">"● " {plan_gate_tier.get_value()}</span></td>
-                                                                <td class="px-4 py-3">"—"</td>
-                                                                <td class="px-4 py-3 text-on-surface-variant">"Only plans at or above " {plan_gate_tier.get_value()}</td>
-                                                                <td class="px-4 py-3 text-on-surface-variant">{owner.get_value()}</td>
-                                                                <td class="px-4 py-3 text-right">
-                                                                    <button 
-                                                                        on:click=move |_| toast.show_toast("Info", "Plan gate definitions must be modified in Billing rules tier mapping.", "info")
-                                                                        class="px-2 py-1 bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 rounded transition-all"
-                                                                    >
-                                                                        "Edit Gate"
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        </Show>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </Show>
+                                                                    }
+                                                                >
+                                                                    "Edit %"
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </Show>
+                                                    <Show when=move || is_plan_gated>
+                                                        <tr>
+                                                            <td><span class="scope-chip sc-plan">"Plan Gate"</span></td>
+                                                            <td><span style="color:var(--violet);font-weight:600;">"● " {plan_gate_tier.get_value()}</span></td>
+                                                            <td>
+                                                                <div class="rb-inline">
+                                                                    <div class="rb">
+                                                                        <div class="rf" style="width: 100%; background: var(--violet);"></div>
+                                                                    </div>
+                                                                    <span class="rl">"9 NIs"</span>
+                                                                </div>
+                                                            </td>
+                                                            <td style="color:var(--text-secondary);font-size:11.5px;">{plan_gate_tier.get_value()} " tier only"</td>
+                                                            <td style="font-size:11px;color:var(--text-muted);">{f_val.with_value(|v| v.date_created.clone())} " · " {owner.get_value()}</td>
+                                                            <td>
+                                                                <button 
+                                                                    class="btn btn-ghost btn-sm"
+                                                                    on:click=move |_| toast.show_toast("Info", "Plan gate definitions must be modified in Billing rules tier mapping.", "info")
+                                                                >
+                                                                    "Edit Gate"
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    </Show>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </Show>
 
-                                        // Tab Pane: NI Overrides
-                                        <Show when=move || active_tab.get() == "overrides">
-                                            <div class="p-5 space-y-3">
+                                    // Tab Pane: NI Overrides
+                                    <Show when=move || active_tab.get() == "overrides">
+                                        <div class="fct-pane active" on:click=move |e| e.stop_propagation()>
+                                            <div style="padding:10px 0;">
+                                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                                    <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">"Tenant-Specific Overrides"</div>
+                                                    <button 
+                                                        class="btn btn-ghost btn-sm"
+                                                        on:click={
+                                                            let fk = fkey.clone();
+                                                            move |_| open_override_drawer(fk.get_value())
+                                                        }
+                                                    >
+                                                        "+ Add Override"
+                                                    </button>
+                                                </div>
+
                                                 <Show when=move || !overrides.get().is_empty() fallback=move || view! {
-                                                    <div class="text-center py-6 text-xs text-on-surface-variant">
-                                                        "No custom tenant-specific overrides registered for this flag key."
+                                                    <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">
+                                                        "No NI overrides. Use \"+ Assign NI Override\" to grant or deny access for a specific tenant."
                                                     </div>
                                                 }>
-                                                    <div class="divide-y divide-outline-variant/10 border border-outline-variant/10 rounded-xl overflow-hidden bg-surface-container/20">
-                                                        <For 
-                                                            each=move || overrides.get()
-                                                            key=|o| o.tenant_slug.clone()
-                                                            children={
-                                                                let fk = fkey.clone();
-                                                                move |o| {
-                                                                    let tenant_slug = o.tenant_slug.clone();
-                                                                    let o_type = o.override_type.clone();
-                                                                    let fk_inner = fk.clone();
-                                                                    view! {
-                                                                        <div class="px-4 py-3 flex items-center justify-between text-xs hover:bg-surface-bright/5 transition-all">
-                                                                            <div class="flex items-center gap-4">
-                                                                                <div class="space-y-1">
-                                                                                    <div class="flex items-center gap-2">
-                                                                                        <span class="font-mono font-bold text-on-surface">{o.tenant_slug.clone()}</span>
-                                                                                        <span class="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold bg-[#06122d] border border-outline-variant/20 text-on-surface-variant">{o.tenant_plan.clone()}</span>
-                                                                                    </div>
-                                                                                    <p class="text-[11px] text-on-surface-variant">
-                                                                                        {o.reason.clone()} " · changed by " <strong class="text-on-surface">{o.changed_by.clone()}</strong>
-                                                                                    </p>
-                                                                                </div>
+                                                    <For 
+                                                        each=move || overrides.get()
+                                                        key=|o| o.tenant_slug.clone()
+                                                        children={
+                                                            let fk = fkey.clone();
+                                                            move |o| {
+                                                                let tenant_slug = o.tenant_slug.clone();
+                                                                let o_type = o.override_type.clone();
+                                                                let o_type_for_class = o_type.clone();
+                                                                let o_type_for_style = o_type.clone();
+                                                                let fk_inner = fk.clone();
+                                                                view! {
+                                                                    <div class="ni-override-row">
+                                                                        <div style="flex:1;">
+                                                                            <div style="display:flex;align-items:center;gap:8px;">
+                                                                                <span class="ni-slug">{o.tenant_slug.clone()}</span>
+                                                                                <span class=move || format!("ni-plan-badge {}", o.tenant_plan.to_lowercase())>{o.tenant_plan.clone()}</span>
                                                                             </div>
-
-                                                                            <div class="flex items-center gap-4">
-                                                                                {if o_type == "deny" {
-                                                                                    view! {
-                                                                                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-red-500/10 border border-red-500/30 text-red-400">
-                                                                                            "🚫 Blocked"
-                                                                                        </span>
-                                                                                    }.into_any()
-                                                                                } else {
-                                                                                    view! {
-                                                                                        <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                                                                                            "✓ Granted (" {o.rollout_pct.to_string()} "%)"
-                                                                                        </span>
-                                                                                    }.into_any()
-                                                                                }}
-                                                                                <button 
-                                                                                    on:click=move |_| handle_remove_override(fk_inner.get_value(), tenant_slug.clone())
-                                                                                    class="p-1 text-on-surface-variant hover:text-red-400 hover:bg-red-500/10 rounded transition-all"
-                                                                                    title="Remove override"
-                                                                                >
-                                                                                    <span class="material-symbols-outlined text-sm">"delete"</span>
-                                                                                </button>
+                                                                            <div class="ni-source">
+                                                                                {if o.override_type == "deny" { "Deny" } else { "Grant" }}
+                                                                                " · " {o.rollout_pct.to_string()} "% within NI · "
+                                                                                {o.reason.clone()} " · " {o.changed_at.clone()} " · " {o.changed_by.clone()}
+                                                                                {if o.jira != "None" { format!(" · {}", o.jira) } else { "".to_string() }}
                                                                             </div>
                                                                         </div>
-                                                                    }
-                                                                 }
+                                                                        <div class=move || format!("override-state {}", if o_type_for_class == "deny" { "ni-deny" } else { "ni-grant" })>
+                                                                            <span class="override-dot" style=move || format!("background:{}", if o_type_for_style == "deny" { "var(--red)" } else { "var(--green)" })></span>
+                                                                            {if o_type == "deny" { "Blocked" } else { "100% active" }}
+                                                                        </div>
+                                                                        <button 
+                                                                            class="btn btn-ghost btn-sm btn-icon" 
+                                                                            title="Remove override"
+                                                                            on:click=move |_| handle_remove_override(fk_inner.get_value(), tenant_slug.clone())
+                                                                        >
+                                                                            "✕"
+                                                                        </button>
+                                                                    </div>
+                                                                }
                                                             }
-                                                        />
-                                                    </div>
+                                                        }
+                                                    />
                                                 </Show>
                                             </div>
-                                        </Show>
+                                        </div>
+                                    </Show>
 
-                                        // Tab Pane: Audit Log
-                                        <Show when=move || active_tab.get() == "audit">
-                                            <div class="p-5 space-y-2 max-h-60 overflow-y-auto">
-                                                <For 
-                                                    each=move || audit_logs.get()
-                                                    key=|log| format!("{}-{}-{}", log.date, log.user, log.action)
-                                                    children=move |log| {
-                                                        view! {
-                                                            <div class="flex items-start gap-4 text-xs border-b border-outline-variant/10 pb-2 last:border-b-0">
-                                                                <span class="font-mono text-on-surface-variant w-14 flex-shrink-0">{log.date.clone()}</span>
-                                                                <span class="font-semibold text-primary w-20 flex-shrink-0 truncate">{log.user.clone()}</span>
-                                                                <span class="text-on-surface flex-1">{log.action.clone()}</span>
-                                                            </div>
-                                                        }
+                                    // Tab Pane: Audit Log
+                                    <Show when=move || active_tab.get() == "audit">
+                                        <div class="fct-pane active" on:click=move |e| e.stop_propagation() style="max-height: 250px; overflow-y: auto;">
+                                            <For 
+                                                each=move || audit_logs.get()
+                                                key=|log| format!("{}-{}-{}", log.date, log.user, log.action)
+                                                children=move |log| {
+                                                    view! {
+                                                        <div style="font-size:11.5px;color:var(--text-secondary);padding:8px 0;border-bottom:1px solid var(--border-subtle);display:flex;gap:8px;">
+                                                            <strong>{log.date.clone()}</strong>
+                                                            <span style="color:var(--text-muted)">"·"</span>
+                                                            <span style="color:var(--cobalt);font-weight:600;min-width:60px;">{log.user.clone()}</span>
+                                                            <span style="color:var(--text-muted)">"—"</span>
+                                                            <span>{log.action.clone()}</span>
+                                                        </div>
                                                     }
-                                                />
-                                            </div>
-                                        </Show>
-                                    </div>
-                                </Show>
+                                                }
+                                            />
+                                        </div>
+                                    </Show>
+                                </div>
                             </div>
                         }
                     }
                 />
             </div>
 
-            // Assign NI Override Side Panel Drawer
+            // ── Assign NI Override Side Panel ──
             <div 
                 on:click=move |_| close_override_drawer()
                 class=move || format!(
-                    "fixed inset-0 z-[300] bg-black/60 backdrop-blur-xs transition-opacity duration-200 {}",
-                    if show_override_panel.get() { "opacity-100 pointer-events-auto" } else { "opacity-0 pointer-events-none" }
+                    "assign-panel-backdrop {}",
+                    if show_override_panel.get() { "open" } else { "" }
                 )
             ></div>
             
             <div class=move || format!(
-                "fixed top-0 right-0 h-screen w-[460px] bg-card border-l border-outline-variant/30 z-[400] flex flex-col shadow-2xl transition-transform duration-300 ease-out {}",
-                if show_override_panel.get() { "translate-x-0" } else { "translate-x-full" }
+                "assign-panel {}",
+                if show_override_panel.get() { "open" } else { "" }
             )>
-                <div class="px-5 py-4 border-b border-outline-variant/20 flex items-center justify-between flex-shrink-0">
+                <div class="assign-panel-hdr">
                     <div>
-                        <h3 class="text-base font-bold">"Assign NI Override"</h3>
-                        <p class="text-[11px] text-on-surface-variant font-mono mt-0.5">
+                        <div class="assign-panel-title">"Assign NI Override"</div>
+                        <div style="font-size:11px;color:var(--text-muted);font-family:monospace;margin-top:2px;">
                             {move || active_override_flag_key.get().unwrap_or_default()}
-                        </p>
+                        </div>
                     </div>
                     <button 
                         on:click=move |_| close_override_drawer()
-                        class="text-on-surface-variant hover:text-on-surface text-sm p-1 rounded hover:bg-surface-bright/20"
+                        class="btn btn-ghost btn-sm"
                     >
                         "✕ Close"
                     </button>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-5 space-y-5">
-                    <div class="p-3 bg-surface-container border border-outline-variant/20 rounded-lg text-xs leading-relaxed text-on-surface-variant">
-                        <strong>"NI Override"</strong> " grants or denies access for a single tenant, bypassing the plan gate. A " <strong>"grant"</strong> " lets an NI access a feature above their plan tier. A " <strong>"deny"</strong> " blocks a specific NI below their plan tier. All changes are audit-logged."
+                <div class="assign-panel-body">
+                    <div class="arch-note">
+                        <strong>"NI Override"</strong> " grants or denies access for a single tenant, bypassing the plan gate."
+                        "A " <strong>"grant"</strong> " lets an NI access a feature above their plan tier (e.g. pilot program)."
+                        "A " <strong>"deny"</strong> " blocks a specific NI below their plan tier (e.g. compliance hold)."
+                        "All changes are audit-logged."
                     </div>
 
-                    // Tenant Autocomplete search
-                    <div class="flex flex-col gap-1.5 relative">
-                        <label class="text-xs font-semibold text-on-surface-variant">"Tenant (NI slug or name)"</label>
+                    // Tenant Search Form
+                    <div class="n-form-row">
+                        <label class="n-form-label">"Tenant (NI slug or name)"</label>
                         <Show when=move || selected_tenant.get().is_some() fallback=move || view! {
-                            <div class="relative">
+                            <div class="tenant-search-wrap">
                                 <input 
                                     type="text" 
-                                    class="bg-surface-container-highest border border-outline/25 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    placeholder="Search nexus-property, miami-stays..."
+                                    placeholder="Search nexus-property, miami-stays…" 
                                     prop:value=override_tenant_input
                                     on:focus=move |_| autocomplete_open.set(true)
                                     on:input=move |ev| {
@@ -893,10 +960,10 @@ pub fn FeatureFlags() -> impl IntoView {
                                         override_tenant_input.set(val);
                                         autocomplete_open.set(true);
                                     }
+                                    autocomplete="off"
                                 />
-                                // Autocomplete Dropdown list
                                 <Show when=move || autocomplete_open.get()>
-                                    <div class="absolute left-0 right-0 top-12 mt-1 bg-surface-container border border-outline-variant/40 rounded-xl overflow-hidden shadow-xl z-55 max-h-60 overflow-y-auto">
+                                    <div class="tenant-dropdown open">
                                         {
                                             let term = override_tenant_input.get().to_lowercase();
                                             let filtered_opts: Vec<MockTenant> = mock_tenants.get_value().into_iter().filter(|t| {
@@ -920,14 +987,14 @@ pub fn FeatureFlags() -> impl IntoView {
                                                                         selected_tenant.set(Some(t_select.clone()));
                                                                         autocomplete_open.set(false);
                                                                     }
-                                                                    class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-surface-bright/20 border-b border-outline-variant/10 last:border-b-0"
+                                                                    class="tenant-opt"
                                                                 >
                                                                     <div class=format!("w-7 h-7 rounded flex items-center justify-center font-bold text-xs border {}", t.bg_class)>
-                                                                        {t.icon_char}
+                                                                        {t.icon_char.to_string()}
                                                                     </div>
                                                                     <div>
-                                                                        <div class="text-xs font-mono font-semibold text-on-surface">{t.slug.clone()}</div>
-                                                                        <div class="text-[10px] text-on-surface-variant">{t.name.clone()} " · " <span class="text-primary">{t.plan.clone()}</span></div>
+                                                                        <div class="tenant-opt-slug">{t.slug.clone()}</div>
+                                                                        <div class="tenant-opt-meta">{t.name.clone()} " · " <span class="tenant-opt-plan">{t.plan.clone()}</span></div>
                                                                     </div>
                                                                 </div>
                                                             }
@@ -939,58 +1006,56 @@ pub fn FeatureFlags() -> impl IntoView {
                                     </div>
                                 </Show>
                             </div>
-                        }.into_any()>
-                            // Selected Tenant Chip view
+                        }>
                             {let st = selected_tenant.get().unwrap();
                              view! {
-                                <div class="flex items-center justify-between p-3 rounded-lg border border-primary bg-primary-container/20 text-xs">
-                                    <div class="flex items-center gap-3">
-                                        <div class=format!("w-6 h-6 rounded flex items-center justify-center font-bold border text-[10px] {}", st.bg_class)>
-                                            {st.icon_char}
-                                        </div>
-                                        <div>
-                                            <div class="font-mono font-bold text-primary">{st.slug.clone()}</div>
-                                            <div class="text-[10px] text-on-surface-variant">{st.name.clone()} " · " {st.plan.clone()}</div>
-                                        </div>
+                                <div class="selected-tenant-chip">
+                                    <div class=format!("w-6 h-6 rounded flex items-center justify-center font-bold border text-[10px] {}", st.bg_class)>
+                                        {st.icon_char.to_string()}
+                                    </div>
+                                    <div style="flex:1;">
+                                        <div class="slug">{st.slug.clone()}</div>
+                                        <div style="font-size:10.5px;color:var(--text-muted);">{st.name.clone()} " · " {st.plan.clone()}</div>
                                     </div>
                                     <button 
                                         on:click=move |_| selected_tenant.set(None)
-                                        class="text-on-surface-variant hover:text-on-surface font-semibold px-2 py-1 bg-surface-container rounded hover:bg-surface-container-high"
+                                        class="btn btn-ghost btn-sm btn-icon" 
+                                        title="Change tenant"
                                     >
-                                        "Change"
+                                        "✕"
                                     </button>
                                 </div>
-                            }.into_any()}
+                            }}
                         </Show>
                     </div>
 
                     // Override Type Selection
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold text-on-surface-variant">"Override Type"</label>
+                    <div class="n-form-row">
+                        <label class="n-form-label">"Override Type"</label>
                         <select 
-                            class="bg-surface-container-highest border border-outline/25 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
+                            class="n-form-select"
                             on:change=move |ev| override_type.set(event_target_value(&ev))
                         >
                             <option value="grant">"Grant — enable for this tenant (above plan tier)"</option>
                             <option value="deny">"Deny — block for this tenant (compliance / hold)"</option>
                         </select>
-                        <p class="text-[10px] text-on-surface-variant/75">
+                        <div class="n-form-hint">
                             {move || if override_type.get() == "grant" {
                                 "This tenant will gain access to this feature regardless of their plan tier."
                             } else {
-                                "This tenant will be strictly blocked from this feature regardless of global state."
+                                "This tenant will be blocked even if their plan tier qualifies."
                             }}
-                        </p>
+                        </div>
                     </div>
 
                     // Rollout % (only active for grant)
                     <Show when=move || override_type.get() == "grant">
-                        <div class="flex flex-col gap-1.5">
-                            <label class="text-xs font-semibold text-on-surface-variant">"Rollout % within this tenant (0–100)"</label>
+                        <div class="n-form-row" id="rollout-row">
+                            <label class="n-form-label">"Rollout % within this tenant (0–100)"</label>
                             <input 
                                 type="number" 
                                 min="0" max="100"
-                                class="bg-surface-container-highest border border-outline/25 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
+                                class="n-form-input"
                                 prop:value=override_rollout_pct
                                 on:input=move |ev| {
                                     if let Ok(val) = event_target_value(&ev).parse::<i32>() {
@@ -998,28 +1063,29 @@ pub fn FeatureFlags() -> impl IntoView {
                                     }
                                 }
                             />
-                            <p class="text-[10px] text-on-surface-variant/70">"100 = all users in this NI see it. Lower values = canary within the tenant."</p>
+                            <div class="n-form-hint">"100 = all users in this NI see it. Lower values = canary within the tenant."</div>
                         </div>
                     </Show>
 
-                    // Audit reason input
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold text-on-surface-variant">"Reason (Required) *"</label>
+                    // Reason input
+                    <div class="n-form-row">
+                        <label class="n-form-label">"Reason " <span style="color:var(--red)">"*"</span></label>
                         <input 
                             type="text"
-                            class="bg-surface-container-highest border border-outline/25 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
+                            class="n-form-input"
                             placeholder="e.g. Pilot per AM request · ATLAS-3200"
                             prop:value=override_reason
                             on:input=move |ev| override_reason.set(event_target_value(&ev))
                         />
+                        <div class="n-form-hint">"Required. Attached to audit log entry."</div>
                     </div>
 
                     // Optional Jira ticket
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-xs font-semibold text-on-surface-variant">"Jira Ticket (Optional)"</label>
+                    <div class="n-form-row">
+                        <label class="n-form-label">"Jira Ticket (if different from flag's primary ticket)"</label>
                         <input 
                             type="text"
-                            class="bg-surface-container-highest border border-outline/25 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary font-mono"
+                            class="n-form-input font-mono"
                             placeholder="ATLAS-XXXX"
                             prop:value=override_jira
                             on:input=move |ev| override_jira.set(event_target_value(&ev))
@@ -1027,48 +1093,80 @@ pub fn FeatureFlags() -> impl IntoView {
                     </div>
 
                     // Effective access cascade preview
-                    <div class="p-4 bg-[#05070B] border border-outline-variant/30 rounded-xl space-y-3">
-                        <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-1.5">"Effective Access Cascade Preview"</div>
-                        <div class="space-y-2 text-xs">
-                            <div class="flex items-center justify-between">
-                                <span class="text-on-surface-variant">"Global switch status:"</span>
+                    <div style="background:var(--bg-base);border:1px solid var(--border-default);border-radius:5px;padding:12px 14px;margin-top:4px;">
+                        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px;">
+                            "Effective Access After Override"
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:6px;">
+                            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;">
+                                <span style="width:70px;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">"Global"</span>
                                 {move || {
                                     let is_active = flags.get().iter().find(|flg| Some(flg.key.clone()) == active_override_flag_key.get()).map(|flg| flg.is_enabled.get()).unwrap_or(false);
                                     if is_active {
-                                        view! { <span class="text-emerald-400 font-semibold">"✓ ON"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--green);font-weight:600;">"✓ ON"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — platform-wide enabled"</span>
+                                            </>
+                                        }.into_any()
                                     } else {
-                                        view! { <span class="text-amber-500 font-semibold">"● OFF"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--amber);font-weight:600;">"● OFF"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — platform-wide dark launched"</span>
+                                            </>
+                                        }.into_any()
                                     }
                                 }}
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-on-surface-variant">"Plan gate check:"</span>
+                            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;">
+                                <span style="width:70px;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">"Plan Gate"</span>
                                 {move || {
                                     let has_gate = flags.get().iter().find(|flg| Some(flg.key.clone()) == active_override_flag_key.get()).map(|flg| flg.is_plan_gated).unwrap_or(false);
                                     if has_gate {
-                                        view! { <span class="text-amber-400">"⚠ Gate active"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--amber);font-weight:600;">"⚠ Blocked"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — tenant's plan may not qualify"</span>
+                                            </>
+                                        }.into_any()
                                     } else {
-                                        view! { <span class="text-on-surface-variant">"None"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--text-secondary);font-weight:600;">"None"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — no plan gate configured"</span>
+                                            </>
+                                        }.into_any()
                                     }
                                 }}
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-on-surface-variant">"Bypass override:"</span>
+                            <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;">
+                                <span style="width:70px;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">"Override"</span>
                                 {move || {
                                     if override_type.get() == "deny" {
-                                        view! { <span class="text-red-400 font-semibold">"→ Force Deny"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--red);font-weight:600;">"→ Deny"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — explicit block bypasses other rules"</span>
+                                            </>
+                                        }.into_any()
                                     } else {
-                                        view! { <span class="text-emerald-400 font-semibold">"→ Force Grant"</span> }.into_any()
+                                        view! {
+                                            <>
+                                                <span style="color:var(--cobalt);font-weight:600;">"→ Grant"</span>
+                                                <span style="font-size:10.5px;color:var(--text-muted);">" — NI override bypasses plan gate"</span>
+                                            </>
+                                        }.into_any()
                                     }
                                 }}
                             </div>
-                            <div class="border-t border-white/5 pt-2 flex items-center justify-between font-bold text-sm">
-                                <span>"Effective result:"</span>
+                            <div style="border-top:1px solid var(--border-strong);margin-top:4px;padding-top:8px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;">
+                                <span style="width:70px;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;">"Effective"</span>
                                 {move || {
                                     if override_type.get() == "deny" {
-                                        view! { <span class="text-red-400">"🚫 Blocked"</span> }.into_any()
+                                        view! { <span style="color:var(--red);">"🚫 Blocked"</span> }.into_any()
                                     } else {
-                                        view! { <span class="text-emerald-400">"✅ Active"</span> }.into_any()
+                                        view! { <span style="color:var(--green);">"✅ Active"</span> }.into_any()
                                     }
                                 }}
                             </div>
@@ -1076,113 +1174,115 @@ pub fn FeatureFlags() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="px-5 py-4 border-t border-outline-variant/20 flex justify-end gap-3 flex-shrink-0">
-                    <button 
-                        on:click=move |_| close_override_drawer()
-                        class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface"
-                    >
-                        "Cancel"
-                    </button>
-                    <button 
-                        on:click=handle_save_override
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-bold text-on-primary"
-                    >
-                        "Save Override"
-                    </button>
+                <div class="assign-panel-footer">
+                    <button class="btn btn-ghost" on:click=move |_| close_override_drawer()>"Cancel"</button>
+                    <button class="btn btn-primary" on:click=handle_save_override>"Save Override · Audit-Log"</button>
                 </div>
             </div>
 
-            // Create New Flag Modal dialog
+            // ── Create New Flag Modal ──
             <Show when=move || show_new_flag_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div class="bg-[#111520] w-full max-w-md p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_new_flag_modal.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"Create Feature Flag"</h3>
-                        <p class="text-xs text-on-surface-variant mb-6">"Define a new global feature key registry rollout rules."</p>
+                        <h3 class="text-base font-bold mb-2">"New Feature Flag"</h3>
+                        <p class="text-xs text-on-surface-variant mb-6">"Define a new global feature key and registry rollout rules."</p>
                         
                         <div class="space-y-4 mb-6">
-                            <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-medium text-on-surface-variant">"Flag Registry Key *"</label>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Flag KeyRegistry Key *"</label>
                                 <input 
                                     type="text" 
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    placeholder="e.g. ota_sync_v2"
+                                    class="n-form-input font-mono"
+                                    placeholder="snake_case_key"
                                     prop:value=new_flag_key
                                     on:input=move |ev| new_flag_key.set(event_target_value(&ev))
                                 />
+                                <div class="n-form-hint">"Unique platform-wide. Becomes FlagKey::SnakeCaseKey in Rust."</div>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-medium text-on-surface-variant">"Description / Purpose *"</label>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Description / Purpose *"</label>
                                 <input 
                                     type="text" 
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    placeholder="Brief description of the feature..."
+                                    class="n-form-input"
+                                    placeholder="What does enabling this flag do?"
                                     prop:value=new_flag_desc
                                     on:input=move |ev| new_flag_desc.set(event_target_value(&ev))
                                 />
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <label class="text-xs font-medium text-on-surface-variant">"Jira Ticket / Issue ID"</label>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Initial Variant"</label>
+                                <select 
+                                    class="n-form-select"
+                                    on:change=move |ev| {
+                                        let val = event_target_value(&ev);
+                                        new_flag_has_global.set(val == "global");
+                                    }
+                                >
+                                    <option value="global">"Global — 0% dark launch (enable globally when ready)"</option>
+                                    <option value="plan">"Plan-Scoped — set a plan gate (no global rollout)"</option>
+                                    <option value="ni">"NI Override only — no global or plan rollout"</option>
+                                </select>
+                            </div>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Jira Ticket / Issue ID *"</label>
                                 <input 
                                     type="text" 
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary font-mono uppercase"
+                                    class="n-form-input font-mono uppercase"
                                     placeholder="ATLAS-XXXX"
                                     prop:value=new_flag_jira
                                     on:input=move |ev| new_flag_jira.set(event_target_value(&ev))
                                 />
-                            </div>
-                            <div class="flex items-center gap-3 pt-2">
-                                <input 
-                                    type="checkbox" 
-                                    id="new-flag-global"
-                                    class="w-4 h-4 rounded text-primary focus:ring-primary bg-[#05122d] border-outline-variant/30"
-                                    prop:checked=new_flag_has_global
-                                    on:change=move |ev| new_flag_has_global.set(event_target_checked(&ev))
-                                />
-                                <label for="new-flag-global" class="text-xs text-on-surface-variant">"Configure global default variant at 100% rollout"</label>
+                                <div class="n-form-hint">"Required. Every flag must be traceable."</div>
                             </div>
                         </div>
 
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_new_flag_modal.set(false) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                            <button on:click=handle_create_flag class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-bold text-on-primary">"Create Registry"</button>
+                            <button on:click=move |_| show_new_flag_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=handle_create_flag class="btn btn-primary">"Create Flag"</button>
                         </div>
                     </div>
                 </div>
             </Show>
 
-            // Edit Rollout Percentage Modal
+            // ── Edit Rollout Percentage Modal ──
             <Show when=move || show_rollout_modal.get().is_some()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-sm p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div class="bg-[#111520] w-full max-w-sm p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_rollout_modal.set(None)>"✕"</button>
-                        <h3 class="text-base font-semibold mb-2">"Edit Global Rollout %"</h3>
+                        <h3 class="text-base font-bold mb-2">"Edit Rollout % · " {move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</h3>
                         <p class="text-xs text-on-surface-variant mb-6">
-                            "Modify global rollout for key: " <code class="bg-[#05070B] px-1 py-0.5 rounded font-mono">{move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</code>
+                            "Modify global rollout for key: " <code class="bg-[#0A0C16] px-1 py-0.5 rounded font-mono">{move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</code>
                         </p>
 
                         <div class="space-y-4 mb-6">
-                            <div class="flex flex-col gap-2">
-                                <div class="flex justify-between items-center text-xs text-on-surface-variant">
-                                    <span>"Percentage Rollout (0-100)"</span>
-                                    <span class="font-mono font-bold text-primary">{move || temp_rollout_val.get().to_string()} "%"</span>
-                                </div>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Global Rollout (0–100)"</label>
                                 <input 
-                                    type="range" min="0" max="100" step="5"
-                                    class="w-full h-1 bg-[#06122d] rounded-lg appearance-none cursor-pointer"
+                                    type="number" min="0" max="100"
+                                    class="n-form-input"
                                     prop:value=temp_rollout_val
                                     on:input=move |ev| {
                                         if let Ok(val) = event_target_value(&ev).parse::<i32>() {
-                                            temp_rollout_val.set(val);
+                                            temp_rollout_val.set(val.clamp(0, 100));
                                         }
                                     }
+                                />
+                                <div class="n-form-hint">"0 = dark launch · 100 = fully live · between = canary"</div>
+                            </div>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Reason"</label>
+                                <input 
+                                    type="text" 
+                                    class="n-form-input"
+                                    placeholder="e.g. 72h canary stable, no errors — bumping to 100%"
                                 />
                             </div>
                         </div>
 
                         <div class="flex justify-end gap-3">
-                            <button on:click=move |_| show_rollout_modal.set(None) class="px-4 py-2 bg-surface-container-highest border border-outline-variant/30 rounded-lg text-xs font-bold text-on-surface">"Cancel"</button>
-                            <button on:click=handle_save_rollout class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-bold text-on-primary">"Save Rollout"</button>
+                            <button on:click=move |_| show_rollout_modal.set(None) class="btn btn-ghost">"Cancel"</button>
+                            <button on:click=handle_save_rollout class="btn btn-primary">"Update Rollout"</button>
                         </div>
                     </div>
                 </div>

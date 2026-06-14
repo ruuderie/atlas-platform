@@ -1,17 +1,12 @@
 use leptos::prelude::*;
 use leptos::ev;
-use shared_ui::components::data_table::DataTable;
-use shared_ui::components::tabs::{Tabs, TabButton};
-use shared_ui::components::ui::tabs::{TabsContent, TabsList};
-
-
 use crate::components::milestone_modal::MilestoneModal;
-
 use crate::api::crm::{get_users, get_leads, get_accounts, get_deals, get_contacts, create_lead, create_account, create_contact};
 use crate::api::models::{CreateLead, CreateAccount, CreateContact};
 
 #[component]
 pub fn CrmGrid() -> impl IntoView {
+    let active_tab = RwSignal::new("leads".to_string());
     let new_record_name = RwSignal::new("".to_string());
     let new_record_email = RwSignal::new("".to_string());
     let new_record_type = RwSignal::new("Lead".to_string());
@@ -24,38 +19,6 @@ pub fn CrmGrid() -> impl IntoView {
     let accounts_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_accounts().await.unwrap_or_default() }});
     let contacts_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_contacts().await.unwrap_or_default() }});
     let deals_res = LocalResource::new(move || { trigger_fetch.get(); async move { get_deals().await.unwrap_or_default() }});
-
-    let _handle_save_record = move |_: ev::MouseEvent| {
-        let name = new_record_name.get();
-        let email = new_record_email.get();
-        let rtype = new_record_type.get();
-        
-        leptos::task::spawn_local(async move {
-            if rtype == "Lead" {
-                let data = CreateLead { name, email: Some(email) };
-                if let Err(e) = create_lead(data).await { toast.message.set(Some(e)); }
-            } else if rtype == "Account" {
-                let data = CreateAccount { name };
-                if let Err(e) = create_account(data).await { toast.message.set(Some(e)); }
-            } else if rtype == "Contact" {
-                let data = CreateContact {
-                    name,
-                    email: Some(email),
-                    phone: None,
-                    whatsapp: None,
-                    telegram: None,
-                    twitter: None,
-                    instagram: None,
-                    facebook: None,
-                    properties: None,
-                };
-                if let Err(e) = create_contact(data).await { toast.message.set(Some(e)); }
-            }
-            set_trigger_fetch.update(|v| *v += 1);
-            new_record_name.set("".to_string());
-            new_record_email.set("".to_string());
-        });
-    };
 
     let handle_impersonate = move |user_id: String| {
         let toast = toast.clone();
@@ -74,70 +37,6 @@ pub fn CrmGrid() -> impl IntoView {
         });
     };
 
-    let user_headers = vec!["ID".to_string(), "Name".to_string(), "Email".to_string(), "Role".to_string(), "Status".to_string()];
-    let lead_headers = vec!["Lead ID".to_string(), "Name".to_string(), "Email".to_string(), "Status".to_string(), "Converted?".to_string()];
-    let account_headers = vec!["Account ID".to_string(), "Name".to_string()];
-    let contact_headers = vec!["Contact ID".to_string(), "Name".to_string(), "Email".to_string(), "Phone".to_string(), "Created At".to_string()];
-    let deal_headers = vec!["Deal ID".to_string(), "Name".to_string(), "Customer ID".to_string(), "Amount".to_string(), "Status".to_string(), "Stage".to_string()];
-
-    let user_data = Signal::derive(move || {
-        users_res.get().unwrap_or_default().into_iter().map(|u| {
-            vec![
-                u.id, 
-                format!("{} {}", u.first_name, u.last_name), 
-                u.email, 
-                if u.is_admin { "Admin".into() } else { "User".into() }, 
-                "Active".into()
-            ]
-        }).collect::<Vec<Vec<String>>>()
-    });
-
-    let lead_data = Signal::derive(move || {
-        leads_res.get().unwrap_or_default().into_iter().map(|l| {
-            vec![
-                l.id,
-                l.name,
-                l.email.unwrap_or_else(|| "-".to_string()),
-                l.status.unwrap_or_else(|| "New".to_string()),
-                l.is_converted.to_string(),
-            ]
-        }).collect::<Vec<Vec<String>>>()
-    });
-
-    let account_data = Signal::derive(move || {
-        accounts_res.get().unwrap_or_default().into_iter().map(|a| {
-            vec![
-                a.id,
-                a.name,
-            ]
-        }).collect::<Vec<Vec<String>>>()
-    });
-
-    let contact_data = Signal::derive(move || {
-        contacts_res.get().unwrap_or_default().into_iter().map(|c| {
-            vec![
-                c.id.clone(),
-                c.name.clone(),
-                c.email.clone().unwrap_or_else(|| "-".to_string()),
-                c.phone.clone().unwrap_or_else(|| "-".to_string()),
-                c.created_at.clone(),
-            ]
-        }).collect::<Vec<Vec<String>>>()
-    });
-
-    let deal_data = Signal::derive(move || {
-        deals_res.get().unwrap_or_default().into_iter().map(|d| {
-            vec![
-                d.id,
-                d.name,
-                d.customer_id,
-                format!("${:.2}", d.amount),
-                d.status,
-                d.stage,
-            ]
-        }).collect::<Vec<Vec<String>>>()
-    });
-
     let selected_user = RwSignal::new(None::<Vec<String>>);
     let selected_lead = RwSignal::new(None::<Vec<String>>);
     let selected_account = RwSignal::new(None::<Vec<String>>);
@@ -145,258 +44,393 @@ pub fn CrmGrid() -> impl IntoView {
 
     let (show_milestone_modal, set_show_milestone_modal) = signal(false);
 
+    let page_title = move || match active_tab.get().as_str() {
+        "users" => "User Access & Auth",
+        "leads" => "Leads",
+        "accounts" => "Accounts",
+        "contacts" => "Contacts",
+        "deals" => "Deals",
+        _ => "CRM",
+    };
+
+    let page_subtitle = move || match active_tab.get().as_str() {
+        "users" => "Manage admin accounts and API permissions.",
+        "leads" => "1,847 total · 142 new this week · G-31 Canonical Lead Store · Platform-wide",
+        "accounts" => "Platform-wide organization and individual accounts · Party Model (G-31)",
+        "contacts" => "Individual contact details and communications history.",
+        "deals" => "Sales pipelines, opportunities, and upsell events.",
+        _ => "",
+    };
+
     view! {
-        <div class="flex flex-col min-h-[calc(100vh-128px)]">
-            // ── Header ──
-            <header class="bg-surface-container-low px-8 pt-6 -mx-8 -mt-8">
-                <div class="flex justify-between items-end mb-6">
-                    <div>
-                        <h1 class="text-2xl font-bold font-headline text-on-surface tracking-tight">"Sales & Pipelines"</h1>
-                        <p class="text-on-surface-variant text-sm mt-1">"Manage leads, contacts, and active deal flow."</p>
-                    </div>
-                    <a href="/crm/new" class="btn-primary-gradient px-6 py-2.5 rounded-md text-on-primary font-bold text-sm flex items-center gap-2 shadow-lg shadow-primary/10 hover:scale-[1.02] active:scale-95 transition-all">
-                        <span class="material-symbols-outlined text-[18px]">"add_circle"</span>
-                        "New Record"
-                    </a>
+        <div class="main-area">
+            // ── Page Header ──
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">{page_title}</h1>
+                    <p class="page-subtitle">{page_subtitle}</p>
                 </div>
-            </header>
+                <div class="page-actions">
+                    <button class="btn btn-ghost btn-sm">
+                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2 10L7 2l5 8H2z"/>
+                        </svg>
+                        "Import"
+                    </button>
+                    <button class="btn btn-primary btn-sm">
+                        <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor">
+                            <path d="M7 2a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2H8v3a1 1 0 1 1-2 0V8H3a1 1 0 1 1 0-2h3V3a1 1 0 0 1 1-1z"/>
+                        </svg>
+                        "New Record"
+                    </button>
+                </div>
+            </div>
 
-            // ── Tabs + Content ──
-            <Suspense fallback=move || view! { <div class="p-8 text-center text-on-surface-variant">"Loading CRM data..."</div> }>
-                <Tabs default_value="leads".to_string()>
-                    <div class="bg-surface-container-low -mx-8 px-8 border-b border-outline-variant/20">
-                        <TabsList class="inline-flex gap-8".to_string()>
-                            <TabButton label="Users" value="users" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                            <TabButton label="Leads" value="leads" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                            <TabButton label="Accounts" value="accounts" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                            <TabButton label="Contacts" value="contacts" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                            <TabButton label="Deals" value="deals" active_value=Signal::derive(|| "".to_string()) on_select=move |_| {} />
-                        </TabsList>
-                    </div>
+            // ── Custom CRM Tabs ──
+            <div class="tab-bar">
+                <button class=move || format!("tab {}", if active_tab.get() == "users" { "active" } else { "" }) on:click=move |_| active_tab.set("users".to_string())>"Users"</button>
+                <button class=move || format!("tab {}", if active_tab.get() == "leads" { "active" } else { "" }) on:click=move |_| active_tab.set("leads".to_string())>"Leads"</button>
+                <button class=move || format!("tab {}", if active_tab.get() == "accounts" { "active" } else { "" }) on:click=move |_| active_tab.set("accounts".to_string())>"Accounts"</button>
+                <button class=move || format!("tab {}", if active_tab.get() == "contacts" { "active" } else { "" }) on:click=move |_| active_tab.set("contacts".to_string())>"Contacts"</button>
+                <button class=move || format!("tab {}", if active_tab.get() == "deals" { "active" } else { "" }) on:click=move |_| active_tab.set("deals".to_string())>"Deals"</button>
+            </div>
 
-                    <div class="flex-1 flex flex-col mt-0">
-                        // ── Users Tab ──
-                        <TabsContent value="users".to_string()>
-                            <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
-                                <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
-                                    <DataTable 
-                                        headers=user_headers.clone() 
-                                        data=user_data 
-                                        on_row_click=Callback::new(move |row: Vec<String>| selected_user.set(Some(row)))
-                                    />
-                                </div>
-                                <Show when=move || selected_user.get().is_some() fallback=|| view! { <div class="w-full xl:w-[400px] flex items-center justify-center p-8 text-on-surface-variant bg-surface-container-low">"Select a user to view details"</div> }>
-                                    <div class="w-full xl:w-[400px] shrink-0 bg-surface-container-low overflow-y-auto p-8 space-y-6">
-                                        <div class="flex items-start justify-between mb-6">
-                                            <div class="flex items-center gap-4">
-                                                <div class="w-16 h-16 rounded-xl bg-surface-bright flex items-center justify-center border border-outline-variant/40">
-                                                    <span class="text-2xl font-bold text-primary">{move || selected_user.get().and_then(|u| u.get(1).map(|n| n.chars().take(2).collect::<String>().to_uppercase())).unwrap_or_default()}</span>
-                                                </div>
-                                                <div>
-                                                    <h2 class="text-xl font-bold text-on-surface">{move || selected_user.get().and_then(|u| u.get(1).cloned()).unwrap_or_default()}</h2>
-                                                    <p class="text-on-surface-variant text-sm">{move || selected_user.get().and_then(|u| u.get(2).cloned()).unwrap_or_default()}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-4">
-                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
-                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Role"</div>
-                                                <div class="text-sm font-semibold text-primary">{move || selected_user.get().and_then(|u| u.get(3).cloned()).unwrap_or_default()}</div>
-                                            </div>
-                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
-                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Status"</div>
-                                                <div class="text-sm font-semibold text-on-surface">{move || selected_user.get().and_then(|u| u.get(4).cloned()).unwrap_or_default()}</div>
-                                            </div>
-                                        </div>
-                                        <div class="mt-auto pt-6 flex flex-col gap-3">
-                                            <a href=move || format!("/crm/user/{}", selected_user.get().and_then(|u| u.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
-                                                "View Full Details"
-                                                <span class="material-symbols-outlined text-sm">"open_in_new"</span>
-                                            </a>
-                                            <button 
-                                                on:click=move |_| {
-                                                    if let Some(user_id) = selected_user.get().and_then(|u| u.get(0).cloned()) {
-                                                        handle_impersonate(user_id);
-                                                    }
-                                                }
-                                                class="w-full py-3 bg-[#0d0d0d] text-white font-bold text-sm rounded-md shadow-sm border border-white/10 hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                "Login As User"
-                                                <span class="material-symbols-outlined text-sm">"login"</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Show>
-                            </div>
-                        </TabsContent>
+            // ── Filter Bar ──
+            <div class="filter-bar" style="margin: 20px 24px 0 24px;">
+                <div class="stage-pills">
+                    <button class="pill active">"All"</button>
+                    <button class="pill">"Recent"</button>
+                </div>
+                <div class="filter-sep"></div>
+                <div class="filter-search">
+                    <input type="text" placeholder="Search records..."/>
+                </div>
+            </div>
 
-                        // ── Leads Tab ──
-                        <TabsContent value="leads".to_string()>
-                            <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
-                                <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
-                                    <DataTable 
-                                        headers=lead_headers.clone() 
-                                        data=lead_data 
-                                        on_row_click=Callback::new(move |row: Vec<String>| selected_lead.set(Some(row)))
-                                    />
-                                </div>
-                                <Show when=move || selected_lead.get().is_some() fallback=|| view! { <div class="w-full xl:w-[400px] flex items-center justify-center p-8 text-on-surface-variant bg-surface-container-low">"Select a lead to view details"</div> }>
-                                    <div class="w-full xl:w-[400px] shrink-0 bg-surface-container-low overflow-y-auto p-8 space-y-6">
-                                        <div class="flex items-start justify-between mb-6">
-                                            <div class="flex items-center gap-4">
-                                                <div class="w-16 h-16 rounded-xl bg-surface-bright flex items-center justify-center border border-outline-variant/40">
-                                                    <span class="text-2xl font-bold text-primary">{move || selected_lead.get().and_then(|l| l.get(1).map(|n| n.chars().take(2).collect::<String>().to_uppercase())).unwrap_or_default()}</span>
-                                                </div>
-                                                <div>
-                                                    <h2 class="text-xl font-bold text-on-surface">{move || selected_lead.get().and_then(|l| l.get(1).cloned()).unwrap_or_default()}</h2>
-                                                    <p class="text-on-surface-variant text-sm">{move || selected_lead.get().and_then(|l| l.get(2).cloned()).unwrap_or_default()}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-4">
-                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
-                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Pipeline Stage"</div>
-                                                <div class="text-sm font-semibold text-primary">{move || selected_lead.get().and_then(|l| l.get(3).cloned()).unwrap_or_default()}</div>
-                                            </div>
-                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
-                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Converted"</div>
-                                                <div class="text-sm font-semibold text-on-surface">{move || selected_lead.get().and_then(|l| l.get(4).cloned()).unwrap_or_default()}</div>
-                                            </div>
-                                        </div>
-                                        // Contact Info
-                                        <section>
-                                            <h3 class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-sm">"contact_page"</span>
-                                                "Contact Information"
-                                            </h3>
-                                            <div class="space-y-4">
-                                                <div class="flex items-center gap-4">
-                                                    <div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant">
-                                                        <span class="material-symbols-outlined text-sm">"mail"</span>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-xs text-on-surface-variant">"Primary Email"</div>
-                                                        <div class="text-sm text-on-surface">{move || selected_lead.get().and_then(|l| l.get(2).cloned()).unwrap_or_default()}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </section>
-                                        // Activity
-                                        <section>
-                                            <h3 class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <span class="material-symbols-outlined text-sm">"history"</span>
-                                                "Recent Activity"
-                                            </h3>
-                                            <div class="space-y-6 relative before:content-[''] before:absolute before:left-[15px] before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant/30">
-                                                <div class="relative pl-10">
-                                                    <div class="absolute left-0 top-1 w-8 h-8 rounded-full bg-surface-container flex items-center justify-center z-10">
-                                                        <span class="material-symbols-outlined text-[14px] text-tertiary">"check_circle"</span>
-                                                    </div>
-                                                    <div class="text-xs text-on-surface">"Lead created"</div>
-                                                    <div class="text-[10px] text-on-surface-variant">"Via platform admin"</div>
-                                                </div>
-                                            </div>
-                                        </section>
-                                        <div class="mt-auto pt-6">
-                                            <a href=move || format!("/crm/lead/{}", selected_lead.get().and_then(|l| l.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
-                                                "View Full Details"
-                                                <span class="material-symbols-outlined text-sm">"open_in_new"</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </Show>
-                            </div>
-                        </TabsContent>
-
-                        // ── Accounts Tab ──
-                        <TabsContent value="accounts".to_string()>
-                            <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
-                                <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
-                                    <DataTable 
-                                        headers=account_headers.clone() 
-                                        data=account_data 
-                                        on_row_click=Callback::new(move |row: Vec<String>| selected_account.set(Some(row)))
-                                    />
-                                </div>
-                                <Show when=move || selected_account.get().is_some() fallback=|| view! { <div class="w-full xl:w-[400px] flex items-center justify-center p-8 text-on-surface-variant bg-surface-container-low">"Select an account to view details"</div> }>
-                                    <div class="w-full xl:w-[400px] shrink-0 bg-surface-container-low overflow-y-auto p-8 space-y-6">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-16 h-16 rounded-xl bg-surface-bright flex items-center justify-center border border-outline-variant/40">
-                                                <span class="text-2xl font-bold text-primary">{move || selected_account.get().and_then(|a| a.get(1).map(|n| n.chars().take(2).collect::<String>().to_uppercase())).unwrap_or_default()}</span>
-                                            </div>
-                                            <div>
-                                                <h2 class="text-xl font-bold text-on-surface">{move || selected_account.get().and_then(|a| a.get(1).cloned()).unwrap_or_default()}</h2>
-                                                <p class="text-on-surface-variant text-sm">{move || selected_account.get().and_then(|a| a.get(0).cloned()).unwrap_or_default()}</p>
-                                            </div>
-                                        </div>
-                                        <div class="mt-auto pt-6">
-                                            <a href=move || format!("/crm/account/{}", selected_account.get().and_then(|a| a.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
-                                                "View Full Details"
-                                                <span class="material-symbols-outlined text-sm">"open_in_new"</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </Show>
-                            </div>
-                        </TabsContent>
-
-                        // ── Contacts Tab ──
-                        <TabsContent value="contacts".to_string()>
-                            <div class="flex flex-col xl:flex-row gap-0 items-stretch -mx-8">
-                                <div class="flex-1 min-w-0 overflow-x-auto border-r border-outline-variant/10 bg-surface-container">
-                                    <DataTable 
-                                        headers=contact_headers.clone() 
-                                        data=contact_data 
-                                        on_row_click=Callback::new(move |row: Vec<String>| selected_contact.set(Some(row)))
-                                    />
-                                </div>
-                                <Show when=move || selected_contact.get().is_some() fallback=|| view! { <div class="w-full xl:w-[400px] flex items-center justify-center p-8 text-on-surface-variant bg-surface-container-low">"Select a contact to view details"</div> }>
-                                    <div class="w-full xl:w-[400px] shrink-0 bg-surface-container-low overflow-y-auto p-8 space-y-6">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-16 h-16 rounded-xl bg-surface-bright flex items-center justify-center border border-outline-variant/40">
-                                                <span class="text-2xl font-bold text-primary">{move || selected_contact.get().and_then(|c| c.get(1).map(|n| n.chars().take(2).collect::<String>().to_uppercase())).unwrap_or_default()}</span>
-                                            </div>
-                                            <div>
-                                                <h2 class="text-xl font-bold text-on-surface">{move || selected_contact.get().and_then(|c| c.get(1).cloned()).unwrap_or_default()}</h2>
-                                                <p class="text-on-surface-variant text-sm">{move || selected_contact.get().and_then(|c| c.get(2).cloned()).unwrap_or_default()}</p>
-                                            </div>
-                                        </div>
-                                        <div class="grid grid-cols-1 gap-4">
-                                            <div class="p-3 rounded-lg bg-surface-container/50 border border-outline-variant/10">
-                                                <div class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">"Phone"</div>
-                                                <div class="text-sm font-semibold text-primary">{move || selected_contact.get().and_then(|c| c.get(3).cloned()).unwrap_or_default()}</div>
-                                            </div>
-                                        </div>
-                                        <div class="mt-auto pt-6">
-                                            <a href=move || format!("/crm/contact/{}", selected_contact.get().and_then(|c| c.get(0).cloned()).unwrap_or_default()) class="w-full py-3 bg-surface-bright text-on-surface font-bold text-sm rounded-md border border-outline/30 hover:bg-surface-tint/10 transition-colors flex items-center justify-center gap-2">
-                                                "View Full Details"
-                                                <span class="material-symbols-outlined text-sm">"open_in_new"</span>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </Show>
-                            </div>
-                        </TabsContent>
-
-                        // ── Deals Tab ──
-                        <TabsContent value="deals".to_string()>
-                            <div class="overflow-x-auto bg-surface-container -mx-8">
-                                <DataTable 
-                                    headers=deal_headers.clone() 
-                                    data=deal_data 
-                                    on_row_click=Callback::new(move |row: Vec<String>| {
-                                        let stage = row.get(5).cloned().unwrap_or_default();
-                                        if stage.contains("Negotiation") || stage.contains("Won") {
-                                            set_show_milestone_modal.set(true);
+            // ── Data Grids ──
+            <div class="table-container" style="margin: 20px 24px;">
+                <Suspense fallback=move || view! { <div class="p-8 text-center text-on-surface-variant">"Loading CRM data..."</div> }>
+                    {move || match active_tab.get().as_str() {
+                        "users" => view! {
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>"ID"</th>
+                                        <th>"Name"</th>
+                                        <th>"Email"</th>
+                                        <th>"Role"</th>
+                                        <th>"Status"</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {move || users_res.get().unwrap_or_default().into_iter().map(|u| {
+                                        let id = u.id.to_string();
+                                        let name = format!("{} {}", u.first_name, u.last_name);
+                                        let email = u.email.clone();
+                                        let role = if u.is_admin { "Admin".to_string() } else { "User".to_string() };
+                                        let status = "Active".to_string();
+                                        let row = vec![id.clone(), name.clone(), email.clone(), role.clone(), status.clone()];
+                                        view! {
+                                            <tr on:click=move |_| selected_user.set(Some(row.clone()))>
+                                                <td class="mono">{id}</td>
+                                                <td>{name}</td>
+                                                <td>{email}</td>
+                                                <td><span class="tag tag-org">{role}</span></td>
+                                                <td><span class="tag tag-active">{status}</span></td>
+                                            </tr>
                                         }
-                                    })
-                                />
-                            </div>
-                        </TabsContent>
-                    </div>
-                </Tabs>
-            </Suspense>
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        }.into_any(),
+
+                        "leads" => view! {
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>"Lead ID"</th>
+                                        <th>"Name"</th>
+                                        <th>"Email"</th>
+                                        <th>"Status"</th>
+                                        <th>"Converted"</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {move || leads_res.get().unwrap_or_default().into_iter().map(|l| {
+                                        let id = l.id.clone();
+                                        let name = l.name.clone();
+                                        let email = l.email.clone().unwrap_or_else(|| "-".to_string());
+                                        let status = l.status.clone().unwrap_or_else(|| "New".to_string());
+                                        let converted = l.is_converted.to_string();
+                                        let row = vec![id.clone(), name.clone(), email.clone(), status.clone(), converted.clone()];
+                                        view! {
+                                            <tr on:click=move |_| selected_lead.set(Some(row.clone()))>
+                                                <td class="mono">{id}</td>
+                                                <td>{name}</td>
+                                                <td>{email}</td>
+                                                <td><span class="tag tag-org">{status}</span></td>
+                                                <td><span class="tag tag-active">{converted}</span></td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        }.into_any(),
+
+                        "accounts" => view! {
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>"Account ID"</th>
+                                        <th>"Name"</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {move || accounts_res.get().unwrap_or_default().into_iter().map(|a| {
+                                        let id = a.id.clone();
+                                        let name = a.name.clone();
+                                        let row = vec![id.clone(), name.clone()];
+                                        view! {
+                                            <tr on:click=move |_| selected_account.set(Some(row.clone()))>
+                                                <td class="mono">{id}</td>
+                                                <td>{name}</td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        }.into_any(),
+
+                        "contacts" => view! {
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>"Contact ID"</th>
+                                        <th>"Name"</th>
+                                        <th>"Email"</th>
+                                        <th>"Phone"</th>
+                                        <th>"Created At"</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {move || contacts_res.get().unwrap_or_default().into_iter().map(|c| {
+                                        let id = c.id.clone();
+                                        let name = c.name.clone();
+                                        let email = c.email.clone().unwrap_or_else(|| "-".to_string());
+                                        let phone = c.phone.clone().unwrap_or_else(|| "-".to_string());
+                                        let created = c.created_at.clone();
+                                        let row = vec![id.clone(), name.clone(), email.clone(), phone.clone(), created.clone()];
+                                        view! {
+                                            <tr on:click=move |_| selected_contact.set(Some(row.clone()))>
+                                                <td class="mono">{id}</td>
+                                                <td>{name}</td>
+                                                <td>{email}</td>
+                                                <td>{phone}</td>
+                                                <td class="muted">{created}</td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        }.into_any(),
+
+                        "deals" => view! {
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>"Deal ID"</th>
+                                        <th>"Name"</th>
+                                        <th>"Customer ID"</th>
+                                        <th>"Amount"</th>
+                                        <th>"Status"</th>
+                                        <th>"Stage"</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {move || deals_res.get().unwrap_or_default().into_iter().map(|d| {
+                                        let id = d.id.clone();
+                                        let name = d.name.clone();
+                                        let customer = d.customer_id.clone();
+                                        let amount = format!("${:.2}", d.amount);
+                                        let status = d.status.clone();
+                                        let stage = d.stage.clone();
+                                        let stage_for_click = stage.clone();
+                                        view! {
+                                            <tr on:click=move |_| {
+                                                if stage_for_click.contains("Negotiation") || stage_for_click.contains("Won") {
+                                                    set_show_milestone_modal.set(true);
+                                                }
+                                            }>
+                                                <td class="mono">{id}</td>
+                                                <td>{name}</td>
+                                                <td class="mono">{customer}</td>
+                                                <td class="mono green">{amount}</td>
+                                                <td><span class="tag tag-active">{status}</span></td>
+                                                <td>{stage}</td>
+                                            </tr>
+                                        }
+                                    }).collect_view()}
+                                </tbody>
+                            </table>
+                        }.into_any(),
+
+                        _ => view! { <div></div> }.into_any(),
+                    }}
+                </Suspense>
+            </div>
+
+            // ── Sliding Drawer Backdrops & Panels ──
             
+            // ── Users Details Drawer ──
+            <div class=move || format!("panel-backdrop {}", if selected_user.get().is_some() { "open" } else { "" }) on:click=move |_| selected_user.set(None)></div>
+            <div class=move || format!("detail-panel {}", if selected_user.get().is_some() { "open" } else { "" })>
+                <div class="panel-header">
+                    <div class="panel-header-top">
+                        <div class="panel-lead-identity">
+                            <div class="panel-lead-name">{move || selected_user.get().and_then(|u| u.get(1).cloned()).unwrap_or_default()}</div>
+                            <div class="panel-lead-co">{move || selected_user.get().and_then(|u| u.get(2).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <button class="panel-close" on:click=move |_| selected_user.set(None)>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="panel-actions">
+                        <a href=move || format!("/crm/user/{}", selected_user.get().and_then(|u| u.get(0).cloned()).unwrap_or_default()) class="btn btn-ghost btn-sm" style="text-decoration:none">"View Full Record"</a>
+                        <button 
+                            on:click=move |_| {
+                                if let Some(user_id) = selected_user.get().and_then(|u| u.get(0).cloned()) {
+                                    handle_impersonate(user_id);
+                                }
+                            }
+                            class="btn btn-primary btn-sm"
+                        >
+                            "Login As User"
+                        </button>
+                    </div>
+                    <div class="panel-tabs">
+                        <button class="panel-tab active">"Overview"</button>
+                    </div>
+                </div>
+                <div class="panel-content" style="padding: 16px 20px;">
+                    <div class="detail-grid">
+                        <span class="detail-section-label">"User Info"</span>
+                        <div class="detail-field">
+                            <div class="detail-label">"Role"</div>
+                            <div class="detail-value">{move || selected_user.get().and_then(|u| u.get(3).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <div class="detail-field">
+                            <div class="detail-label">"Status"</div>
+                            <div class="detail-value">{move || selected_user.get().and_then(|u| u.get(4).cloned()).unwrap_or_default()}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            // ── Leads Details Drawer ──
+            <div class=move || format!("panel-backdrop {}", if selected_lead.get().is_some() { "open" } else { "" }) on:click=move |_| selected_lead.set(None)></div>
+            <div class=move || format!("detail-panel {}", if selected_lead.get().is_some() { "open" } else { "" })>
+                <div class="panel-header">
+                    <div class="panel-header-top">
+                        <div class="panel-lead-identity">
+                            <div class="panel-lead-name">{move || selected_lead.get().and_then(|l| l.get(1).cloned()).unwrap_or_default()}</div>
+                            <div class="panel-lead-co">{move || selected_lead.get().and_then(|l| l.get(2).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <button class="panel-close" on:click=move |_| selected_lead.set(None)>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="panel-actions">
+                        <a href=move || format!("/crm/lead/{}", selected_lead.get().and_then(|l| l.get(0).cloned()).unwrap_or_default()) class="btn btn-ghost btn-sm" style="text-decoration:none">"View Full Record"</a>
+                    </div>
+                    <div class="panel-tabs">
+                        <button class="panel-tab active">"Overview"</button>
+                    </div>
+                </div>
+                <div class="panel-content" style="padding: 16px 20px;">
+                    <div class="detail-grid">
+                        <span class="detail-section-label">"Lead Info"</span>
+                        <div class="detail-field">
+                            <div class="detail-label">"Pipeline Stage"</div>
+                            <div class="detail-value">{move || selected_lead.get().and_then(|l| l.get(3).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <div class="detail-field">
+                            <div class="detail-label">"Converted"</div>
+                            <div class="detail-value">{move || selected_lead.get().and_then(|l| l.get(4).cloned()).unwrap_or_default()}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            // ── Accounts Details Drawer ──
+            <div class=move || format!("panel-backdrop {}", if selected_account.get().is_some() { "open" } else { "" }) on:click=move |_| selected_account.set(None)></div>
+            <div class=move || format!("detail-panel {}", if selected_account.get().is_some() { "open" } else { "" })>
+                <div class="panel-header">
+                    <div class="panel-header-top">
+                        <div class="panel-lead-identity">
+                            <div class="panel-lead-name">{move || selected_account.get().and_then(|a| a.get(1).cloned()).unwrap_or_default()}</div>
+                            <div class="panel-lead-co">{move || selected_account.get().and_then(|a| a.get(0).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <button class="panel-close" on:click=move |_| selected_account.set(None)>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="panel-actions">
+                        <a href=move || format!("/crm/account/{}", selected_account.get().and_then(|a| a.get(0).cloned()).unwrap_or_default()) class="btn btn-ghost btn-sm" style="text-decoration:none">"View Full Record"</a>
+                    </div>
+                    <div class="panel-tabs">
+                        <button class="panel-tab active">"Overview"</button>
+                    </div>
+                </div>
+                <div class="panel-content" style="padding: 16px 20px;">
+                    <div class="detail-grid">
+                        <span class="detail-section-label">"Account Info"</span>
+                        <div class="detail-field">
+                            <div class="detail-label">"Account Name"</div>
+                            <div class="detail-value">{move || selected_account.get().and_then(|a| a.get(1).cloned()).unwrap_or_default()}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            // ── Contacts Details Drawer ──
+            <div class=move || format!("panel-backdrop {}", if selected_contact.get().is_some() { "open" } else { "" }) on:click=move |_| selected_contact.set(None)></div>
+            <div class=move || format!("detail-panel {}", if selected_contact.get().is_some() { "open" } else { "" })>
+                <div class="panel-header">
+                    <div class="panel-header-top">
+                        <div class="panel-lead-identity">
+                            <div class="panel-lead-name">{move || selected_contact.get().and_then(|c| c.get(1).cloned()).unwrap_or_default()}</div>
+                            <div class="panel-lead-co">{move || selected_contact.get().and_then(|c| c.get(2).cloned()).unwrap_or_default()}</div>
+                        </div>
+                        <button class="panel-close" on:click=move |_| selected_contact.set(None)>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="panel-actions">
+                        <a href=move || format!("/crm/contact/{}", selected_contact.get().and_then(|c| c.get(0).cloned()).unwrap_or_default()) class="btn btn-ghost btn-sm" style="text-decoration:none">"View Full Record"</a>
+                    </div>
+                    <div class="panel-tabs">
+                        <button class="panel-tab active">"Overview"</button>
+                    </div>
+                </div>
+                <div class="panel-content" style="padding: 16px 20px;">
+                    <div class="detail-grid">
+                        <span class="detail-section-label">"Contact Info"</span>
+                        <div class="detail-field">
+                            <div class="detail-label">"Phone"</div>
+                            <div class="detail-value">{move || selected_contact.get().and_then(|c| c.get(3).cloned()).unwrap_or_default()}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <MilestoneModal 
                 open=show_milestone_modal
                 on_close=Callback::new(move |_| set_show_milestone_modal.set(false))

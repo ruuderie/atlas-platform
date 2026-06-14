@@ -8,3 +8,5 @@ pub mod app_manifest;
 pub mod upsell_banner;
 pub mod onboarding_wizard;
 pub mod seed_picker;
+pub mod intel_sidebar;
+

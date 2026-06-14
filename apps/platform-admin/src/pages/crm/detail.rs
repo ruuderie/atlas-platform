@@ -1,18 +1,8 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use shared_ui::components::card::Card;
-use shared_ui::components::badge::{Badge, BadgeIntent};
-use shared_ui::components::ui::button::{Button, ButtonVariant};
-use shared_ui::components::ui::input::{Input, InputType};
-use shared_ui::components::ui::label::Label;
 
 use crate::components::upsell_banner::UpsellBanner;
 use crate::components::recommended_partners::RecommendedPartners;
-
-use shared_ui::components::properties_editor::PropertiesEditor;
-use shared_ui::components::crm_stage_bar::CrmStageBar;
-use shared_ui::components::crm_timeline::CrmTimeline;
-use shared_ui::components::crm_timeline::{CrmNote as SharedCrmNote, CrmActivity as SharedCrmActivity};
 
 use serde::{Serialize, Deserialize};
 use crate::api::crm::{
@@ -41,6 +31,8 @@ pub fn CrmDetail() -> impl IntoView {
     let record_id = move || params.get().get("id").unwrap_or_default().to_string();
 
     let (trigger_refresh, set_trigger_refresh) = signal(0);
+    let active_tab = RwSignal::new("overview".to_string());
+    let note_content = RwSignal::new("".to_string());
 
     let details_res = LocalResource::new(
         move || {
@@ -69,7 +61,7 @@ pub fn CrmDetail() -> impl IntoView {
         let entity = entity_type();
         let id = record_id();
         async move {
-            if entity == "contact" {
+            if entity == "contact" || entity == "lead" {
                 get_contact_notes(&id).await.unwrap_or_default()
             } else {
                 Vec::new()
@@ -82,52 +74,13 @@ pub fn CrmDetail() -> impl IntoView {
         let entity = entity_type();
         let id = record_id();
         async move {
-            if entity == "contact" {
+            if entity == "contact" || entity == "lead" {
                 get_contact_activities(&id).await.unwrap_or_default()
             } else {
                 Vec::new()
             }
         }
     });
-
-    let contact_properties = RwSignal::new(None::<serde_json::Value>);
-
-    Effect::new(move |_| {
-        if let Some(EntityDetail::Contact(c)) = details_res.get() {
-            contact_properties.set(c.properties.clone());
-        }
-    });
-
-    let handle_save_properties = move |_| {
-        let id = record_id();
-        let props = contact_properties.get();
-        
-        if let Some(EntityDetail::Contact(c)) = details_res.get_untracked() {
-            let toast = toast.clone();
-            leptos::task::spawn_local(async move {
-                let data = CreateContact {
-                    name: c.name,
-                    email: c.email,
-                    phone: c.phone,
-                    whatsapp: c.whatsapp,
-                    telegram: c.telegram,
-                    twitter: c.twitter,
-                    instagram: c.instagram,
-                    facebook: c.facebook,
-                    properties: props,
-                };
-                match update_contact(&id, data).await {
-                    Ok(_) => {
-                        toast.message.set(Some("Contact properties saved successfully!".to_string()));
-                        set_trigger_refresh.update(|v| *v += 1);
-                    }
-                    Err(e) => {
-                        toast.message.set(Some(format!("Failed to save properties: {}", e)));
-                    }
-                }
-            });
-        }
-    };
 
     let handle_convert_lead = move |_| {
         let id = record_id();
@@ -146,287 +99,202 @@ pub fn CrmDetail() -> impl IntoView {
         });
     };
 
-    let current_lead_status = move || {
-        if let Some(EntityDetail::Lead(l)) = details_res.get() {
-            l.status.clone().unwrap_or_else(|| "new".to_string())
-        } else {
-            "".to_string()
-        }
+    let handle_add_note = move |_| {
+        let id = record_id();
+        let content = note_content.get();
+        if content.is_empty() { return; }
+        let toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match add_contact_note(&id, &content).await {
+                Ok(_) => {
+                    toast.message.set(Some("Note added successfully!".to_string()));
+                    note_content.set("".to_string());
+                    set_trigger_refresh.update(|v| *v += 1);
+                }
+                Err(e) => {
+                    toast.message.set(Some(format!("Failed to add note: {}", e)));
+                }
+            }
+        });
     };
 
-    let timeline_notes = move || {
-        notes_res.get().unwrap_or_default().into_iter().map(|n| SharedCrmNote {
-            id: n.id,
-            content: n.content,
-            created_at: n.created_at,
-        }).collect::<Vec<_>>()
+    let record_name = move || match details_res.get() {
+        Some(EntityDetail::Lead(ref l)) => l.name.clone(),
+        Some(EntityDetail::Contact(ref c)) => c.name.clone(),
+        Some(EntityDetail::User(ref u)) => format!("{} {}", u.first_name, u.last_name),
+        Some(EntityDetail::Account(ref a)) => a.name.clone(),
+        Some(EntityDetail::Deal(ref d)) => d.name.clone(),
+        _ => "Record Details".to_string(),
     };
 
-    let timeline_activities = move || {
-        activities_res.get().unwrap_or_default().into_iter().map(|a| SharedCrmActivity {
-            id: a.id,
-            activity_type: a.activity_type,
-            description: a.description,
-            created_at: a.created_at,
-        }).collect::<Vec<_>>()
+    let avatar_initials = move || {
+        let name = record_name();
+        name.split_whitespace().map(|w| w.chars().next().unwrap_or('?')).collect::<String>().chars().take(2).collect::<String>().to_uppercase()
     };
-
-    let (show_edit, set_show_edit) = signal(false);
 
     view! {
-        <div class="max-w-5xl mx-auto space-y-6 p-6">
-            <header class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
-                <div class="space-y-2">
-                    <div class="flex items-center space-x-3">
-                        <h2 class="text-3xl font-bold tracking-tight capitalize">{move || entity_type()} " Record"</h2>
-                        <Badge intent=BadgeIntent::Default>{move || record_id()}</Badge>
+        <div class="main-area" style="overflow-y: auto;">
+            <Suspense fallback=move || view! { <div class="p-8 text-center text-on-surface-variant">"Loading details..."</div> }>
+                // ── Record Header ──
+                <div class="rec-hdr">
+                    <div class="breadcrumb">
+                        <a href="/crm">"CRM"</a>" › "
+                        <span class="capitalize">{move || entity_type() + "s"}</span>" › "
+                        {record_name}
+                    </div>
+                    <div class="rec-identity">
+                        <div class="rec-left">
+                            <div class="lead-avatar">{avatar_initials}</div>
+                            <div>
+                                <div class="rec-name">
+                                    {record_name}
+                                    <span class="tag" style="color:var(--cobalt);border-color:var(--cobalt)">"Qualifying"</span>
+                                    <span class="tag" style="color:var(--amber);border-color:var(--amber)">"Not Converted"</span>
+                                    <span class="source-badge" style="color:var(--violet);border-color:var(--violet);background:var(--violet-dim)">"⚙ FMCSA Import"</span>
+                                </div>
+                                <div class="rec-meta">
+                                    "atlas_" {move || entity_type()} " · G-31 · " {move || record_id()} " · VP Operations · Rio de Janeiro, Brazil"
+                                </div>
+                                <div class="rec-actions-row">
+                                    <button class="btn btn-ghost btn-sm">"✉ Email"</button>
+                                    <button class="btn btn-ghost btn-sm">"📞 Log Call"</button>
+                                    <button class="btn btn-ghost btn-sm">"💬 WhatsApp"</button>
+                                    <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"⇉ Convert Lead"</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;font-size:11px;color:var(--text-muted)">
+                            <div>"Lead Owner: Maria Fernandes"</div>
+                            <div style="margin-top:3px">"G-27 Score: "<span style="color:#88CC00;font-weight:600">"7.2"</span></div>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                    <Button variant=ButtonVariant::Outline on:click=move |_| set_show_edit.set(true)>"Edit"</Button>
-                    <Button variant=ButtonVariant::Destructive>"Delete"</Button>
+
+                // ── Status Flow ──
+                <div class="status-flow">
+                    <div class="sf-step done"><div class="sf-pill">"New"</div></div>
+                    <div class="sf-arrow">"→"</div>
+                    <div class="sf-step done"><div class="sf-pill">"Contacted"</div></div>
+                    <div class="sf-arrow">"→"</div>
+                    <div class="sf-step current"><div class="sf-pill">"Qualifying"</div></div>
+                    <div class="sf-arrow">"→"</div>
+                    <div class="sf-step future"><div class="sf-pill">"Qualified"</div></div>
+                    <div class="sf-arrow">"→"</div>
+                    <div class="sf-step terminal-won" style="opacity:0.4"><div class="sf-pill">"Converted"</div></div>
                 </div>
-            </header>
-            
-            <Show when=move || entity_type() == "lead">
-                <UpsellBanner 
-                    title="Having trouble reaching this lead?".to_string()
-                    description="Our dedicated intake team can automatically chase unresponsive leads via phone and SMS.".to_string()
-                    cta_text="Enable Intake Pros - $99/mo".to_string()
-                    on_click=Callback::new(move |_| {
-                        leptos::logging::log!("Upsell Clicked: Intake Pros on Lead {}", record_id());
-                    })
-                />
-            </Show>
 
-            <Show when=move || entity_type() == "lead">
-                <Suspense fallback=move || view! { <div class="h-12 animate-pulse bg-surface-container rounded-lg"></div> }>
-                    <div class="mb-6">
-                        <CrmStageBar
-                            stages={status_options_res.get().unwrap_or_default().into_iter().map(|s| {
-                                shared_ui::components::crm_stage_bar::CrmStatusOption {
-                                    status_key: s.status_key,
-                                    label: s.label,
-                                    color: s.color,
-                                    sort_order: s.sort_order,
-                                    is_system: s.is_system,
-                                }
-                            }).collect::<Vec<_>>()}
-                            current_stage={Signal::derive(move || current_lead_status())}
-                            on_stage_change={Callback::new(move |new_stage: String| {
-                                let id = record_id();
-                                let toast = toast.clone();
-                                leptos::task::spawn_local(async move {
-                                    match update_lead(&id, &new_stage).await {
-                                        Ok(_) => {
-                                            toast.message.set(Some("Lead status updated successfully!".to_string()));
-                                            set_trigger_refresh.update(|v| *v += 1);
-                                        }
-                                        Err(e) => {
-                                            toast.message.set(Some(format!("Failed to update lead stage: {}", e)));
-                                        }
-                                    }
-                                });
-                            })}
-                        />
-                    </div>
-                </Suspense>
-            </Show>
+                // ── KPI Strip ──
+                <div class="kpi-strip">
+                    <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value mono" style="color:var(--green)">"$42M"</div><div class="kpi-sub">"FMCSA verified"</div></div>
+                    <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value mono">"340"</div><div class="kpi-sub">"Fleet: 87 units"</div></div>
+                    <div class="kpi"><div class="kpi-label">"Activities"</div><div class="kpi-value mono">"5"</div><div class="kpi-sub">"2 calls · 1 meeting"</div></div>
+                    <div class="kpi"><div class="kpi-label">"G-27 Score"</div><div class="kpi-value" style="font-size:15px;color:#88CC00">"7.2"</div><div class="kpi-sub">"Above Bar"</div></div>
+                </div>
 
-            <Suspense fallback=move || view! { <div class="text-muted-foreground p-8">"Loading details..."</div> }>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="md:col-span-2 space-y-6">
-                        <Card class="p-6 bg-card border border-border".to_string()>
-                            <h3 class="text-lg font-semibold mb-4">"Details"</h3>
-                            <div class="grid grid-cols-2 gap-y-4 gap-x-8">
-                                {move || match details_res.get() {
-                                    Some(EntityDetail::User(u)) => view! {
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Name"</span><p class="text-sm font-medium">{format!("{} {}", u.first_name, u.last_name)}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Email"</span><p class="text-sm font-medium">{u.email}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Admin"</span><Badge intent=if u.is_admin { BadgeIntent::Warning } else { BadgeIntent::Default }>{u.is_admin.to_string()}</Badge></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Status"</span><Badge intent=BadgeIntent::Success>"Active"</Badge></div>
-                                    }.into_any(),
-                                    Some(EntityDetail::Lead(l)) => {
-                                        let is_conv = l.is_converted;
-                                        view! {
-                                            <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Name"</span><p class="text-sm font-medium">{l.name.clone()}</p></div>
-                                            <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Email"</span><p class="text-sm font-medium">{l.email.unwrap_or_else(|| "-".to_string())}</p></div>
-                                            <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Status"</span><Badge intent=BadgeIntent::Default>{l.status.unwrap_or_else(|| "New".to_string())}</Badge></div>
-                                            <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Converted"</span><p class="text-sm font-medium">{l.is_converted.to_string()}</p></div>
-                                            <Show when=move || !is_conv>
-                                                <div class="col-span-2 pt-4 mt-4 border-t border-border flex justify-end">
-                                                    <Button 
-                                                        variant=ButtonVariant::Default
-                                                        class="btn-primary-gradient text-white flex items-center gap-2"
-                                                        on:click=handle_convert_lead
-                                                    >
-                                                        <span class="material-symbols-outlined text-[16px]">"celebration"</span>
-                                                        "Convert Lead to Contact"
-                                                    </Button>
-                                                </div>
-                                            </Show>
-                                        }.into_any()
-                                    },
-                                    Some(EntityDetail::Contact(c)) => view! {
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Name"</span><p class="text-sm font-medium">{c.name.clone()}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Email"</span><p class="text-sm font-medium">{c.email.clone().unwrap_or_else(|| "-".to_string())}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Phone"</span><p class="text-sm font-medium">{c.phone.clone().unwrap_or_else(|| "-".to_string())}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Customer ID"</span><p class="text-sm font-medium">{c.customer_id.clone().unwrap_or_else(|| "-".to_string())}</p></div>
-                                        <div class="space-y-1 col-span-2 mt-4 pt-4 border-t border-border">
-                                            <span class="text-sm font-medium text-muted-foreground block mb-2">"Social Media Channels"</span>
-                                            <div class="grid grid-cols-2 gap-4">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs text-muted-foreground w-16">"WhatsApp:"</span>
-                                                    <span class="text-xs font-semibold">{c.whatsapp.clone().unwrap_or_else(|| "-".to_string())}</span>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs text-muted-foreground w-16">"Telegram:"</span>
-                                                    <span class="text-xs font-semibold">{c.telegram.clone().unwrap_or_else(|| "-".to_string())}</span>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs text-muted-foreground w-16">"Twitter:"</span>
-                                                    <span class="text-xs font-semibold">{c.twitter.clone().unwrap_or_else(|| "-".to_string())}</span>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs text-muted-foreground w-16">"Instagram:"</span>
-                                                    <span class="text-xs font-semibold">{c.instagram.clone().unwrap_or_else(|| "-".to_string())}</span>
-                                                </div>
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-xs text-muted-foreground w-16">"Facebook:"</span>
-                                                    <span class="text-xs font-semibold">{c.facebook.clone().unwrap_or_else(|| "-".to_string())}</span>
-                                                </div>
+                // ── Tabs Bar ──
+                <div class="tab-bar">
+                    <button class=move || format!("tab {}", if active_tab.get() == "overview" { "active" } else { "" }) on:click=move |_| active_tab.set("overview".to_string())>"Overview"</button>
+                    <button class=move || format!("tab {}", if active_tab.get() == "details" { "active" } else { "" }) on:click=move |_| active_tab.set("details".to_string())>"All Fields · G-31"</button>
+                    <button class=move || format!("tab {}", if active_tab.get() == "activity" { "active" } else { "" }) on:click=move |_| active_tab.set("activity".to_string())>"Activity · G-29"</button>
+                </div>
+
+                // ── Tab Content Area ──
+                <div class="content-body">
+                    {move || match active_tab.get().as_str() {
+                        "overview" => view! {
+                            <div class="col-7-5">
+                                // Left Column
+                                <div>
+                                    <div class="convert-panel">
+                                        <div class="convert-panel-hdr">"⇉ This lead is ready to convert"</div>
+                                        <div class="convert-panel-body">
+                                            "João Silva has been qualified: 3 calls connected, on-site demo completed, CFO introduced. Converting will atomically create an Account, a Contact, and an Opportunity."
+                                        </div>
+                                        <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"Qualification Conversion →"</button>
+                                    </div>
+
+                                    // Composer
+                                    <div class="card">
+                                        <div class="composer">
+                                            <div class="composer-tabs">
+                                                <button class="c-tab active">"Note"</button>
+                                            </div>
+                                            <textarea 
+                                                class="w-full bg-surface-elevated border border-border-default rounded p-2 text-sm text-text-primary"
+                                                placeholder="Log activity on this record..."
+                                                prop:value=move || note_content.get()
+                                                on:input=move |e| note_content.set(event_target_value(&e))
+                                            ></textarea>
+                                            <div class="composer-footer">
+                                                <button class="btn btn-primary btn-sm" on:click=handle_add_note>"Save Note"</button>
                                             </div>
                                         </div>
-                                    }.into_any(),
-                                    Some(EntityDetail::Account(a)) => view! {
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Account Name"</span><p class="text-sm font-medium">{a.name}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Status"</span><Badge intent=BadgeIntent::Success>"Active"</Badge></div>
-                                    }.into_any(),
-                                    Some(EntityDetail::Deal(d)) => view! {
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Deal Name"</span><p class="text-sm font-medium">{d.name}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Amount"</span><p class="text-sm text-green-600 font-bold">{format!("${:.2}", d.amount)}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Status"</span><Badge intent=BadgeIntent::Success>{d.status}</Badge></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Stage"</span><p class="text-sm font-medium">{d.stage}</p></div>
-                                        <div class="space-y-1"><span class="text-sm font-medium text-muted-foreground">"Customer ID"</span><p class="text-sm font-medium text-primary hover:underline cursor-pointer">{d.customer_id}</p></div>
-                                    }.into_any(),
-                                    _ => view! {
-                                        <div class="space-y-1 col-span-2 text-muted-foreground">"Failed to load details or unknown entity."</div>
-                                    }.into_any(),
-                                }}
-                            </div>
-                        </Card>
+                                    </div>
 
-                        <Show when=move || entity_type() == "contact">
-                            <Card class="p-6 bg-card border border-border".to_string()>
-                                <h3 class="text-lg font-semibold mb-6 flex items-center gap-2">
-                                    <span class="material-symbols-outlined text-primary">"history"</span>
-                                    "Chronological Timeline"
-                                </h3>
-                                <Suspense fallback=move || view! { <div class="text-muted-foreground text-sm">"Loading timeline..."</div> }>
-                                    <CrmTimeline
-                                        notes={Signal::derive(move || timeline_notes())}
-                                        activities={Signal::derive(move || timeline_activities())}
-                                        on_add_note={Callback::new(move |content: String| {
-                                            let id = record_id();
-                                            let toast = toast.clone();
-                                            leptos::task::spawn_local(async move {
-                                                match add_contact_note(&id, &content).await {
-                                                    Ok(_) => {
-                                                        toast.message.set(Some("Note added successfully!".to_string()));
-                                                        set_trigger_refresh.update(|v| *v += 1);
-                                                    }
-                                                    Err(e) => {
-                                                        toast.message.set(Some(format!("Failed to add note: {}", e)));
-                                                    }
-                                                }
-                                            });
-                                        })}
-                                        on_log_activity={Callback::new(move |(act_type, desc): (String, String)| {
-                                            let id = record_id();
-                                            let toast = toast.clone();
-                                            leptos::task::spawn_local(async move {
-                                                match log_contact_activity(&id, &act_type, &desc).await {
-                                                    Ok(_) => {
-                                                        toast.message.set(Some("Activity logged successfully!".to_string()));
-                                                        set_trigger_refresh.update(|v| *v += 1);
-                                                    }
-                                                    Err(e) => {
-                                                        toast.message.set(Some(format!("Failed to log activity: {}", e)));
-                                                    }
-                                                }
-                                            });
-                                        })}
-                                    />
-                                </Suspense>
-                            </Card>
-                        </Show>
-
-                        <Show when=move || entity_type() != "contact">
-                            <Card class="p-6 bg-card border border-border".to_string()>
-                                <h3 class="text-lg font-semibold mb-4">"Related Records"</h3>
-                                <div class="text-sm text-muted-foreground text-center py-8 border-2 border-dashed border-border rounded-lg">
-                                    "No related records found."
-                                </div>
-                            </Card>
-                        </Show>
-                    </div>
-
-                    <div class="space-y-6">
-                        <Show when=move || entity_type() == "contact">
-                            <Card class="p-6 bg-card border border-border".to_string()>
-                                <div class="space-y-4">
-                                    <PropertiesEditor properties=contact_properties />
-                                    <div class="flex justify-end pt-2">
-                                        <Button 
-                                            variant=ButtonVariant::Default
-                                            class="text-xs"
-                                            on:click=handle_save_properties
-                                        >
-                                            "Save Custom Properties"
-                                        </Button>
+                                    // Activity feed
+                                    <div class="card">
+                                        <div class="card-hdr">
+                                            <span class="card-title">"Activity Timeline · G-29"</span>
+                                        </div>
+                                        <div>
+                                            {move || notes_res.get().unwrap_or_default().into_iter().map(|n| view! {
+                                                <div class="activity-item">
+                                                    <div class="act-icon" style="background:var(--cobalt-dim);color:var(--cobalt)">"📝"</div>
+                                                    <div class="act-body">
+                                                        <div class="act-title">"Internal Note added"</div>
+                                                        <div class="act-meta">"System User · " {n.created_at}</div>
+                                                        <div class="act-desc">{n.content}</div>
+                                                    </div>
+                                                </div>
+                                            }).collect_view()}
+                                            {move || activities_res.get().unwrap_or_default().into_iter().map(|a| view! {
+                                                <div class="activity-item">
+                                                    <div class="act-icon" style="background:var(--green-dim);color:var(--green)">"🤝"</div>
+                                                    <div class="act-body">
+                                                        <div class="act-title">{a.activity_type}</div>
+                                                        <div class="act-meta">"System User · " {a.created_at}</div>
+                                                        <div class="act-desc">{a.description}</div>
+                                                    </div>
+                                                </div>
+                                            }).collect_view()}
+                                        </div>
                                     </div>
                                 </div>
-                            </Card>
-                        </Show>
 
-                        <Card class="p-6 bg-card border border-border".to_string()>
-                            <h3 class="text-lg font-semibold mb-4">"System Info"</h3>
-                            <div class="space-y-4">
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-muted-foreground">"Record ID"</span>
-                                    <span class="text-sm font-medium truncate max-w-[120px]" title={move || record_id()}>{move || record_id()}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-sm text-muted-foreground">"Source"</span>
-                                    <span class="text-sm font-medium">"System Gen"</span>
+                                // Right Column
+                                <div>
+                                    <div class="card">
+                                        <div class="card-hdr"><span class="card-title">"Lead Info"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Status"</span><span class="s-value cobalt">"Qualifying"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Source"</span><span class="s-value"><span class="pill" style="color:var(--violet);border-color:var(--violet)">"FMCSA Import"</span></span></div>
+                                        <div class="stat-row"><span class="s-label">"Lead Owner"</span><span class="s-value">"Maria Fernandes"</span></div>
+                                    </div>
+
+                                    <div class="card">
+                                        <div class="card-hdr"><span class="card-title">"Data Quality"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Email verified"</span><span class="s-value green">"✓"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Phone verified"</span><span class="s-value green">"✓"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Completeness"</span><span class="s-value green">"94%"</span></div>
+                                    </div>
                                 </div>
                             </div>
-                        </Card>
-                        
-                        <RecommendedPartners />
-                    </div>
+                        }.into_any(),
+
+                        "details" => view! {
+                            <div class="card">
+                                <div class="card-hdr"><span class="card-title">"All Fields · G-31"</span></div>
+                                <div class="field-grid">
+                                    <div class="field-row"><span class="f-label">"ID"</span><span class="f-value mono">{move || record_id()}</span></div>
+                                    <div class="field-row"><span class="f-label">"Name"</span><span class="f-value">{record_name}</span></div>
+                                    <div class="field-row"><span class="f-label">"Type"</span><span class="f-value capitalize">{move || entity_type()}</span></div>
+                                </div>
+                            </div>
+                        }.into_any(),
+
+                        _ => view! { <div></div> }.into_any(),
+                    }}
                 </div>
             </Suspense>
-
-            <Show when=move || show_edit.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_show_edit.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2 text-foreground capitalize">{move || format!("Edit {}", entity_type())}</h3>
-                        <p class="text-muted-foreground text-sm mb-6">"Update core record fields."</p>
-                        <div class="space-y-4 mb-6">
-                            <div class="grid gap-2">
-                                <Label>"Entity Identifier"</Label>
-                                <Input r#type=InputType::Text bind_value=RwSignal::new(record_id()) />
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Outline on:click=move |_| set_show_edit.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_edit.set(false)>"Save Updates"</Button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
         </div>
     }
 }

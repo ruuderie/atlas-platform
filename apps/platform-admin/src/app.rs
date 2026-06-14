@@ -57,6 +57,8 @@ use crate::api::auth::validate_session;
 use crate::api::models::{UserInfo, PlatformAppModel};
 use crate::api::networks::get_networks;
 use crate::api::version::get_version;
+use crate::components::intel_sidebar::IntelSidebar;
+
 
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalToast {
@@ -142,13 +144,26 @@ pub fn AuthenticatedLayout() -> impl IntoView {
     // Derive active nav state from the current path
     let current_path = Signal::derive(move || location.pathname.get());
 
-
     let side_active_class = move |path: &'static str| {
         let p = current_path.get();
-        if (path == "/" && p == "/") || (path != "/" && p.starts_with(path)) {
-            "flex items-center gap-3 px-3 py-2.5 bg-[#05183c] text-[#7bd0ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase active:translate-x-1 duration-150 transition-all"
+        let active = (path == "/" && p == "/") || (path != "/" && p.starts_with(path));
+        if active {
+            "nav-item active"
         } else {
-            "flex items-center gap-3 px-3 py-2.5 text-[#91aaeb] hover:bg-[#05183c]/50 hover:text-[#dee5ff] rounded-md font-['Inter'] text-sm font-medium tracking-wide uppercase active:translate-x-1 duration-150 transition-all"
+            "nav-item"
+        }
+    };
+
+    let show_intel_sidebar = Signal::derive(move || {
+        let p = current_path.get();
+        p == "/" || p == "/dashboard"
+    });
+
+    let shell_style = move || {
+        if show_intel_sidebar.get() {
+            "display: grid; grid-template-columns: 220px 1fr 280px; grid-template-rows: 48px 1fr; height: 100vh;"
+        } else {
+            "display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 48px 1fr; height: 100vh;"
         }
     };
 
@@ -158,26 +173,27 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 <div>"Checking session..."</div>
             </div>
         }>
-            <div class="h-screen w-full bg-surface text-on-surface font-sans antialiased overflow-hidden">
+            <div class="shell" style=shell_style>
                 // ── Top Nav Bar ──
-                <header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#060e20]">
-                    <div class="flex items-center gap-8 w-full max-w-2xl">
-                        <a href="/" class="text-xl font-bold text-[#dee5ff] tracking-[-0.02em] whitespace-nowrap">"The Intelligence Layer"</a>
-                        <div class="hidden md:flex flex-1 relative items-center max-w-lg w-full ml-4">
-                            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-lg">"search"</span>
+                <header class="topbar">
+                    <div class="topbar-logo">
+                        <div class="mark">"A"</div>
+                        <span class="wordmark">"Atlas Platform"</span>
+                        <span class="badge">"Super-Admin"</span>
+                    </div>
+                    <div class="topbar-center">
+                        <div class="search-wrap">
                             <input 
                                 type="text"
-                                placeholder="Search across networks, users, and listings (Cmd+K)..."
-                                class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg pl-10 pr-4 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-[#91aaeb]/60"
+                                placeholder="Search tenants, leads, products… ⌘K"
                             />
-                            <div class="absolute right-3 px-1.5 py-0.5 rounded bg-surface-container-highest border border-outline-variant/20 text-[#91aaeb] text-[10px] font-mono font-bold tracking-widest hidden lg:block hover:text-primary transition-colors cursor-pointer">
-                                "⌘K"
-                            </div>
+                            <span class="kbd">"⌘K"</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-4">
+                    <div class="topbar-right">
+                        // Site selector
                         <select
-                            class="bg-surface-container-high px-3 py-1.5 rounded-md text-sm font-medium border border-outline-variant/20 hover:bg-surface-bright/20 focus:ring-primary focus:border-primary text-on-surface min-w-[150px]"
+                            class="bg-[#1C2236] border border-outline-variant/30 text-on-surface text-xs rounded px-2.5 py-1 focus:ring-1 focus:ring-primary focus:border-primary text-on-surface max-w-[140px] select-none"
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
                                 if val.is_empty() {
@@ -202,204 +218,172 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                 })}
                             </Suspense>
                         </select>
-                        <div class="flex items-center gap-2 ml-2">
-                            <button class="p-2 text-[#91aaeb] hover:bg-[#002867]/20 transition-colors rounded-full">
-                                <span class="material-symbols-outlined">"notifications"</span>
-                            </button>
-                            <button class="p-2 text-[#91aaeb] hover:bg-[#002867]/20 transition-colors rounded-full">
-                                <span class="material-symbols-outlined">"settings"</span>
-                            </button>
-                            <div class="relative cursor-pointer" on:click=move |_| set_show_profile_menu.update(|v| *v = !*v)>
-                                <div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden ml-2 border border-outline-variant/30 flex items-center justify-center text-primary text-xs font-bold">
-                                    {move || user.get().map(|u| u.first_name.chars().next().unwrap_or('A').to_string()).unwrap_or_else(|| "A".to_string())}
-                                </div>
-                                <Show when=move || show_profile_menu.get()>
-                                    <div class="absolute right-0 top-10 mt-2 w-48 glass-panel border border-outline-variant/40 rounded-xl py-1 z-[100] overflow-hidden">
-                                        <div class="px-4 py-3 border-b border-outline-variant/20 text-sm">
-                                            <p class="font-medium text-on-surface">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin".to_string())}</p>
-                                            <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
-                                        </div>
-                                        <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-surface-bright/20 transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
-                                        <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
-                                            e.stop_propagation(); 
-                                            set_show_profile_menu.set(false); 
-                                            leptos::task::spawn_local(async move {
-                                                let _ = crate::api::auth::logout().await;
-                                                set_user.set(None);
-                                                let _ = web_sys::window().unwrap().location().assign("/login");
-                                            });
-                                        }>"Sign out"</button>
-                                    </div>
-                                </Show>
-                            </div>
+                        // Notification
+                        <button class="icon-btn" title="Notifications">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M8 2a4 4 0 0 0-4 4v2.5L2.5 10h11L12 8.5V6a4 4 0 0 0-4-4z"/><circle cx="8" cy="13" r="1.2"/>
+                            </svg>
+                        </button>
+                        // Activity Log
+                        <button class="icon-btn" title="Activity">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <polyline points="3,9 6,5 9,7 13,3"/><line x1="3" y1="13" x2="13" y2="13"/>
+                            </svg>
+                        </button>
+                        // Docs
+                        <button class="icon-btn" title="Documentation">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3" y="2" width="10" height="12" rx="1"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="9" y2="8"/>
+                            </svg>
+                        </button>
+                        <div class="topbar-divider"></div>
+                        <div class="avatar-btn" on:click=move |e| { e.stop_propagation(); set_show_profile_menu.update(|v| *v = !*v) }>
+                            {move || user.get().map(|u| format!("{}{}", u.first_name.chars().next().unwrap_or('J'), u.last_name.chars().next().unwrap_or('D'))).unwrap_or_else(|| "JD".to_string())}
                         </div>
+                        <Show when=move || show_profile_menu.get()>
+                            <div class="absolute right-4 top-11 mt-1 w-48 bg-[#1C2236] border border-outline-variant/40 rounded-lg py-1 z-[100] overflow-hidden shadow-2xl">
+                                <div class="px-4 py-3 border-b border-outline-variant/20 text-sm">
+                                    <p class="font-medium text-on-surface">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin User".to_string())}</p>
+                                    <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
+                                </div>
+                                <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
+                                <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
+                                    e.stop_propagation(); 
+                                    set_show_profile_menu.set(false); 
+                                    leptos::task::spawn_local(async move {
+                                        let _ = crate::api::auth::logout().await;
+                                        set_user.set(None);
+                                        let _ = web_sys::window().unwrap().location().assign("/login");
+                                    });
+                                }>"Sign out"</button>
+                            </div>
+                        </Show>
                     </div>
                 </header>
 
                 // ── Side Nav Bar ──
-                <aside class="fixed left-0 top-16 bottom-0 w-64 flex flex-col py-4 px-3 bg-[#06122d] overflow-y-auto">
-                    <div class="px-3 mb-4 flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-                            <span class="material-symbols-outlined text-primary text-sm">"terminal"</span>
+                <aside class="sidebar">
+                    <span class="nav-label nav-section-label">"Overview"</span>
+                    <a href="/" class=move || side_active_class("/")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="0.5"/><rect x="2" y="9" width="5" height="5" rx="0.5"/><rect x="9" y="2" width="5" height="5" rx="0.5"/><rect x="9" y="9" width="5" height="5" rx="0.5"/></svg>
+                        "Command Center"
+                    </a>
+                    <a href="/analytics" class=move || side_active_class("/analytics")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,12 5,7 8,9 11,4 14,6"/></svg>
+                        "Analytics"
+                    </a>
+                    <a href="/map" class=move || side_active_class("/map")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="1.5,3 5,1.5 11,3.5 14.5,2 14.5,13 11,14.5 5,12.5 1.5,14"/><line x1="5" y1="1.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="14.5"/></svg>
+                        "Platform Map"
+                    </a>
+
+                    <span class="nav-label nav-section-label">"CRM"</span>
+                    <a href="/crm" class=move || side_active_class("/crm")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h0a5 5 0 0 1 5 5"/></svg>
+                        "Leads"
+                        <span class="nav-badge amber">"6"</span>
+                    </a>
+                    <a href="/crm" class=move || side_active_class("/crm/accounts")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1"/><path d="M6 13V9h4v4"/></svg>
+                        "Accounts"
+                    </a>
+                    <a href="/crm" class=move || side_active_class("/crm/contacts")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+                        "Contacts"
+                    </a>
+                    <a href="/crm" class=move || side_active_class("/crm/opportunities")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.5l2 2"/></svg>
+                        "Opportunities"
+                    </a>
+
+                    <span class="nav-label nav-section-label">"Platform"</span>
+                    <a href="/apps" class=move || side_active_class("/apps")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
+                        "Tenants"
+                    </a>
+                    <a href="/billing" class=move || side_active_class("/billing")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="12" height="8" rx="1"/><line x1="2" y1="9" x2="14" y2="9"/></svg>
+                        "Billing"
+                    </a>
+                    <a href="/billing/products" class=move || side_active_class("/billing/products")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 5.5l-6-3.5L2 5.5v5l6 3.5 6-3.5v-5z"/><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="5.5" x2="14" y2="5.5"/></svg>
+                        "Products & Plans"
+                    </a>
+                    <a href="/products" class=move || side_active_class("/products")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg>
+                        "Storefront Pages"
+                    </a>
+                    <a href="/network" class=move || side_active_class("/network")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M1 8h14M8 1a12 12 0 0 1 0 14A12 12 0 0 1 8 1"/></svg>
+                        "Network Instances"
+                    </a>
+                    <a href="/network/syndication" class=move || side_active_class("/network/syndication")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
+                        "Syndication"
+                    </a>
+                    <a href="/verification" class=move || side_active_class("/verification")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
+                        "Verification"
+                        <span class="nav-badge red">"3"</span>
+                    </a>
+                    <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z"/></svg>
+                        "Scorecards"
+                    </a>
+
+                    <span class="nav-label nav-section-label">"Operations"</span>
+                    <a href="/flags" class=move || side_active_class("/flags")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l-2 3.5L11 9H3"/></svg>
+                        "Feature Flags"
+                        <span class="nav-badge amber">"1"</span>
+                    </a>
+                    <a href="/support" class=move || side_active_class("/support")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
+                        "Support Queue"
+                        <span class="nav-badge red">"4"</span>
+                    </a>
+                    <a href="/logs" class=move || side_active_class("/logs")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1.5"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="9" y2="11"/></svg>
+                        "Audit Logs"
+                    </a>
+                    <a href="/admin/aitasks" class=move || side_active_class("/admin/aitasks")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,12 5,7 8,9 11,4 14,6"/></svg>
+                        "AI Task Monitor"
+                    </a>
+
+                    <span class="nav-label nav-section-label">"Admin"</span>
+                    <a href="/admins" class=move || side_active_class("/admins")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5" r="2"/><circle cx="10.5" cy="5" r="2"/><path d="M1 13c0-2.5 2-4.5 4.5-4.5"/><path d="M15 13c0-2.5-2-4.5-4.5-4.5"/><path d="M5 13c0-3 1.5-5 3-5s3 2 3 5"/></svg>
+                        "User Access & Auth"
+                    </a>
+                    <a href="/admin/integrations" class=move || side_active_class("/admin/integrations")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1M8 13v1M2 8h1M13 8h1M3.5 3.5l.7.7M11.8 11.8l.7.7M3.5 12.5l.7-.7M11.8 4.2l.7-.7"/></svg>
+                        "Integrations & Webhooks"
+                    </a>
+                    <a href="/admin/compliance" class=move || side_active_class("/admin/compliance")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
+                        "Contracts & Compliance"
+                    </a>
+
+                    // ── Sidebar Footer ──
+                    <div class="sidebar-footer">
+                        <a href="/settings" class="nav-item">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1M8 13v1M2 8h1M13 8h1M3.5 3.5l.7.7M11.8 11.8l.7.7M3.5 12.5l.7-.7M11.8 4.2l.7-.7"/></svg>
+                            "My Profile & Settings"
+                        </a>
+                        <div class="mx-3 mt-2 py-1 border-t border-outline-variant/10 text-[10px] flex items-center justify-between text-on-surface-variant font-mono">
+                            <span>"v1.0.0"</span>
+                            <Suspense fallback=|| ()>
+                                {move || version_res.get().map(|v| view! {
+                                    <span class="opacity-60">{v.build_sha.chars().take(7).collect::<String>()}</span>
+                                })}
+                            </Suspense>
                         </div>
-                        <div>
-                            <div class="text-on-surface font-bold text-xs">"Admin Console"</div>
-                            <div class="text-on-surface-variant text-[9px] uppercase tracking-widest">"Network Root"</div>
-                        </div>
-                    </div>
-                    <nav class="flex-1 space-y-1">
-                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-2">"Overview"</div>
-                        <a href="/" class=move || side_active_class("/")>
-                            <span class="material-symbols-outlined text-sm">"grid_view"</span>
-                            <span class="text-xs">"Command Center"</span>
-                        </a>
-                        <a href="/analytics" class=move || side_active_class("/analytics")>
-                            <span class="material-symbols-outlined text-sm">"analytics"</span>
-                            <span class="text-xs">"Analytics"</span>
-                        </a>
-                        <a href="/map" class=move || side_active_class("/map")>
-                            <span class="material-symbols-outlined text-sm">"map"</span>
-                            <span class="text-xs">"Platform Map"</span>
-                        </a>
-
-                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"CRM"</div>
-                        <a href="/crm" class=move || side_active_class("/crm")>
-                            <span class="material-symbols-outlined text-sm">"person"</span>
-                            <span class="text-xs">"Leads"</span>
-                            <span class="ml-auto text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full">"6"</span>
-                        </a>
-                        <a href="/crm" class=move || side_active_class("/crm")>
-                            <span class="material-symbols-outlined text-sm">"domain"</span>
-                            <span class="text-xs">"Accounts"</span>
-                        </a>
-                        <a href="/crm" class=move || side_active_class("/crm")>
-                            <span class="material-symbols-outlined text-sm">"contacts"</span>
-                            <span class="text-xs">"Contacts"</span>
-                        </a>
-                        <a href="/crm" class=move || side_active_class("/crm")>
-                            <span class="material-symbols-outlined text-sm">"radio_button_checked"</span>
-                            <span class="text-xs">"Opportunities"</span>
-                        </a>
-
-                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Platform"</div>
-                        <a href="/apps" class=move || side_active_class("/apps")>
-                            <span class="material-symbols-outlined text-sm">"dns"</span>
-                            <span class="text-xs">"Tenants"</span>
-                        </a>
-                        <a href="/billing" class=move || side_active_class("/billing")>
-                            <span class="material-symbols-outlined text-sm">"payments"</span>
-                            <span class="text-xs">"Billing"</span>
-                        </a>
-                        <a href="/billing/products" class=move || side_active_class("/billing/products")>
-                            <span class="material-symbols-outlined text-sm">"sell"</span>
-                            <span class="text-xs">"Products & Plans"</span>
-                        </a>
-                        <a href="/products" class=move || side_active_class("/products")>
-                            <span class="material-symbols-outlined text-sm">"store"</span>
-                            <span class="text-xs">"Storefront Pages"</span>
-                        </a>
-                        <a href="/network" class=move || side_active_class("/network")>
-                            <span class="material-symbols-outlined text-sm">"lan"</span>
-                            <span class="text-xs">"Network Instances"</span>
-                        </a>
-                        <a href="/network/syndication" class=move || side_active_class("/network/syndication")>
-                            <span class="material-symbols-outlined text-sm">"sync_alt"</span>
-                            <span class="text-xs">"Syndication"</span>
-                        </a>
-                        <a href="/verification" class=move || side_active_class("/verification")>
-                            <span class="material-symbols-outlined text-sm">"verified_user"</span>
-                            <span class="text-xs">"Verification"</span>
-                            <span class="ml-auto text-[9px] font-bold bg-error-container/20 text-error border border-error/20 px-1.5 py-0.5 rounded-full">"3"</span>
-                        </a>
-                        <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
-                            <span class="material-symbols-outlined text-sm">"star"</span>
-                            <span class="text-xs">"Scorecards"</span>
-                        </a>
-
-                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Operations"</div>
-                        <a href="/flags" class=move || side_active_class("/flags")>
-                            <span class="material-symbols-outlined text-sm">"flag"</span>
-                            <span class="text-xs">"Feature Flags"</span>
-                            <span class="ml-auto text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-full">"1"</span>
-                        </a>
-                        <a href="/support" class=move || side_active_class("/support")>
-                            <span class="material-symbols-outlined text-sm">"support_agent"</span>
-                            <span class="text-xs">"Support Queue"</span>
-                            <span class="ml-auto text-[9px] font-bold bg-error-container/20 text-error border border-error/20 px-1.5 py-0.5 rounded-full">"4"</span>
-                        </a>
-                        <a href="/logs" class=move || side_active_class("/logs")>
-                            <span class="material-symbols-outlined text-sm">"history"</span>
-                            <span class="text-xs">"Audit Logs"</span>
-                        </a>
-                        <a href="/admin/aitasks" class=move || side_active_class("/admin/aitasks")>
-                            <span class="material-symbols-outlined text-sm">"smart_toy"</span>
-                            <span class="text-xs">"AI Task Monitor"</span>
-                        </a>
-
-                        <div class="px-3 text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-widest mb-1.5 mt-4">"Admin"</div>
-                        <a href="/admins" class=move || side_active_class("/admins")>
-                            <span class="material-symbols-outlined text-sm">"group"</span>
-                            <span class="text-xs">"User Access & Auth"</span>
-                        </a>
-                        <a href="/admin/integrations" class=move || side_active_class("/admin/integrations")>
-                            <span class="material-symbols-outlined text-sm">"integration_instructions"</span>
-                            <span class="text-xs">"Integrations & Webhooks"</span>
-                        </a>
-                        <a href="/admin/compliance" class=move || side_active_class("/admin/compliance")>
-                            <span class="material-symbols-outlined text-sm">"gavel"</span>
-                            <span class="text-xs">"Contracts & Compliance"</span>
-                        </a>
-                    </nav>
-
-                    // ── Sidebar Footer: version + utility links ──
-                    <div class="border-t border-outline-variant/10 pt-4 mt-4 space-y-1">
-                        // Version chip — fetched once on mount
-                        <Suspense fallback=|| ()>
-                            {move || version_res.get().map(|v| {
-                                let env_label = v.environment.clone();
-                                let env_color = match env_label.as_str() {
-                                    "prod" => "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-                                    "uat"  => "text-amber-400 bg-amber-400/10 border-amber-400/20",
-                                    _      => "text-sky-400 bg-sky-400/10 border-sky-400/20",
-                                };
-                                view! {
-                                    <div class="mx-3 mb-3 px-3 py-2 rounded-lg bg-surface-container-high/60 border border-outline-variant/10 space-y-1.5">
-                                        // Environment badge
-                                        <div class=format!("inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest {}", env_color)>
-                                            <span class="material-symbols-outlined text-[10px]">
-                                                {if env_label == "prod" { "verified" } else { "science" }}
-                                            </span>
-                                            {env_label.to_uppercase()}
-                                        </div>
-                                        // Version + SHA
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="material-symbols-outlined text-[13px] text-primary/60">"commit"</span>
-                                                <span class="text-[10px] font-mono text-on-surface-variant">"v"</span>
-                                                <span class="text-[10px] font-bold font-mono text-on-surface">{v.version.clone()}</span>
-                                            </div>
-                                            <span class="text-[9px] font-mono text-on-surface-variant/60 truncate max-w-[60px]" title=v.build_sha.clone()>
-                                                {v.build_sha.chars().take(7).collect::<String>()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                }
-                            })}
-                        </Suspense>
-                        <a href="/settings" class=move || side_active_class("/settings")>
-                            <span class="material-symbols-outlined text-sm">"settings"</span>
-                            <span>"My Profile & Settings"</span>
-                        </a>
-                        <a href="/apps/new" class="block w-full mt-4">
-                            <button class="w-full btn-primary-gradient text-on-primary-container py-2.5 rounded-md text-xs font-bold uppercase tracking-widest shadow-lg shadow-primary/10 hover:opacity-90 transition-opacity">
-                                "New Application"
-                            </button>
-                        </a>
                     </div>
                 </aside>
 
                 // ── Main Content ──
-                <main class="ml-64 mt-16 p-8 h-[calc(100vh-64px)] overflow-y-auto bg-surface-container">
+                <main class="main-canvas">
                     <Routes fallback=|| "Not found.">
                         <Route path=path!("/") view=Dashboard />
                         <Route path=path!("/analytics") view=Analytics />
@@ -447,6 +431,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/marketing") view=MarketingLanding />
                     </Routes>
                 </main>
+
+                // ── Right Intelligence Sidebar ──
+                <Show when=move || show_intel_sidebar.get()>
+                    <IntelSidebar />
+                </Show>
             </div>
         </Show>
     }
