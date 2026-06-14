@@ -42,6 +42,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         // Unified Atlas Auth Protocol endpoints (all apps should use these)
         .route("/api/auth/session/validate", get(sessions::validate_session))
         .route("/api/auth/session/revoke", post(sessions::revoke_session))
+        .route("/api/auth/impersonate/exchange", post(sessions::exchange_impersonate_code))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 

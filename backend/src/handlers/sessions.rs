@@ -551,3 +551,40 @@ pub async fn refresh_token(
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ImpersonateExchangeRequest {
+    pub code: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ExchangeResponse {
+    pub success: bool,
+}
+
+pub async fn exchange_impersonate_code(
+    State(_db): State<DatabaseConnection>,
+    Json(payload): Json<ImpersonateExchangeRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    // Consume code (single-use, validated)
+    let jwt = crate::handlers::admin::consume_impersonation_code(&payload.code)
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    // Set secure domain-isolated cookie (Max-Age 2 hours)
+    let cookie_val = session_cookie_header(&jwt, 7200);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::SET_COOKIE,
+        cookie_val.parse().map_err(|e| {
+            tracing::error!("Failed to parse cookie header: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?,
+    );
+
+    Ok((
+        headers,
+        Json(ExchangeResponse { success: true }),
+    ))
+}
+

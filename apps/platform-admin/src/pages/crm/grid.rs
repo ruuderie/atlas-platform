@@ -62,7 +62,7 @@ pub fn CrmGrid() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match crate::api::auth::impersonate_user(&user_id).await {
                 Ok(session) => {
-                    let url = format!("http://network.localhost:3000/?impersonate_token={}", session.token);
+                    let url = format!("http://network.localhost:3000/?impersonate_code={}", session.token.as_deref().unwrap_or(""));
                     if let Some(window) = web_sys::window() {
                         let _ = window.location().assign(&url);
                     }

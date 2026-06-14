@@ -1057,8 +1057,48 @@ fn InnerApp(config: NetworkConfig) -> impl IntoView {
 pub fn App() -> impl IntoView {
     provide_meta_context();
     
-    // Note: impersonate_token URL param support removed — auth is cookie-based.
-    // The backend sets the HttpOnly session cookie on login; no client-side token handling needed.
+    // Hydration check for Impersonation Code Exchange
+    #[cfg(target_arch = "wasm32")]
+    {
+        leptos::prelude::Effect::new(move |_| {
+            if let Some(window) = web_sys::window() {
+                if let Ok(search) = window.location().search() {
+                    let params = web_sys::UrlSearchParams::new_with_str(&search).unwrap();
+                    if let Some(code) = params.get("impersonate_code") {
+                        leptos::task::spawn_local(async move {
+                            let url = format!("{}/api/auth/impersonate/exchange", crate::get_api_base_url());
+                            let payload = serde_json::json!({ "code": code });
+                            let client = reqwest::Client::new();
+                            let req = client.post(&url)
+                                .json(&payload)
+                                .fetch_credentials_include();
+                            
+                            match req.send().await {
+                                Ok(res) if res.status().is_success() => {
+                                    if let Some(history) = web_sys::window().unwrap().history().ok() {
+                                        if let Ok(pathname) = web_sys::window().unwrap().location().pathname() {
+                                            let _ = history.replace_state_with_url(
+                                                &wasm_bindgen::JsValue::NULL,
+                                                "",
+                                                Some(&pathname),
+                                            );
+                                        }
+                                    }
+                                    let _ = web_sys::window().unwrap().location().reload();
+                                }
+                                Ok(res) => {
+                                    leptos::logging::error!("Impersonation exchange failed with status: {}", res.status());
+                                }
+                                Err(e) => {
+                                    leptos::logging::error!("Impersonation exchange request failed: {:?}", e);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
     
     let host = get_host();
     

@@ -895,6 +895,45 @@ pub async fn get_revenue_report(
     Ok(Json(revenue_data))
 }
 
+#[derive(Serialize, Debug)]
+pub struct ImpersonateResponse {
+    pub user: Option<UserInfo>,
+    pub token: String,
+    pub refresh_token: Option<String>,
+}
+
+struct ImpersonationCodeInfo {
+    jwt: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+static IMPERSONATION_CODES: once_cell::sync::Lazy<std::sync::Mutex<std::collections::HashMap<String, ImpersonationCodeInfo>>> = once_cell::sync::Lazy::new(|| {
+    std::sync::Mutex::new(std::collections::HashMap::new())
+});
+
+pub fn create_impersonation_code(jwt: String) -> String {
+    let code = format!("imp_code_{}", uuid::Uuid::new_v4());
+    let info = ImpersonationCodeInfo {
+        jwt,
+        expires_at: chrono::Utc::now() + chrono::Duration::seconds(30),
+    };
+    if let Ok(mut map) = IMPERSONATION_CODES.lock() {
+        map.insert(code.clone(), info);
+    }
+    code
+}
+
+pub fn consume_impersonation_code(code: &str) -> Option<String> {
+    if let Ok(mut map) = IMPERSONATION_CODES.lock() {
+        if let Some(info) = map.remove(code) {
+            if info.expires_at > chrono::Utc::now() {
+                return Some(info.jwt);
+            }
+        }
+    }
+    None
+}
+
 pub async fn impersonate_user(
     State(db): State<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -929,10 +968,12 @@ pub async fn impersonate_user(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    // 4. Return SessionResponse
-    let response = SessionResponse {
-        token,
-        refresh_token: "".to_string(), // Refresh tokens are not issued for impersonation sessions
+    let impersonate_code = create_impersonation_code(token);
+
+    // 4. Return ImpersonateResponse with exchange code
+    let response = ImpersonateResponse {
+        token: impersonate_code,
+        refresh_token: None, // Refresh tokens are not issued for impersonation sessions
         user: Some(UserInfo {
             id: target_user.id,
             email: target_user.email,

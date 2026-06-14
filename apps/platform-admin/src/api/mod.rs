@@ -23,4 +23,6 @@ pub mod pages;
 pub mod menus;
 pub mod version;
 pub mod products;
+pub mod billing;
+
 

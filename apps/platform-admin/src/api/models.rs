@@ -31,8 +31,8 @@ pub struct UserInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionResponse {
-    pub token: String,
-    pub refresh_token: String,
+    pub token: Option<String>,
+    pub refresh_token: Option<String>,
     pub user: Option<UserInfo>,
 }
 
