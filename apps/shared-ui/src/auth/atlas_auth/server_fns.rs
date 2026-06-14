@@ -341,7 +341,20 @@ pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnE
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
 pub async fn start_passkey_registration() -> Result<serde_json::Value, ServerFnError> {
-    Err(ServerFnError::ServerError("Server functions not available in CSR-only build".into()))
+    let url = format!("{}/api/passkeys/start-register", get_atlas_api_url());
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().post(&url);
+    #[cfg(target_arch = "wasm32")]
+    {
+        req = req.fetch_credentials_include();
+    }
+    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    if res.status().is_success() {
+        res.json::<serde_json::Value>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+    } else {
+        let text = res.text().await.unwrap_or_default();
+        Err(ServerFnError::ServerError(text))
+    }
 }
 
 #[cfg(any(feature = "ssr", feature = "hydrate"))]
@@ -444,7 +457,20 @@ pub async fn set_session_cookie(_token: String) -> Result<(), ServerFnError> {
 }
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
-pub async fn finish_passkey_registration(_credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
-    Err(ServerFnError::ServerError("Server functions not available in CSR-only build".into()))
+pub async fn finish_passkey_registration(credential: serde_json::Value) -> Result<serde_json::Value, ServerFnError> {
+    let url = format!("{}/api/passkeys/finish-register", get_atlas_api_url());
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().post(&url).json(&credential);
+    #[cfg(target_arch = "wasm32")]
+    {
+        req = req.fetch_credentials_include();
+    }
+    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    if res.status().is_success() {
+        res.json::<serde_json::Value>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+    } else {
+        let text = res.text().await.unwrap_or_default();
+        Err(ServerFnError::ServerError(text))
+    }
 }
 
