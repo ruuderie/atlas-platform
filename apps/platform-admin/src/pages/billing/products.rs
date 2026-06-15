@@ -449,9 +449,9 @@ pub fn BillingProducts() -> impl IntoView {
     let card_class = move |pid: Uuid| {
         let active = selected_id.get() == Some(pid);
         if active {
-            "flex items-center gap-3.5 p-4 bg-[#05183c] border border-primary/50 shadow-md rounded-xl cursor-pointer"
+            "flex items-center gap-3.5 p-4 bg-[var(--bg-surface)] border border-primary/50 shadow-md rounded-xl cursor-pointer"
         } else {
-            "flex items-center gap-3.5 p-4 bg-[#05183c]/30 hover:bg-[#05183c]/60 border border-outline-variant/10 rounded-xl cursor-pointer transition-all duration-150"
+            "flex items-center gap-3.5 p-4 bg-[var(--bg-surface)]/30 hover:bg-[var(--bg-surface)]/60 border border-outline-variant/10 rounded-xl cursor-pointer transition-all duration-150"
         }
     };
 
@@ -543,17 +543,17 @@ pub fn BillingProducts() -> impl IntoView {
             </div>
 
             // ── Workspace: Left (List) & Right (Details) ──
-            <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] h-[720px] border border-outline-variant/20 rounded-2xl overflow-hidden bg-[#06122d]">
+            <div class="grid grid-cols-1 lg:grid-cols-[360px_1fr] h-[720px] border border-outline-variant/20 rounded-2xl overflow-hidden bg-[var(--bg-base)]">
                 
                 // Left Panel: Product Registry
-                <div class="flex flex-col border-r border-outline-variant/10 bg-[#05183c]/10 overflow-hidden">
+                <div class="flex flex-col border-r border-outline-variant/10 bg-[var(--bg-surface)]/10 overflow-hidden">
                     <div class="p-4 border-b border-outline-variant/10 flex-shrink-0">
                         <div class="relative items-center">
                             <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/70 text-sm">"search"</span>
                             <input
                                 type="text"
                                 placeholder="Search products..."
-                                class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-[#91aaeb]/60"
+                                class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-[#91aaeb]/60"
                                 on:input=move |ev| search_query.set(event_target_value(&ev))
                             />
                         </div>
@@ -654,7 +654,7 @@ pub fn BillingProducts() -> impl IntoView {
                                 </div>
 
                                 // Tabs Navigation
-                                <div class="flex border-b border-outline-variant/10 px-4 bg-[#06122d]/40 flex-shrink-0">
+                                <div class="flex border-b border-outline-variant/10 px-4 bg-[var(--bg-base)]/40 flex-shrink-0">
                                     <button class=move || tab_class("overview") on:click=move |_| active_tab.set("overview".into())>"Overview"</button>
                                     <button class=move || tab_class("pages") on:click=move |_| active_tab.set("pages".into())>"Templates & Variants"</button>
                                     <button class=move || tab_class("localization") on:click=move |_| active_tab.set("localization".into())>"AI Localization"</button>
@@ -670,7 +670,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             // Product Details Card
                                             <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
-                                                <div class="px-4 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 font-bold text-xs">"Product Catalog Info"</div>
+                                                <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 font-bold text-xs">"Product Catalog Info"</div>
                                                 <div class="divide-y divide-outline-variant/10">
                                                     <div class="flex justify-between items-center px-4 py-3 text-xs">
                                                         <span class="text-on-surface-variant">"Launch Mode"</span>
@@ -701,7 +701,7 @@ pub fn BillingProducts() -> impl IntoView {
 
                                             // Performance Card
                                             <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
-                                                <div class="px-4 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 font-bold text-xs">"Performance & Leads"</div>
+                                                <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 font-bold text-xs">"Performance & Leads"</div>
                                                 <div class="divide-y divide-outline-variant/10">
                                                     <div class="flex justify-between items-center px-4 py-3 text-xs">
                                                         <span class="text-on-surface-variant">"Waitlist Leads"</span>
@@ -725,14 +725,14 @@ pub fn BillingProducts() -> impl IntoView {
 
                                         // Domain Aliases Table
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
-                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 flex justify-between items-center">
+                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Domain Aliases"</span>
                                                 <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| show_add_alias_modal.set(true)>"+ Add Alias"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
                                                     <thead>
-                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[#06122d]/10">
+                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[var(--bg-base)]/10">
                                                             <th class="py-2.5 px-4 font-semibold">"Domain Alias"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"Alias Type"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"DNS Routing"</th>
@@ -768,14 +768,14 @@ pub fn BillingProducts() -> impl IntoView {
                                     <div class=move || format!("space-y-6 {}", if active_tab.get() == "pages" { "block" } else { "hidden" })>
                                         // Templates Table
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
-                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 flex justify-between items-center">
+                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Page Templates"</span>
                                                 <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| toast.show_toast("Warning", "Adding a new template...", "warn")>"+ New Template"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
                                                     <thead>
-                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[#06122d]/10">
+                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[var(--bg-base)]/10">
                                                             <th class="py-2.5 px-4 font-semibold">"Template Name"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"Format Type"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"Locales Generated"</th>
@@ -818,14 +818,14 @@ pub fn BillingProducts() -> impl IntoView {
 
                                         // Variants Table
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
-                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 flex justify-between items-center">
+                                            <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Locale Variants — Homepage"</span>
                                                 <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| show_add_locale_modal.set(true)>"+ Add Locale"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
                                                     <thead>
-                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[#06122d]/10">
+                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[var(--bg-base)]/10">
                                                             <th class="py-2.5 px-4 font-semibold">"Locale"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"Language/Market"</th>
                                                             <th class="py-2.5 px-4 font-semibold">"Status"</th>
@@ -919,7 +919,7 @@ pub fn BillingProducts() -> impl IntoView {
                                             <div class="overflow-x-auto border border-outline-variant/10 rounded-lg">
                                                 <table class="w-full border-collapse text-left">
                                                     <thead>
-                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[#06122d]/20">
+                                                        <tr class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/10 bg-[var(--bg-base)]/20">
                                                             <th class="py-2 px-3 font-semibold">"Job Type"</th>
                                                             <th class="py-2 px-3 font-semibold">"Target Locale"</th>
                                                             <th class="py-2 px-3 font-semibold">"Status"</th>
@@ -963,11 +963,11 @@ pub fn BillingProducts() -> impl IntoView {
                                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div class="space-y-1.5">
                                                         <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Product Display Name"</label>
-                                                        <input type="text" class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" value=p.name.clone() />
+                                                        <input type="text" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" value=p.name.clone() />
                                                     </div>
                                                     <div class="space-y-1.5">
                                                         <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Launch Mode Override"</label>
-                                                        <select class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
+                                                        <select class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
                                                             <option selected=true>{p.launch_mode.clone()}</option>
                                                             <option>"draft"</option>
                                                             <option>"active"</option>
@@ -978,7 +978,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                 </div>
                                                 <div class="space-y-1.5">
                                                     <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Deploy Webhook Hook URL"</label>
-                                                    <input type="text" class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-[11px]" value=p.deploy_hook_url.clone().unwrap_or_default() />
+                                                    <input type="text" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-[11px]" value=p.deploy_hook_url.clone().unwrap_or_default() />
                                                 </div>
                                                 <div class="flex justify-end gap-3 pt-4 border-t border-outline-variant/10">
                                                     <button class="px-4 py-2 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Warning", "Changes discarded.", "warn")>"Discard"</button>
@@ -1043,7 +1043,7 @@ pub fn BillingProducts() -> impl IntoView {
 
                                                 // Step 4
                                                 <div class="relative flex items-start gap-4 opacity-55">
-                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-[#031d4b] border border-outline-variant/30 flex items-center justify-center text-on-surface-variant/80 text-[9px] font-semibold">
+                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-[var(--bg-elevated)] border border-outline-variant/30 flex items-center justify-center text-on-surface-variant/80 text-[9px] font-semibold">
                                                         "4"
                                                     </div>
                                                     <div>
@@ -1073,15 +1073,15 @@ pub fn BillingProducts() -> impl IntoView {
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Product Name"</label>
-                                <input type="text" placeholder="Folio Enterprise" class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" on:input=move |ev| new_prod_name.set(event_target_value(&ev)) />
+                                <input type="text" placeholder="Folio Enterprise" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" on:input=move |ev| new_prod_name.set(event_target_value(&ev)) />
                             </div>
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Slug"</label>
-                                <input type="text" placeholder="folio-enterprise" class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" on:input=move |ev| new_prod_slug.set(event_target_value(&ev)) />
+                                <input type="text" placeholder="folio-enterprise" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" on:input=move |ev| new_prod_slug.set(event_target_value(&ev)) />
                             </div>
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Product Category"</label>
-                                <select class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
+                                <select class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
                                     <option>"folio"</option>
                                     <option>"anchor"</option>
                                     <option>"network"</option>
@@ -1135,7 +1135,7 @@ pub fn BillingProducts() -> impl IntoView {
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Domain Alias / Slug"</label>
-                                <input type="text" placeholder="e.g. rent.atlas.app" class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+                                <input type="text" placeholder="e.g. rent.atlas.app" class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
@@ -1155,7 +1155,7 @@ pub fn BillingProducts() -> impl IntoView {
                         <div class="space-y-4 mb-6">
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Target Locale"</label>
-                                <select class="w-full bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
+                                <select class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer">
                                     <option>"de-DE · German"</option>
                                     <option>"ja-JP · Japanese"</option>
                                     <option>"es-ES · Spanish (Spain)"</option>

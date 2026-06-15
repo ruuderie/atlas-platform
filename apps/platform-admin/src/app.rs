@@ -383,7 +383,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 </aside>
 
                 // ── Main Content ──
-                <main class="main-canvas">
+                <main class="main-content-layout">
                     <Routes fallback=|| "Not found.">
                         <Route path=path!("/") view=Dashboard />
                         <Route path=path!("/analytics") view=Analytics />

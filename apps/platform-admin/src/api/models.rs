@@ -524,3 +524,15 @@ pub struct WaitlistAnalyticsResponse {
     pub by_market: Vec<WaitlistMarketSummary>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VerificationRequestModel {
+    pub id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
+    pub entity_name: String,
+    pub req_type: String,
+    pub status: String,
+    pub created_at: String,
+    pub document_count: u32,
+    pub rejection_reason: Option<String>,
+}
+

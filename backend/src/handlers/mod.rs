@@ -58,6 +58,9 @@ pub mod folio;
 // G01 — PostGIS spatial query routes (radius, nearest, containment)
 pub mod geo;
 
+// G06 — Verification Queue
+pub mod verification;
+
 // G07 — WebSocket Relay (realtime rooms, broadcast, message persistence)
 pub mod ws;
 

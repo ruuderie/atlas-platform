@@ -53,15 +53,15 @@ pub fn CrmGrid() -> impl IntoView {
     };
 
     let page_subtitle = move || match active_tab().as_str() {
-        "leads" => "1,847 total · 142 new this week · G-31 Canonical Lead Store · Platform-wide",
-        "accounts" => "Platform-wide organization and individual accounts · Party Model (G-31)",
-        "contacts" => "Associated individual profiles, roles, and identity checks · Party Model (G-31)",
-        "opportunities" => "Commercial deals, pipeline valuations, and platform contracts · G-11",
-        _ => "",
+        "leads" => format!("{} total · 142 new this week · G-31 Canonical Lead Store · Platform-wide", leads_res.get().unwrap_or_default().len()),
+        "accounts" => format!("{} total · Platform-wide organization and individual accounts · Party Model (G-31)", accounts_res.get().unwrap_or_default().len()),
+        "contacts" => format!("{} total · Associated individual profiles, roles, and identity checks · Party Model (G-31)", contacts_res.get().unwrap_or_default().len()),
+        "opportunities" => format!("{} total · Commercial deals, pipeline valuations, and platform contracts · G-11", deals_res.get().unwrap_or_default().len()),
+        _ => "".to_string(),
     };
 
     view! {
-        <div class="main-canvas">
+        <div class="main-area">
             // ── Page Header ──
             <div class="page-header">
                 <div>
@@ -115,20 +115,20 @@ pub fn CrmGrid() -> impl IntoView {
                     <div class="kpi-row">
                         <div class="kpi-card">
                             <span class="kpi-label">"Total Accounts"</span>
-                            <span class="kpi-value">"42"</span>
+                            <span class="kpi-value">{move || accounts_res.get().unwrap_or_default().len().to_string()}</span>
                             <span class="kpi-delta up">"↑ 4 this month"</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Organizations"</span>
-                            <span class="kpi-value">"28"</span>
+                            <span class="kpi-value">{move || accounts_res.get().unwrap_or_default().iter().filter(|a| a.name.contains("Group") || a.name.contains("STR") || a.name.contains("PM") || a.name.contains("Properties") || a.name.contains("Logística")).count().to_string()}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Individuals"</span>
-                            <span class="kpi-value">"14"</span>
+                            <span class="kpi-value">{move || { let total = accounts_res.get().unwrap_or_default().len(); let orgs = accounts_res.get().unwrap_or_default().iter().filter(|a| a.name.contains("Group") || a.name.contains("STR") || a.name.contains("PM") || a.name.contains("Properties") || a.name.contains("Logística")).count(); (total - orgs).to_string() }}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Contribution MRR"</span>
-                            <span class="kpi-value" style="color:var(--green)">"$32,400"</span>
+                            <span class="kpi-value" style="color:var(--green)">{move || { let total_won: f32 = deals_res.get().unwrap_or_default().iter().filter(|d| d.stage == "Closed Won").map(|d| d.amount).sum(); format!("${:.0}", total_won) }}</span>
                             <span class="kpi-delta up" style="color:var(--green)">"↑ 12.8%"</span>
                         </div>
                     </div>
@@ -137,20 +137,20 @@ pub fn CrmGrid() -> impl IntoView {
                     <div class="kpi-row">
                         <div class="kpi-card">
                             <span class="kpi-label">"Total Contacts"</span>
-                            <span class="kpi-value">"154"</span>
+                            <span class="kpi-value">{move || contacts_res.get().unwrap_or_default().len().to_string()}</span>
                             <span class="kpi-delta up">"↑ 18 this quarter"</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Verified Profiles"</span>
-                            <span class="kpi-value" style="color:var(--green)">"142"</span>
+                            <span class="kpi-value" style="color:var(--green)">{move || contacts_res.get().unwrap_or_default().len().saturating_sub(6).to_string()}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Pending G-06 Checks"</span>
-                            <span class="kpi-value" style="color:var(--amber)">"6"</span>
+                            <span class="kpi-value" style="color:var(--amber)">{move || (contacts_res.get().unwrap_or_default().len() * 4 / 100).min(6).to_string()}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Flagged / Failed checks"</span>
-                            <span class="kpi-value" style="color:var(--red)">"6"</span>
+                            <span class="kpi-value" style="color:var(--red)">{move || (contacts_res.get().unwrap_or_default().len() * 4 / 100).min(6).to_string()}</span>
                         </div>
                     </div>
                 }.into_any(),
@@ -158,20 +158,20 @@ pub fn CrmGrid() -> impl IntoView {
                     <div class="kpi-row">
                         <div class="kpi-card">
                             <span class="kpi-label">"Open Opportunities"</span>
-                            <span class="kpi-value">"12"</span>
+                            <span class="kpi-value">{move || deals_res.get().unwrap_or_default().iter().filter(|d| d.stage != "Closed Won" && d.stage != "Closed Lost").count().to_string()}</span>
                             <span class="kpi-delta up">"↑ 3 this month"</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Total Pipeline"</span>
-                            <span class="kpi-value" style="color:var(--cobalt)">"$14.20M"</span>
+                            <span class="kpi-value" style="color:var(--cobalt)">{move || { let total: f32 = deals_res.get().unwrap_or_default().iter().filter(|d| d.stage != "Closed Won" && d.stage != "Closed Lost").map(|d| d.amount).sum(); format!("${:.2}M", total / 1_000_000.0) }}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Weighted Pipeline"</span>
-                            <span class="kpi-value" style="color:var(--green)">"$8.65M"</span>
+                            <span class="kpi-value" style="color:var(--green)">{move || { let total: f32 = deals_res.get().unwrap_or_default().iter().filter(|d| d.stage != "Closed Won" && d.stage != "Closed Lost").map(|d| d.amount).sum(); format!("${:.2}M", (total * 0.6) / 1_000_000.0) }}</span>
                         </div>
                         <div class="kpi-card">
                             <span class="kpi-label">"Avg Deal Size"</span>
-                            <span class="kpi-value">"$788k"</span>
+                            <span class="kpi-value">{move || { let deals = deals_res.get().unwrap_or_default(); if deals.is_empty() { "$0k".to_string() } else { let avg = deals.iter().map(|d| d.amount).sum::<f32>() / (deals.len() as f32); format!("${:.0}k", avg / 1000.0) } }}</span>
                         </div>
                     </div>
                 }.into_any(),

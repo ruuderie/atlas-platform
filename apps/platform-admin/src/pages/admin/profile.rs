@@ -114,11 +114,11 @@ pub fn Settings() -> impl IntoView {
 
             // ── Tab Bar ──
             <div class="tab-bar">
-                <button class=move || format!("tab {}", if active_tab.get() == "profile" { "active" } else { "" }) on:click=move |_| active_tab.set("profile".to_string())>"Profile"</button>
-                <button class=move || format!("tab {}", if active_tab.get() == "security" { "active" } else { "" }) on:click=move |_| active_tab.set("security".to_string())>"Security & MFA"</button>
-                <button class=move || format!("tab {}", if active_tab.get() == "notifications" { "active" } else { "" }) on:click=move |_| active_tab.set("notifications".to_string())>"Notifications"</button>
-                <button class=move || format!("tab {}", if active_tab.get() == "apikeys" { "active" } else { "" }) on:click=move |_| active_tab.set("apikeys".to_string())>"API Keys"</button>
-                <button class=move || format!("tab {}", if active_tab.get() == "sessions" { "active" } else { "" }) on:click=move |_| active_tab.set("sessions".to_string())>"Active Sessions"</button>
+                <button class="tab" class:active=move || active_tab.get() == "profile" on:click=move |_| active_tab.set("profile".to_string())>"Profile"</button>
+                <button class="tab" class:active=move || active_tab.get() == "security" on:click=move |_| active_tab.set("security".to_string())>"Security & MFA"</button>
+                <button class="tab" class:active=move || active_tab.get() == "notifications" on:click=move |_| active_tab.set("notifications".to_string())>"Notifications"</button>
+                <button class="tab" class:active=move || active_tab.get() == "apikeys" on:click=move |_| active_tab.set("apikeys".to_string())>"API Keys"</button>
+                <button class="tab" class:active=move || active_tab.get() == "sessions" on:click=move |_| active_tab.set("sessions".to_string())>"Active Sessions"</button>
             </div>
 
             <div class="body" style="flex: 1; overflow-y: auto; padding: 24px; max-width: 740px;">

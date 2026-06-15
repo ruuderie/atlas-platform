@@ -27,88 +27,95 @@ pub fn SyndicationManager() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6">
+        <div class="main-canvas">
             // ── Page Header ──
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
+            <div class="page-header">
                 <div>
-                    <h1 class="text-2xl font-extrabold tracking-tight text-on-surface">"Syndication Manager"</h1>
-                    <p class="text-xs text-on-surface-variant mt-1">"Control which network instances a tenant's listings are dynamically syndicated to"</p>
+                    <h1 class="page-title">"Syndication Manager"</h1>
+                    <p class="page-subtitle">"Control which network instances a tenant's listings appear on"</p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="page-header-actions">
                     <button 
-                        class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20 hover:text-on-surface transition-all active:scale-95"
+                        class="btn btn-ghost btn-sm"
                         on:click=move |_| {
                             let window = web_sys::window().unwrap();
                             let _ = window.history().unwrap().back();
                         }
                     >
-                        "← Back to Tenant"
+                        "← Back to tenant"
                     </button>
                     <button 
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
+                        class="btn btn-primary"
                         on:click=move |_| show_grant_modal.set(true)
                     >
-                        "+ Grant Access"
+                        "+ Grant access"
                     </button>
                 </div>
             </div>
 
             // ── Context Banner ──
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-surface-container-low border border-outline-variant/20 p-5 rounded-xl shadow-sm">
-                <div class="space-y-1">
-                    <span class="text-[9px] font-bold text-on-surface-variant/50 uppercase tracking-wider">"Managing syndication for"</span>
-                    <p class="text-sm font-bold text-on-surface">"Oakwood Property Management"</p>
+            <div class="context-banner">
+                <div>
+                    <p class="context-label">"Managing syndication for"</p>
+                    <p class="context-value">"Oakwood Property Management"</p>
                 </div>
-                <div class="space-y-1">
-                    <span class="text-[9px] font-bold text-on-surface-variant/50 uppercase tracking-wider">"Tenant ID"</span>
-                    <p class="text-xs font-mono text-on-surface-variant/80">"ten_7f2a1b9c-4e3d"</p>
+                <div class="context-sep"></div>
+                <div>
+                    <p class="context-label">"Tenant ID"</p>
+                    <p style="font-size:11px;color:var(--text-muted);font-family:'SFMono-Regular',monospace;">"ten_7f2a1b9c-4e3d"</p>
                 </div>
-                <div class="space-y-1">
-                    <span class="text-[9px] font-bold text-on-surface-variant/50 uppercase tracking-wider">"Active Plan"</span>
-                    <p class="text-sm font-semibold text-on-surface">"Professional"</p>
+                <div class="context-sep"></div>
+                <div>
+                    <p class="context-label">"Plan"</p>
+                    <p class="context-value">"Professional"</p>
                 </div>
-                <div class="space-y-1">
-                    <span class="text-[9px] font-bold text-on-surface-variant/50 uppercase tracking-wider">"Active Listings"</span>
-                    <p class="text-sm font-bold text-primary">"34"</p>
+                <div class="context-sep"></div>
+                <div>
+                    <p class="context-label">"Active listings"</p>
+                    <p class="context-value">"34"</p>
                 </div>
             </div>
 
             // ── Active Grants Section ──
-            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm space-y-4 p-6">
-                <div class="flex items-center gap-2 border-b border-outline-variant/10 pb-4 mb-4">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Active Syndication Grants (2)"</h3>
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">
+                        <span class="status-dot" style="background:var(--green);"></span>
+                        "Active syndication grants"
+                        <span class="section-count">"2 active"</span>
+                    </span>
                 </div>
 
                 // Grant 1
-                <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 space-y-4">
-                    <div class="flex justify-between items-start gap-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h4 class="text-sm font-bold text-on-surface">"leira Rentals"</h4>
-                                <span class="px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">"Active"</span>
+                <div class="grant-card">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                <h4 class="grant-title">"leira Rentals"</h4>
+                                <span class="tag tag-pm">"Active"</span>
                             </div>
-                            <p class="text-[10px] text-on-surface-variant/70 mt-1">"leira-rentals.app · LTR Directory · Capability: ltr_listings"</p>
-                            <p class="text-[9px] text-on-surface-variant/50 mt-1">"Granted Jun 3, 2026 by admin@atlas.com"</p>
+                            <p class="grant-meta">"leira-rentals.app · LTR Directory · Capability: ltr_listings"</p>
+                            <p class="grant-meta" style="color:var(--text-muted);margin-top:2px;">"Granted Jun 3, 2026 by admin@atlas.com"</p>
                         </div>
-                        <div class="text-right">
-                            <span class="text-sm font-bold text-on-surface font-mono">"28"</span>
-                            <span class="text-xs text-on-surface-variant">" / 34 listings"</span>
+                        <div style="text-align:right;">
+                            <span style="font-size:14px;font-weight:700;color:var(--text-primary);font-family:monospace;">"28"</span>
+                            <span style="font-size:11px;color:var(--text-muted);">" / 34 listings"</span>
                         </div>
                     </div>
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-[10px] text-on-surface-variant">
+                    <div style="margin-top:10px;">
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-bottom:2px;">
                             <span>"Syncing 28 of 34 listings"</span>
-                            <span class="font-bold">"82%"</span>
+                            <span style="font-weight:700;">"82%"</span>
                         </div>
-                        <div class="w-full h-1 bg-surface-container-low rounded-full overflow-hidden">
-                            <div class="h-full bg-primary" style="width: 82%"></div>
+                        <div class="sync-bar">
+                            <div class="sync-bar-fill" style="width: 82%;"></div>
                         </div>
                     </div>
-                    <div class="flex gap-2 pt-2">
-                        <button class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-[10px] font-bold uppercase tracking-wider">"View Synced Listings"</button>
+                    <div class="grant-actions">
+                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Loading listings view...", "info")>"View Synced Listings"</button>
                         <button 
-                            class="bg-error-container/20 border border-error/30 text-error hover:bg-error-container/30 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider active:scale-95 transition-all"
+                            class="btn btn-sm btn-reject"
+                            style="border-color:var(--red);color:var(--red);"
                             on:click=move |_| {
                                 revoke_target.set("leira Rentals".to_string());
                                 show_revoke_modal.set(true);
@@ -120,34 +127,35 @@ pub fn SyndicationManager() -> impl IntoView {
                 </div>
 
                 // Grant 2
-                <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 space-y-4">
-                    <div class="flex justify-between items-start gap-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h4 class="text-sm font-bold text-on-surface">"leira Stays"</h4>
-                                <span class="px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">"Active"</span>
+                <div class="grant-card">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+                        <div style="flex:1;">
+                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                <h4 class="grant-title">"leira Stays"</h4>
+                                <span class="tag tag-pm">"Active"</span>
                             </div>
-                            <p class="text-[10px] text-on-surface-variant/70 mt-1">"leira-stays.app · STR Directory · Capability: str_listings"</p>
-                            <p class="text-[9px] text-on-surface-variant/50 mt-1">"Granted Jun 3, 2026 by admin@atlas.com"</p>
+                            <p class="grant-meta">"leira-stays.app · STR Directory · Capability: str_listings"</p>
+                            <p class="grant-meta" style="color:var(--text-muted);margin-top:2px;">"Granted Jun 3, 2026 by admin@atlas.com"</p>
                         </div>
-                        <div class="text-right">
-                            <span class="text-sm font-bold text-on-surface font-mono">"6"</span>
-                            <span class="text-xs text-on-surface-variant">" / 34 listings"</span>
+                        <div style="text-align:right;">
+                            <span style="font-size:14px;font-weight:700;color:var(--text-primary);font-family:monospace;">"6"</span>
+                            <span style="font-size:11px;color:var(--text-muted);">" / 34 listings"</span>
                         </div>
                     </div>
-                    <div class="space-y-1">
-                        <div class="flex justify-between text-[10px] text-on-surface-variant">
+                    <div style="margin-top:10px;">
+                        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-secondary);margin-bottom:2px;">
                             <span>"Syncing 6 of 34 listings"</span>
-                            <span class="font-bold">"18%"</span>
+                            <span style="font-weight:700;">"18%"</span>
                         </div>
-                        <div class="w-full h-1 bg-surface-container-low rounded-full overflow-hidden">
-                            <div class="h-full bg-emerald-400" style="width: 18%"></div>
+                        <div class="sync-bar">
+                            <div class="sync-bar-fill" style="width: 18%; background:var(--green);"></div>
                         </div>
                     </div>
-                    <div class="flex gap-2 pt-2">
-                        <button class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-[10px] font-bold uppercase tracking-wider">"View Synced Listings"</button>
+                    <div class="grant-actions">
+                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Loading listings view...", "info")>"View Synced Listings"</button>
                         <button 
-                            class="bg-error-container/20 border border-error/30 text-error hover:bg-error-container/30 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider active:scale-95 transition-all"
+                            class="btn btn-sm btn-reject"
+                            style="border-color:var(--red);color:var(--red);"
                             on:click=move |_| {
                                 revoke_target.set("leira Stays".to_string());
                                 show_revoke_modal.set(true);
@@ -160,95 +168,71 @@ pub fn SyndicationManager() -> impl IntoView {
             </div>
 
             // ── Grant History Section ──
-            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm p-6 space-y-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/10 pb-4">"Grant History"</h3>
-                <div class="divide-y divide-outline-variant/10">
-                    <div class="py-3 flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-3">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                            <span class="text-on-surface font-medium">"Granted access to leira Rentals"</span>
-                        </div>
-                        <span class="text-on-surface-variant/60 font-mono">"Jun 3, 2026 · by admin@atlas.com"</span>
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-title">"Grant History"</span>
+                </div>
+                <div class="audit-row">
+                    <span class="audit-dot" style="background:var(--green);"></span>
+                    <span style="flex:1;color:var(--text-primary);">"Granted access to leira Rentals"</span>
+                    <span style="color:var(--text-muted);font-family:monospace;">"Jun 3, 2026 · by admin@atlas.com"</span>
+                </div>
+                <div class="audit-row">
+                    <span class="audit-dot" style="background:var(--green);"></span>
+                    <span style="flex:1;color:var(--text-primary);">"Granted access to leira Stays"</span>
+                    <span style="color:var(--text-muted);font-family:monospace;">"Jun 3, 2026 · by admin@atlas.com"</span>
+                </div>
+            </div>
+        </div>
+
+        // ── Modal: Grant Syndication ──
+        <Show when=move || show_grant_modal.get()>
+            <div class="modal-overlay open">
+                <div class="modal">
+                    <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;color:var(--text-primary);">"Grant Syndication Access"</h3>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;">"Select a network instance to syndicate Oakwood PM's listings to."</p>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label class="form-label">"Network Instance"</label>
+                        <select 
+                            class="form-select"
+                            on:change=move |ev| selected_grant_instance.set(event_target_value(&ev))
+                        >
+                            <option value="">"— choose —"</option>
+                            <option value="leira Pros">"leira Pros (leira-pros.app)"</option>
+                            <option value="leira Miami">"leira Miami (leira-miami.app)"</option>
+                        </select>
                     </div>
-                    <div class="py-3 flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-3">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                            <span class="text-on-surface font-medium">"Granted access to leira Stays"</span>
-                        </div>
-                        <span class="text-on-surface-variant/60 font-mono">"Jun 3, 2026 · by admin@atlas.com"</span>
+
+                    <div style="display:flex;justify-content:flex-end;gap:8px;">
+                        <button class="btn btn-ghost" on:click=move |_| show_grant_modal.set(false)>"Cancel"</button>
+                        <button class="btn btn-primary" on:click=handle_grant>"Grant Access"</button>
                     </div>
                 </div>
             </div>
+        </Show>
 
-            // ── Modal: Grant Syndication ──
-            <Show when=move || show_grant_modal.get()>
-                <div class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div class="bg-surface-container border border-outline-variant/20 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                        <div>
-                            <h3 class="text-lg font-bold text-on-surface">"Grant Syndication Access"</h3>
-                            <p class="text-xs text-on-surface-variant">"Select a network instance to syndicate Oakwood PM's listings to."</p>
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div class="space-y-1">
-                                <label class="text-xs font-semibold text-on-surface-variant">"Network Instance"</label>
-                                <select 
-                                    class="w-full bg-surface-container-high border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2 cursor-pointer outline-none"
-                                    on:change=move |ev| selected_grant_instance.set(event_target_value(&ev))
-                                >
-                                    <option value="">"— choose —"</option>
-                                    <option value="leira Pros">"leira Pros (leira-pros.app)"</option>
-                                    <option value="leira Miami">"leira Miami (leira-miami.app)"</option>
-                                </select>
-                            </div>
-                        </div>
+        // ── Modal: Revoke Syndication ──
+        <Show when=move || show_revoke_modal.get()>
+            <div class="modal-overlay open">
+                <div class="modal">
+                    <h3 style="font-size:15px;font-weight:700;margin-bottom:8px;color:var(--red);">"Revoke Syndication Access?"</h3>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
+                        "Revoking access will immediately remove Oakwood PM's listings from " <strong style="color:var(--text-primary);">{move || revoke_target.get()}</strong> ". This cannot be undone automatically."
+                    </p>
 
-                        <div class="flex justify-end gap-3 pt-4 border-t border-outline-variant/10">
-                            <button 
-                                class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20 transition-all"
-                                on:click=move |_| show_grant_modal.set(false)
-                            >
-                                "Cancel"
-                            </button>
-                            <button 
-                                class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-                                on:click=handle_grant
-                            >
-                                "Grant Access"
-                            </button>
-                        </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;">
+                        <button class="btn btn-ghost" on:click=move |_| show_revoke_modal.set(false)>"Cancel"</button>
+                        <button 
+                            class="btn"
+                            style="background:transparent;border-color:var(--red);color:var(--red);"
+                            on:click=handle_revoke
+                        >
+                            "Revoke Access"
+                        </button>
                     </div>
                 </div>
-            </Show>
-
-            // ── Modal: Revoke Syndication ──
-            <Show when=move || show_revoke_modal.get()>
-                <div class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div class="bg-surface-container border border-outline-variant/20 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-                        <div>
-                            <h3 class="text-lg font-bold text-error">"Revoke Syndication Access?"</h3>
-                            <p class="text-xs text-on-surface-variant mt-2 leading-relaxed">
-                                "Revoking access will immediately remove Oakwood PM's listings from " <strong class="text-on-surface">{move || revoke_target.get()}</strong> ". This cannot be undone automatically."
-                            </p>
-                        </div>
-
-                        <div class="flex justify-end gap-3 pt-4 border-t border-outline-variant/10">
-                            <button 
-                                class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20 transition-all"
-                                on:click=move |_| show_revoke_modal.set(false)
-                            >
-                                "Cancel"
-                            </button>
-                            <button 
-                                class="bg-error-container/20 border border-error/30 text-error hover:bg-error-container/30 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95"
-                                on:click=handle_revoke
-                            >
-                                "Revoke Access"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
-        </div>
+            </div>
+        </Show>
     }
 }

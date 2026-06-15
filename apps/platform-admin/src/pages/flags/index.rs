@@ -428,7 +428,7 @@ pub fn FeatureFlags() -> impl IntoView {
     };
 
     view! {
-        <div style="margin: -20px -24px; display: flex; flex-direction: column; height: calc(100vh - 48px); overflow: hidden; background: var(--bg-base);">
+        <div class="main-area">
             // ── Page Header ──
             <div class="page-header">
                 <div>

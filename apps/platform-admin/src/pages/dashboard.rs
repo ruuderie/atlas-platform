@@ -33,8 +33,9 @@ pub fn Dashboard() -> impl IntoView {
     };
 
     view! {
-        // ── Page Header ──
-        <div class="page-header">
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
             <div>
                 <h1 class="page-title">"Command Center"</h1>
                 <p class="page-subtitle">"Platform-wide telemetry — 24 tenants · Last sync 14s ago"</p>
@@ -514,6 +515,7 @@ pub fn Dashboard() -> impl IntoView {
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     }
 }

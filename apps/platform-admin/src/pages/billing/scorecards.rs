@@ -28,7 +28,7 @@ pub fn Scorecards() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6">
+        <div class="main-canvas">
             // ── Page Header ──
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
                 <div>

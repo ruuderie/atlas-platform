@@ -74,6 +74,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/platform/apps/{instance_id}/domains/{domain_name}", delete(admin::remove_app_domain))
                 // Provision a new tenant (calls provision() on all active AtlasApps)
                 .route("/api/admin/platform/provision/{tenant_id}", post(provision_tenant))
+                // G-06 Verification Queue
+                .merge(crate::handlers::verification::authenticated_routes())
                 // Tenant management API is handled via tenant::authenticated_routes
 
                 // ── Admin Module Registry ─────────────────────────────────────────
