@@ -1,10 +1,16 @@
+#[cfg(feature = "ssr")]
 use axum::http::{HeaderValue, header};
 use folio::app::App;
+#[cfg(feature = "ssr")]
 use folio::state::{AppState, AtlasApiUrl, PublicApiBaseUrl};
 use leptos::prelude::*;
+#[cfg(feature = "ssr")]
 use leptos_axum::{LeptosRoutes, generate_route_list};
+#[cfg(feature = "ssr")]
 use tower::ServiceBuilder;
+#[cfg(feature = "ssr")]
 use tower_http::services::ServeDir;
+#[cfg(feature = "ssr")]
 use tower_http::set_header::SetResponseHeaderLayer;
 
 #[cfg(feature = "ssr")]

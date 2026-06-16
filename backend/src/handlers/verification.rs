@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set, ActiveModelTrait};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set, ActiveModelTrait, PaginatorTrait};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -168,7 +168,7 @@ async fn seed_mock_requests(db: &DatabaseConnection) -> Result<(), String> {
             subject_id: Set(tenant_id), // Link subject to tenant itself
             requested_by_user_id: Set(Uuid::new_v4()),
             attachment_id: Set(Some(Uuid::new_v4())),
-            status: Set(if idx == 5 { "approved" } else { "pending" }),
+            status: Set(if idx == 5 { "approved".to_string() } else { "pending".to_string() }),
             created_at: Set(Utc::now() - chrono::Duration::days((idx + 1) as i64)),
             ..Default::default()
         };

@@ -17,7 +17,7 @@ use crate::auth::atlas_auth::server_fns::get_atlas_api_url;
 /// - Reactive signal state for error/success feedback
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
 /// use shared_ui::components::auth::passkey_nudge::PasskeyNudge;
 ///
 /// // Wrap in a <Show> gated on a passkey check signal:

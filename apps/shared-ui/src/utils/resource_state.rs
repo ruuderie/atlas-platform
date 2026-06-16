@@ -16,7 +16,7 @@
 ///
 /// # Usage (with `Resource::new` — returns `Option<Result<T, E>>`)
 ///
-/// ```rust
+/// ```rust,ignore
 /// use shared_ui::utils::ResourceState;
 ///
 /// // In your component:
@@ -29,7 +29,7 @@
 ///
 /// # Usage (with `LocalResource::new` — returns `Option<T>`)
 ///
-/// ```rust
+/// ```rust,ignore
 /// use shared_ui::utils::ResourceState;
 ///
 /// {move || match ResourceState::from_option(my_local_resource.get()) {

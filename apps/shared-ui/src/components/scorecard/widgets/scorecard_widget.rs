@@ -11,7 +11,7 @@
 //! 5. Provides a transcript upload zone that triggers the AI inference flow.
 //!
 //! # Usage
-//! ```
+//! ```ignore
 //! <ScorecardWidget
 //!     scorecard_id=scorecard_id
 //!     session_id=session_id
