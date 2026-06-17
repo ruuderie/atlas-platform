@@ -80,9 +80,39 @@ mod tests {
     }
 
     #[test]
-    fn test_passkey_auth_serialization_structure() {
+    fn test_print_passkey_auth_json_with_credential() {
         use webauthn_rs::prelude::*;
         use url::Url;
+        
+        let json_str = r#"{
+            "cred": {
+                "cred_id": [1, 2, 3],
+                "cred": {
+                    "type_": "ES256",
+                    "key": {
+                        "EC_EC2": {
+                            "curve": "SECP256R1",
+                            "x": [1, 2, 3],
+                            "y": [4, 5, 6]
+                        }
+                    }
+                },
+                "counter": 0,
+                "type_": "public-key",
+                "transports": [],
+                "user_verified": true,
+                "backup_eligible": false,
+                "backup_state": false,
+                "registration_policy": "required",
+                "extensions": {},
+                "attestation": {
+                    "data": "None",
+                    "metadata": "None"
+                },
+                "attestation_format": "none"
+            }
+        }"#;
+        let p: Passkey = serde_json::from_str(json_str).unwrap();
         let webauthn = WebauthnBuilder::new("example.com", &Url::parse("https://example.com").unwrap())
             .unwrap()
             .build()
@@ -90,13 +120,17 @@ mod tests {
         let (_rcr, auth_state) = webauthn.start_passkey_authentication(&[]).unwrap();
         let mut auth_state_val = serde_json::to_value(&auth_state).unwrap();
         
+        let passkey_val = serde_json::to_value(&p).unwrap();
+        // Extract the inner credential JSON from the Passkey wrapper
+        let credential_val = passkey_val.get("cred").cloned().unwrap_or(passkey_val);
+        
         let ast = auth_state_val.get_mut("ast").unwrap();
         let credentials = ast.get_mut("credentials").unwrap();
         let arr = credentials.as_array_mut().unwrap();
-        assert!(arr.is_empty());
+        arr.push(credential_val);
         
         let _new_auth_state: PasskeyAuthentication = serde_json::from_value(auth_state_val).unwrap();
-        println!("PasskeyAuthentication JSON structure is correct!");
+        println!("PasskeyAuthentication deserialization with unwrapped credential succeeded!");
     }
 }
 

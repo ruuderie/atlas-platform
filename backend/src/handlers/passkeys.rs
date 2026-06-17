@@ -359,7 +359,8 @@ pub async fn login_finish(
                 if arr.is_empty() {
                     let passkey_val = serde_json::to_value(&user_passkey)
                         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialize user passkey: {e}")))?;
-                    arr.push(passkey_val);
+                    let credential_val = passkey_val.get("cred").cloned().unwrap_or(passkey_val);
+                    arr.push(credential_val);
                 }
             }
         }
