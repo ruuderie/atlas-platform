@@ -19,7 +19,7 @@ use uuid::Uuid;
 // Owner/Admin roles implicitly bypass all app-level permission checks.
 // Member roles require explicit permission grants stored in user_app_permission.
 //
-// Full details: docs/auth_and_permissions.md
+// Full details: docs/architecture/auth_and_permissions.md
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Represents a dynamic asynchronous executor closure for background jobs.

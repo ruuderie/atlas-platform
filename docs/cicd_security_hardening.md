@@ -260,7 +260,7 @@ services.woodpecker-agents.agents."dagger-runner" = {
 
 ## Related Documentation
 
-- [`adding_a_new_app.md`](./adding_a_new_app.md) — checklist for adding new services to the pipeline
+- [`adding_a_new_app.md`](./architecture/adding_a_new_app.md) — checklist for adding new services to the pipeline
 - [`deployment_environments.md`](./deployment_environments.md) — environment config reference
 - [NixForge `flake.nix`](../../NixForge/flake.nix) — bare-metal server config (Woodpecker server + agent, PostgreSQL databases)
 - [`k8s/base/woodpecker-rbac.yaml`](../k8s/base/woodpecker-rbac.yaml) — RBAC manifest (admin-applied, not managed by CI)

@@ -67,7 +67,7 @@ m20260803_a4_atlas_payment_credentials.rs
 When a new app is added:
 1. Claim the next A-number by adding a row to the **Registered Apps** table above.
 2. Update `backend/src/atlas_apps/mod.rs` and `get_active_apps()`.
-3. Follow `docs/adding_a_new_app.md` for the full registration checklist.
+3. Follow `docs/architecture/adding_a_new_app.md` for the full registration checklist.
 4. Use the A-number in all branch names and internal references from day one.
 
 **Next available:** A5

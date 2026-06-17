@@ -7,7 +7,7 @@
 > See also:
 > - [`docs/atlas_app_integration.md`](../atlas_app_integration.md) — AtlasApp trait and Rule 7 (check generics first)
 > - [`docs/architecture.md`](../architecture.md) — Full ERD including these tables
-> - [`docs/auth_and_permissions.md`](../auth_and_permissions.md) — Permission model
+> - [`docs/architecture/auth_and_permissions.md`](./auth_and_permissions.md) — Permission model
 
 ---
 
