@@ -271,6 +271,10 @@ To support maximum browser compatibility and user experience:
 Because the frontend Admin UI (`dev.buildwithruud.com`) and backend API (`api.dev.atlas.oply.co`) are cross-origin, cookies set directly by backend HTTP responses are bound only to the API domain. This prevents the frontend SSR servers from accessing the session and causes immediate verification failure, resulting in an infinite page-reload loop.
 To solve this, on successful passkey authentication, the frontend invokes a Leptos SSR server function `set_session_cookie(token)`. This server function writes the session cookie directly to the frontend's domain via Leptos `ResponseOptions` *before* the client performs any redirection or reload.
 
+For client-side rendered (CSR) frontend applications that lack an SSR backend server (e.g. `platform-admin`), cookie-based authentication alone is not reliable under cross-origin or local HTTP environments due to strict browser SameSite and Secure requirements. To guarantee seamless handshakes in CSR environments, these applications must:
+1. Store the session token fallback in `sessionStorage` (which is scoped strictly to the browser tab lifetime, surviving page refreshes, and is cleared automatically upon closing the tab).
+2. Append the token as an `Authorization: Bearer <token>` fallback header to all outgoing API requests.
+
 ### Flow 2: Magic Link (Recovery Only)
 
 Used when: user has no passkey registered on the current device.
@@ -527,8 +531,8 @@ planned for the file-sharing and property management apps.
 
 | ❌ Don't | ✅ Do Instead |
 |---|---|
-| Store JWT or session tokens in `localStorage` | Use `HttpOnly` server-set cookies |
-| Store JWT or session tokens in client-accessible `document.cookie` | Use `HttpOnly` server-set cookies |
+| Store JWT or session tokens in `localStorage` | Use `HttpOnly` server-set cookies (SSR) or `sessionStorage` (CSR fallback) |
+| Store JWT or session tokens in client-accessible `document.cookie` | Use `HttpOnly` server-set cookies (SSR) or `sessionStorage` (CSR fallback) |
 | Add app-specific roles to the `TenantRole` enum | Define a new `AppPermission` enum in your app |
 | Decode the session cookie client-side | Call `GET /api/auth/session/validate` |
 | Create `Resource` inside a `view!` macro | Declare resources at the top of the component body |
