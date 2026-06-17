@@ -339,15 +339,37 @@ pub async fn login_finish(
 
     let _ = delete_challenge(&db, session_id).await;
 
-    let auth_result = webauthn.finish_passkey_authentication(&req.response, &auth_state)
-        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-
-    let cred_id = auth_result.cred_id();
-
+    // Retrieve the matching credential from the database using raw_id from the assertion response.
     let pk_model = passkey::Entity::find()
-        .filter(passkey::Column::CredentialId.eq(cred_id.to_vec()))
+        .filter(passkey::Column::CredentialId.eq(req.response.raw_id.to_vec()))
         .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or((StatusCode::BAD_REQUEST, "Passkey not found in db".to_string()))?;
+
+    // Deserialize the stored public key to a Passkey struct.
+    let user_passkey: Passkey = serde_json::from_slice(&pk_model.public_key)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to deserialize user passkey: {e}")))?;
+
+    // Serialize auth_state to JSON, inject the credential if empty (resident key flow), and deserialize it back.
+    let mut auth_state_val = serde_json::to_value(&auth_state)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialize auth state: {e}")))?;
+
+    if let Some(ast) = auth_state_val.get_mut("ast") {
+        if let Some(credentials) = ast.get_mut("credentials") {
+            if let Some(arr) = credentials.as_array_mut() {
+                if arr.is_empty() {
+                    let passkey_val = serde_json::to_value(&user_passkey)
+                        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialize user passkey: {e}")))?;
+                    arr.push(passkey_val);
+                }
+            }
+        }
+    }
+
+    let auth_state: PasskeyAuthentication = serde_json::from_value(auth_state_val)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to deserialize modified auth state: {e}")))?;
+
+    let _auth_result = webauthn.finish_passkey_authentication(&req.response, &auth_state)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
     let user = user::Entity::find_by_id(pk_model.user_id)
         .one(&db).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?

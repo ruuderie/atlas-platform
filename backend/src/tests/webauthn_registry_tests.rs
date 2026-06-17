@@ -78,4 +78,25 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_passkey_auth_serialization_structure() {
+        use webauthn_rs::prelude::*;
+        use url::Url;
+        let webauthn = WebauthnBuilder::new("example.com", &Url::parse("https://example.com").unwrap())
+            .unwrap()
+            .build()
+            .unwrap();
+        let (_rcr, auth_state) = webauthn.start_passkey_authentication(&[]).unwrap();
+        let mut auth_state_val = serde_json::to_value(&auth_state).unwrap();
+        
+        let ast = auth_state_val.get_mut("ast").unwrap();
+        let credentials = ast.get_mut("credentials").unwrap();
+        let arr = credentials.as_array_mut().unwrap();
+        assert!(arr.is_empty());
+        
+        let _new_auth_state: PasskeyAuthentication = serde_json::from_value(auth_state_val).unwrap();
+        println!("PasskeyAuthentication JSON structure is correct!");
+    }
 }
+
