@@ -56,6 +56,7 @@ pub async fn logout() -> Result<(), String> {
     let req = with_credentials(req);
 
     let _ = req.send().await; // Best-effort. Always clear local state regardless.
+    super::client::clear_auth_token();
     Ok(())
 }
 

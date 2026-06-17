@@ -42,21 +42,47 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
 
 static AUTH_TOKEN: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// In-memory token storage fallback for cross-origin/local HTTP development environments.
+/// In-memory token storage fallback with sessionStorage persistence to survive page refreshes.
 /// Returns the token if set.
 pub fn get_auth_token() -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(session_storage)) = window.session_storage() {
+                if let Ok(Some(token)) = session_storage.get_item("auth_token") {
+                    return Some(token);
+                }
+            }
+        }
+    }
     AUTH_TOKEN.lock().ok().and_then(|guard| guard.clone())
 }
 
-/// Saves the token in-memory for the duration of the page session.
+/// Saves the token for the duration of the browser tab session.
 pub fn set_auth_token(token: &str) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(session_storage)) = window.session_storage() {
+                let _ = session_storage.set_item("auth_token", token);
+            }
+        }
+    }
     if let Ok(mut guard) = AUTH_TOKEN.lock() {
         *guard = Some(token.to_string());
     }
 }
 
-/// Clears the in-memory token.
+/// Clears the token.
 pub fn clear_auth_token() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(window) = web_sys::window() {
+            if let Ok(Some(session_storage)) = window.session_storage() {
+                let _ = session_storage.remove_item("auth_token");
+            }
+        }
+    }
     if let Ok(mut guard) = AUTH_TOKEN.lock() {
         *guard = None;
     }

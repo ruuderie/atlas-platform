@@ -30,7 +30,23 @@ pub fn ManagePasskeys(
         let api_url = api_url_sig.get();
         let auth_token_val = auth_token_for_list.clone();
         async move {
-            if auth_token_val.is_empty() {
+            let token = if auth_token_val.is_empty() || auth_token_val == "CSR_COOKIE_FLOW" {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    web_sys::window()
+                        .and_then(|w| w.session_storage().ok().flatten())
+                        .and_then(|s| s.get_item("auth_token").ok().flatten())
+                        .unwrap_or_default()
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    "".to_string()
+                }
+            } else {
+                auth_token_val
+            };
+
+            if token.is_empty() {
                 // Use Server Function
                 leptos::logging::log!("ManagePasskeys: Fetching passkeys via Server Function");
                 match get_passkeys().await {
@@ -45,9 +61,11 @@ pub fn ManagePasskeys(
                 leptos::logging::log!("ManagePasskeys: Fetching passkeys via CSR HTTP request to {}", api_url);
                 let client = Client::new();
                 #[cfg(target_arch = "wasm32")]
-                let req = client.get(&api_url).fetch_credentials_include();
+                let mut req = client.get(&api_url).fetch_credentials_include();
                 #[cfg(not(target_arch = "wasm32"))]
-                let req = client.get(&api_url);
+                let mut req = client.get(&api_url);
+
+                req = req.header("Authorization", format!("Bearer {}", token));
 
                 match req.send().await {
                     Ok(res) => {
@@ -104,15 +122,33 @@ pub fn ManagePasskeys(
             message.set("Revoking passkey...".to_string());
             is_error.set(false);
             
-            let success = if auth_token_val.is_empty() {
+            let token = if auth_token_val.is_empty() || auth_token_val == "CSR_COOKIE_FLOW" {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    web_sys::window()
+                        .and_then(|w| w.session_storage().ok().flatten())
+                        .and_then(|s| s.get_item("auth_token").ok().flatten())
+                        .unwrap_or_default()
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    "".to_string()
+                }
+            } else {
+                auth_token_val
+            };
+
+            let success = if token.is_empty() {
                 revoke_passkey(id).await.is_ok()
             } else {
                 let delete_url = format!("{}/{}", api_url, id);
                 let client = Client::new();
                 #[cfg(target_arch = "wasm32")]
-                let req = client.delete(&delete_url).fetch_credentials_include();
+                let mut req = client.delete(&delete_url).fetch_credentials_include();
                 #[cfg(not(target_arch = "wasm32"))]
-                let req = client.delete(&delete_url);
+                let mut req = client.delete(&delete_url);
+
+                req = req.header("Authorization", format!("Bearer {}", token));
 
                 match req.send().await {
                     Ok(res) if res.status().is_success() => true,
@@ -144,7 +180,23 @@ pub fn ManagePasskeys(
             is_submitting.set(true);
             is_error.set(false);
 
-            if auth_token_val.is_empty() {
+            let token = if auth_token_val.is_empty() || auth_token_val == "CSR_COOKIE_FLOW" {
+                #[cfg(target_arch = "wasm32")]
+                {
+                    web_sys::window()
+                        .and_then(|w| w.session_storage().ok().flatten())
+                        .and_then(|s| s.get_item("auth_token").ok().flatten())
+                        .unwrap_or_default()
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    "".to_string()
+                }
+            } else {
+                auth_token_val
+            };
+
+            if token.is_empty() {
                 // Same-Origin Server Function Proxy Flow
                 message.set("Initiating registration...".to_string());
                 let options = match start_passkey_registration().await {
@@ -189,26 +241,14 @@ pub fn ManagePasskeys(
                 let start_url = format!("{}/start-register", api_url);
 
                 #[cfg(target_arch = "wasm32")]
-                let start_res = match client.post(&start_url)
+                let start_req = client.post(&start_url)
                     .fetch_credentials_include()
-                    .send().await {
-                    Ok(res) if res.status().is_success() => res,
-                    Ok(res) => {
-                        let text: String = res.text().await.unwrap_or_default();
-                        message.set(format!("Failed to start registration: {}", text));
-                        is_error.set(true);
-                        is_submitting.set(false);
-                        return;
-                    }
-                    Err(_) => {
-                        message.set("Network error communicating with server.".to_string());
-                        is_error.set(true);
-                        is_submitting.set(false);
-                        return;
-                    }
-                };
+                    .header("Authorization", format!("Bearer {}", token));
                 #[cfg(not(target_arch = "wasm32"))]
-                let start_res = match client.post(&start_url).send().await {
+                let start_req = client.post(&start_url)
+                    .header("Authorization", format!("Bearer {}", token));
+
+                let start_res = match start_req.send().await {
                     Ok(res) if res.status().is_success() => res,
                     Ok(res) => {
                         let text: String = res.text().await.unwrap_or_default();
@@ -250,14 +290,16 @@ pub fn ManagePasskeys(
                 let finish_url = format!("{}/finish-register", api_url);
 
                 #[cfg(target_arch = "wasm32")]
-                let finish_result = client.post(&finish_url)
+                let finish_req = client.post(&finish_url)
                     .fetch_credentials_include()
-                    .json(&credential).send().await;
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&credential);
                 #[cfg(not(target_arch = "wasm32"))]
-                let finish_result = client.post(&finish_url)
-                    .json(&credential).send().await;
+                let finish_req = client.post(&finish_url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .json(&credential);
 
-                match finish_result {
+                match finish_req.send().await {
                     Ok(res) if res.status().is_success() => {
                         message.set("Passkey registered successfully!".to_string());
                         is_error.set(false);
