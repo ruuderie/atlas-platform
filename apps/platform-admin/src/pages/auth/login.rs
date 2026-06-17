@@ -27,17 +27,19 @@ pub fn Login() -> impl IntoView {
     let set_user_pk = set_user.clone();
     let navigate_pk = navigate.clone();
     let toast_pk = toast.clone();
-    let handle_passkey_success = Callback::new(move |_token: String| {
+    let handle_passkey_success = Callback::new(move |token: String| {
         let set_user = set_user_pk.clone();
         let navigate = navigate_pk.clone();
         let toast = toast_pk.clone();
         leptos::task::spawn_local(async move {
-            if let Ok(user) = crate::api::auth::validate_session().await {
-                set_user.set(Some(user));
-                navigate("/", Default::default());
-            } else {
-                toast.message.set(Some("Validated passkey, but session handshake failed.".to_string()));
+            if let Ok(_) = shared_ui::auth::atlas_auth::set_session_cookie(token).await {
+                if let Ok(user) = crate::api::auth::validate_session().await {
+                    set_user.set(Some(user));
+                    navigate("/", Default::default());
+                    return;
+                }
             }
+            toast.message.set(Some("Validated passkey, but session handshake failed.".to_string()));
         });
     });
 
