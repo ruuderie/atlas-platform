@@ -17,7 +17,9 @@ pub fn VerifyToken() -> impl IntoView {
             let toast_clone = toast.clone();
             leptos::task::spawn_local(async move {
                 match shared_ui::auth::atlas_auth::server_fns::verify_magic_link(active_token).await {
-                    Ok(_) => {
+                    Ok(token_str) => {
+                        crate::api::client::set_auth_token(&token_str);
+                        let _ = shared_ui::auth::atlas_auth::set_session_cookie(token_str).await;
                         // The user is successfully authenticated and old passkeys are deleted.
                         // Force a refresh of the session globally.
                         match crate::api::auth::validate_session().await {

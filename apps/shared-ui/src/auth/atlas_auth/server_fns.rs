@@ -123,6 +123,12 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
                         axum::http::header::SET_COOKIE,
                         axum::http::HeaderValue::from_str(&cookie_val).unwrap(),
                     );
+                    let text = r.text().await.unwrap_or_default();
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
+                        if let Some(token_str) = val.get("token").and_then(|t| t.as_str()) {
+                            return Ok(token_str.to_string());
+                        }
+                    }
                     return Ok("SUCCESS".to_string());
                 }
                 Err(ServerFnError::ServerError("error_code:server_error".into()))
@@ -164,7 +170,15 @@ pub async fn verify_magic_link(token: String) -> Result<String, ServerFnError> {
     }
     let res = req.send().await;
     match res {
-        Ok(r) if r.status().is_success() => Ok("SUCCESS".to_string()),
+        Ok(r) if r.status().is_success() => {
+            let text = r.text().await.unwrap_or_default();
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(token_str) = val.get("token").and_then(|t| t.as_str()) {
+                    return Ok(token_str.to_string());
+                }
+            }
+            Ok("SUCCESS".to_string())
+        }
         Ok(r) => {
             let body = r.text().await.unwrap_or_default();
             let code = if body.contains("token_already_used") {

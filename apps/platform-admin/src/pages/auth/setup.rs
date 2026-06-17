@@ -116,6 +116,10 @@ pub fn Setup() -> impl IntoView {
                 Ok(res) if res.status().is_success() => {
                     let text = res.text().await.unwrap_or_default();
                     if let Ok(session) = serde_json::from_str::<crate::api::models::SessionResponse>(&text) {
+                        if let Some(ref t) = session.token {
+                            crate::api::client::set_auth_token(t);
+                            let _ = shared_ui::auth::atlas_auth::set_session_cookie(t.clone()).await;
+                        }
                         set_user.set(session.user);
                         nav("/", Default::default());
                     } else {
