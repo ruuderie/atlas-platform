@@ -474,3 +474,123 @@ pub async fn finish_passkey_registration(credential: serde_json::Value) -> Resul
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq)]
+pub struct PasskeyInfo {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub sign_count: i32,
+    pub last_used_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(GetPasskeys, "/api")]
+pub async fn get_passkeys() -> Result<Vec<PasskeyInfo>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+        
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+
+        let url = format!("{}/api/passkeys", get_atlas_api_url());
+        let client = reqwest::Client::new();
+        let res = client.get(&url).header("cookie", cookie_header).send().await;
+
+        match res {
+            Ok(r) if r.status().is_success() => {
+                match r.json::<Vec<PasskeyInfo>>().await {
+                    Ok(val) => Ok(val),
+                    Err(e) => Err(ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e))),
+                }
+            }
+            Ok(r) => {
+                let status = r.status();
+                let err_text = r.text().await.unwrap_or_default();
+                leptos::logging::warn!("Get passkeys failed: HTTP {} - {}", status, err_text);
+                Err(ServerFnError::ServerError(err_text))
+            }
+            Err(e) => {
+                leptos::logging::error!("Get passkeys error: {:?}", e);
+                Err(ServerFnError::ServerError("Failed to get passkeys".into()))
+            }
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(Vec::new())
+    }
+}
+
+#[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+pub async fn get_passkeys() -> Result<Vec<PasskeyInfo>, ServerFnError> {
+    let url = format!("{}/api/passkeys", get_atlas_api_url());
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().get(&url);
+    #[cfg(target_arch = "wasm32")]
+    {
+        req = req.fetch_credentials_include();
+    }
+    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    if res.status().is_success() {
+        res.json::<Vec<PasskeyInfo>>().await.map_err(|e| ServerFnError::ServerError(format!("Invalid JSON from backend: {:?}", e)))
+    } else {
+        let text = res.text().await.unwrap_or_default();
+        Err(ServerFnError::ServerError(text))
+    }
+}
+
+#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[server(RevokePasskey, "/api")]
+pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+        
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let cookie_header = headers.get("cookie").and_then(|v| v.to_str().ok()).unwrap_or("");
+
+        let url = format!("{}/api/passkeys/{}", get_atlas_api_url(), id);
+        let client = reqwest::Client::new();
+        let res = client.delete(&url).header("cookie", cookie_header).send().await;
+
+        match res {
+            Ok(r) if r.status().is_success() => Ok(()),
+            Ok(r) => {
+                let status = r.status();
+                let err_text = r.text().await.unwrap_or_default();
+                leptos::logging::warn!("Revoke passkey failed: HTTP {} - {}", status, err_text);
+                Err(ServerFnError::ServerError(err_text))
+            }
+            Err(e) => {
+                leptos::logging::error!("Revoke passkey error: {:?}", e);
+                Err(ServerFnError::ServerError("Failed to revoke passkey".into()))
+            }
+        }
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Ok(())
+    }
+}
+
+#[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+pub async fn revoke_passkey(id: uuid::Uuid) -> Result<(), ServerFnError> {
+    let url = format!("{}/api/passkeys/{}", get_atlas_api_url(), id);
+    #[allow(unused_mut)]
+    let mut req = reqwest::Client::new().delete(&url);
+    #[cfg(target_arch = "wasm32")]
+    {
+        req = req.fetch_credentials_include();
+    }
+    let res = req.send().await.map_err(|e| -> ServerFnError { ServerFnError::ServerError(e.to_string()) })?;
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        let text = res.text().await.unwrap_or_default();
+        Err(ServerFnError::ServerError(text))
+    }
+}
+

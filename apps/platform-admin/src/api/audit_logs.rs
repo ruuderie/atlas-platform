@@ -25,7 +25,7 @@ pub async fn get_audit_logs(
     entity_id: Option<Uuid>,
 ) -> Result<Vec<AuditLogModel>, String> {
     let client = create_client();
-    let mut url = "/api/audit-logs".to_string();
+    let mut url = "/api/admin/audit-logs".to_string();
     
     let mut params = Vec::new();
     if let Some(t) = tenant_id {

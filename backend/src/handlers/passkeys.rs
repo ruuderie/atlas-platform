@@ -38,6 +38,8 @@ pub fn authenticated_routes() -> Router<sea_orm::DatabaseConnection> {
         .route("/api/passkeys/start-register", post(register_start))
         .route("/api/passkeys/finish-register", post(register_finish))
         .route("/api/passkeys/has-passkey", get(has_passkey))
+        .route("/api/passkeys", get(list_passkeys))
+        .route("/api/passkeys/{id}", axum::routing::delete(delete_passkey))
 }
 
 pub async fn has_passkey(
@@ -479,5 +481,61 @@ async fn prune_expired_challenges(db: &DatabaseConnection) {
         .filter(webauthn_challenge::Column::ExpiresAt.lt(now))
         .exec(db)
         .await;
+}
+
+#[derive(serde::Serialize)]
+pub struct PasskeyResponse {
+    pub id: Uuid,
+    pub name: String,
+    pub sign_count: i32,
+    pub last_used_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+pub async fn list_passkeys(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+) -> Result<Json<Vec<PasskeyResponse>>, (StatusCode, String)> {
+    let passkeys = passkey::Entity::find()
+        .filter(passkey::Column::UserId.eq(user.id))
+        .all(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let response = passkeys
+        .into_iter()
+        .map(|pk| PasskeyResponse {
+            id: pk.id,
+            name: pk.name,
+            sign_count: pk.sign_count,
+            last_used_at: pk.last_used_at,
+            created_at: pk.created_at,
+        })
+        .collect();
+
+    Ok(Json(response))
+}
+
+pub async fn delete_passkey(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    let pk = passkey::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Passkey not found".to_string()))?;
+
+    if pk.user_id != user.id {
+        return Err((StatusCode::FORBIDDEN, "Forbidden".to_string()));
+    }
+
+    passkey::Entity::delete_by_id(id)
+        .exec(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 

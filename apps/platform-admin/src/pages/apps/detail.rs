@@ -1,7 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
-use shared_ui::components::ui::tabs::{Tabs, TabsList, TabsTrigger, TabsContent};
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 use shared_ui::components::badge::{Badge, BadgeIntent};
@@ -27,6 +26,8 @@ pub fn AppDashboard() -> impl IntoView {
     
     let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
+
+    let active_tab = RwSignal::new("settings".to_string());
 
     let dirs = use_context::<LocalResource<Vec<crate::api::models::PlatformAppModel>>>().expect("dirs context");
     let domain_bind = RwSignal::new(String::new());
@@ -183,131 +184,223 @@ pub fn AppDashboard() -> impl IntoView {
                 </div> 
             }
         >
-            <div class="w-full max-w-[1600px] mx-auto space-y-6 p-6">
-                <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-border pb-4">
+            <div class="main-area" style="height: 100%;">
+                // ── Tenant Hero ──
+                <div class="tenant-hero">
                     <div>
-                        <div class="flex items-center space-x-3 mb-2">
-                            <Button variant=ButtonVariant::Outline class="h-8 px-2".to_string() on:click=move |_| {
-                                let window = web_sys::window().unwrap();
-                                let _ = window.history().unwrap().back();
-                            }>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
-                                "Back to Registry"
-                            </Button>
-                            <Badge intent=BadgeIntent::Success>"Active"</Badge>
+                        <div class="breadcrumb">
+                            <a href="/">"Platform"</a>
+                            <span>" › "</span>
+                            <a href="/apps">"Tenants"</a>
+                            <span>" › "</span>
+                            <span>{site_id}</span>
                         </div>
-                        <h2 class="text-3xl font-bold tracking-tight">"Application: " {site_id}</h2>
-                        <p class="text-muted-foreground mt-1">"Manage application resources, users, and configuration."</p>
+                        <div class="tenant-identity">
+                            <div class="tenant-avatar">"N"</div>
+                            <div>
+                                <div class="tenant-name-row">
+                                    <span class="tenant-name">{site_id}</span>
+                                    <span class="tag tag-pm">"PM"</span>
+                                    <span class="tag tag-active">"Active"</span>
+                                    <span class="tag tag-enterprise">"Enterprise"</span>
+                                </div>
+                                <div class="tenant-domain">"nexus.atlas.app · tenant_id: " {move || tenant_id_for_wizard.get()}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex space-x-2">
+                    <div class="hero-right">
                         <a href=move || {
                             let d = domain_bind.get();
                             if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
                         } target="_blank" rel="noopener noreferrer">
                             <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live App"</Button>
                         </a>
-                        <Button variant=ButtonVariant::Default>"App Settings"</Button>
+                        <button class="btn btn-ghost" on:click=move |_| {
+                            toast.show_toast("Tenant", "Impersonating tenant...", "info");
+                        }>"Impersonate"</button>
+                        <button class="btn btn-ghost" on:click=move |_| {
+                            toast.show_toast("Tenant", "Tenant suspended.", "warning");
+                        }>"Suspend"</button>
+                        <button class="btn btn-primary" on:click=move |_| {
+                            toast.show_toast("Tenant", "Editing tenant info...", "info");
+                        }>"Edit Tenant"</button>
                     </div>
-                </header>
-                
+                </div>
+
+                // ── KPI Strip ──
+                <div class="hero-kpi-strip">
+                    <div class="hkpi">
+                        <span class="hkpi-label">"Health Score"</span>
+                        <div class="score-badge" style="font-size:16px;padding:4px 12px">
+                            <span class="score-dot" style="background:var(--tier-outstanding);width:8px;height:8px"></span>
+                            <span class="mono">"9.2"</span>
+                            <span class="score-tier">"Outstanding"</span>
+                        </div>
+                    </div>
+                    <div class="hkpi-sep"></div>
+                    <div class="hkpi">
+                        <span class="hkpi-label">"MRR"</span>
+                        <div class="hkpi-value mono">"$4,800"</div>
+                        <div class="hkpi-sub">"+12% MoM"</div>
+                    </div>
+                    <div class="hkpi-sep"></div>
+                    <div class="hkpi">
+                        <span class="hkpi-label">"Leads"</span>
+                        <div class="hkpi-value mono">"342"</div>
+                        <div class="hkpi-sub">"+28 this week"</div>
+                    </div>
+                    <div class="hkpi-sep"></div>
+                    <div class="hkpi">
+                        <span class="hkpi-label">"Properties"</span>
+                        <div class="hkpi-value mono">"87"</div>
+                        <div class="hkpi-sub">"Active listings"</div>
+                    </div>
+                    <div class="hkpi-sep"></div>
+                    <div class="hkpi">
+                        <span class="hkpi-label">"Users"</span>
+                        <div class="hkpi-value mono">"14"</div>
+                        <div class="hkpi-sub">"Admin + staff"</div>
+                    </div>
+                    <div class="spacer"></div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                        <span style="font-size:10px;color:var(--text-muted)">"Last login"</span>
+                        <span style="font-size:12px;color:var(--text-secondary)">"Jun 09 · 21:44 UTC"</span>
+                        <span style="font-size:10px;color:var(--green);font-weight:600">"● Online now"</span>
+                    </div>
+                </div>
+
                 <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>
-                    <UpsellBanner 
-                        title="Supercharge your new application!".to_string()
-                        description="Jumpstart your marketplace with pre-populated leads and premium business listings."
-                            .to_string()
-                        cta_text="Get 100 Premium Listings - $49".to_string()
-                        on_click=Callback::new(move |_| {
-                            leptos::logging::log!("Upsell Clicked: Application Injection on Dashboard");
-                        })
-                    />
+                    <div class="px-6 mt-4">
+                        <UpsellBanner 
+                            title="Supercharge your new application!".to_string()
+                            description="Jumpstart your marketplace with pre-populated leads and premium business listings."
+                                .to_string()
+                            cta_text="Get 100 Premium Listings - $49".to_string()
+                            on_click=Callback::new(move |_| {
+                                leptos::logging::log!("Upsell Clicked: Application Injection on Dashboard");
+                            })
+                        />
+                    </div>
                 </Show>
 
-                <Tabs default_value="settings".to_string() class="w-full relative z-0 mt-6">
-                    <TabsList class="flex w-full max-w-md mb-6 bg-muted p-1 rounded-md overflow-x-auto">
+                // ── Tab Bar ──
+                <div class="tab-bar">
                     {move || app_manifest.get().panels.into_iter().map(|panel| {
+                        let panel_id = panel.id.clone();
+                        let panel_id_clone = panel_id.clone();
+                        let panel_title = panel.title.clone();
                         view! {
-                            <TabsTrigger value=panel.id.clone()>{panel.title.clone()}</TabsTrigger>
+                            <button
+                                type="button"
+                                class="tab"
+                                class:active=move || active_tab.get() == panel_id
+                                on:click=move |_| active_tab.set(panel_id_clone.clone())
+                            >
+                                {panel_title}
+                            </button>
                         }
                     }).collect_view()}
-                    <TabsTrigger value="seed_data".to_string()>"Seed Data"</TabsTrigger>
-                    <TabsTrigger value="domains".to_string()>"Routing & Domains"</TabsTrigger>
-                </TabsList>
+                    <button
+                        type="button"
+                        class="tab"
+                        class:active=move || active_tab.get() == "seed_data"
+                        on:click=move |_| active_tab.set("seed_data".to_string())
+                    >
+                        "Seed Data"
+                    </button>
+                    <button
+                        type="button"
+                        class="tab"
+                        class:active=move || active_tab.get() == "domains"
+                        on:click=move |_| active_tab.set("domains".to_string())
+                    >
+                        "Routing & Domains"
+                    </button>
+                </div>
 
-                {move || app_manifest.get().panels.into_iter().map(|panel| {
-                    view! {
-                        <TabsContent value=panel.id.clone() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                            <crate::pages::apps::panel::DynamicPanel panel_id=panel.id.clone() />
-                        </TabsContent>
-                    }
-                }).collect_view()}
-                <TabsContent value="seed_data".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <div class="bg-card border border-border rounded-xl p-6 shadow-sm">
-                        <SeedPicker app_instance_id=site_id_stored.get_value() />
-                    </div>
-                </TabsContent>
-                <TabsContent value="domains".to_string() class="mt-0 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                    <div class="space-y-6">
-                        <div class="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">
-                            <div>
-                                <h3 class="text-lg font-medium">"Custom Hostnames"</h3>
-                                <p class="text-sm text-muted-foreground">"Manage DNS routing for this application instance. Tenant traffic routes here natively."</p>
-                            </div>
-                            <Button variant=ButtonVariant::Default on:click=move |_| set_show_domain_modal.set(true)>
-                                "Add Domain"
-                            </Button>
+                // ── Tab Content ──
+                <div class="tab-content">
+                    {move || {
+                        app_manifest.get().panels.into_iter().map(|panel| {
+                            let panel_id = panel.id.clone();
+                            let panel_id_clone = panel_id.clone();
+                            view! {
+                                <div class="pane" class:active=move || active_tab.get() == panel_id_clone>
+                                    <crate::pages::apps::panel::DynamicPanel panel_id=panel_id.clone() />
+                                </div>
+                            }
+                        }).collect_view()
+                    }}
+
+                    <div class="pane" class:active=move || active_tab.get() == "seed_data">
+                        <div class="bg-[#111520] border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+                            <SeedPicker app_instance_id=site_id_stored.get_value() />
                         </div>
-                        
-                        <div class="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="bg-muted/50 border-b border-border text-xs tracking-wider uppercase text-muted-foreground">
-                                        <th class="px-6 py-4 font-medium">"Domain Name"</th>
-                                        <th class="px-6 py-4 font-medium">"Edge SSL Status"</th>
-                                        <th class="px-6 py-4 font-medium text-right">"Actions"</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-border">
-                                    <Suspense fallback=move || view! { <tr><td colspan="3" class="p-6 text-center text-muted-foreground">"Loading connected routes..."</td></tr> }>
-                                        {move || {
-                                            match domains_res.get() {
-                                                Some(domains) if domains.is_empty() => {
-                                                    view! {
-                                                        <tr>
-                                                            <td colspan="3" class="px-6 py-8 text-center text-muted-foreground">
-                                                                "No custom domains attached. Traffic uses primary wildcard via instance ID."
-                                                            </td>
-                                                        </tr>
-                                                    }.into_any()
-                                                },
-                                                Some(domains) => {
-                                                    domains.into_iter().map(|domain| {
+                    </div>
+
+                    <div class="pane" class:active=move || active_tab.get() == "domains">
+                        <div class="space-y-6">
+                            <div class="flex justify-between items-center bg-[#111520] p-6 rounded-xl border border-outline-variant/30 shadow-sm">
+                                <div>
+                                    <h3 class="text-lg font-medium">"Custom Hostnames"</h3>
+                                    <p class="text-sm text-muted-foreground">"Manage DNS routing for this application instance. Tenant traffic routes here natively."</p>
+                                </div>
+                                <Button variant=ButtonVariant::Default on:click=move |_| set_show_domain_modal.set(true)>
+                                    "Add Domain"
+                                </Button>
+                            </div>
+                            
+                            <div class="bg-[#111520] border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-[#0A0C16] border-b border-outline-variant/20 text-xs tracking-wider uppercase text-muted-foreground">
+                                            <th class="px-6 py-4 font-medium">"Domain Name"</th>
+                                            <th class="px-6 py-4 font-medium">"Edge SSL Status"</th>
+                                            <th class="px-6 py-4 font-medium text-right">"Actions"</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-outline-variant/10">
+                                        <Suspense fallback=move || view! { <tr><td colspan="3" class="p-6 text-center text-muted-foreground">"Loading connected routes..."</td></tr> }>
+                                            {move || {
+                                                match domains_res.get() {
+                                                    Some(domains) if domains.is_empty() => {
                                                         view! {
-                                                            <tr class="hover:bg-muted/30 transition-colors">
-                                                                <td class="px-6 py-4 font-mono text-sm text-primary">
-                                                                    {domain.clone()}
-                                                                </td>
-                                                                <td class="px-6 py-4">
-                                                                    <Badge intent=BadgeIntent::Success>"Active / Managed"</Badge>
-                                                                </td>
-                                                                <td class="px-6 py-4 text-right">
-                                                                    <button class="text-destructive hover:underline text-xs font-bold uppercase tracking-widest" >
-                                                                        "DELETE"
-                                                                    </button>
+                                                            <tr>
+                                                                <td colspan="3" class="px-6 py-8 text-center text-muted-foreground">
+                                                                    "No custom domains attached. Traffic uses primary wildcard via instance ID."
                                                                 </td>
                                                             </tr>
-                                                        }
-                                                    }).collect_view().into_any()
-                                                },
-                                                None => view! { <tr></tr> }.into_any()
-                                            }
-                                        }}
-                                    </Suspense>
-                                </tbody>
-                            </table>
+                                                        }.into_any()
+                                                    },
+                                                    Some(domains) => {
+                                                        domains.into_iter().map(|domain| {
+                                                            view! {
+                                                                <tr class="hover:bg-muted/30 transition-colors">
+                                                                    <td class="px-6 py-4 font-mono text-sm text-primary">
+                                                                        {domain.clone()}
+                                                                    </td>
+                                                                    <td class="px-6 py-4">
+                                                                        <Badge intent=BadgeIntent::Success>"Active / Managed"</Badge>
+                                                                    </td>
+                                                                    <td class="px-6 py-4 text-right">
+                                                                        <button class="text-destructive hover:underline text-xs font-bold uppercase tracking-widest" >
+                                                                            "DELETE"
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }).collect_view().into_any()
+                                                    },
+                                                    None => view! { <tr></tr> }.into_any()
+                                                }
+                                            }}
+                                        </Suspense>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </TabsContent>
-            </Tabs>
+                </div>
 
             <Show when=move || show_add_listing.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

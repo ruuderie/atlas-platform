@@ -74,5 +74,5 @@ pub async fn get_audit_logs(
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/audit-logs", get(get_audit_logs))
+        .route("/api/admin/audit-logs", get(get_audit_logs))
 }
