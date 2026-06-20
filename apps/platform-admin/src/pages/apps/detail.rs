@@ -196,15 +196,43 @@ pub fn AppDashboard() -> impl IntoView {
                             <span>{site_id}</span>
                         </div>
                         <div class="tenant-identity">
-                            <div class="tenant-avatar">"N"</div>
+                            <div class="tenant-avatar">
+                                {move || {
+                                    let current_id = site_id();
+                                    if let Some(d) = dirs.get() {
+                                        d.into_iter()
+                                            .find(|dir| dir.instance_id.to_string() == current_id)
+                                            .and_then(|dir| dir.domain.chars().next())
+                                            .or_else(|| current_id.chars().next())
+                                            .map(|c| c.to_uppercase().to_string())
+                                            .unwrap_or_else(|| "?".to_string())
+                                    } else {
+                                        "?".to_string()
+                                    }
+                                }}
+                            </div>
                             <div>
                                 <div class="tenant-name-row">
                                     <span class="tenant-name">{site_id}</span>
-                                    <span class="tag tag-pm">"PM"</span>
-                                    <span class="tag tag-active">"Active"</span>
-                                    <span class="tag tag-enterprise">"Enterprise"</span>
+                                    {move || {
+                                        let current_id = site_id();
+                                        if let Some(d) = dirs.get() {
+                                            if let Some(dir) = d.into_iter().find(|dir| dir.instance_id.to_string() == current_id) {
+                                                let status_class = match dir.site_status.as_str() {
+                                                    "active" => "tag tag-active",
+                                                    "suspended" => "tag tag-warn",
+                                                    _ => "tag",
+                                                };
+                                                let status_label = dir.site_status.clone();
+                                                return view! {
+                                                    <span class=status_class>{status_label}</span>
+                                                }.into_any();
+                                            }
+                                        }
+                                        view! { <span></span> }.into_any()
+                                    }}
                                 </div>
-                                <div class="tenant-domain">"nexus.atlas.app · tenant_id: " {move || tenant_id_for_wizard.get()}</div>
+                                <div class="tenant-domain">"Domain: " {move || domain_bind.get()} " · instance: " {move || tenant_id_for_wizard.get()}</div>
                             </div>
                         </div>
                     </div>
@@ -229,44 +257,39 @@ pub fn AppDashboard() -> impl IntoView {
 
                 // ── KPI Strip ──
                 <div class="hero-kpi-strip">
-                    <div class="hkpi">
-                        <span class="hkpi-label">"Health Score"</span>
-                        <div class="score-badge" style="font-size:16px;padding:4px 12px">
-                            <span class="score-dot" style="background:var(--tier-outstanding);width:8px;height:8px"></span>
-                            <span class="mono">"9.2"</span>
-                            <span class="score-tier">"Outstanding"</span>
-                        </div>
-                    </div>
-                    <div class="hkpi-sep"></div>
-                    <div class="hkpi">
-                        <span class="hkpi-label">"MRR"</span>
-                        <div class="hkpi-value mono">"$4,800"</div>
-                        <div class="hkpi-sub">"+12% MoM"</div>
-                    </div>
-                    <div class="hkpi-sep"></div>
-                    <div class="hkpi">
-                        <span class="hkpi-label">"Leads"</span>
-                        <div class="hkpi-value mono">"342"</div>
-                        <div class="hkpi-sub">"+28 this week"</div>
-                    </div>
-                    <div class="hkpi-sep"></div>
-                    <div class="hkpi">
-                        <span class="hkpi-label">"Properties"</span>
-                        <div class="hkpi-value mono">"87"</div>
-                        <div class="hkpi-sub">"Active listings"</div>
-                    </div>
-                    <div class="hkpi-sep"></div>
-                    <div class="hkpi">
-                        <span class="hkpi-label">"Users"</span>
-                        <div class="hkpi-value mono">"14"</div>
-                        <div class="hkpi-sub">"Admin + staff"</div>
-                    </div>
-                    <div class="spacer"></div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-                        <span style="font-size:10px;color:var(--text-muted)">"Last login"</span>
-                        <span style="font-size:12px;color:var(--text-secondary)">"Jun 09 · 21:44 UTC"</span>
-                        <span style="font-size:10px;color:var(--green);font-weight:600">"● Online now"</span>
-                    </div>
+                    {move || {
+                        let current_id = site_id();
+                        if let Some(dirs_val) = dirs.get() {
+                            if let Some(dir) = dirs_val.into_iter().find(|d| d.instance_id.to_string() == current_id) {
+                                let status = dir.site_status.clone();
+                                let status_color = match status.as_str() {
+                                    "active" => "color:var(--green)",
+                                    "suspended" => "color:var(--red)",
+                                    _ => "color:var(--text-muted)",
+                                };
+                                return view! {
+                                    <div class="hkpi">
+                                        <span class="hkpi-label">"Status"</span>
+                                        <div class="hkpi-value" style=status_color>{status.clone()}</div>
+                                        <div class="hkpi-sub">"Site status"</div>
+                                    </div>
+                                    <div class="hkpi-sep"></div>
+                                    <div class="hkpi">
+                                        <span class="hkpi-label">"Domain"</span>
+                                        <div class="hkpi-value" style="font-size:12px">{dir.domain.clone()}</div>
+                                        <div class="hkpi-sub">"Primary hostname"</div>
+                                    </div>
+                                    <div class="hkpi-sep"></div>
+                                    <div class="hkpi">
+                                        <span class="hkpi-label">"App Type"</span>
+                                        <div class="hkpi-value" style="font-size:12px">{dir.app_type.clone()}</div>
+                                        <div class="hkpi-sub">"Platform type"</div>
+                                    </div>
+                                }.into_any();
+                            }
+                        }
+                        view! { <div class="hkpi"><span class="hkpi-label">"Loading..."</span></div> }.into_any()
+                    }}
                 </div>
 
                 <Show when=move || listings_res.get().map(|lst| lst.is_empty()).unwrap_or(false)>

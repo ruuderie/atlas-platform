@@ -478,3 +478,24 @@ pub async fn end_ab_test(test_id: Uuid) -> Result<(), String> {
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() { Ok(()) } else { Err(res.text().await.unwrap_or_default()) }
 }
+
+// ============================================================
+// AUDIT LOGS
+// ============================================================
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct AuditLogModel {
+    pub id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub actor_id: Option<Uuid>,
+    pub action_type: String,
+    pub entity_type: String,
+    pub entity_id: Uuid,
+    pub created_at: String,
+}
+
+/// Fetch platform audit logs (super-admin sees all).
+/// Calls `GET /api/admin/audit-logs`.
+pub async fn get_audit_logs() -> Result<Vec<AuditLogModel>, String> {
+    crate::api::client::api_get("api/admin/audit-logs").await
+}

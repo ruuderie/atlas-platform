@@ -75,48 +75,6 @@ pub fn Dashboard() -> impl IntoView {
             </div>
         </div>
 
-        // ── Health Ribbon ──
-        <div class="health-ribbon">
-            <div class="ribbon-item">
-                <span class="dot" style="background:var(--green)"></span>
-                <span>"API"</span>
-                <span class="value">"99.9%"</span>
-            </div>
-            <div class="ribbon-sep"></div>
-            <div class="ribbon-item">
-                <span class="dot" style="background:var(--green)"></span>
-                <span>"DB"</span>
-                <span class="value">"Healthy"</span>
-            </div>
-            <div class="ribbon-sep"></div>
-            <div class="ribbon-item warn">
-                <span class="dot" style="background:var(--amber)"></span>
-                <span>"OutboxWorker"</span>
-                <span class="value">"Lagging 12s"</span>
-            </div>
-            <div class="ribbon-sep"></div>
-            <div class="ribbon-item">
-                <span class="dot" style="background:var(--green)"></span>
-                <span>"WebAuthn Registry"</span>
-                <span class="value">"24 domains warm"</span>
-            </div>
-            <div class="ribbon-sep"></div>
-            <div class="ribbon-item">
-                <span class="dot" style="background:var(--green)"></span>
-                <span>"Scorecard Aggregates"</span>
-                <span class="value">"Up-to-date"</span>
-            </div>
-            <div class="ribbon-sep"></div>
-            <div class="ribbon-item">
-                <span class="dot" style="background:var(--cobalt)"></span>
-                <span>"AI Tasks in Queue"</span>
-                <span class="value" style="color:var(--cobalt)">"3 running"</span>
-            </div>
-            <div class="spacer"></div>
-            <div class="ribbon-item" style="color:var(--text-muted);font-size:10px">
-                "Jun 09, 2026 · 23:31 UTC"
-            </div>
-        </div>
 
         // ── KPI Row ──
         <div class="kpi-row">
@@ -141,29 +99,14 @@ pub fn Dashboard() -> impl IntoView {
                 </div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">"Platform Leads"</div>
-                <div class="kpi-value mono">"1,847"</div>
-                <div class="kpi-delta up">
-                    <svg viewBox="0 0 10 10" width="10" height="10" fill="currentColor">
-                        <path d="M5 2l4 6H1z"/>
-                    </svg>
-                    "+142 this week"
-                </div>
+                <div class="kpi-label">"Active Listings"</div>
+                <div class="kpi-value mono">{move || { let v = active_listings.get(); if v > 0.0 { format!("{:.0}", v) } else { "—".to_string() } }}</div>
+                <div class="kpi-delta up">"· Across all tenants"</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">"Avg Tenant Score"</div>
-                <div class="kpi-value mono">"7.4"</div>
-                <div class="kpi-score-badge">
-                    <span class="score-dot" style="background:var(--tier-above)"></span>
-                    <span style="font-variant-numeric:tabular-nums">"7.4"</span>
-                    <span class="score-tier">"Above"</span>
-                </div>
-            </div>
-            <div class="kpi-card alert-border">
-                <div class="kpi-label">"At-Risk Tenants"</div>
-                <div class="kpi-value mono" style="color:var(--red)">"3"</div>
-                <div class="kpi-delta down">
-                    "Score < 6.0 · Action required"
+                <div class="kpi-label">"Platform Users"</div>
+                <div class="kpi-value mono">{move || { let v = total_users.get(); if v > 0.0 { format!("{:.0}", v) } else { "—".to_string() } }}</div>
+                <div class="kpi-delta up">"· Registered"
                 </div>
             </div>
         </div>

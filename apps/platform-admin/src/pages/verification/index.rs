@@ -123,18 +123,7 @@ pub fn Verification() -> impl IntoView {
 
     // Notes history state
     let reviewer_notes = RwSignal::new(String::new());
-    let note_history = RwSignal::new(vec![
-        NoteHistoryRecord {
-            author: "JD",
-            text: "Contacted primary representative to request updated state registration document".to_string(),
-            timestamp: "Jun 08, 2026 · 11:30 UTC"
-        },
-        NoteHistoryRecord {
-            author: "JD",
-            text: "Opened verification request — EIN and operating agreement verified".to_string(),
-            timestamp: "Jun 03, 2026 · 16:10 UTC"
-        }
-    ]);
+    let note_history = RwSignal::new(Vec::<NoteHistoryRecord>::new());
     
     // Dialog modals
     let show_approve_modal = RwSignal::new(false);
@@ -477,15 +466,15 @@ pub fn Verification() -> impl IntoView {
                                                 </div>
                                                 <div class="stat-row">
                                                     <span class="s-label">"Tax ID / EIN"</span>
-                                                    <span class="s-value font-mono">"82-4419201"</span>
+                                                    <span class="s-value font-mono muted">"—"</span>
                                                 </div>
                                                 <div class="stat-row">
                                                     <span class="s-label">"Incorporation Region"</span>
-                                                    <span class="s-value">"Delaware, USA"</span>
+                                                    <span class="s-value muted">"—"</span>
                                                 </div>
                                                 <div class="stat-row">
                                                     <span class="s-label">"Primary Contact"</span>
-                                                    <span class="s-value">"representative@foundry.local"</span>
+                                                    <span class="s-value muted">"—"</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -605,7 +594,11 @@ pub fn Verification() -> impl IntoView {
                     <div class="space-y-4 mb-6">
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Recipient Email"</label>
-                            <input type="email" class="form-input" value="applicant@nexusproperties.com" disabled=true />
+                            <input type="email" class="form-input" value=move || {
+                                    selected_request.get()
+                                        .map(|r| format!("applicant+{}@verification.atlasplatform.io", r.entity_name.to_lowercase().replace(' ', ".")))
+                                        .unwrap_or_else(|| "applicant@verification.atlasplatform.io".to_string())
+                                } disabled=true />
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Email message body"</label>
