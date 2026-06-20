@@ -85,15 +85,34 @@ pub fn AccountsTab() -> impl IntoView {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
-                                    <th class="sortable">"Account"</th>
-                                    <th class="sortable">"ID"</th>
-                                    <th></th>
+                                    <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
+                                    <th style="width:60%" class="sortable">"Account"</th>
+                                    <th style="width:30%" class="sortable">"ID"</th>
+                                    <th style="width:70px"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {rows.into_iter().map(|a| {
-                                    let ini      = initials(&a.name);
+                                    // Sanitize raw system-level slug names (e.g. __platform__)
+                                    let display_name = match a.name.as_str() {
+                                        "__platform__" => "Platform (System)".to_string(),
+                                        n if n.starts_with("__") && n.ends_with("__") => {
+                                            n.trim_matches('_').replace('_', " ")
+                                                .split_whitespace()
+                                                .map(|w| {
+                                                    let mut c = w.chars();
+                                                    match c.next() {
+                                                        None => String::new(),
+                                                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                                                    }
+                                                })
+                                                .collect::<Vec<_>>()
+                                                .join(" ")
+                                        }
+                                        n if n == "—" || n.is_empty() => "Unnamed Account".to_string(),
+                                        n => n.to_string(),
+                                    };
+                                    let ini      = initials(&display_name);
                                     let id_short = a.id.chars().take(8).collect::<String>() + "…";
                                     let a_click  = a.clone();
                                     let a_open   = a.clone();
@@ -107,7 +126,7 @@ pub fn AccountsTab() -> impl IntoView {
                                             <td>
                                                 <RecordRow
                                                     initials=ini
-                                                    name=a.name.clone()
+                                                    name=display_name
                                                     bg="var(--amber-dim)"
                                                     color="var(--amber)"
                                                 />

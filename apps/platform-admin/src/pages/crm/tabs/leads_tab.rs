@@ -114,13 +114,13 @@ pub fn LeadsTab() -> impl IntoView {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
-                                    <th class="sortable">"Lead"</th>
-                                    <th class="sortable">"Email / Phone"</th>
-                                    <th class="sortable">"Source"</th>
-                                    <th class="sortable">"Stage"</th>
-                                    <th class="sortable">"Created"</th>
-                                    <th></th>
+                                    <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
+                                    <th style="width:30%" class="sortable">"Lead"</th>
+                                    <th style="width:25%" class="sortable">"Email / Phone"</th>
+                                    <th style="width:12%" class="sortable">"Source"</th>
+                                    <th style="width:12%" class="sortable">"Stage"</th>
+                                    <th style="width:10%" class="sortable">"Created"</th>
+                                    <th style="width:70px"></th>
                                 </tr>
                             </thead>
                             <tbody>

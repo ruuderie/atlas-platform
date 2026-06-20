@@ -93,12 +93,12 @@ pub fn ContactsTab() -> impl IntoView {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
-                                    <th class="sortable">"Contact"</th>
-                                    <th class="sortable">"Email"</th>
-                                    <th class="sortable">"Phone"</th>
-                                    <th class="sortable">"Added"</th>
-                                    <th></th>
+                                    <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
+                                    <th style="width:32%" class="sortable">"Contact"</th>
+                                    <th style="width:28%" class="sortable">"Email"</th>
+                                    <th style="width:16%" class="sortable">"Phone"</th>
+                                    <th style="width:12%" class="sortable">"Added"</th>
+                                    <th style="width:70px"></th>
                                 </tr>
                             </thead>
                             <tbody>

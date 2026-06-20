@@ -180,7 +180,9 @@ path {
   border-bottom: 1px solid var(--border-default);
   position: sticky;
   top: 0;
-  z-index: 100;
+  /* z-index must beat sidebar (50) and drawers (500) but toast (9999) lives
+     at bottom-right so there is no overlap conflict at any z-index here */
+  z-index: 200;
   height: 48px;
 }
 
@@ -239,18 +241,22 @@ path {
 }
 .search-wrap input {
   width: 100%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-default);
+  /* Use bg-base so input stands out visibly from the surface bg */
+  background: var(--bg-base);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
-  padding: 5px 32px 5px 10px;
+  padding: 5px 36px 5px 10px;
   font-size: 12px;
   color: var(--text-primary);
   outline: none;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.search-wrap input::placeholder { color: var(--text-muted); }
-.search-wrap input:focus { border-color: var(--cobalt); }
+.search-wrap input::placeholder { color: var(--text-secondary); }
+.search-wrap input:focus {
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 2px var(--cobalt-dim);
+}
 .search-wrap .kbd, .search-wrap .search-kbd {
   position: absolute;
   right: 8px;
@@ -627,11 +633,17 @@ path {
 .table-container {
   flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
   background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
+  /* No inner border — the CRM shell already has the outer border */
 }
-table { width: 100%; border-collapse: collapse; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Fixed layout means all columns share available width proportionally,
+     eliminating the left-cluster problem on wide viewports */
+  table-layout: fixed;
+}
 thead th {
   font-size: 10px;
   font-weight: 600;
@@ -658,6 +670,9 @@ td {
   color: var(--text-primary);
   vertical-align: middle;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0; /* required for text-overflow to work in table-layout:fixed */
 }
 td.right { text-align: right; }
 td.center { text-align: center; }
@@ -728,23 +743,27 @@ thead th.sortable:hover::after { opacity: 1; }
 }
 .crm-search {
   flex: 1;
-  min-width: 180px;
-  max-width: 280px;
+  min-width: 200px;
+  max-width: 360px;
 }
 .crm-search input {
   width: 100%;
+  /* Use bg-base so it reads as interactive, not disabled */
   background: var(--bg-base);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: 5px;
   padding: 6px 10px;
   font-size: 12px;
   color: var(--text-primary);
   font-family: inherit;
   outline: none;
-  transition: border-color 0.12s;
+  transition: border-color 0.12s, box-shadow 0.12s;
 }
-.crm-search input:focus { border-color: var(--cobalt); }
-.crm-search input::placeholder { color: var(--text-muted); }
+.crm-search input:focus {
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 2px var(--cobalt-dim);
+}
+.crm-search input::placeholder { color: var(--text-secondary); }
 
 /* ── CRM Grid — Record Identity Cell ─────────────────────────────────────── */
 .con-cell {
@@ -1156,7 +1175,7 @@ thead th.sortable:hover::after { opacity: 1; }
 .product-card:hover .pc-arrow { transform: translateX(3px); color: var(--cobalt); }
 
 /* ── Billing Tabs ─────────────────────────────────────────────────────────── */
-.tab-bar { display: flex; padding: 0 24px; border-bottom: 1px solid var(--border-default); flex-shrink: 0; overflow-x: auto; }
+.tab-bar { display: flex; gap: 2px; padding: 0 24px; border-bottom: 1px solid var(--border-default); flex-shrink: 0; overflow-x: auto; }
 .tab { padding: 9px 14px; font-size: 12px; font-weight: 450; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; white-space: nowrap; }
 .tab:hover { color: var(--text-primary); }
 .tab.active { color: var(--text-primary); border-bottom-color: var(--cobalt); font-weight: 500; }
@@ -2390,6 +2409,11 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   font-weight: 700;
   color: var(--cobalt);
   flex-shrink: 0;
+  /* Contain the reactive text node — prevents the first-char initial
+     from leaking outside the avatar box as a stray bare text node */
+  overflow: hidden;
+  line-height: 42px;
+  text-align: center;
 }
 .tenant-name-row {
   display: flex;

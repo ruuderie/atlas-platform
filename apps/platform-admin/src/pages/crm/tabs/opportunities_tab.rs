@@ -118,12 +118,12 @@ pub fn OpportunitiesTab() -> impl IntoView {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
-                                    <th class="sortable">"Opportunity"</th>
-                                    <th class="sortable">"Stage"</th>
-                                    <th class="sortable right">"Value"</th>
-                                    <th class="sortable">"Status"</th>
-                                    <th></th>
+                                    <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
+                                    <th style="width:35%" class="sortable">"Opportunity"</th>
+                                    <th style="width:18%" class="sortable">"Stage"</th>
+                                    <th style="width:13%" class="sortable right">"Value"</th>
+                                    <th style="width:20%" class="sortable">"Status"</th>
+                                    <th style="width:70px"></th>
                                 </tr>
                             </thead>
                             <tbody>
