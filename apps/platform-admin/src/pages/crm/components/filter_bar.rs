@@ -13,8 +13,8 @@ impl PillOption {
     }
 }
 
-/// Reusable filter bar: pill group + search input.
-/// `active` and `search` are owned signals passed in from the parent tab.
+/// Reusable CRM filter bar: pill group + search input.
+/// Uses `.crm-filter-bar` / `.crm-pill` / `.crm-pill.active` design system classes.
 #[component]
 pub fn FilterBar(
     pills: Vec<PillOption>,
@@ -23,14 +23,16 @@ pub fn FilterBar(
     #[prop(into)] search_placeholder: String,
 ) -> impl IntoView {
     view! {
-        <div class="filter-bar">
-            <div class="stage-pills">
+        <div class="crm-filter-bar">
+            <div class="crm-pills">
                 {pills.into_iter().map(|opt| {
-                    let val = opt.value.clone();
+                    let val       = opt.value.clone();
                     let val_click = val.clone();
                     view! {
                         <button
-                            class=move || format!("pill {}", if active.get() == val { "active" } else { "" })
+                            class=move || {
+                                if active.get() == val { "crm-pill active" } else { "crm-pill" }
+                            }
                             on:click=move |_| active.set(val_click.clone())
                         >
                             {opt.label}
@@ -38,8 +40,8 @@ pub fn FilterBar(
                     }
                 }).collect_view()}
             </div>
-            <div class="filter-sep"></div>
-            <div class="filter-search">
+            <div class="crm-filter-sep"></div>
+            <div class="crm-search">
                 <input
                     type="text"
                     placeholder=search_placeholder

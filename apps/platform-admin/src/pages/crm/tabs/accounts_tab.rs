@@ -6,26 +6,27 @@ use crate::pages::crm::components::{
     kpi_strip::{KpiStrip, KpiItem},
     record_drawer::RecordDrawer,
     record_row::{RecordRow, initials},
+    pagination::Pagination,
 };
+
+const PER_PAGE: u64 = 25;
 
 #[component]
 pub fn AccountsTab() -> impl IntoView {
-    let type_filter   = RwSignal::new("all".to_string());
-    let search_filter = RwSignal::new(String::new());
+    let search_filter    = RwSignal::new(String::new());
     let search_debounced = RwSignal::new(String::new());
-    let page = RwSignal::new(1_u64);
-    const PER_PAGE: u64 = 25;
+    let page             = RwSignal::new(1_u64);
 
     let selected    = RwSignal::new(None::<AccountModel>);
     let drawer_open = RwSignal::new(false);
 
+    // 400ms debounce
     Effect::new(move |_| {
         let val = search_filter.get();
-        let page_reset = page;
         leptos::task::spawn_local(async move {
             gloo_timers::future::sleep(std::time::Duration::from_millis(400)).await;
             search_debounced.set(val);
-            page_reset.set(1);
+            page.set(1);
         });
     });
 
@@ -40,129 +41,118 @@ pub fn AccountsTab() -> impl IntoView {
 
     let kpi_items = Signal::derive(move || {
         let accounts = accounts_res.get().unwrap_or_default();
-        let total = accounts.len();
-        // Use account_type field once available; until then show total only
+        let total    = accounts.len();
         vec![
-            KpiItem::new("Total Accounts", &total.to_string())
-                .sub("Platform-wide"),
-            KpiItem::new("Active", &total.to_string())
-                .color("var(--green)"),
-            KpiItem::new("Suspended", "0"),
-            KpiItem::new("Contribution MRR", "—")
-                .color("var(--cobalt)"),
+            KpiItem::new("This Page", &total.to_string()).sub("Platform-wide"),
+            // AccountModel has no status/MRR fields — show what we have
+            KpiItem::new("Accounts", &total.to_string()).color("var(--cobalt)"),
+            KpiItem::new("MRR", "—").color("var(--green)"),
+            KpiItem::new("Suspended", "—"),
         ]
     });
 
-    let type_pills = vec![
-        PillOption::new("all", "All"),
-        PillOption::new("Organization", "Orgs"),
-        PillOption::new("Individual", "Individuals"),
-        PillOption::new("Active", "Active"),
-        PillOption::new("Suspended", "Suspended"),
-    ];
+    let filter_pills = vec![PillOption::new("all", "All Accounts")];
+    let active_filter = RwSignal::new("all".to_string());
+
+    let page_count = Signal::derive(move || accounts_res.get().unwrap_or_default().len());
 
     view! {
         <KpiStrip items=kpi_items />
 
         <FilterBar
-            pills=type_pills
-            active=type_filter
+            pills=filter_pills
+            active=active_filter
             search=search_filter
             search_placeholder="Search accounts…"
         />
 
         <div class="table-container">
             <Suspense fallback=move || view! {
-                <div class="p-8 text-center text-on-surface-variant">"Loading accounts..."</div>
+                <div style="padding:32px;text-align:center;color:var(--text-muted)">
+                    "Loading accounts..."
+                </div>
             }>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
-                            <th class="sortable">"Account"</th>
-                            <th class="sortable">"Type"</th>
-                            <th class="sortable">"Status"</th>
-                            <th class="sortable">"MRR"</th>
-                            <th class="sortable">"Created"</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {move || {
-                            accounts_res.get().unwrap_or_default().into_iter()
-                                .map(|a| {
-                                    let ini = initials(&a.name);
-                                    let a_for_drawer = a.clone();
-                                    let a_for_open   = a.clone();
+                {move || {
+                    let rows = accounts_res.get().unwrap_or_default();
+                    if rows.is_empty() {
+                        return view! {
+                            <div style="padding:40px;text-align:center;color:var(--text-muted);font-size:13px;">
+                                "No accounts found."
+                            </div>
+                        }.into_any();
+                    }
+                    view! {
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width:24px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
+                                    <th class="sortable">"Account"</th>
+                                    <th class="sortable">"ID"</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.into_iter().map(|a| {
+                                    let ini      = initials(&a.name);
+                                    let id_short = a.id.chars().take(8).collect::<String>() + "…";
+                                    let a_click  = a.clone();
+                                    let a_open   = a.clone();
 
                                     view! {
-                                        <tr on:click=move |_| {
-                                            selected.set(Some(a_for_drawer.clone()));
+                                        <tr style="cursor:pointer" on:click=move |_| {
+                                            selected.set(Some(a_click.clone()));
                                             drawer_open.set(true);
                                         }>
                                             <td><input type="checkbox" on:click=move |e| e.stop_propagation() style="accent-color:var(--cobalt)"/></td>
-                                            <td><RecordRow initials=ini name=a.name.clone() /></td>
-                                            <td>"—"</td>
-                                            <td><span class="tag tag-verified">"Active"</span></td>
-                                            <td class="mono font-semibold">"—"</td>
-                                            <td class="muted">"—"</td>
+                                            <td>
+                                                <RecordRow
+                                                    initials=ini
+                                                    name=a.name.clone()
+                                                    bg="var(--amber-dim)"
+                                                    color="var(--amber)"
+                                                />
+                                            </td>
+                                            <td class="muted mono">{id_short}</td>
                                             <td>
                                                 <button class="btn btn-ghost btn-sm" on:click=move |e| {
                                                     e.stop_propagation();
-                                                    selected.set(Some(a_for_open.clone()));
+                                                    selected.set(Some(a_open.clone()));
                                                     drawer_open.set(true);
                                                 }>"Open"</button>
                                             </td>
                                         </tr>
                                     }
-                                }).collect_view()
-                        }}
-                    </tbody>
-                </table>
+                                }).collect_view()}
+                            </tbody>
+                        </table>
+                    }.into_any()
+                }}
             </Suspense>
         </div>
 
-        // ── Pagination controls ───────────────────────────────────────────────────
-        <div class="flex items-center justify-between px-1 pt-2 text-xs text-on-surface-variant">
-            <span>
-                "Page " {move || page.get().to_string()}
-                " · " {move || accounts_res.get().unwrap_or_default().len().to_string()}
-                " records"
-            </span>
-            <div class="flex gap-2">
-                <button
-                    class=move || { if page.get() <= 1 { "btn btn-ghost btn-sm opacity-40 cursor-not-allowed".to_string() } else { "btn btn-ghost btn-sm".to_string() } }
-                    on:click=move |_| { if page.get() > 1 { page.update(|p| *p -= 1); } }
-                    disabled=move || page.get() <= 1
-                >"← Prev"</button>
-                <button
-                    class=move || { let c = accounts_res.get().unwrap_or_default().len() as u64; if c < PER_PAGE { "btn btn-ghost btn-sm opacity-40 cursor-not-allowed".to_string() } else { "btn btn-ghost btn-sm".to_string() } }
-                    on:click=move |_| { let c = accounts_res.get().unwrap_or_default().len() as u64; if c >= PER_PAGE { page.update(|p| *p += 1); } }
-                    disabled=move || (accounts_res.get().unwrap_or_default().len() as u64) < PER_PAGE
-                >"Next →"</button>
-            </div>
-        </div>
+        <Pagination page=page per_page=PER_PAGE count=page_count />
 
+        // Detail Drawer
         {move || selected.get().map(|a| {
-            let name_for_title  = a.name.clone();
-            let name_for_detail = a.name.clone();
-            let id_for_href     = a.id.clone();
-            let title    = Signal::derive(move || name_for_title.clone());
-            let subtitle = Signal::derive(move || "—".to_string());
-            let href     = Signal::derive(move || format!("/crm/account/{}", id_for_href));
+            let name_c   = a.name.clone();
+            let id_c     = a.id.clone();
+            let title    = Signal::derive(move || name_c.clone());
+            let subtitle = Signal::derive(|| "Account".to_string());
+            let href     = Signal::derive(move || format!("/crm/account/{}", id_c.clone()));
+            let full_id  = a.id.clone();
+            let name     = a.name.clone();
 
             view! {
-                <RecordDrawer
-                    open=drawer_open
-                    title=title
-                    subtitle=subtitle
-                    detail_href=href
-                >
+                <RecordDrawer open=drawer_open title=title subtitle=subtitle detail_href=href>
                     <div class="detail-grid">
                         <span class="detail-section-label">"Account Info"</span>
                         <div class="detail-field">
-                            <div class="detail-label">"Account Name"</div>
-                            <div class="detail-value">{name_for_detail}</div>
+                            <div class="detail-label">"Name"</div>
+                            <div class="detail-value">{name}</div>
+                        </div>
+                        <div class="detail-field">
+                            <div class="detail-label">"Account ID"</div>
+                            <div class="detail-value mono" style="font-size:11px;word-break:break-all">{full_id}</div>
                         </div>
                     </div>
                 </RecordDrawer>

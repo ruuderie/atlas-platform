@@ -1,12 +1,12 @@
 use leptos::prelude::*;
 
-/// A single KPI card item.
+/// A single KPI item for the compact CRM strip.
 #[derive(Clone)]
 pub struct KpiItem {
     pub label: String,
     pub value: String,
     pub sub: Option<String>,
-    pub color: Option<String>, // e.g. "var(--green)"
+    pub color: Option<String>,
 }
 
 impl KpiItem {
@@ -17,21 +17,23 @@ impl KpiItem {
     pub fn color(mut self, color: &str) -> Self { self.color = Some(color.to_string()); self }
 }
 
-/// Horizontal KPI strip. `items` is a reactive closure so the strip re-renders
-/// when the underlying resource changes.
+/// Compact inline KPI strip that matches the CRM detail page design.
+/// Uses `.crm-kpi-strip` → `.crm-kpi` layout — NOT the dashboard card layout.
 #[component]
 pub fn KpiStrip(
     #[prop(into)] items: Signal<Vec<KpiItem>>,
 ) -> impl IntoView {
     view! {
-        <div class="kpi-row">
+        <div class="crm-kpi-strip">
             {move || items.get().into_iter().map(|k| {
-                let color_style = k.color.map(|c| format!("color:{}", c)).unwrap_or_default();
+                let value_style = k.color
+                    .map(|c| format!("color:{}", c))
+                    .unwrap_or_default();
                 view! {
-                    <div class="kpi-card">
-                        <span class="kpi-label">{k.label}</span>
-                        <span class="kpi-value" style=color_style>{k.value}</span>
-                        {k.sub.map(|s| view! { <span class="kpi-delta up">{s}</span> })}
+                    <div class="crm-kpi">
+                        <span class="crm-kpi-label">{k.label}</span>
+                        <span class="crm-kpi-value" style=value_style>{k.value}</span>
+                        {k.sub.map(|s| view! { <span class="crm-kpi-sub">{s}</span> })}
                     </div>
                 }
             }).collect_view()}
