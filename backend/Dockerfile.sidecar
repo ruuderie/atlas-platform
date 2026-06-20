@@ -12,6 +12,11 @@ WORKDIR /app
 FROM base AS builder
 ARG BUILD_PROFILE=release
 COPY Cargo.toml Cargo.lock ./
+# Copy workspace crate manifests so Cargo can resolve the full workspace
+# during the dummy dep-caching build (crates/ members are declared in root Cargo.toml)
+COPY crates/atlas-compute-sdk/Cargo.toml crates/atlas-compute-sdk/Cargo.toml
+# Create stub src/lib.rs so Cargo can parse the workspace member without building it
+RUN mkdir -p crates/atlas-compute-sdk/src && echo "// stub" > crates/atlas-compute-sdk/src/lib.rs
 # Dummy build to cache dependencies
 RUN mkdir -p src/bin && \
     echo "fn main() {}" > src/main.rs && \
