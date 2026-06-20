@@ -177,3 +177,12 @@ pub mod atlas_scorecard_contributor_calibration;
 // PRODUCT LAUNCH ENGINE
 pub mod platform_product;        // Platform product registry (Folio, Anchor, Network, Meridian)
 pub mod product_page;            // product_page_templates + product_page_variants (programmatic SEO)
+
+// FEATURE FLAGS — flag registry, per-tenant overrides, and audit trail
+pub mod feature_flag;
+pub mod flag_override;
+pub mod flag_audit_log;
+
+// PLATFORM INVITATIONS
+pub mod platform_invite;
+

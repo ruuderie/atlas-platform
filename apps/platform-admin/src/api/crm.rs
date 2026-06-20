@@ -17,9 +17,19 @@ pub async fn get_users() -> Result<Vec<UserInfo>, String> {
     Err("Network Error: Backend unreachable".into())
 }
 
-pub async fn get_accounts() -> Result<Vec<AccountModel>, String> {
+pub async fn get_accounts(
+    search: Option<&str>,
+    page: u64,
+    per_page: u64,
+) -> Result<Vec<AccountModel>, String> {
     let client = create_client();
-    let url = api_url("/api/admin/accounts");
+    let mut url = api_url("/api/admin/accounts");
+    let mut qp = vec![
+        format!("page={}", page),
+        format!("per_page={}", per_page),
+    ];
+    if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
+    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -28,6 +38,7 @@ pub async fn get_accounts() -> Result<Vec<AccountModel>, String> {
     }
     Err("Network Error: Backend unreachable".into())
 }
+
 
 pub async fn create_account(data: CreateAccount) -> Result<AccountModel, String> {
     let client = create_client();
@@ -42,9 +53,21 @@ pub async fn create_account(data: CreateAccount) -> Result<AccountModel, String>
     }
 }
 
-pub async fn get_leads() -> Result<Vec<LeadModel>, String> {
+pub async fn get_leads(
+    search: Option<&str>,
+    page: u64,
+    per_page: u64,
+    stage: Option<&str>,
+) -> Result<Vec<LeadModel>, String> {
     let client = create_client();
-    let url = api_url("/api/admin/leads");
+    let mut url = api_url("/api/admin/leads");
+    let mut qp = vec![
+        format!("page={}", page),
+        format!("per_page={}", per_page),
+    ];
+    if let Some(q) = search  { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
+    if let Some(s) = stage   { if s != "all"    { qp.push(format!("stage={}",  urlencoding::encode(s))); } }
+    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -53,6 +76,7 @@ pub async fn get_leads() -> Result<Vec<LeadModel>, String> {
     }
     Err("Network Error: Backend unreachable".into())
 }
+
 
 pub async fn create_lead(data: CreateLead) -> Result<LeadModel, String> {
     let client = create_client();
@@ -131,9 +155,19 @@ pub async fn get_deal_by_id(id: &str) -> Result<DealModel, String> {
     }
 }
 
-pub async fn get_contacts() -> Result<Vec<ContactModel>, String> {
+pub async fn get_contacts(
+    search: Option<&str>,
+    page: u64,
+    per_page: u64,
+) -> Result<Vec<ContactModel>, String> {
     let client = create_client();
-    let url = api_url("/api/contacts");
+    let mut url = api_url("/api/admin/contacts");
+    let mut qp = vec![
+        format!("page={}", page),
+        format!("per_page={}", per_page),
+    ];
+    if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
+    if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
         if res.status() == StatusCode::OK {
@@ -142,6 +176,7 @@ pub async fn get_contacts() -> Result<Vec<ContactModel>, String> {
     }
     Err("Network Error: Backend unreachable".into())
 }
+
 
 pub async fn get_contact_by_id(id: &str) -> Result<ContactModel, String> {
     let client = create_client();

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: folio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: folio
+  template:
+    metadata:
+      labels:
+        app: folio
+    spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
+      containers:
+      - name: folio
+        image: ghcr.io/ruuderie/folio:latest
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        ports:
+        - containerPort: 3100
+        # ── Leptos Runtime Configuration ─────────────────────────────────────
+        # LEPTOS_SITE_ROOT — must match the COPY target path in the Dockerfile.
+        # LEPTOS_SITE_ADDR — the host:port the Axum/Leptos SSR server binds to.
+        # ATLAS_API_URL    — backend base URL for server-side data fetching.
+        env:
+        - name: LEPTOS_SITE_ADDR
+          value: "0.0.0.0:3100"
+        - name: LEPTOS_SITE_ROOT
+          value: "site"
+        - name: ATLAS_API_URL
+          value: "http://backend:8000"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3100
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3100
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: folio
+spec:
+  selector:
+    app: folio
+  ports:
+  - port: 80
+    targetPort: 3100

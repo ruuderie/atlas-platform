@@ -4,31 +4,6 @@ use serde_json::json;
 use crate::api::developer::*;
 use crate::app::GlobalToast;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct MockWebhookDelivery {
-    pub id: String,
-    pub tenant: String,
-    pub event_type: String,
-    pub target_url: String,
-    pub status: String,
-    pub status_class: &'static str,
-    pub attempts: i32,
-    pub time: String,
-    pub duration: String,
-    pub retry: String,
-    pub payload: serde_json::Value,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MockApiCredential {
-    pub id: String,
-    pub name: String,
-    pub scopes: String,
-    pub status: String,
-    pub status_class: &'static str,
-    pub created: String,
-}
-
 #[component]
 pub fn Integrations() -> impl IntoView {
     let active_network = use_context::<ReadSignal<Option<Uuid>>>().expect("active network context");
@@ -47,91 +22,18 @@ pub fn Integrations() -> impl IntoView {
     let new_key_scope = RwSignal::new("read:leads".to_string());
     let generated_secret_key = RwSignal::new(None::<String>);
 
-    // Mock webhook logs (fallback/enrichment)
-    let mock_webhooks = RwSignal::new(vec![
-        MockWebhookDelivery {
-            id: "evt_9fca6af8".to_string(),
-            tenant: "Nexus Property Group".to_string(),
-            event_type: "lead.created".to_string(),
-            target_url: "https://api.nexus.com/webhooks".to_string(),
-            status: "200 OK".to_string(),
-            status_class: "tag tag-ok",
-            attempts: 1,
-            time: "2 mins ago".to_string(),
-            duration: "142ms".to_string(),
-            retry: "None".to_string(),
-            payload: json!({
-                "event_id": "evt_9fca6af8",
-                "type": "lead.created",
-                "tenant_id": "t_nexus_01",
-                "data": { "lead_id": "l_9a2f3", "company": "Ruud Logistics", "score": 9.4 }
-            }),
-        },
-        MockWebhookDelivery {
-            id: "evt_eda9043a".to_string(),
-            tenant: "Biscayne STR Co.".to_string(),
-            event_type: "ledger.split_reconciled".to_string(),
-            target_url: "https://biscayne.io/webhooks/atlas".to_string(),
-            status: "200 OK".to_string(),
-            status_class: "tag tag-ok",
-            attempts: 1,
-            time: "14 mins ago".to_string(),
-            duration: "214ms".to_string(),
-            retry: "None".to_string(),
-            payload: json!({
-                "event_id": "evt_eda9043a",
-                "type": "ledger.split_reconciled",
-                "tenant_id": "t_biscayne_str",
-                "data": { "split_id": "ls_0083a2", "gross": 420000, "net": 386400 }
-            }),
-        },
-        MockWebhookDelivery {
-            id: "evt_005c6922".to_string(),
-            tenant: "South Beach Nets".to_string(),
-            event_type: "subscription.updated".to_string(),
-            target_url: "https://southbeachnets.io/webhook".to_string(),
-            status: "500 Fail".to_string(),
-            status_class: "tag tag-error",
-            attempts: 3,
-            time: "1 hour ago".to_string(),
-            duration: "4.2s".to_string(),
-            retry: "Pending (in 4 mins)".to_string(),
-            payload: json!({
-                "event_id": "evt_005c6922",
-                "type": "subscription.updated",
-                "tenant_id": "t_south_beach",
-                "data": { "subscription_id": "sub_4R2", "previous_status": "active", "new_status": "past_due" }
-            }),
-        },
-    ]);
-
-    // Mock API Credentials database (local state)
-    let mock_credentials = RwSignal::new(vec![
-        MockApiCredential {
-            id: "client_cli_a82f3c".to_string(),
-            name: "Internal Platform CLI".to_string(),
-            scopes: "read:all, write:all, root".to_string(),
-            status: "Active".to_string(),
-            status_class: "tag tag-ok",
-            created: "Jan 2025".to_string(),
-        },
-        MockApiCredential {
-            id: "client_nexus_891f3a".to_string(),
-            name: "Nexus CRM Bridge".to_string(),
-            scopes: "read:leads, write:leads".to_string(),
-            status: "Active".to_string(),
-            status_class: "tag tag-ok",
-            created: "Feb 2025".to_string(),
-        },
-        MockApiCredential {
-            id: "client_bisc_772a1c".to_string(),
-            name: "Biscayne Ledger Exporter".to_string(),
-            scopes: "read:ledger".to_string(),
-            status: "Active".to_string(),
-            status_class: "tag tag-ok",
-            created: "Jun 2025".to_string(),
-        },
-    ]);
+    // Live webhook deliveries resource
+    let webhooks_res = LocalResource::new(move || {
+        let n = active_network.get();
+        let _ = refetch_trigger.get();
+        async move {
+            if let Some(tenant_id) = n {
+                list_webhook_deliveries(tenant_id).await.unwrap_or_default()
+            } else {
+                vec![]
+            }
+        }
+    });
 
     // API resource hooks for actual backend integration
     let api_keys_res = LocalResource::new(move || {
@@ -183,23 +85,7 @@ pub fn Integrations() -> impl IntoView {
                     Err(e) => t_toast.show_toast("Error", &format!("Failed: {}", e), "error"),
                 }
             } else {
-                // Perform local mock generation
-                let mock_id = format!("client_{}", Uuid::new_v4().to_string().chars().take(6).collect::<String>());
-                let mock_sk = format!("at_sk_live_{}", Uuid::new_v4().to_string().replace("-", ""));
-                
-                mock_credentials.update(|list| {
-                    list.push(MockApiCredential {
-                        id: mock_id,
-                        name: name.clone(),
-                        scopes: scope.clone(),
-                        status: "Active".to_string(),
-                        status_class: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
-                        created: "Jun 2026".to_string(),
-                    });
-                });
-                
-                generated_secret_key.set(Some(mock_sk));
-                t_toast.show_toast("Success", "Mock API key generated.", "success");
+                t_toast.show_toast("Error", "Select a tenant network first.", "error");
             }
         });
     };
@@ -222,43 +108,20 @@ pub fn Integrations() -> impl IntoView {
                     }
                 }
             } else {
-                mock_credentials.update(|list| {
-                    if let Some(k) = list.iter_mut().find(|c| c.id == target_id) {
-                        k.status = "Revoked".to_string();
-                        k.status_class = "bg-red-500/10 border-red-500/30 text-red-400";
-                    }
-                });
-                t_toast.show_toast("Warning", "Credential marked as revoked.", "warn");
+                t_toast.show_toast("Error", "Select a tenant network first.", "error");
             }
             show_revoke_modal.set(None);
         });
     };
 
-    // Helper: retrigger webhook event dispatch
-    let handle_retrigger_webhook = move |id: String| {
-        let t_toast = toast.clone();
-        let target_id = id.clone();
-        leptos::task::spawn_local(async move {
-            t_toast.show_toast("Info", &format!("Webhook event {} re-enqueued.", target_id), "info");
-            gloo_timers::future::TimeoutFuture::new(800).await;
-            
-            mock_webhooks.update(|list| {
-                if let Some(w) = list.iter_mut().find(|evt| evt.id == target_id) {
-                    w.status = "200 OK".to_string();
-                    w.status_class = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
-                    w.attempts += 1;
-                    w.retry = "None".to_string();
-                }
-            });
-            
-            t_toast.show_toast("Success", "Webhook delivered successfully with status code 200.", "success");
-        });
-    };
+
 
     let selected_delivery = Signal::derive(move || {
         let sid = selected_delivery_id.get();
         sid.and_then(|id| {
-            mock_webhooks.get().iter().find(|w| w.id == id).cloned()
+            webhooks_res.get().and_then(|deliveries| {
+                deliveries.into_iter().find(|w| w.id.to_string() == id)
+            })
         })
     });
 
@@ -301,13 +164,7 @@ pub fn Integrations() -> impl IntoView {
             <div class="kpi-card">
                 <span class="kpi-label">"Active API Credentials"</span>
                 <span class="kpi-value">
-                    {move || {
-                        if active_network.get().is_some() {
-                            api_keys_res.get().map(|k| k.unwrap_or_default().len()).unwrap_or(0).to_string()
-                        } else {
-                            mock_credentials.get().iter().filter(|c| c.status == "Active").count().to_string()
-                        }
-                    }}
+                    {move || api_keys_res.get().map(|k| k.unwrap_or_default().len()).unwrap_or(0).to_string()}
                 </span>
             </div>
         </div>
@@ -383,51 +240,62 @@ pub fn Integrations() -> impl IntoView {
                     <thead>
                         <tr>
                             <th>"Event ID"</th>
-                            <th>"Tenant"</th>
-                            <th>"Event Type"</th>
-                            <th>"Target URL"</th>
+                            <th>"Endpoint"</th>
                             <th>"Status"</th>
                             <th>"Attempts"</th>
-                            <th>"Time"</th>
+                            <th>"Delivered At"</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <For 
-                            each=move || mock_webhooks.get() 
-                            key=|w| w.id.clone() 
-                            children=move |w| {
-                                let wid = w.id.clone();
-                                let wid_for_click = wid.clone();
-                                let wid_for_btn = wid.clone();
+                        <Suspense fallback=move || view! { <tr><td colspan="6" class="p-6 text-center muted">"Loading webhook logs…"</td></tr> }>
+                        {move || {
+                            let deliveries = webhooks_res.get().unwrap_or_default();
+                            if deliveries.is_empty() {
                                 view! {
-                                    <tr on:click=move |_| {
-                                        panel_tab.set("payload".to_string());
-                                        selected_delivery_id.set(Some(wid_for_click.clone()));
-                                    } style="cursor:pointer">
-                                        <td class="mono font-semibold">{w.id.clone()}</td>
-                                        <td>{w.tenant.clone()}</td>
-                                        <td><span class="mono">{w.event_type.clone()}</span></td>
-                                        <td class="mono muted">{w.target_url.clone()}</td>
-                                        <td><span class=w.status_class>{w.status.clone()}</span></td>
-                                        <td class="mono muted">{w.attempts}</td>
-                                        <td class="muted">{w.time.clone()}</td>
-                                        <td>
-                                            <button 
-                                                on:click=move |e| {
-                                                    e.stop_propagation();
-                                                    panel_tab.set("payload".to_string());
-                                                    selected_delivery_id.set(Some(wid_for_btn.clone()));
-                                                }
-                                                class="btn btn-ghost btn-sm"
-                                            >
-                                                "Payload"
-                                            </button>
-                                        </td>
-                                    </tr>
-                                }
+                                    <tr><td colspan="6" class="p-6 text-center muted">
+                                        {if active_network.get().is_some() { "No webhook deliveries found for this tenant." } else { "Select a tenant to view webhook logs." }}
+                                    </td></tr>
+                                }.into_any()
+                            } else {
+                                deliveries.into_iter().map(|w| {
+                                    let wid = w.id.to_string();
+                                    let wid_for_click = wid.clone();
+                                    let wid_for_btn   = wid.clone();
+                                    let status_code   = w.response_status.unwrap_or(0);
+                                    let status_class  = if status_code >= 200 && status_code < 300 { "tag tag-ok" } else { "tag tag-error" };
+                                    let status_label  = format!("{} {}", status_code, w.status.as_str());
+                                    let delivered_at  = w.created_at.clone().unwrap_or_else(|| "—".to_string());
+                                    let event_type    = w.event_type.clone();
+                                    let attempts      = w.attempts;
+                                    view! {
+                                        <tr on:click=move |_| {
+                                            panel_tab.set("payload".to_string());
+                                            selected_delivery_id.set(Some(wid_for_click.clone()));
+                                        } style="cursor:pointer">
+                                            <td class="mono font-semibold">{wid.clone()}</td>
+                                            <td class="mono muted">{event_type}</td>
+                                            <td><span class=status_class>{status_label}</span></td>
+                                            <td class="mono muted">{attempts}</td>
+                                            <td class="muted">{delivered_at}</td>
+                                            <td>
+                                                <button
+                                                    on:click=move |e| {
+                                                        e.stop_propagation();
+                                                        panel_tab.set("payload".to_string());
+                                                        selected_delivery_id.set(Some(wid_for_btn.clone()));
+                                                    }
+                                                    class="btn btn-ghost btn-sm"
+                                                >
+                                                    "Details"
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }).collect_view().into_any()
                             }
-                        />
+                        }}
+                        </Suspense>
                     </tbody>
                 </table>
             </div>
@@ -479,35 +347,9 @@ pub fn Integrations() -> impl IntoView {
                                 }.into_any()
                             } else {
                                 view! {
-                                    <For each=move || mock_credentials.get() key=|k| k.id.clone() children=move |k| {
-                                         let k_val = StoredValue::new(k);
-                                         let is_active = k_val.with_value(|v| v.status == "Active");
-                                         let k_status_class = k_val.with_value(|v| if v.status == "Active" { "tag tag-ok" } else { "tag tag-error" });
-                                         view! {
-                                             <tr>
-                                                 <td><strong>{move || k_val.with_value(|v| v.name.clone())}</strong></td>
-                                                 <td class="mono">{move || k_val.with_value(|v| v.id.clone())}</td>
-                                                 <td class="muted mono">{move || k_val.with_value(|v| v.scopes.clone())}</td>
-                                                 <td>
-                                                     <span class=k_status_class>
-                                                         {move || k_val.with_value(|v| v.status.clone())}
-                                                     </span>
-                                                 </td>
-                                                 <td class="muted">{move || k_val.with_value(|v| v.created.clone())}</td>
-                                                 <td>
-                                                     <Show when=move || is_active>
-                                                         <button 
-                                                             on:click=move |_| show_revoke_modal.set(Some(k_val.with_value(|v| v.id.clone())))
-                                                             class="btn btn-ghost btn-sm"
-                                                             style="color:var(--red)"
-                                                         >
-                                                             "Revoke"
-                                                         </button>
-                                                     </Show>
-                                                 </td>
-                                             </tr>
-                                         }
-                                     }/>
+                                    <tr><td colspan="6" class="p-6 text-center muted">
+                                        "Select a tenant network to view API credentials."
+                                    </td></tr>
                                 }.into_any()
                             }
                         }}
@@ -525,37 +367,36 @@ pub fn Integrations() -> impl IntoView {
             class=move || if selected_delivery_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
         >
             {move || selected_delivery.get().map(|evt| {
-                let evt_clone = evt.clone();
+                let delivery_id = StoredValue::new(evt.id.to_string());
+                let status_code = evt.response_status.unwrap_or(0);
+                let status_class = if status_code >= 200 && status_code < 300 { "tag tag-ok" } else { "tag tag-error" };
+                let event_type   = StoredValue::new(evt.event_type.clone());
+                let payload_str  = StoredValue::new(serde_json::to_string_pretty(&evt.payload).unwrap_or_else(|_| "No payload".to_string()));
+                let attempts     = evt.attempts;
+                let delivered_at = StoredValue::new(evt.created_at.clone().unwrap_or_else(|| "—".to_string()));
+                let next_retry   = StoredValue::new(evt.next_retry_at.clone().unwrap_or_else(|| "None".to_string()));
                 view! {
                     <div class="panel-header">
                         <div class="panel-header-top">
                             <div class="panel-identity">
-                                <div class="panel-title-text mono">{evt.id.clone()}</div>
-                                <div class="panel-subtitle-text">{evt.event_type.clone()} " · " {evt.tenant.clone()}</div>
+                                <div class="panel-title-text mono">{move || delivery_id.get_value()}</div>
+                                <div class="panel-subtitle-text">{move || event_type.get_value()}</div>
                             </div>
-                            <button 
-                                class="panel-close" 
+                            <button
+                                class="panel-close"
                                 on:click=move |_| selected_delivery_id.set(None)
                             >
                                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
                             </button>
                         </div>
-                        <div class="panel-actions">
-                            <button 
-                                on:click=move |_| handle_retrigger_webhook(evt_clone.id.clone())
-                                class="btn btn-primary btn-sm"
-                            >
-                                "Resend Event"
-                            </button>
-                        </div>
                         <div class="panel-tabs">
-                            <button 
+                            <button
                                 class=move || if panel_tab.get() == "payload" { "panel-tab active" } else { "panel-tab" }
                                 on:click=move |_| panel_tab.set("payload".to_string())
                             >
                                 "JSON Payload"
                             </button>
-                            <button 
+                            <button
                                 class=move || if panel_tab.get() == "overview" { "panel-tab active" } else { "panel-tab" }
                                 on:click=move |_| panel_tab.set("overview".to_string())
                             >
@@ -564,34 +405,36 @@ pub fn Integrations() -> impl IntoView {
                         </div>
                     </div>
                     <div class="panel-content">
-                        // Payload Tab Pane
                         <Show when=move || panel_tab.get() == "payload">
                             <div class="tab-pane active">
                                 <pre style="font-family:monospace; font-size:11px; background:#05070B; padding:14px; border-radius:6px; color:#00D2FF; overflow-x:auto; border:1px solid var(--border-default)">
-                                    {serde_json::to_string_pretty(&evt.payload).unwrap_or_default()}
+                                    {move || payload_str.get_value()}
                                 </pre>
                             </div>
                         </Show>
-                        // Overview Tab Pane
                         <Show when=move || panel_tab.get() == "overview">
                             <div class="tab-pane active">
                                 <div class="detail-grid">
-                                    <span class="detail-section-label">"HTTP Response Telemetry"</span>
+                                    <span class="detail-section-label">"HTTP Delivery Telemetry"</span>
                                     <div class="detail-field">
-                                        <div class="detail-label">"Status Code"</div>
-                                        <div class="detail-value"><span class=evt.status_class>{evt.status.clone()}</span></div>
+                                        <div class="detail-label">"Response Status"</div>
+                                        <div class="detail-value"><span class=status_class>{status_code.to_string()}</span></div>
                                     </div>
                                     <div class="detail-field">
-                                        <div class="detail-label">"Duration"</div>
-                                        <div class="detail-value mono">{evt.duration.clone()}</div>
+                                        <div class="detail-label">"Event Type"</div>
+                                        <div class="detail-value mono">{move || event_type.get_value()}</div>
                                     </div>
                                     <div class="detail-field">
                                         <div class="detail-label">"Attempt Count"</div>
-                                        <div class="detail-value mono">{evt.attempts}</div>
+                                        <div class="detail-value mono">{attempts}</div>
+                                    </div>
+                                    <div class="detail-field">
+                                        <div class="detail-label">"Created At"</div>
+                                        <div class="detail-value">{move || delivered_at.get_value()}</div>
                                     </div>
                                     <div class="detail-field">
                                         <div class="detail-label">"Next Retry"</div>
-                                        <div class="detail-value">{evt.retry.clone()}</div>
+                                        <div class="detail-value">{move || next_retry.get_value()}</div>
                                     </div>
                                 </div>
                             </div>

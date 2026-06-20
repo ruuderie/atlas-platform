@@ -6,6 +6,7 @@ resources:
   - platform-admin.yaml
   - network-instance.yaml
   - anchor-app.yaml
+  - folio.yaml
   - ingress-sidecar-rbac.yaml
   - ingress-sidecar.yaml
   # woodpecker-rbac.yaml intentionally excluded — applied once by admin, not managed by CI

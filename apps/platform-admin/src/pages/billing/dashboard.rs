@@ -9,69 +9,8 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-
-#[derive(Clone, Debug)]
-pub struct MockSubscription {
-    pub tenant: String,
-    pub product: String,
-    pub plan: String,
-    pub price: String,
-    pub status: String,
-    pub trial_ends: String,
-    pub period_end: String,
-    pub stripe_sub_id: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct MockLedgerEntry {
-    pub id: String,
-    pub tenant: String,
-    pub entity: String,
-    pub payer: String,
-    pub gross: String,
-    pub fee: String,
-    pub net: String,
-    pub rail: String,
-    pub status: String,
-    pub due_paid: String,
-    pub reconciled: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct MockOverdueInvoice {
-    pub tenant: String,
-    pub product: String,
-    pub amount: String,
-    pub due_date: String,
-    pub overdue_days: String,
-    pub grace_status: String,
-    pub rail: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct MockExemption {
-    pub tenant: String,
-    pub reason: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct MockCommissionPlan {
-    pub id: String,
-    pub name: String,
-    pub split_pct: String,
-    pub volume_mtd: String,
-    pub active_tenants: i32,
-}
-
-#[derive(Clone, Debug)]
-pub struct MockTaxFiling {
-    pub period: String,
-    pub jurisdiction: String,
-    pub gross_sales: String,
-    pub tax_collected: String,
-    pub status: String,
-    pub filing_deadline: String,
-}
+use crate::api::admin::{get_billing_plans, get_all_transactions};
+use crate::api::analytics::{get_billing_summary, get_business_kpis};
 
 #[component]
 pub fn BillingDashboard() -> impl IntoView {
@@ -112,229 +51,12 @@ pub fn BillingDashboard() -> impl IntoView {
         }
     };
 
-    // Stored mock datasets (to avoid capture-by-FnOnce compiler panic in Leptos)
-    let mock_subscriptions = StoredValue::new(vec![
-        MockSubscription {
-            tenant: "Nexus PM Group".to_string(),
-            product: "Folio".to_string(),
-            plan: "Enterprise PM · $6,000".to_string(),
-            price: "$6,000".to_string(),
-            status: "Active".to_string(),
-            trial_ends: "—".to_string(),
-            period_end: "Jul 1".to_string(),
-            stripe_sub_id: "sub_1N4…".to_string(),
-        },
-        MockSubscription {
-            tenant: "Biscayne STR Co.".to_string(),
-            product: "Folio".to_string(),
-            plan: "STR Pro · $1,800".to_string(),
-            price: "$1,800".to_string(),
-            status: "Active".to_string(),
-            trial_ends: "—".to_string(),
-            period_end: "Jul 1".to_string(),
-            stripe_sub_id: "sub_2P7…".to_string(),
-        },
-        MockSubscription {
-            tenant: "Harbor Media".to_string(),
-            product: "Anchor".to_string(),
-            plan: "Creator · $900".to_string(),
-            price: "$900".to_string(),
-            status: "Active".to_string(),
-            trial_ends: "—".to_string(),
-            period_end: "Jul 1".to_string(),
-            stripe_sub_id: "sub_3Q8…".to_string(),
-        },
-        MockSubscription {
-            tenant: "South Beach Nets".to_string(),
-            product: "Network".to_string(),
-            plan: "Network Pro · $600".to_string(),
-            price: "$600".to_string(),
-            status: "Grace Period".to_string(),
-            trial_ends: "—".to_string(),
-            period_end: "Jun 1 (2d left)".to_string(),
-            stripe_sub_id: "sub_4R2…".to_string(),
-        },
-        MockSubscription {
-            tenant: "Cabana Club Ltd.".to_string(),
-            product: "Folio".to_string(),
-            plan: "Starter · $400".to_string(),
-            price: "$400".to_string(),
-            status: "Suspended".to_string(),
-            trial_ends: "—".to_string(),
-            period_end: "May 20 !".to_string(),
-            stripe_sub_id: "sub_6X1…".to_string(),
-        },
-        MockSubscription {
-            tenant: "Rio Verde PMC".to_string(),
-            product: "Folio".to_string(),
-            plan: "Starter · $400".to_string(),
-            price: "$400".to_string(),
-            status: "Trial".to_string(),
-            trial_ends: "Jun 17".to_string(),
-            period_end: "Jul 1".to_string(),
-            stripe_sub_id: "sub_5S9…".to_string(),
-        },
-    ]);
+    // ── Real data resources ──
+    let billing_summary = LocalResource::new(|| async move { get_billing_summary().await.ok() });
+    let business_kpis = LocalResource::new(|| async move { get_business_kpis().await.ok() });
+    let billing_plans = LocalResource::new(|| async move { get_billing_plans().await.unwrap_or_default() });
+    let transactions = LocalResource::new(|| async move { get_all_transactions().await.unwrap_or_default() });
 
-    let mock_ledger = StoredValue::new(vec![
-        MockLedgerEntry {
-            id: "le_a8f2…".to_string(),
-            tenant: "Nexus PM".to_string(),
-            entity: "reservation".to_string(),
-            payer: "j.tenant@nexus.com".to_string(),
-            gross: "$4,200".to_string(),
-            fee: "$336".to_string(),
-            net: "$3,864".to_string(),
-            rail: "Stripe".to_string(),
-            status: "Paid".to_string(),
-            due_paid: "Jun 8".to_string(),
-            reconciled: true,
-        },
-        MockLedgerEntry {
-            id: "le_b1c4…".to_string(),
-            tenant: "Biscayne STR".to_string(),
-            entity: "reservation".to_string(),
-            payer: "guest@booking.com".to_string(),
-            gross: "$1,850".to_string(),
-            fee: "$148".to_string(),
-            net: "$1,702".to_string(),
-            rail: "Stripe".to_string(),
-            status: "Paid".to_string(),
-            due_paid: "Jun 7".to_string(),
-            reconciled: true,
-        },
-        MockLedgerEntry {
-            id: "le_c3d7…".to_string(),
-            tenant: "Nexus PM".to_string(),
-            entity: "reservation".to_string(),
-            payer: "renter@gmail.com".to_string(),
-            gross: "$2,100".to_string(),
-            fee: "$168".to_string(),
-            net: "$1,932".to_string(),
-            rail: "BTC".to_string(),
-            status: "Paid".to_string(),
-            due_paid: "Jun 6".to_string(),
-            reconciled: true,
-        },
-        MockLedgerEntry {
-            id: "le_d5e8…".to_string(),
-            tenant: "South Beach Nets".to_string(),
-            entity: "reservation".to_string(),
-            payer: "client@southbeach.io".to_string(),
-            gross: "$28,000".to_string(),
-            fee: "$2,240".to_string(),
-            net: "$25,760".to_string(),
-            rail: "Stripe".to_string(),
-            status: "Overdue".to_string(),
-            due_paid: "Jun 1".to_string(),
-            reconciled: false,
-        },
-        MockLedgerEntry {
-            id: "le_h4j9…".to_string(),
-            tenant: "Rio Verde PMC".to_string(),
-            entity: "reservation".to_string(),
-            payer: "tenant@rioverde.br".to_string(),
-            gross: "$7,200".to_string(),
-            fee: "$576".to_string(),
-            net: "$6,624".to_string(),
-            rail: "PIX".to_string(),
-            status: "Overdue".to_string(),
-            due_paid: "Jun 3".to_string(),
-            reconciled: false,
-        },
-    ]);
-
-    let mock_overdue_invoices = StoredValue::new(vec![
-        MockOverdueInvoice {
-            tenant: "South Beach Nets".to_string(),
-            product: "Network".to_string(),
-            amount: "$28,000".to_string(),
-            due_date: "Jun 1".to_string(),
-            overdue_days: "9 days".to_string(),
-            grace_status: "Grace Expired · Suspended".to_string(),
-            rail: "Stripe".to_string(),
-        },
-        MockOverdueInvoice {
-            tenant: "Rio Verde PMC".to_string(),
-            product: "Folio".to_string(),
-            amount: "$7,200".to_string(),
-            due_date: "Jun 3".to_string(),
-            overdue_days: "7 days".to_string(),
-            grace_status: "0d left (Auto-suspending today)".to_string(),
-            rail: "PIX".to_string(),
-        },
-        MockOverdueInvoice {
-            tenant: "Urban Core Mgmt".to_string(),
-            product: "Folio".to_string(),
-            amount: "$3,100".to_string(),
-            due_date: "Jun 7".to_string(),
-            overdue_days: "3 days".to_string(),
-            grace_status: "Active · Grace: 4d left".to_string(),
-            rail: "Stripe".to_string(),
-        },
-    ]);
-
-    let mock_exemptions = StoredValue::new(vec![
-        MockExemption {
-            tenant: "Nexus Property Group".to_string(),
-            reason: "VIP SLA Custom Contract".to_string(),
-        },
-        MockExemption {
-            tenant: "Biscayne STR Co.".to_string(),
-            reason: "Non-Profit Waiver Program".to_string(),
-        },
-    ]);
-
-    let mock_commission_plans = StoredValue::new(vec![
-        MockCommissionPlan {
-            id: "cp_std_share".to_string(),
-            name: "Standard 8% Share".to_string(),
-            split_pct: "8.0%".to_string(),
-            volume_mtd: "$136,800".to_string(),
-            active_tenants: 12,
-        },
-        MockCommissionPlan {
-            id: "cp_vip_flat".to_string(),
-            name: "VIP Flat 3% RevShare".to_string(),
-            split_pct: "3.0%".to_string(),
-            volume_mtd: "$24,600".to_string(),
-            active_tenants: 2,
-        },
-        MockCommissionPlan {
-            id: "cp_free_dev".to_string(),
-            name: "Developer Tier Exempt".to_string(),
-            split_pct: "0.0%".to_string(),
-            volume_mtd: "$0".to_string(),
-            active_tenants: 1,
-        },
-    ]);
-
-    let mock_tax_filings = StoredValue::new(vec![
-        MockTaxFiling {
-            period: "tf_2026_q2".to_string(),
-            jurisdiction: "Q2 Federal VAT Filing".to_string(),
-            gross_sales: "$3.42M".to_string(),
-            tax_collected: "$273,600".to_string(),
-            status: "Open".to_string(),
-            filing_deadline: "Jul 15".to_string(),
-        },
-        MockTaxFiling {
-            period: "tf_2026_05".to_string(),
-            jurisdiction: "May Florida Sales Tax".to_string(),
-            gross_sales: "$680k".to_string(),
-            tax_collected: "$47,600".to_string(),
-            status: "Filed".to_string(),
-            filing_deadline: "Jun 20".to_string(),
-        },
-        MockTaxFiling {
-            period: "tf_2026_05".to_string(),
-            jurisdiction: "May Delaware Franchise".to_string(),
-            gross_sales: "$1.20M".to_string(),
-            tax_collected: "$96,000".to_string(),
-            status: "Filed".to_string(),
-            filing_deadline: "Jun 15".to_string(),
-        },
-    ]);
 
     // Handle Form actions
     let handle_new_subscription = move |_| {
@@ -418,38 +140,62 @@ pub fn BillingDashboard() -> impl IntoView {
             <div class="grid grid-cols-2 md:grid-cols-7 gap-4 bg-surface-container-low border border-outline-variant/10 p-5 rounded-2xl shadow-xs overflow-x-auto select-none">
                 <div class="space-y-1 min-w-[100px]">
                     <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Total MRR"</span>
-                    <div class="text-xl font-extrabold text-primary font-mono">"$84k"</div>
-                    <p class="text-[10px] text-emerald-400 font-medium">"↑ 12% vs May"</p>
-                </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Total GMV"</span>
-                    <div class="text-xl font-extrabold text-emerald-400 font-mono">"$2.14M"</div>
-                    <p class="text-[10px] text-emerald-400 font-medium">"↑ 18% vs May"</p>
-                </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Platform Comm."</span>
-                    <div class="text-xl font-extrabold font-mono">"$171k"</div>
-                    <p class="text-[10px] text-on-surface-variant/80">"8% avg · G-25"</p>
+                    <div class="text-xl font-extrabold text-primary font-mono">
+                        {move || business_kpis.get().flatten().map(|k| format!("${:.0}k", k.mrr.value / 1000.0)).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[10px] text-emerald-400 font-medium">
+                        {move || business_kpis.get().flatten().map(|k| {
+                            let delta = k.mrr.value - k.mrr.previous_value;
+                            let pct = if k.mrr.previous_value > 0.0 { (delta / k.mrr.previous_value) * 100.0 } else { 0.0 };
+                            format!("↑ {:.0}% vs prev", pct)
+                        }).unwrap_or("—".to_string())}
+                    </p>
                 </div>
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
                     <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Active Subs"</span>
-                    <div class="text-xl font-extrabold font-mono">"15"</div>
-                    <p class="text-[9px] text-on-surface-variant/70 truncate">"2 trial · 1 grace · 1 susp."</p>
+                    <div class="text-xl font-extrabold font-mono">
+                        {move || billing_summary.get().flatten().map(|s| s.active_subscriptions.to_string()).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[9px] text-on-surface-variant/70 truncate">
+                        {move || billing_summary.get().flatten().map(|s| format!("{} trial · {} grace · {} susp.", s.in_trial, s.in_grace_period, s.suspended)).unwrap_or("—".to_string())}
+                    </p>
                 </div>
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Outstanding"</span>
-                    <div class="text-xl font-extrabold text-amber-500 font-mono">"$38.3k"</div>
-                    <p class="text-[10px] text-error font-medium">"3 overdue"</p>
+                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Failed Invoices"</span>
+                    <div class="text-xl font-extrabold text-amber-500 font-mono">
+                        {move || billing_summary.get().flatten().map(|s| s.failed_invoices_count.to_string()).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[10px] text-error font-medium">
+                        {move || billing_summary.get().flatten().map(|s| format!("${:.0}k outstanding", s.failed_invoices_value / 1000.0)).unwrap_or("—".to_string())}
+                    </p>
                 </div>
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Pending Payouts"</span>
-                    <div class="text-xl font-extrabold text-amber-500 font-mono">"$29k"</div>
-                    <p class="text-[10px] text-on-surface-variant/80">"6 splits · G-03"</p>
+                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Collection Rate"</span>
+                    <div class="text-xl font-extrabold text-emerald-400 font-mono">
+                        {move || billing_summary.get().flatten().map(|s| format!("{:.0}%", s.collection_success_rate * 100.0)).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[10px] text-on-surface-variant/80">"G-03"</p>
                 </div>
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Tax Events"</span>
-                    <div class="text-xl font-extrabold font-mono">"247"</div>
-                    <p class="text-[9px] text-on-surface-variant/70 font-mono">"G-17 · 2 open"</p>
+                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Billing Plans"</span>
+                    <div class="text-xl font-extrabold font-mono">
+                        {move || billing_plans.get().map(|p| p.len().to_string()).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[10px] text-on-surface-variant/80">"active plans"</p>
+                </div>
+                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
+                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Transactions"</span>
+                    <div class="text-xl font-extrabold font-mono">
+                        {move || transactions.get().map(|t| t.len().to_string()).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[10px] text-on-surface-variant/80">"ledger entries"</p>
+                </div>
+                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
+                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Churn Rate"</span>
+                    <div class="text-xl font-extrabold font-mono">
+                        {move || billing_summary.get().flatten().map(|s| format!("{:.1}%", s.gross_churn_rate * 100.0)).unwrap_or("—".to_string())}
+                    </div>
+                    <p class="text-[9px] text-on-surface-variant/70 font-mono">"G-17"</p>
                 </div>
             </div>
 
@@ -658,69 +404,33 @@ pub fn BillingDashboard() -> impl IntoView {
                         <DataTable class="w-full text-xs">
                             <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
                                 <DataTableRow class="hover:bg-transparent">
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Tenant"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Product"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Plan"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Price"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Status"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Trial Ends"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Period End"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Stripe Sub ID"</DataTableHead>
+                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Plan Name"</DataTableHead>
+                                    <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Price / Interval"</DataTableHead>
+                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Billing Interval"</DataTableHead>
+                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Currency"</DataTableHead>
                                     <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
                                 </DataTableRow>
                             </DataTableHeader>
                             <DataTableBody class="divide-y divide-border font-sans">
-                                <For
-                                    each=move || mock_subscriptions.get_value()
-                                    key=|sub| sub.tenant.clone()
-                                    children=move |sub| {
-                                        let plan_color = match sub.product.as_str() {
-                                            "Folio" => "text-primary",
-                                            "Anchor" => "text-violet-400",
-                                            "Network" => "text-emerald-400",
-                                            _ => "text-on-surface",
-                                        };
-                                        let status_intent = match sub.status.as_str() {
-                                            "Active" | "Trial" => BadgeIntent::Success,
-                                            "Grace Period" => BadgeIntent::Primary,
-                                            "Suspended" => BadgeIntent::Default,
-                                            _ => BadgeIntent::Default,
-                                        };
-                                        let tenant = sub.tenant.clone();
-                                        let product = sub.product.clone();
-                                        let plan = sub.plan.clone();
-                                        let price = sub.price.clone();
-                                        let status = sub.status.clone();
-                                        let trial_ends = sub.trial_ends.clone();
-                                        let period_end = sub.period_end.clone();
-                                        let stripe_sub_id = sub.stripe_sub_id.clone();
-                                        let stripe_sub_id_link = sub.stripe_sub_id.clone();
-                                        view! {
-                                            <DataTableRow>
-                                                <DataTableCell class="p-3 font-bold text-primary hover:underline cursor-pointer">
-                                                    <a href=format!("/billing/tenant/{}", stripe_sub_id_link)>{tenant}</a>
-                                                </DataTableCell>
-                                                <DataTableCell class="p-3 text-on-surface-variant">{product}</DataTableCell>
-                                                <DataTableCell class=format!("p-3 font-semibold {}", plan_color)>{plan}</DataTableCell>
-                                                <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{price}</DataTableCell>
-                                                <DataTableCell class="p-3 text-center">
-                                                    <Badge intent=status_intent>{status}</Badge>
-                                                </DataTableCell>
-                                                <DataTableCell class="p-3 text-on-surface-variant font-mono">{trial_ends}</DataTableCell>
-                                                <DataTableCell class="p-3 font-mono">{period_end}</DataTableCell>
-                                                <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{stripe_sub_id}</DataTableCell>
-                                                <DataTableCell class="p-3 text-right">
-                                                    <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click=move |_| {
-                                                        toast.show_toast("Redirecting", "Drilling down into tenant plan details...", "info");
-                                                    }>
-                                                        "Plan →"
-                                                    </Button>
-                                                </DataTableCell>
-                                            </DataTableRow>
-                                        }
-                                    }
-                                />
-                            </DataTableBody>
+                                <Suspense fallback=move || view! { <DataTableRow><td class="p-4 text-center text-on-surface-variant/50" colspan="5">"Loading billing plans..."</td></DataTableRow> }>
+                            {move || billing_plans.get().unwrap_or_default().into_iter().map(|plan| {
+                                let price_formatted = format!("${}.{:02} / {}", plan.price / 100, plan.price % 100, plan.interval);
+                                view! {
+                                    <DataTableRow>
+                                        <DataTableCell class="p-3 font-bold text-on-surface">{plan.name.clone()}</DataTableCell>
+                                        <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{price_formatted}</DataTableCell>
+                                        <DataTableCell class="p-3 text-on-surface-variant">{plan.interval.clone()}</DataTableCell>
+                                        <DataTableCell class="p-3 text-on-surface-variant font-mono">{plan.currency.clone()}</DataTableCell>
+                                        <DataTableCell class="p-3 text-right">
+                                            <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click=move |_| {
+                                                toast.show_toast("Plan", "Drilling into plan details...", "info");
+                                            }>"Details →"</Button>
+                                        </DataTableCell>
+                                    </DataTableRow>
+                                }
+                            }).collect_view()}
+                            </Suspense>
+                        </DataTableBody>
                         </DataTable>
                     </Card>
                 </div>
@@ -769,63 +479,40 @@ pub fn BillingDashboard() -> impl IntoView {
                     <DataTable class="w-full text-xs font-sans">
                         <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
                             <DataTableRow class="hover:bg-transparent">
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"ID"</DataTableHead>
+                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"TX ID"</DataTableHead>
                                 <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Tenant"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Entity Type"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Payer Details"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Gross Amount"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Platform Fee"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Net Accounted"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Payment Rail"</DataTableHead>
+                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Provider"</DataTableHead>
+                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Amount"</DataTableHead>
                                 <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Status"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Due/Paid Date"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Reconciled"</DataTableHead>
+                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Provider TX ID"</DataTableHead>
+                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Created"</DataTableHead>
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            <For
-                                each=move || mock_ledger.get_value()
-                                key=|entry| entry.id.clone()
-                                children=move |entry| {
-                                    let rail_style = match entry.rail.as_str() {
-                                        "Stripe" => "text-primary border-primary/30 bg-primary/5",
-                                        "BTC" => "text-amber-500 border-amber-500/30 bg-amber-500/5",
-                                        "PIX" => "text-emerald-400 border-emerald-400/30 bg-emerald-400/5",
-                                        _ => "text-on-surface-variant border-outline/20",
-                                    };
-                                    let status_intent = match entry.status.as_str() {
-                                        "Paid" => BadgeIntent::Success,
-                                        "Overdue" => BadgeIntent::Default,
-                                        _ => BadgeIntent::Default,
-                                    };
-                                    view! {
-                                        <DataTableRow>
-                                            <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{entry.id.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 font-bold text-primary">{entry.tenant.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-on-surface-variant font-mono">{entry.entity.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 font-mono text-[11px] text-on-surface-variant/90">{entry.payer.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{entry.gross.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-on-surface-variant">{entry.fee.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono font-bold text-on-surface">{entry.net.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-center">
-                                                <span class=format!("px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wider {}", rail_style)>
-                                                    {entry.rail.clone()}
-                                                </span>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-3 text-center">
-                                                <Badge intent=status_intent>{entry.status.clone()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-3 font-mono">{entry.due_paid.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-center font-bold">
-                                                <span class=if entry.reconciled { "text-emerald-400" } else { "text-amber-500 font-medium" }>
-                                                    {if entry.reconciled { "✓" } else { "Pending" }}
-                                                </span>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }
-                            />
-                        </DataTableBody>
+                            <Suspense fallback=move || view! { <DataTableRow><td class="p-4 text-center text-on-surface-variant/50" colspan="7">"Loading transactions..."</td></DataTableRow> }>
+                        {move || transactions.get().unwrap_or_default().into_iter().map(|tx| {
+                            let amount_fmt = format!("${}.{:02} {}", tx.amount / 100, tx.amount.abs() % 100, tx.currency.to_uppercase());
+                            let status_intent = match tx.status.as_str() {
+                                "paid" | "completed" | "settled" => BadgeIntent::Success,
+                                "overdue" | "failed" => BadgeIntent::Default,
+                                "pending" => BadgeIntent::Primary,
+                                _ => BadgeIntent::Default,
+                            };
+                            let status = tx.status.clone();
+                            view! {
+                                <DataTableRow>
+                                    <DataTableCell class="p-3 font-mono text-on-surface-variant/80 text-[10px]">{tx.id[..8].to_string() + "…"}</DataTableCell>
+                                    <DataTableCell class="p-3 font-mono text-[10px]">{tx.tenant_id[..8].to_string() + "…"}</DataTableCell>
+                                    <DataTableCell class="p-3 text-on-surface-variant">{tx.provider.clone()}</DataTableCell>
+                                    <DataTableCell class="p-3 text-right font-mono font-bold text-emerald-400">{amount_fmt}</DataTableCell>
+                                    <DataTableCell class="p-3 text-center"><Badge intent=status_intent>{status}</Badge></DataTableCell>
+                                    <DataTableCell class="p-3 font-mono text-[10px] text-on-surface-variant/70">{tx.provider_tx_id.clone().unwrap_or("—".to_string())}</DataTableCell>
+                                    <DataTableCell class="p-3 font-mono text-[10px]">{tx.created_at.clone().unwrap_or("—".to_string())}</DataTableCell>
+                                </DataTableRow>
+                            }
+                        }).collect_view()}
+                        </Suspense>
+                    </DataTableBody>
                     </DataTable>
                 </Card>
             </Show>
@@ -866,46 +553,10 @@ pub fn BillingDashboard() -> impl IntoView {
                                         </DataTableRow>
                                     </DataTableHeader>
                                     <DataTableBody class="divide-y divide-border">
-                                        <For
-                                            each=move || mock_overdue_invoices.get_value()
-                                            key=|inv| inv.tenant.clone()
-                                            children=move |inv| {
-                                                let t_name = inv.tenant.clone();
-                                                view! {
-                                                    <DataTableRow>
-                                                        <DataTableCell class="p-3 font-bold text-error">{inv.tenant.clone()}</DataTableCell>
-                                                        <DataTableCell class="p-3 text-on-surface-variant">{inv.product.clone()}</DataTableCell>
-                                                        <DataTableCell class="p-3 text-right font-mono text-error font-bold">{inv.amount.clone()}</DataTableCell>
-                                                        <DataTableCell class="p-3 font-mono">{inv.due_date.clone()}</DataTableCell>
-                                                        <DataTableCell class="p-3 text-center text-error font-semibold font-mono">{inv.overdue_days.clone()}</DataTableCell>
-                                                        <DataTableCell class="p-3 font-mono text-on-surface-variant/80 text-[10px]">
-                                                            {inv.grace_status.clone()}
-                                                        </DataTableCell>
-                                                        <DataTableCell class="p-3 font-mono text-on-surface-variant/80">
-                                                            {inv.rail.clone()}
-                                                        </DataTableCell>
-                                                        <DataTableCell class="p-3 text-right space-x-1">
-                                                            <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
-                                                                let tenant = t_name.clone();
-                                                                move |_| toast.show_toast("Reminder Sent", &format!("Payment reminder email sent to {}.", tenant), "success")
-                                                            }>
-                                                                "Remind"
-                                                            </Button>
-                                                            <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
-                                                                let tenant = t_name.clone();
-                                                                move |_| {
-                                                                    log_payment_tenant.set(tenant.clone());
-                                                                    show_log_payment_modal.set(true);
-                                                                }
-                                                            }>
-                                                                "Log"
-                                                            </Button>
-                                                        </DataTableCell>
-                                                    </DataTableRow>
-                                                }
-                                            }
-                                        />
-                                    </DataTableBody>
+                                        <DataTableRow>
+                                                <td class="p-8 text-center text-on-surface-variant/50" colspan="7">"Overdue invoice data pending — requires billing reconciliation endpoint (future)"</td>
+                                            </DataTableRow>
+                                        </DataTableBody>
                                 </DataTable>
                             </Card>
                         </div>
@@ -922,169 +573,18 @@ pub fn BillingDashboard() -> impl IntoView {
                                 <p class="text-[11px] text-on-surface-variant mb-4 leading-relaxed font-sans">
                                     "Bypass auto-suspensions and grace period locks for strategic VIP client SLA accounts."
                                 </p>
-                                <div class="divide-y divide-outline-variant/15 text-xs space-y-3 pt-2">
-                                    <For
-                                        each=move || mock_exemptions.get_value()
-                                        key=|ex| ex.tenant.clone()
-                                        children=move |ex| {
-                                            let t_name = ex.tenant.clone();
-                                            view! {
-                                                <div class="flex justify-between items-center py-2">
-                                                    <div>
-                                                        <div class="font-bold text-on-surface">{ex.tenant.clone()}</div>
-                                                        <div class="text-[10px] text-on-surface-variant/80 font-mono mt-0.5">{ex.reason.clone()}</div>
-                                                    </div>
-                                                    <div class="flex items-center gap-2">
-                                                        <Badge intent=BadgeIntent::Success>"Exempt"</Badge>
-                                                        <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-6 w-6 p-0 text-error hover:bg-error/10 rounded-full flex items-center justify-center font-bold".to_string() on:click={
-                                                            let tenant = t_name.clone();
-                                                            move |_| toast.show_toast("Exemption Lifted", &format!("Standard billing billing cycles restored for {}.", tenant), "info")
-                                                        }>
-                                                            "✕"
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            }
-                                        }
-                                    />
+                                <div class="divide-y divide-outline-variant/15 text-xs pt-2">
+                                    {move || billing_summary.get().flatten().map(|s| s.exemptions.into_iter().map(|e| view! {
+                                        <div class="flex justify-between items-center py-2 px-1">
+                                            <span class="font-bold text-on-surface">{e.tenant_name.clone()}</span>
+                                            <span class="text-on-surface-variant text-[10px]">{e.reason.clone()}</span>
+                                        </div>
+                                    }).collect_view()).unwrap_or_default()}
                                 </div>
                             </Card>
-                        </div>
                     </div>
                 </div>
-            </Show>
-
-            // ── TAB CONTENT: Payment Rails ──
-            <Show when=move || active_tab.get() == "rails">
-                <Card class="bg-card border-border shadow-sm overflow-hidden animate-fade-in".to_string()>
-                    <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container/30">
-                        <span class="font-bold text-sm">"Platform Payment Gateways Configuration"</span>
-                        <p class="text-[10px] text-on-surface-variant">"Enable or restrict payment integration flows across active transaction rails"</p>
-                    </div>
-                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        // Rail 1: Stripe
-                        <div class="p-4 rounded-xl border border-outline-variant/15 flex justify-between items-center bg-[#05183c]/20 hover:border-outline-variant/35 transition-all">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm">
-                                    "S"
-                                </div>
-                                <div>
-                                    <div class="font-bold text-on-surface text-sm">"Stripe CC & ACH"</div>
-                                    <div class="text-xs text-on-surface-variant">"Global Visa, Mastercard, AMEX, and US Bank Accounts"</div>
-                                    <div class="flex items-center gap-1.5 mt-1.5">
-                                        <Badge intent=BadgeIntent::Success>"Active"</Badge>
-                                        <span class="text-[10px] text-on-surface-variant/60 font-mono">"API Connect: Ok"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Switch id="stripe_rail_toggle".to_string() checked=true />
-                        </div>
-
-                        // Rail 2: Zaprite (Bitcoin)
-                        <div class="p-4 rounded-xl border border-outline-variant/15 flex justify-between items-center bg-[#05183c]/20 hover:border-outline-variant/35 transition-all">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center font-bold text-amber-500 text-sm">
-                                    "₿"
-                                </div>
-                                <div>
-                                    <div class="font-bold text-on-surface text-sm">"Zaprite BTC / Lightning"</div>
-                                    <div class="text-xs text-on-surface-variant">"Direct on-chain Bitcoin transactions and instant micro-payments"</div>
-                                    <div class="flex items-center gap-1.5 mt-1.5">
-                                        <Badge intent=BadgeIntent::Success>"Active"</Badge>
-                                        <span class="text-[10px] text-on-surface-variant/60 font-mono">"Nodes: 2 connected"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Switch id="zaprite_rail_toggle".to_string() checked=true />
-                        </div>
-
-                        // Rail 3: PIX Gateway
-                        <div class="p-4 rounded-xl border border-outline-variant/15 flex justify-between items-center bg-[#05183c]/20 hover:border-outline-variant/35 transition-all">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center font-bold text-emerald-400 text-sm">
-                                    "P"
-                                </div>
-                                <div>
-                                    <div class="font-bold text-on-surface text-sm">"Pix Payment Rails"</div>
-                                    <div class="text-xs text-on-surface-variant">"Instant Central Bank transactions routing in Brazil"</div>
-                                    <div class="flex items-center gap-1.5 mt-1.5">
-                                        <Badge intent=BadgeIntent::Success>"Active"</Badge>
-                                        <span class="text-[10px] text-on-surface-variant/60 font-mono">"API Gateway: Online"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Switch id="pix_rail_toggle".to_string() checked=true />
-                        </div>
-
-                        // Rail 4: Paddle
-                        <div class="p-4 rounded-xl border border-outline-variant/15 flex justify-between items-center bg-[#05183c]/20 hover:border-outline-variant/35 transition-all opacity-80">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center font-bold text-violet-400 text-sm">
-                                    "P"
-                                </div>
-                                <div>
-                                    <div class="font-bold text-on-surface text-sm">"Paddle Merchant of Record"</div>
-                                    <div class="text-xs text-on-surface-variant">"Global tax compliance, invoicing, and local currencies"</div>
-                                    <div class="flex items-center gap-1.5 mt-1.5">
-                                        <Badge intent=BadgeIntent::Primary>"Sandbox"</Badge>
-                                        <span class="text-[10px] text-on-surface-variant/60 font-mono">"Test mode keys active"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <Switch id="paddle_rail_toggle".to_string() checked=false />
-                        </div>
-                    </div>
-                </Card>
-            </Show>
-
-            // ── TAB CONTENT: Commission Plans ──
-            <Show when=move || active_tab.get() == "commissions">
-                <Card class="bg-card border-border shadow-sm overflow-hidden animate-fade-in".to_string()>
-                    <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container/30 flex justify-between items-center">
-                        <div>
-                            <span class="font-bold text-sm">"Platform Revenue Share Plans (G-25)"</span>
-                            <p class="text-[10px] text-on-surface-variant">"Direct split commissions calculated automatically from syndication and STR bookings"</p>
-                        </div>
-                    </div>
-                    <DataTable class="w-full text-xs font-sans">
-                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                            <DataTableRow class="hover:bg-transparent">
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Plan ID"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Name / Tier"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Commission Share"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Volume MTD"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Active Tenants"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
-                            </DataTableRow>
-                        </DataTableHeader>
-                        <DataTableBody class="divide-y divide-border">
-                            <For
-                                each=move || mock_commission_plans.get_value()
-                                key=|plan| plan.id.clone()
-                                children=move |plan| {
-                                    let plan_id = plan.id.clone();
-                                    view! {
-                                        <DataTableRow>
-                                            <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{plan.id.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 font-bold text-on-surface">{plan.name.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono font-bold text-primary">{plan.split_pct.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{plan.volume_mtd.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-center font-semibold font-mono">{plan.active_tenants}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right">
-                                                <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
-                                                    let id = plan_id.clone();
-                                                    move |_| toast.show_toast("Edit Plan", &format!("Editing parameters for commission schema: {}", id), "info")
-                                                }>
-                                                    "Configure"
-                                                </Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }
-                            />
-                        </DataTableBody>
-                    </DataTable>
-                </Card>
+            </div>
             </Show>
 
             // ── TAB CONTENT: Tax & Filings ──
@@ -1109,36 +609,9 @@ pub fn BillingDashboard() -> impl IntoView {
                             </DataTableRow>
                         </DataTableHeader>
                         <DataTableBody class="divide-y divide-border">
-                            <For
-                                each=move || mock_tax_filings.get_value()
-                                key=|filing| filing.period.clone()
-                                children=move |filing| {
-                                    let status_intent = match filing.status.as_str() {
-                                        "Filed" => BadgeIntent::Success,
-                                        "Open" => BadgeIntent::Primary,
-                                        _ => BadgeIntent::Default,
-                                    };
-                                    view! {
-                                        <DataTableRow>
-                                            <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{filing.period.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 font-bold text-on-surface">{filing.jurisdiction.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono font-semibold">{filing.gross_sales.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{filing.tax_collected.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-center">
-                                                <Badge intent=status_intent>{filing.status.clone()}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-3 font-mono font-medium text-on-surface-variant">{filing.filing_deadline.clone()}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right">
-                                                <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click=move |_| {
-                                                    toast.show_toast("Filing Download", "Exporting filing logs manifest to CSV.", "success");
-                                                }>
-                                                    "PDF Ledger"
-                                                </Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }
-                            />
+                            <DataTableRow>
+                                <td class="p-8 text-center text-on-surface-variant/50" colspan="6">"Tax filing data pending — requires G-17 tax_events entity and endpoint (future)"</td>
+                            </DataTableRow>
                         </DataTableBody>
                     </DataTable>
                 </Card>

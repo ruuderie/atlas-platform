@@ -37,19 +37,13 @@ pub fn ProfilesPanel() -> impl IntoView {
         }
     });
 
-    let _profiles_res = LocalResource::new({
+    let profiles_res = LocalResource::new({
         let sid = site_id_str.clone();
         move || {
             let sid = sid.clone();
             async move { crate::api::admin::get_users(uuid::Uuid::parse_str(&sid).ok()).await.unwrap_or_default() }
         }
     });
-
-    let mock_profiles = vec![
-        ("usr_8821", "Alice Admin", "alice@example.com", "Site Admin"),
-        ("usr_3194", "Bob Driver", "bob@example.com", "Contributor"),
-        ("usr_5561", "Charlie Dispatch", "charlie@example.com", "Editor"),
-    ];
 
     let handle_invite = move |_| {
         let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
@@ -133,34 +127,50 @@ pub fn ProfilesPanel() -> impl IntoView {
                         </DataTableRow>
                     </DataTableHeader>
                     <DataTableBody>
-                        {mock_profiles.into_iter().map(|(id, name, email, role)| {
-                            let n = name.to_string();
-                            let n2 = name.to_string();
-                            view! {
-                                <DataTableRow>
-                                    <DataTableCell class="font-medium">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs">
-                                                {n.chars().next().unwrap_or('A')}
-                                            </div>
-                                            <span>{n}</span>
-                                            <span class="text-xs text-muted-foreground ml-2 font-mono">"#" {id}</span>
-                                        </div>
-                                    </DataTableCell>
-                                    <DataTableCell>{email}</DataTableCell>
-                                    <DataTableCell>
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                                            {role}
-                                        </span>
-                                    </DataTableCell>
-                                    <DataTableCell class="text-right">
-                                        <Button variant=ButtonVariant::Ghost class="h-8 px-2" on:click=move |_| set_managing_user_name.set(Some(n2.clone()))>
-                                            "Manage Access"
-                                        </Button>
-                                    </DataTableCell>
-                                </DataTableRow>
+                        <Suspense fallback=move || view! { <tr><td colspan="4" class="p-4 text-center text-muted-foreground">"Loading users..."</td></tr> }>
+                        {move || profiles_res.get().map(|users| {
+                            if users.is_empty() {
+                                view! {
+                                    <tr><td colspan="4" class="p-8 text-center text-muted-foreground text-sm">"No users found for this site."</td></tr>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <For each=move || users.clone() key=|u| u.id.to_string() children=move |u| {
+                                        let display = u.email.split('@').next().unwrap_or("User").to_string();
+                                        let display2 = display.clone();
+                                        let email = u.email.clone();
+                                        let uid = u.id.to_string();
+                                        let uid_short = u.id.to_string().chars().take(8).collect::<String>();
+                                        let status = if u.is_active { "Active" } else { "Inactive" };
+                                        view! {
+                                            <DataTableRow>
+                                                <DataTableCell class="font-medium">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs">
+                                                            {display.chars().next().unwrap_or('U').to_ascii_uppercase()}
+                                                        </div>
+                                                        <span>{display}</span>
+                                                        <span class="text-xs text-muted-foreground ml-2 font-mono">"#" {uid_short}</span>
+                                                    </div>
+                                                </DataTableCell>
+                                                <DataTableCell>{email}</DataTableCell>
+                                                <DataTableCell>
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                                                        {status}
+                                                    </span>
+                                                </DataTableCell>
+                                                <DataTableCell class="text-right">
+                                                    <Button variant=ButtonVariant::Ghost class="h-8 px-2".to_string() on:click=move |_| set_managing_user_name.set(Some(display2.clone()))>
+                                                        "Manage Access"
+                                                    </Button>
+                                                </DataTableCell>
+                                            </DataTableRow>
+                                        }
+                                    }/>
+                                }.into_any()
                             }
-                        }).collect_view()}
+                        })}
+                        </Suspense>
                     </DataTableBody>
                 </DataTable>
             </div>

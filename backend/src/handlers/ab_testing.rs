@@ -179,3 +179,68 @@ pub async fn get_active_test_for_listing_slug(
         Err((StatusCode::NOT_FOUND, "No active test found".into()))
     }
 }
+
+#[derive(serde::Serialize)]
+pub struct AdminAbTestWithVariants {
+    pub id: Uuid,
+    pub listing_id: Uuid,
+    pub status: String,
+    pub traffic_split_strategy: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub variants: Vec<listing_ab_variant::Model>,
+}
+
+pub async fn get_listing_ab_tests_admin(
+    State(db): State<DatabaseConnection>,
+    Path(listing_id): Path<Uuid>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let tests_and_variants = listing_ab_test::Entity::find()
+        .filter(listing_ab_test::Column::ListingId.eq(listing_id))
+        .find_with_related(listing_ab_variant::Entity)
+        .all(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let result: Vec<AdminAbTestWithVariants> = tests_and_variants
+        .into_iter()
+        .map(|(test, variants)| AdminAbTestWithVariants {
+            id: test.id,
+            listing_id: test.listing_id,
+            status: test.status,
+            traffic_split_strategy: test.traffic_split_strategy,
+            created_at: test.created_at,
+            updated_at: test.updated_at,
+            variants,
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+/// `POST /api/admin/ab-tests/{id}/end`
+/// Sets the test status to "Ended" so no new traffic is split.
+pub async fn end_ab_test(
+    State(db): State<DatabaseConnection>,
+    Path(test_id): Path<Uuid>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let test = listing_ab_test::Entity::find_by_id(test_id)
+        .one(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, "A/B test not found".to_string()))?;
+
+    let mut active: listing_ab_test::ActiveModel = test.into();
+    active.status = Set("Ended".to_string());
+    active.updated_at = Set(Utc::now());
+    let updated = active
+        .update(&db)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(json!({
+        "id": updated.id,
+        "status": updated.status,
+        "updated_at": updated.updated_at,
+    })))
+}

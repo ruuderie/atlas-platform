@@ -31,6 +31,11 @@ pub struct NetworkStats {
     profile_count: u64,
     listing_count: u64,
     ad_purchase_count: u64,
+    // Extended fields for admin dashboard registry table
+    plan: Option<String>,
+    mrr_cents: Option<i64>,
+    site_status: String,
+    joined_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -501,12 +506,30 @@ pub async fn get_all_network_stats(
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+        // Fetch subscription info for plan + MRR
+        use crate::entities::atlas_subscription;
+        let sub_opt = atlas_subscription::Entity::find()
+            .filter(atlas_subscription::Column::TenantId.eq(dir.id))
+            .order_by_desc(atlas_subscription::Column::CreatedAt)
+            .one(&db)
+            .await
+            .unwrap_or(None);
+
+        let (plan, mrr_cents) = sub_opt
+            .as_ref()
+            .map(|s| (Some(s.billing_interval.clone()), Some(s.price_cents)))
+            .unwrap_or((None, None));
+
         stats.push(NetworkStats {
             tenant_id: dir.id,
             name: dir.name,
             profile_count,
             listing_count,
             ad_purchase_count,
+            plan,
+            mrr_cents,
+            site_status: dir.site_status.clone(),
+            joined_at: Some(dir.created_at.to_rfc3339()),
         });
     }
 
@@ -549,10 +572,14 @@ pub async fn get_network_stats(
 
     let stats = NetworkStats {
         tenant_id: network.id,
-        name: network.name,
+        name: network.name.clone(),
         profile_count,
         listing_count,
         ad_purchase_count,
+        plan: None,
+        mrr_cents: None,
+        site_status: network.site_status.clone(),
+        joined_at: Some(network.created_at.to_rfc3339()),
     };
 
     Ok(Json(stats))

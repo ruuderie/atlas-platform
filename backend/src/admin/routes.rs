@@ -86,6 +86,7 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 // Listing management
                 .route("/api/admin/listings", get(admin::get_network_listings).post(listings::create_listing))
                 .route("/api/admin/listings/{id}", get(listings::get_listing_by_id).put(listings::update_listing).delete(listings::delete_listing))
+                .route("/api/admin/listings/{id}/ab-tests", get(crate::handlers::ab_testing::get_listing_ab_tests_admin))
 
                 .route("/api/admin/listings/pending", get(admin::list_pending_listings))
                 .route("/api/admin/listings/{listing_id}/approve", post(admin::approve_listing))
@@ -144,10 +145,21 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .merge(crate::admin::app_instance::routes_raw())
                 // Product page variants: bulk-generate, AI localize, waitlist analytics + CSV export
                 .merge(crate::admin::product_variants::routes_raw())
+                // Feature flag registry: global rollout, plan gates, per-NI overrides, audit trail
+                .merge(crate::admin::feature_flags::routes_raw())
+                // Compliance management: G-16 regulatory permits + G-01 PostGIS geo-zones
+                .merge(crate::admin::compliance::routes_raw())
+                // AI Asynchronous Job Queue (G-08)
+                .merge(crate::admin::ai_tasks::routes_raw())
+                // User invitations (Platform Invite System)
+                .merge(crate::admin::users::routes_raw())
+                // Passkeys admin: super-admin can list/revoke all registered passkeys
+                .merge(crate::admin::passkeys_admin::routes_raw())
+                // A/B Test management: end a test (set status -> Ended)
+                .route("/api/admin/ab-tests/{id}/end", axum::routing::post(crate::handlers::ab_testing::end_ab_test))
 
                 //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
                 .with_state(db)
         })
 
 }
-

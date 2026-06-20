@@ -6,16 +6,46 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
+use crate::api::categories::get_categories;
+use crate::api::templates::get_templates;
+use crate::api::listings::get_listings;
 
 #[component]
 pub fn CategoryDetail() -> impl IntoView {
     let params = use_params_map();
-    let cat_id = move || params.with(|p| p.get("id").unwrap_or_default());
-    
-    let cats_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::CategoryModel> });
-    let tpls_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::TemplateModel> });
-    let lsts_res = LocalResource::new(move || async move { vec![] as Vec<crate::api::models::ListingModel> });
-    
+    // Signal::derive gives us a Copy handle we can move into multiple resource closures
+    let cat_id = Signal::derive(move || params.with(|p| p.get("id").unwrap_or_default()));
+
+    // Sub-categories: all categories whose parent_category_id matches this cat
+    let cats_res = LocalResource::new(move || {
+        let id = cat_id.get();
+        async move {
+            get_categories(None).await.unwrap_or_default()
+                .into_iter()
+                .filter(|c| c.parent_category_id.as_deref() == Some(id.as_str()))
+                .collect::<Vec<_>>()
+        }
+    });
+
+    // Templates for this category
+    let tpls_res = LocalResource::new(move || {
+        let id = cat_id.get();
+        async move {
+            get_templates().await.unwrap_or_default()
+                .into_iter()
+                .filter(|t| t.category_id == id)
+                .collect::<Vec<_>>()
+        }
+    });
+
+    // Listings in this category (using cat_id as network_id filter)
+    let lsts_res = LocalResource::new(move || {
+        let id = cat_id.get();
+        async move {
+            get_listings(&id).await.unwrap_or_default()
+        }
+    });
+
     view! {
         <div class="w-full max-w-[1600px] mx-auto space-y-6 pt-8 pb-12 px-6">
             <header class="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-4">

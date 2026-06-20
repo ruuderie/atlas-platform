@@ -11,6 +11,7 @@ spec:
     - uat.atlas.oply.co
     - api.uat.atlas.oply.co
     - network.uat.atlas.oply.co
+    - folio.uat.atlas.oply.co
     secretName: uat-atlas-tls
   - hosts:
     - uat.buildwithruud.com
@@ -78,5 +79,15 @@ spec:
         backend:
           service:
             name: anchor-app
+            port:
+              number: 80
+  - host: folio.uat.atlas.oply.co
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: folio
             port:
               number: 80

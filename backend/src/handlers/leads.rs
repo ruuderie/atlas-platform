@@ -1,10 +1,11 @@
 use axum::{
-    extract::{Extension, Path, Json},
+    extract::{Extension, Path, Json, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
     routing::{get, post, put, delete},
     Router,
 };
+
 
 // ============================================================
 // LEGACY CRM HANDLER - CUTOVER IN PROGRESS
@@ -40,6 +41,31 @@ use once_cell::sync::Lazy;
 use std::sync::Arc;
 
 static RATE_LIMITER: Lazy<Arc<DashMap<String, (u32, Instant)>>> = Lazy::new(|| Arc::new(DashMap::new()));
+
+/// Optional query params accepted by all CRM list endpoints.
+#[derive(serde::Deserialize, Default)]
+pub struct CrmListParams {
+    /// Full-text search across name, email, phone
+    pub search: Option<String>,
+    /// 1-based page number (default: 1)
+    pub page: Option<u64>,
+    /// Records per page (default: 50, max: 200)
+    pub per_page: Option<u64>,
+    /// Status/stage filter (entity-specific)
+    pub stage: Option<String>,
+}
+
+impl CrmListParams {
+    pub fn offset(&self) -> u64 {
+        let page    = self.page.unwrap_or(1).max(1);
+        let per_pg  = self.per_page.unwrap_or(50).min(200).max(1);
+        (page - 1) * per_pg
+    }
+    pub fn limit(&self) -> u64 {
+        self.per_page.unwrap_or(50).min(200).max(1)
+    }
+}
+
 
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
@@ -400,6 +426,7 @@ pub async fn ingest_lead(
 pub async fn get_leads(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
+    Query(params): Query<CrmListParams>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let user_accounts = user_account::Entity::find()
         .filter(user_account::Column::UserId.eq(current_user.id))
@@ -407,7 +434,7 @@ pub async fn get_leads(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-    
+
     let profile = crate::entities::profile::Entity::find()
         .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
         .one(&db)
@@ -416,14 +443,41 @@ pub async fn get_leads(
         .ok_or(StatusCode::FORBIDDEN)?;
     let user_tenant_id = profile.tenant_id;
 
-    let leads = lead::Entity::find()
-        .filter(lead::Column::TenantId.eq(user_tenant_id))
+    let mut query = lead::Entity::find()
+        .filter(lead::Column::TenantId.eq(user_tenant_id));
+
+    // Status/stage filter
+    if let Some(ref stage) = params.stage {
+        if stage != "all" {
+            query = query.filter(lead::Column::LeadStatus.eq(stage.clone()));
+        }
+    }
+
+    let mut leads: Vec<crate::models::lead::LeadModel> = query
         .all(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .into_iter()
+        .map(LeadModel::from)
+        .collect();
 
-    let lead_models: Vec<LeadModel> = leads.into_iter().map(LeadModel::from).collect();
-    Ok(JsonResponse(lead_models))
+    // Search filter (applied after mapping to get access to all string fields)
+    if let Some(ref term) = params.search {
+        let t = term.to_lowercase();
+        leads.retain(|l| {
+            l.name.to_lowercase().contains(&t)
+                || l.email.as_deref().unwrap_or("").to_lowercase().contains(&t)
+                || l.phone.as_deref().unwrap_or("").contains(&t)
+                || l.company.as_deref().unwrap_or("").to_lowercase().contains(&t)
+        });
+    }
+
+    // Pagination (in-memory slice)
+    let offset = params.offset() as usize;
+    let limit  = params.limit()  as usize;
+    let page_slice: Vec<LeadModel> = leads.into_iter().skip(offset).take(limit).collect();
+
+    Ok(JsonResponse(page_slice))
 }
 
 pub async fn get_lead(

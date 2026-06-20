@@ -1,25 +1,29 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_params_map;
 
 #[component]
 pub fn ScorecardSession() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
+    // ── Route params ──────────────────────────────────────────────────────────
+    // Expected: /billing/scorecards/:session_id
+    let params = use_params_map();
+    let session_id = move || params.with(|p| p.get("session_id").unwrap_or_default());
+    let subject_id = move || params.with(|p| p.get("subject_id").unwrap_or_default());
+
     // Wizard step state: 1 to 6
     let current_step = RwSignal::new(1);
-    
+
     // Ratings inputs
-    let cleanliness_score = RwSignal::new(7.5);
-    let communication_score = RwSignal::new(8.8);
-    let _compliance_checked = RwSignal::new(vec![true, true, false]); // baño, cocina, etc.
-    let financial_score = RwSignal::new(9.2);
-    let _financial_checked = RwSignal::new(vec![true]);
-    let evaluator_notes = RwSignal::new("Maria Silva has demonstrated excellent property cleanliness scores across Chicago STR units. Response times are well within acceptable limits. Background checks verified.".to_string());
-    
-    // Checklist inputs
-    let _clean_check_1 = RwSignal::new(true);
-    let _clean_check_2 = RwSignal::new(false);
-    let conf_tier = RwSignal::new("Verified".to_string());
-    let response_threshold = RwSignal::new("Under 15 minutes".to_string());
+    let cleanliness_score  = RwSignal::new(5.0_f64);
+    let communication_score = RwSignal::new(5.0_f64);
+    let financial_score    = RwSignal::new(5.0_f64);
+    let evaluator_notes    = RwSignal::new(String::new());
+
+    // Checklist inputs (mutable — user drives them)
+    let conf_tier           = RwSignal::new("Verified".to_string());
+    let response_threshold  = RwSignal::new("Under 15 minutes".to_string());
+
 
     let move_step = move |dir: i32| {
         let next = current_step.get() + dir;
@@ -57,8 +61,18 @@ pub fn ScorecardSession() -> impl IntoView {
 
             // ── Session Header ──
             <div class="bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
-                <h1 class="text-xl font-extrabold tracking-tight text-on-surface">"Lead Rating Session · Maria Silva"</h1>
-                <p class="text-xs text-on-surface-variant mt-1">"Rater: Jamie Delaney · Scorecard: sc_maria_001 · Target: G-31 atlas_lead"</p>
+                <h1 class="text-xl font-extrabold tracking-tight text-on-surface">
+                    "Lead Rating Session · "
+                    {move || {
+                        let sid = subject_id();
+                        if sid.is_empty() { "Unknown Subject".to_string() } else { sid }
+                    }}
+                </h1>
+                <p class="text-xs text-on-surface-variant mt-1">
+                    "Session ID: "
+                    <code class="text-primary">{move || { let s = session_id(); if s.is_empty() { "(new)".to_string() } else { s } }}</code>
+                    " · Target: G-31 atlas_lead"
+                </p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">

@@ -144,6 +144,8 @@ steps:
       - cd apps && cargo check -p atlas_network_instance --features ssr -j $(nproc)
       # Check platform-admin (CSR only, no SSR feature)
       - cd apps && cargo check -p atlas_platform_admin -j $(nproc)
+      # Check folio (SSR feature)
+      - cd apps && cargo check -p folio --features ssr -j $(nproc)
       # Check shared-ui to catch any import/API surface regressions
       - cd apps && cargo check -p shared-ui --features ssr -j $(nproc)
       - |
@@ -407,6 +409,59 @@ steps:
     when:
       branch: uat
 
+  publish_folio_dev:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/folio
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/folio/Dockerfile
+      build_args:
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: dev
+      path:
+        - 'apps/folio/**'
+        - '.woodpecker.yml'
+
+  publish_folio_uat:
+    image: woodpeckerci/plugin-docker-buildx
+    privileged: true
+    settings:
+      mirror: https://mirror.gcr.io
+      repo: ghcr.io/ruuderie/folio
+      tags:
+        - latest
+        - ${CI_COMMIT_SHA:0:8}
+      registry: ghcr.io
+      context: .
+      dockerfile: apps/folio/Dockerfile
+      build_args:
+        ATLAS_BUILD_SHA: ${CI_COMMIT_SHA}
+        ATLAS_BUILD_DATE: ${CI_PIPELINE_CREATED}
+        BUILD_PROFILE: release
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+    when:
+      branch: uat
+      path:
+        - 'apps/folio/**'
+        - '.woodpecker.yml'
+
+
   # ── Deployment Markers ──────────────────────────────────────────────────────
   # We use these markers because Woodpecker's CI_PIPELINE_FILES variable is often
   # empty on large pushes, causing the deployment script to silently skip updates.
@@ -437,6 +492,13 @@ steps:
     when:
       branch: [dev, uat]
       path: [ "apps/platform-admin/**", "apps/shared-ui/**", ".woodpecker.yml" ]
+
+  mark_folio_built:
+    image: alpine
+    commands: [ "touch .folio_built" ]
+    when:
+      branch: [dev, uat]
+      path: [ "apps/folio/**", ".woodpecker.yml" ]
 
   mark_sidecar_built:
     image: alpine
@@ -619,7 +681,7 @@ steps:
           echo "==> $DEPLOY is live on $SHORT_SHA ✓"
         }
 
-        if [ ! -f .backend_built ] && [ ! -f .anchor_built ] && [ ! -f .network_built ] && [ ! -f .admin_built ]; then
+        if [ ! -f .backend_built ] && [ ! -f .anchor_built ] && [ ! -f .network_built ] && [ ! -f .admin_built ] && [ ! -f .folio_built ]; then
           echo "ℹ No app build markers found — config and secrets applied, image rollouts skipped."
           echo "  (If you expected an image update, check the 'when: path' rules on the mark_*_built steps)"
         else
@@ -637,6 +699,10 @@ steps:
 
           if [ -f .admin_built ]; then
             update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
+          fi
+
+          if [ -f .folio_built ]; then
+            update_service folio "$REGISTRY/folio:$SHORT_SHA"
           fi
 
           if [ -f .sidecar_built ]; then

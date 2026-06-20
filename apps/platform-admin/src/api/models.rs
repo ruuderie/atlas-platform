@@ -136,8 +136,18 @@ pub struct LeadModel {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub email: Option<String>,
-    pub status: Option<String>, // Status is often customized in lead models or mapped to is_converted natively
+    pub phone: Option<String>,
+    pub whatsapp: Option<String>,
+    pub telegram: Option<String>,
+    pub company: Option<String>,
+    pub title: Option<String>,
+    pub source: Option<String>,
+    /// Backend sends `lead_status`; maps to pipeline stage (New, Contacted, Qualified, etc.)
+    pub lead_status: Option<String>,
     pub is_converted: bool,
+    pub avatar_url: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
 }
 
 // ==== LISTINGS ====
@@ -534,5 +544,212 @@ pub struct VerificationRequestModel {
     pub created_at: String,
     pub document_count: u32,
     pub rejection_reason: Option<String>,
+}
+
+
+// ==== TENANT / PLATFORM ADMIN REGISTRY ====
+
+/// Returned by `GET /api/admin/tenant-stats` (one row per tenant).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TenantStatModel {
+    pub tenant_id: String,
+    pub name: String,
+    pub profile_count: u64,
+    pub listing_count: u64,
+    pub ad_purchase_count: u64,
+    // Extended fields (populated after Tier 3 backend work)
+    pub plan: Option<String>,
+    pub mrr_cents: Option<i64>,
+    pub site_status: Option<String>,
+    pub joined_at: Option<String>,
+}
+
+/// Returned by `GET /api/admin/platform/apps` (one row per app instance).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlatformAppSummary {
+    pub tenant_id: String,
+    pub instance_id: String,
+    pub name: String,
+    pub app_type: String,
+    pub domain: String,
+    pub site_status: String,
+    pub description: String,
+}
+
+// ==== BILLING ====
+
+/// Matches `backend/src/entities/transaction::Model`
+/// Returned by `GET /api/admin/billing/transactions`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TransactionModel {
+    pub id: String,
+    pub tenant_id: String,
+    pub provider: String,
+    pub amount: i64,
+    pub currency: String,
+    pub provider_tx_id: Option<String>,
+    pub status: String,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/entities/billing_plan::Model`
+/// Returned by `GET /api/admin/billing/plans`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BillingPlanModel {
+    pub id: String,
+    pub name: String,
+    pub price: i64,
+    pub currency: String,
+    pub interval: String,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/entities/atlas_subscription::Model`
+/// Returned by `GET /api/admin/billing/subscriptions` (future) or derived from tenant-stats
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AtlasSubscriptionModel {
+    pub id: String,
+    pub tenant_id: String,
+    pub billing_interval: String,
+    pub price_cents: i64,
+    pub currency: String,
+    pub status: String,
+    pub stripe_subscription_id: Option<String>,
+    pub trial_ends_at: Option<String>,
+    pub current_period_end: Option<String>,
+    pub is_billing_exempt: bool,
+}
+
+// ==== SUPPORT CASES ====
+
+/// Matches `backend/src/models/note::NoteModel`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct NoteModel {
+    pub id: String,
+    pub content: String,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/models/activity::ActivityModel`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ActivityModel {
+    pub id: String,
+    pub activity_type: Option<String>,
+    pub description: Option<String>,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/models/case::CaseModel`
+/// Returned by `GET /api/admin/cases` and `GET /api/admin/cases/{id}`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CaseModel {
+    pub id: String,
+    pub customer_id: String,
+    pub title: String,
+    pub description: String,
+    pub status: String,
+    pub priority: String,
+    pub assigned_to: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub closed_at: Option<String>,
+    pub notes: Vec<NoteModel>,
+    pub activities: Vec<ActivityModel>,
+}
+
+// ==== FEATURE FLAGS ====
+
+/// Matches `backend/src/admin/feature_flags::FlagOverrideModel`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FlagOverrideModel {
+    pub id: String,
+    pub flag_id: String,
+    pub tenant_id: String,
+    pub override_type: String,
+    pub rollout_pct: i32,
+    pub reason: String,
+    pub jira: Option<String>,
+    pub changed_by: String,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/admin/feature_flags::FlagAuditLogModel`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FlagAuditLogModel {
+    pub id: String,
+    pub flag_id: String,
+    pub user_id: String,
+    pub action: String,
+    pub created_at: Option<String>,
+}
+
+/// Matches `backend/src/admin/feature_flags::FeatureFlagModel`
+/// Returned by `GET /api/admin/flags`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FeatureFlagModel {
+    pub id: String,
+    pub key: String,
+    pub description: String,
+    pub is_enabled: bool,
+    pub has_global: bool,
+    pub global_rollout_pct: i32,
+    pub is_plan_gated: bool,
+    pub plan_gate_tier: Option<String>,
+    pub jira: Option<String>,
+    pub owner: String,
+    pub created_at: Option<String>,
+    pub overrides: Vec<FlagOverrideModel>,
+    pub audit_logs: Vec<FlagAuditLogModel>,
+}
+
+/// Input for `POST /api/admin/flags`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CreateFlagInput {
+    pub key: String,
+    pub description: String,
+    pub has_global: Option<bool>,
+    pub global_rollout_pct: Option<i32>,
+    pub jira: Option<String>,
+}
+
+/// Input for `PUT /api/admin/flags/{key}`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UpdateFlagInput {
+    pub is_enabled: Option<bool>,
+    pub global_rollout_pct: Option<i32>,
+    pub description: Option<String>,
+}
+
+/// Input for `POST /api/admin/flags/{key}/overrides`
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CreateFlagOverrideInput {
+    pub tenant_id: String,
+    pub override_type: String,
+    pub rollout_pct: Option<i32>,
+    pub reason: String,
+    pub jira: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AbVariantModel {
+    pub id: Uuid,
+    pub test_id: Uuid,
+    pub name: String,
+    pub is_control: bool,
+    pub views: i32,
+    pub conversions: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct AdminAbTestWithVariantsModel {
+    pub id: Uuid,
+    pub listing_id: Uuid,
+    pub status: String,
+    pub traffic_split_strategy: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub variants: Vec<AbVariantModel>,
 }
 

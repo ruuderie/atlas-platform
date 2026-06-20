@@ -1,197 +1,131 @@
 use leptos::prelude::*;
-use serde::{Serialize, Deserialize};
+use leptos::task::spawn_local;
 use shared_ui::components::ui::switch::Switch;
+use crate::api::models::{FeatureFlagModel, FlagOverrideModel, FlagAuditLogModel};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MockOverride {
-    pub tenant_slug: String,
-    pub tenant_plan: String,
-    pub override_type: String, // "grant" or "deny"
-    pub rollout_pct: i32,
-    pub reason: String,
-    pub jira: String,
-    pub changed_by: String,
-    pub changed_at: String,
-}
+// ── UI-only wrappers ─────────────────────────────────────────────────────────
+// FlagState adds the reactive UI signals needed by the view (expand toggle,
+// active tab, local copies of server state) to a real FeatureFlagModel.
+// These are reset/re-derived whenever the server resource refetches.
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MockAuditLog {
-    pub date: String,
-    pub user: String,
-    pub action: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MockFlag {
+#[derive(Clone)]
+pub struct FlagState {
     pub key: String,
     pub description: String,
     pub is_enabled: RwSignal<bool>,
     pub has_global: bool,
     pub global_rollout: RwSignal<i32>,
     pub is_plan_gated: bool,
-    pub plan_gate_tier: String, // "Enterprise", "Growth", "Starter"
-    pub overrides: RwSignal<Vec<MockOverride>>,
-    pub audit_logs: RwSignal<Vec<MockAuditLog>>,
+    pub plan_gate_tier: String,
+    pub overrides: RwSignal<Vec<FlagOverrideModel>>,
+    pub audit_logs: RwSignal<Vec<FlagAuditLogModel>>,
     pub jira: String,
     pub owner: String,
     pub date_created: String,
     pub expanded: RwSignal<bool>,
-    pub active_tab: RwSignal<String>, // "variants", "overrides", "audit"
+    pub active_tab: RwSignal<String>,
 }
 
+impl FlagState {
+    fn from_model(m: &FeatureFlagModel) -> Self {
+        FlagState {
+            key: m.key.clone(),
+            description: m.description.clone(),
+            is_enabled: RwSignal::new(m.is_enabled),
+            has_global: m.has_global,
+            global_rollout: RwSignal::new(m.global_rollout_pct),
+            is_plan_gated: m.is_plan_gated,
+            plan_gate_tier: m.plan_gate_tier.clone().unwrap_or_default(),
+            overrides: RwSignal::new(m.overrides.clone()),
+            audit_logs: RwSignal::new(m.audit_logs.clone()),
+            jira: m.jira.clone().unwrap_or_default(),
+            owner: m.owner.clone(),
+            date_created: m.created_at.as_deref().map(|s| s.chars().take(10).collect()).unwrap_or_default(),
+            expanded: RwSignal::new(false),
+            active_tab: RwSignal::new("variants".to_string()),
+        }
+    }
+}
+
+// ── Tenant-search ────────────────────────────────────────────────────────────
+// Populated from GET /api/admin/tenant-stats. Colors are derived deterministically
+// from the tenant name so they remain stable without a backend color field.
 #[derive(Clone, Debug, PartialEq)]
-pub struct MockTenant {
+pub struct TenantOption {
+    pub id: String,
     pub slug: String,
     pub name: String,
     pub plan: String,
     pub icon_char: char,
-    pub bg_class: &'static str,
-    pub text_class: &'static str,
+    pub bg_class: String,
+    pub text_class: String,
+}
+
+impl TenantOption {
+    /// Derive a stable color pair from the tenant name's first character.
+    fn color_from_name(name: &str) -> (String, String) {
+        let palettes = [
+            ("bg-blue-500/10 border-blue-500/30",    "text-blue-400"),
+            ("bg-amber-500/10 border-amber-500/30",  "text-amber-400"),
+            ("bg-emerald-500/10 border-emerald-500/30", "text-emerald-400"),
+            ("bg-violet-500/10 border-violet-500/30", "text-violet-400"),
+            ("bg-rose-500/10 border-rose-500/30",    "text-rose-400"),
+            ("bg-cyan-500/10 border-cyan-500/30",    "text-cyan-400"),
+            ("bg-slate-500/10 border-slate-500/30",  "text-slate-400"),
+        ];
+        let idx = name.chars().next().map(|c| c as usize).unwrap_or(0) % palettes.len();
+        (palettes[idx].0.to_string(), palettes[idx].1.to_string())
+    }
+
+    fn from_stat(stat: &crate::api::models::TenantStatModel) -> Self {
+        let (bg_class, text_class) = Self::color_from_name(&stat.name);
+        let icon_char = stat.name.chars().next().unwrap_or('?');
+        Self {
+            id: stat.tenant_id.clone(),
+            slug: stat.tenant_id.clone(), // slug not yet in TenantStatModel; use id as unique key
+            name: stat.name.clone(),
+            plan: stat.plan.clone().unwrap_or_else(|| "—".to_string()),
+            icon_char,
+            bg_class,
+            text_class,
+        }
+    }
 }
 
 #[component]
 pub fn FeatureFlags() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    // Static Tenant Autocomplete Options
-    let mock_tenants_vec = vec![
-        MockTenant { slug: "nexus-property-group".to_string(), name: "Nexus Property Group".to_string(), plan: "Enterprise".to_string(), icon_char: 'N', bg_class: "bg-blue-500/10 border-blue-500/30", text_class: "text-blue-400" },
-        MockTenant { slug: "miami-stays".to_string(), name: "Miami Stays STR".to_string(), plan: "Growth".to_string(), icon_char: 'M', bg_class: "bg-amber-500/10 border-amber-500/30", text_class: "text-amber-400" },
-        MockTenant { slug: "leira-chicago".to_string(), name: "Leira Chicago PM".to_string(), plan: "Starter".to_string(), icon_char: 'L', bg_class: "bg-slate-500/10 border-slate-500/30", text_class: "text-slate-400" },
-        MockTenant { slug: "nexus-brasil".to_string(), name: "Nexus Brasil".to_string(), plan: "Enterprise".to_string(), icon_char: 'B', bg_class: "bg-emerald-500/10 border-emerald-500/30", text_class: "text-emerald-400" },
-        MockTenant { slug: "ruud-commercial".to_string(), name: "Ruud Commercial".to_string(), plan: "Growth".to_string(), icon_char: 'R', bg_class: "bg-violet-500/10 border-violet-500/30", text_class: "text-violet-400" },
-    ];
-    let mock_tenants = StoredValue::new(mock_tenants_vec);
+    // ── Server resource ───────────────────────────────────────────────────────
+    let flags_resource = LocalResource::new(|| async move {
+        crate::api::admin::get_admin_flags().await
+    });
 
-    // Master list of Flags
-    let flags = RwSignal::new(vec![
-        MockFlag {
-            key: "ota_sync_v2".to_string(),
-            description: "OTA sync v2 engine — Airbnb & VRBO availability propagation at 10-min cadence. Replaces legacy polling.".to_string(),
-            is_enabled: RwSignal::new(true),
-            has_global: true,
-            global_rollout: RwSignal::new(100),
-            is_plan_gated: false,
-            plan_gate_tier: "".to_string(),
-            overrides: RwSignal::new(vec![]),
-            audit_logs: RwSignal::new(vec![
-                MockAuditLog { date: "Jun 8".to_string(), user: "priya.s".to_string(), action: "Global rollout 50% → 100% · ATLAS-2841".to_string() },
-                MockAuditLog { date: "Apr 14".to_string(), user: "dan.h".to_string(), action: "Flag created at 0% · ATLAS-2841".to_string() },
-            ]),
-            jira: "ATLAS-2841".to_string(),
-            owner: "priya.s".to_string(),
-            date_created: "Apr 14".to_string(),
-            expanded: RwSignal::new(false),
-            active_tab: RwSignal::new("variants".to_string()),
-        },
-        MockFlag {
-            key: "ledger_v3_engine".to_string(),
-            description: "Ledger v3 — multi-currency split engine with BTC, Lightning, Pix, Stripe. Target 100% by Jun 30.".to_string(),
-            is_enabled: RwSignal::new(true),
-            has_global: true,
-            global_rollout: RwSignal::new(80),
-            is_plan_gated: false,
-            plan_gate_tier: "".to_string(),
-            overrides: RwSignal::new(vec![
-                MockOverride {
-                    tenant_slug: "nexus-brasil".to_string(),
-                    tenant_plan: "Enterprise".to_string(),
-                    override_type: "grant".to_string(),
-                    rollout_pct: 100,
-                    reason: "Pilot per AM request".to_string(),
-                    jira: "ATLAS-3050".to_string(),
-                    changed_by: "dan.h".to_string(),
-                    changed_at: "Jun 5".to_string(),
-                },
-                MockOverride {
-                    tenant_slug: "leira-chicago".to_string(),
-                    tenant_plan: "Starter".to_string(),
-                    override_type: "deny".to_string(),
-                    rollout_pct: 0,
-                    reason: "Compliance hold pending legal review".to_string(),
-                    jira: "ATLAS-3190".to_string(),
-                    changed_by: "alex.r".to_string(),
-                    changed_at: "Jun 11".to_string(),
-                },
-            ]),
-            audit_logs: RwSignal::new(vec![
-                MockAuditLog { date: "Jun 11".to_string(), user: "alex.r".to_string(), action: "NI Deny added: leira-chicago · ATLAS-3190".to_string() },
-                MockAuditLog { date: "Jun 10".to_string(), user: "priya.s".to_string(), action: "Global 60% → 80% · target 100% Jun 30".to_string() },
-                MockAuditLog { date: "Jun 5".to_string(), user: "dan.h".to_string(), action: "NI Grant added: nexus-brasil · 100%".to_string() },
-                MockAuditLog { date: "May 1".to_string(), user: "priya.s".to_string(), action: "Flag created at 0% · ATLAS-3050".to_string() },
-            ]),
-            jira: "ATLAS-3050".to_string(),
-            owner: "priya.s".to_string(),
-            date_created: "May 1".to_string(),
-            expanded: RwSignal::new(true),
-            active_tab: RwSignal::new("variants".to_string()),
-        },
-        MockFlag {
-            key: "mls_import".to_string(),
-            description: "MLS data import for brokerage listings. Plan-gated to Enterprise tier. Starter and Growth see upgrade CTA.".to_string(),
-            is_enabled: RwSignal::new(true),
-            has_global: true,
-            global_rollout: RwSignal::new(100),
-            is_plan_gated: true,
-            plan_gate_tier: "Enterprise".to_string(),
-            overrides: RwSignal::new(vec![]),
-            audit_logs: RwSignal::new(vec![
-                MockAuditLog { date: "May 28".to_string(), user: "alex.r".to_string(), action: "Plan gate set to Enterprise · ATLAS-3012".to_string() },
-            ]),
-            jira: "ATLAS-3012".to_string(),
-            owner: "alex.r".to_string(),
-            date_created: "May 28".to_string(),
-            expanded: RwSignal::new(false),
-            active_tab: RwSignal::new("variants".to_string()),
-        },
-        MockFlag {
-            key: "btc_payment_pilot".to_string(),
-            description: "Bitcoin & Lightning STR booking payments. No global or plan rollout — NI override only.".to_string(),
-            is_enabled: RwSignal::new(true),
-            has_global: false,
-            global_rollout: RwSignal::new(0),
-            is_plan_gated: false,
-            plan_gate_tier: "".to_string(),
-            overrides: RwSignal::new(vec![
-                MockOverride {
-                    tenant_slug: "miami-stays".to_string(),
-                    tenant_plan: "Growth".to_string(),
-                    override_type: "grant".to_string(),
-                    rollout_pct: 100,
-                    reason: "Pilot per AM request".to_string(),
-                    jira: "ATLAS-3101".to_string(),
-                    changed_by: "alex.r".to_string(),
-                    changed_at: "Jun 1".to_string(),
-                },
-            ]),
-            audit_logs: RwSignal::new(vec![
-                MockAuditLog { date: "Jun 1".to_string(), user: "alex.r".to_string(), action: "NI Grant added: miami-stays · 100% · ATLAS-3101".to_string() },
-            ]),
-            jira: "ATLAS-3101".to_string(),
-            owner: "alex.r".to_string(),
-            date_created: "Jun 1".to_string(),
-            expanded: RwSignal::new(false),
-            active_tab: RwSignal::new("variants".to_string()),
-        },
-        MockFlag {
-            key: "g31_referral_engine".to_string(),
-            description: "G-31 tenant-to-tenant lead referral network. Dark launched — awaiting legal sign-off.".to_string(),
-            is_enabled: RwSignal::new(false),
-            has_global: true,
-            global_rollout: RwSignal::new(0),
-            is_plan_gated: false,
-            plan_gate_tier: "".to_string(),
-            overrides: RwSignal::new(vec![]),
-            audit_logs: RwSignal::new(vec![
-                MockAuditLog { date: "Jun 9".to_string(), user: "dan.h".to_string(), action: "Flag created at 0% · dark launch · ATLAS-3200".to_string() },
-            ]),
-            jira: "ATLAS-3200".to_string(),
-            owner: "dan.h".to_string(),
-            date_created: "Jun 9".to_string(),
-            expanded: RwSignal::new(false),
-            active_tab: RwSignal::new("variants".to_string()),
-        },
-    ]);
+    // Derive stable FlagState list from server data.
+    // We re-derive on every refetch so UI signals reflect current server values.
+    let flags = Signal::derive(move || {
+        flags_resource
+            .get()
+            .and_then(|r| r.ok())
+            .map(|models| models.iter().map(FlagState::from_model).collect::<Vec<_>>())
+            .unwrap_or_default()
+    });
+
+    // Live tenant list from the API — used by the NI override autocomplete.
+    let tenants_resource = LocalResource::new(|| async move {
+        crate::api::admin::get_tenant_stats().await
+    });
+
+    // Derive TenantOption list from server data so the autocomplete always
+    // reflects the real tenant registry instead of a hardcoded stub.
+    let tenant_options = Signal::derive(move || {
+        tenants_resource
+            .get()
+            .and_then(|r| r.ok())
+            .map(|stats| stats.iter().map(TenantOption::from_stat).collect::<Vec<_>>())
+            .unwrap_or_default()
+    });
+
 
     // Filtering & Searching UI State
     let search_query = RwSignal::new(String::new());
@@ -200,10 +134,10 @@ pub fn FeatureFlags() -> impl IntoView {
     // Side Drawer / Panel state for adding override
     let active_override_flag_key = RwSignal::new(None::<String>);
     let show_override_panel = RwSignal::new(false);
-    
+
     // Forms state for NI override
     let override_tenant_input = RwSignal::new(String::new());
-    let selected_tenant = RwSignal::new(None::<MockTenant>);
+    let selected_tenant = RwSignal::new(None::<TenantOption>);
     let override_type = RwSignal::new("grant".to_string());
     let override_rollout_pct = RwSignal::new(100);
     let override_reason = RwSignal::new(String::new());
@@ -220,33 +154,33 @@ pub fn FeatureFlags() -> impl IntoView {
     let new_flag_has_global = RwSignal::new(true);
 
     // Edit Rollout Percentage inline dialog
-    let show_rollout_modal = RwSignal::new(None::<(String, String, i32)>); // (flag_key, scope_name, current_val)
+    let show_rollout_modal = RwSignal::new(None::<(String, String, i32)>);
     let temp_rollout_val = RwSignal::new(100);
 
     // Filtered flag list Memo
     let filtered_flags = Signal::derive(move || {
         let query = search_query.get().to_lowercase();
         let scope = filter_scope.get();
-        
+
         flags.get().into_iter().filter(|f| {
             // Text Search Match
-            let matches_query = query.is_empty() 
+            let matches_query = query.is_empty()
                 || f.key.to_lowercase().contains(&query)
                 || f.description.to_lowercase().contains(&query)
                 || f.jira.to_lowercase().contains(&query)
-                || f.overrides.get().iter().any(|o| o.tenant_slug.to_lowercase().contains(&query));
-            
+                || f.overrides.get().iter().any(|o| o.tenant_id.to_lowercase().contains(&query));
+
             // Scope Filter Match
             let matches_scope = match scope.as_str() {
                 "global" => f.has_global,
-                "plan" => f.is_plan_gated,
-                "ni" => !f.overrides.get().is_empty(),
-                "off" => !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0),
-                _ => true,
+                "plan"   => f.is_plan_gated,
+                "ni"     => !f.overrides.get().is_empty(),
+                "off"    => !f.is_enabled.get() || (f.has_global && f.global_rollout.get() == 0),
+                _        => true,
             };
-            
+
             matches_query && matches_scope
-        }).collect::<Vec<MockFlag>>()
+        }).collect::<Vec<FlagState>>()
     });
 
     // Handle Open Assign Override Drawer
@@ -268,15 +202,15 @@ pub fn FeatureFlags() -> impl IntoView {
         active_override_flag_key.set(None);
     };
 
-    // Save Override
+    // Save Override — calls real API
     let handle_save_override = move |_| {
         let fkey_opt = active_override_flag_key.get();
         let tenant_opt = selected_tenant.get();
         let reason = override_reason.get();
-        
+
         if fkey_opt.is_none() { return; }
         let fkey = fkey_opt.unwrap();
-        
+
         if tenant_opt.is_none() {
             toast.show_toast("Error", "A valid tenant selection is required.", "error");
             return;
@@ -288,81 +222,66 @@ pub fn FeatureFlags() -> impl IntoView {
             return;
         }
 
-        let new_ovr = MockOverride {
-            tenant_slug: tenant.slug.clone(),
-            tenant_plan: tenant.plan.clone(),
-            override_type: override_type.get(),
-            rollout_pct: if override_type.get() == "deny" { 0 } else { override_rollout_pct.get() },
+        let ovr_type = override_type.get();
+        let rollout = if ovr_type == "deny" { 0 } else { override_rollout_pct.get() };
+        let jira_val = if override_jira.get().trim().is_empty() { None } else { Some(override_jira.get()) };
+
+        let input = crate::api::models::CreateFlagOverrideInput {
+            tenant_id: tenant.id.clone(),
+            override_type: ovr_type.clone(),
+            rollout_pct: Some(rollout),
             reason: reason.clone(),
-            jira: if override_jira.get().trim().is_empty() { "None".to_string() } else { override_jira.get() },
-            changed_by: "alex.r".to_string(),
-            changed_at: "Just now".to_string(),
+            jira: jira_val,
         };
 
-        if let Some(f) = flags.get().iter().find(|flg| flg.key == fkey) {
-            // Add to list
-            f.overrides.update(|list| {
-                list.retain(|o| o.tenant_slug != tenant.slug); // Avoid duplicates
-                list.push(new_ovr.clone());
-            });
-
-            // Write to audit log
-            let action_desc = format!(
-                "NI {} added: {} (Reason: {})",
-                if new_ovr.override_type == "deny" { "Deny" } else { "Grant" },
-                new_ovr.tenant_slug,
-                new_ovr.reason
-            );
-            f.audit_logs.update(|logs| {
-                logs.insert(0, MockAuditLog {
-                    date: "Just now".to_string(),
-                    user: "alex.r".to_string(),
-                    action: action_desc,
-                });
-            });
-            
-            toast.show_toast("Success", &format!("Tenant override saved for {}.", tenant.slug), "success");
-        }
-
-        close_override_drawer();
+        let fk2 = fkey.clone();
+        let tenant_slug = tenant.slug.clone();
+        let resource = flags_resource.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::add_flag_override(fk2, input).await {
+                Ok(_) => {
+                    resource.refetch();
+                    close_override_drawer();
+                    toast.show_toast("Success", &format!("Tenant override saved for {}.", tenant_slug), "success");
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
+        });
     };
 
-    // Remove Override
-    let handle_remove_override = move |flag_key: String, tenant_slug: String| {
-        if let Some(f) = flags.get().iter().find(|flg| flg.key == flag_key) {
-            f.overrides.update(|list| {
-                list.retain(|o| o.tenant_slug != tenant_slug);
-            });
-            
-            f.audit_logs.update(|logs| {
-                logs.insert(0, MockAuditLog {
-                    date: "Just now".to_string(),
-                    user: "alex.r".to_string(),
-                    action: format!("NI Override removed: {}", tenant_slug),
-                });
-            });
-
-            toast.show_toast("Warning", &format!("Override removed for {}.", tenant_slug), "warn");
-        }
+    // Remove Override — calls real API
+    let handle_remove_override = move |flag_key: String, tenant_id: String| {
+        let resource = flags_resource.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::remove_flag_override(flag_key, tenant_id.clone()).await {
+                Ok(_) => {
+                    resource.refetch();
+                    toast.show_toast("Warning", &format!("Override removed for {}.", tenant_id), "warn");
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
+        });
     };
 
-    // Handle Global Enable/Disable Toggle
+    // Handle Global Enable/Disable Toggle — calls real API
     let handle_global_toggle = move |flag_key: String, checked: bool| {
-        if let Some(f) = flags.get().iter().find(|flg| flg.key == flag_key) {
-            f.is_enabled.set(checked);
-            let action_desc = format!("Global kill-switch toggled to {}", if checked { "ON" } else { "OFF" });
-            f.audit_logs.update(|logs| {
-                logs.insert(0, MockAuditLog {
-                    date: "Just now".to_string(),
-                    user: "alex.r".to_string(),
-                    action: action_desc,
-                });
-            });
-            toast.show_toast("Info", &format!("Global switch updated for {}.", flag_key), "info");
-        }
+        let resource = flags_resource.clone();
+        leptos::task::spawn_local(async move {
+            let input = crate::api::models::UpdateFlagInput {
+                is_enabled: Some(checked),
+                ..Default::default()
+            };
+            match crate::api::admin::update_flag(flag_key.clone(), input).await {
+                Ok(_) => {
+                    resource.refetch();
+                    toast.show_toast("Info", &format!("Global switch updated for {}.", flag_key), "info");
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
+        });
     };
 
-    // New flag submit handler
+    // New flag submit handler — calls real API
     let handle_create_flag = move |_| {
         let key = new_flag_key.get();
         let desc = new_flag_desc.get();
@@ -373,59 +292,54 @@ pub fn FeatureFlags() -> impl IntoView {
             return;
         }
 
-        let key_normalized = key.trim().to_lowercase().replace(" ", "_");
-        let duplicate_exists = flags.get().iter().any(|f| f.key == key_normalized);
-        if duplicate_exists {
-            toast.show_toast("Error", "A flag with this key already exists.", "error");
-            return;
-        }
+        let jira_opt = if jira.trim().is_empty() { None } else { Some(jira.trim().to_uppercase()) };
+        let input = crate::api::models::CreateFlagInput {
+            key: key.trim().to_lowercase().replace(' ', "_"),
+            description: desc,
+            has_global: Some(new_flag_has_global.get()),
+            global_rollout_pct: Some(if new_flag_has_global.get() { 100 } else { 0 }),
+            jira: jira_opt,
+        };
 
-        flags.update(|list| {
-            list.insert(0, MockFlag {
-                key: key_normalized.clone(),
-                description: desc,
-                is_enabled: RwSignal::new(true),
-                has_global: new_flag_has_global.get(),
-                global_rollout: RwSignal::new(if new_flag_has_global.get() { 100 } else { 0 }),
-                is_plan_gated: false,
-                plan_gate_tier: "".to_string(),
-                overrides: RwSignal::new(vec![]),
-                audit_logs: RwSignal::new(vec![
-                    MockAuditLog { date: "Just now".to_string(), user: "alex.r".to_string(), action: "Flag created at 100% rollout.".to_string() }
-                ]),
-                jira: if jira.trim().is_empty() { "None".to_string() } else { jira.trim().to_uppercase() },
-                owner: "alex.r".to_string(),
-                date_created: "Jun 2026".to_string(),
-                expanded: RwSignal::new(true),
-                active_tab: RwSignal::new("variants".to_string()),
-            });
+        let resource = flags_resource.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::create_flag(input.clone()).await {
+                Ok(_) => {
+                    resource.refetch();
+                    show_new_flag_modal.set(false);
+                    new_flag_key.set(String::new());
+                    new_flag_desc.set(String::new());
+                    new_flag_jira.set(String::new());
+                    toast.show_toast("Success", &format!("Feature flag {} created.", input.key), "success");
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
         });
-
-        show_new_flag_modal.set(false);
-        toast.show_toast("Success", &format!("Feature flag {} created.", key_normalized), "success");
     };
 
-    // Rollout save handler
+    // Rollout save handler — calls real API
     let handle_save_rollout = move |_| {
         if let Some((flag_key, _scope, _)) = show_rollout_modal.get() {
-            if let Some(f) = flags.get().iter().find(|flg| flg.key == flag_key) {
-                let prev = f.global_rollout.get();
-                let next = temp_rollout_val.get();
-                f.global_rollout.set(next);
-                
-                f.audit_logs.update(|logs| {
-                    logs.insert(0, MockAuditLog {
-                        date: "Just now".to_string(),
-                        user: "alex.r".to_string(),
-                        action: format!("Global rollout % updated from {}% → {}% · ATLAS-Manual", prev, next),
-                    });
-                });
-                
-                toast.show_toast("Success", &format!("Rollout updated to {}% for {}.", next, flag_key), "success");
-            }
+            let new_pct = temp_rollout_val.get();
+            let input = crate::api::models::UpdateFlagInput {
+                global_rollout_pct: Some(new_pct),
+                ..Default::default()
+            };
+            let resource = flags_resource.clone();
+            leptos::task::spawn_local(async move {
+                match crate::api::admin::update_flag(flag_key.clone(), input).await {
+                    Ok(_) => {
+                        resource.refetch();
+                        show_rollout_modal.set(None);
+                        toast.show_toast("Success", &format!("Rollout updated to {}% for {}.", new_pct, flag_key), "success");
+                    }
+                    Err(e) => toast.show_toast("Error", &e, "error"),
+                }
+            });
         }
-        show_rollout_modal.set(None);
     };
+
+
 
     view! {
         <div class="main-area">
@@ -763,7 +677,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                                     } else if pct == 0 {
                                                                         "Awaiting legal + QA".to_string()
                                                                     } else {
-                                                                        format!("~{} of 24 NIs", (24.0 * (pct as f32 / 100.0)).round() as i32)
+                                                                        format!("~{} of 24 NIs", (24.0f32 * (pct as f32 / 100.0f32)).round() as i32)
                                                                     }
                                                                 }}
                                                             </td>
@@ -838,27 +752,30 @@ pub fn FeatureFlags() -> impl IntoView {
                                                 }>
                                                     <For 
                                                         each=move || overrides.get()
-                                                        key=|o| o.tenant_slug.clone()
+                                                        key=|o| o.tenant_id.clone()
                                                         children={
                                                             let fk = fkey.clone();
                                                             move |o| {
-                                                                let tenant_slug = o.tenant_slug.clone();
+                                                                let tenant_id = o.tenant_id.clone();
                                                                 let o_type = o.override_type.clone();
                                                                 let o_type_for_class = o_type.clone();
                                                                 let o_type_for_style = o_type.clone();
+                                                                 let o_type_badge = o_type.clone();
+                                                                 let o_type_source = o_type.clone();
+                                                                 let o_created_at_str = o.created_at.clone().map(|s| s.chars().take(10).collect::<String>()).unwrap_or_default();
                                                                 let fk_inner = fk.clone();
                                                                 view! {
                                                                     <div class="ni-override-row">
                                                                         <div style="flex:1;">
                                                                             <div style="display:flex;align-items:center;gap:8px;">
-                                                                                <span class="ni-slug">{o.tenant_slug.clone()}</span>
-                                                                                <span class=move || format!("ni-plan-badge {}", o.tenant_plan.to_lowercase())>{o.tenant_plan.clone()}</span>
+                                                                                <span class="ni-slug">{o.tenant_id.clone()}</span>
+                                                                                <span class=move || format!("ni-plan-badge {}", o_type_badge.to_lowercase())>{o_type.clone()}</span>
                                                                             </div>
                                                                             <div class="ni-source">
-                                                                                {if o.override_type == "deny" { "Deny" } else { "Grant" }}
+                                                                                {if o_type_source == "deny" { "Deny" } else { "Grant" }}
                                                                                 " · " {o.rollout_pct.to_string()} "% within NI · "
-                                                                                {o.reason.clone()} " · " {o.changed_at.clone()} " · " {o.changed_by.clone()}
-                                                                                {if o.jira != "None" { format!(" · {}", o.jira) } else { "".to_string() }}
+                                                                                {o.reason.clone()} " · " {o_created_at_str} " · " {o.changed_by.clone()}
+                                                                                {o.jira.as_deref().map(|j| format!(" · {}", j)).unwrap_or_default()}
                                                                             </div>
                                                                         </div>
                                                                         <div class=move || format!("override-state {}", if o_type_for_class == "deny" { "ni-deny" } else { "ni-grant" })>
@@ -868,7 +785,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                                         <button 
                                                                             class="btn btn-ghost btn-sm btn-icon" 
                                                                             title="Remove override"
-                                                                            on:click=move |_| handle_remove_override(fk_inner.get_value(), tenant_slug.clone())
+                                                                            on:click=move |_| handle_remove_override(fk_inner.get_value(), tenant_id.clone())
                                                                         >
                                                                             "✕"
                                                                         </button>
@@ -887,13 +804,13 @@ pub fn FeatureFlags() -> impl IntoView {
                                         <div class="fct-pane active" on:click=move |e| e.stop_propagation() style="max-height: 250px; overflow-y: auto;">
                                             <For 
                                                 each=move || audit_logs.get()
-                                                key=|log| format!("{}-{}-{}", log.date, log.user, log.action)
+                                                key=|log| format!("{}-{}-{}", log.created_at.as_deref().unwrap_or(""), log.user_id, log.action)
                                                 children=move |log| {
                                                     view! {
                                                         <div style="font-size:11.5px;color:var(--text-secondary);padding:8px 0;border-bottom:1px solid var(--border-subtle);display:flex;gap:8px;">
-                                                            <strong>{log.date.clone()}</strong>
+                                                            <strong>{log.created_at.as_deref().map(|s| s.chars().take(10).collect::<String>()).unwrap_or_default()}</strong>
                                                             <span style="color:var(--text-muted)">"·"</span>
-                                                            <span style="color:var(--cobalt);font-weight:600;min-width:60px;">{log.user.clone()}</span>
+                                                            <span style="color:var(--cobalt);font-weight:600;min-width:60px;">{log.user_id.clone()}</span>
                                                             <span style="color:var(--text-muted)">"—"</span>
                                                             <span>{log.action.clone()}</span>
                                                         </div>
@@ -966,8 +883,8 @@ pub fn FeatureFlags() -> impl IntoView {
                                     <div class="tenant-dropdown open">
                                         {
                                             let term = override_tenant_input.get().to_lowercase();
-                                            let filtered_opts: Vec<MockTenant> = mock_tenants.get_value().into_iter().filter(|t| {
-                                                term.is_empty() || t.slug.to_lowercase().contains(&term) || t.name.to_lowercase().contains(&term)
+                                            let filtered_opts: Vec<TenantOption> = tenant_options.get().into_iter().filter(|t| {
+                                                term.is_empty() || t.name.to_lowercase().contains(&term) || t.id.contains(&term)
                                             }).collect();
 
                                             if filtered_opts.is_empty() {

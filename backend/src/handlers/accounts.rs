@@ -1,10 +1,11 @@
 use axum::{
-    extract::{Extension, Path, Json},
+    extract::{Extension, Path, Json, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
     routing::{get, post, put, delete},
     Router,
 };
+
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait, ActiveModelTrait,
 };
@@ -26,6 +27,20 @@ pub struct CreateAccountDto {
 pub struct AddUserToAccountDto {
     user_id: Uuid,
     role: UserRole,
+}
+
+#[derive(Deserialize, Default)]
+pub struct AccountListParams {
+    pub search:   Option<String>,
+    pub page:     Option<u64>,
+    pub per_page: Option<u64>,
+}
+
+impl AccountListParams {
+    pub fn offset(&self) -> u64 {
+        (self.page.unwrap_or(1).max(1) - 1) * self.per_page.unwrap_or(50).min(200).max(1)
+    }
+    pub fn limit(&self) -> u64 { self.per_page.unwrap_or(50).min(200).max(1) }
 }
 
 #[derive(Serialize, Clone)]
@@ -117,16 +132,25 @@ pub async fn get_account(
 
 pub async fn get_accounts(
     Extension(db): Extension<DatabaseConnection>,
+    Query(params): Query<AccountListParams>,
 ) -> impl IntoResponse {
-    tracing::info!("Fetching all accounts");
+    tracing::info!("Fetching accounts (search={:?} page={:?})", params.search, params.page);
 
-    match account::Entity::find().all(&db).await {
-        Ok(accounts) => (StatusCode::OK, JsonResponse(accounts)),
-        Err(err) => {
-            tracing::error!("Error fetching accounts: {:?}", err);
-            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(Vec::new()))
-        }
+    let mut all: Vec<account::Model> = match account::Entity::find().all(&db).await {
+        Ok(v)  => v,
+        Err(e) => { tracing::error!("Error fetching accounts: {:?}", e); return (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(Vec::<account::Model>::new())); }
+    };
+
+    if let Some(ref term) = params.search {
+        let t = term.to_lowercase();
+        all.retain(|a| a.name.to_lowercase().contains(&t));
     }
+
+    let offset = params.offset() as usize;
+    let limit  = params.limit()  as usize;
+    let page = all.into_iter().skip(offset).take(limit).collect::<Vec<_>>();
+
+    (StatusCode::OK, JsonResponse(page))
 }
 
 pub async fn update_account(

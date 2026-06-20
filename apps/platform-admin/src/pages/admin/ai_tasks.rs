@@ -7,7 +7,7 @@ pub struct AiTaskItem {
     pub task_type: String,
     pub entity: String,
     pub status: RwSignal<String>,
-    pub status_class: RwSignal<&'static str>,
+    pub status_class: RwSignal<String>,
     pub runtime: RwSignal<String>,
     pub tokens: RwSignal<String>,
     pub completed: RwSignal<String>,
@@ -25,100 +25,35 @@ pub fn AiTasks() -> impl IntoView {
     let queue_paused = RwSignal::new(false);
     
     // Tasks list database state
-    let tasks_data = RwSignal::new(vec![
-        AiTaskItem {
-            id: "ait_e19fca6a".to_string(),
-            task_type: "fmcsa_lead_scoring".to_string(),
-            entity: "Ruud Logistics Corp (Lead)".to_string(),
-            status: RwSignal::new("Running".to_string()),
-            status_class: RwSignal::new("bg-blue-500/10 border-blue-500/30 text-blue-400"),
-            runtime: RwSignal::new("1.82s".to_string()),
-            tokens: RwSignal::new("642".to_string()),
-            completed: RwSignal::new("Just now".to_string()),
-            model: "gpt-4o-mini".to_string(),
-            params: json!({ "lead_id": "l_ruud_992", "target": "lead_score_card", "run_index": 2 }),
-            initial_logs: vec![
-                "[INFO] Initializing agent context...".to_string(),
-                "[INFO] Resolving FMCSA DOT registry ID: 44219A".to_string(),
-                "[INFO] Fetched carrier details: 42 trucks, 22 drivers, 91.2% safety rating.".to_string(),
-                "[INFO] Triggering GPT-4o score vector compilation...".to_string(),
-            ],
-            streamable: true,
-        },
-        AiTaskItem {
-            id: "ait_ed8c0441".to_string(),
-            task_type: "scorecard_aggregation".to_string(),
-            entity: "Nexus Property Group (Account)".to_string(),
-            status: RwSignal::new("Queued".to_string()),
-            status_class: RwSignal::new("bg-slate-500/10 border-slate-500/30 text-slate-400"),
-            runtime: RwSignal::new("—".to_string()),
-            tokens: RwSignal::new("—".to_string()),
-            completed: RwSignal::new("Pending".to_string()),
-            model: "gpt-4o".to_string(),
-            params: json!({ "account_id": "acc_nexus_88ea", "target": "recalculate_g27_split" }),
-            initial_logs: vec![
-                "[QUEUE] Task placed in priority queue by cron outbox sweeper.".to_string(),
-                "[QUEUE] Waiting for available runner thread in pool atlas-llm-pool-04...".to_string(),
-                "[QUEUE] Awaiting compliance checkpoint locks.".to_string(),
-            ],
-            streamable: false,
-        },
-        AiTaskItem {
-            id: "ait_ad9043a1".to_string(),
-            task_type: "auto_compliance_check".to_string(),
-            entity: "João Carlos Silva (Lead)".to_string(),
-            status: RwSignal::new("Success".to_string()),
-            status_class: RwSignal::new("bg-emerald-500/10 border-emerald-500/30 text-emerald-400"),
-            runtime: RwSignal::new("842ms".to_string()),
-            tokens: RwSignal::new("4,204".to_string()),
-            completed: RwSignal::new("4 mins ago".to_string()),
-            model: "gpt-4o-mini".to_string(),
-            params: json!({ "lead_id": "l_joao_cs", "ruleset": "brazil_cpf_legal_status" }),
-            initial_logs: vec![
-                "[INFO] Running CNPJ registration checks on João Carlos Silva...".to_string(),
-                "[INFO] CPF check status returned PASSED from state database query.".to_string(),
-                "[SUCCESS] Compliance check completed successfully. Generated score: 9.4.".to_string(),
-            ],
-            streamable: false,
-        },
-        AiTaskItem {
-            id: "ait_bd7affaa".to_string(),
-            task_type: "vector_similarity_search".to_string(),
-            entity: "Biscayne STR Co. (Account)".to_string(),
-            status: RwSignal::new("Success".to_string()),
-            status_class: RwSignal::new("bg-emerald-500/10 border-emerald-500/30 text-emerald-400"),
-            runtime: RwSignal::new("224ms".to_string()),
-            tokens: RwSignal::new("820".to_string()),
-            completed: RwSignal::new("12 mins ago".to_string()),
-            model: "text-embedding-3-small".to_string(),
-            params: json!({ "vector_dimension": 1536, "limit": 5, "min_confidence": 0.82 }),
-            initial_logs: vec![
-                "[INFO] Initializing similarity vector space embedding comparison...".to_string(),
-                "[INFO] Found 3 matching records in tenant scope. Confidence: 0.94.".to_string(),
-                "[SUCCESS] Task executed in 224ms. No data leakage flags detected.".to_string(),
-            ],
-            streamable: false,
-        },
-        AiTaskItem {
-            id: "ait_005c6922".to_string(),
-            task_type: "sentiment_analysis".to_string(),
-            entity: "Vizcaya STR Partners (Account)".to_string(),
-            status: RwSignal::new("Failed".to_string()),
-            status_class: RwSignal::new("bg-red-500/10 border-red-500/30 text-red-400"),
-            runtime: RwSignal::new("3.44s".to_string()),
-            tokens: RwSignal::new("1,120".to_string()),
-            completed: RwSignal::new("2 hours ago".to_string()),
-            model: "gpt-4o".to_string(),
-            params: json!({ "account_id": "acc_vizcaya_01", "source_logs": "support_tickets" }),
-            initial_logs: vec![
-                "[INFO] Initializing ticket log scraper context...".to_string(),
-                "[WARNING] API Connection timed out after 3 retries.".to_string(),
-                "[ERROR] OpenAI Connection Error: API connection failed after 3 retries (502 Bad Gateway).".to_string(),
-                "[ERROR] Retrying outbox worker task aborted. Job re-scheduled for outbox retry interval in 120s.".to_string(),
-            ],
-            streamable: false,
-        },
-    ]);
+    let tasks_trigger = RwSignal::new(0);
+    let tasks_res = LocalResource::new(move || {
+        tasks_trigger.get();
+        async move {
+            let list = crate::api::admin::get_ai_tasks().await.unwrap_or_default();
+            let items: Vec<AiTaskItem> = list.into_iter().map(|t| AiTaskItem {
+                id: t.id,
+                task_type: t.task_type,
+                entity: t.entity,
+                status: RwSignal::new(t.status),
+                status_class: RwSignal::new(t.status_class),
+                runtime: RwSignal::new(t.runtime),
+                tokens: RwSignal::new(t.tokens),
+                completed: RwSignal::new(t.completed),
+                model: t.model,
+                params: t.params,
+                initial_logs: t.initial_logs,
+                streamable: t.streamable,
+            }).collect();
+            items
+        }
+    });
+
+    let tasks_data = RwSignal::new(Vec::<AiTaskItem>::new());
+    Effect::new(move |_| {
+        if let Some(list) = tasks_res.get() {
+            tasks_data.set(list);
+        }
+    });
 
     // Active Selection & Filter state
     let active_filter = RwSignal::new("all".to_string());
@@ -178,7 +113,7 @@ pub fn AiTasks() -> impl IntoView {
                     if selected_task_id.get_untracked() == Some(t_id) && streaming_active.get_untracked() {
                         streaming_active.set(false);
                         active_status.set("Success".to_string());
-                        active_class.set("bg-emerald-500/10 border-emerald-500/30 text-emerald-400");
+                        active_class.set("bg-emerald-500/10 border-emerald-500/30 text-emerald-400".to_string());
                         active_runtime.set("4.22s".to_string());
                         active_completed.set("Just now".to_string());
                         toast_clone.show_toast("Success", "Task completed successfully.", "success");
@@ -193,20 +128,37 @@ pub fn AiTasks() -> impl IntoView {
     // Actions
     let handle_abort = move |task: AiTaskItem| {
         streaming_active.set(false);
-        task.status.set("Failed".to_string());
-        task.status_class.set("bg-red-500/10 border-red-500/30 text-red-400");
-        task.runtime.set("Stopped".to_string());
-        console_logs.update(|logs| logs.push("[ABORTED] Task manually terminated by Super-Admin.".to_string()));
-        toast.show_toast("Error", "Task execution terminated.", "error");
+        let t_toast = toast.clone();
+        let task_id = task.id.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::abort_ai_task(task_id).await {
+                Ok(_) => {
+                    tasks_trigger.set(tasks_trigger.get() + 1);
+                    t_toast.show_toast("Success", "Task execution terminated.", "success");
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to abort: {}", e), "error");
+                }
+            }
+        });
     };
 
     let handle_rerun = move |task: AiTaskItem| {
-        task.status.set("Running".to_string());
-        task.status_class.set("bg-blue-500/10 border-blue-500/30 text-blue-400");
-        task.runtime.set("1.82s".to_string());
-        task.completed.set("Just now".to_string());
-        toast.show_toast("Info", "Task re-enqueued for execution.", "info");
-        select_task(task.id.clone());
+        let t_toast = toast.clone();
+        let task_id = task.id.clone();
+        let select_id = task_id.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::rerun_ai_task(task_id).await {
+                Ok(_) => {
+                    tasks_trigger.set(tasks_trigger.get() + 1);
+                    t_toast.show_toast("Info", "Task re-enqueued for execution.", "info");
+                    select_task(select_id);
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to rerun: {}", e), "error");
+                }
+            }
+        });
     };
 
     let toggle_pause = move |_| {
@@ -219,22 +171,24 @@ pub fn AiTasks() -> impl IntoView {
     };
 
     let retry_all_failed = move |_| {
-        let mut count = 0;
-        for t in tasks_data.get() {
-            if t.status.get() == "Failed" {
-                t.status.set("Queued".to_string());
-                t.status_class.set("bg-slate-500/10 border-slate-500/30 text-slate-400");
-                t.runtime.set("—".to_string());
-                t.tokens.set("—".to_string());
-                t.completed.set("Pending".to_string());
-                count += 1;
+        let t_toast = toast.clone();
+        let tasks = tasks_data.get_untracked();
+        leptos::task::spawn_local(async move {
+            let mut count = 0;
+            for t in tasks {
+                if t.status.get_untracked() == "Failed" {
+                    if crate::api::admin::rerun_ai_task(t.id).await.is_ok() {
+                        count += 1;
+                    }
+                }
             }
-        }
-        if count > 0 {
-            toast.show_toast("Success", &format!("Re-enqueued {} failed tasks.", count), "success");
-        } else {
-            toast.show_toast("Info", "No failed tasks found.", "info");
-        }
+            if count > 0 {
+                tasks_trigger.set(tasks_trigger.get() + 1);
+                t_toast.show_toast("Success", &format!("Re-enqueued {} failed tasks.", count), "success");
+            } else {
+                t_toast.show_toast("Info", "No failed tasks found.", "info");
+            }
+        });
     };
 
     // Filter list

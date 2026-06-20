@@ -124,3 +124,36 @@ pub async fn api_get<T: serde::de::DeserializeOwned>(path: &str) -> Result<T, St
     let req = client.get(&url);
     api_request(req).await
 }
+
+pub async fn api_post<B: Serialize, T: serde::de::DeserializeOwned>(
+    path: &str,
+    body: &B,
+) -> Result<T, String> {
+    let client = create_client();
+    let url = api_url(path);
+    let req = client.post(&url).json(body);
+    api_request(req).await
+}
+
+pub async fn api_put<B: Serialize, T: serde::de::DeserializeOwned>(
+    path: &str,
+    body: &B,
+) -> Result<T, String> {
+    let client = create_client();
+    let url = api_url(path);
+    let req = client.put(&url).json(body);
+    api_request(req).await
+}
+
+pub async fn api_delete(path: &str) -> Result<(), String> {
+    let client = create_client();
+    let url = api_url(path);
+    let req = client.delete(&url);
+    let req = with_credentials(req);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("DELETE {} failed: {}", path, res.status()))
+    }
+}

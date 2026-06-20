@@ -1,6 +1,6 @@
 use reqwest::StatusCode;
 use crate::api::client::{api_url, create_client, with_credentials};
-use crate::api::models::{ListingModel, ListingCreate, ListingUpdate, ListingWithAttributes};
+use crate::api::models::{ListingModel, ListingCreate, ListingUpdate, ListingWithAttributes, AdminAbTestWithVariantsModel};
 
 pub async fn get_listings(network_id: &str) -> Result<Vec<ListingModel>, String> {
     let client = create_client();
@@ -93,3 +93,17 @@ pub async fn search_listings(query: &str) -> Result<Vec<ListingModel>, String> {
         Err(format!("Failed to search listings: {}", res.status()))
     }
 }
+
+pub async fn get_listing_ab_tests(listing_id: &str) -> Result<Vec<AdminAbTestWithVariantsModel>, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/admin/listings/{}/ab-tests", listing_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    
+    if res.status() == StatusCode::OK {
+        res.json::<Vec<AdminAbTestWithVariantsModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to fetch AB tests: {}", res.status()))
+    }
+}
+

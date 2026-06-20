@@ -21,3 +21,5 @@ images:
     newTag: REPLACE_WITH_IMAGE_TAG
   - name: ghcr.io/ruuderie/anchor-app
     newTag: REPLACE_WITH_IMAGE_TAG
+  - name: ghcr.io/ruuderie/folio
+    newTag: REPLACE_WITH_IMAGE_TAG

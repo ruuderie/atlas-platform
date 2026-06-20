@@ -10,15 +10,6 @@ use shared_ui::components::ui::table::{
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
 
-#[derive(Clone, Debug)]
-pub struct MockUserRoster {
-    pub name: String,
-    pub role: String,
-    pub email: String,
-    pub last_active: String,
-    pub mfa: String,
-}
-
 #[component]
 pub fn TenantLedger() -> impl IntoView {
     let params = use_params_map();
@@ -74,26 +65,16 @@ pub fn TenantLedger() -> impl IntoView {
         }
     };
 
-    // User Roster Mock Data
-    let roster_users = StoredValue::new(vec![
-        MockUserRoster { name: "Ruud Salym Erie".to_string(), role: "Admin".to_string(), email: "ruud@nexusprops.com".to_string(), last_active: "Jun 11 · 21:44".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Maria Fernandes".to_string(), role: "Admin".to_string(), email: "maria@nexusprops.com".to_string(), last_active: "Jun 10 · 18:02".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Carlos Mendes".to_string(), role: "Prop. Mgr".to_string(), email: "carlos@nexusprops.com".to_string(), last_active: "Jun 11 · 09:30".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Aisha Wanjiku".to_string(), role: "Prop. Mgr".to_string(), email: "aisha@nexusprops.com".to_string(), last_active: "Jun 09 · 14:22".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "James Okafor".to_string(), role: "Leasing".to_string(), email: "james@nexusprops.com".to_string(), last_active: "Jun 11 · 11:05".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Sonia Park".to_string(), role: "Leasing".to_string(), email: "sonia@nexusprops.com".to_string(), last_active: "Jun 08 · 16:40".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Mike Torres".to_string(), role: "Maint. Coord".to_string(), email: "mike@nexusprops.com".to_string(), last_active: "Jun 11 · 07:45".to_string(), mfa: "Passkey".to_string() },
-        MockUserRoster { name: "Sandra Osei".to_string(), role: "Maint. Coord".to_string(), email: "sandra@nexusprops.com".to_string(), last_active: "Jun 10 · 10:30".to_string(), mfa: "Passkey".to_string() },
-    ]);
-
-    // Mock Invoices
-    let mock_invoices = StoredValue::new(vec![
-        ("INV-2026-06", "Jun 2026", "$4,800", "$0", "$460", "—", "$5,260", "Paid"),
-        ("INV-2026-05", "May 2026", "$4,800", "$0", "$388", "—", "$5,188", "Paid"),
-        ("INV-2026-04", "Apr 2026", "$4,800", "$90", "$412", "—", "$5,302", "Paid"),
-        ("INV-2026-03", "Mar 2026", "$4,800", "$90", "$394", "-$200", "$5,084", "Paid"),
-        ("INV-2026-02", "Feb 2026", "$4,800", "$0", "$310", "—", "$5,110", "Paid"),
-    ]);
+    // Fetch user roster for this tenant using the admin users endpoint
+    let roster_res = LocalResource::new({
+        let tid = tenant_id_str.clone();
+        move || {
+            let tid = tid();
+            async move {
+                crate::api::admin::get_users(uuid::Uuid::parse_str(&tid).ok()).await.unwrap_or_default()
+            }
+        }
+    });
 
     // Actions implementation
     let handle_issue_credit = move |_| {
@@ -424,101 +405,130 @@ pub fn TenantLedger() -> impl IntoView {
                     // User Roster Table
                     <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
                         <div class="px-5 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 font-bold text-xs text-primary">"User Roster"</div>
-                        <DataTable class="w-full text-xs">
-                            <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                                <DataTableRow class="hover:bg-transparent">
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Name"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Role"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Email Address"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Last Active"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"MFA Security"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
-                                </DataTableRow>
-                            </DataTableHeader>
-                            <DataTableBody class="divide-y divide-border">
-                                <For
-                                    each=move || roster_users.get_value()
-                                    key=|u| u.email.clone()
-                                    children=move |u| {
-                                        let u_email = u.email.clone();
-                                        view! {
-                                            <DataTableRow>
-                                                <DataTableCell class="p-3 font-bold">{u.name.clone()}</DataTableCell>
-                                                <DataTableCell class="p-3">
-                                                    <span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant/20 font-semibold text-[10px]">
-                                                        {u.role.clone()}
-                                                    </span>
-                                                </DataTableCell>
-                                                <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{u.email.clone()}</DataTableCell>
-                                                <DataTableCell class="p-3 text-on-surface-variant">{u.last_active.clone()}</DataTableCell>
-                                                <DataTableCell class="p-3 text-emerald-400">"● " {u.mfa.clone()}</DataTableCell>
-                                                <DataTableCell class="p-3 text-right">
-                                                    <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
-                                                        let email = u_email.clone();
-                                                        move |_| toast.show_toast("Edit User", &format!("Editing details for {}", email), "info")
-                                                    }>
-                                                        "Edit"
-                                                    </Button>
-                                                </DataTableCell>
+                        <Suspense fallback=move || view! { <div class="p-4 text-center text-xs text-on-surface-variant">"Loading roster..."</div> }>
+                        {move || roster_res.get().map(|users| {
+                            if users.is_empty() {
+                                view! {
+                                    <div class="p-8 text-center text-xs text-on-surface-variant/70">"No users found for this tenant."</div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <DataTable class="w-full text-xs">
+                                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
+                                            <DataTableRow class="hover:bg-transparent">
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Email"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Status"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
                                             </DataTableRow>
-                                        }
-                                    }
-                                />
-                            </DataTableBody>
-                        </DataTable>
+                                        </DataTableHeader>
+                                        <DataTableBody class="divide-y divide-border">
+                                            <For
+                                                each=move || users.clone()
+                                                key=|u| u.id.to_string()
+                                                children=move |u| {
+                                                    let email = u.email.clone();
+                                                    let email2 = email.clone();
+                                                    let status = if u.is_active { "Active" } else { "Inactive" };
+                                                    view! {
+                                                        <DataTableRow>
+                                                            <DataTableCell class="p-3 font-mono text-on-surface-variant/80">{email}</DataTableCell>
+                                                            <DataTableCell class="p-3 text-emerald-400">{status}</DataTableCell>
+                                                            <DataTableCell class="p-3 text-right">
+                                                                <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
+                                                                    let e = email2.clone();
+                                                                    move |_| toast.show_toast("Edit User", &format!("Editing details for {}", e), "info")
+                                                                }>
+                                                                    "Edit"
+                                                                </Button>
+                                                            </DataTableCell>
+                                                        </DataTableRow>
+                                                    }
+                                                }
+                                            />
+                                        </DataTableBody>
+                                    </DataTable>
+                                }.into_any()
+                            }
+                        })}
+                        </Suspense>
                     </Card>
                 </div>
             </Show>
 
-            // ── TAB CONTENT: Invoice History ──
+            // ── TAB CONTENT: Invoice History (rendered from ledger transactions) ──
             <Show when=move || active_tab.get() == "invoices">
                 <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
-                    <DataTable class="w-full text-xs">
-                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                            <DataTableRow class="hover:bg-transparent">
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Invoice ID"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Billing Period"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Base Fee"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Seats Overage"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Commission Share"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Issued Credits"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Total Due"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Status"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Vault Receipt"</DataTableHead>
-                            </DataTableRow>
-                        </DataTableHeader>
-                        <DataTableBody class="divide-y divide-border">
-                            <For
-                                each=move || mock_invoices.get_value()
-                                key=|inv| inv.0
-                                children=move |inv| {
-                                    let inv_id = inv.0;
-                                    view! {
-                                        <DataTableRow>
-                                            <DataTableCell class="p-3 font-mono font-bold text-primary">{inv.0}</DataTableCell>
-                                            <DataTableCell class="p-3">{inv.1}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono">{inv.2}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-on-surface-variant/80">{inv.3}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono">{inv.4}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono text-emerald-400">{inv.5}</DataTableCell>
-                                            <DataTableCell class="p-3 text-right font-mono font-bold">{inv.6}</DataTableCell>
-                                            <DataTableCell class="p-3 text-center">
-                                                <Badge intent=BadgeIntent::Success>{inv.7}</Badge>
-                                            </DataTableCell>
-                                            <DataTableCell class="p-3 text-right">
-                                                <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
-                                                    let id = inv_id;
-                                                    move |_| toast.show_toast("Vault Reference", &format!("Downloading invoice PDF file: {}.pdf", id), "info")
-                                                }>
-                                                    "PDF"
-                                                </Button>
-                                            </DataTableCell>
-                                        </DataTableRow>
-                                    }
-                                }
-                            />
-                        </DataTableBody>
-                    </DataTable>
+                    <div class="px-5 py-4 bg-surface-container/30 border-b border-outline-variant/10 flex justify-between items-center">
+                        <div>
+                            <span class="font-semibold text-sm">"Tenant Transaction Ledger"</span>
+                            <p class="text-[10px] text-on-surface-variant">"Billing events sourced from the platform ledger for this tenant"</p>
+                        </div>
+                        <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm on:click=move |_| set_trigger_fetch.update(|v| *v += 1)>
+                            "Refresh"
+                        </Button>
+                    </div>
+                    <Suspense fallback=move || view! { <div class="p-6 text-center text-xs text-on-surface-variant">"Loading transactions..."</div> }>
+                        {move || {
+                            let txs = ledger_res.get().unwrap_or_default();
+                            if txs.is_empty() {
+                                view! {
+                                    <div class="p-8 text-center text-xs text-on-surface-variant/70">
+                                        "No transactions found for this tenant."
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <DataTable class="w-full text-xs">
+                                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
+                                            <DataTableRow class="hover:bg-transparent">
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"TX ID"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Provider"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Amount"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Currency"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Status"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Date"</DataTableHead>
+                                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Ref"</DataTableHead>
+                                            </DataTableRow>
+                                        </DataTableHeader>
+                                        <DataTableBody class="divide-y divide-border">
+                                            <For
+                                                each=move || txs.clone()
+                                                key=|tx| tx.id.clone()
+                                                children=move |tx| {
+                                                    let tx_ref = tx.provider_tx_id.clone().unwrap_or_else(|| "—".to_string());
+                                                    let tx_id_short = tx.id.to_string().chars().take(12).collect::<String>();
+                                                    let amount = format!("${:.2}", tx.amount as f64 / 100.0);
+                                                    let date = tx.created_at.clone().unwrap_or_else(|| "—".to_string());
+                                                    view! {
+                                                        <DataTableRow>
+                                                            <DataTableCell class="p-3 font-mono text-[10.5px] text-primary">{tx_id_short}"..."</DataTableCell>
+                                                            <DataTableCell class="p-3 font-semibold">{tx.provider.clone()}</DataTableCell>
+                                                            <DataTableCell class="p-3 text-right font-mono">{amount}</DataTableCell>
+                                                            <DataTableCell class="p-3 font-mono">{tx.currency.clone()}</DataTableCell>
+                                                            <DataTableCell class="p-3 text-center">
+                                                                <Badge intent=if tx.status == "completed" { BadgeIntent::Success } else { BadgeIntent::Default }>
+                                                                    {tx.status.clone()}
+                                                                </Badge>
+                                                            </DataTableCell>
+                                                            <DataTableCell class="p-3 text-on-surface-variant/80">{date}</DataTableCell>
+                                                            <DataTableCell class="p-3 text-right">
+                                                                <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click={
+                                                                    let r = tx_ref.clone();
+                                                                    move |_| toast.show_toast("Vault Reference", &format!("TX Ref: {}", r), "info")
+                                                                }>
+                                                                    "Ref"
+                                                                </Button>
+                                                            </DataTableCell>
+                                                        </DataTableRow>
+                                                    }
+                                                }
+                                            />
+                                        </DataTableBody>
+                                    </DataTable>
+                                }.into_any()
+                            }
+                        }}
+                    </Suspense>
                 </Card>
             </Show>
 

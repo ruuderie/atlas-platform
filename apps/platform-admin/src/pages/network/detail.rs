@@ -1,73 +1,107 @@
 use leptos::prelude::*;
+use leptos_router::hooks::use_params_map;
+use uuid::Uuid;
+use crate::api::admin::{
+    get_app_domains, add_app_domain as api_add_domain, remove_app_domain as api_remove_domain,
+    suspend_instance, resume_instance,
+};
 
 #[component]
 pub fn NetworkDetail() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
-    // Active Tab State
-    let active_tab = RwSignal::new("overview".to_string());
-    
-    // Status State
-    let is_suspended = RwSignal::new(false);
-    
-    // Settings inputs
-    let name = RwSignal::new("leira Rentals".to_string());
-    let slug = RwSignal::new("leira-rentals".to_string());
-    let cap_ltr = RwSignal::new(true);
-    let cap_str = RwSignal::new(false);
-    let cap_vendor = RwSignal::new(true);
-    let market_chi = RwSignal::new(true);
-    let market_rio = RwSignal::new(true);
-    let market_mia = RwSignal::new(false);
-    let currency = RwSignal::new("BRL".to_string());
-    
-    // Custom domain mappings
-    let new_domain = RwSignal::new("".to_string());
-    let domains = RwSignal::new(vec![
-        ("leira-rentals.app".to_string(), "Primary".to_string(), "app.atlas-platform.com".to_string(), "✓ Active (Cloudflare)".to_string()),
-        ("rent.leira-chicago.com".to_string(), "Verifying".to_string(), "app.atlas-platform.com".to_string(), "Generating...".to_string())
-    ]);
-    
-    // Syndicated Tenants
-    let tenants = RwSignal::new(vec![
-        ("Oakwood Property Management".to_string(), "Professional".to_string(), "28 / 34 listings".to_string(), 82, "2025-11-12".to_string()),
-        ("South Loop STRs".to_string(), "Enterprise".to_string(), "12 / 12 listings".to_string(), 100, "2026-02-18".to_string())
-    ]);
 
-    // Theme branding
-    let theme_mode = RwSignal::new("dark-slate".to_string());
+    // ── Route params ──────────────────────────────────────────────────────────
+    let params = use_params_map();
+    let instance_id = move || params.with(|p| p.get("instance_id").unwrap_or_default());
+
+    // ── Tab State ─────────────────────────────────────────────────────────────
+    let active_tab = RwSignal::new("overview".to_string());
+
+    // ── Suspension state ─────────────────────────────────────────────────────
+    let is_suspended = RwSignal::new(false);
+
+    // ── Editable settings (initialised empty; set from resource when loaded) ──
+    let name     = RwSignal::new(String::new());
+    let slug     = RwSignal::new(String::new());
+    let cap_ltr  = RwSignal::new(false);
+    let cap_str  = RwSignal::new(false);
+    let cap_vendor = RwSignal::new(false);
+    let currency = RwSignal::new("USD".to_string());
+
+    // Theme branding (editable, not persisted yet)
+    let theme_mode    = RwSignal::new("dark-slate".to_string());
     let primary_color = RwSignal::new("#0A84FF".to_string());
     let selected_font = RwSignal::new("inter".to_string());
 
+    // Geographic markets (local UI state; no backend persist endpoint yet)
+    let market_chi = RwSignal::new(false);
+    let market_rio = RwSignal::new(false);
+    let market_mia = RwSignal::new(false);
+
+    // ── Live domains resource ─────────────────────────────────────────────────
+    let domains_res = LocalResource::new(move || {
+        let id = instance_id();
+        async move { get_app_domains(id).await.unwrap_or_default() }
+    });
+
+    // Local domain list for optimistic adds/removes (seeded from resource)
+    let new_domain = RwSignal::new(String::new());
+
+    // ── Syndicated tenants: use tenant-stats until NI-scoped endpoint lands ──
+    let tenants_res = LocalResource::new(|| async move {
+        crate::api::admin::get_tenant_stats().await.unwrap_or_default()
+    });
+
+
+    // ── Actions ───────────────────────────────────────────────────────────────
     let toggle_status = move |_| {
-        let suspended = is_suspended.get();
-        is_suspended.set(!suspended);
-        if suspended {
-            toast.show_toast("Network Status", "Network instance resumed successfully.", "success");
+        let id_str = instance_id();
+        if let Ok(id) = Uuid::parse_str(&id_str) {
+            let suspended = is_suspended.get();
+            let toast2 = toast.clone();
+            if suspended {
+                leptos::task::spawn_local(async move {
+                    match resume_instance(id).await {
+                        Ok(_) => { is_suspended.set(false); toast2.show_toast("Network Status", "Network instance resumed.", "success"); }
+                        Err(e) => { toast2.show_toast("Error", &e, "error"); }
+                    }
+                });
+            } else {
+                leptos::task::spawn_local(async move {
+                    match suspend_instance(id, "Manual suspension via admin panel.".to_string()).await {
+                        Ok(_) => { is_suspended.set(true); toast2.show_toast("Network Status", "Network instance suspended.", "warning"); }
+                        Err(e) => { toast2.show_toast("Error", &e, "error"); }
+                    }
+                });
+            }
         } else {
-            toast.show_toast("Network Status", "Network instance suspended.", "warning");
+            toast.show_toast("Error", "Invalid instance ID in URL.", "error");
         }
     };
 
-    let add_domain = move |_| {
+    let add_domain_action = move |_| {
         let domain_str = new_domain.get().trim().to_string();
-        if domain_str.is_empty() {
-            return;
-        }
-        domains.update(|list| {
-            list.push((domain_str, "Secondary".to_string(), "app.atlas-platform.com".to_string(), "Active".to_string()));
+        if domain_str.is_empty() { return; }
+        let id_str = instance_id();
+        let toast2 = toast.clone();
+        let domain_clone = domain_str.clone();
+        leptos::task::spawn_local(async move {
+            match api_add_domain(id_str, domain_clone).await {
+                Ok(_) => { toast2.show_toast("Domain Added", "Custom domain added. DNS propagation may take up to 24h.", "success"); }
+                Err(e) => { toast2.show_toast("Error", &e, "error"); }
+            }
         });
-        new_domain.set("".to_string());
-        toast.show_toast("Domain Added", "Custom domain added successfully.", "success");
+        new_domain.set(String::new());
     };
 
     let save_overview = move |_| {
-        toast.show_toast("Settings Saved", "Overview and capability settings saved successfully.", "success");
+        toast.show_toast("Settings Saved", "Overview settings saved (persist endpoint pending).", "success");
     };
 
     let save_branding = move |_| {
-        toast.show_toast("Branding Saved", "Theme and color customization saved.", "success");
+        toast.show_toast("Branding Saved", "Theme customization saved (persist endpoint pending).", "success");
     };
+
 
     view! {
         <div class="space-y-6">
@@ -77,18 +111,23 @@ pub fn NetworkDetail() -> impl IntoView {
                 <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
                 <a href="/network" class="hover:text-primary transition-colors">"Network Instances"</a>
                 <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                <span class="text-primary/70">{move || name.get()}</span>
+                <span class="text-primary/70">{move || if name.get().is_empty() { instance_id() } else { name.get() }}</span>
             </nav>
 
             // ── Instance Identity Header ──
             <div class="bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 rounded-xl bg-primary-container border border-primary/20 flex items-center justify-center text-primary text-xl font-bold font-mono">
-                        {move || name.get().chars().next().unwrap_or('N').to_string().to_uppercase()}
+                        {move || {
+                            let n = name.get();
+                            if n.is_empty() { "?".to_string() } else { n.chars().next().unwrap_or('?').to_string().to_uppercase() }
+                        }}
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h1 class="text-xl font-extrabold tracking-tight text-on-surface">{move || name.get()}</h1>
+                            <h1 class="text-xl font-extrabold tracking-tight text-on-surface">
+                                {move || if name.get().is_empty() { instance_id() } else { name.get() }}
+                            </h1>
                             <span class=move || {
                                 format!("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-widest {}",
                                     if is_suspended.get() { "text-error bg-error/10 border-error/20" }
@@ -99,7 +138,8 @@ pub fn NetworkDetail() -> impl IntoView {
                             </span>
                         </div>
                         <p class="text-[11px] text-on-surface-variant font-mono mt-1">
-                            "ID: " <code class="text-primary">"inst_4c2d-9b8a-7e1f"</code> " · domain: " <code class="text-on-surface-variant/80">{move || slug.get()} ".atlas-platform.com"</code>
+                            "ID: " <code class="text-primary">{move || instance_id()}</code>
+                            " · domain: " <code class="text-on-surface-variant/80">{move || slug.get()} ".atlas-platform.com"</code>
                         </p>
                     </div>
                 </div>
@@ -285,57 +325,49 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <input 
                                     type="text" 
                                     class="flex-1 bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
-                                    placeholder="e.g. rent.leira.com"
+                                    placeholder="e.g. rent.mynetwork.com"
                                     prop:value=new_domain
                                     on:input=move |ev| new_domain.set(event_target_value(&ev))
                                 />
-                                <button class="btn-primary px-3 py-2 rounded-lg text-xs font-semibold shrink-0" on:click=add_domain>"Add Domain"</button>
+                                <button class="btn-primary px-3 py-2 rounded-lg text-xs font-semibold shrink-0" on:click=add_domain_action>"Add Domain"</button>
                             </div>
 
+                            <Suspense fallback=move || view! { <div class="text-xs text-on-surface-variant">"Loading domains…"</div> }>
                             <div class="overflow-x-auto">
                                 <table class="w-full border-collapse text-left text-xs">
                                     <thead>
                                         <tr class="bg-surface-container-high/40">
                                             <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Domain"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Status"</th>
                                             <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"CNAME Target"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"SSL Security"</th>
                                             <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20 text-right">"Actions"</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-outline-variant/10">
-                                        {move || domains.get().into_iter().enumerate().map(|(idx, (dom, status, target, ssl))| {
-                                            let status_cls = status.clone();
-                                            let status_show = status.clone();
+                                        {move || domains_res.get().unwrap_or_default().into_iter().map(|dom| {
+                                            let dom_remove = dom.clone();
+                                            let id_str = instance_id();
+                                            let toast2 = toast.clone();
                                             view! {
                                                 <tr class="hover:bg-surface-container-high/20 transition-colors">
-                                                    <td class="p-3 font-mono text-on-surface font-semibold">{dom}</td>
-                                                    <td class="p-3">
-                                                        <span class=move || {
-                                                            let s = &status_cls;
-                                                            format!("px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border {}",
-                                                                if s == "Primary" { "text-primary border-primary/20 bg-primary/10" }
-                                                                else if s == "Verifying" { "text-amber-400 border-amber-500/20 bg-amber-500/10" }
-                                                                else { "text-on-surface-variant border-outline-variant/20 bg-surface-container" }
-                                                            )
-                                                        }>
-                                                            {status}
-                                                        </span>
-                                                    </td>
-                                                    <td class="p-3 font-mono text-on-surface-variant">{target}</td>
-                                                    <td class="p-3 text-emerald-400 font-semibold">{ssl}</td>
+                                                    <td class="p-3 font-mono text-on-surface font-semibold">{dom.clone()}</td>
+                                                    <td class="p-3 font-mono text-on-surface-variant">"app.atlas-platform.com"</td>
                                                     <td class="p-3 text-right">
-                                                        <Show when=move || status_show.clone() != "Primary">
-                                                            <button 
-                                                                class="p-1 hover:bg-error/10 text-on-surface-variant hover:text-error rounded transition-colors flex items-center justify-center ml-auto"
-                                                                on:click=move |_| {
-                                                                    domains.update(|list| { list.remove(idx); });
-                                                                    toast.show_toast("Domain Removed", "Domain mapping revoked.", "warning");
-                                                                }
-                                                            >
-                                                                <span class="material-symbols-outlined text-sm">"delete"</span>
-                                                            </button>
-                                                        </Show>
+                                                        <button 
+                                                            class="p-1 hover:bg-error/10 text-on-surface-variant hover:text-error rounded transition-colors flex items-center justify-center ml-auto"
+                                                            on:click=move |_| {
+                                                                let id = id_str.clone();
+                                                                let d  = dom_remove.clone();
+                                                                let t  = toast2.clone();
+                                                                leptos::task::spawn_local(async move {
+                                                                    match api_remove_domain(id, d).await {
+                                                                        Ok(_)  => t.show_toast("Domain Removed", "Domain mapping revoked.", "warning"),
+                                                                        Err(e) => t.show_toast("Error", &e, "error"),
+                                                                    }
+                                                                });
+                                                            }
+                                                        >
+                                                            <span class="material-symbols-outlined text-sm">"delete"</span>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             }
@@ -343,6 +375,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                     </tbody>
                                 </table>
                             </div>
+                            </Suspense>
 
                             <div class="bg-[#05183c]/50 border border-outline-variant/20 p-4 rounded-lg text-xs leading-relaxed space-y-1">
                                 <p class="font-bold text-on-surface">"DNS Configuration Instructions"</p>
@@ -360,60 +393,37 @@ pub fn NetworkDetail() -> impl IntoView {
                     <div class="space-y-6">
                         <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-4">
                             <div class="flex justify-between items-center">
-                                <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Connected Listing Tenants"</h3>
-                                <button class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs" on:click=move |_| toast.show_toast("Connect", "Listing connection wizard started.", "success")>
+                                <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Connected Tenants"</h3>
+                                <button class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs" on:click=move |_| toast.show_toast("Connect", "Connection wizard coming soon.", "success")>
                                     "+ Connect Tenant"
                                 </button>
                             </div>
-
+                            <Suspense fallback=move || view! { <div class="text-xs text-on-surface-variant">"Loading tenants…"</div> }>
                             <div class="overflow-x-auto">
                                 <table class="w-full border-collapse text-left text-xs">
                                     <thead>
                                         <tr class="bg-surface-container-high/40">
                                             <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Tenant Name"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Account Plan"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Syndicated Listings"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Sync Status"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Date Linked"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20 text-right">"Actions"</th>
+                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Plan"</th>
+                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Profiles"</th>
+                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Listings"</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-outline-variant/10">
-                                        {move || tenants.get().into_iter().enumerate().map(|(idx, (t_name, plan, listings, sync_pct, date_linked))| {
+                                        {move || tenants_res.get().unwrap_or_default().into_iter().map(|t| {
                                             view! {
                                                 <tr class="hover:bg-surface-container-high/20 transition-colors">
-                                                    <td class="p-3 font-semibold text-on-surface">{t_name}</td>
-                                                    <td class="p-3 text-on-surface-variant font-mono">{plan}</td>
-                                                    <td class="p-3 text-on-surface font-semibold">{listings}</td>
-                                                    <td class="p-3">
-                                                        <div class="flex flex-col gap-1 w-28">
-                                                            <div class="flex justify-between text-[10px] text-on-surface-variant">
-                                                                <span>"Synced"</span>
-                                                                <span class="font-bold">{sync_pct} "%"</span>
-                                                            </div>
-                                                            <div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden border border-outline-variant/10">
-                                                                <div class="h-full bg-primary" style=format!("width: {}%;", sync_pct)></div>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td class="p-3 text-on-surface-variant font-mono">{date_linked}</td>
-                                                    <td class="p-3 text-right">
-                                                        <button 
-                                                            class="p-1 hover:bg-error/10 text-on-surface-variant hover:text-error rounded transition-colors flex items-center justify-center ml-auto"
-                                                            on:click=move |_| {
-                                                                tenants.update(|list| { list.remove(idx); });
-                                                                toast.show_toast("Tenant Disconnected", "Tenant syndication channel revoked.", "warning");
-                                                            }
-                                                        >
-                                                            <span class="material-symbols-outlined text-sm">"link_off"</span>
-                                                        </button>
-                                                    </td>
+                                                    <td class="p-3 font-semibold text-on-surface">{t.name}</td>
+                                                    <td class="p-3 text-on-surface-variant font-mono">{t.plan.unwrap_or_else(|| "—".to_string())}</td>
+                                                    <td class="p-3 text-on-surface">{t.profile_count.to_string()}</td>
+                                                    <td class="p-3 text-on-surface">{t.listing_count.to_string()}</td>
                                                 </tr>
                                             }
                                         }).collect_view()}
                                     </tbody>
                                 </table>
                             </div>
+                            </Suspense>
                         </div>
                     </div>
                 </Show>
@@ -511,64 +521,39 @@ pub fn NetworkDetail() -> impl IntoView {
                 // Tab Pane 5: Telemetry & Logs
                 <Show when=move || active_tab.get() == "telemetry">
                     <div class="space-y-6">
-                        // KPI widgets grid
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div class="bg-surface-container p-4 rounded-xl border border-outline-variant/20 flex flex-col gap-1.5">
-                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Daily Active Users"</span>
-                                <span class="text-xl font-bold text-on-surface">"1,482"</span>
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Profiles"</span>
+                                <span class="text-xl font-bold text-on-surface">
+                                    {move || tenants_res.get().map(|ts| ts.iter().map(|t| t.profile_count).sum::<u64>().to_string()).unwrap_or_else(|| "—".to_string())}
+                                </span>
                             </div>
                             <div class="bg-surface-container p-4 rounded-xl border border-outline-variant/20 flex flex-col gap-1.5">
-                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Syndicated Listings"</span>
-                                <span class="text-xl font-bold text-on-surface">"40"</span>
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Total Listings"</span>
+                                <span class="text-xl font-bold text-on-surface">
+                                    {move || tenants_res.get().map(|ts| ts.iter().map(|t| t.listing_count).sum::<u64>().to_string()).unwrap_or_else(|| "—".to_string())}
+                                </span>
                             </div>
                             <div class="bg-surface-container p-4 rounded-xl border border-outline-variant/20 flex flex-col gap-1.5">
-                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Sync Success Rate"</span>
-                                <span class="text-xl font-bold text-emerald-400">"99.8%"</span>
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Custom Domains"</span>
+                                <span class="text-xl font-bold text-on-surface">
+                                    {move || domains_res.get().map(|ds| ds.len().to_string()).unwrap_or_else(|| "—".to_string())}
+                                </span>
                             </div>
                             <div class="bg-surface-container p-4 rounded-xl border border-outline-variant/20 flex flex-col gap-1.5">
-                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"API Latency"</span>
-                                <span class="text-xl font-bold text-on-surface">"42ms"</span>
+                                <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Status"</span>
+                                <span class="text-xl font-bold" style=move || if is_suspended.get() { "color:var(--error)" } else { "color:var(--green)" }>
+                                    {move || if is_suspended.get() { "Suspended" } else { "Live" }}
+                                </span>
                             </div>
                         </div>
-
-                        // Recent Sync Events Table
-                        <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-3">
-                            <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Recent Syndication Sync Log"</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full border-collapse text-left text-xs">
-                                    <thead>
-                                        <tr class="bg-surface-container-high/40">
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Timestamp"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Event Code"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Severity"</th>
-                                            <th class="p-3 font-semibold text-on-surface-variant/80 border-b border-outline-variant/20">"Details"</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-outline-variant/10 text-on-surface-variant font-mono">
-                                        <tr class="hover:bg-surface-container-high/20 transition-colors">
-                                            <td class="p-3 text-[11px] whitespace-nowrap">"2026-06-14 11:10:04"</td>
-                                            <td class="p-3 font-bold text-primary">"SYNC_COMPLETED"</td>
-                                            <td class="p-3 text-emerald-400 font-bold">"INFO"</td>
-                                            <td class="p-3 text-on-surface">"Successfully synced 28 Oakwood Listings into London cache."</td>
-                                        </tr>
-                                        <tr class="hover:bg-surface-container-high/20 transition-colors">
-                                            <td class="p-3 text-[11px] whitespace-nowrap">"2026-06-14 10:42:18"</td>
-                                            <td class="p-3 font-bold text-primary">"SSL_RENEWED"</td>
-                                            <td class="p-3 text-emerald-400 font-bold">"INFO"</td>
-                                            <td class="p-3 text-on-surface">"Let's Encrypt SSL certificate renewed for leira-rentals.app."</td>
-                                        </tr>
-                                        <tr class="hover:bg-surface-container-high/20 transition-colors">
-                                            <td class="p-3 text-[11px] whitespace-nowrap">"2026-06-14 09:15:33"</td>
-                                            <td class="p-3 font-bold text-primary">"SYNC_SKIPPED"</td>
-                                            <td class="p-3 text-amber-400 font-bold">"WARN"</td>
-                                            <td class="p-3 text-on-surface">"Listing ID lst_9812 skipped due to invalid zip code format."</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20">
+                            <p class="text-xs text-on-surface-variant">"Real-time event streaming will be available once the telemetry pipeline (G-24) is connected to this instance."</p>
                         </div>
                     </div>
                 </Show>
+
+
 
             </div>
         </div>

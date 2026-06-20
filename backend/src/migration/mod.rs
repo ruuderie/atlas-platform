@@ -283,6 +283,8 @@ pub mod m20260903_platform_products_launch_engine; // Product Launch Engine: lau
 pub mod m20260904_product_page_variants;          // Product Launch Engine: product_page_templates + product_page_variants (programmatic SEO)
 pub mod m20260905_product_domain_localization;    // Product Launch Engine: apex_domain, AI localization fields, product_domain_aliases
 pub mod m20260906_subscription_grace_period;       // Billing Grace Period: adds is_billing_exempt, billing_exemption_reason, grace_period_ends_at
+pub mod m20260907_feature_flags;                   // Feature Flags: feature_flags, flag_overrides, flag_audit_log tables
+pub mod m20260908_platform_invitations;            // Platform Invitations: platform_invite table
 
 pub struct Migrator;
 
@@ -500,6 +502,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20260905_product_domain_localization::Migration),
             // Billing Grace Period and Exemption Override fields
             Box::new(m20260906_subscription_grace_period::Migration),
+            // Feature Flags: flag registry, per-tenant NI overrides, audit trail
+            Box::new(m20260907_feature_flags::Migration),
+            // Platform Invitations: platform_invite table
+            Box::new(m20260908_platform_invitations::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

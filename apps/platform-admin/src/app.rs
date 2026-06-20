@@ -426,6 +426,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/admin/aitasks") view=AiTasks />
                         <Route path=path!("/admin/integrations") view=Integrations />
                         <Route path=path!("/admin/compliance") view=Compliance />
+                        <Route path=path!("/admin/security") view=crate::pages::admin::security::SecurityPasskeys />
                         <Route path=path!("/flags") view=FeatureFlags />
                         <Route path=path!("/support") view=SupportQueue />
                         <Route path=path!("/marketing") view=MarketingLanding />

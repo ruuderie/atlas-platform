@@ -141,24 +141,20 @@ pub fn CrmDetail() -> impl IntoView {
                                     <div>
                                         <div class="rec-name">
                                             {l.name.clone()}
-                                            <span class="tag" style="color:var(--cobalt);border-color:var(--cobalt)">"Qualifying"</span>
-                                            <span class="tag" style="color:var(--amber);border-color:var(--amber)">"Not Converted"</span>
-                                            <span class="source-badge" style="color:var(--violet);border-color:var(--violet);background:var(--violet-dim)">"⚙ FMCSA Import"</span>
                                         </div>
                                         <div class="rec-meta">
-                                            "atlas_lead · G-31 · " {l.id.clone()} " · VP Operations · Logística Meridional S.A. · Rio de Janeiro, Brazil"
+                                            {l.id.clone()}
                                         </div>
                                         <div class="rec-actions-row">
                                             <button class="btn btn-ghost btn-sm" on:click=move |_| { toast.message.set(Some("Email composer opened.".to_string())); }>"✉ Email"</button>
                                             <button class="btn btn-ghost btn-sm" on:click=move |_| { toast.message.set(Some("Logged call activity.".to_string())); }>"📞 Log Call"</button>
-                                            <button class="btn btn-ghost btn-sm" on:click=move |_| { toast.message.set(Some("WhatsApp integration triggered.".to_string())); }>"💬 WhatsApp"</button>
                                             <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"⇉ Convert Lead"</button>
                                         </div>
                                     </div>
                                 </div>
                                 <div style="text-align:right;font-size:11px;color:var(--text-muted)">
-                                    <div>"Lead Owner: Maria Fernandes"</div>
-                                    <div style="margin-top:3px">"G-27 Score: "<span style="color:#88CC00;font-weight:600">"7.2"</span></div>
+                                    <div>"Lead Owner: —"</div>
+                                    <div style="margin-top:3px">"G-27 Score: "<span style="color:var(--text-muted);font-weight:600">"—"</span></div>
                                 </div>
                             </div>
                         </div>
@@ -176,10 +172,10 @@ pub fn CrmDetail() -> impl IntoView {
                         </div>
 
                         <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value mono" style="color:var(--green)">"$42M"</div><div class="kpi-sub">"FMCSA verified"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value mono">"340"</div><div class="kpi-sub">"Fleet: 87 units"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Activities"</div><div class="kpi-value mono">"5"</div><div class="kpi-sub">"2 calls · 1 meeting"</div></div>
-                            <div class="kpi"><div class="kpi-label">"G-27 Score"</div><div class="kpi-value" style="font-size:15px;color:#88CC00">"7.2"</div><div class="kpi-sub">"Above Bar"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value mono" style="color:var(--green)">"—"</div><div class="kpi-sub">"Not yet loaded"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value mono">"—"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Activities"</div><div class="kpi-value mono">{move || activities_res.get().unwrap_or_default().len().to_string()}</div></div>
+                            <div class="kpi"><div class="kpi-label">"G-27 Score"</div><div class="kpi-value" style="font-size:15px;color:var(--text-muted)">"—"</div><div class="kpi-sub">"Not yet loaded"</div></div>
                         </div>
 
                         <div class="tab-bar">
@@ -246,9 +242,9 @@ pub fn CrmDetail() -> impl IntoView {
                                         <div>
                                             <div class="card">
                                                 <div class="card-hdr"><span class="card-title">"Lead Info"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Status"</span><span class="s-value cobalt">"Qualifying"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Source"</span><span class="s-value"><span class="pill" style="color:var(--violet);border-color:var(--violet)">"FMCSA Import"</span></span></div>
-                                                <div class="stat-row"><span class="s-label">"Lead Owner"</span><span class="s-value">"Maria Fernandes"</span></div>
+                                                <div class="stat-row"><span class="s-label">"Status"</span><span class="s-value cobalt">{l.lead_status.clone().unwrap_or_else(|| "New".to_string())}</span></div>
+                                                <div class="stat-row"><span class="s-label">"Source"</span><span class="s-value">{l.source.clone().unwrap_or_else(|| "—".to_string())}</span></div>
+                                                <div class="stat-row"><span class="s-label">"Lead Owner"</span><span class="s-value">"—"</span></div>
                                             </div>
                                             <div class="card">
                                                 <div class="card-hdr"><span class="card-title">"Data Quality"</span></div>
@@ -298,10 +294,10 @@ pub fn CrmDetail() -> impl IntoView {
                         </div>
 
                         <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Open Opportunities"</div><div class="kpi-value">"3"</div><div class="kpi-sub">"$4.7M pipeline"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Contacts"</div><div class="kpi-value">"4"</div><div class="kpi-sub">"1 primary"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value">"$42M"</div><div class="kpi-sub">"CNPJ verified"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value">"340"</div><div class="kpi-sub">"Est. 2004"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Open Opportunities"</div><div class="kpi-value">"—"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Contacts"</div><div class="kpi-value">"—"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value">"—"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value">"—"</div></div>
                         </div>
 
                         <div class="content-body">
@@ -309,17 +305,16 @@ pub fn CrmDetail() -> impl IntoView {
                                 <div>
                                     <div class="card">
                                         <div class="card-hdr"><span class="card-title">"Account Info"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Type"</span><span class="s-value">"Organization (B2B)"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Industry"</span><span class="s-value">"Freight & Logistics"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Website"</span><span class="s-value">"meridional.com.br"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Type"</span><span class="s-value">"—"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Industry"</span><span class="s-value">"—"</span></div>
+                                        <div class="stat-row"><span class="s-label">"Website"</span><span class="s-value">"—"</span></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div class="card">
                                         <div class="card-hdr"><span class="card-title">"Primary Contact"</span></div>
                                         <div class="card-body">
-                                            <div style="font-weight:600;">"João Silva"</div>
-                                            <div style="font-size:11px;color:var(--text-muted);">"VP Operations · Primary"</div>
+                                            <div style="font-size:12px;color:var(--text-muted);">"No primary contact linked yet."</div>
                                         </div>
                                     </div>
                                 </div>
@@ -390,8 +385,8 @@ pub fn CrmDetail() -> impl IntoView {
                         </div>
 
                         <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Deal Value"</div><div class="kpi-value mono" style="color:var(--cobalt)">{format!("${:.2}", d.amount)}</div><div class="kpi-sub">"SLA collect: 8%"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Win Probability"</div><div class="kpi-value">"75%"</div><div class="kpi-sub">"Negotiation stage"</div></div>
+                            <div class="kpi"><div class="kpi-label">"Deal Value"</div><div class="kpi-value mono" style="color:var(--cobalt)">{format!("${:.2}", d.amount)}</div></div>
+                            <div class="kpi"><div class="kpi-label">"Win Probability"</div><div class="kpi-value">"—"</div></div>
                         </div>
 
                         <div class="content-body">

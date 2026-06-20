@@ -4,3 +4,4 @@ pub mod integrations;
 pub mod compliance;
 pub mod developer;
 pub mod ai_tasks;
+pub mod security;

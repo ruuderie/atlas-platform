@@ -1,10 +1,11 @@
 use axum::{
-    extract::{Extension, Path, Json},
+    extract::{Extension, Path, Json, Query},
     http::StatusCode,
     response::{IntoResponse, Json as JsonResponse},
     routing::{get, post, put, delete},
     Router,
 };
+
 use sea_orm::{
     DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
     ActiveModelTrait,
@@ -83,19 +84,46 @@ pub async fn create_contact(
     Ok((StatusCode::CREATED, JsonResponse(contact_model)))
 }
 
+#[derive(serde::Deserialize, Default)]
+pub struct ContactListParams {
+    pub search:   Option<String>,
+    pub page:     Option<u64>,
+    pub per_page: Option<u64>,
+}
+impl ContactListParams {
+    pub fn offset(&self) -> u64 { (self.page.unwrap_or(1).max(1) - 1) * self.per_page.unwrap_or(50).min(200).max(1) }
+    pub fn limit(&self)  -> u64 { self.per_page.unwrap_or(50).min(200).max(1) }
+}
+
 pub async fn get_contacts(
     Extension(db): Extension<DatabaseConnection>,
+    Query(params): Query<ContactListParams>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let contacts = contact::Entity::find()
+    let mut contacts: Vec<ContactModel> = contact::Entity::find()
         .all(&db)
         .await
         .map_err(|e| {
             tracing::error!("Failed to fetch contacts: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        })?
+        .into_iter()
+        .map(|c| c.into())
+        .collect();
 
-    let contact_models: Vec<ContactModel> = contacts.into_iter().map(|c| c.into()).collect();
-    Ok((StatusCode::OK, JsonResponse(contact_models)))
+    if let Some(ref term) = params.search {
+        let t = term.to_lowercase();
+        contacts.retain(|c| {
+            c.name.to_lowercase().contains(&t)
+                || c.email.as_deref().unwrap_or("").to_lowercase().contains(&t)
+                || c.phone.as_deref().unwrap_or("").contains(&t)
+        });
+    }
+
+    let offset = params.offset() as usize;
+    let limit  = params.limit()  as usize;
+    let page: Vec<ContactModel> = contacts.into_iter().skip(offset).take(limit).collect();
+
+    Ok((StatusCode::OK, JsonResponse(page)))
 }
 
 pub async fn get_contact(

@@ -1,17 +1,10 @@
 use leptos::prelude::*;
 use uuid::Uuid;
-use crate::api::admin::{get_users, toggle_admin, UserModel, impersonate_user};
+use crate::api::admin::{
+    get_users, toggle_admin, UserModel, impersonate_user,
+    get_invites, create_invite, revoke_invite, resend_invite, InviteModel
+};
 use crate::app::GlobalToast;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MockInvite {
-    pub email: String,
-    pub role: String,
-    pub tenant: String,
-    pub invited_by: String,
-    pub sent: String,
-    pub expires: String,
-}
 
 #[component]
 pub fn PlatformAdmins() -> impl IntoView {
@@ -35,25 +28,14 @@ pub fn PlatformAdmins() -> impl IntoView {
     let invite_role = RwSignal::new("Admin".to_string());
     let invite_tenant = RwSignal::new("Nexus PM Group".to_string());
 
-    // Mock invites
-    let mock_invites = RwSignal::new(vec![
-        MockInvite {
-            email: "jill@newclient.com".to_string(),
-            role: "Admin".to_string(),
-            tenant: "Folio PM (new tenant)".to_string(),
-            invited_by: "Jamie Delaney".to_string(),
-            sent: "Jun 8".to_string(),
-            expires: "Jun 15".to_string(),
-        },
-        MockInvite {
-            email: "pedro@rioverde.br".to_string(),
-            role: "Editor".to_string(),
-            tenant: "Rio Verde PMC".to_string(),
-            invited_by: "Maria Fernandes".to_string(),
-            sent: "Jun 7".to_string(),
-            expires: "Jun 14".to_string(),
-        },
-    ]);
+    // Live invitations resource
+    let invites_refetch = RwSignal::new(0);
+    let invites_res = LocalResource::new(move || {
+        let _ = invites_refetch.get();
+        async move {
+            get_invites().await.unwrap_or_default()
+        }
+    });
 
     // Resource hooks for actual users
     let users_res = LocalResource::new(move || {
@@ -108,29 +90,54 @@ pub fn PlatformAdmins() -> impl IntoView {
 
         let role = invite_role.get();
         let tenant = invite_tenant.get();
+        let t_toast = toast.clone();
 
-        mock_invites.update(|list| {
-            list.push(MockInvite {
-                email: email.clone(),
-                role,
-                tenant,
-                invited_by: "Jamie Delaney".to_string(),
-                sent: "Jun 14".to_string(),
-                expires: "Jun 21".to_string(),
-            });
+        leptos::task::spawn_local(async move {
+            match create_invite(email.clone(), role, tenant).await {
+                Ok(_) => {
+                    t_toast.show_toast("Success", &format!("Invitation sent to {}", email), "success");
+                    invites_refetch.update(|v| *v += 1);
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to send invitation: {}", e), "error");
+                }
+            }
         });
 
         invite_email.set(String::new());
         show_invite_modal.set(false);
-        toast.show_toast("Success", &format!("Invitation sent to {}", email), "success");
     };
 
     // Revoke Invite helper
-    let handle_revoke_invite = move |email: String| {
-        mock_invites.update(|list| {
-            list.retain(|i| i.email != email);
+    let handle_revoke_invite = move |id: Uuid, email: String| {
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match revoke_invite(id).await {
+                Ok(_) => {
+                    t_toast.show_toast("Warning", &format!("Invitation to {} revoked.", email), "warn");
+                    invites_refetch.update(|v| *v += 1);
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to revoke invitation: {}", e), "error");
+                }
+            }
         });
-        toast.show_toast("Warning", &format!("Invitation to {} revoked.", email), "warn");
+    };
+
+    // Resend Invite helper
+    let handle_resend_invite = move |id: Uuid, email: String| {
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match resend_invite(id).await {
+                Ok(_) => {
+                    t_toast.show_toast("Success", &format!("Invitation resent to {}", email), "success");
+                    invites_refetch.update(|v| *v += 1);
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to resend invitation: {}", e), "error");
+                }
+            }
+        });
     };
 
     view! {
@@ -176,7 +183,7 @@ pub fn PlatformAdmins() -> impl IntoView {
             <div class="kpi">
                 <div class="kpi-label">"Pending Invites"</div>
                 <div class="kpi-value" style="color:var(--amber)">
-                    {move || mock_invites.get().len().to_string()}
+                    {move || invites_res.get().map(|list| list.len().to_string()).unwrap_or_else(|| "0".to_string())}
                 </div>
                 <div class="kpi-sub">"Awaiting acceptance"</div>
             </div>
@@ -201,7 +208,7 @@ pub fn PlatformAdmins() -> impl IntoView {
             >
                 "Pending Invites "
                 <span style="font-size:10px;color:var(--amber)">
-                    {move || format!("  {}", mock_invites.get().len())}
+                    {move || format!("  {}", invites_res.get().map(|list| list.len()).unwrap_or(0))}
                 </span>
             </button>
             <button 
@@ -518,40 +525,42 @@ pub fn PlatformAdmins() -> impl IntoView {
                             </tr>
                         </thead>
                         <tbody>
-                            <For 
-                                each=move || mock_invites.get()
-                                key=|i| i.email.clone()
-                                children=move |invite| {
-                                    let email_clone = invite.email.clone();
-                                    let email_clone2 = invite.email.clone();
-                                    view! {
-                                        <tr>
-                                            <td class="cobalt">{invite.email}</td>
-                                            <td><span class="pill" style="color:var(--violet);border-color:var(--violet)">{invite.role}</span></td>
-                                            <td class="muted">{invite.tenant}</td>
-                                            <td class="muted">{invite.invited_by}</td>
-                                            <td class="muted">{invite.sent}</td>
-                                            <td class="muted amber">{invite.expires}</td>
-                                            <td style="display:flex;gap:4px;">
-                                                <button 
-                                                    class="btn btn-ghost btn-sm"
-                                                    on:click=move |_| {
-                                                        toast.show_toast("Success", &format!("Invitation resent to {}", email_clone), "success");
-                                                    }
-                                                >
-                                                    "Resend"
-                                                </button>
-                                                <button 
-                                                    class="btn btn-ghost btn-sm"
-                                                    on:click=move |_| handle_revoke_invite(email_clone2.clone())
-                                                >
-                                                    "Revoke"
-                                                </button>
-                                            </td>
-                                        </tr>
+                            {move || invites_res.get().map(|invites| view! {
+                                <For 
+                                    each=move || invites.clone()
+                                    key=|i: &InviteModel| i.id.clone()
+                                    children=move |invite| {
+                                        let invite_id = invite.id;
+                                        let invite_id2 = invite.id;
+                                        let email_clone = invite.email.clone();
+                                        let email_clone2 = invite.email.clone();
+                                        view! {
+                                            <tr>
+                                                <td class="cobalt">{invite.email}</td>
+                                                <td><span class="pill" style="color:var(--violet);border-color:var(--violet)">{invite.role}</span></td>
+                                                <td class="muted">{invite.tenant}</td>
+                                                <td class="muted">{invite.invited_by}</td>
+                                                <td class="muted">{invite.sent}</td>
+                                                <td class="muted amber">{invite.expires}</td>
+                                                <td style="display:flex;gap:4px;">
+                                                    <button 
+                                                        class="btn btn-ghost btn-sm"
+                                                        on:click=move |_| handle_resend_invite(invite_id, email_clone.clone())
+                                                    >
+                                                        "Resend"
+                                                    </button>
+                                                    <button 
+                                                        class="btn btn-ghost btn-sm"
+                                                        on:click=move |_| handle_revoke_invite(invite_id2, email_clone2.clone())
+                                                    >
+                                                        "Revoke"
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
                                     }
-                                }
-                            />
+                                />
+                            })}
                         </tbody>
                     </table>
                 </div>

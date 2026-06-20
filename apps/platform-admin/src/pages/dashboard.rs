@@ -1,12 +1,16 @@
 use leptos::prelude::*;
 use crate::api::analytics::{get_business_kpis, get_engagement};
+use crate::api::admin::{get_tenant_stats, get_all_platform_apps};
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
     let kpis_res = LocalResource::new(|| async move { get_business_kpis().await.unwrap_or_default() });
     let engagement_res = LocalResource::new(|| async move { get_engagement().await.unwrap_or_default() });
-    
+    let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let apps_res = LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
+
     let mrr = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.value);
+    let mrr_prev = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.previous_value);
     let active_subs = Signal::derive(move || kpis_res.get().unwrap_or_default().active_subscriptions.value);
     let liquidity_index = Signal::derive(move || kpis_res.get().unwrap_or_default().network_liquidity_index.value);
     let total_users = Signal::derive(move || engagement_res.get().unwrap_or_default().total_users.value);
@@ -15,7 +19,7 @@ pub fn Dashboard() -> impl IntoView {
     let mrr_str = move || {
         let val = mrr.get();
         if val <= 0.0 {
-            "$41.2k".to_string()
+            "—".to_string()
         } else if val >= 1000.0 {
             format!("${:.1}k", val / 1000.0)
         } else {
@@ -23,13 +27,25 @@ pub fn Dashboard() -> impl IntoView {
         }
     };
 
+    let mrr_delta_str = move || {
+        let cur = mrr.get();
+        let prev = mrr_prev.get();
+        if prev <= 0.0 || cur <= 0.0 {
+            "—".to_string()
+        } else {
+            let pct = ((cur - prev) / prev) * 100.0;
+            format!("{:+.1}% MoM", pct)
+        }
+    };
+
     let active_tenants_str = move || {
         let val = active_subs.get();
-        if val <= 0.0 {
-            "24".to_string()
-        } else {
-            format!("{:.0}", val)
-        }
+        if val <= 0.0 { "—".to_string() } else { format!("{:.0}", val) }
+    };
+
+    let tenant_count_str = move || {
+        let n = tenants_res.get().unwrap_or_default().len();
+        if n == 0 { "—".to_string() } else { n.to_string() }
     };
 
     view! {
@@ -38,7 +54,7 @@ pub fn Dashboard() -> impl IntoView {
             <div class="page-header">
             <div>
                 <h1 class="page-title">"Command Center"</h1>
-                <p class="page-subtitle">"Platform-wide telemetry — 24 tenants · Last sync 14s ago"</p>
+                <p class="page-subtitle">{move || format!("Platform-wide telemetry — {} tenants · Real-time", tenant_count_str())}</p>
             </div>
             <div class="page-header-actions">
                 <button class="btn btn-ghost btn-icon" title="Refresh">
@@ -111,7 +127,7 @@ pub fn Dashboard() -> impl IntoView {
                     <svg viewBox="0 0 10 10" width="10" height="10" fill="currentColor">
                         <path d="M5 2l4 6H1z"/>
                     </svg>
-                    "+2 this month"
+                    {move || { let n = tenants_res.get().unwrap_or_default().len(); if n > 0 { format!("{} tenants registered", n) } else { "—".to_string() } }}
                 </div>
             </div>
             <div class="kpi-card">
@@ -121,7 +137,7 @@ pub fn Dashboard() -> impl IntoView {
                     <svg viewBox="0 0 10 10" width="10" height="10" fill="currentColor">
                         <path d="M5 2l4 6H1z"/>
                     </svg>
-                    "+8.4% MoM"
+                    {mrr_delta_str}
                 </div>
             </div>
             <div class="kpi-card">
@@ -161,216 +177,58 @@ pub fn Dashboard() -> impl IntoView {
                         <path d="M4 5V3a3 3 0 0 1 6 0v2"/>
                     </svg>
                     "Tenant Registry"
-                    <span class="section-count">"24 tenants"</span>
+                    <span class="section-count">{move || format!("{} tenants", tenants_res.get().unwrap_or_default().len())}</span>
                 </div>
                 <div class="flex-row">
                     <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;">"Filter"</button>
                     <a href="/apps" class="section-action" style="text-decoration:none">"View All →"</a>
                 </div>
             </div>
+            <Suspense fallback=move || view! { <div class="p-8 text-center muted">"Loading tenants..."</div> }>
             <table>
                 <thead>
                     <tr>
                         <th>"Tenant / Domain"</th>
-                        <th>"Type"</th>
                         <th>"Plan"</th>
-                        <th>"Modules"</th>
-                        <th class="center">"Health Score"</th>
-                        <th class="right">"MRR"</th>
-                        <th class="right">"Leads"</th>
+                        <th>"Profiles"</th>
+                        <th>"Listings"</th>
                         <th class="center">"Status"</th>
+                        <th class="right">"MRR"</th>
                         <th class="right">"Joined"</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>
-                            <div class="tenant-name">"Nexus Property Group"</div>
-                            <div class="tenant-domain">"nexus.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-pm">"PM"</span></td>
-                        <td><span class="plan-badge enterprise">"Enterprise"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on" title="Listings">"L"</div>
-                                <div class="mflag on" title="Profiles">"P"</div>
-                                <div class="mflag on" title="Payments">"$"</div>
-                                <div class="mflag on" title="Analytics">"A"</div>
-                                <div class="mflag on" title="Events">"E"</div>
-                                <div class="mflag on" title="Custom Fields">"C"</div>
-                                <div class="mflag" title="Reviews (off)">"R"</div>
-                                <div class="mflag" title="Messaging (off)">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge">
-                                <span class="score-dot" style="background:var(--tier-outstanding)"></span>
-                                <span class="mono">"9.2"</span>
-                                <span class="score-tier">"Excellent"</span>
-                            </div>
-                        </td>
-                        <td class="right mono">"$4,800"</td>
-                        <td class="right mono">"342"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--green)"></span></td>
-                        <td class="right muted">"Feb 2024"</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="tenant-name">"Ruud Commercial"</div>
-                            <div class="tenant-domain">"ruud-commercial.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-multi">"Multi"</span></td>
-                        <td><span class="plan-badge enterprise">"Enterprise"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on">"L"</div>
-                                <div class="mflag on">"P"</div>
-                                <div class="mflag on">"$"</div>
-                                <div class="mflag on">"A"</div>
-                                <div class="mflag on">"E"</div>
-                                <div class="mflag on">"C"</div>
-                                <div class="mflag on">"R"</div>
-                                <div class="mflag on">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge">
-                                <span class="score-dot" style="background:var(--tier-above)"></span>
-                                <span class="mono">"8.1"</span>
-                                <span class="score-tier">"Above"</span>
-                            </div>
-                        </td>
-                        <td class="right mono">"$6,200"</td>
-                        <td class="right mono">"891"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--green)"></span></td>
-                        <td class="right muted">"Jan 2024"</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="tenant-name">"Vizcaya STR Partners"</div>
-                            <div class="tenant-domain">"vizcaya.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-str">"STR"</span></td>
-                        <td><span class="plan-badge growth">"Growth"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on">"L"</div>
-                                <div class="mflag on">"P"</div>
-                                <div class="mflag on">"$"</div>
-                                <div class="mflag on">"A"</div>
-                                <div class="mflag">"E"</div>
-                                <div class="mflag">"C"</div>
-                                <div class="mflag on">"R"</div>
-                                <div class="mflag">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge">
-                                <span class="score-dot" style="background:var(--tier-at)"></span>
-                                <span class="mono">"6.3"</span>
-                                <span class="score-tier">"At Bar"</span>
-                            </div>
-                        </td>
-                        <td class="right mono">"$1,900"</td>
-                        <td class="right mono">"124"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--green)"></span></td>
-                        <td class="right muted">"May 2024"</td>
-                    </tr>
-                    <tr style="background:rgba(229,72,77,0.03)">
-                        <td>
-                            <div class="tenant-name">"Blue Ridge Holdings"</div>
-                            <div class="tenant-domain">"blueridge.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-pm">"PM"</span></td>
-                        <td><span class="plan-badge growth">"Growth"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on">"L"</div>
-                                <div class="mflag on">"P"</div>
-                                <div class="mflag on">"$"</div>
-                                <div class="mflag">"A"</div>
-                                <div class="mflag">"E"</div>
-                                <div class="mflag">"C"</div>
-                                <div class="mflag">"R"</div>
-                                <div class="mflag">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge" style="border-color:var(--red);background:var(--red-dim)">
-                                <span class="score-dot" style="background:var(--tier-avoid)"></span>
-                                <span class="mono" style="color:var(--red)">"4.1"</span>
-                                <span class="score-tier" style="color:var(--red)">"Critical"</span>
-                            </div>
-                        </td>
-                        <td class="right mono">"$1,200"</td>
-                        <td class="right mono">"56"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--red)"></span></td>
-                        <td class="right muted">"Aug 2024"</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <div class="tenant-name">"Meridian Brokerage"</div>
-                            <div class="tenant-domain">"meridian.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-biz">"Biz"</span></td>
-                        <td><span class="plan-badge starter">"Starter"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on">"L"</div>
-                                <div class="mflag on">"P"</div>
-                                <div class="mflag">"$"</div>
-                                <div class="mflag on">"A"</div>
-                                <div class="mflag">"E"</div>
-                                <div class="mflag">"C"</div>
-                                <div class="mflag">"R"</div>
-                                <div class="mflag">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge">
-                                <span class="score-dot" style="background:var(--tier-above)"></span>
-                                <span class="mono">"7.8"</span>
-                                <span class="score-tier">"Above"</span>
-                            </div>
-                        </td>
-                        <td class="right mono">"$480"</td>
-                        <td class="right mono">"89"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--amber)"></span></td>
-                        <td class="right muted">"Mar 2025"</td>
-                    </tr>
-                    <tr style="opacity:0.6">
-                        <td>
-                            <div class="tenant-name">"Solaris Logistics"</div>
-                            <div class="tenant-domain">"solaris.atlas.app"</div>
-                        </td>
-                        <td><span class="tenant-type-tag tag-biz">"Biz"</span></td>
-                        <td><span class="plan-badge starter">"Starter"</span></td>
-                        <td>
-                            <div class="module-flags">
-                                <div class="mflag on">"L"</div>
-                                <div class="mflag">"P"</div>
-                                <div class="mflag">"$"</div>
-                                <div class="mflag">"A"</div>
-                                <div class="mflag">"E"</div>
-                                <div class="mflag">"C"</div>
-                                <div class="mflag">"R"</div>
-                                <div class="mflag">"M"</div>
-                            </div>
-                        </td>
-                        <td class="center">
-                            <div class="score-badge">
-                                <span class="score-dot" style="background:var(--text-muted)"></span>
-                                <span class="mono" style="color:var(--text-muted)">"—"</span>
-                                <span class="score-tier">"No data"</span>
-                            </div>
-                        </td>
-                        <td class="right mono secondary">"$0"</td>
-                        <td class="right mono secondary">"0"</td>
-                        <td class="center"><span class="status-dot" style="background:var(--text-muted)"></span></td>
-                        <td class="right muted">"Jun 2025"</td>
-                    </tr>
+                    {move || tenants_res.get().unwrap_or_default().into_iter().map(|t| {
+                        let status_color = match t.site_status.as_deref().unwrap_or("active") {
+                            "active" => "var(--green)",
+                            "suspended" => "var(--red)",
+                            "provisioning" => "var(--amber)",
+                            _ => "var(--text-muted)",
+                        };
+                        let mrr_str = t.mrr_cents
+                            .map(|c| if c >= 100_000 { format!("${:.1}k", c as f64 / 100_000.0) } else { format!("${:.2}", c as f64 / 100.0) })
+                            .unwrap_or_else(|| "—".to_string());
+                        let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
+                        let joined = t.joined_at.clone().unwrap_or_else(|| "—".to_string());
+                        let joined_short = joined.get(..7).unwrap_or(&joined).to_string();
+                        view! {
+                            <tr>
+                                <td>
+                                    <div class="tenant-name">{t.name.clone()}</div>
+                                    <div class="tenant-domain" style="font-size:10px;color:var(--text-muted)">{t.tenant_id.clone()}</div>
+                                </td>
+                                <td><span class="plan-badge">{plan}</span></td>
+                                <td class="right mono">{t.profile_count.to_string()}</td>
+                                <td class="right mono">{t.listing_count.to_string()}</td>
+                                <td class="center"><span class="status-dot" style=format!("background:{}", status_color)></span></td>
+                                <td class="right mono">{mrr_str}</td>
+                                <td class="right muted">{joined_short}</td>
+                            </tr>
+                        }
+                    }).collect_view()}
                 </tbody>
             </table>
+            </Suspense>
         </div>
 
         // ── Bottom Split: Products + Generics Coverage ──
@@ -383,73 +241,44 @@ pub fn Dashboard() -> impl IntoView {
                             <circle cx="7" cy="7" r="5"/>
                             <path d="M7 4v3l2 2"/>
                         </svg>
-                        "Platform Products"
-                        <span class="section-count">"7 active"</span>
+                        "Platform Apps"
+                        <span class="section-count">{move || format!("{} instances", apps_res.get().unwrap_or_default().len())}</span>
                     </div>
                     <a href="/apps" class="section-action" style="text-decoration:none">"Manage →"</a>
                 </div>
 
-                <div class="product-row">
-                    <span class="product-mode-dot" style="background:var(--green)"></span>
-                    <div class="product-info">
-                        <div class="product-name">"Atlas PM — Residential"</div>
-                        <div class="product-domain">"pm.buildwithruud.com"</div>
-                    </div>
-                    <div class="product-meta">
-                        <div class="score-badge">
-                            <span class="score-dot" style="background:var(--tier-outstanding)"></span>
-                            <span class="mono">"9.1"</span>
-                        </div>
-                        <span style="font-size:10px;color:var(--text-muted)">"342 leads"</span>
-                    </div>
-                </div>
-                <div class="product-row">
-                    <span class="product-mode-dot" style="background:var(--green)"></span>
-                    <div class="product-info">
-                        <div class="product-name">"Atlas Commercial"</div>
-                        <div class="product-domain">"commercial.buildwithruud.com"</div>
-                    </div>
-                    <div class="product-meta">
-                        <div class="score-badge">
-                            <span class="score-dot" style="background:var(--tier-above)"></span>
-                            <span class="mono">"7.8"</span>
-                        </div>
-                        <span style="font-size:10px;color:var(--text-muted)">"124 leads"</span>
-                    </div>
-                </div>
-                <div class="product-row">
-                    <span class="product-mode-dot" style="background:var(--cobalt)"></span>
-                    <div class="product-info">
-                        <div class="product-name">"Atlas STR — Miami"</div>
-                        <div class="product-domain">"str-miami.buildwithruud.com"</div>
-                    </div>
-                    <div class="product-meta">
-                        <span style="font-size:10px;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 5px;font-weight:600;">"PRE-LAUNCH"</span>
-                        <span style="font-size:10px;color:var(--text-muted)">"88 waitlist"</span>
-                    </div>
-                </div>
-                <div class="product-row">
-                    <span class="product-mode-dot" style="background:var(--amber)"></span>
-                    <div class="product-info">
-                        <div class="product-name">"Atlas Wholesale — USVI"</div>
-                        <div class="product-domain">"wholesale-usvi.buildwithruud.com"</div>
-                    </div>
-                    <div class="product-meta">
-                        <span style="font-size:10px;color:var(--amber);border:1px solid var(--amber);border-radius:3px;padding:1px 5px;font-weight:600;">"BETA"</span>
-                        <span style="font-size:10px;color:var(--text-muted)">"41 leads"</span>
-                    </div>
-                </div>
-                <div class="product-row">
-                    <span class="product-mode-dot" style="background:var(--text-muted)"></span>
-                    <div class="product-info">
-                        <div class="product-name">"Atlas STR — Brazil"</div>
-                        <div class="product-domain">"str-brasil.buildwithruud.com"</div>
-                    </div>
-                    <div class="product-meta">
-                        <span style="font-size:10px;color:var(--violet);border:1px solid var(--violet);border-radius:3px;padding:1px 5px;font-weight:600;">"AI LOCALIZE"</span>
-                        <span style="font-size:10px;color:var(--text-muted)">"—"</span>
-                    </div>
-                </div>
+                <Suspense fallback=move || view! { <div class="p-4 muted">"Loading apps..."</div> }>
+                {move || {
+                    let apps = apps_res.get().unwrap_or_default();
+                    if apps.is_empty() {
+                        view! { <div class="p-4 muted">"No app instances provisioned yet."</div> }.into_any()
+                    } else {
+                        apps.into_iter().map(|app| {
+                            let dot_color = match app.site_status.as_str() {
+                                "active" => "var(--green)",
+                                "suspended" => "var(--red)",
+                                "provisioning" => "var(--cobalt)",
+                                "beta" => "var(--amber)",
+                                _ => "var(--text-muted)",
+                            };
+                            let status_label = app.site_status.clone();
+                            view! {
+                                <div class="product-row">
+                                    <span class="product-mode-dot" style=format!("background:{}", dot_color)></span>
+                                    <div class="product-info">
+                                        <div class="product-name">{app.name.clone()}</div>
+                                        <div class="product-domain">{app.domain.clone()}</div>
+                                    </div>
+                                    <div class="product-meta">
+                                        <span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;font-weight:600;text-transform:uppercase">{status_label}</span>
+                                        <span style="font-size:10px;color:var(--text-muted)">{app.app_type.clone()}</span>
+                                    </div>
+                                </div>
+                            }
+                        }).collect_view().into_any()
+                    }
+                }}
+                </Suspense>
             </div>
 
             // Generics Coverage Panel

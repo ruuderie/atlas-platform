@@ -14,9 +14,11 @@ pub fn TemplateDetail() -> impl IntoView {
     let params = use_params_map();
     let template_id = move || params.with(|p| p.get("id").unwrap_or_default());
     
-    let listings_res = LocalResource::new(move || async move { 
-        // We fetch a specific network's listings or just a mock fallback for MVP since we don't have get_listings_by_template
-        vec![] as Vec<crate::api::models::ListingModel>
+    let template_id_str = StoredValue::new(template_id());
+
+    let listings_res = LocalResource::new(move || async move {
+        let tid = template_id_str.get_value();
+        crate::api::listings::get_listings(&tid).await.unwrap_or_default()
     });
     let template_schema = RwSignal::new(Some(serde_json::json!({
         "License Number": "Text",

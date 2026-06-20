@@ -1,30 +1,6 @@
 use leptos::prelude::*;
 use leptos::wasm_bindgen::JsCast;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MockPermit {
-    pub key: &'static str,
-    pub name: String,
-    pub holder: String,
-    pub license: String,
-    pub permit_type: String,
-    pub status: RwSignal<String>,
-    pub status_class: RwSignal<&'static str>,
-    pub last_checked: RwSignal<String>,
-    pub date_renewed: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MockGeoZone {
-    pub key: String,
-    pub name: String,
-    pub region: String,
-    pub listings: String,
-    pub status: String,
-    pub status_class: &'static str,
-    pub coverage: String,
-    pub points: String,
-}
+use uuid::Uuid;
 
 #[component]
 pub fn Compliance() -> impl IntoView {
@@ -33,83 +9,39 @@ pub fn Compliance() -> impl IntoView {
     // Tabs state
     let active_tab = RwSignal::new("regulatory".to_string());
     
-    // Municipal Permits State
-    let permits = RwSignal::new(vec![
-        MockPermit {
-            key: "reg-1",
-            name: "Chicago STR Operator License".to_string(),
-            holder: "Biscayne STR Co.".to_string(),
-            license: "R-2026-CH04".to_string(),
-            permit_type: "Short-term Rental".to_string(),
-            status: RwSignal::new("✓ Active".to_string()),
-            status_class: RwSignal::new("tag tag-ok"),
-            last_checked: RwSignal::new("2 days ago".to_string()),
-            date_renewed: "Jan 12, 2026".to_string(),
-        },
-        MockPermit {
-            key: "reg-2",
-            name: "Miami STR Lodging Permit".to_string(),
-            holder: "Biscayne STR Co.".to_string(),
-            license: "FL-MIA-8819A".to_string(),
-            permit_type: "Short-term Rental".to_string(),
-            status: RwSignal::new("✓ Active".to_string()),
-            status_class: RwSignal::new("tag tag-ok"),
-            last_checked: RwSignal::new("Yesterday".to_string()),
-            date_renewed: "May 03, 2025".to_string(),
-        },
-        MockPermit {
-            key: "reg-3",
-            name: "Condominio Legal License (BR)".to_string(),
-            holder: "Rio Verde PMC".to_string(),
-            license: "BR-CNPJ-04981".to_string(),
-            permit_type: "Condominio Code".to_string(),
-            status: RwSignal::new("⚠ In Review".to_string()),
-            status_class: RwSignal::new("tag tag-warn"),
-            last_checked: RwSignal::new("1 week ago".to_string()),
-            date_renewed: "Dec 14, 2024".to_string(),
-        },
-    ]);
+    // Municipal Permits Live Resource
+    let permits_trigger = RwSignal::new(0);
+    let permits_res = LocalResource::new(move || {
+        permits_trigger.get();
+        async move {
+            crate::api::admin::get_permits().await.unwrap_or_default()
+        }
+    });
 
-    // Active SVG Map Zones
-    let geo_zones = RwSignal::new(vec![
-        MockGeoZone {
-            key: "chicago".to_string(),
-            name: "Chicago Loop Service Area".to_string(),
-            region: "Chicago, IL, USA".to_string(),
-            listings: "1,240 listings".to_string(),
-            status: "SRID 4326 (Valid)".to_string(),
-            status_class: "tag tag-ok",
-            coverage: "42.8 sq km".to_string(),
-            points: "60,60 140,50 160,130 90,140".to_string(),
-        },
-        MockGeoZone {
-            key: "miami".to_string(),
-            name: "Miami STR Corridor".to_string(),
-            region: "Miami, FL, USA".to_string(),
-            listings: "146 listings".to_string(),
-            status: "SRID 4326 (Valid)".to_string(),
-            status_class: "tag tag-ok",
-            coverage: "18.4 sq km".to_string(),
-            points: "220,160 310,130 330,220 250,230".to_string(),
-        },
-        MockGeoZone {
-            key: "rio".to_string(),
-            name: "Rio de Janeiro Copacabana".to_string(),
-            region: "Rio de Janeiro, Brazil".to_string(),
-            listings: "324 listings".to_string(),
-            status: "SRID 4326 (Valid)".to_string(),
-            status_class: "tag tag-ok",
-            coverage: "8.2 sq km".to_string(),
-            points: "120,180 200,210 170,270 90,240".to_string(),
-        },
-    ]);
+    // Contracts Live Resource (G-11)
+    let contracts_trigger = RwSignal::new(0);
+    let contracts_res = LocalResource::new(move || {
+        contracts_trigger.get();
+        async move {
+            crate::api::admin::get_contracts().await.unwrap_or_default()
+        }
+    });
+
+    // Active SVG Map Zones Live Resource
+    let geo_zones_trigger = RwSignal::new(0);
+    let geo_zones_res = LocalResource::new(move || {
+        geo_zones_trigger.get();
+        async move {
+            crate::api::admin::get_geo_zones().await.unwrap_or_default()
+        }
+    });
 
     let selected_zone_key = RwSignal::new("chicago".to_string());
     
     // Bounding details for selected zone
     let selected_zone = Signal::derive(move || {
         let key = selected_zone_key.get();
-        geo_zones.get().iter().find(|z| z.key == key).cloned()
+        geo_zones_res.get().unwrap_or_default().into_iter().find(|z| z.key == key)
     });
 
     // Drawing mode status
@@ -124,23 +56,26 @@ pub fn Compliance() -> impl IntoView {
     let new_zone_name = RwSignal::new(String::new());
     let new_zone_region = RwSignal::new(String::new());
 
+    // Modal: Create Contract
+    let show_contract_modal = RwSignal::new(false);
+    let new_contract_type = RwSignal::new("SLA Agreement".to_string());
+    let new_contract_start = RwSignal::new(String::new());
+    let new_contract_end = RwSignal::new(String::new());
+
     // Action: Verify Permit Online
-    let verify_permit = move |key: &'static str| {
-        let items = permits.get();
-        if let Some(p) = items.iter().find(|permit| permit.key == key) {
-            let p_status = p.status;
-            let p_class = p.status_class;
-            let p_checked = p.last_checked;
-            let t_toast = toast.clone();
-            
-            leptos::task::spawn_local(async move {
-                gloo_timers::future::TimeoutFuture::new(800).await;
-                p_status.set("✓ Verified".to_string());
-                p_class.set("tag tag-ok");
-                p_checked.set("Just now".to_string());
-                t_toast.show_toast("Success", "Permit regulatory verification check PASSED.", "success");
-            });
-        }
+    let verify_permit_action = move |id: Uuid| {
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::verify_permit(id).await {
+                Ok(_) => {
+                    permits_trigger.set(permits_trigger.get() + 1);
+                    t_toast.show_toast("Success", "Permit regulatory verification check PASSED.", "success");
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Verification failed: {}", e), "error");
+                }
+            }
+        });
     };
 
     // Action: Save drawn geo zone
@@ -159,47 +94,36 @@ pub fn Compliance() -> impl IntoView {
             .collect::<Vec<String>>()
             .join(" ");
 
-        let key = format!("drawn_{}", name.to_lowercase().replace(" ", "_"));
-        let key_select = key.clone();
-
-        geo_zones.update(|list| {
-            list.push(MockGeoZone {
-                key,
-                name: name.clone(),
-                region: region.clone(),
-                listings: "12 listings".to_string(),
-                status: "SRID 4326 (Valid)".to_string(),
-                status_class: "tag tag-ok",
-                coverage: "2.4 sq km".to_string(),
-                points: points_str,
-            });
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::admin::create_geo_zone(name, region, points_str).await {
+                Ok(new_zone) => {
+                    geo_zones_trigger.set(geo_zones_trigger.get() + 1);
+                    selected_zone_key.set(new_zone.key);
+                    show_save_zone_modal.set(false);
+                    draw_mode_active.set(false);
+                    draw_points.set(Vec::new());
+                    new_zone_name.set(String::new());
+                    new_zone_region.set(String::new());
+                    t_toast.show_toast("Success", "Drawn spatial polygon saved to database context successfully.", "success");
+                }
+                Err(e) => {
+                    t_toast.show_toast("Error", &format!("Failed to save geo zone: {}", e), "error");
+                }
+            }
         });
-
-        // Highlight new zone
-        selected_zone_key.set(key_select);
-        
-        // Reset states
-        show_save_zone_modal.set(false);
-        draw_mode_active.set(false);
-        draw_points.set(Vec::new());
-        new_zone_name.set(String::new());
-        new_zone_region.set(String::new());
-        
-        toast.show_toast("Success", "Drawn spatial polygon saved to database context successfully.", "success");
     };
 
     // Handle map SVG mouse clicks
     let handle_map_click = move |ev: leptos::ev::MouseEvent| {
         if !draw_mode_active.get() { return; }
         
-        // Get target element coordinate mapping offsets
         if let Some(target) = ev.current_target() {
             let svg: web_sys::Element = target.unchecked_into();
             let rect = svg.get_bounding_client_rect();
             let click_x = ev.client_x() - rect.left() as i32;
             let click_y = ev.client_y() - rect.top() as i32;
             
-            // Map click to local 400x300 viewBox coordinates
             let mapped_x = (click_x as f64 * (400.0 / rect.width())) as i32;
             let mapped_y = (click_y as f64 * (300.0 / rect.height())) as i32;
             
@@ -219,7 +143,6 @@ pub fn Compliance() -> impl IntoView {
     });
 
     view! {
-        // Main Canvas
         <div class="page-header">
             <div>
                 <h1 class="page-title">"Contracts & Compliance"</h1>
@@ -247,10 +170,46 @@ pub fn Compliance() -> impl IntoView {
 
         // KPI Row
         <div class="kpi-row">
-            <div class="kpi-card"><span class="kpi-label">"Active Permits"</span><span class="kpi-value" id="kpi-permits-val">"18"</span></div>
-            <div class="kpi-card"><span class="kpi-label">"Executed Contracts"</span><span class="kpi-value">"34"</span></div>
-            <div class="kpi-card"><span class="kpi-label">"Geo zones (PostGIS)"</span><span class="kpi-value">{move || geo_zones.get().len().to_string()}</span></div>
-            <div class="kpi-card"><span class="kpi-label">"Expiring Contracts (30d)"</span><span class="kpi-value" style="color:var(--amber)">"2"</span></div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Active Permits"</span>
+                <span class="kpi-value" id="kpi-permits-val">
+                    {move || permits_res.get().map(|p| p.len()).unwrap_or(0).to_string()}
+                </span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Executed Contracts"</span>
+                <span class="kpi-value">
+                    {move || contracts_res.get()
+                        .map(|cs| cs.iter().filter(|c| c.status == "Executed").count())
+                        .unwrap_or(0)
+                        .to_string()}
+                </span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Geo zones (PostGIS)"</span>
+                <span class="kpi-value">
+                    {move || geo_zones_res.get().map(|z| z.len()).unwrap_or(0).to_string()}
+                </span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">"Expiring Contracts (30d)"</span>
+                <span class="kpi-value" style="color:var(--amber)">
+                    {move || contracts_res.get()
+                        .map(|cs| {
+                            let now = chrono::Utc::now().date_naive();
+                            let in30 = now + chrono::Duration::days(30);
+                            cs.iter().filter(|c| {
+                                // expiry_date formatted "%b %d, %Y" — check != "—" and parse
+                                c.expiry_date != "—" &&
+                                chrono::NaiveDate::parse_from_str(&c.expiry_date, "%b %d, %Y")
+                                    .map(|d| d >= now && d <= in30)
+                                    .unwrap_or(false)
+                            }).count()
+                        })
+                        .unwrap_or(0)
+                        .to_string()}
+                </span>
+            </div>
         </div>
 
         // Tabs
@@ -280,7 +239,7 @@ pub fn Compliance() -> impl IntoView {
             <div class="section">
                 <div class="section-hdr">
                     <span class="section-title">"Municipal Permits and Certificates"</span>
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Refreshing license registry...", "info")>"Refresh"</button>
+                    <button class="btn btn-ghost btn-sm" on:click=move |_| permits_trigger.set(permits_trigger.get() + 1)>"Refresh"</button>
                 </div>
                 <table>
                     <thead>
@@ -296,37 +255,41 @@ pub fn Compliance() -> impl IntoView {
                         </tr>
                     </thead>
                     <tbody>
-                        <For 
-                            each=move || permits.get() 
-                            key=|p| p.key 
-                            children=move |p| {
-                                let pkey = p.key;
-                                view! {
-                                    <tr>
-                                        <td><strong>{p.name.clone()}</strong></td>
-                                        <td>{p.holder.clone()}</td>
-                                        <td class="mono">{p.license.clone()}</td>
-                                        <td>{p.permit_type.clone()}</td>
-                                        <td>
-                                            <span class=move || p.status_class.get()>
-                                                {move || p.status.get()}
-                                            </span>
-                                        </td>
-                                        <td class="muted">{move || p.last_checked.get()}</td>
-                                        <td class="muted">{p.date_renewed.clone()}</td>
-                                        <td>
-                                            <button 
-                                                id=format!("btn-ver-{}", pkey)
-                                                class="btn btn-ghost btn-sm" 
-                                                on:click=move |_| verify_permit(pkey)
-                                            >
-                                                "Verify"
-                                            </button>
-                                        </td>
-                                    </tr>
-                                }
-                            }
-                        />
+                        <Suspense fallback=move || view! { <tr><td colspan="8">"Loading permits..."</td></tr> }>
+                            {move || permits_res.get().map(|list| view! {
+                                <For 
+                                    each=move || list.clone() 
+                                    key=|p| p.id 
+                                    children=move |p| {
+                                        let pid = p.id;
+                                        view! {
+                                            <tr>
+                                                <td><strong>{p.name.clone()}</strong></td>
+                                                <td>{p.holder.clone()}</td>
+                                                <td class="mono">{p.license.clone()}</td>
+                                                <td>{p.permit_type.clone()}</td>
+                                                <td>
+                                                    <span class=p.status_class.clone()>
+                                                        {p.status.clone()}
+                                                    </span>
+                                                </td>
+                                                <td class="muted">{p.last_checked.clone()}</td>
+                                                <td class="muted">{p.date_renewed.clone()}</td>
+                                                <td>
+                                                    <button 
+                                                        id=format!("btn-ver-{}", pid)
+                                                        class="btn btn-ghost btn-sm" 
+                                                        on:click=move |_| verify_permit_action(pid)
+                                                    >
+                                                        "Verify"
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                />
+                            })}
+                        </Suspense>
                     </tbody>
                 </table>
             </div>
@@ -337,7 +300,21 @@ pub fn Compliance() -> impl IntoView {
             <div class="section">
                 <div class="section-hdr">
                     <span class="section-title">"Executed Contracts & SLA Documents"</span>
-                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Exporting contracts list...", "info")>"Export"</button>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-ghost btn-sm" on:click=move |_| contracts_trigger.set(contracts_trigger.get() + 1)>"Refresh"</button>
+                        <button
+                            id="btn-new-contract"
+                            class="btn btn-primary btn-sm"
+                            on:click=move |_| {
+                                new_contract_type.set("SLA Agreement".to_string());
+                                new_contract_start.set(String::new());
+                                new_contract_end.set(String::new());
+                                show_contract_modal.set(true);
+                            }
+                        >
+                            "+ New Contract"
+                        </button>
+                    </div>
                 </div>
                 <table>
                     <thead>
@@ -352,33 +329,59 @@ pub fn Compliance() -> impl IntoView {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="mono">"ct_nexus_sla_2026"</td>
-                            <td>"Nexus Property Group"</td>
-                            <td>"SLA Agreement"</td>
-                            <td><span class="tag tag-ok">"Executed"</span></td>
-                            <td class="muted">"Jan 01, 2026"</td>
-                            <td class="muted">"Dec 31, 2026"</td>
-                            <td><a href="#" class="mono" style="color:var(--text-link)" on:click=move |e| { e.prevent_default(); toast.show_toast("Info", "Opening SLA PDF from Cloudflare R2...", "info"); }>"nexus_sla.pdf"</a></td>
-                        </tr>
-                        <tr>
-                            <td class="mono">"ct_biscayne_str_pro"</td>
-                            <td>"Biscayne STR Co."</td>
-                            <td>"Tenant Agreement"</td>
-                            <td><span class="tag tag-ok">"Executed"</span></td>
-                            <td class="muted">"May 15, 2025"</td>
-                            <td class="muted">"May 14, 2028"</td>
-                            <td><a href="#" class="mono" style="color:var(--text-link)" on:click=move |e| { e.prevent_default(); toast.show_toast("Info", "Opening Agreement PDF...", "info"); }>"biscayne_ag.pdf"</a></td>
-                        </tr>
-                        <tr>
-                            <td class="mono">"ct_harbor_media_cr"</td>
-                            <td>"Harbor Media"</td>
-                            <td>"Tenant Agreement"</td>
-                            <td><span class="tag tag-warn">"In Review"</span></td>
-                            <td class="muted">"Draft"</td>
-                            <td class="muted">"—"</td>
-                            <td><a href="#" class="mono" style="color:var(--text-link)" on:click=move |e| { e.prevent_default(); toast.show_toast("Info", "Opening Draft PDF...", "info"); }>"harbor_draft.pdf"</a></td>
-                        </tr>
+                        <Suspense fallback=move || view! { <tr><td colspan="7">"Loading contracts..."</td></tr> }>
+                            {move || contracts_res.get().map(|list| {
+                                if list.is_empty() {
+                                    view! {
+                                        <tr>
+                                            <td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">
+                                                "No contracts on record. Click \"+ New Contract\" to add the first one."
+                                            </td>
+                                        </tr>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <For
+                                            each=move || list.clone()
+                                            key=|c| c.id.clone()
+                                            children=move |c| {
+                                                let toast2 = toast.clone();
+                                                let fname = c.vault_file.clone().unwrap_or_default();
+                                                view! {
+                                                    <tr>
+                                                        <td class="mono"><strong>{c.name.clone()}</strong></td>
+                                                        <td>{c.signee.clone()}</td>
+                                                        <td>{c.contract_type.clone()}</td>
+                                                        <td><span class=c.status_class.clone()>{c.status.clone()}</span></td>
+                                                        <td class="muted">{c.date_executed.clone()}</td>
+                                                        <td class="muted">{c.expiry_date.clone()}</td>
+                                                        <td>
+                                                            {if fname.is_empty() {
+                                                                view! { <span class="muted">"—"</span> }.into_any()
+                                                            } else {
+                                                                view! {
+                                                                    <a
+                                                                        href="#"
+                                                                        class="mono"
+                                                                        style="color:var(--text-link)"
+                                                                        on:click=move |e| {
+                                                                            e.prevent_default();
+                                                                            toast2.show_toast("Info", &format!("Opening {} from Vault (G-02)...", fname), "info");
+                                                                        }
+                                                                    >
+                                                                        {c.vault_file.clone().unwrap_or_default()}
+                                                                    </a>
+                                                                }.into_any()
+                                                            }}
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        />
+                                    }.into_any()
+                                }
+                            })}
+                        </Suspense>
                     </tbody>
                 </table>
             </div>
@@ -387,7 +390,6 @@ pub fn Compliance() -> impl IntoView {
         // POSTGIS GEO ZONES
         <Show when=move || active_tab.get() == "geo">
             <div class="map-layout">
-                // Interactive SVG Map Canvas
                 <div class="map-canvas-container" id="map-container">
                     <svg class="map-svg" on:click=handle_map_click viewBox="0 0 400 300">
                         <defs>
@@ -395,37 +397,37 @@ pub fn Compliance() -> impl IntoView {
                                 <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
                             </pattern>
                         </defs>
-                        // Grid Backdrop
                         <rect width="100%" height="100%" fill="url(#grid-pattern)" />
                         
-                        // Zone Polygons
-                        <For 
-                            each=move || geo_zones.get() 
-                            key=|z| z.key.clone() 
-                            children=move |z| {
-                                let key = z.key.clone();
-                                let key_click = z.key.clone();
-                                view! {
-                                    <polygon 
-                                        class=move || format!("map-poly {}", if selected_zone_key.get() == key { "active" } else { "" })
-                                        points=z.points.clone()
-                                        on:click=move |e| {
-                                            e.stop_propagation();
-                                            if !draw_mode_active.get_untracked() {
-                                                selected_zone_key.set(key_click.clone());
-                                            }
+                        <Suspense fallback=move || ()>
+                            {move || geo_zones_res.get().map(|zones| view! {
+                                <For 
+                                    each=move || zones.clone() 
+                                    key=|z| z.key.clone() 
+                                    children=move |z| {
+                                        let key = z.key.clone();
+                                        let key_click = z.key.clone();
+                                        view! {
+                                            <polygon 
+                                                class=move || format!("map-poly {}", if selected_zone_key.get() == key { "active" } else { "" })
+                                                points=z.points.clone()
+                                                on:click=move |e| {
+                                                    e.stop_propagation();
+                                                    if !draw_mode_active.get_untracked() {
+                                                        selected_zone_key.set(key_click.clone());
+                                                    }
+                                                }
+                                            />
                                         }
-                                    />
-                                }
-                            }
-                        />
+                                    }
+                                />
+                            })}
+                        </Suspense>
 
-                        // Labels
                         <text x="75" y="45" fill="var(--text-muted)" font-size="9" font-family="monospace">"Chicago Loop"</text>
                         <text x="235" y="125" fill="var(--text-muted)" font-size="9" font-family="monospace">"Miami beach"</text>
                         <text x="135" y="175" fill="var(--text-muted)" font-size="9" font-family="monospace">"Copacabana"</text>
 
-                        // Render live polygon drawing preview
                         <Show when=move || draw_mode_active.get() && !draw_polygon_points_str.get().is_empty()>
                             <polygon 
                                 points=move || draw_polygon_points_str.get() 
@@ -433,7 +435,6 @@ pub fn Compliance() -> impl IntoView {
                             />
                         </Show>
 
-                        // Render dynamic vertices dots
                         <For 
                             each=move || draw_points.get()
                             key=|(px, py)| format!("{},{}", px, py)
@@ -462,33 +463,34 @@ pub fn Compliance() -> impl IntoView {
                     </button>
                 </div>
 
-                // Bounding zone info sidebar
                 <div class="map-zone-info">
                     <div style="font-size:11px; font-weight:600; color:var(--cobalt); text-transform:uppercase; letter-spacing:0.06em">"Selected Zone Bounds"</div>
-                    {move || selected_zone.get().map(|z| {
-                        view! {
-                            <div class="zone-field">
-                                <span class="zone-label">"Zone Code Name"</span>
-                                <span class="zone-val">{z.name.clone()}</span>
-                            </div>
-                            <div class="zone-field">
-                                <span class="zone-label">"Coordinates Region"</span>
-                                <span class="zone-val">{z.region.clone()}</span>
-                            </div>
-                            <div class="zone-field">
-                                <span class="zone-label">"Active Listing Matches"</span>
-                                <span class="zone-val mono">{z.listings.clone()}</span>
-                            </div>
-                            <div class="zone-field">
-                                <span class="zone-label">"PostGIS Bounding State"</span>
-                                <span class="zone-val"><span class="tag tag-ok">{z.status.clone()}</span></span>
-                            </div>
-                            <div class="zone-field">
-                                <span class="zone-label">"Total SLA Coverage Area"</span>
-                                <span class="zone-val mono">{z.coverage.clone()}</span>
-                            </div>
-                        }
-                    })}
+                    <Suspense fallback=move || view! { <div class="py-4">"Loading bounds..."</div> }>
+                        {move || selected_zone.get().map(|z| {
+                            view! {
+                                <div class="zone-field">
+                                    <span class="zone-label">"Zone Code Name"</span>
+                                    <span class="zone-val">{z.name.clone()}</span>
+                                </div>
+                                <div class="zone-field">
+                                    <span class="zone-label">"Coordinates Region"</span>
+                                    <span class="zone-val">{z.region.clone()}</span>
+                                </div>
+                                <div class="zone-field">
+                                    <span class="zone-label">"Active Listing Matches"</span>
+                                    <span class="zone-val mono">{z.listings.clone()}</span>
+                                </div>
+                                <div class="zone-field">
+                                    <span class="zone-label">"PostGIS Bounding State"</span>
+                                    <span class="zone-val"><span class="tag tag-ok">{z.status.clone()}</span></span>
+                                </div>
+                                <div class="zone-field">
+                                    <span class="zone-label">"Total SLA Coverage Area"</span>
+                                    <span class="zone-val mono">{z.coverage.clone()}</span>
+                                </div>
+                            }
+                        })}
+                    </Suspense>
                 </div>
             </div>
         </Show>
@@ -532,21 +534,19 @@ pub fn Compliance() -> impl IntoView {
                                     toast.show_toast("Error", "All fields are required.", "error");
                                     return;
                                 }
-                                permits.update(|list| {
-                                    list.push(MockPermit {
-                                        key: "new-permit",
-                                        name: mun,
-                                        holder: "Biscayne STR Co.".to_string(),
-                                        license: lic,
-                                        permit_type: "Short-term Rental".to_string(),
-                                        status: RwSignal::new("✓ Active".to_string()),
-                                        status_class: RwSignal::new("tag tag-ok"),
-                                        last_checked: RwSignal::new("Just now".to_string()),
-                                        date_renewed: "Jun 2026".to_string(),
-                                    });
+                                let t_toast = toast.clone();
+                                leptos::task::spawn_local(async move {
+                                    match crate::api::admin::create_permit(mun, lic).await {
+                                        Ok(_) => {
+                                            permits_trigger.set(permits_trigger.get() + 1);
+                                            show_permit_modal.set(false);
+                                            t_toast.show_toast("Success", "Regulatory permit registered successfully.", "success");
+                                        }
+                                        Err(e) => {
+                                            t_toast.show_toast("Error", &format!("Failed to register permit: {}", e), "error");
+                                        }
+                                    }
                                 });
-                                show_permit_modal.set(false);
-                                toast.show_toast("Success", "Regulatory permit registered successfully.", "success");
                             }
                             class="btn btn-primary"
                         >
@@ -589,6 +589,86 @@ pub fn Compliance() -> impl IntoView {
                     <div class="flex justify-end gap-3">
                         <button on:click=move |_| { show_save_zone_modal.set(false); draw_points.set(Vec::new()); draw_mode_active.set(false); } class="btn btn-ghost">"Cancel"</button>
                         <button on:click=handle_save_geo_zone class="btn btn-primary">"Save Zone Bounds"</button>
+                    </div>
+                </div>
+            </div>
+        </Show>
+
+        // Modal dialog: New Contract
+        <Show when=move || show_contract_modal.get()>
+            <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                    <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_contract_modal.set(false)>"✕"</button>
+                    <h3 class="text-xl font-semibold mb-2">"New Contract"</h3>
+                    <p class="text-xs text-on-surface-variant mb-6">"Register a new legal agreement in the G-11 contracts ledger."</p>
+                    <div class="space-y-4 mb-6">
+                        <div class="n-form-row">
+                            <label class="n-form-label">"Contract Type"</label>
+                            <select
+                                class="n-form-input"
+                                on:change=move |ev| new_contract_type.set(event_target_value(&ev))
+                            >
+                                <option value="SLA Agreement" selected=true>"SLA Agreement"</option>
+                                <option value="Tenant Agreement">"Tenant Agreement"</option>
+                                <option value="Corporate Rate Agreement">"Corporate Rate Agreement"</option>
+                                <option value="Alliance Agreement">"Alliance Agreement"</option>
+                                <option value="Insurance Policy">"Insurance Policy"</option>
+                                <option value="Lease">"Lease"</option>
+                            </select>
+                        </div>
+                        <div class="n-form-row">
+                            <label class="n-form-label">"Start Date"</label>
+                            <input
+                                type="date"
+                                class="n-form-input"
+                                prop:value=new_contract_start
+                                on:input=move |ev| new_contract_start.set(event_target_value(&ev))
+                            />
+                        </div>
+                        <div class="n-form-row">
+                            <label class="n-form-label">"End Date (optional)"</label>
+                            <input
+                                type="date"
+                                class="n-form-input"
+                                prop:value=new_contract_end
+                                on:input=move |ev| new_contract_end.set(event_target_value(&ev))
+                            />
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button on:click=move |_| show_contract_modal.set(false) class="btn btn-ghost">"Cancel"</button>
+                        <button
+                            id="btn-submit-contract"
+                            class="btn btn-primary"
+                            on:click=move |_| {
+                                let ctype = new_contract_type.get();
+                                let start = new_contract_start.get();
+                                if start.trim().is_empty() {
+                                    toast.show_toast("Error", "Start date is required.", "error");
+                                    return;
+                                }
+                                let end = if new_contract_end.get().is_empty() {
+                                    None
+                                } else {
+                                    Some(new_contract_end.get())
+                                };
+                                let t_toast = toast.clone();
+                                leptos::task::spawn_local(async move {
+                                    match crate::api::admin::create_contract(ctype, start, end, None).await {
+                                        Ok(_) => {
+                                            contracts_trigger.set(contracts_trigger.get() + 1);
+                                            show_contract_modal.set(false);
+                                            t_toast.show_toast("Success", "Contract registered in G-11 ledger.", "success");
+                                        }
+                                        Err(e) => {
+                                            t_toast.show_toast("Error", &format!("Failed to create contract: {}", e), "error");
+                                        }
+                                    }
+                                });
+                            }
+                        >
+                            "Register Contract"
+                        </button>
                     </div>
                 </div>
             </div>

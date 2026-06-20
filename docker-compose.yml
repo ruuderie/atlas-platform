@@ -141,6 +141,40 @@ services:
     networks:
       - app-network
 
+  folio:
+    build:
+      context: .
+      dockerfile: apps/folio/Dockerfile
+      target: runner
+    container_name: atlas-platform-folio
+    env_file:
+      - .env
+    ports:
+      - "3100:3100"
+    depends_on:
+      - backend
+    develop:
+      watch:
+        - path: ./apps/folio/src
+          target: /app/src
+          action: rebuild
+        - path: ./apps/folio/Cargo.toml
+          target: /app/Cargo.toml
+          action: rebuild
+    environment:
+      - ATLAS_API_URL=http://backend:8000
+      - LEPTOS_SITE_ADDR=0.0.0.0:3100
+      - LEPTOS_SITE_ROOT=site
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
   proxy:
     image: caddy:2-alpine
     container_name: atlas-platform-proxy
@@ -151,6 +185,7 @@ services:
     depends_on:
       - network-instance
       - platform-admin
+      - folio
       - backend
     restart: unless-stopped
     networks:

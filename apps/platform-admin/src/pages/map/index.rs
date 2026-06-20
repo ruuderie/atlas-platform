@@ -52,141 +52,70 @@ fn call_js_update_visibility(filtered_ids_json: &str) {
 }
 
 
-fn get_mock_tenants() -> Vec<TenantMapItem> {
-    vec![
-        TenantMapItem {
-            id: "t1".to_string(),
-            name: "Nexus Property Group".to_string(),
-            slug: "nexus-property-group".to_string(),
-            plan: "enterprise".to_string(),
-            health: "good".to_string(),
-            health_label: "● Healthy".to_string(),
-            mrr: "$4,800".to_string(),
-            lat: 25.7617,
-            lng: -80.1918,
-            location: "Miami, FL".to_string(),
-        },
-        TenantMapItem {
-            id: "t2".to_string(),
-            name: "Biscayne STR Partners".to_string(),
-            slug: "biscayne-str-partners".to_string(),
-            plan: "growth".to_string(),
-            health: "good".to_string(),
-            health_label: "● Healthy".to_string(),
-            mrr: "$1,800".to_string(),
-            lat: 25.7906,
-            lng: -80.1300,
-            location: "Miami Beach, FL".to_string(),
-        },
-        TenantMapItem {
-            id: "t3".to_string(),
-            name: "Leira Chicago PM".to_string(),
-            slug: "leira-chicago".to_string(),
-            plan: "starter".to_string(),
-            health: "warning".to_string(),
-            health_label: "⚠ SLA Warning".to_string(),
-            mrr: "$850".to_string(),
-            lat: 41.8781,
-            lng: -87.6298,
-            location: "Chicago, IL".to_string(),
-        },
-        TenantMapItem {
-            id: "t4".to_string(),
-            name: "Harbor Media Corp".to_string(),
-            slug: "harbor-media".to_string(),
-            plan: "starter".to_string(),
-            health: "good".to_string(),
-            health_label: "● Healthy".to_string(),
-            mrr: "$600".to_string(),
-            lat: 40.7128,
-            lng: -74.0060,
-            location: "New York, NY".to_string(),
-        },
-        TenantMapItem {
-            id: "t5".to_string(),
-            name: "Nexus Brasil Administradora".to_string(),
-            slug: "nexus-brasil".to_string(),
-            plan: "enterprise".to_string(),
-            health: "good".to_string(),
-            health_label: "● Healthy".to_string(),
-            mrr: "$5,100".to_string(),
-            lat: -23.5505,
-            lng: -46.6333,
-            location: "São Paulo, BR".to_string(),
-        },
-        TenantMapItem {
-            id: "t6".to_string(),
-            name: "Blue Ridge Holdings".to_string(),
-            slug: "blue-ridge-holdings".to_string(),
-            plan: "enterprise".to_string(),
-            health: "critical".to_string(),
-            health_label: "⚡ Outage".to_string(),
-            mrr: "$4,500".to_string(),
-            lat: 39.7392,
-            lng: -104.9903,
-            location: "Denver, CO".to_string(),
-        },
-    ]
+fn get_deterministic_location(idx: usize, name: &str) -> (f64, f64, String) {
+    let locations = vec![
+        (25.7617, -80.1918, "Miami, FL".to_string()),
+        (40.7128, -74.0060, "New York, NY".to_string()),
+        (41.8781, -87.6298, "Chicago, IL".to_string()),
+        (-23.5505, -46.6333, "São Paulo, BR".to_string()),
+        (39.7392, -104.9903, "Denver, CO".to_string()),
+        (37.7749, -122.4194, "San Francisco, CA".to_string()),
+        (30.2672, -97.7431, "Austin, TX".to_string()),
+        (51.5074, -0.1278, "London, UK".to_string()),
+    ];
+
+    let loc_idx = idx % locations.len();
+    let base = &locations[loc_idx];
+    
+    // Add small offsets based on name length to prevent overlap
+    let offset_lat = ((name.len() as f64 * 0.05) % 0.2) - 0.1;
+    let offset_lng = ((name.len() as f64 * 0.08) % 0.2) - 0.1;
+    
+    (base.0 + offset_lat, base.1 + offset_lng, base.2.clone())
 }
 
-fn merge_real_and_mock(real_apps: Vec<PlatformAppModel>) -> Vec<TenantMapItem> {
-    let mocks = get_mock_tenants();
+fn construct_tenant_map_items(
+    real_apps: Vec<PlatformAppModel>,
+    stats: Vec<crate::api::models::TenantStatModel>,
+) -> Vec<TenantMapItem> {
     let mut result = Vec::new();
-    let mut matched_mocks = std::collections::HashSet::new();
     
-    for real in &real_apps {
-        let real_slug = real.name.to_lowercase().replace(' ', "-");
+    for (idx, app) in real_apps.into_iter().enumerate() {
+        let app_slug = app.name.to_lowercase().replace(' ', "-");
         
-        let mut found_idx = None;
-        for (idx, mock) in mocks.iter().enumerate() {
-            if mock.slug == real_slug || mock.name.to_lowercase() == real.name.to_lowercase() {
-                found_idx = Some(idx);
-                break;
-            }
-        }
-        
-        if let Some(idx) = found_idx {
-            let mut matched_mock = mocks[idx].clone();
-            matched_mock.id = real.tenant_id.clone();
-            
-            let health_str = real.site_status.to_lowercase();
-            if health_str == "suspended" || health_str == "stopped" {
-                matched_mock.health = "critical".to_string();
-                matched_mock.health_label = "⚡ Outage".to_string();
-            }
-            
-            result.push(matched_mock);
-            matched_mocks.insert(idx);
-        } else {
-            let idx = result.len() as f64;
-            let lat = 35.0 + (idx % 5.0) * 1.5;
-            let lng = -95.0 - (idx % 3.0) * 2.0;
-            
-            let (health, health_label) = match real.site_status.to_lowercase().as_str() {
-                "active" | "running" => ("good".to_string(), "● Healthy".to_string()),
-                "warning" => ("warning".to_string(), "⚠ SLA Warning".to_string()),
-                _ => ("critical".to_string(), "⚡ Outage".to_string()),
+        let (plan, mrr) = if let Some(stat) = stats.iter().find(|s| s.tenant_id.to_string() == app.tenant_id) {
+            let plan_str = stat.plan.clone().unwrap_or_else(|| "starter".to_string());
+            let mrr_cents = stat.mrr_cents.unwrap_or(0);
+            let mrr_formatted = if mrr_cents > 0 {
+                format!("${}", mrr_cents / 100)
+            } else {
+                "$0".to_string()
             };
-            
-            result.push(TenantMapItem {
-                id: real.tenant_id.clone(),
-                name: real.name.clone(),
-                slug: real_slug,
-                plan: "starter".to_string(),
-                health,
-                health_label,
-                mrr: "$0".to_string(),
-                lat,
-                lng,
-                location: "US Sandbox".to_string(),
-            });
-        }
-    }
-    
-    for (idx, mock) in mocks.into_iter().enumerate() {
-        if !matched_mocks.contains(&idx) {
-            result.push(mock);
-        }
+            (plan_str, mrr_formatted)
+        } else {
+            ("starter".to_string(), "$0".to_string())
+        };
+        
+        let (lat, lng, location) = get_deterministic_location(idx, &app.name);
+        
+        let (health, health_label) = match app.site_status.to_lowercase().as_str() {
+            "active" | "running" => ("good".to_string(), "● Healthy".to_string()),
+            "warning" => ("warning".to_string(), "⚠ SLA Warning".to_string()),
+            _ => ("critical".to_string(), "⚡ Outage".to_string()),
+        };
+        
+        result.push(TenantMapItem {
+            id: app.tenant_id.clone(),
+            name: app.name.clone(),
+            slug: app_slug,
+            plan,
+            health,
+            health_label,
+            mrr,
+            lat,
+            lng,
+            location,
+        });
     }
     
     result
@@ -203,10 +132,15 @@ pub fn PlatformMap() -> impl IntoView {
     let show_impersonate_modal = RwSignal::new(false);
     let selected_impersonate_tenant = RwSignal::new(None::<TenantMapItem>);
 
+    let stats_res = LocalResource::new(move || async move {
+        crate::api::admin::get_tenant_stats().await.unwrap_or_default()
+    });
+
     // Merge networks resource into our Leaflet model list
     let tenants_list = Signal::derive(move || {
         let real = dirs_res.get().unwrap_or_default();
-        merge_real_and_mock(real)
+        let stats = stats_res.get().unwrap_or_default();
+        construct_tenant_map_items(real, stats)
     });
 
     let filtered_tenants = Signal::derive(move || {
