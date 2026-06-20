@@ -53,6 +53,8 @@ pub struct CrmListParams {
     pub per_page: Option<u64>,
     /// Status/stage filter (entity-specific)
     pub stage: Option<String>,
+    /// Optional tenant_id filter — super-admins only
+    pub tenant_id: Option<String>,
 }
 
 impl CrmListParams {
@@ -428,23 +430,44 @@ pub async fn get_leads(
     Extension(current_user): Extension<user::Model>,
     Query(params): Query<CrmListParams>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let user_accounts = user_account::Entity::find()
-        .filter(user_account::Column::UserId.eq(current_user.id))
-        .all(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
-
-    let profile = crate::entities::profile::Entity::find()
-        .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+    // Platform Super Admins see ALL leads across all tenants (with optional tenant_id filter).
+    // Regular admins remain scoped to their profile's tenant.
+    let is_super_admin = crate::entities::user_account::Entity::find()
+        .filter(crate::entities::user_account::Column::UserId.eq(current_user.id))
+        .filter(crate::entities::user_account::Column::Role.eq(
+            crate::entities::user_account::UserRole::PlatformSuperAdmin,
+        ))
         .one(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::FORBIDDEN)?;
-    let user_tenant_id = profile.tenant_id;
+        .unwrap_or(None)
+        .is_some();
 
-    let mut query = lead::Entity::find()
-        .filter(lead::Column::TenantId.eq(user_tenant_id));
+    let mut query = lead::Entity::find();
+
+    if is_super_admin {
+        // Super admin: optionally filter by tenant_id param, otherwise show all tenants
+        if let Some(ref tid_str) = params.tenant_id {
+            if let Ok(tid) = uuid::Uuid::parse_str(tid_str) {
+                query = query.filter(lead::Column::TenantId.eq(tid));
+            }
+        }
+    } else {
+        // Non-super-admin: scope to their own profile's tenant
+        let user_accounts = user_account::Entity::find()
+            .filter(user_account::Column::UserId.eq(current_user.id))
+            .all(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let account_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.account_id).collect();
+
+        let profile = crate::entities::profile::Entity::find()
+            .filter(crate::entities::profile::Column::AccountId.is_in(account_ids))
+            .one(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::FORBIDDEN)?;
+        query = query.filter(lead::Column::TenantId.eq(profile.tenant_id));
+    }
 
     // Status/stage filter
     if let Some(ref stage) = params.stage {

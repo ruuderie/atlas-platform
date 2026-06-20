@@ -2177,6 +2177,7 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   padding: 20px 24px 16px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-default);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(10,132,255,0.04) 100%);
 }
 .breadcrumb {
   font-size: 11px;
@@ -2243,9 +2244,25 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   border-color: var(--green);
   background: var(--green-dim);
 }
-.tag-enterprise {
+.tag-warn {
+  color: var(--amber);
+  border-color: var(--amber);
+  background: var(--amber-dim);
+}
+.tag-danger {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-dim);
+}
+.tag-info {
   color: var(--cobalt);
   border-color: var(--cobalt);
+  background: var(--cobalt-dim);
+}
+.tag-enterprise {
+  color: var(--violet);
+  border-color: var(--violet);
+  background: var(--violet-dim);
 }
 .tenant-domain {
   font-size: 12px;
@@ -2260,16 +2277,22 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
 }
 .hero-kpi-strip {
   display: flex;
-  gap: 20px;
-  padding: 14px 24px;
+  gap: 0;
+  padding: 0;
   border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
   flex-wrap: wrap;
+  background: var(--bg-surface);
 }
 .hkpi {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  padding: 14px 24px;
+  border-right: 1px solid var(--border-default);
+}
+.hkpi:last-child {
+  border-right: none;
 }
 .hkpi-label {
   font-size: 10px;
@@ -2279,10 +2302,12 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   color: var(--text-muted);
 }
 .hkpi-value {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  word-break: break-all;
 }
 .hkpi-sub {
   font-size: 11px;
