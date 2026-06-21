@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use leptos_router::hooks::use_params_map;
+use leptos_router::hooks::{use_params_map, use_location};
 use crate::api::crm::{
     get_lead_by_id, get_account_by_id, get_deal_by_id, get_contact_by_id,
     convert_lead, add_contact_note, get_contact_notes, get_contact_activities
@@ -20,7 +20,16 @@ pub fn CrmDetail() -> impl IntoView {
     let params = use_params_map();
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
     
-    let entity_type = move || params.get().get("entity").map(|s| s.to_string()).unwrap_or_default();
+    let location = use_location();
+    // Derive entity type from URL path: /leads/:id → "lead", /contacts/:id → "contact", etc.
+    let entity_type = move || {
+        let path = location.pathname.get();
+        if path.starts_with("/leads/")    { "lead".to_string() }
+        else if path.starts_with("/contacts/") { "contact".to_string() }
+        else if path.starts_with("/accounts/") { "account".to_string() }
+        else if path.starts_with("/pipeline/") { "deal".to_string() }
+        else { String::new() }
+    };
     let record_id = move || params.get().get("id").map(|s| s.to_string()).unwrap_or_default();
 
     let (trigger_refresh, set_trigger_refresh) = signal(0);
@@ -78,7 +87,7 @@ pub fn CrmDetail() -> impl IntoView {
             match convert_lead(&id).await {
                 Ok(contact) => {
                     toast.message.set(Some("Lead qualified and converted to Contact!".to_string()));
-                    navigate(&format!("/crm/contact/{}", contact.id), Default::default());
+                    navigate(&format!("/contacts/{}", contact.id), Default::default());
                 }
                 Err(e) => {
                     toast.message.set(Some(format!("Failed to convert lead: {}", e)));
@@ -133,7 +142,7 @@ pub fn CrmDetail() -> impl IntoView {
                         // ── Lead Layout ──
                         <div class="rec-hdr">
                             <div class="breadcrumb">
-                                <a href="/crm?tab=leads">"CRM"</a>" › "<a href="/crm?tab=leads">"Leads"</a>" › "{l.name.clone()}
+                                <a href="/leads">"Leads"</a>" › "{l.name.clone()}
                             </div>
                             <div class="rec-identity">
                                 <div class="rec-left">
@@ -159,17 +168,36 @@ pub fn CrmDetail() -> impl IntoView {
                             </div>
                         </div>
 
-                        <div class="status-flow">
-                            <div class="sf-step done"><div class="sf-pill">"New"</div></div>
-                            <div class="sf-arrow">"→"</div>
-                            <div class="sf-step done"><div class="sf-pill">"Contacted"</div></div>
-                            <div class="sf-arrow">"→"</div>
-                            <div class="sf-step current"><div class="sf-pill">"Qualifying"</div></div>
-                            <div class="sf-arrow">"→"</div>
-                            <div class="sf-step future"><div class="sf-pill">"Qualified"</div></div>
-                            <div class="sf-arrow">"→"</div>
-                            <div class="sf-step terminal-won" style="opacity:0.4"><div class="sf-pill">"Converted"</div></div>
-                        </div>
+                        {
+                            let status_str    = l.lead_status.clone().unwrap_or_else(|| "New".to_string());
+                            let stages        = ["New", "Contacted", "Qualified", "Proposal"];
+                            let current_idx   = stages.iter().position(|&s| s == status_str.as_str()).unwrap_or(0);
+                            let is_converted  = status_str == "Converted";
+                            let is_disqualified = status_str == "Disqualified";
+                            let sc = move |i: usize| -> &'static str {
+                                if is_converted { return "sf-step done"; }
+                                if i < current_idx { "sf-step done" }
+                                else if i == current_idx { "sf-step current" }
+                                else { "sf-step future" }
+                            };
+                            let terminal_class = if is_disqualified { "sf-step terminal-lost" }
+                                else if is_converted { "sf-step terminal-won" }
+                                else { "sf-step future" };
+                            let terminal_label = if is_disqualified { "Disqualified" } else { "Converted" };
+                            view! {
+                                <div class="status-flow">
+                                    <div class=sc(0)><div class="sf-pill">"New"</div></div>
+                                    <div class="sf-arrow">"→"</div>
+                                    <div class=sc(1)><div class="sf-pill">"Contacted"</div></div>
+                                    <div class="sf-arrow">"→"</div>
+                                    <div class=sc(2)><div class="sf-pill">"Qualified"</div></div>
+                                    <div class="sf-arrow">"→"</div>
+                                    <div class=sc(3)><div class="sf-pill">"Proposal"</div></div>
+                                    <div class="sf-arrow">"→"</div>
+                                    <div class=terminal_class><div class="sf-pill">{terminal_label}</div></div>
+                                </div>
+                            }
+                        }
 
                         <div class="kpi-strip">
                             <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value mono" style="color:var(--green)">"—"</div><div class="kpi-sub">"Not yet loaded"</div></div>
@@ -247,10 +275,10 @@ pub fn CrmDetail() -> impl IntoView {
                                                 <div class="stat-row"><span class="s-label">"Lead Owner"</span><span class="s-value">"—"</span></div>
                                             </div>
                                             <div class="card">
-                                                <div class="card-hdr"><span class="card-title">"Data Quality"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Email verified"</span><span class="s-value green">"✓"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Phone verified"</span><span class="s-value green">"✓"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Completeness"</span><span class="s-value green">"94%"</span></div>
+                                                <div class="card-hdr"><span class="card-title">"Contact Info"</span></div>
+                                                <div class="stat-row"><span class="s-label">"Email"</span><span class="s-value">{l.email.clone().unwrap_or_else(|| "—".to_string())}</span></div>
+                                                <div class="stat-row"><span class="s-label">"Phone"</span><span class="s-value">{l.phone.clone().unwrap_or_else(|| "—".to_string())}</span></div>
+                                                <div class="stat-row"><span class="s-label">"Company"</span><span class="s-value">{l.company.clone().unwrap_or_else(|| "—".to_string())}</span></div>
                                             </div>
                                         </div>
                                     </div>
@@ -274,7 +302,7 @@ pub fn CrmDetail() -> impl IntoView {
                         // ── Account Layout ──
                         <div class="rec-hdr">
                             <div class="breadcrumb">
-                                <a href="/crm?tab=accounts">"CRM"</a>" › "<a href="/crm?tab=accounts">"Accounts"</a>" › "{a.name.clone()}
+                                <a href="/accounts">"Accounts"</a>" › "{a.name.clone()}
                             </div>
                             <div class="rec-identity">
                                 <div class="rec-left">
@@ -326,7 +354,7 @@ pub fn CrmDetail() -> impl IntoView {
                         // ── Contact Layout ──
                         <div class="rec-hdr">
                             <div class="breadcrumb">
-                                <a href="/crm?tab=contacts">"CRM"</a>" › "<a href="/crm?tab=contacts">"Contacts"</a>" › "{c.name.clone()}
+                                <a href="/contacts">"Contacts"</a>" › "{c.name.clone()}
                             </div>
                             <div class="rec-identity">
                                 <div class="rec-left">
@@ -366,7 +394,7 @@ pub fn CrmDetail() -> impl IntoView {
                         // ── Opportunity/Deal Layout ──
                         <div class="rec-hdr">
                             <div class="breadcrumb">
-                                <a href="/crm?tab=opportunities">"CRM"</a>" › "<a href="/crm?tab=opportunities">"Opportunities"</a>" › "{d.name.clone()}
+                                <a href="/pipeline">"Pipeline"</a>" › "{d.name.clone()}
                             </div>
                             <div class="rec-identity">
                                 <div class="rec-left">

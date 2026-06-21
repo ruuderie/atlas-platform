@@ -19,7 +19,10 @@ use leptos_router::path;
 
 use crate::pages::dashboard::Dashboard;
 use crate::pages::apps::index::Apps;
-use crate::pages::crm::grid::CrmGrid;
+use crate::pages::crm::leads::LeadsPage;
+use crate::pages::crm::contacts::ContactsPage;
+use crate::pages::crm::accounts::AccountsPage;
+use crate::pages::crm::opportunities::OpportunitiesPage;
 use crate::pages::products::index::PlatformProducts;
 use crate::pages::products::detail::ProductDetail;
 use crate::pages::billing::scorecards::Scorecards;
@@ -278,22 +281,25 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"CRM"</span>
-                    <a href="/crm" class=move || side_active_class("/crm")>
+                    <a href="/leads" class=move || side_active_class("/lead")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h0a5 5 0 0 1 5 5"/></svg>
                         "Leads"
                         <span class="nav-badge amber">"6"</span>
                     </a>
-                    <a href="/crm" class=move || side_active_class("/crm/accounts")>
+                    <a href="/accounts" class=move || side_active_class("/account")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1"/><path d="M6 13V9h4v4"/></svg>
                         "Accounts"
                     </a>
-                    <a href="/crm" class=move || side_active_class("/crm/contacts")>
+                    <a href="/contacts" class=move || side_active_class("/contact")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
                         "Contacts"
                     </a>
-                    <a href="/crm" class=move || side_active_class("/crm/opportunities")>
+                    <a href="/pipeline" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/pipeline") { "nav-item active" } else { "nav-item" }
+                    }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3.5l2 2"/></svg>
-                        "Opportunities"
+                        "Pipeline"
                     </a>
 
                     <span class="nav-label nav-section-label">"Platform"</span>
@@ -408,9 +414,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/network/listings") view=Listings />
                         <Route path=path!("/network/listings/new") view=ListingCreate />
                         <Route path=path!("/network/listings/:id") view=ListingDetail />
-                        <Route path=path!("/crm") view=CrmGrid />
-                        <Route path=path!("/crm/new") view=crate::pages::crm::create::CrmCreate />
-                        <Route path=path!("/crm/:entity/:id") view=crate::pages::crm::detail::CrmDetail />
+                        <Route path=path!("/leads")       view=LeadsPage />
+                        <Route path=path!("/leads/:id")   view=crate::pages::crm::detail::CrmDetail />
+                        <Route path=path!("/contacts")    view=ContactsPage />
+                        <Route path=path!("/contacts/:id") view=crate::pages::crm::detail::CrmDetail />
+                        <Route path=path!("/accounts")    view=AccountsPage />
+                        <Route path=path!("/accounts/:id") view=crate::pages::crm::detail::CrmDetail />
+                        <Route path=path!("/pipeline")    view=OpportunitiesPage />
+                        <Route path=path!("/pipeline/:id") view=crate::pages::crm::detail::CrmDetail />
                         <Route path=path!("/products") view=PlatformProducts />
                         <Route path=path!("/products/:id") view=ProductDetail />
                         <Route path=path!("/admins") view=PlatformAdmins />

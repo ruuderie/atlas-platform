@@ -1,5 +1,7 @@
-pub mod grid;
+pub mod components;
 pub mod create;
 pub mod detail;
-pub mod tabs;
-pub mod components;
+pub mod leads;
+pub mod contacts;
+pub mod accounts;
+pub mod opportunities;
