@@ -49,8 +49,8 @@ RUN apt-get update -y && \
 
 WORKDIR /app
 ARG BUILD_PROFILE=release
-COPY --from=builder /app/apps/folio/target/site ./site
-COPY --from=builder /app/target/${BUILD_PROFILE}/folio ./folio
+COPY --from=builder /app/apps/target/site ./site
+COPY --from=builder /app/apps/target/${BUILD_PROFILE}/folio ./folio
 
 ENV LEPTOS_SITE_ROOT="site"
 ENV LEPTOS_SITE_ADDR="0.0.0.0:3100"
