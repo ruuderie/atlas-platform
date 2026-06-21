@@ -24,7 +24,3 @@ images:
     newTag: "REPLACE_WITH_IMAGE_TAG"
   - name: ghcr.io/ruuderie/folio
     newTag: "REPLACE_WITH_IMAGE_TAG"
-  - name: ghcr.io/ruuderie/platform-admin
-    newTag: "REPLACE_WITH_IMAGE_TAG"
-  - name: ghcr.io/ruuderie/network-instance
-    newTag: "REPLACE_WITH_IMAGE_TAG"
