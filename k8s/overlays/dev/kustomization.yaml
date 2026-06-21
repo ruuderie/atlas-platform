@@ -13,5 +13,14 @@ patches:
   - path: platform-admin-patch.yaml
   - path: backend-patch.yaml
 
-# Image updates are managed by the deploy script (kubectl rollout restart).
-# kustomize handles: namespace, config, secrets, patches only.
+# Image tags are pinned per-environment to prevent cross-contamination.
+# CI substitutes REPLACE_WITH_IMAGE_TAG with the actual commit SHA (${CI_COMMIT_SHA:0:8}).
+# newTag must be quoted — unquoted all-numeric values are parsed as integers by YAML
+# and rejected by kustomize with: "cannot unmarshal number into Go struct field Image.images.newTag"
+images:
+  - name: ghcr.io/ruuderie/atlas-backend
+    newTag: "REPLACE_WITH_IMAGE_TAG"
+  - name: ghcr.io/ruuderie/anchor-app
+    newTag: "REPLACE_WITH_IMAGE_TAG"
+  - name: ghcr.io/ruuderie/folio
+    newTag: "REPLACE_WITH_IMAGE_TAG"

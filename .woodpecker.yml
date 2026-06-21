@@ -606,6 +606,9 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/uat/config.yaml
+            # Pin images to the exact SHA built from this commit
+            IMAGE_TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-8)
+            sed -i "s|REPLACE_WITH_IMAGE_TAG|$IMAGE_TAG|g" k8s/overlays/uat/kustomization.yaml
             kubectl apply -k k8s/overlays/uat
             ;;
 
@@ -634,6 +637,9 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/dev/config.yaml
+            # Pin images to the exact SHA built from this commit
+            IMAGE_TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-8)
+            sed -i "s|REPLACE_WITH_IMAGE_TAG|$IMAGE_TAG|g" k8s/overlays/dev/kustomization.yaml
             kubectl apply -k k8s/overlays/dev
             ;;
 
