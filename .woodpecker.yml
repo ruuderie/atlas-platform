@@ -606,9 +606,6 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/uat/config.yaml
             sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/uat/config.yaml
-            # Pin images to the exact SHA built from this branch — prevents :latest cross-contamination
-            IMAGE_TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-8)
-            sed -i "s|REPLACE_WITH_IMAGE_TAG|$IMAGE_TAG|g" k8s/overlays/uat/kustomization.yaml
             kubectl apply -k k8s/overlays/uat
             ;;
 
@@ -637,9 +634,6 @@ steps:
             sed -i "s|REPLACE_WITH_SMTP_FROM|$SMTP_FROM|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_METRICS_TOKEN|$METRICS_TOKEN|g" k8s/overlays/dev/config.yaml
             sed -i "s|REPLACE_WITH_JWT_SECRET|$JWT_SECRET|g" k8s/overlays/dev/config.yaml
-            # Pin images to the exact SHA built from this branch — prevents :latest cross-contamination
-            IMAGE_TAG=$(echo "$CI_COMMIT_SHA" | cut -c1-8)
-            sed -i "s|REPLACE_WITH_IMAGE_TAG|$IMAGE_TAG|g" k8s/overlays/dev/kustomization.yaml
             kubectl apply -k k8s/overlays/dev
             ;;
 
@@ -649,66 +643,68 @@ steps:
             ;;
         esac
 
-        CHANGED=$(echo "${CI_PIPELINE_FILES:-}" | tr -d '[]' | tr ',' '\n')
-        echo "Changed paths:"
-        echo "$CHANGED"
-
-        rollout_service() {
-          local DEPLOY=$1
-          echo "==> Verifying rollout: $DEPLOY"
-          kubectl rollout status deployment/$DEPLOY -n $NAMESPACE --timeout=180s || {
-            echo "===== LOGS: $DEPLOY ====="
-            kubectl logs -n $NAMESPACE -l app=$DEPLOY --tail=100 --all-containers=true
-            exit 1
-          }
-          echo "==> $DEPLOY is live on $SHORT_SHA ✓"
-        }
-
         REGISTRY="ghcr.io/ruuderie"
 
-        update_service() {
-          local DEPLOY=$1
-          local IMAGE=$2
-          echo "==> Updating $DEPLOY to $IMAGE"
-          kubectl set image deployment/$DEPLOY ${DEPLOY/-app/}-app=$IMAGE -n $NAMESPACE 2>/dev/null \
-            || kubectl set image deployment/$DEPLOY $DEPLOY=$IMAGE -n $NAMESPACE 2>/dev/null \
-            || kubectl set image deployment/$DEPLOY $(kubectl get deployment/$DEPLOY -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$IMAGE -n $NAMESPACE
+        # For services that built this run: pin to the exact SHA for traceability.
+        # Any service that didn't build this run still gets restarted below (re-pulls :latest).
+        if [ -f .backend_built ]; then
+          echo "==> Pinning backend to :$SHORT_SHA"
+          kubectl set image deployment/backend \
+            $(kubectl get deployment/backend -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/atlas-backend:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+        if [ -f .anchor_built ]; then
+          echo "==> Pinning anchor-app to :$SHORT_SHA"
+          kubectl set image deployment/anchor-app \
+            $(kubectl get deployment/anchor-app -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/anchor-app:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+        if [ -f .network_built ]; then
+          echo "==> Pinning network-instance to :$SHORT_SHA"
+          kubectl set image deployment/network-instance \
+            $(kubectl get deployment/network-instance -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/network-instance:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+        if [ -f .admin_built ]; then
+          echo "==> Pinning platform-admin to :$SHORT_SHA"
+          kubectl set image deployment/platform-admin \
+            $(kubectl get deployment/platform-admin -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/platform-admin:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+        if [ -f .folio_built ]; then
+          echo "==> Pinning folio to :$SHORT_SHA"
+          kubectl set image deployment/folio \
+            $(kubectl get deployment/folio -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/folio:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+        if [ -f .sidecar_built ]; then
+          echo "==> Pinning ingress-sidecar to :$SHORT_SHA"
+          kubectl set image deployment/ingress-sidecar \
+            $(kubectl get deployment/ingress-sidecar -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[0].name}')=$REGISTRY/atlas-ingress-sidecar:$SHORT_SHA \
+            -n $NAMESPACE
+        fi
+
+        # Always restart ALL deployments on every push.
+        # Services that built get the new SHA (set above). Services that didn't build
+        # re-pull :latest (imagePullPolicy: Always), ensuring every pod is always fresh.
+        echo "==> Restarting all deployments in $NAMESPACE..."
+        for DEPLOY in backend anchor-app network-instance platform-admin folio; do
+          kubectl rollout restart deployment/$DEPLOY -n $NAMESPACE 2>/dev/null \
+            && echo "    ↺ $DEPLOY restarting" \
+            || echo "    ⚠ $DEPLOY not found — skipping"
+        done
+
+        # Wait for all rollouts to stabilise
+        FAILED=0
+        for DEPLOY in backend anchor-app network-instance platform-admin folio; do
           kubectl rollout status deployment/$DEPLOY -n $NAMESPACE --timeout=180s || {
             echo "===== LOGS: $DEPLOY ====="
             kubectl logs -n $NAMESPACE -l app=$DEPLOY --tail=100 --all-containers=true
-            exit 1
+            FAILED=1
           }
-          echo "==> $DEPLOY is live on $SHORT_SHA ✓"
-        }
-
-        if [ ! -f .backend_built ] && [ ! -f .anchor_built ] && [ ! -f .network_built ] && [ ! -f .admin_built ] && [ ! -f .folio_built ]; then
-          echo "ℹ No app build markers found — config and secrets applied, image rollouts skipped."
-          echo "  (If you expected an image update, check the 'when: path' rules on the mark_*_built steps)"
-        else
-          if [ -f .backend_built ]; then
-            update_service backend "$REGISTRY/atlas-backend:$SHORT_SHA"
-          fi
-
-          if [ -f .anchor_built ]; then
-            update_service anchor-app "$REGISTRY/anchor-app:$SHORT_SHA"
-          fi
-
-          if [ -f .network_built ]; then
-            update_service network-instance "$REGISTRY/network-instance:$SHORT_SHA"
-          fi
-
-          if [ -f .admin_built ]; then
-            update_service platform-admin "$REGISTRY/platform-admin:$SHORT_SHA"
-          fi
-
-          if [ -f .folio_built ]; then
-            update_service folio "$REGISTRY/folio:$SHORT_SHA"
-          fi
-
-          if [ -f .sidecar_built ]; then
-            update_service ingress-sidecar "$REGISTRY/atlas-ingress-sidecar:$SHORT_SHA"
-          fi
-        fi
+          kubectl get deployment/$DEPLOY -n $NAMESPACE -o jsonpath='==> {.metadata.name}: {.spec.template.spec.containers[0].image} ✓\n'
+        done
+        [ "$FAILED" -eq 0 ] || exit 1
 
         echo "Deployment complete. Commit $SHORT_SHA is live."
 
