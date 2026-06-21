@@ -76,7 +76,7 @@ pub fn AccountsPage() -> impl IntoView {
 
     view! {
         <div class="entity-page">
-            <div class="page-header">
+            <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 20px;flex-shrink:0;gap:12px;">
                 <div>
                     <h1 class="page-title">"Accounts"</h1>
                     <p class="page-subtitle">"Platform-wide · All tenants"</p>

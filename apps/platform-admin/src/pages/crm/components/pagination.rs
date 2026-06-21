@@ -14,17 +14,21 @@ pub fn Pagination(
     let on_next = move |_| { if count.get() as u64 >= per_page { page.update(|p| *p += 1); } };
 
     view! {
-        <div class="crm-pagination">
+        <div
+            class="crm-pagination"
+            style="display:flex;align-items:center;justify-content:space-between;\
+                   padding:8px 14px;border-top:1px solid var(--border-default);\
+                   background:var(--bg-surface);flex-shrink:0;font-size:11px;\
+                   color:var(--text-muted);"
+        >
             <span>
                 "Page " {move || page.get().to_string()}
                 " · " {move || count.get().to_string()}
                 " records"
             </span>
-            <div class="crm-pagination-btns">
+            <div style="display:flex;gap:6px;">
                 <button
-                    class=move || {
-                        if page.get() <= 1 { "btn btn-ghost btn-sm" } else { "btn btn-ghost btn-sm" }
-                    }
+                    class="btn btn-ghost btn-sm"
                     disabled=move || page.get() <= 1
                     on:click=on_prev
                 >

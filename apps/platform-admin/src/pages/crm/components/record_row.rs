@@ -9,14 +9,29 @@ pub fn RecordRow(
     #[prop(default = "var(--cobalt-dim)")] bg: &'static str,
     #[prop(default = "var(--cobalt)")] color: &'static str,
 ) -> impl IntoView {
+    let avatar_style = format!(
+        "display:flex;align-items:center;justify-content:center;\
+         width:30px;height:30px;border-radius:6px;\
+         font-size:11px;font-weight:700;flex-shrink:0;\
+         background:{};color:{};",
+        bg, color
+    );
     view! {
-        <div class="con-cell">
-            <div class="con-avatar" style=format!("background:{};color:{}", bg, color)>
+        <div class="con-cell" style="display:flex;align-items:center;gap:10px;">
+            <div class="con-avatar" style=avatar_style>
                 {initials}
             </div>
-            <div>
-                <div class="con-name-text">{name}</div>
-                {(!sub.is_empty()).then(|| view! { <div class="con-title-sub">{sub}</div> })}
+            <div style="min-width:0;">
+                <div
+                    class="con-name-text"
+                    style="font-size:12.5px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;"
+                >{name}</div>
+                {(!sub.is_empty()).then(|| view! {
+                    <div
+                        class="con-title-sub"
+                        style="font-size:11px;color:var(--text-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;"
+                    >{sub}</div>
+                })}
             </div>
         </div>
     }
