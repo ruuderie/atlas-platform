@@ -81,8 +81,8 @@ pub fn Apps() -> impl IntoView {
                                 <div class="breadcrumb">
                                     <a href="/">"Platform"</a>" › "<a href="/apps">"Tenants"</a>" › "{tenant_name.clone()}
                                 </div>
-                                <div class="t-identity">
-                                    <div class="t-avatar">{tenant_name.chars().next().unwrap_or('N')}</div>
+                                <div class="t-identity" style="display:flex;align-items:center;gap:14px;">
+                                    <div class="t-avatar" style="width:40px;height:40px;border-radius:10px;background:var(--cobalt-dim,rgba(59,130,246,0.15));color:var(--cobalt,#3b82f6);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{tenant_name.chars().next().unwrap_or('N').to_string()}</div>
                                     <div>
                                         <div class="t-name">
                                             {tenant_name.clone()}
@@ -205,21 +205,21 @@ pub fn Apps() -> impl IntoView {
                                                             </div>
                                                             <div class="app-name">{app.name.clone()}</div>
                                                             <div class="app-domain">{app.domain.clone()}</div>
-                                                            <div class="app-stats">
-                                                                <div class="app-stat">
-                                                                    <div class="app-stat-label">"Leads"</div>
-                                                                    <div class="app-stat-value">"342"</div>
+                                                            <div class="app-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Leads"</div>
+                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"342"</div>
                                                                 </div>
-                                                                <div class="app-stat">
-                                                                    <div class="app-stat-label">"Properties"</div>
-                                                                    <div class="app-stat-value">"87"</div>
+                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Properties"</div>
+                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"87"</div>
                                                                 </div>
-                                                                <div class="app-stat">
-                                                                    <div class="app-stat-label">"MRR"</div>
-                                                                    <div class="app-stat-value">"$4.8k"</div>
+                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"MRR"</div>
+                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"$4.8k"</div>
                                                                 </div>
                                                             </div>
-                                                            <div class="app-modules">
+                                                            <div class="app-modules" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
                                                                 <span class="mod-chip on">"Listings"</span>
                                                                 <span class="mod-chip on">"Payments"</span>
                                                                 <span class="mod-chip on">"Analytics"</span>
@@ -251,26 +251,26 @@ pub fn Apps() -> impl IntoView {
                                         </div>
 
                                         // ── Summary Grid ──
-                                        <div class="summary-grid">
-                                            <div class="sum-card">
-                                                <div class="sum-label">"Pipeline Value (All Apps)"</div>
-                                                <div class="sum-value mono">"$2.4M"</div>
-                                                <div class="sum-sub">"38 open opportunities"</div>
+                                        <div class="summary-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:20px;">
+                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
+                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Pipeline Value (All Apps)"</div>
+                                                <div class="sum-value mono" style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">"$2.4M"</div>
+                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"38 open opportunities"</div>
                                             </div>
-                                            <div class="sum-card">
-                                                <div class="sum-label">"Conversion Rate"</div>
-                                                <div class="sum-value">"11.4%"</div>
-                                                <div class="sum-sub">"204 converted leads"</div>
+                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
+                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Conversion Rate"</div>
+                                                <div class="sum-value" style="font-size:20px;font-weight:800;">"11.4%"</div>
+                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"204 converted leads"</div>
                                             </div>
-                                            <div class="sum-card">
-                                                <div class="sum-label">"Top Lead Source"</div>
-                                                <div class="sum-value" style="font-size:18px">"FMCSA"</div>
-                                                <div class="sum-sub">"61% of all leads"</div>
+                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
+                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Top Lead Source"</div>
+                                                <div class="sum-value" style="font-size:20px;font-weight:800;">"FMCSA"</div>
+                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"61% of all leads"</div>
                                             </div>
-                                            <div class="sum-card">
-                                                <div class="sum-label">"Avg G-27 Score"</div>
-                                                <div class="sum-value" style="color:#88CC00">"8.1"</div>
-                                                <div class="sum-sub">"Above the bar"</div>
+                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
+                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Avg G-27 Score"</div>
+                                                <div class="sum-value" style="font-size:20px;font-weight:800;color:#88CC00;">"8.1"</div>
+                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"Above the bar"</div>
                                             </div>
                                         </div>
 
