@@ -205,30 +205,63 @@ pub fn Apps() -> impl IntoView {
                                                             </div>
                                                             <div class="app-name">{app.name.clone()}</div>
                                                             <div class="app-domain">{app.domain.clone()}</div>
-                                                            <div class="app-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
-                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
-                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Leads"</div>
-                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"342"</div>
-                                                                </div>
-                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
-                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Properties"</div>
-                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"87"</div>
-                                                                </div>
-                                                                <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
-                                                                    <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"MRR"</div>
-                                                                    <div class="app-stat-value" style="font-size:15px;font-weight:700;">"$4.8k"</div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="app-modules" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
-                                                                <span class="mod-chip on">"Listings"</span>
-                                                                <span class="mod-chip on">"Payments"</span>
-                                                                <span class="mod-chip on">"Analytics"</span>
-                                                                <span class="mod-chip">"Messaging"</span>
-                                                                <span class="mod-chip on">"Events"</span>
-                                                                <span class="mod-chip on">"Custom Fields"</span>
-                                                            </div>
+                                                            {
+                                                                let at = app.app_type.to_lowercase();
+                                                                let (s1_label, s2_label, s3_label): (&str, &str, &str) = match at.as_str() {
+                                                                    "anchor" => ("Pages", "Media", "Forms"),
+                                                                    "str"    => ("Listings", "Bookings", "Revenue"),
+                                                                    "net" | "network" => ("Listings", "Views", "Members"),
+                                                                    "com"    => ("Units", "Tenants", "MRR"),
+                                                                    _        => ("Leads", "Assets", "MRR"),
+                                                                };
+                                                                let features: Vec<(&str, bool)> = match at.as_str() {
+                                                                    "anchor" => vec![
+                                                                        ("Pages", true), ("Media", true), ("Forms", true),
+                                                                        ("SEO", true), ("Analytics", true), ("Custom Fields", false),
+                                                                    ],
+                                                                    "str" => vec![
+                                                                        ("Listings", true), ("Bookings", true), ("Payments", true),
+                                                                        ("Pricing", true), ("Reviews", false), ("Analytics", true),
+                                                                    ],
+                                                                    "net" | "network" => vec![
+                                                                        ("Directory", true), ("Search", true), ("Listings", true),
+                                                                        ("Maps", true), ("Profiles", true), ("Messaging", false),
+                                                                    ],
+                                                                    "com" => vec![
+                                                                        ("Listings", true), ("Leases", true), ("Payments", true),
+                                                                        ("Tenants", true), ("Analytics", true), ("Maintenance", false),
+                                                                    ],
+                                                                    _ => vec![
+                                                                        ("Leads", true), ("Listings", true), ("Payments", true),
+                                                                        ("Analytics", true), ("Events", true), ("Custom Fields", false),
+                                                                    ],
+                                                                };
+                                                                view! {
+                                                                    <div class="app-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+                                                                        <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                            <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">{s1_label}</div>
+                                                                            <div class="app-stat-value" style="font-size:15px;font-weight:700;color:var(--text-muted);">"—"</div>
+                                                                        </div>
+                                                                        <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                            <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">{s2_label}</div>
+                                                                            <div class="app-stat-value" style="font-size:15px;font-weight:700;color:var(--text-muted);">"—"</div>
+                                                                        </div>
+                                                                        <div class="app-stat" style="display:flex;flex-direction:column;gap:2px;">
+                                                                            <div class="app-stat-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">{s3_label}</div>
+                                                                            <div class="app-stat-value" style="font-size:15px;font-weight:700;color:var(--text-muted);">"—"</div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="app-modules" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
+                                                                        {features.into_iter().map(|(label, active)| {
+                                                                            view! {
+                                                                                <span class=if active { "mod-chip on" } else { "mod-chip" }>{label}</span>
+                                                                            }
+                                                                        }).collect_view()}
+                                                                    </div>
+                                                                }
+                                                            }
                                                             <div class="app-card-footer">
-                                                                <span class="app-footer-meta">"Last activity: 12 min ago · 14 users"</span>
+                                                                <span class="app-footer-meta">{format!("{} instance", app.app_type.to_uppercase())}</span>
                                                                 <div class="app-footer-actions">
                                                                     <button class="btn btn-ghost btn-sm" on:click=move |e| {
                                                                         e.stop_propagation();
@@ -250,134 +283,11 @@ pub fn Apps() -> impl IntoView {
                                             />
                                         </div>
 
-                                        // ── Summary Grid ──
-                                        <div class="summary-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:20px;">
-                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
-                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Pipeline Value (All Apps)"</div>
-                                                <div class="sum-value mono" style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;">"$2.4M"</div>
-                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"38 open opportunities"</div>
-                                            </div>
-                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
-                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Conversion Rate"</div>
-                                                <div class="sum-value" style="font-size:20px;font-weight:800;">"11.4%"</div>
-                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"204 converted leads"</div>
-                                            </div>
-                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
-                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Top Lead Source"</div>
-                                                <div class="sum-value" style="font-size:20px;font-weight:800;">"FMCSA"</div>
-                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"61% of all leads"</div>
-                                            </div>
-                                            <div class="sum-card" style="display:flex;flex-direction:column;gap:4px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;">
-                                                <div class="sum-label" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Avg G-27 Score"</div>
-                                                <div class="sum-value" style="font-size:20px;font-weight:800;color:#88CC00;">"8.1"</div>
-                                                <div class="sum-sub" style="font-size:11px;color:var(--text-muted);">"Above the bar"</div>
-                                            </div>
-                                        </div>
-
-                                        // ── Recent Leads Table ──
-                                        <div class="card">
-                                            <div class="card-hdr">
-                                                <span class="card-title">"Recent Leads — All App Instances"</span>
-                                                <button class="btn btn-ghost btn-sm" on:click=move |_| {
-                                                    let navigate = leptos_router::hooks::use_navigate();
-                                                    navigate("/crm?tab=leads", Default::default());
-                                                }>"View All →"</button>
-                                            </div>
-                                            <table>
-                                                <thead>
-                                                    <tr>
-                                                        <th>"Lead"</th>
-                                                        <th>"App Instance"</th>
-                                                        <th>"Source"</th>
-                                                        <th>"G-27 Score"</th>
-                                                        <th>"Stage"</th>
-                                                        <th>"Last Activity"</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr on:click=move |_| {
-                                                        let navigate = leptos_router::hooks::use_navigate();
-                                                        navigate("/crm?tab=leads", Default::default());
-                                                    }>
-                                                        <td>
-                                                            <div style="font-weight:500">"João Silva"</div>
-                                                            <div style="font-size:10.5px;color:var(--text-muted)">"Logística Meridional S.A."</div>
-                                                        </td>
-                                                        <td>
-                                                            <span class="app-chip">
-                                                                <span style="width:5px;height:5px;border-radius:50%;background:var(--cobalt);display:inline-block;margin-right:4px;"></span>
-                                                                "PM Residential"
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span style="font-size:10px;font-weight:600;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 5px;background:var(--cobalt-dim)">"FMCSA"</span>
-                                                        </td>
-                                                        <td>
-                                                            <div class="score-badge">
-                                                                <span class="score-dot" style="background:#00CC44"></span>
-                                                                <span>"9.3"</span>
-                                                                <span class="score-tier">"Outstanding"</span>
-                                                            </div>
-                                                        </td>
-                                                        <td style="color:var(--cobalt)">"Qualified"</td>
-                                                        <td class="muted">"12 min ago"</td>
-                                                    </tr>
-                                                    <tr on:click=move |_| {
-                                                        let navigate = leptos_router::hooks::use_navigate();
-                                                        navigate("/crm?tab=leads", Default::default());
-                                                    }>
-                                                        <td>
-                                                            <div style="font-weight:500">"Marcus Thompson"</div>
-                                                            <div style="font-size:10.5px;color:var(--text-muted)">"Thompson Freight Inc."</div>
-                                                        </td>
-                                                        <td>
-                                                            <span class="app-chip">
-                                                                <span style="width:5px;height:5px;border-radius:50%;background:var(--amber);display:inline-block;margin-right:4px;"></span>
-                                                                "STR Miami"
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span style="font-size:10px;font-weight:600;color:var(--amber);border:1px solid var(--amber);border-radius:3px;padding:1px 5px;background:var(--amber-dim)">"DOT"</span>
-                                                        </td>
-                                                        <td>
-                                                            <div class="score-badge">
-                                                                <span class="score-dot" style="background:#88CC00"></span>
-                                                                <span>"7.6"</span>
-                                                                <span class="score-tier">"Above"</span>
-                                                            </div>
-                                                        </td>
-                                                        <td>"New"</td>
-                                                        <td class="muted">"5h ago"</td>
-                                                    </tr>
-                                                    <tr on:click=move |_| {
-                                                        let navigate = leptos_router::hooks::use_navigate();
-                                                        navigate("/crm?tab=leads", Default::default());
-                                                    }>
-                                                        <td>
-                                                            <div style="font-weight:500">"Priya Bhat"</div>
-                                                            <div style="font-size:10.5px;color:var(--text-muted)">"Bhat Holdings LLC"</div>
-                                                        </td>
-                                                        <td>
-                                                            <span class="app-chip">
-                                                                <span style="width:5px;height:5px;border-radius:50%;background:var(--violet);display:inline-block;margin-right:4px;"></span>
-                                                                "Commercial"
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <span style="font-size:10px;font-weight:600;color:var(--violet);border:1px solid var(--violet);border-radius:3px;padding:1px 5px;background:var(--violet-dim)">"Campaign"</span>
-                                                        </td>
-                                                        <td>
-                                                            <div class="score-badge">
-                                                                <span class="score-dot" style="background:#88CC00;opacity:0.5"></span>
-                                                                <span style="font-style:italic;color:var(--text-muted)">"~7.2"</span>
-                                                                <span class="score-tier">"Est."</span>
-                                                            </div>
-                                                        </td>
-                                                        <td>"New"</td>
-                                                        <td class="muted">"2d ago"</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                        // Summary grid and recent activity are rendered from real API data.
+                                        // Placeholder: no fabricated per-instance metrics shown until
+                                        // the admin stats endpoint is wired up.
+                                        <div style="margin-top:20px;padding:14px 16px;background:var(--surface-2,#1a1a2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;color:var(--text-muted);font-size:12px;text-align:center;">
+                                            "Instance analytics will appear here once real data is available from the platform stats API."
                                         </div>
                                     </div>
                                 }.into_any(),
