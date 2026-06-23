@@ -517,3 +517,36 @@ pub async fn create_campaign(input: CreateCampaignInput) -> Result<serde_json::V
     crate::api::client::api_request(req).await
 }
 
+// ============================================================
+// SESSION MANAGEMENT
+// ============================================================
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct SessionSummaryModel {
+    pub id: uuid::Uuid,
+    pub created_at: String,
+    pub last_accessed_at: String,
+    pub is_active: bool,
+    pub is_current: bool,
+}
+
+/// List all active sessions for the current user.
+/// Calls `GET /api/me/sessions`.
+pub async fn list_my_sessions() -> Result<Vec<SessionSummaryModel>, String> {
+    crate::api::client::api_get("api/me/sessions").await
+}
+
+/// Revoke a specific session by ID.
+/// Calls `DELETE /api/me/sessions/{id}`.
+pub async fn revoke_session_by_id(session_id: uuid::Uuid) -> Result<(), String> {
+    crate::api::client::api_delete(&format!("api/me/sessions/{}", session_id)).await
+}
+
+/// Revoke all sessions except the current one.
+/// Calls `DELETE /api/me/sessions`.
+pub async fn revoke_all_other_sessions() -> Result<serde_json::Value, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url("api/me/sessions");
+    let req = crate::api::client::with_credentials(client.delete(&url));
+    crate::api::client::api_request(req).await
+}

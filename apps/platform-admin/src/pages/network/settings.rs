@@ -64,7 +64,31 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
         }
     };
 
-    // No network topology update API exists yet — the save button is gated.
+    let toast_ctx = use_context::<crate::app::GlobalToast>().expect("toast context");
+    let is_saving = RwSignal::new(false);
+
+    let handle_save_config = {
+        let sid_clone = site_id.clone();
+        move |_| {
+            let sid = sid_clone();
+            let custom_domain = domain_override_bind.get();
+            let toast = toast_ctx.clone();
+
+            if let Ok(instance_id) = sid.parse::<uuid::Uuid>() {
+                is_saving.set(true);
+                let custom_domain_opt = if custom_domain.is_empty() { None } else { Some(custom_domain) };
+                leptos::task::spawn_local(async move {
+                    match crate::api::admin::update_public_config(instance_id, None, custom_domain_opt).await {
+                        Ok(_) => toast.show_toast("Network", "Custom domain configuration saved.", "success"),
+                        Err(e) => toast.show_toast("Error", &e, "error"),
+                    }
+                    is_saving.set(false);
+                });
+            } else {
+                toast_ctx.show_toast("Error", "Invalid instance ID in URL.", "error");
+            }
+        }
+    };
 
     view! {
         <Card class="bg-card border-border shadow-sm p-6 mb-6".to_string()>
@@ -98,10 +122,9 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
                 <div class="pt-4 border-t border-border mt-6 flex justify-end">
                     <Button
                         variant=ButtonVariant::Default
-                        attr:disabled=true
-                        attr:title="Network topology update API pending"
-                        class="opacity-40 cursor-not-allowed".to_string()
-                    >"Update Topology Settings"</Button>
+                        on:click=handle_save_config
+                        attr:disabled=move || is_saving.get()
+                    >{move || if is_saving.get() { "Saving…" } else { "Update Topology Settings" }}</Button>
                 </div>
             </div>
         </Card>

@@ -7,6 +7,7 @@ use crate::api::developer::{
     list_webhook_endpoints, create_webhook_endpoint, delete_webhook_endpoint,
     CreateApiTokenRequest, CreateWebhookRequest,
 };
+use crate::api::admin::{list_my_sessions, revoke_session_by_id, revoke_all_other_sessions};
 use crate::app::GlobalToast;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
@@ -40,6 +41,13 @@ pub fn Settings() -> impl IntoView {
             Some(tid) => list_webhook_endpoints(tid).await.unwrap_or_default(),
             None => vec![],
         }
+    });
+
+    // Session list — keyed on sessions_version so revoke actions trigger a refetch
+    let (sessions_version, set_sessions_version) = signal(0u32);
+    let sessions_res = LocalResource::new(move || async move {
+        sessions_version.get();
+        list_my_sessions().await.unwrap_or_default()
     });
 
     // New API key form state
@@ -501,26 +509,80 @@ pub fn Settings() -> impl IntoView {
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"Active Sessions"</span>
-                                        <button class="btn btn-danger btn-sm opacity-40 cursor-not-allowed" title="Revoke others pending — session list not yet fetched from API" disabled>"Revoke All Others"</button>
+                                        <button
+                                            class="btn btn-danger btn-sm"
+                                            on:click=move |_| {
+                                                let toast = toast.clone();
+                                                leptos::task::spawn_local(async move {
+                                                    match revoke_all_other_sessions().await {
+                                                        Ok(v) => {
+                                                            let count = v.get("revoked").and_then(|n| n.as_u64()).unwrap_or(0);
+                                                            toast.show_toast("Sessions", &format!("Revoked {} other session(s).", count), "success");
+                                                            set_sessions_version.update(|v| *v += 1);
+                                                        }
+                                                        Err(e) => toast.show_toast("Error", &e, "error"),
+                                                    }
+                                                });
+                                            }
+                                        >"Revoke All Others"</button>
                                     </div>
-                                    <div class="api-key-row">
-                                        <div style="flex:1">
-                                            <div style="font-size:12px;font-weight:500">
-                                                "Chrome · macOS "
-                                                <span style="font-size:9px;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 4px;margin-left:4px">"CURRENT"</span>
-                                            </div>
-                                            <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">"IP: 10.0.1.2 · Miami, FL · Started 2h ago"</div>
-                                        </div>
-                                        <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                    </div>
-                                    <div class="api-key-row">
-                                        <div style="flex:1">
-                                            <div style="font-size:12px;font-weight:500">"Safari · iPhone"</div>
-                                            <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">"IP: 10.0.2.8 · Miami, FL · Started 18h ago"</div>
-                                        </div>
-                                        <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — static session row" disabled>"Revoke"</button>
-                                    </div>
+                                    {move || {
+                                        let sessions = sessions_res.get().unwrap_or_default();
+                                        if sessions.is_empty() {
+                                            return view! { <div class="api-key-row" style="color:var(--text-muted);font-size:11px">"No active sessions found."</div> }.into_any();
+                                        }
+                                        view! {
+                                            <For
+                                                each=move || sessions.clone()
+                                                key=|s| s.id
+                                                children=move |sess| {
+                                                    let sid = sess.id;
+                                                    let toast2 = toast.clone();
+                                                    let last = sess.last_accessed_at.get(..16).unwrap_or(&sess.last_accessed_at).to_string();
+                                                    let started = sess.created_at.get(..16).unwrap_or(&sess.created_at).to_string();
+                                                    view! {
+                                                        <div class="api-key-row">
+                                                            <div style="flex:1">
+                                                                <div style="font-size:12px;font-weight:500">
+                                                                    {format!("Session {}", &sid.to_string()[..8])}
+                                                                    {if sess.is_current {
+                                                                        view! { <span style="font-size:9px;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 4px;margin-left:4px">"CURRENT"</span> }.into_any()
+                                                                    } else {
+                                                                        view! {}.into_any()
+                                                                    }}
+                                                                </div>
+                                                                <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">
+                                                                    {format!("Started: {} · Last active: {}", started, last)}
+                                                                </div>
+                                                            </div>
+                                                            <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
+                                                            {if !sess.is_current {
+                                                                view! {
+                                                                    <button
+                                                                        class="btn btn-ghost btn-sm"
+                                                                        on:click=move |_| {
+                                                                            let toast3 = toast2.clone();
+                                                                            leptos::task::spawn_local(async move {
+                                                                                match revoke_session_by_id(sid).await {
+                                                                                    Ok(_) => {
+                                                                                        toast3.show_toast("Sessions", "Session revoked.", "success");
+                                                                                        set_sessions_version.update(|v| *v += 1);
+                                                                                    }
+                                                                                    Err(e) => toast3.show_toast("Error", &e, "error"),
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    >"Revoke"</button>
+                                                                }.into_any()
+                                                            } else {
+                                                                view! {}.into_any()
+                                                            }}
+                                                        </div>
+                                                    }
+                                                }
+                                            />
+                                        }.into_any()
+                                    }}
                                 </div>
                             </div>
                         }.into_any(),

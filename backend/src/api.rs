@@ -15,7 +15,7 @@
  * See the full integration protocol at: `docs/atlas_app_integration.md`
  * Architecture layer map: `docs/architecture/platform_layer_map.md`
  */
-use axum::{Router, Extension, routing::post, routing::get};
+use axum::{Router, Extension, routing::post, routing::get, routing::delete};
 use sea_orm::DatabaseConnection;
 use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup};
 use crate::middleware::{auth_middleware, site_context_middleware};
@@ -43,6 +43,10 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         .route("/api/auth/session/validate", get(sessions::validate_session))
         .route("/api/auth/session/revoke", post(sessions::revoke_session))
         .route("/api/auth/impersonate/exchange", post(sessions::exchange_impersonate_code))
+        // Session management — list and targeted revoke
+        .route("/api/me/sessions", get(sessions::list_user_sessions)
+            .delete(sessions::revoke_all_other_sessions))
+        .route("/api/me/sessions/:session_id", delete(sessions::revoke_other_session))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 

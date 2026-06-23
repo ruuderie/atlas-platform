@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use axum::{
-    extract::{Extension, Json},
+    extract::{Extension, Json, Path},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
@@ -624,3 +624,214 @@ pub async fn exchange_impersonate_code(
     ))
 }
 
+// ── Session list & targeted revoke ───────────────────────────────────────────
+
+#[derive(Debug, serde::Serialize)]
+pub struct SessionSummary {
+    pub id: Uuid,
+    pub created_at: String,
+    pub last_accessed_at: String,
+    pub is_active: bool,
+    /// true when this row is the caller's own current session
+    pub is_current: bool,
+}
+
+/// `GET /api/me/sessions` — list all active sessions for the authenticated user.
+pub async fn list_user_sessions(
+    Extension(db): Extension<DatabaseConnection>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(token) = extract_session_token(&headers) else {
+        return StatusCode::UNAUTHORIZED.into_response();
+    };
+
+    // Resolve caller's session to get user_id and current session id
+    let token_hash = hash_token(&token);
+    let caller_session = match session::Entity::find()
+        .filter(session::Column::BearerTokenHash.eq(&token_hash))
+        .one(&db)
+        .await
+    {
+        Ok(Some(s)) => s,
+        _ => {
+            // fallback to plaintext
+            match session::Entity::find()
+                .filter(session::Column::BearerToken.eq(&token))
+                .one(&db)
+                .await
+            {
+                Ok(Some(s)) => s,
+                _ => return StatusCode::UNAUTHORIZED.into_response(),
+            }
+        }
+    };
+
+    let user_id = caller_session.user_id;
+    let current_id = caller_session.id;
+
+    let sessions = match session::Entity::find()
+        .filter(session::Column::UserId.eq(user_id))
+        .filter(session::Column::IsActive.eq(true))
+        .all(&db)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("list_user_sessions: {e:#}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let summaries: Vec<SessionSummary> = sessions
+        .into_iter()
+        .map(|s| SessionSummary {
+            id: s.id,
+            created_at: s.created_at.to_rfc3339(),
+            last_accessed_at: s.last_accessed_at.to_rfc3339(),
+            is_active: s.is_active,
+            is_current: s.id == current_id,
+        })
+        .collect();
+
+    (StatusCode::OK, Json(summaries)).into_response()
+}
+
+/// `DELETE /api/me/sessions/{session_id}` — revoke a specific session (not the caller's own).
+pub async fn revoke_other_session(
+    Extension(db): Extension<DatabaseConnection>,
+    headers: HeaderMap,
+    Path(session_id): Path<Uuid>,
+) -> Response {
+    let Some(token) = extract_session_token(&headers) else {
+        return StatusCode::UNAUTHORIZED.into_response();
+    };
+
+    // Resolve caller's current session
+    let token_hash = hash_token(&token);
+    let caller_session = match session::Entity::find()
+        .filter(session::Column::BearerTokenHash.eq(&token_hash))
+        .one(&db)
+        .await
+    {
+        Ok(Some(s)) => s,
+        _ => {
+            match session::Entity::find()
+                .filter(session::Column::BearerToken.eq(&token))
+                .one(&db)
+                .await
+            {
+                Ok(Some(s)) => s,
+                _ => return StatusCode::UNAUTHORIZED.into_response(),
+            }
+        }
+    };
+
+    // Must be a session belonging to the same user
+    let target = match session::Entity::find_by_id(session_id).one(&db).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            tracing::error!("revoke_other_session lookup: {e:#}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    if target.user_id != caller_session.user_id {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+
+    let revoked_model = session::Model {
+        is_active: false,
+        integrity_hash: String::new(),
+        ..target.clone()
+    };
+    let new_hash = revoked_model.generate_integrity_hash();
+
+    let mut active: session::ActiveModel = target.into();
+    active.is_active = Set(false);
+    active.integrity_hash = Set(new_hash);
+
+    match active.update(&db).await {
+        Ok(_) => {
+            tracing::info!(
+                event = "session.revoked_other",
+                session_id = %session_id,
+                by_user = %caller_session.user_id,
+            );
+            StatusCode::NO_CONTENT.into_response()
+        }
+        Err(e) => {
+            tracing::error!("revoke_other_session update: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+/// `DELETE /api/me/sessions` — revoke ALL sessions except the caller's current one.
+pub async fn revoke_all_other_sessions(
+    Extension(db): Extension<DatabaseConnection>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(token) = extract_session_token(&headers) else {
+        return StatusCode::UNAUTHORIZED.into_response();
+    };
+
+    let token_hash = hash_token(&token);
+    let caller_session = match session::Entity::find()
+        .filter(session::Column::BearerTokenHash.eq(&token_hash))
+        .one(&db)
+        .await
+    {
+        Ok(Some(s)) => s,
+        _ => {
+            match session::Entity::find()
+                .filter(session::Column::BearerToken.eq(&token))
+                .one(&db)
+                .await
+            {
+                Ok(Some(s)) => s,
+                _ => return StatusCode::UNAUTHORIZED.into_response(),
+            }
+        }
+    };
+
+    let user_id = caller_session.user_id;
+    let current_id = caller_session.id;
+
+    let others = match session::Entity::find()
+        .filter(session::Column::UserId.eq(user_id))
+        .filter(session::Column::IsActive.eq(true))
+        .filter(session::Column::Id.ne(current_id))
+        .all(&db)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("revoke_all_other_sessions: {e:#}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let revoked = others.len();
+
+    for sess in others {
+        let revoked_model = session::Model {
+            is_active: false,
+            integrity_hash: String::new(),
+            ..sess.clone()
+        };
+        let new_hash = revoked_model.generate_integrity_hash();
+        let mut active: session::ActiveModel = sess.into();
+        active.is_active = Set(false);
+        active.integrity_hash = Set(new_hash);
+        let _ = active.update(&db).await;
+    }
+
+    tracing::info!(
+        event = "session.revoked_all_others",
+        user_id = %user_id,
+        count = revoked,
+    );
+
+    (StatusCode::OK, Json(serde_json::json!({ "revoked": revoked }))).into_response()
+}
