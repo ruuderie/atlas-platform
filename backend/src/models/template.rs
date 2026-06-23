@@ -20,7 +20,9 @@ pub struct TemplateModel {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CreateTemplate {
     pub name: String,
-    pub tenant_id: Uuid,
+    /// Optional — platform-level templates are not scoped to a tenant.
+    /// When omitted the handler falls back to Uuid::nil().
+    pub tenant_id: Option<Uuid>,
     pub category_id: Uuid,
     pub description: String,
     pub template_type: String,

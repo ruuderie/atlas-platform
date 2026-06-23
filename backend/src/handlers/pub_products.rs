@@ -35,10 +35,12 @@ use sea_orm::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
+use chrono::Utc;
 
 use crate::entities::{
     platform_product,
     product_page::{template, variant},
+    atlas_lead,
 };
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -497,9 +499,53 @@ async fn join_waitlist_inner(
     // Increment variant lead_count if applicable
     if let Some(v) = variant_info {
         let mut active: variant::ActiveModel = v.into();
-        // Note: increment in real impl should be atomic (UPDATE ... SET lead_count = lead_count + 1)
         active.lead_count = Set(active.lead_count.unwrap() + 1);
         let _ = active.update(db).await;
+    }
+
+    // Upsert into atlas_lead (G-31)
+    // Dedup: skip insert if a lead with the same email already exists for this product
+    let existing_lead = atlas_lead::Entity::find()
+        .filter(atlas_lead::Column::Email.eq(&body.email))
+        .filter(atlas_lead::Column::Source.eq(format!("waitlist:{}", product_slug)))
+        .one(db)
+        .await
+        .ok()
+        .flatten();
+
+    if existing_lead.is_none() {
+        // Compute display name per entity rule: first+last ?? company ?? email
+        let display_name = body.name.clone()
+            .or_else(|| body.company.clone())
+            .unwrap_or_else(|| body.email.clone());
+
+        let new_lead = atlas_lead::ActiveModel {
+            id:          Set(Uuid::new_v4()),
+            tenant_id:   Set(product.sentinel_tenant_id.unwrap_or_else(Uuid::nil)),
+            name:        Set(display_name),
+            email:       Set(Some(body.email.clone())),
+            phone:       Set(body.phone.clone()),
+            company:     Set(body.company.clone()),
+            source:      Set(Some(format!("waitlist:{}", product_slug))),
+            lead_status: Set("new".to_string()),
+            email_verified: Set(false),
+            phone_verified: Set(false),
+            created_at:  Set(Utc::now()),
+            updated_at:  Set(Utc::now()),
+            ..Default::default()
+        };
+
+        if let Err(e) = new_lead.insert(db).await {
+            // Non-fatal — waitlist count still increments; log and continue
+            tracing::warn!(email = %body.email, error = %e, "atlas_lead insert failed");
+        } else {
+            // Atomically increment platform_product.waitlist_count
+            let mut prod_active: platform_product::ActiveModel = product.into();
+            prod_active.waitlist_count = Set(prod_active.waitlist_count.unwrap() + 1);
+            let _ = prod_active.update(db).await;
+        }
+    } else {
+        tracing::debug!(email = %body.email, "duplicate waitlist signup — skipping lead insert");
     }
 
     (
@@ -547,38 +593,71 @@ async fn create_pre_order(
         }
     }
 
-    // TODO: Create Stripe Checkout Session via stripe-rust crate
-    // stripe::CheckoutSession::create(&client, CreateCheckoutSession {
-    //     mode: Some(CheckoutSessionMode::Payment),
-    //     line_items: Some(vec![CreateCheckoutSessionLineItems {
-    //         price: Some(stripe_price_id),
-    //         quantity: Some(1),
-    //         ..Default::default()
-    //     }]),
-    //     customer_email: Some(&body.email),
-    //     success_url: Some(&body.success_url),
-    //     cancel_url: Some(&body.cancel_url),
-    //     ..Default::default()
-    // })
-    //
-    // For now: return a placeholder indicating Stripe wiring is needed
-    tracing::info!(
-        email = %body.email,
-        product_slug = slug,
-        stripe_price_id = %stripe_price_id,
-        "pre-order checkout requested (Stripe integration pending)"
-    );
+    // Create Stripe Checkout Session
+    let stripe_secret = std::env::var("STRIPE_SECRET_KEY")
+        .or_else(|_| std::env::var("STRIPE_PLATFORM_SECRET_KEY"))
+        .unwrap_or_default();
 
-    (
-        StatusCode::OK,
-        Json(json!({
-            "checkout_url": null,
-            "message": "Stripe Checkout integration pending — stripe_price_id is configured.",
-            "product_slug": slug,
-            "stripe_price_id": stripe_price_id,
-        })),
-    )
-        .into_response()
+    if stripe_secret.is_empty() {
+        tracing::error!("STRIPE_SECRET_KEY not set — cannot create checkout session");
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "Payment processing is not configured on this server.",
+                "stripe_price_id": stripe_price_id,
+            })),
+        ).into_response();
+    }
+
+    let client = stripe::Client::new(stripe_secret);
+
+    let mut create_session = stripe::CreateCheckoutSession::new();
+    create_session.mode = Some(stripe::CheckoutSessionMode::Payment);
+    create_session.customer_email = Some(&body.email);
+    create_session.success_url = Some(&body.success_url);
+    create_session.cancel_url = Some(&body.cancel_url);
+
+    let line_item = stripe::CreateCheckoutSessionLineItems {
+        price: Some(stripe_price_id.clone()),
+        quantity: Some(1),
+        ..Default::default()
+    };
+    create_session.line_items = Some(vec![line_item]);
+
+    match stripe::CheckoutSession::create(&client, create_session).await {
+        Ok(session) => {
+            // Increment pre_order_sold count
+            let mut prod_active: platform_product::ActiveModel = product.into();
+            prod_active.pre_order_sold = Set(prod_active.pre_order_sold.unwrap() + 1);
+            let _ = prod_active.update(&db).await;
+
+            tracing::info!(
+                email = %body.email,
+                product_slug = slug,
+                session_id = ?session.id,
+                "Stripe checkout session created"
+            );
+
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "checkout_url": session.url,
+                    "session_id": session.id,
+                    "product_slug": slug,
+                })),
+            ).into_response()
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "Stripe CheckoutSession::create failed");
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "error": "Failed to create Stripe checkout session.",
+                    "details": e.to_string(),
+                })),
+            ).into_response()
+        }
+    }
 }
 
 async fn record_view(

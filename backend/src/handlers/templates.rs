@@ -71,7 +71,7 @@ pub async fn create_template(
 ) -> Result<Json<TemplateModel>, (StatusCode, Json<serde_json::Value>)> {
     let new_template = template::ActiveModel {
         id: Set(Uuid::new_v4()),
-        tenant_id: Set(payload.tenant_id),
+        tenant_id: Set(payload.tenant_id.unwrap_or_else(Uuid::nil)),
         category_id: Set(payload.category_id),
         name: Set(payload.name),
         description: Set(payload.description),
