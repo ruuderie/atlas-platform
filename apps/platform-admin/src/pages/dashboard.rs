@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use crate::api::analytics::{get_business_kpis, get_engagement};
 use crate::api::admin::{get_tenant_stats, get_all_platform_apps};
+use crate::api::verification::get_verification_requests;
 
 #[component]
 pub fn Dashboard() -> impl IntoView {
@@ -8,6 +9,9 @@ pub fn Dashboard() -> impl IntoView {
     let engagement_res = LocalResource::new(|| async move { get_engagement().await.unwrap_or_default() });
     let tenants_res = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
     let apps_res = LocalResource::new(|| async move { get_all_platform_apps().await.unwrap_or_default() });
+    let verification_res = LocalResource::new(|| async move {
+        get_verification_requests(None, None).await.unwrap_or_default()
+    });
 
     let mrr = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.value);
     let mrr_prev = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.previous_value);
@@ -295,7 +299,17 @@ pub fn Dashboard() -> impl IntoView {
                     <div style="display:flex;align-items:center;gap:8px;padding:6px 0">
                         <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G06"</span>
                         <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Verification Queue"</span>
-                        <span style="font-size:10px;color:var(--red);font-weight:600">"✗ 3 pending"</span>
+                        {move || {
+                            let pending = verification_res.get().unwrap_or_default()
+                                .into_iter()
+                                .filter(|r| r.status == "pending" || r.status == "review")
+                                .count();
+                            if pending == 0 {
+                                view! { <span style="font-size:10px;color:var(--green);font-weight:600">"✓ Clear"</span> }.into_any()
+                            } else {
+                                view! { <span style="font-size:10px;color:var(--red);font-weight:600">{format!("✗ {} pending", pending)}</span> }.into_any()
+                            }
+                        }}
                     </div>
                 </div>
             </div>
