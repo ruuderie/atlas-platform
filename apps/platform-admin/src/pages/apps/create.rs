@@ -47,17 +47,17 @@ pub fn AppCreate() -> impl IntoView {
         let last = admin_last_name.get().trim().to_string();
 
         if display.is_empty() || tenant.is_empty() || dom.is_empty() {
-            toast.message.set(Some("Tenant Name, Slug, and Domain are required.".to_string()));
+            toast.show_toast("Validation", "Tenant Name, Slug, and Domain are required.", "error");
             return;
         }
 
         if email.is_empty() || first.is_empty() || last.is_empty() {
-            toast.message.set(Some("Administrator email, first name, and last name are required.".to_string()));
+            toast.show_toast("Validation", "Administrator email, first name, and last name are required.", "error");
             return;
         }
 
         is_submitting.set(true);
-        toast.message.set(Some("Provisioning fully-wired tenant...".to_string()));
+        toast.show_toast("Provisioning", "Provisioning fully-wired tenant...", "info");
 
         let payload = ProvisionTenantPayload {
             tenant_name: tenant,
@@ -72,12 +72,12 @@ pub fn AppCreate() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match provision_tenant(payload).await {
                 Ok(res) => {
-                    toast.message.set(Some("Tenant successfully provisioned!".to_string()));
+                    toast.show_toast("Success", "Tenant successfully provisioned!", "success");
                     provisioned_domain.set(res.domain);
                     setup_url.set(Some(res.setup_url));
                 }
                 Err(e) => {
-                    toast.message.set(Some(format!("Error: {}", e)));
+                    toast.show_toast("Error", &format!("Provisioning failed: {}", e), "error");
                 }
             }
             is_submitting.set(false);

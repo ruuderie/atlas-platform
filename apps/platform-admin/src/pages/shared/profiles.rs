@@ -72,19 +72,19 @@ pub fn ProfilesPanel() -> impl IntoView {
         let last = provision_last_name.get().trim().to_string();
         
         if email.is_empty() || first.is_empty() || last.is_empty() {
-            toast.message.set(Some("All credentials are required.".to_string()));
+            toast.show_toast("Validation", "All credentials are required.", "error");
             return;
         }
         
         let t_id_opt = tenant_id_sig.get();
         if t_id_opt.is_none() {
-            toast.message.set(Some("Error: Could not retrieve active Tenant ID context.".to_string()));
+            toast.show_toast("Error", "Could not retrieve active Tenant ID context.", "error");
             return;
         }
         let tenant_id = t_id_opt.unwrap();
         
         is_provisioning.set(true);
-        toast.message.set(Some("Seeding tenant administrator...".to_string()));
+        toast.show_toast("Provisioning", "Seeding tenant administrator...", "info");
         
         let payload = ProvisionAdminPayload {
             email,
@@ -95,14 +95,14 @@ pub fn ProfilesPanel() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match provision_admin(tenant_id, payload).await {
                 Ok(res) => {
-                    toast.message.set(Some("Administrator seeded!".to_string()));
+                    toast.show_toast("Success", "Administrator seeded!", "success");
                     provision_setup_url.set(Some(res.setup_url));
                     provision_email.set("".to_string());
                     provision_first_name.set("".to_string());
                     provision_last_name.set("".to_string());
                 }
                 Err(e) => {
-                    toast.message.set(Some(format!("Seeding failed: {}", e)));
+                    toast.show_toast("Error", &format!("Seeding failed: {}", e), "error");
                 }
             }
             is_provisioning.set(false);
@@ -236,7 +236,7 @@ pub fn ProfilesPanel() -> impl IntoView {
                                             let clipboard = navigator.clipboard();
                                             let _ = clipboard.write_text(&url);
                                             let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-                                            toast.message.set(Some("Copied link to clipboard!".to_string()));
+                                            toast.show_toast("Clipboard", "Setup link copied!", "success");
                                         }>
                                             "Copy Link"
                                         </Button>

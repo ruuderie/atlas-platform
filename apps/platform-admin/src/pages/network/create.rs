@@ -41,12 +41,14 @@ pub fn NetworkCreate() -> impl IntoView {
                 }
             }
             if current == 3 {
-                // Provisioning completed!
-                toast.show_toast("Provisioning", "Provisioning network instance...", "success");
-                
-                // Redirect back to network instance index
-                let window = web_sys::window().unwrap();
-                let _ = window.location().set_href("/network");
+                // Network instance provisioning is not yet wired to an atomic API.
+                // The old multi-step flow was deprecated (see api/networks.rs).
+                // Operators should use the Tenant provisioning flow (/apps/new) instead.
+                toast.show_toast(
+                    "Provisioning Unavailable",
+                    "Network instance provisioning API is pending. Use the Tenant provisioning flow under Tenants > New Application.",
+                    "error"
+                );
                 return;
             }
             current_step.set(current + 1);

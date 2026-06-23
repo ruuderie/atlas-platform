@@ -50,11 +50,11 @@ pub fn ListingCreate() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match create_listing(payload).await {
                 Ok(_) => {
-                    toast.message.set(Some("Listing created successfully".to_string()));
+                    toast.show_toast("Listings", "Listing created successfully.", "success");
                     nav("/listings", Default::default());
                 }
                 Err(e) => {
-                    toast.message.set(Some(format!("Failed to create: {}", e)));
+                    toast.show_toast("Error", &format!("Failed to create listing: {}", e), "error");
                 }
             }
             set_is_submitting.set(false);

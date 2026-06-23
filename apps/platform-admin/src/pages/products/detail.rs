@@ -6,8 +6,8 @@ pub fn ProductDetail() -> impl IntoView {
     let params = use_params_map();
     let product_id = move || params.with(|p| p.get("id").unwrap_or_else(|| "folio-landlords".to_string()));
 
-    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
+
     // Form states
     let product_name = RwSignal::new(String::new());
     let product_domain = RwSignal::new(String::new());
@@ -50,13 +50,8 @@ pub fn ProductDetail() -> impl IntoView {
         }
     });
 
-    let handle_save = move |_| {
-        toast.show_toast("Success", "Product marketing details saved successfully.", "success");
-    };
-
-    let handle_publish = move |_| {
-        toast.show_toast("Published", "Edge cache invalidated. Marketing storefront updated.", "success");
-    };
+    // No product config update API exists yet.
+    // Buttons are gated below in the view.
 
     view! {
         <div class="space-y-6">
@@ -84,15 +79,17 @@ pub fn ProductDetail() -> impl IntoView {
                     </span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button 
-                        class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20 hover:text-on-surface transition-all active:scale-95"
-                        on:click=handle_save
+                    <button
+                        class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 opacity-40 cursor-not-allowed"
+                        title="Product config update API pending"
+                        disabled
                     >
                         "Save Changes"
                     </button>
-                    <button 
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
-                        on:click=handle_publish
+                    <button
+                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 opacity-40 cursor-not-allowed"
+                        title="Publishing API pending — no edge cache integration yet"
+                        disabled
                     >
                         "Publish Live"
                     </button>
@@ -159,23 +156,11 @@ pub fn ProductDetail() -> impl IntoView {
                     <div class="space-y-6">
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm space-y-4">
                             <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Deployment Telemetry"</h3>
-                            <div class="divide-y divide-outline-variant/10 text-xs">
-                                <div class="flex justify-between items-center py-2.5">
-                                    <span class="text-on-surface-variant">"Environment"</span>
-                                    <span class="font-bold font-mono">"production"</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2.5">
-                                    <span class="text-on-surface-variant">"Edge Cluster"</span>
-                                    <span class="font-mono text-indigo-400">"us-east-cloudflare"</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2.5">
-                                    <span class="text-on-surface-variant">"Cache Invalidation"</span>
-                                    <span class="text-emerald-400 font-semibold">"Passed / Active"</span>
-                                </div>
-                                <div class="flex justify-between items-center py-2.5">
-                                    <span class="text-on-surface-variant">"Last published"</span>
-                                    <span class="text-on-surface-variant/80">"14 hours ago"</span>
-                                </div>
+                            <div class="flex items-center gap-3 p-4 rounded-lg bg-surface-container border border-outline-variant/20">
+                                <span class="material-symbols-outlined text-on-surface-variant/50 text-[18px]">"info"</span>
+                                <p class="text-xs text-on-surface-variant/70">
+                                    "Live deployment telemetry (edge cluster, cache status, last published) will appear here once the product publishing pipeline is connected."
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -266,42 +251,10 @@ pub fn ProductDetail() -> impl IntoView {
                     <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant mb-6">"Waitlist Leads"</h3>
                     
                     <div class="overflow-x-auto border border-outline-variant/20 rounded-lg">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-surface-container-high/40 border-b border-outline-variant/20 text-xs tracking-wider uppercase text-on-surface-variant">
-                                    <th class="px-6 py-4 font-medium">"Lead"</th>
-                                    <th class="px-6 py-4 font-medium">"Email"</th>
-                                    <th class="px-6 py-4 font-medium">"Submitted"</th>
-                                    <th class="px-6 py-4 font-medium">"Status"</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-outline-variant/10 text-xs text-on-surface">
-                                <tr class="hover:bg-surface-bright/5 transition-colors">
-                                    <td class="px-6 py-4 font-semibold">"Jamie Delaney"</td>
-                                    <td class="px-6 py-4 font-mono">"jamie@nexusproperties.com"</td>
-                                    <td class="px-6 py-4">"June 12, 2026"</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20 uppercase tracking-wider">"New"</span>
-                                    </td>
-                                </tr>
-                                <tr class="hover:bg-surface-bright/5 transition-colors">
-                                    <td class="px-6 py-4 font-semibold">"Renato Santos"</td>
-                                    <td class="px-6 py-4 font-mono">"santos.renato@saopaulo.br"</td>
-                                    <td class="px-6 py-4">"June 10, 2026"</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">"Converted"</span>
-                                    </td>
-                                </tr>
-                                <tr class="hover:bg-surface-bright/5 transition-colors">
-                                    <td class="px-6 py-4 font-semibold">"Sarah Jenkins"</td>
-                                    <td class="px-6 py-4 font-mono">"sarah@oakwoodpm.com"</td>
-                                    <td class="px-6 py-4">"June 08, 2026"</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-muted text-on-surface-variant/60 border border-outline-variant/30 uppercase tracking-wider">"Cold"</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div class="p-8 text-center text-xs text-on-surface-variant/60 flex flex-col items-center gap-3">
+                            <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"hourglass_empty"</span>
+                            <p>"Waitlist lead capture API is pending. Leads will appear here once the waitlist form endpoint is connected."</p>
+                        </div>
                     </div>
                 </div>
             </Show>

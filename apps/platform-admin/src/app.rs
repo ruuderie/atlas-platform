@@ -110,15 +110,34 @@ pub fn App() -> impl IntoView {
             })}
         </div>
         <crate::components::omnibar::Omnibar />
-        <Router>
-            <Routes fallback=|| "Not found.">
-                <Route path=path!("/login") view=Login />
-                <Route path=path!("/verify-token/:token") view=VerifyToken />
-                <Route path=path!("/magic-login") view=crate::pages::auth::magic_login::MagicLogin />
-                <Route path=path!("/setup") view=Setup />
-                <Route path=path!("/*any") view=AuthenticatedLayout />
-            </Routes>
-        </Router>
+        <ErrorBoundary fallback=|errors| view! {
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;font-family:system-ui;color:#dee5ff;background:#020f2e;">
+                <span style="font-size:48px;">{"⚠️"}</span>
+                <h1 style="font-size:20px;font-weight:700;margin:0;">"Something went wrong"</h1>
+                <p style="font-size:13px;color:#91aaeb;margin:0;max-width:360px;text-align:center;">
+                    "An unexpected error occurred. Please reload the page. If this keeps happening, contact support."
+                </p>
+                <p style="font-size:11px;font-family:monospace;color:#5b7ab0;max-width:480px;text-align:center;">
+                    {move || errors.get().into_iter().map(|(_, e)| e.to_string()).collect::<Vec<_>>().join(", ")}
+                </p>
+                <button
+                    style="margin-top:8px;padding:10px 24px;background:#1a3c8f;border:1px solid #2a5ccc;border-radius:8px;color:#dee5ff;font-size:13px;font-weight:600;cursor:pointer;"
+                    on:click=|_| { let _ = web_sys::window().unwrap().location().reload(); }
+                >
+                    "Reload Page"
+                </button>
+            </div>
+        }>
+            <Router>
+                <Routes fallback=|| "Not found.">
+                    <Route path=path!("/login") view=Login />
+                    <Route path=path!("/verify-token/:token") view=VerifyToken />
+                    <Route path=path!("/magic-login") view=crate::pages::auth::magic_login::MagicLogin />
+                    <Route path=path!("/setup") view=Setup />
+                    <Route path=path!("/*any") view=AuthenticatedLayout />
+                </Routes>
+            </Router>
+        </ErrorBoundary>
     }
 }
 
