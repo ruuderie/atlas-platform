@@ -4,6 +4,7 @@ use uuid::Uuid;
 use crate::api::admin::{
     get_app_domains, add_app_domain as api_add_domain, remove_app_domain as api_remove_domain,
     suspend_instance, resume_instance,
+    get_public_config, update_public_config,
 };
 
 #[component]
@@ -12,7 +13,7 @@ pub fn NetworkDetail() -> impl IntoView {
 
     // ── Route params ──────────────────────────────────────────────────────────
     let params = use_params_map();
-    let instance_id = move || params.with(|p| p.get("instance_id").unwrap_or_default());
+    let instance_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
     // ── Tab State ─────────────────────────────────────────────────────────────
     let active_tab = RwSignal::new("overview".to_string());
@@ -37,6 +38,29 @@ pub fn NetworkDetail() -> impl IntoView {
     let market_chi = RwSignal::new(false);
     let market_rio = RwSignal::new(false);
     let market_mia = RwSignal::new(false);
+
+    // ── Live public config resource (slug, status) ────────────────────────
+    let config_res = LocalResource::new(move || async move {
+        let id_str = instance_id();
+        match Uuid::parse_str(&id_str) {
+            Ok(id) => get_public_config(id).await.ok(),
+            Err(_) => None,
+        }
+    });
+
+    // Populate slug + status from config on load
+    Effect::new(move |_| {
+        if let Some(Some(cfg)) = config_res.get() {
+            if slug.get().is_empty() {
+                slug.set(cfg.public_slug.clone().unwrap_or_else(|| cfg.app_slug.clone()));
+            }
+            if name.get().is_empty() {
+                name.set(cfg.app_slug.clone());
+            }
+            let suspended = cfg.instance_status == "suspended" || cfg.instance_status == "Suspended";
+            is_suspended.set(suspended);
+        }
+    });
 
     // ── Live domains resource ─────────────────────────────────────────────────
     let domains_res = LocalResource::new(move || {
@@ -94,14 +118,36 @@ pub fn NetworkDetail() -> impl IntoView {
         new_domain.set(String::new());
     };
 
+    let saving = RwSignal::new(false);
+
     let save_overview = move |_| {
-        toast.show_toast("Settings Saved", "Overview settings saved (persist endpoint pending).", "success");
+        let id_str = instance_id();
+        let Ok(id) = Uuid::parse_str(&id_str) else {
+            toast.show_toast("Error", "Invalid instance ID in URL.", "error");
+            return;
+        };
+        let slug_val = slug.get().trim().to_string();
+        if slug_val.is_empty() {
+            toast.show_toast("Validation", "Public slug cannot be empty.", "error");
+            return;
+        }
+        saving.set(true);
+        leptos::task::spawn_local(async move {
+            match update_public_config(id, Some(slug_val), None).await {
+                Ok(cfg) => {
+                    slug.set(cfg.public_slug.unwrap_or_else(|| cfg.app_slug));
+                    toast.show_toast("Settings Saved", "Public slug updated successfully.", "success");
+                }
+                Err(e) => {
+                    toast.show_toast("Save Failed", &e, "error");
+                }
+            }
+            saving.set(false);
+        });
     };
 
-    let save_branding = move |_| {
-        toast.show_toast("Branding Saved", "Theme customization saved (persist endpoint pending).", "success");
-    };
-
+    // Branding: no theme/color/font columns in atlas_app_deployment_config yet.
+    // Gate the button — do not show fake success.
 
     view! {
         <div class="space-y-6">
@@ -309,7 +355,13 @@ pub fn NetworkDetail() -> impl IntoView {
 
                             <div class="flex justify-end gap-3">
                                 <button class="btn-ghost px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Discarded", "Modifications discarded.", "warning")>"Discard"</button>
-                                <button class="btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md active:scale-95 transition-all" on:click=save_overview>"Save Settings"</button>
+                                <button
+                                    class=move || format!("btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md transition-all {}", if saving.get() { "opacity-40 cursor-not-allowed" } else { "active:scale-95" })
+                                    disabled=move || saving.get()
+                                    on:click=save_overview
+                                >
+                                    {move || if saving.get() { "Saving…" } else { "Save Settings" }}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -512,7 +564,11 @@ pub fn NetworkDetail() -> impl IntoView {
 
                             <div class="flex justify-end gap-3">
                                 <button class="btn-ghost px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Discarded", "Branding adjustments discarded.", "warning")>"Discard"</button>
-                                <button class="btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md active:scale-95 transition-all" on:click=save_branding>"Save Theme"</button>
+                                <button
+                                    class="btn-primary px-4 py-2 rounded-lg text-xs font-semibold opacity-40 cursor-not-allowed"
+                                    disabled
+                                    title="Theme persistence coming soon — no branding columns in deployment config yet"
+                                >"Save Theme"</button>
                             </div>
                         </div>
                     </div>
