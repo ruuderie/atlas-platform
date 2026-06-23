@@ -173,7 +173,11 @@ pub fn ProductDetail() -> impl IntoView {
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Pricing Plans & Feature Matrix"</h3>
-                            <button class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 hover:bg-surface-bright/20 text-xs font-bold uppercase tracking-wider">"+ Add Tier"</button>
+                            <button
+                                class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-xs font-bold uppercase tracking-wider opacity-40 cursor-not-allowed"
+                                disabled
+                                title="Pricing tier management coming soon"
+                            >"+ Add Tier"</button>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -195,7 +199,11 @@ pub fn ProductDetail() -> impl IntoView {
                                         </li>
                                     </ul>
                                 </div>
-                                <button class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md">"Edit plan"</button>
+                                <button
+                                    class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md opacity-40 cursor-not-allowed"
+                                    disabled
+                                    title="Plan editing coming soon"
+                                >"Edit plan"</button>
                             </div>
 
                             <div class="bg-surface-container p-5 rounded-xl border border-primary/20 flex flex-col justify-between relative">
@@ -217,7 +225,11 @@ pub fn ProductDetail() -> impl IntoView {
                                         </li>
                                     </ul>
                                 </div>
-                                <button class="btn-primary w-full mt-6 text-xs justify-center py-2 rounded-md">"Edit plan"</button>
+                                <button
+                                    class="btn-primary w-full mt-6 text-xs justify-center py-2 rounded-md opacity-40 cursor-not-allowed"
+                                    disabled
+                                    title="Plan editing coming soon"
+                                >"Edit plan"</button>
                             </div>
 
                             <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between">
@@ -238,7 +250,11 @@ pub fn ProductDetail() -> impl IntoView {
                                         </li>
                                     </ul>
                                 </div>
-                                <button class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md">"Edit plan"</button>
+                                <button
+                                    class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md opacity-40 cursor-not-allowed"
+                                    disabled
+                                    title="Plan editing coming soon"
+                                >"Edit plan"</button>
                             </div>
                         </div>
                     </div>
