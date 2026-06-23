@@ -302,6 +302,19 @@ pub async fn convert_lead(id: &str) -> Result<ContactModel, String> {
     }
 }
 
+pub async fn update_deal(id: &str, stage: &str, status: &str) -> Result<DealModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("/api/admin/deals/{}", id));
+    let payload = serde_json::json!({ "stage": stage, "status": status });
+    let req = with_credentials(client.put(&url).json(&payload));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::OK {
+        res.json::<DealModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err("Failed to update deal".into())
+    }
+}
+
 pub async fn update_lead(id: &str, status: &str) -> Result<LeadModel, String> {
     let client = create_client();
     let url = api_url(&format!("/api/admin/leads/{}", id));

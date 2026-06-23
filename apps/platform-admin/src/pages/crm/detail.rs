@@ -155,8 +155,8 @@ pub fn CrmDetail() -> impl IntoView {
                                             {l.id.clone()}
                                         </div>
                                         <div class="rec-actions-row">
-                                            <button class="btn btn-ghost btn-sm" on:click=move |_| { toast.message.set(Some("Email composer opened.".to_string())); }>"✉ Email"</button>
-                                            <button class="btn btn-ghost btn-sm" on:click=move |_| { toast.message.set(Some("Logged call activity.".to_string())); }>"📞 Log Call"</button>
+                                            <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Email composer integration pending" disabled>"✉ Email"</button>
+                                            <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Call logging endpoint pending" disabled>"📞 Log Call"</button>
                                             <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"⇉ Convert Lead"</button>
                                         </div>
                                     </div>

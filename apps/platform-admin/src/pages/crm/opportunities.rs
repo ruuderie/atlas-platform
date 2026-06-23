@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::api::crm::get_deals;
+use crate::api::crm::{get_deals, update_deal};
 use crate::api::models::DealModel;
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
@@ -94,8 +94,16 @@ pub fn OpportunitiesPage() -> impl IntoView {
                     <p class="page-subtitle">"Platform-wide · All tenants"</p>
                 </div>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn btn-ghost btn-sm">"Export CSV"</button>
-                    <button class="btn btn-primary btn-sm">
+                    <button
+                        class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed"
+                        title="CSV export endpoint pending"
+                        disabled
+                    >"Export CSV"</button>
+                    <button
+                        class="btn btn-primary btn-sm opacity-40 cursor-not-allowed"
+                        title="Deal creation form pending"
+                        disabled
+                    >
                         <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor" style="margin-right:4px;">
                             <path d="M7 2a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2H8v3a1 1 0 1 1-2 0V8H3a1 1 0 1 1 0-2h3V3a1 1 0 0 1 1-1z"/>
                         </svg>
@@ -200,11 +208,19 @@ pub fn OpportunitiesPage() -> impl IntoView {
             let status   = d.status.clone();
             let tag_class = deal_stage_tag(&stage).to_string();
             let toast_c  = toast.clone();
+            let deal_id_for_won = d.id.clone();
 
             let mark_won = view! {
                 <button class="btn btn-primary btn-sm" on:click=move |_| {
-                    toast_c.message.set(Some("Marked as Closed Won.".to_string()));
-                    drawer_open.set(false);
+                    let id = deal_id_for_won.clone();
+                    let t  = toast_c.clone();
+                    leptos::task::spawn_local(async move {
+                        match update_deal(&id, "Closed Won", "Closed Won").await {
+                            Ok(_)  => { t.show_toast("Pipeline", "Deal marked as Closed Won.", "success"); }
+                            Err(e) => { t.show_toast("Error", &format!("Failed to update deal: {}", e), "error"); }
+                        }
+                        drawer_open.set(false);
+                    });
                 }>"Mark Won"</button>
             }.into_any();
 

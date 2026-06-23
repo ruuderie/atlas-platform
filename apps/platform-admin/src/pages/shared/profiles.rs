@@ -47,10 +47,20 @@ pub fn ProfilesPanel() -> impl IntoView {
 
     let handle_invite = move |_| {
         let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-        // Simulated Magic Link Request
-        toast.message.set(Some(format!("Magic link dispatched to: {}", invite_email.get())));
-        invite_email.set("".to_string());
-        set_show_invite.set(false);
+        let email = invite_email.get();
+        if email.is_empty() {
+            toast.show_toast("Validation", "Email is required.", "error");
+            return;
+        }
+        // Invite-by-email API is not yet wired for this scope.
+        // The invite flow is available at /admins (global) and will be
+        // extended to per-tenant scope once the backend invite endpoint
+        // supports tenant_id scoping.
+        toast.show_toast(
+            "Pending",
+            "Per-tenant invite endpoint is pending. Use the Admins page to send global invites.",
+            "error",
+        );
     };
 
     let handle_provision = move |_| {
@@ -283,11 +293,12 @@ pub fn ProfilesPanel() -> impl IntoView {
                         <p class="text-muted-foreground text-sm mb-6">"Configure robust access and permissions."</p>
                         <div class="flex justify-end gap-3 mt-8">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_managing_user_name.set(None)>"Close"</Button>
-                            <Button variant=ButtonVariant::Destructive on:click=move |_| {
-                                let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-                                toast.message.set(Some("User access rescinded.".to_string()));
-                                set_managing_user_name.set(None);
-                            }>"Revoke Access"</Button>
+                            <Button
+                                variant=ButtonVariant::Destructive
+                                attr:disabled=true
+                                attr:title="Revoke requires a user UUID — use toggle_admin or the Users API directly"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Revoke Access"</Button>
                         </div>
                     </div>
                 </div>

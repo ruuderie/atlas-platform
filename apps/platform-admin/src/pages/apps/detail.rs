@@ -243,15 +243,21 @@ pub fn AppDashboard() -> impl IntoView {
                         } target="_blank" rel="noopener noreferrer">
                             <Button variant=ButtonVariant::Outline class="bg-background".to_string()>"View Live App"</Button>
                         </a>
-                        <button class="btn btn-ghost" on:click=move |_| {
-                            toast.show_toast("Tenant", "Impersonating tenant...", "info");
-                        }>"Impersonate"</button>
-                        <button class="btn btn-ghost" on:click=move |_| {
-                            toast.show_toast("Tenant", "Tenant suspended.", "warning");
-                        }>"Suspend"</button>
-                        <button class="btn btn-primary" on:click=move |_| {
-                            toast.show_toast("Tenant", "Editing tenant info...", "info");
-                        }>"Edit Tenant"</button>
+                        <button
+                            class="btn btn-ghost opacity-40 cursor-not-allowed"
+                            title="Per-app impersonation endpoint pending — use Tenant-level Impersonate from /apps"
+                            disabled
+                        >"Impersonate"</button>
+                        <button
+                            class="btn btn-ghost opacity-40 cursor-not-allowed"
+                            title="Suspend endpoint pending"
+                            disabled
+                        >"Suspend"</button>
+                        <button
+                            class="btn btn-primary opacity-40 cursor-not-allowed"
+                            title="Edit Tenant modal pending"
+                            disabled
+                        >"Edit Tenant"</button>
                     </div>
                 </div>
 
@@ -406,7 +412,23 @@ pub fn AppDashboard() -> impl IntoView {
                                                                         <Badge intent=BadgeIntent::Success>"Active / Managed"</Badge>
                                                                     </td>
                                                                     <td class="px-6 py-4 text-right">
-                                                                        <button class="text-destructive hover:underline text-xs font-bold uppercase tracking-widest" >
+                                                                        <button
+                                                                            class="text-destructive hover:underline text-xs font-bold uppercase tracking-widest"
+                                                                            on:click={
+                                                                                let d = domain.clone();
+                                                                                let toast = toast;
+                                                                                move |_| {
+                                                                                    let sid = site_id_stored.get_value();
+                                                                                    let d = d.clone();
+                                                                                    leptos::task::spawn_local(async move {
+                                                                                        match crate::api::admin::remove_app_domain(sid, d).await {
+                                                                                            Ok(_) => toast.show_toast("Domains", "Domain detached.", "success"),
+                                                                                            Err(e) => toast.show_toast("Error", &format!("Failed: {}", e), "error"),
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }
+                                                                        >
                                                                             "DELETE"
                                                                         </button>
                                                                     </td>
@@ -439,10 +461,12 @@ pub fn AppDashboard() -> impl IntoView {
                         </div>
                         <div class="flex justify-end gap-3">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_listing.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| {
-                                toast.message.set(Some("Listing securely registered.".to_string()));
-                                set_show_add_listing.set(false);
-                            }>"Save Listing"</Button>
+                            <Button
+                                variant=ButtonVariant::Default
+                                attr:disabled=true
+                                attr:title="Per-instance listing registration requires a network_id — use Network → Listings"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Save Listing"</Button>
                         </div>
                     </div>
                 </div>
@@ -462,10 +486,12 @@ pub fn AppDashboard() -> impl IntoView {
                         </div>
                         <div class="flex justify-end gap-3">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_editing_listing_name.set(None)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| {
-                                toast.message.set(Some("Metadata updated successfully.".to_string()));
-                                set_editing_listing_name.set(None);
-                            }>"Apply Changes"</Button>
+                            <Button
+                                variant=ButtonVariant::Default
+                                attr:disabled=true
+                                attr:title="Listing metadata update API pending"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Apply Changes"</Button>
                         </div>
                     </div>
                 </div>
@@ -479,10 +505,12 @@ pub fn AppDashboard() -> impl IntoView {
                         <p class="text-muted-foreground text-sm mb-6">"Configure robust access and permissions."</p>
                         <div class="flex justify-end gap-3 mt-8">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_managing_user_name.set(None)>"Close"</Button>
-                            <Button variant=ButtonVariant::Destructive on:click=move |_| {
-                                toast.message.set(Some("User access rescinded.".to_string()));
-                                set_managing_user_name.set(None);
-                            }>"Revoke Access"</Button>
+                            <Button
+                                variant=ButtonVariant::Destructive
+                                attr:disabled=true
+                                attr:title="User revoke API requires a user_id — open from Profiles panel"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Revoke Access"</Button>
                         </div>
                     </div>
                 </div>
@@ -496,10 +524,12 @@ pub fn AppDashboard() -> impl IntoView {
                         <p class="text-muted-foreground text-sm mb-6">"Define a new taxonomy level for listings."</p>
                         <div class="flex justify-end gap-3 mt-8">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_category.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| {
-                                toast.message.set(Some("Category configured.".to_string()));
-                                set_show_add_category.set(false);
-                            }>"Save"</Button>
+                            <Button
+                                variant=ButtonVariant::Default
+                                attr:disabled=true
+                                attr:title="Category create endpoint pending — use Network → Categories"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Save"</Button>
                         </div>
                     </div>
                 </div>
@@ -513,10 +543,12 @@ pub fn AppDashboard() -> impl IntoView {
                         <p class="text-muted-foreground text-sm mb-6">"Link a structural template to format listings here."</p>
                         <div class="flex justify-end gap-3 mt-8">
                             <Button variant=ButtonVariant::Outline on:click=move |_| set_show_add_template.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=move |_| {
-                                toast.message.set(Some("Template assigned.".to_string()));
-                                set_show_add_template.set(false);
-                            }>"Save"</Button>
+                            <Button
+                                variant=ButtonVariant::Default
+                                attr:disabled=true
+                                attr:title="Template assignment endpoint pending — use Network → Templates"
+                                class="opacity-40 cursor-not-allowed".to_string()
+                            >"Save"</Button>
                         </div>
                     </div>
                 </div>
