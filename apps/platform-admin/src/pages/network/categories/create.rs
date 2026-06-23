@@ -28,12 +28,12 @@ pub fn CategoryCreate() -> impl IntoView {
             use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
             use serde_json::json;
 
-            // Normally we'd use a strongly typed model, but json! inline for MVP
+            // CreateCategory: { name, description, is_active, is_custom, tenant_id?, parent_category_id? }
+            // tenant_id and parent_category_id are optional — omit until we have tenant context here.
             let payload = json!({
                 "name": n,
                 "description": d,
                 "is_active": a,
-                "network_type_id": "00000000-0000-0000-0000-000000000000", // MVP hardcoded
                 "is_custom": false
             });
 

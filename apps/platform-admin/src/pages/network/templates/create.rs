@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use crate::app::GlobalToast;
+use crate::api::categories::get_categories;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
 #[component]
@@ -7,53 +8,65 @@ pub fn TemplateCreate() -> impl IntoView {
     let navigate = leptos_router::hooks::use_navigate();
     let toast = use_context::<GlobalToast>().expect("GlobalToast not found");
 
-    let name = RwSignal::new(String::new());
-    let description = RwSignal::new(String::new());
+    let name          = RwSignal::new(String::new());
+    let description   = RwSignal::new(String::new());
     let template_type = RwSignal::new("General".to_string());
-    let is_active = RwSignal::new(true);
+    let is_active     = RwSignal::new(true);
+    let category_id   = RwSignal::new(String::new()); // set from picker
+
+    // Load real categories so the user can pick one
+    let categories_res = LocalResource::new(|| async move {
+        get_categories(None).await.unwrap_or_default()
+    });
 
     let submit_action = Action::new_local(move |_: &()| {
-        let n = name.get();
-        let d = description.get();
+        let n  = name.get();
+        let d  = description.get();
         let tt = template_type.get();
-        let a = is_active.get();
-        
-        let t = toast.clone();
+        let a  = is_active.get();
+        let cid = category_id.get();
+
+        let t   = toast.clone();
         let nav = navigate.clone();
 
         async move {
             if n.is_empty() {
-                t.show_toast("Error", "Name is required.", "error");
+                t.show_toast("Validation", "Name is required.", "error");
+                return;
+            }
+            if cid.is_empty() {
+                t.show_toast("Validation", "Please select a category.", "error");
                 return;
             }
 
             use crate::api::client::{api_url, create_client, with_credentials, ApiErrorResponse};
             use serde_json::json;
 
+            // CreateTemplate: { name, description, template_type, is_active, category_id, tenant_id }
+            // tenant_id will be resolved server-side once per-request context is plumbed.
             let payload = json!({
                 "name": n,
                 "description": d,
                 "template_type": tt,
                 "is_active": a,
-                "category_id": "00000000-0000-0000-0000-000000000000", // MVP hardcoded
-                "network_id": "00000000-0000-0000-0000-000000000000"
+                "category_id": cid,
+                // tenant_id omitted — backend must handle missing FK gracefully
             });
 
             let client = create_client();
-            let url = api_url("/api/admin/templates");
-            let req = client.post(&url).json(&payload);
-            let req = with_credentials(req);
-            
+            let url    = api_url("/api/admin/templates");
+            let req    = with_credentials(client.post(&url).json(&payload));
+
             match req.send().await {
                 Ok(res) if res.status().is_success() => {
                     t.show_toast("Success", "Template created.", "success");
-                    nav("/templates", leptos_router::NavigateOptions::default());
+                    nav("/network/templates", leptos_router::NavigateOptions::default());
                 }
                 Ok(res) => {
                     if let Ok(err) = res.json::<ApiErrorResponse>().await {
                         t.show_toast("Error", &err.message.unwrap_or("Failed".into()), "error");
                     } else {
-                        t.show_toast("Error", "Failed to create template", "error");
+                        t.show_toast("Error", "Failed to create template.", "error");
                     }
                 }
                 Err(e) => t.show_toast("Error", &format!("Network error: {}", e), "error"),
@@ -77,7 +90,7 @@ pub fn TemplateCreate() -> impl IntoView {
             >
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Template Name"</label>
-                    <input type="text" 
+                    <input type="text"
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="e.g. BlogPost"
                         prop:value=move || name.get()
@@ -87,7 +100,7 @@ pub fn TemplateCreate() -> impl IntoView {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Description"</label>
-                    <textarea 
+                    <textarea
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary focus:border-primary block p-3"
                         placeholder="Describe the usage of this template"
                         rows="3"
@@ -97,7 +110,7 @@ pub fn TemplateCreate() -> impl IntoView {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-on-surface mb-2">"Type"</label>
-                    <select 
+                    <select
                         class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary block p-3"
                         prop:value=move || template_type.get()
                         on:change=move |ev| template_type.set(event_target_value(&ev))
@@ -108,8 +121,37 @@ pub fn TemplateCreate() -> impl IntoView {
                         <option value="Event">"Event"</option>
                     </select>
                 </div>
+
+                // Category picker — loads real categories from GET /api/admin/categories
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-2">
+                        "Category"
+                        <span class="text-error ml-1">"*"</span>
+                    </label>
+                    <Suspense fallback=move || view! {
+                        <div class="text-xs text-muted-foreground p-2">"Loading categories…"</div>
+                    }>
+                        {move || categories_res.get().map(|cats| {
+                            view! {
+                                <select
+                                    class="w-full bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg focus:ring-primary block p-3"
+                                    on:change=move |ev| category_id.set(event_target_value(&ev))
+                                >
+                                    <option value="">"— Select a category —"</option>
+                                    {cats.into_iter().map(|cat| {
+                                        view! {
+                                            <option value=cat.id.clone()>{cat.name}</option>
+                                        }
+                                    }).collect_view()}
+                                </select>
+                            }
+                        })}
+                    </Suspense>
+                    <p class="text-xs text-muted-foreground mt-1">"Categories are managed under Network → Categories."</p>
+                </div>
+
                 <div class="flex items-center gap-3 mt-4">
-                    <input type="checkbox" 
+                    <input type="checkbox"
                         id="is_active"
                         prop:checked=move || is_active.get()
                         on:change=move |ev| is_active.set(event_target_checked(&ev))

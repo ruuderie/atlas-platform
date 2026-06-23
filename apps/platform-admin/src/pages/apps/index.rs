@@ -136,17 +136,14 @@ pub fn Apps() -> impl IntoView {
                             </div>
                             <div class="hero-actions">
                                 <button class="btn btn-ghost" on:click=handle_impersonate>"Impersonate"</button>
-                                <button
-                                    class="btn btn-ghost opacity-40 cursor-not-allowed"
-                                    title="App instance provisioning modal pending"
-                                    disabled
-                                    style="font-weight:500"
-                                >"+ New App Instance"</button>
-                                <button
-                                    class="btn btn-primary opacity-40 cursor-not-allowed"
-                                    title="Edit Tenant modal pending"
-                                    disabled
-                                >"Edit Tenant"</button>
+                                // → /apps/new = real tenant provisioning wizard
+                                <a href="/apps/new" class="btn btn-ghost" style="font-weight:500;text-decoration:none">"+ New App Instance"</a>
+                                // → /apps/:id = tenant detail & settings
+                                <a
+                                    href=move || format!("/apps/{}", tenant_id.clone())
+                                    class="btn btn-primary"
+                                    style="text-decoration:none"
+                                >"Edit Tenant"</a>
                             </div>
                         </div>
 
@@ -223,11 +220,8 @@ pub fn Apps() -> impl IntoView {
                                     <div>
                                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
                                             <div class="section-label" style="margin-bottom:0">{format!("{} App Instances · {} Live · {} Beta", total_apps, live_count, beta_count)}</div>
-                                            <button
-                                                class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed"
-                                                title="App instance provisioning modal pending"
-                                                disabled
-                                            >"+ Provision New Instance"</button>
+                                            // → /apps/new = real provisioning wizard
+                                            <a href="/apps/new" class="btn btn-ghost btn-sm" style="text-decoration:none">"+ Provision New Instance"</a>
                                         </div>
 
                                         <div class="apps-grid">
@@ -322,12 +316,18 @@ pub fn Apps() -> impl IntoView {
                                                             <div class="app-card-footer">
                                                                 <span class="app-footer-meta">{format!("{} instance", app.app_type.to_uppercase())}</span>
                                                                 <div class="app-footer-actions">
-                                                                    <button
-                                                                        class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed"
-                                                                        title="Per-instance config modal pending"
-                                                                        disabled
-                                                                        on:click=move |e| e.stop_propagation()
-                                                                    >"Config"</button>
+                                                                    // Config → detail/settings view for this instance
+                                                                    {
+                                                                        let url = StoredValue::new(app_manage_url.clone());
+                                                                        view! {
+                                                                            <a
+                                                                                href=move || url.get_value()
+                                                                                class="btn btn-ghost btn-sm"
+                                                                                style="text-decoration:none"
+                                                                                on:click=move |e| e.stop_propagation()
+                                                                            >"Config"</a>
+                                                                        }
+                                                                    }
                                                                     <button class="btn btn-primary btn-sm" on:click={
                                                                         let app_manage_url = app_manage_url.clone();
                                                                         move |e| {

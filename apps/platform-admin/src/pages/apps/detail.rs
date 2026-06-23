@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
+use uuid::Uuid;
 
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 
@@ -12,6 +13,7 @@ use crate::components::upsell_banner::UpsellBanner;
 use crate::components::onboarding_wizard::OnboardingWizard;
 use crate::components::seed_picker::SeedPicker;
 use crate::api::onboarding::get_onboarding_status;
+use crate::api::admin::{suspend_instance, resume_instance};
 
 #[component]
 pub fn AppDashboard() -> impl IntoView {
@@ -248,16 +250,68 @@ pub fn AppDashboard() -> impl IntoView {
                             title="Per-app impersonation endpoint pending — use Tenant-level Impersonate from /apps"
                             disabled
                         >"Impersonate"</button>
-                        <button
-                            class="btn btn-ghost opacity-40 cursor-not-allowed"
-                            title="Suspend endpoint pending"
-                            disabled
-                        >"Suspend"</button>
-                        <button
-                            class="btn btn-primary opacity-40 cursor-not-allowed"
-                            title="Edit Tenant modal pending"
-                            disabled
-                        >"Edit Tenant"</button>
+                        {
+                            // Suspend/Resume — wired to POST /api/admin/app-instances/{id}/suspend|resume
+                            let is_suspending = RwSignal::new(false);
+                            let is_suspended = RwSignal::new(false);
+                            let site_id_s = site_id();
+                            // Seed status from dirs context
+                            if let Some(dirs_val) = dirs.get_untracked() {
+                                if let Some(dir) = dirs_val.into_iter().find(|d| d.instance_id.to_string() == site_id_s) {
+                                    is_suspended.set(dir.site_status == "suspended" || dir.site_status == "Suspended");
+                                }
+                            }
+                            let toast2 = toast.clone();
+                            let site_id_for_suspend = StoredValue::new(site_id());
+                            let handle_suspend = move |_| {
+                                let id_str = site_id_for_suspend.get_value();
+                                let Ok(id) = Uuid::parse_str(&id_str) else {
+                                    toast2.show_toast("Error", "Invalid instance ID", "error");
+                                    return;
+                                };
+                                is_suspending.set(true);
+                                let suspended = is_suspended.get();
+                                let t = toast2.clone();
+                                leptos::task::spawn_local(async move {
+                                    let result = if suspended {
+                                        resume_instance(id).await.map(|_| ())
+                                    } else {
+                                        suspend_instance(id, "Manual suspension via admin panel.".to_string()).await.map(|_| ())
+                                    };
+                                    match result {
+                                        Ok(_) => {
+                                            is_suspended.update(|v| *v = !*v);
+                                            let msg = if is_suspended.get() { "Instance suspended." } else { "Instance resumed." };
+                                            t.show_toast("Status Updated", msg, if is_suspended.get() { "warning" } else { "success" });
+                                        }
+                                        Err(e) => t.show_toast("Error", &e, "error"),
+                                    }
+                                    is_suspending.set(false);
+                                });
+                            };
+                            view! {
+                                <button
+                                    class=move || format!("btn {} transition-all {}",
+                                        if is_suspended.get() { "btn-primary" } else { "btn-ghost border border-error/40 text-error hover:bg-error hover:text-white" },
+                                        if is_suspending.get() { "opacity-40 cursor-not-allowed" } else { "" }
+                                    )
+                                    disabled=move || is_suspending.get()
+                                    on:click=handle_suspend
+                                >
+                                    {move || match (is_suspending.get(), is_suspended.get()) {
+                                        (true, _)    => "Working…",
+                                        (false, true)  => "Resume Instance",
+                                        (false, false) => "Suspend Instance",
+                                    }}
+                                </button>
+                            }
+                        }
+                        // Edit Tenant → navigate to tenant settings
+                        <a
+                            href=move || format!("/apps/{}", site_id())
+                            class="btn btn-primary"
+                            style="text-decoration:none"
+                        >"Edit Tenant"</a>
                     </div>
                 </div>
 
