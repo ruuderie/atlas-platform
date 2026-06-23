@@ -39,9 +39,9 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
                 if crate::api::admin::add_app_domain(sid, domain_str).await.is_ok() {
                     set_trigger_fetch_domains.update(|v| *v += 1);
                     new_domain_bind.set("".to_string());
-                    toast.message.set(Some("Domain routing natively mapped.".to_string()));
+                    toast.show_toast("Domains", "Domain routing natively mapped.", "success");
                 } else {
-                    toast.message.set(Some("Failed to route domain. It may already be in use.".to_string()));
+                    toast.show_toast("Domains", "Failed to route domain. It may already be in use.", "error");
                 }
             });
         }
@@ -56,18 +56,15 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
             leptos::task::spawn_local(async move {
                 if crate::api::admin::remove_app_domain(sid, domain_name).await.is_ok() {
                     set_trigger_fetch_domains.update(|v| *v += 1);
-                    toast.message.set(Some("Domain safely detached.".to_string()));
+                    toast.show_toast("Domains", "Domain safely detached.", "success");
                 } else {
-                    toast.message.set(Some("Failed to detach domain.".to_string()));
+                    toast.show_toast("Domains", "Failed to detach domain.", "error");
                 }
             });
         }
     };
 
-    let handle_save = move |_| {
-        let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-        toast.message.set(Some("Network structural settings securely applied.".to_string()));
-    };
+    // No network topology update API exists yet — the save button is gated.
 
     view! {
         <Card class="bg-card border-border shadow-sm p-6 mb-6".to_string()>
@@ -99,7 +96,12 @@ pub fn NetworkSettingsPanel() -> impl IntoView {
                 </div>
 
                 <div class="pt-4 border-t border-border mt-6 flex justify-end">
-                    <Button variant=ButtonVariant::Default on:click=handle_save>"Update Topology Settings"</Button>
+                    <Button
+                        variant=ButtonVariant::Default
+                        attr:disabled=true
+                        attr:title="Network topology update API pending"
+                        class="opacity-40 cursor-not-allowed".to_string()
+                    >"Update Topology Settings"</Button>
                 </div>
             </div>
         </Card>

@@ -1,6 +1,20 @@
-use reqwest::{Client, RequestBuilder};
+use reqwest::{Client, RequestBuilder, StatusCode};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 
+/// Set to true when any API call receives a 401 Unauthorized.
+/// The app shell polls this and redirects to /login.
+pub static SESSION_EXPIRED: AtomicBool = AtomicBool::new(false);
+
+pub fn mark_session_expired() {
+    clear_auth_token();
+    SESSION_EXPIRED.store(true, Ordering::SeqCst);
+    // Immediately redirect — safest path in a WASM context.
+    #[cfg(target_arch = "wasm32")]
+    if let Some(window) = web_sys::window() {
+        let _ = window.location().set_href("/login");
+    }
+}
 
 pub fn create_client() -> Client {
     Client::new()
@@ -27,7 +41,12 @@ pub fn with_credentials(builder: RequestBuilder) -> RequestBuilder {
 pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) -> Result<T, String> {
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
-    
+
+    if res.status() == StatusCode::UNAUTHORIZED {
+        mark_session_expired();
+        return Err("Session expired. Redirecting to login.".into());
+    }
+
     if res.status().is_success() {
         res.json::<T>().await.map_err(|e| e.to_string())
     } else {
@@ -151,6 +170,10 @@ pub async fn api_delete(path: &str) -> Result<(), String> {
     let req = client.delete(&url);
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::UNAUTHORIZED {
+        mark_session_expired();
+        return Err("Session expired.".into());
+    }
     if res.status().is_success() {
         Ok(())
     } else {

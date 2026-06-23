@@ -284,7 +284,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     <a href="/leads" class=move || side_active_class("/lead")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h0a5 5 0 0 1 5 5"/></svg>
                         "Leads"
-                        <span class="nav-badge amber">"6"</span>
                     </a>
                     <a href="/accounts" class=move || side_active_class("/account")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1"/><path d="M6 13V9h4v4"/></svg>
@@ -330,7 +329,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     <a href="/verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
-                        <span class="nav-badge red">"3"</span>
                     </a>
                     <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z"/></svg>
@@ -341,12 +339,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     <a href="/flags" class=move || side_active_class("/flags")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l-2 3.5L11 9H3"/></svg>
                         "Feature Flags"
-                        <span class="nav-badge amber">"1"</span>
                     </a>
                     <a href="/support" class=move || side_active_class("/support")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Support Queue"
-                        <span class="nav-badge red">"4"</span>
                     </a>
                     <a href="/logs" class=move || side_active_class("/logs")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1.5"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="9" y2="11"/></svg>

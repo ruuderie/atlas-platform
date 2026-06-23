@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use crate::api::crm::get_deals;
+use crate::api::crm::{get_deals, update_deal};
 use crate::api::models::DealModel;
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
@@ -187,11 +187,19 @@ pub fn OpportunitiesTab() -> impl IntoView {
             let status   = d.status.clone();
             let tag_class = stage_tag_class(&stage).to_string();
             let toast    = toast.clone();
+            let deal_id  = d.id.clone();
 
             let mark_won = view! {
                 <button class="btn btn-primary btn-sm" on:click=move |_| {
-                    toast.message.set(Some("Marked as Closed Won.".to_string()));
-                    drawer_open.set(false);
+                    let id = deal_id.clone();
+                    let t  = toast.clone();
+                    leptos::task::spawn_local(async move {
+                        match update_deal(&id, "Closed Won", "Closed Won").await {
+                            Ok(_)  => { t.show_toast("Pipeline", "Deal marked as Closed Won.", "success"); }
+                            Err(e) => { t.show_toast("Error", &format!("Failed: {}", e), "error"); }
+                        }
+                        drawer_open.set(false);
+                    });
                 }>"Mark Won"</button>
             }.into_any();
 

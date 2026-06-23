@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use shared_ui::components::card::Card;
 use shared_ui::components::ui::button::{Button, ButtonVariant};
 use crate::components::dynamic_form::{DynamicForm, DynamicField, DynamicFieldType, DynamicSelectOption};
+use crate::api::crm::create_lead;
+use crate::api::models::CreateLead;
 
 #[component]
 pub fn CrmCreate() -> impl IntoView {
@@ -57,8 +59,26 @@ pub fn CrmCreate() -> impl IntoView {
     ];
 
     let handle_submit = move |data: HashMap<String, String>| {
-        toast.message.set(Some(format!("Lead ingested: {:?}", data)));
-        navigate("/crm", Default::default());
+        let name  = data.get("lead_name").cloned().unwrap_or_default();
+        let email = data.get("lead_email").cloned().unwrap_or_default();
+        if name.trim().is_empty() || email.trim().is_empty() {
+            toast.show_toast("Validation", "Name and email are required.", "error");
+            return;
+        }
+        let navigate = navigate.clone();
+        leptos::task::spawn_local(async move {
+            let payload = CreateLead {
+                name: name.trim().to_string(),
+                email: Some(email.trim().to_string()),
+            };
+            match create_lead(payload).await {
+                Ok(lead) => {
+                    toast.show_toast("CRM", &format!("Lead '{}' ingested successfully.", lead.name), "success");
+                    navigate("/crm", Default::default());
+                }
+                Err(e) => toast.show_toast("Error", &format!("Failed to create lead: {}", e), "error"),
+            }
+        });
     };
 
     view! {
