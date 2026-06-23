@@ -10,6 +10,19 @@ pub async fn get_products() -> Result<Vec<PlatformProductModel>, String> {
     api_get("api/admin/platform/products").await
 }
 
+#[derive(serde::Serialize)]
+struct CreateProductInput {
+    name: String,
+    slug: String,
+}
+
+pub async fn create_product(name: String, slug: String) -> Result<PlatformProductModel, String> {
+    let client = create_client();
+    let url = api_url("api/admin/platform/products");
+    let req = client.post(&url).json(&CreateProductInput { name, slug });
+    api_request(req).await
+}
+
 pub async fn get_product_detail(id: Uuid) -> Result<PlatformProductModel, String> {
     api_get(&format!("api/admin/platform/products/{}", id)).await
 }

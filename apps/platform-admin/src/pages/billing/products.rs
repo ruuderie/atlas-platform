@@ -310,7 +310,16 @@ pub fn BillingProducts() -> impl IntoView {
         if name.is_empty() || slug.is_empty() {
             return;
         }
-        toast.show_toast("Success", &format!("Product {} created successfully.", name), "success");
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::products::create_product(name.clone(), slug).await {
+                Ok(_) => {
+                    t_toast.show_toast("Product Created", &format!("Product '{}' created successfully.", name), "success");
+                    trigger_fetch.update(|v| *v += 1);
+                }
+                Err(e) => t_toast.show_toast("Error", &format!("Failed to create product: {}", e), "error"),
+            }
+        });
         new_prod_name.set(String::new());
         new_prod_slug.set(String::new());
     };
@@ -462,7 +471,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
-                                        <button class="px-3.5 py-2 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Warning", "Generating export file...", "warn")>"Export Waitlist"</button>
+                                        <button class="px-3.5 py-2 border border-outline-variant/20 text-on-surface-variant/40 rounded-lg text-xs font-semibold cursor-not-allowed" title="Export endpoint pending — not yet available" disabled>"Export Waitlist"</button>
                                         <button class="px-3.5 py-2 bg-[#0a84ff] text-white hover:opacity-90 rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| show_publish_modal.set(true)>"Publish Marketing →"</button>
                                     </div>
                                 </div>
@@ -584,7 +593,7 @@ pub fn BillingProducts() -> impl IntoView {
                                         <div class="bg-surface-container border border-outline-variant/20 rounded-xl overflow-hidden">
                                             <div class="px-4 py-3 border-b border-outline-variant/10 bg-[var(--bg-base)]/30 flex justify-between items-center">
                                                 <span class="font-bold text-xs">"Page Templates"</span>
-                                                <button class="px-2.5 py-1 border border-outline-variant/30 text-on-surface hover:bg-surface-bright/20 rounded text-[11px] font-semibold" on:click=move |_| toast.show_toast("Warning", "Adding a new template...", "warn")>"+ New Template"</button>
+                                                <button class="px-2.5 py-1 border border-outline-variant/20 text-on-surface-variant/40 rounded text-[11px] font-semibold cursor-not-allowed" title="Template creation pending CMS editor integration" disabled>"+ New Template"</button>
                                             </div>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full border-collapse text-left">
@@ -604,7 +613,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-bright text-on-surface rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Loading Editor...", "success")>"Edit"</button>
+                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
@@ -613,7 +622,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-bright text-on-surface rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Loading Editor...", "success")>"Edit"</button>
+                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
@@ -622,7 +631,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-mono">"7"</td>
                                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
-                                                                <button class="px-2 py-1 bg-surface-bright text-on-surface rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Loading Editor...", "success")>"Edit"</button>
+                                                                <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
                                                         </tr>
                                                     </tbody>

@@ -53,3 +53,26 @@ pub async fn upsert_tenant_setting(tenant_id: &str, req_data: super::models::Ups
         Err("Failed to upsert tenant setting".into())
     }
 }
+
+/// Grant syndication access to a network instance.
+/// Calls `POST /api/admin/network/syndication/{instance_slug}`.
+pub async fn grant_syndication(instance_slug: &str) -> Result<serde_json::Value, String> {
+    use super::client::api_request;
+    let client = create_client();
+    let url = api_url(&format!("/api/admin/network/syndication/{}", instance_slug));
+    let req = client.post(&url);
+    let req = with_credentials(req);
+    api_request(req).await
+}
+
+/// Revoke syndication access from a network instance.
+/// Calls `DELETE /api/admin/network/syndication/{instance_slug}`.
+pub async fn revoke_syndication(instance_slug: &str) -> Result<serde_json::Value, String> {
+    use super::client::api_request;
+    let client = create_client();
+    let url = api_url(&format!("/api/admin/network/syndication/{}", instance_slug));
+    let req = client.delete(&url);
+    let req = with_credentials(req);
+    api_request(req).await
+}
+
