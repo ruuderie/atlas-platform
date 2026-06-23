@@ -138,9 +138,7 @@ pub fn Settings() -> impl IntoView {
                                             <div class="profile-role">
                                                 {move || user.get().map(|u| format!("{} · Atlas Platform · Member since Jan 2025", if u.is_admin { "Super-Admin" } else { "Admin" })).unwrap_or_default()}
                                             </div>
-                                            <button class="btn btn-ghost btn-sm" style="margin-top:8px" on:click=move |_| {
-                                                toast.show_toast("Photo", "Upload photo trigger.", "info");
-                                            }>"Change Photo"</button>
+                                            <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Photo upload pending storage integration" disabled style="margin-top:8px">"Change Photo"</button>
                                         </div>
                                     </div>
                                 </div>
@@ -310,7 +308,7 @@ pub fn Settings() -> impl IntoView {
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"Notification Email"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Success", "Notification email saved.", "success")>"Save"</button>
+                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Notification preferences endpoint pending" disabled>"Save"</button>
                                     </div>
                                     <div class="card-body">
                                         <div class="form-row">
@@ -341,13 +339,13 @@ pub fn Settings() -> impl IntoView {
                                         <span class="api-key-label">"Production Key"</span>
                                         <span class="api-key-val">"atls_sk_live_4aJx9Q2…••••••••"</span>
                                         <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("API Key", "Revoke Production Key clicked.", "info")>"Revoke"</button>
+                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — key ID not stored in context" disabled>"Revoke"</button>
                                     </div>
                                     <div class="api-key-row">
                                         <span class="api-key-label">"Staging Key"</span>
                                         <span class="api-key-val">"atls_sk_test_9bKm3P8…••••••••"</span>
                                         <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("API Key", "Revoke Staging Key clicked.", "info")>"Revoke"</button>
+                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — key ID not stored in context" disabled>"Revoke"</button>
                                     </div>
                                     <div class="api-key-row">
                                         <span class="api-key-label">"Legacy Reporting"</span>
@@ -365,7 +363,7 @@ pub fn Settings() -> impl IntoView {
                                         <span class="api-key-label">"Zapier → Slack"</span>
                                         <span class="api-key-val">"https://hooks.zapier.com/hooks/catch/14…"</span>
                                         <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Webhook", "Remove Webhook clicked.", "info")>"Remove"</button>
+                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Remove pending — webhook ID not stored in context" disabled>"Remove"</button>
                                     </div>
                                 </div>
                             </div>
@@ -376,7 +374,7 @@ pub fn Settings() -> impl IntoView {
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"Active Sessions"</span>
-                                        <button class="btn btn-danger btn-sm" on:click=move |_| toast.show_toast("Sessions", "Revoked other sessions.", "success")>"Revoke All Others"</button>
+                                        <button class="btn btn-danger btn-sm opacity-40 cursor-not-allowed" title="Revoke others pending — session list not yet fetched from API" disabled>"Revoke All Others"</button>
                                     </div>
                                     <div class="api-key-row">
                                         <div style="flex:1">
@@ -394,7 +392,7 @@ pub fn Settings() -> impl IntoView {
                                             <div style="font-size:10.5px;color:var(--text-muted);margin-top:2px">"IP: 10.0.2.8 · Miami, FL · Started 18h ago"</div>
                                         </div>
                                         <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Sessions", "Revoked iPhone session.", "success")>"Revoke"</button>
+                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — static session row" disabled>"Revoke"</button>
                                     </div>
                                 </div>
                             </div>
@@ -457,11 +455,7 @@ pub fn Settings() -> impl IntoView {
                             </div>
                         </div>
                         <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
-                            <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_new_key_modal.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary btn-sm" on:click=move |_| {
-                                toast.show_toast("API Key", "API key created. Copy it now — it won't be shown again.", "success");
-                                set_show_new_key_modal.set(false);
-                            }>"Generate Key"</button>
+                                <button class="btn btn-primary btn-sm opacity-50 cursor-not-allowed" title="Profile page API key creation pending — use Developer Console for tenant keys" disabled>"Generate Key"</button>
                         </div>
                     </div>
                 </div>
@@ -493,10 +487,7 @@ pub fn Settings() -> impl IntoView {
                         </div>
                         <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
                             <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_add_webhook_modal.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary btn-sm" on:click=move |_| {
-                                toast.show_toast("Webhook", "Webhook added.", "success");
-                                set_show_add_webhook_modal.set(false);
-                            }>"Add Webhook"</button>
+                            <button class="btn btn-primary btn-sm opacity-50 cursor-not-allowed" title="Use Developer Console to manage tenant webhooks" disabled>"Add Webhook"</button>
                         </div>
                     </div>
                 </div>
