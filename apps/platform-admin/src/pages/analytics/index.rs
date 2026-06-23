@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use crate::api::analytics::{get_business_kpis, get_billing_summary};
+use crate::api::admin::get_tenant_stats;
 
 #[component]
 pub fn Analytics() -> impl IntoView {
@@ -24,6 +25,7 @@ pub fn Analytics() -> impl IntoView {
     // Resources fetching real backend metrics
     let business_kpis = LocalResource::new(move || async move { get_business_kpis().await });
     let billing_summary = LocalResource::new(move || async move { get_billing_summary().await });
+    let tenant_list = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
     view! {
         <div class="space-y-6">
@@ -31,8 +33,8 @@ pub fn Analytics() -> impl IntoView {
             <div class="flex justify-between items-center border-b border-outline-variant/20 pb-4">
                 <div>
                     <h1 class="text-3xl font-extrabold tracking-tight text-on-surface">"Analytics"</h1>
-                    <p class="text-xs text-on-surface-variant mt-1 font-mono">
-                        "platform_metrics_daily · atlas_attribution_touchpoints · atlas_campaigns · atlas_scorecard_time_series · request_log"
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        "Platform-wide metrics and attribution analysis"
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -53,9 +55,10 @@ pub fn Analytics() -> impl IntoView {
                         prop:value=selected_tenant
                     >
                         <option value="All Tenants">"All Tenants"</option>
-                        <option value="Nexus PM Group">"Nexus PM Group"</option>
-                        <option value="Biscayne STR Co.">"Biscayne STR Co."</option>
-                        <option value="Harbor Media">"Harbor Media"</option>
+                        {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
+                            let n = t.name.clone();
+                            view! { <option value=n.clone()>{n.clone()}</option> }
+                        }).collect_view()}
                     </select>
                     <button 
                         class="btn-ghost text-xs px-3.5 py-2 border border-outline-variant/30 rounded-lg hover:bg-surface-bright/20 transition-all font-semibold"
@@ -73,56 +76,85 @@ pub fn Analytics() -> impl IntoView {
             </div>
 
             // ── KPI Strip ──
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-4 bg-surface-container-low border border-outline-variant/15 p-4 rounded-xl shadow-inner overflow-x-auto shrink-0 select-none">
-                <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Total GMV"</span>
-                    <span class="text-lg font-black text-emerald-400">"$2.14M"</span>
-                    <span class="text-[9.5px] text-emerald-400">"↑ 18% vs May"</span>
-                </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4 bg-surface-container-low border border-outline-variant/15 p-4 rounded-xl shadow-inner overflow-x-auto shrink-0 select-none">
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Platform MRR"</span>
                     <span class="text-lg font-black text-primary">
                         {move || match business_kpis.get() {
                             Some(Ok(kpis)) => format!("${:.0}k", kpis.mrr.value / 1000.0),
-                            _ => "$84k".to_string()
+                            Some(Err(_)) => "Err".to_string(),
+                            None => "—".to_string(),
                         }}
                     </span>
-                    <span class="text-[9.5px] text-emerald-400">"↑ 12% vs May"</span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">
+                        {move || match business_kpis.get() {
+                            Some(Ok(kpis)) if kpis.mrr.previous_value > 0.0 => {
+                                let pct = ((kpis.mrr.value - kpis.mrr.previous_value) / kpis.mrr.previous_value) * 100.0;
+                                format!("{:+.0}% vs prev", pct)
+                            },
+                            _ => "vs prev period".to_string(),
+                        }}
+                    </span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"New Leads"</span>
-                    <span class="text-lg font-black font-mono">"47"</span>
-                    <span class="text-[9.5px] text-emerald-400">"↑ 31% vs May"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Active Subscriptions"</span>
+                    <span class="text-lg font-black font-mono">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => s.active_subscriptions.to_string(),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Active plans"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Converted"</span>
-                    <span class="text-lg font-black font-mono">"8"</span>
-                    <span class="text-[9.5px] text-on-surface-variant/70">"→ 17% rate"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"In Trial"</span>
+                    <span class="text-lg font-black font-mono text-emerald-400">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => s.in_trial.to_string(),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Trial period"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Open Opps"</span>
-                    <span class="text-lg font-black font-mono text-amber-400">"12"</span>
-                    <span class="text-[9.5px] text-on-surface-variant/70">"$14.2M pipeline"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Failed Invoices"</span>
+                    <span class="text-lg font-black font-mono text-amber-400">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => s.failed_invoices_count.to_string(),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Outstanding"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Reservations"</span>
-                    <span class="text-lg font-black font-mono">"618"</span>
-                    <span class="text-[9.5px] text-emerald-400">"↑ 9% vs May"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Collection Rate"</span>
+                    <span class="text-lg font-black font-mono text-emerald-400">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => format!("{:.0}%", s.collection_success_rate * 100.0),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"G-03"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Avg G-27 Score"</span>
-                    <span class="text-lg font-black text-[#88cc00] font-mono">"7.4"</span>
-                    <span class="text-[9.5px] text-emerald-400">"↑ 0.3 vs May"</span>
-                </div>
-                <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"API Req (24h)"</span>
-                    <span class="text-lg font-black font-mono">"2.1M"</span>
-                    <span class="text-[9.5px] text-on-surface-variant/70">"→ p99: 84ms"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Churn Rate"</span>
+                    <span class="text-lg font-black font-mono">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => format!("{:.1}%", s.gross_churn_rate * 100.0),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Monthly gross"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2">
-                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Error Rate"</span>
-                    <span class="text-lg font-black font-mono text-error">"0.4%"</span>
-                    <span class="text-[9.5px] text-error">"↑ from 0.2%"</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Suspended"</span>
+                    <span class="text-lg font-black font-mono text-error">
+                        {move || match billing_summary.get() {
+                            Some(Ok(s)) => s.suspended.to_string(),
+                            _ => "—".to_string(),
+                        }}
+                    </span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Past due"</span>
                 </div>
             </div>
 
@@ -156,223 +188,126 @@ pub fn Analytics() -> impl IntoView {
                 }
             </div>
 
-            // ── TAB CONTENT: Overview ──
             <Show when=move || active_tab.get() == "p-overview">
                 <div class="grid grid-cols-1 xl:grid-cols-10 gap-6">
                     <div class="xl:col-span-6 space-y-6">
-                        // Simulated GMV Bar Chart
+                        // GMV chart — pending real time-series endpoint
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                             <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "Gross Merchandise Value · June 2026"
-                                    <span class="text-[10px] font-normal text-on-surface-variant/60 block mt-0.5">"platform_metrics_daily · metric_key=gmv_cents"</span>
+                                    "Gross Merchandise Value · Trend"
                                 </h3>
-                                <div class="flex gap-1.5">
-                                    <button class="text-[10px] font-bold px-2 py-1 bg-surface-bright text-primary border border-outline-variant rounded" on:click=move |_| toast.show_toast("Chart Action", "Showing daily view", "info")>"Day"</button>
-                                    <button class="text-[10px] font-bold px-2 py-1 text-on-surface-variant border border-outline-variant/20 rounded hover:bg-surface-bright/20" on:click=move |_| toast.show_toast("Chart Action", "Showing weekly view", "info")>"Week"</button>
-                                    <button class="text-[10px] font-bold px-2 py-1 text-on-surface-variant border border-outline-variant/20 rounded hover:bg-surface-bright/20" on:click=move |_| toast.show_toast("Chart Action", "Showing monthly view", "info")>"Month"</button>
-                                </div>
                             </div>
-                            <div class="p-6">
-                                // SVG Bar chart simulation
-                                <div class="h-32 flex items-end gap-1.5 relative border-b border-outline-variant/20 pb-1">
-                                    <div class="absolute top-2 left-2 text-[10px] text-on-surface-variant/40 italic">"GMV / day (USD)"</div>
-                                    <div class="h-[55%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 1 · $91k"></div>
-                                    <div class="h-[60%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 2 · $99k"></div>
-                                    <div class="h-[48%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 3 · $79k"></div>
-                                    <div class="h-[70%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 4 · $115k"></div>
-                                    <div class="h-[80%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 5 · $132k"></div>
-                                    <div class="h-[90%] bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 6 · $148k"></div>
-                                    <div class="h-[65%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 7 · $107k"></div>
-                                    <div class="h-[75%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 8 · $123k"></div>
-                                    <div class="h-[82%] bg-primary/70 hover:bg-primary rounded-t w-full transition-all cursor-pointer" title="Jun 9 · $135k"></div>
-                                    <div class="h-[60%] bg-primary/50 hover:bg-primary rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[50%] bg-primary/50 hover:bg-primary rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[72%] bg-primary/50 hover:bg-primary rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[85%] bg-primary/50 hover:bg-primary rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[91%] bg-primary/50 hover:bg-primary rounded-t w-full transition-all cursor-pointer"></div>
-                                </div>
+                            <div class="p-10 flex flex-col items-center justify-center gap-3 text-center">
+                                <svg viewBox="0 0 40 40" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);opacity:.5">
+                                    <path d="M4 30 L12 20 L20 24 L28 14 L36 10"/>
+                                    <rect x="2" y="2" width="36" height="36" rx="3" stroke-dasharray="3 2"/>
+                                </svg>
+                                <span class="text-sm font-semibold text-on-surface-variant">"GMV time-series pending"</span>
+                                <span class="text-[11px] text-on-surface-variant/60 max-w-xs">
+                                    "Requires the platform_metrics_daily analytics endpoint. Connect the trends API to populate this chart."
+                                </span>
+                                <button class="text-[11px] text-primary hover:underline font-bold mt-1" on:click=move |_| active_tab.set("p-revenue".to_string())>"→ View Revenue Breakdown"</button>
                             </div>
                         </div>
 
-                        // Simulated Lead Volume Chart
-                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
-                            <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "Lead Volume · Daily"
-                                    <span class="text-[10px] font-normal text-on-surface-variant/60 block mt-0.5">"platform_metrics_daily · metric_key=lead_created"</span>
-                                </h3>
-                            </div>
-                            <div class="p-6">
-                                <div class="h-20 flex items-end gap-2 relative border-b border-outline-variant/20 pb-1">
-                                    <div class="absolute top-2 left-2 text-[10px] text-on-surface-variant/40 italic">"Leads created / day"</div>
-                                    <div class="h-[40%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[60%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[80%] bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[50%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[70%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[90%] bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[55%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                    <div class="h-[65%] bg-amber-500/70 hover:bg-amber-400 rounded-t w-full transition-all cursor-pointer"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        // Conversion Funnel
+                        // CRM Funnel — driven from real billing_summary data
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                             <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "CRM Conversion Funnel · G-31→G-15"
+                                    "Subscription Lifecycle · G-03"
                                 </h3>
-                                <button class="text-xs text-primary hover:underline font-bold" on:click=move |_| active_tab.set("p-crm".to_string())>"Full Funnel →"</button>
                             </div>
-                            <div class="p-5 space-y-4">
-                                {
-                                    let funnel_row = |stage: &str, count: &str, pct: &str, fill: &str, color_class: &str| {
-                                        let stage = stage.to_string();
-                                        let count = count.to_string();
-                                        let pct = pct.to_string();
-                                        let fill = fill.to_string();
-                                        let color_class = color_class.to_string();
-                                        view! {
-                                            <div class="flex items-center gap-4 text-xs">
-                                                <span class="w-32 text-on-surface-variant font-medium">{stage}</span>
-                                                <div class="flex-1 bg-surface-container h-6 rounded-lg overflow-hidden relative border border-outline-variant/10">
-                                                    <div class=format!("h-full rounded-r transition-all {}", color_class) style=format!("width: {}", fill)></div>
-                                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 font-bold font-mono text-on-surface">{count}</span>
-                                                </div>
-                                                <span class="w-12 text-right text-on-surface-variant font-mono">{pct}</span>
-                                            </div>
-                                        }
-                                    };
-                                    view! {
-                                        {funnel_row("Leads Imported", "47", "100%", "100%", "bg-primary")}
-                                        {funnel_row("Contacted", "40", "85%", "85%", "bg-primary/80")}
-                                        {funnel_row("Qualifying", "28", "60%", "60%", "bg-primary/70")}
-                                        {funnel_row("Qualified", "17", "36%", "36%", "bg-amber-400/80")}
-                                        {funnel_row("Converted", "8", "17%", "17%", "bg-emerald-400")}
-                                    }
-                                }
+                            <div class="p-5 space-y-3">
+                                <Suspense fallback=move || view! { <div class="py-6 text-center text-on-surface-variant/50 text-xs">"Loading..."</div> }>
+                                {move || billing_summary.get().map(|res| match res {
+                                    Ok(data) => view! {
+                                        <div class="space-y-3">
+                                            {
+                                                let total = (data.active_subscriptions + data.in_trial + data.in_grace_period + data.suspended + data.canceled).max(1);
+                                                let rows = vec![
+                                                    ("Active", data.active_subscriptions, "bg-emerald-400"),
+                                                    ("In Trial", data.in_trial, "bg-primary"),
+                                                    ("Grace Period", data.in_grace_period, "bg-amber-400"),
+                                                    ("Suspended", data.suspended, "bg-error"),
+                                                    ("Canceled", data.canceled, "bg-surface-container"),
+                                                ];
+                                                rows.into_iter().map(|(label, count, bar_class)| {
+                                                    let pct = (count as f64 / total as f64) * 100.0;
+                                                    let fill = format!("{}%", pct as u32);
+                                                    view! {
+                                                        <div class="flex items-center gap-4 text-xs">
+                                                            <span class="w-28 text-on-surface-variant font-medium">{label}</span>
+                                                            <div class="flex-1 bg-surface-container h-5 rounded-lg overflow-hidden relative border border-outline-variant/10">
+                                                                <div class=format!("h-full rounded-r transition-all {}", bar_class) style=format!("width: {}", fill)></div>
+                                                                <span class="absolute right-3 top-1/2 -translate-y-1/2 font-bold font-mono text-on-surface">{count.to_string()}</span>
+                                                            </div>
+                                                            <span class="w-10 text-right text-on-surface-variant font-mono">{format!("{:.0}%", pct)}</span>
+                                                        </div>
+                                                    }
+                                                }).collect_view()
+                                            }
+                                        </div>
+                                    }.into_any(),
+                                    Err(_) => view! {
+                                        <div class="py-4 text-center text-error text-xs">"Failed to load subscription data"</div>
+                                    }.into_any()
+                                })}
+                                </Suspense>
                             </div>
                         </div>
                     </div>
 
-                    // Right column: revenue breakdown, anomalies, campaigns
+                    // Right column
                     <div class="xl:col-span-4 space-y-6">
-                        // Revenue by app
+                        // Revenue breakdown — pending real product-level endpoint
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                             <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "Revenue by App · June"
+                                    "Revenue by Product"
                                 </h3>
                             </div>
-                            <div class="p-5 space-y-3">
-                                {
-                                    let rev_row = |name: &str, amt: &str, pct: &str, fill: &str, color_class: &str, dot_color: &str| {
-                                        let name = name.to_string();
-                                        let amt = amt.to_string();
-                                        let pct = pct.to_string();
-                                        let fill = fill.to_string();
-                                        let color_class = color_class.to_string();
-                                        let dot_color = dot_color.to_string();
-                                        view! {
-                                            <div class="flex items-center gap-3 text-xs">
-                                                <span class=format!("w-2 h-2 rounded-full shrink-0 {}", dot_color)></span>
-                                                <span class="w-24 text-on-surface-variant font-medium">{name}</span>
-                                                <div class="flex-1 bg-surface-container h-2 rounded-full overflow-hidden">
-                                                    <div class=format!("h-full rounded-full {}", color_class) style=format!("width: {}", fill)></div>
-                                                </div>
-                                                <span class=format!("w-16 text-right font-bold {}", color_class)>{amt}</span>
-                                                <span class="w-10 text-right text-on-surface-variant/60 font-mono">{pct}</span>
-                                            </div>
-                                        }
-                                    };
-                                    view! {
-                                        {rev_row("Folio PM", "$1.20M", "56%", "56%", "text-primary", "bg-primary")}
-                                        {rev_row("Folio STR", "$480k", "22%", "40%", "text-emerald-400", "bg-emerald-400")}
-                                        {rev_row("Anchor", "$220k", "10%", "18%", "text-purple-400", "bg-purple-400")}
-                                        {rev_row("Network", "$155k", "7%", "13%", "text-amber-400", "bg-amber-400")}
-                                        {rev_row("Other", "$85k", "4%", "8%", "text-cyan-400", "bg-cyan-400")}
-                                    }
-                                }
+                            <div class="p-8 flex flex-col items-center gap-2 text-center">
+                                <span class="text-sm font-semibold text-on-surface-variant">"Product-level revenue pending"</span>
+                                <span class="text-[11px] text-on-surface-variant/60 max-w-xs">
+                                    "Requires a per-product revenue endpoint from the billing ledger splits API."
+                                </span>
+                                <a href="/billing" class="text-[11px] text-primary hover:underline font-bold mt-1" style="text-decoration:none">"→ Open Billing Ledger"</a>
                             </div>
                         </div>
 
-                        // Attribution
-                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
-                            <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "Attribution by Channel · G-20"
-                                </h3>
-                                <button class="text-xs text-primary hover:underline font-bold" on:click=move |_| active_tab.set("p-attribution".to_string())>"Full Report →"</button>
-                            </div>
-                            <div class="p-5 space-y-3">
-                                {
-                                    let attr_row = |name: &str, amt: &str, pct: &str, fill: &str, color_class: &str, dot_color: &str| {
-                                        let name = name.to_string();
-                                        let amt = amt.to_string();
-                                        let pct = pct.to_string();
-                                        let fill = fill.to_string();
-                                        let color_class = color_class.to_string();
-                                        let dot_color = dot_color.to_string();
-                                        view! {
-                                            <div class="flex items-center gap-3 text-xs">
-                                                <span class=format!("w-2 h-2 rounded-full shrink-0 {}", dot_color)></span>
-                                                <span class="w-28 text-on-surface-variant font-medium">{name}</span>
-                                                <div class="flex-1 bg-surface-container h-1.5 rounded-full overflow-hidden">
-                                                    <div class=format!("h-full rounded-full {}", color_class) style=format!("width: {}", fill)></div>
-                                                </div>
-                                                <span class=format!("w-14 text-right font-bold {}", color_class)>{amt}</span>
-                                                <span class="w-10 text-right text-on-surface-variant/60 font-mono">{pct}</span>
-                                            </div>
-                                        }
-                                    };
-                                    view! {
-                                        {attr_row("Direct", "$680k", "32%", "100%", "text-orange-400", "bg-orange-400")}
-                                        {attr_row("Organic Search", "$512k", "24%", "75%", "text-primary", "bg-primary")}
-                                        {attr_row("Email Campaign", "$278k", "13%", "40%", "text-purple-400", "bg-purple-400")}
-                                        {attr_row("FMCSA Import", "$210k", "10%", "30%", "text-emerald-400", "bg-emerald-400")}
-                                        {attr_row("Referral", "$156k", "7%", "22%", "text-amber-400", "bg-amber-400")}
-                                        {attr_row("Paid Ads", "$112k", "5%", "17%", "text-cyan-400", "bg-cyan-400")}
-                                    }
-                                }
-                            </div>
-                        </div>
-
-                        // Scorecard anomalies
+                        // Billing summary card
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                             <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
-                                <h3 class="text-xs font-bold uppercase tracking-wider text-error">
-                                    "⚠ G-27 Anomalies"
-                                    <span class="text-[10px] text-on-surface-variant/50 font-normal block mt-0.5">"z-score > 2.0 · atlas_scorecard_time_series"</span>
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                                    "Collection Health"
                                 </h3>
                             </div>
-                            <div class="divide-y divide-outline-variant/10">
-                                <div class="p-4 flex gap-3 text-xs">
-                                    <span class="px-2 py-0.5 rounded bg-error-container/20 border border-error/30 text-error text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5">"Spike"</span>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="font-semibold truncate">"Bathroom Cleanliness · Biscayne STR"</div>
-                                        <div class="text-[10px] text-on-surface-variant/70 mt-0.5">"Dimension: cleanliness · Session: reservation"</div>
+                            <Suspense fallback=move || view! { <div class="p-4 text-center text-on-surface-variant/50 text-xs">"Loading..."</div> }>
+                            {move || billing_summary.get().map(|res| match res {
+                                Ok(data) => view! {
+                                    <div class="divide-y divide-outline-variant/10 text-xs">
+                                        <div class="flex justify-between items-center px-5 py-3">
+                                            <span class="text-on-surface-variant">"Collection Success Rate"</span>
+                                            <span class="text-emerald-400 font-bold">{format!("{:.1}%", data.collection_success_rate * 100.0)}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center px-5 py-3">
+                                            <span class="text-on-surface-variant">"Monthly Gross Churn"</span>
+                                            <span class="text-error font-bold">{format!("{:.1}%", data.gross_churn_rate * 100.0)}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center px-5 py-3">
+                                            <span class="text-on-surface-variant">"Failed Invoices"</span>
+                                            <span class="text-amber-400 font-bold font-mono">{format!("{} (${:.0}k)", data.failed_invoices_count, data.failed_invoices_value / 1000.0)}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center px-5 py-3">
+                                            <span class="text-on-surface-variant">"In Grace Period"</span>
+                                            <span class="text-amber-400 font-bold font-mono">{data.in_grace_period.to_string()}</span>
+                                        </div>
                                     </div>
-                                    <span class="font-bold text-error shrink-0">"z = -2.8"</span>
-                                </div>
-                                <div class="p-4 flex gap-3 text-xs">
-                                    <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5">"Drop"</span>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="font-semibold truncate">"Response Time · Harbor Media"</div>
-                                        <div class="text-[10px] text-on-surface-variant/70 mt-0.5">"Dimension: response_time · 3 consecutive drops"</div>
-                                    </div>
-                                    <span class="font-bold text-amber-400 shrink-0">"z = -2.1"</span>
-                                </div>
-                                <div class="p-4 flex gap-3 text-xs">
-                                    <span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5">"Surge"</span>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="font-semibold truncate">"Vendor On-Time Rate · Nexus PM"</div>
-                                        <div class="text-[10px] text-on-surface-variant/70 mt-0.5">"Dimension: on_time_delivery · Unusually high period"</div>
-                                    </div>
-                                    <span class="font-bold text-emerald-400 shrink-0">"z = +2.4"</span>
-                                </div>
-                            </div>
+                                }.into_any(),
+                                Err(_) => view! { <div class="p-4 text-error text-xs text-center">"Failed to load"</div> }.into_any()
+                            })}
+                            </Suspense>
                         </div>
                     </div>
                 </div>
@@ -387,23 +322,44 @@ pub fn Analytics() -> impl IntoView {
                                 "Revenue Breakdown · platform_metrics_daily · metric_source = ledger"
                             </h3>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-outline-variant/10">
-                            <div class="p-5 text-center">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Total GMV"</span>
-                                <h4 class="text-2xl font-black text-primary font-mono mt-1">"$2,140,000"</h4>
-                                <span class="text-[10px] text-emerald-400">"↑ 18% vs May"</span>
-                            </div>
-                            <div class="p-5 text-center">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Platform Commission"</span>
-                                <h4 class="text-2xl font-black text-emerald-400 font-mono mt-1">"$171,200"</h4>
-                                <span class="text-[10px] text-emerald-400">"↑ 14% vs May"</span>
-                            </div>
-                            <div class="p-5 text-center">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Platform MRR (SaaS)"</span>
-                                <h4 class="text-2xl font-black text-primary font-mono mt-1">"$84,000"</h4>
-                                <span class="text-[10px] text-emerald-400">"↑ 12% vs May"</span>
-                            </div>
-                        </div>
+                        <Suspense fallback=move || view! { <div class="p-6 text-on-surface-variant text-xs">"Loading revenue data…"</div> }>
+                            {move || business_kpis.get().map(|res| match res {
+                                Ok(kpis) => view! {
+                                    <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-outline-variant/10">
+                                        <div class="p-5 text-center">
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Platform MRR (SaaS)"</span>
+                                            <h4 class="text-2xl font-black text-primary font-mono mt-1">
+                                                {format!("${:.0}k", kpis.mrr.value / 1000.0)}
+                                            </h4>
+                                            <span class="text-[10px] text-emerald-400">
+                                                {move || {
+                                                    let pct = if kpis.mrr.previous_value > 0.0 {
+                                                        ((kpis.mrr.value - kpis.mrr.previous_value) / kpis.mrr.previous_value) * 100.0
+                                                    } else { 0.0 };
+                                                    format!("{:+.0}% vs prev period", pct)
+                                                }}
+                                            </span>
+                                        </div>
+                                        <div class="p-5 text-center">
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Active Subscriptions"</span>
+                                            <h4 class="text-2xl font-black text-emerald-400 font-mono mt-1">
+                                                {format!("{:.0}", kpis.active_subscriptions.value)}
+                                            </h4>
+                                            <span class="text-[10px] text-on-surface-variant/60">"from billing_summary"
+                                            </span>
+                                        </div>
+                                        <div class="p-5 text-center">
+                                            <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70">"Total GMV / Commission"</span>
+                                            <h4 class="text-2xl font-black text-on-surface-variant/40 font-mono mt-1">"—"</h4>
+                                            <span class="text-[10px] text-on-surface-variant/50">"Pending platform_metrics_daily endpoint"</span>
+                                        </div>
+                                    </div>
+                                }.into_any(),
+                                Err(_) => view! {
+                                    <div class="p-5 text-xs text-error">"Failed to load revenue metrics."</div>
+                                }.into_any(),
+                            })}
+                        </Suspense>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -506,10 +462,11 @@ pub fn Analytics() -> impl IntoView {
             <Show when=move || active_tab.get() == "p-crm">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
-                        <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
+                        <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                 "Full CRM Funnel · G-31 → G-15"
                             </h3>
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-amber-400/80 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded">"Static — Pending get_crm_pipeline()"</span>
                         </div>
                         <div class="p-5 space-y-4">
                             {
@@ -548,10 +505,11 @@ pub fn Analytics() -> impl IntoView {
 
                     <div class="space-y-6">
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
-                            <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
+                            <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                                     "Pipeline Summary"
                                 </h3>
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-amber-400/80 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded">"Static — Pending get_crm_pipeline()"</span>
                             </div>
                             <div class="divide-y divide-outline-variant/10 text-xs">
                                 <div class="flex justify-between items-center px-5 py-3">

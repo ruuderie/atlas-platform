@@ -1,35 +1,66 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
+use crate::api::admin::{
+    get_public_config, update_public_config,
+    suspend_instance, resume_instance,
+    upsert_module,
+};
 
 #[component]
 pub fn AppInstance() -> impl IntoView {
     let params = use_params_map();
     let instance_id_str = move || params.with(|p| p.get("id").unwrap_or_else(|| "inst_pm_a1b2c3".to_string()));
-    
+
     // Global toast context
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-    
+
+    // ── Load real instance config from API ──
+    let instance_config = LocalResource::new(move || {
+        let id_str = instance_id_str();
+        async move {
+            match uuid::Uuid::parse_str(&id_str) {
+                Ok(id) => get_public_config(id).await.ok(),
+                Err(_) => None,
+            }
+        }
+    });
+
     // Reactive states
     let active_tab = RwSignal::new("t-overview".to_string());
     let active_instance_type = RwSignal::new("folio".to_string());
     let is_suspended = RwSignal::new(false);
-    let show_impersonate_modal = RwSignal::new(false);
     let show_suspend_modal = RwSignal::new(false);
     let show_provision_modal = RwSignal::new(false);
     let show_add_rail_modal = RwSignal::new(false);
     let show_edit_config_modal = RwSignal::new(false);
-    
-    // Form input states
+    let suspend_reason = RwSignal::new(String::new());
+
+    // Form input states — pre-seeded with sensible defaults;
+    // the Edit Config modal allows the operator to change them.
     let jurisdiction_code = RwSignal::new("US-FL".to_string());
     let market_config = RwSignal::new("MiamiDadeMarket".to_string());
     let str_ordinance = RwSignal::new("Miami-Dade Ord. 2023-89".to_string());
     let tdt_rate = RwSignal::new("7% (Miami-Dade)".to_string());
     let deployment_mode = RwSignal::new("standard".to_string());
     let lookback_hours = RwSignal::new("25".to_string());
-    let custom_domain = RwSignal::new("pm.nexusproperties.com".to_string());
-    let public_slug = RwSignal::new("nexus-pm".to_string());
-    
-    // Simulated active modules list with reactive signals
+    // public_slug / custom_domain are seeded from instance_config once loaded
+    let custom_domain = RwSignal::new(String::new());
+    let public_slug = RwSignal::new(String::new());
+
+    // Seed public_slug / custom_domain / is_suspended from API once loaded
+    let _seed_effect = Effect::new(move |_| {
+        if let Some(Some(cfg)) = instance_config.get() {
+            if let Some(slug) = cfg.public_slug {
+                public_slug.set(slug);
+            }
+            if let Some(domain) = cfg.custom_domain {
+                custom_domain.set(domain);
+            }
+            is_suspended.set(cfg.instance_status == "suspended");
+        }
+    });
+
+    // Module toggle signals
     let module_portfolio = RwSignal::new(true);
     let module_leases = RwSignal::new(true);
     let module_maintenance = RwSignal::new(true);
@@ -47,6 +78,103 @@ pub fn AppInstance() -> impl IntoView {
 
     let pix_status = RwSignal::new("Disabled".to_string());
 
+    // ── Derive tenant_id from instance config ──
+    let tenant_id_sig = move || {
+        instance_config.get().flatten().map(|c| c.tenant_id)
+    };
+
+    // ── Derived app_slug display ──
+    let app_slug_display = move || {
+        instance_config.get()
+            .flatten()
+            .map(|c| c.app_slug.clone())
+            .unwrap_or_else(|| instance_id_str().chars().take(12).collect())
+    };
+
+    // ── Suspend handler ──
+    let handle_suspend = move |_| {
+        let reason = suspend_reason.get();
+        let id_str = instance_id_str();
+        let t = toast.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+                match suspend_instance(id, reason).await {
+                    Ok(_) => {
+                        is_suspended.set(true);
+                        show_suspend_modal.set(false);
+                        t.show_toast("Success", "App instance suspended.", "success");
+                    }
+                    Err(e) => {
+                        t.show_toast("Error", &format!("Suspend failed: {}", e), "error");
+                    }
+                }
+            } else {
+                t.show_toast("Error", "Invalid instance ID.", "error");
+            }
+        });
+    };
+
+    // ── Resume handler ──
+    let handle_resume = move |_| {
+        let id_str = instance_id_str();
+        let t = toast.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+                match resume_instance(id).await {
+                    Ok(_) => {
+                        is_suspended.set(false);
+                        t.show_toast("Success", "App instance reactivated.", "success");
+                    }
+                    Err(e) => {
+                        t.show_toast("Error", &format!("Resume failed: {}", e), "error");
+                    }
+                }
+            } else {
+                t.show_toast("Error", "Invalid instance ID.", "error");
+            }
+        });
+    };
+
+    // ── Save config handler ──
+    let handle_save_config = move |_| {
+        let id_str = instance_id_str();
+        let slug = public_slug.get();
+        let domain = custom_domain.get();
+        let t = toast.clone();
+        leptos::task::spawn_local(async move {
+            if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+                let slug_val = if slug.is_empty() { None } else { Some(slug) };
+                let domain_val = if domain.is_empty() { None } else { Some(domain) };
+                match update_public_config(id, slug_val, domain_val).await {
+                    Ok(_) => {
+                        show_edit_config_modal.set(false);
+                        t.show_toast("Saved", "Instance configuration updated.", "success");
+                    }
+                    Err(e) => {
+                        t.show_toast("Error", &format!("Save failed: {}", e), "error");
+                    }
+                }
+            } else {
+                t.show_toast("Error", "Invalid instance ID.", "error");
+            }
+        });
+    };
+
+    // ── Module toggle helper — persists to backend ──
+    let make_module_handler = move |module_type: &'static str, signal: RwSignal<bool>| {
+        move |checked: bool| {
+            signal.set(checked);
+            if let Some(tid) = tenant_id_sig() {
+                let t = toast.clone();
+                leptos::task::spawn_local(async move {
+                    if let Err(e) = upsert_module(tid, module_type, checked, None, None).await {
+                        t.show_toast("Warning", &format!("Module save failed: {}", e), "error");
+                    }
+                });
+            }
+        }
+    };
+
     // Switch instance helper
     let select_instance = move |inst_type: &str| {
         active_instance_type.set(inst_type.to_string());
@@ -63,11 +191,13 @@ pub fn AppInstance() -> impl IntoView {
             <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
                 <a href="/apps" class="hover:text-primary transition-colors">"Tenants"</a>
                 <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                <span class="text-on-surface-variant/80">"Nexus Property Group"</span>
+                <span class="text-on-surface-variant/80">
+                    {move || instance_config.get().flatten().map(|c| c.tenant_id.to_string().chars().take(8).collect::<String>() + "…").unwrap_or_else(|| "—".to_string())}
+                </span>
                 <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
                 <span class="text-on-surface-variant/80">"App Instances"</span>
                 <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                <span class="text-primary/70">"Atlas PM — Residential"</span>
+                <span class="text-primary/70">{move || app_slug_display()}</span>
             </nav>
 
             // ── App Header ──
@@ -128,20 +258,11 @@ pub fn AppInstance() -> impl IntoView {
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button 
-                        class="btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 hover:bg-surface-bright/20 hover:text-on-surface transition-all active:scale-95"
-                        on:click=move |_| show_impersonate_modal.set(true)
-                    >
-                        "Impersonate Landlord"
-                    </button>
                     {move || if is_suspended.get() {
                         view! {
                             <button 
                                 class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 px-4 py-2 rounded-lg text-sm font-semibold transition-all active:scale-95"
-                                on:click=move |_| {
-                                    is_suspended.set(false);
-                                    toast.show_toast("Success", "App instance reactivated successfully.", "success");
-                                }
+                                on:click=handle_resume
                             >
                                 "Activate Instance"
                             </button>
@@ -158,9 +279,7 @@ pub fn AppInstance() -> impl IntoView {
                     }}
                     <button 
                         class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
-                        on:click=move |_| {
-                            toast.show_toast("Success", "Instance configurations saved.", "success");
-                        }
+                        on:click=handle_save_config
                     >
                         "Save Changes"
                     </button>
@@ -269,7 +388,11 @@ pub fn AppInstance() -> impl IntoView {
                                 </div>
                                 <div class="flex justify-between items-center px-5 py-3 text-xs">
                                     <span class="text-on-surface-variant">"Tenant"</span>
-                                    <span class="font-medium">"Nexus Property Group"</span>
+                                    <span class="font-medium font-mono">
+                                        {move || instance_config.get().flatten()
+                                            .map(|c| c.tenant_id.to_string())
+                                            .unwrap_or_else(|| "—".to_string())}
+                                    </span>
                                 </div>
                                 <div class="flex justify-between items-center px-5 py-3 text-xs">
                                     <span class="text-on-surface-variant">"Subdomain"</span>
@@ -565,9 +688,7 @@ pub fn AppInstance() -> impl IntoView {
                         <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                             "Admin Module Flags — Folio · app_instance_modules"
                         </h3>
-                        <button class="btn-primary-gradient px-3 py-1 rounded text-xs font-semibold text-on-primary-container" on:click=move |_| {
-                            toast.show_toast("Success", "Module flags updated.", "success");
-                        }>"Save Modules"</button>
+                        <span class="text-[10px] text-on-surface-variant/60 italic">"Toggles save automatically"</span>
                     </div>
                     <p class="px-5 py-3 text-xs text-on-surface-variant/70 border-b border-outline-variant/10">
                         "Fixed platform modules (Dashboard, Settings, Security) cannot be disabled. All others are toggleable per instance."
@@ -587,14 +708,13 @@ pub fn AppInstance() -> impl IntoView {
                                     </div>
                                 }
                             };
-                            let module_cell_toggle = |name: &str, desc: &str, signal_state: RwSignal<bool>| {
-                                let name = name.to_string();
-                                let desc = desc.to_string();
+                            let module_cell_toggle = |name: &'static str, desc: &'static str, module_key: &'static str, signal_state: RwSignal<bool>| {
+                                let handler = make_module_handler(module_key, signal_state);
                                 view! {
                                     <div class=move || if signal_state.get() { "bg-surface-container-high/50 p-4 rounded-xl border border-primary/20 flex flex-col justify-between min-h-[100px] transition-all" } else { "bg-surface-container p-4 rounded-xl border border-outline-variant/20 flex flex-col justify-between min-h-[100px] opacity-60 hover:opacity-100 transition-all" } >
                                         <div>
-                                            <div class="text-xs font-bold text-on-surface">{name.clone()}</div>
-                                            <div class="text-[10px] text-on-surface-variant/70 mt-1">{desc.clone()}</div>
+                                            <div class="text-xs font-bold text-on-surface">{name}</div>
+                                            <div class="text-[10px] text-on-surface-variant/70 mt-1">{desc}</div>
                                         </div>
                                         <div class="flex items-center justify-between mt-4">
                                             <label class="relative inline-block w-8 h-4 shrink-0 cursor-pointer">
@@ -604,12 +724,7 @@ pub fn AppInstance() -> impl IntoView {
                                                     prop:checked=signal_state
                                                     on:change=move |ev| {
                                                         let checked = event_target_checked(&ev);
-                                                        signal_state.set(checked);
-                                                        toast.show_toast(
-                                                            "Module Toggled", 
-                                                            &format!("Module '{}' set to {}", name, if checked { "ON" } else { "OFF" }), 
-                                                            "success"
-                                                        );
+                                                        handler(checked);
                                                     }
                                                 />
                                                 <div class="absolute inset-0 bg-outline-variant/40 rounded-full transition-colors peer-checked:bg-primary">
@@ -624,20 +739,20 @@ pub fn AppInstance() -> impl IntoView {
 
                             view! {
                                 {module_cell_fixed("Dashboard", "Platform overview")}
-                                {module_cell_toggle("Portfolio", "NAV + asset hierarchy", module_portfolio)}
-                                {module_cell_toggle("Leases", "Condomínio, auto-renew", module_leases)}
-                                {module_cell_toggle("Maintenance", "Dispatch + WebSocket", module_maintenance)}
-                                {module_cell_toggle("Vendors", "License + G-27 scoring", module_vendors)}
-                                {module_cell_toggle("Wholesale CRM", "MAO, Kanban, leads", module_crm)}
-                                {module_cell_toggle("Billing · G-03", "Stripe + multi-rail", module_billing)}
-                                {module_cell_toggle("STR Compliance", "Permit, OTA sync", module_str)}
-                                {module_cell_toggle("Leads · G-31", "Lifecycle + qualify", module_leads)}
-                                {module_cell_toggle("Opportunities · G-15", "Sales pipeline", module_opps)}
-                                {module_cell_toggle("Events · G-21", "Ticketing + check-in", module_events)}
-                                {module_cell_toggle("Vault · G-02", "PM doc taxonomy", module_vault)}
-                                {module_cell_toggle("Reporting · G-33", "PMC client KPIs", module_reporting)}
-                                {module_cell_toggle("Violations · G-13", "Compliance lifecycle", module_violations)}
-                                {module_cell_toggle("Geo · G-01", "PostGIS spatial", module_geo)}
+                                {module_cell_toggle("Portfolio", "NAV + asset hierarchy", "portfolio", module_portfolio)}
+                                {module_cell_toggle("Leases", "Condomínio, auto-renew", "leases", module_leases)}
+                                {module_cell_toggle("Maintenance", "Dispatch + WebSocket", "maintenance", module_maintenance)}
+                                {module_cell_toggle("Vendors", "License + G-27 scoring", "vendors", module_vendors)}
+                                {module_cell_toggle("Wholesale CRM", "MAO, Kanban, leads", "crm", module_crm)}
+                                {module_cell_toggle("Billing · G-03", "Stripe + multi-rail", "billing", module_billing)}
+                                {module_cell_toggle("STR Compliance", "Permit, OTA sync", "str_compliance", module_str)}
+                                {module_cell_toggle("Leads · G-31", "Lifecycle + qualify", "leads", module_leads)}
+                                {module_cell_toggle("Opportunities · G-15", "Sales pipeline", "opportunities", module_opps)}
+                                {module_cell_toggle("Events · G-21", "Ticketing + check-in", "events", module_events)}
+                                {module_cell_toggle("Vault · G-02", "PM doc taxonomy", "vault", module_vault)}
+                                {module_cell_toggle("Reporting · G-33", "PMC client KPIs", "reporting", module_reporting)}
+                                {module_cell_toggle("Violations · G-13", "Compliance lifecycle", "violations", module_violations)}
+                                {module_cell_toggle("Geo · G-01", "PostGIS spatial", "geo", module_geo)}
                                 {module_cell_fixed("Settings", "Instance settings")}
                             }
                         }
@@ -1112,7 +1227,7 @@ pub fn AppInstance() -> impl IntoView {
                                 <span class="text-primary">"\"str_warning_days\""</span>": "<span class="text-amber-400">"30"</span>", "
                             </div>
                             <div class="pl-4">
-                                <span class="text-primary">"\"site_title\""</span>": \""<span class="text-emerald-400">"Nexus PM"</span>"\", "
+                                <span class="text-primary">"\"site_title\""</span>": \""<span class="text-emerald-400">{move || app_slug_display()}</span>"\", "
                             </div>
                             <div class="pl-4">
                                 <span class="text-primary">"\"locale\""</span>": \""<span class="text-emerald-400">"en-US"</span>"\", "
@@ -1225,31 +1340,8 @@ pub fn AppInstance() -> impl IntoView {
             </Show>
 
             // ── LOCAL STATE MODALS ──
-            
-            // 1. Impersonation Modal
-            <Show when=move || show_impersonate_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface" on:click=move |_| show_impersonate_modal.set(false)>"✕"</button>
-                        <h3 class="text-lg font-bold mb-2">"Impersonate Landlord"</h3>
-                        <p class="text-on-surface-variant text-xs mb-6">"You will be logged in as this landlord. All actions will be audit-logged with an impersonation flag."</p>
-                        <div class="flex justify-end gap-3">
-                            <button class="btn-ghost px-4 py-2 border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-surface-bright/20" on:click=move |_| show_impersonate_modal.set(false)>"Cancel"</button>
-                            <button 
-                                class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold text-on-primary-container"
-                                on:click=move |_| {
-                                    show_impersonate_modal.set(false);
-                                    toast.show_toast("Success", "Impersonation session established.", "success");
-                                }
-                            >
-                                "Start Impersonation"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </Show>
 
-            // 2. Suspend Modal
+            // 1. Suspend Modal
             <Show when=move || show_suspend_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-surface-container-low w-full max-w-md p-6 rounded-2xl border border-outline-variant/30 shadow-2xl relative">
@@ -1258,17 +1350,19 @@ pub fn AppInstance() -> impl IntoView {
                         <p class="text-on-surface-variant text-xs mb-4">"Provide a reason to suspend this tenant's app instance. Traffic will route to a warning gate."</p>
                         <div class="space-y-1.5 mb-6">
                             <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Suspension Reason"</label>
-                            <input type="text" class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary" placeholder="e.g. Terms of Service violation" />
+                            <input 
+                                type="text" 
+                                class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs text-on-surface outline-none focus:border-primary" 
+                                placeholder="e.g. Terms of Service violation"
+                                prop:value=suspend_reason
+                                on:input=move |ev| suspend_reason.set(event_target_value(&ev))
+                            />
                         </div>
                         <div class="flex justify-end gap-3">
                             <button class="btn-ghost px-4 py-2 border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-surface-bright/20" on:click=move |_| show_suspend_modal.set(false)>"Cancel"</button>
                             <button 
                                 class="bg-error border border-error/20 text-on-error hover:opacity-90 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-                                on:click=move |_| {
-                                    is_suspended.set(true);
-                                    show_suspend_modal.set(false);
-                                    toast.show_toast("Success", "App instance suspended.", "success");
-                                }
+                                on:click=handle_suspend
                             >
                                 "Suspend Tenant"
                             </button>
@@ -1379,7 +1473,7 @@ pub fn AppInstance() -> impl IntoView {
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Config JSON Structure"</label>
                                 <textarea class="w-full bg-surface-container border border-outline-variant/40 rounded-lg p-2.5 text-xs font-mono text-on-surface outline-none focus:border-primary h-36 resize-none">
-                                    {move || format!("{{\n  \"folio_jurisdiction_code\": \"{}\",\n  \"folio_market_config\": \"{}\",\n  \"scorecard_display_rules_enabled\": true,\n  \"site_title\": \"Nexus PM\"\n}}", jurisdiction_code.get(), market_config.get())}
+                                    {move || format!("{{\n  \"folio_jurisdiction_code\": \"{}\",\n  \"folio_market_config\": \"{}\",\n  \"scorecard_display_rules_enabled\": true,\n  \"site_title\": \"{}\"\n}}", jurisdiction_code.get(), market_config.get(), app_slug_display())}
                                 </textarea>
                             </div>
                         </div>
@@ -1387,10 +1481,7 @@ pub fn AppInstance() -> impl IntoView {
                             <button class="btn-ghost px-4 py-2 border border-outline-variant/30 rounded-lg text-xs font-semibold hover:bg-surface-bright/20" on:click=move |_| show_edit_config_modal.set(false)>"Cancel"</button>
                             <button 
                                 class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold text-on-primary-container"
-                                on:click=move |_| {
-                                    show_edit_config_modal.set(false);
-                                    toast.show_toast("Success", "Raw settings configuration updated.", "success");
-                                }
+                                on:click=handle_save_config
                             >
                                 "Save Config"
                             </button>

@@ -255,9 +255,10 @@ pub fn PlatformAdmins() -> impl IntoView {
                         >
                             <option value="All Tenants">"All Tenants"</option>
                             <option value="Platform-wide">"Platform-wide"</option>
-                            <option value="Nexus PM Group">"Nexus PM Group"</option>
-                            <option value="Biscayne STR Co.">"Biscayne STR Co."</option>
-                            <option value="Harbor Media">"Harbor Media"</option>
+                            {move || tenants_for_invite.get().unwrap_or_default().into_iter().map(|t| {
+                                let n = t.name.clone();
+                                view! { <option value=n.clone()>{n.clone()}</option> }
+                            }).collect_view()}
                         </select>
                         <select 
                             class="f-select"

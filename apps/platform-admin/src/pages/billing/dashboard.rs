@@ -9,7 +9,7 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::admin::{get_billing_plans, get_all_transactions};
+use crate::api::admin::{get_billing_plans, get_all_transactions, get_tenant_stats};
 use crate::api::analytics::{get_billing_summary, get_business_kpis};
 
 #[component]
@@ -25,11 +25,11 @@ pub fn BillingDashboard() -> impl IntoView {
     let show_exemption_modal = RwSignal::new(false);
 
     // Form inputs state
-    let new_sub_tenant = RwSignal::new("Nexus PM Group".to_string());
+    let new_sub_tenant = RwSignal::new(String::new());
     let new_sub_product = RwSignal::new("Folio".to_string());
     let new_sub_plan = RwSignal::new("Starter - $400/mo".to_string());
 
-    let log_payment_tenant = RwSignal::new("South Beach Nets".to_string());
+    let log_payment_tenant = RwSignal::new(String::new());
     let log_payment_amount = RwSignal::new("".to_string());
     let log_payment_ref = RwSignal::new("".to_string());
 
@@ -56,6 +56,7 @@ pub fn BillingDashboard() -> impl IntoView {
     let business_kpis = LocalResource::new(|| async move { get_business_kpis().await.ok() });
     let billing_plans = LocalResource::new(|| async move { get_billing_plans().await.unwrap_or_default() });
     let transactions = LocalResource::new(|| async move { get_all_transactions().await.unwrap_or_default() });
+    let tenant_list = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
 
 
     // Handle Form actions
@@ -232,163 +233,61 @@ pub fn BillingDashboard() -> impl IntoView {
                         </span>
                     </div>
 
-                    // Product Cards Grid
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                        // Card 1: Folio
-                        <div class="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 relative overflow-hidden transition-all duration-200 hover:bg-surface-container hover:border-outline-variant/30 flex flex-col justify-between">
-                            <div class="absolute top-0 left-0 right-0 h-1 bg-primary"></div>
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-lg font-bold text-on-surface">"Folio"</h3>
-                                        <p class="text-xs text-on-surface-variant">"Property Management · STR · Long-term"</p>
+                    // Products Grid — driven from billing_plans API
+                    <Suspense fallback=move || view! { <div class="p-8 text-center text-on-surface-variant/50 text-xs">"Loading products..."</div> }>
+                    {move || billing_plans.get().map(|plans| {
+                        if plans.is_empty() {
+                            view! {
+                                <div class="col-span-2 bg-surface-container-low border border-outline-variant/15 rounded-2xl p-10 text-center">
+                                    <p class="text-sm font-semibold text-on-surface-variant">"No billing plans configured"</p>
+                                    <p class="text-[11px] text-on-surface-variant/60 mt-1">"Create a billing plan to start tracking revenue by product."</p>
+                                </div>
+                            }.into_any()
+                        } else {
+                            // Group plans by product prefix (first word of plan name)
+                            let mut products: std::collections::BTreeMap<String, Vec<_>> = std::collections::BTreeMap::new();
+                            for plan in plans {
+                                let product = plan.name.split_whitespace().next().unwrap_or("Other").to_string();
+                                products.entry(product).or_default().push(plan);
+                            }
+                            let accent_colors = ["bg-primary", "bg-violet-500", "bg-emerald-500", "bg-amber-500"];
+                            products.into_iter().enumerate().map(|(i, (product_name, product_plans))| {
+                                let color = accent_colors[i % accent_colors.len()].to_string();
+                                let plan_count = product_plans.len();
+                                view! {
+                                    <div class="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 relative overflow-hidden transition-all duration-200 hover:bg-surface-container hover:border-outline-variant/30 flex flex-col justify-between">
+                                        <div class=format!("absolute top-0 left-0 right-0 h-1 {}", color)></div>
+                                        <div>
+                                            <div class="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h3 class="text-lg font-bold text-on-surface">{product_name.clone()}</h3>
+                                                    <p class="text-xs text-on-surface-variant">{format!("{} billing plan{}", plan_count, if plan_count == 1 {""} else {"s"})}</p>
+                                                </div>
+                                            </div>
+                                            <div class="divide-y divide-outline-variant/10 text-xs my-4 space-y-2 pt-2">
+                                                {product_plans.iter().map(|plan| {
+                                                    let price_str = format!("${}.{:02}/{}", plan.price / 100, plan.price % 100, plan.interval);
+                                                    let name = plan.name.clone();
+                                                    view! {
+                                                        <div class="flex justify-between items-center py-1">
+                                                            <span class="text-on-surface-variant">{name}</span>
+                                                            <span class="font-bold text-primary font-mono">{price_str}</span>
+                                                        </div>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
+                                        </div>
+                                        <div class="border-t border-outline-variant/10 pt-4 mt-2">
+                                            <p class="text-[10px] text-on-surface-variant/60 text-center italic">
+                                                "Per-product revenue requires billing ledger splits endpoint"
+                                            </p>
+                                        </div>
                                     </div>
-                                    <Badge intent=BadgeIntent::Primary>"Active"</Badge>
-                                </div>
-                                <div class="divide-y divide-outline-variant/10 text-xs my-4 space-y-2 pt-2">
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Folio Starter · $400/mo"</span>
-                                        <span class="text-on-surface-variant">"2 tenants"</span>
-                                        <span class="font-bold text-primary font-mono">"$800"</span>
-                                    </div>
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Folio STR Pro · $1,800/mo"</span>
-                                        <span class="text-on-surface-variant">"4 tenants"</span>
-                                        <span class="font-bold text-primary font-mono">"$7,200"</span>
-                                    </div>
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Folio Enterprise · $6,000/mo"</span>
-                                        <span class="text-on-surface-variant">"3 tenants"</span>
-                                        <span class="font-bold text-primary font-mono">"$18,000"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 border-t border-outline-variant/10 pt-4 mt-2 text-center">
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"MRR"</div>
-                                    <div class="text-base font-extrabold text-primary font-mono mt-0.5">"$26k"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"GMV"</div>
-                                    <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">"$1.68M"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Tenants"</div>
-                                    <div class="text-base font-extrabold font-mono mt-0.5">"9"</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        // Card 2: Anchor
-                        <div class="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 relative overflow-hidden transition-all duration-200 hover:bg-surface-container hover:border-outline-variant/30 flex flex-col justify-between">
-                            <div class="absolute top-0 left-0 right-0 h-1 bg-violet-500"></div>
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-lg font-bold text-on-surface">"Anchor"</h3>
-                                        <p class="text-xs text-on-surface-variant">"Creator OS · Blog · Resume · BTC"</p>
-                                    </div>
-                                    <Badge intent=BadgeIntent::Default>"Beta"</Badge>
-                                </div>
-                                <div class="divide-y divide-outline-variant/10 text-xs my-4 space-y-2 pt-2">
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Creator · $900/mo"</span>
-                                        <span class="text-on-surface-variant">"3 tenants"</span>
-                                        <span class="font-bold text-violet-400 font-mono">"$2,700"</span>
-                                    </div>
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Creator Pro · $2,400/mo"</span>
-                                        <span class="text-on-surface-variant">"1 tenant"</span>
-                                        <span class="font-bold text-violet-400 font-mono">"$2,400"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 border-t border-outline-variant/10 pt-4 mt-2 text-center">
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"MRR"</div>
-                                    <div class="text-base font-extrabold text-violet-400 font-mono mt-0.5">"$5.1k"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"GMV"</div>
-                                    <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">"$220k"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Tenants"</div>
-                                    <div class="text-base font-extrabold font-mono mt-0.5">"4"</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        // Card 3: Network
-                        <div class="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 relative overflow-hidden transition-all duration-200 hover:bg-surface-container hover:border-outline-variant/30 flex flex-col justify-between">
-                            <div class="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-lg font-bold text-on-surface">"Network"</h3>
-                                        <p class="text-xs text-on-surface-variant">"Gated Community · Membership · Events"</p>
-                                    </div>
-                                    <Badge intent=BadgeIntent::Primary>"Active"</Badge>
-                                </div>
-                                <div class="divide-y divide-outline-variant/10 text-xs my-4 space-y-2 pt-2">
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Network Pro · $600/mo"</span>
-                                        <span class="text-on-surface-variant">"2 tenants"</span>
-                                        <span class="font-bold text-emerald-400 font-mono">"$1,200"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 border-t border-outline-variant/10 pt-4 mt-2 text-center">
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"MRR"</div>
-                                    <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">"$1.2k"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"GMV"</div>
-                                    <div class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">"$155k"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Tenants"</div>
-                                    <div class="text-base font-extrabold font-mono mt-0.5">"2"</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        // Card 4: Meridian
-                        <div class="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-5 relative overflow-hidden transition-all duration-200 hover:bg-surface-container hover:border-outline-variant/30 flex flex-col justify-between">
-                            <div class="absolute top-0 left-0 right-0 h-1 bg-amber-500"></div>
-                            <div>
-                                <div class="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h3 class="text-lg font-bold text-on-surface">"Meridian"</h3>
-                                        <p class="text-xs text-on-surface-variant">"Fleet Management · G-27 Scorecards"</p>
-                                    </div>
-                                    <Badge intent=BadgeIntent::Default>"Pre-launch"</Badge>
-                                </div>
-                                <div class="divide-y divide-outline-variant/10 text-xs my-4 space-y-2 pt-2">
-                                    <div class="flex justify-between items-center py-1">
-                                        <span class="text-on-surface-variant">"Fleet Depot · $4,200/mo (est.)"</span>
-                                        <span class="text-amber-500">"0 tenants"</span>
-                                        <span class="text-on-surface-variant/80 font-mono">"Pipeline"</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-3 gap-2 border-t border-outline-variant/10 pt-4 mt-2 text-center">
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"MRR"</div>
-                                    <div class="text-base font-extrabold text-on-surface-variant/80 font-mono mt-0.5">"$0"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Pipeline"</div>
-                                    <div class="text-base font-extrabold text-amber-500 font-mono mt-0.5">"$4.2M"</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Waitlist"</div>
-                                    <div class="text-base font-extrabold text-amber-500 font-mono mt-0.5">"12"</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                }
+                            }).collect_view().into_any()
+                        }
+                    })}
+                    </Suspense>
 
                     // Active Subscriptions Card Table
                     <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
@@ -449,9 +348,11 @@ pub fn BillingDashboard() -> impl IntoView {
                                 class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary"
                                 on:change=move |ev| filter_tenant.set(event_target_value(&ev))
                             >
-                                <option>"All Tenants"</option>
-                                <option>"Nexus PM Group"</option>
-                                <option>"Biscayne STR Co."</option>
+                                <option value="">"All Tenants"</option>
+                                {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
+                                    let n = t.name.clone();
+                                    view! { <option value=n.clone()>{n.clone()}</option> }
+                                }).collect_view()}
                             </select>
                             <select
                                 class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary"
@@ -521,11 +422,11 @@ pub fn BillingDashboard() -> impl IntoView {
             <Show when=move || active_tab.get() == "overdue">
                 <div class="space-y-6 animate-fade-in">
                     // Alarm Banner
-                    <div class="flex items-start gap-3.5 p-4 bg-error/10 border border-error/30 rounded-xl text-xs text-on-surface-variant leading-relaxed">
-                        <span class="material-symbols-outlined text-error text-base mt-0.5">"warning"</span>
+                    <div class="flex items-start gap-3.5 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-on-surface-variant leading-relaxed">
+                        <span class="material-symbols-outlined text-amber-500 text-base mt-0.5">"warning"</span>
                         <div>
-                            <span class="font-bold text-error">"3 invoices overdue · $38,300 total outstanding."</span>
-                            <p class="mt-0.5">"Automated grace period checks run daily. Subscriptions auto-suspend upon threshold violations."</p>
+                            <span class="font-bold text-amber-400">"Overdue invoice reconciliation pending."</span>
+                            <p class="mt-0.5">"Automated grace period checks run daily. Subscriptions auto-suspend upon threshold violations. Connect the billing reconciliation endpoint to populate this view."</p>
                         </div>
                     </div>
 
@@ -632,12 +533,10 @@ pub fn BillingDashboard() -> impl IntoView {
                                     class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
                                     on:change=move |ev| new_sub_tenant.set(event_target_value(&ev))
                                 >
-                                    <option>"Nexus PM Group"</option>
-                                    <option>"Biscayne STR Co."</option>
-                                    <option>"Harbor Media"</option>
-                                    <option>"South Beach Nets"</option>
-                                    <option>"Cabana Club Ltd."</option>
-                                    <option>"Rio Verde PMC"</option>
+                                {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
+                                    let n = t.name.clone();
+                                    view! { <option value=n.clone()>{n.clone()}</option> }
+                                }).collect_view()}
                                 </select>
                             </div>
                             <div class="flex flex-col gap-1.5">
