@@ -40,41 +40,29 @@ pub fn Apps() -> impl IntoView {
                     None
                 };
 
-                let (tenant_id, tenant_name, apps) = selected.or_else(|| grouped_vec.first().cloned()).unwrap_or_else(|| {
-                    (
-                        "t_8a91f3d2".to_string(),
-                        "Nexus Property Group".to_string(),
-                        vec![
-                            PlatformAppModel {
-                                tenant_id: "t_8a91f3d2".to_string(),
-                                instance_id: "inst_1".to_string(),
-                                name: "Atlas PM — Residential".to_string(),
-                                app_type: "PM".to_string(),
-                                domain: "nexus-pm.atlas.app".to_string(),
-                                site_status: "Active".to_string(),
-                                description: "Residential Property Management".to_string(),
-                            },
-                            PlatformAppModel {
-                                tenant_id: "t_8a91f3d2".to_string(),
-                                instance_id: "inst_2".to_string(),
-                                name: "Atlas STR — Miami".to_string(),
-                                app_type: "STR".to_string(),
-                                domain: "nexus-str.atlas.app".to_string(),
-                                site_status: "Active".to_string(),
-                                description: "Short Term Rentals".to_string(),
-                            },
-                            PlatformAppModel {
-                                tenant_id: "t_8a91f3d2".to_string(),
-                                instance_id: "inst_3".to_string(),
-                                name: "Atlas Commercial".to_string(),
-                                app_type: "COM".to_string(),
-                                domain: "nexus-com.atlas.app".to_string(),
-                                site_status: "Beta".to_string(),
-                                description: "Commercial properties".to_string(),
-                            },
-                        ]
-                    )
-                });
+                // If no tenant selected and no tenants exist, show empty state
+                if grouped_vec.is_empty() {
+                    return view! {
+                        <div class="main-area flex flex-col items-center justify-center py-24 gap-6">
+                            <div class="text-5xl">"🏗"</div>
+                            <h2 class="text-2xl font-bold text-on-surface">"No tenants provisioned yet"</h2>
+                            <p class="text-on-surface-variant text-sm max-w-md text-center">
+                                "Your platform has no tenants. Provision your first tenant to get started — it creates the app instance, domain, CMS, and admin user in one step."
+                            </p>
+                            <a href="/apps/create">
+                                <button class="btn btn-primary px-6 py-2 rounded-lg font-semibold">
+                                    "Provision First Tenant"
+                                </button>
+                            </a>
+                        </div>
+                    }.into_any();
+                }
+
+                // grouped_vec is guaranteed non-empty here (empty case returned early above)
+                let (tenant_id, tenant_name, apps) = selected
+                    .or_else(|| grouped_vec.first().cloned())
+                    .unwrap_or_else(|| (String::new(), String::new(), Vec::new()));
+
 
                 // Derive stats for this tenant from the tenant_stats resource.
                 let tid_for_stats = tenant_id.clone();

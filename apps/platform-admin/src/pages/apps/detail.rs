@@ -14,6 +14,8 @@ use crate::components::onboarding_wizard::OnboardingWizard;
 use crate::components::seed_picker::SeedPicker;
 use crate::api::onboarding::get_onboarding_status;
 use crate::api::admin::{suspend_instance, resume_instance};
+use crate::api::listings::update_listing;
+use crate::api::models::ListingUpdate;
 
 #[component]
 pub fn AppDashboard() -> impl IntoView {
@@ -26,7 +28,10 @@ pub fn AppDashboard() -> impl IntoView {
     let (show_add_category, set_show_add_category) = signal(false);
     let (show_add_template, set_show_add_template) = signal(false);
     
-    let (editing_listing_name, set_editing_listing_name) = signal(None::<String>);
+    // (listing_id, display_name) — both needed to call PUT /api/admin/listings/{id}
+    let (editing_listing, set_editing_listing) = signal(None::<(String, String)>);
+    let editing_alias = RwSignal::new(String::new());
+    let is_saving_listing = RwSignal::new(false);
     let (managing_user_name, set_managing_user_name) = signal(None::<String>);
 
     let active_tab = RwSignal::new("settings".to_string());
@@ -526,26 +531,54 @@ pub fn AppDashboard() -> impl IntoView {
                 </div>
             </Show>
 
-            <Show when=move || editing_listing_name.get().is_some()>
+            <Show when=move || editing_listing.get().is_some()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| set_editing_listing_name.set(None)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2 text-foreground">{move || format!("Edit {}", editing_listing_name.get().unwrap_or_default())}</h3>
+                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white"
+                            on:click=move |_| set_editing_listing.set(None)>"✕"</button>
+                        <h3 class="text-xl font-semibold mb-2 text-foreground">
+                            {move || format!("Edit {}", editing_listing.get().map(|(_, n)| n).unwrap_or_default())}
+                        </h3>
                         <p class="text-muted-foreground text-sm mb-6">"Update metadata properties."</p>
                         <div class="space-y-4 mb-6">
                             <div class="grid gap-2 text-left">
                                 <Label>"Organization Alias"</Label>
-                                <Input r#type=InputType::Text bind_value=RwSignal::new(editing_listing_name.get().unwrap_or_default()) />
+                                <Input r#type=InputType::Text bind_value=editing_alias />
                             </div>
                         </div>
                         <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Outline on:click=move |_| set_editing_listing_name.set(None)>"Cancel"</Button>
+                            <Button variant=ButtonVariant::Outline on:click=move |_| set_editing_listing.set(None)>"Cancel"</Button>
                             <Button
                                 variant=ButtonVariant::Default
-                                attr:disabled=true
-                                attr:title="Listing metadata update API pending"
-                                class="opacity-40 cursor-not-allowed".to_string()
-                            >"Apply Changes"</Button>
+                                attr:disabled=move || is_saving_listing.get()
+                                on:click=move |_| {
+                                    let Some((id, _)) = editing_listing.get() else { return; };
+                                    let alias = editing_alias.get().trim().to_string();
+                                    if alias.is_empty() {
+                                        toast.show_toast("Validation", "Alias cannot be empty.", "error");
+                                        return;
+                                    }
+                                    if is_saving_listing.get() { return; }
+                                    is_saving_listing.set(true);
+                                    let t = toast.clone();
+                                    leptos::task::spawn_local(async move {
+                                        match update_listing(&id, ListingUpdate {
+                                            title: Some(alias),
+                                            ..Default::default()
+                                        }).await {
+                                            Ok(_) => {
+                                                t.show_toast("Saved", "Listing metadata updated.", "success");
+                                                set_editing_listing.set(None);
+                                                listings_res.refetch();
+                                            }
+                                            Err(e) => t.show_toast("Error", &format!("Update failed: {e}"), "error"),
+                                        }
+                                        is_saving_listing.set(false);
+                                    });
+                                }
+                            >
+                                {move || if is_saving_listing.get() { "Saving…" } else { "Apply Changes" }}
+                            </Button>
                         </div>
                     </div>
                 </div>

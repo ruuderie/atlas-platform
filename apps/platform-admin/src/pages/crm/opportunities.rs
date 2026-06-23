@@ -1,6 +1,6 @@
 use leptos::prelude::*;
-use crate::api::crm::{get_deals, update_deal};
-use crate::api::models::DealModel;
+use crate::api::crm::{get_deals, update_deal, create_deal};
+use crate::api::models::{DealModel, CreateDeal};
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
     kpi_strip::{KpiStrip, KpiItem},
@@ -33,10 +33,54 @@ pub fn OpportunitiesPage() -> impl IntoView {
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    // Deals API loads all at once; filter + paginate client-side
-    let deals_res = LocalResource::new(move || async move {
-        get_deals().await.unwrap_or_default()
+    // New Deal modal state
+    let show_create = RwSignal::new(false);
+    let new_name    = RwSignal::new(String::new());
+    let new_amount  = RwSignal::new(String::new());
+    let new_stage   = RwSignal::new("Qualification".to_string());
+    let is_creating = RwSignal::new(false);
+
+    // Deals API — declared before handle_create_deal so the closure can call refetch()
+    let fetch_trigger = RwSignal::new(0_u32);
+    let deals_res = LocalResource::new(move || {
+        fetch_trigger.get(); // tracked — incremented after create to force reload
+        async move { get_deals().await.unwrap_or_default() }
     });
+
+    let handle_create_deal = move |_| {
+        let name   = new_name.get().trim().to_string();
+        let amount_str = new_amount.get().trim().to_string();
+        let stage  = new_stage.get();
+        if name.is_empty() {
+            toast.show_toast("Validation", "Deal name is required.", "error");
+            return;
+        }
+        let amount: f32 = amount_str.parse().unwrap_or(0.0);
+        if is_creating.get() { return; }
+        is_creating.set(true);
+        let t = toast.clone();
+        leptos::task::spawn_local(async move {
+            let payload = CreateDeal {
+                customer_id: String::new(), // platform-level deal — no customer scope required
+                name,
+                amount,
+                status: "open".to_string(),
+                stage,
+            };
+            match create_deal(payload).await {
+                Ok(_) => {
+                    t.show_toast("Deal Created", "New deal added to pipeline.", "success");
+                    show_create.set(false);
+                    new_name.set(String::new());
+                    new_amount.set(String::new());
+                    new_stage.set("Qualification".to_string());
+                    fetch_trigger.update(|n| *n += 1);
+                }
+                Err(e) => t.show_toast("Error", &format!("Failed to create deal: {e}"), "error"),
+            }
+            is_creating.set(false);
+        });
+    };
 
     let kpi_items = Signal::derive(move || {
         let deals   = deals_res.get().unwrap_or_default();
@@ -100,9 +144,8 @@ pub fn OpportunitiesPage() -> impl IntoView {
                         disabled
                     >"Export CSV"</button>
                     <button
-                        class="btn btn-primary btn-sm opacity-40 cursor-not-allowed"
-                        title="Deal creation form pending"
-                        disabled
+                        class="btn btn-primary btn-sm"
+                        on:click=move |_| show_create.set(true)
                     >
                         <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor" style="margin-right:4px;">
                             <path d="M7 2a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2H8v3a1 1 0 1 1-2 0V8H3a1 1 0 1 1 0-2h3V3a1 1 0 0 1 1-1z"/>
@@ -250,5 +293,61 @@ pub fn OpportunitiesPage() -> impl IntoView {
                 </RecordDrawer>
             }
         })}
+
+        // ── New Deal Modal ────────────────────────────────────────────────────
+        <Show when=move || show_create.get()>
+            <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl">
+                    <button class="absolute top-4 right-4 text-slate-400 hover:text-white"
+                        on:click=move |_| show_create.set(false)>"✕"</button>
+                    <h3 class="text-xl font-semibold mb-4 text-foreground">"New Deal"</h3>
+                    <div class="space-y-4 mb-6">
+                        <div class="grid gap-1">
+                            <label class="text-sm font-medium text-on-surface-variant">"Deal Name *"</label>
+                            <input
+                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
+                                type="text"
+                                placeholder="e.g. Acme Corp Renewal"
+                                prop:value=move || new_name.get()
+                                on:input=move |e| new_name.set(event_target_value(&e))
+                            />
+                        </div>
+                        <div class="grid gap-1">
+                            <label class="text-sm font-medium text-on-surface-variant">"Value (USD)"</label>
+                            <input
+                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
+                                type="number"
+                                placeholder="e.g. 12500"
+                                prop:value=move || new_amount.get()
+                                on:input=move |e| new_amount.set(event_target_value(&e))
+                            />
+                        </div>
+                        <div class="grid gap-1">
+                            <label class="text-sm font-medium text-on-surface-variant">"Stage"</label>
+                            <select
+                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full"
+                                on:change=move |e| new_stage.set(event_target_value(&e))
+                            >
+                                <option value="Qualification" selected=true>"Qualification"</option>
+                                <option value="Proposal">"Proposal"</option>
+                                <option value="Negotiation">"Negotiation"</option>
+                                <option value="Closed Won">"Closed Won"</option>
+                                <option value="Closed Lost">"Closed Lost"</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button class="btn btn-ghost" on:click=move |_| show_create.set(false)>"Cancel"</button>
+                        <button
+                            class="btn btn-primary"
+                            on:click=handle_create_deal
+                            disabled=move || is_creating.get()
+                        >
+                            {move || if is_creating.get() { "Saving…" } else { "Save Deal" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Show>
     }
 }

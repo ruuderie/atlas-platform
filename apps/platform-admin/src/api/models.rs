@@ -217,7 +217,7 @@ pub struct ListingCreate {
     pub slug: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct ListingUpdate {
     pub title: Option<String>,
     pub description: Option<String>,

@@ -5,6 +5,7 @@ use shared_ui::components::ui::table::{Table as DataTable, TableHeader as DataTa
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::label::Label;
 use crate::api::provision::{provision_admin, ProvisionAdminPayload};
+use crate::api::admin::create_invite;
 
 #[component]
 pub fn ProfilesPanel() -> impl IntoView {
@@ -47,20 +48,18 @@ pub fn ProfilesPanel() -> impl IntoView {
 
     let handle_invite = move |_| {
         let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
-        let email = invite_email.get();
+        let email = invite_email.get().trim().to_string();
         if email.is_empty() {
             toast.show_toast("Validation", "Email is required.", "error");
             return;
         }
-        // Invite-by-email API is not yet wired for this scope.
-        // The invite flow is available at /admins (global) and will be
-        // extended to per-tenant scope once the backend invite endpoint
-        // supports tenant_id scoping.
-        toast.show_toast(
-            "Pending",
-            "Per-tenant invite endpoint is pending. Use the Admins page to send global invites.",
-            "error",
-        );
+        let t = toast.clone();
+        leptos::task::spawn_local(async move {
+            match create_invite(email.clone(), "admin".to_string(), String::new()).await {
+                Ok(_) => t.show_toast("Invite Sent", &format!("Invite sent to {}.", email), "success"),
+                Err(e) => t.show_toast("Error", &format!("Invite failed: {e}"), "error"),
+            }
+        });
     };
 
     let handle_provision = move |_| {

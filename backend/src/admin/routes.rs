@@ -72,7 +72,9 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/platform/apps", get(admin::get_platform_apps))
                 .route("/api/admin/platform/apps/{instance_id}/domains", get(admin::get_app_domains).post(admin::add_app_domain))
                 .route("/api/admin/platform/apps/{instance_id}/domains/{domain_name}", delete(admin::remove_app_domain))
-                // Provision a new tenant (calls provision() on all active AtlasApps)
+                // Provision a new tenant from scratch (tenant + user + account + app_instances + domain + setup link)
+                .route("/api/admin/tenants/provision", post(crate::handlers::admin_provision::provision_tenant))
+                // Re-provision existing tenant's app instances (calls provision() on all active AtlasApps)
                 .route("/api/admin/platform/provision/{tenant_id}", post(provision_tenant))
                 // G-06 Verification Queue
                 .merge(crate::handlers::verification::authenticated_routes())

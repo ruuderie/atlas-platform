@@ -1,6 +1,6 @@
 use super::client::{api_url, create_client, with_credentials};
 use super::models::{
-    AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, UserInfo,
+    AccountModel, CreateAccount, LeadModel, CreateLead, DealModel, CreateDeal, UserInfo,
     ContactModel, CreateContact, CrmNote, CrmActivity, CrmStatusOption
 };
 use reqwest::StatusCode;
@@ -101,6 +101,20 @@ pub async fn get_deals() -> Result<Vec<DealModel>, String> {
         }
     }
     Err("Network Error: Backend unreachable".into())
+}
+
+pub async fn create_deal(data: CreateDeal) -> Result<DealModel, String> {
+    let client = create_client();
+    let url = api_url("/api/admin/deals");
+    let req = with_credentials(client.post(&url));
+    let res = req.json(&data).send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<DealModel>().await.map_err(|e| format!("Parse error: {e}"))
+    } else {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        Err(format!("Create deal failed (HTTP {}): {}", status.as_u16(), body))
+    }
 }
 
 pub async fn get_user_by_id(id: &str) -> Result<UserInfo, String> {
