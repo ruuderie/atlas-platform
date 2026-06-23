@@ -58,6 +58,7 @@ pub async fn get_leads(
     page: u64,
     per_page: u64,
     stage: Option<&str>,
+    source_prefix: Option<&str>,
 ) -> Result<Vec<LeadModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/leads");
@@ -67,6 +68,7 @@ pub async fn get_leads(
     ];
     if let Some(q) = search  { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
     if let Some(s) = stage   { if s != "all"    { qp.push(format!("stage={}",  urlencoding::encode(s))); } }
+    if let Some(p) = source_prefix { if !p.is_empty() { qp.push(format!("source_prefix={}", urlencoding::encode(p))); } }
     if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {

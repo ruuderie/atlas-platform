@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use uuid::Uuid;
-use serde_json::json;
+
 use crate::api::developer::*;
 use crate::app::GlobalToast;
 
@@ -74,11 +74,12 @@ pub fn Integrations() -> impl IntoView {
         leptos::task::spawn_local(async move {
             if let Some(tenant_id) = tenant {
                 // Perform real API call
-                let scopes_arr = json!([scope]);
-                let req = CreateApiTokenRequest { scopes: scopes_arr };
+                let name = new_key_name.get();
+                let name = if name.trim().is_empty() { "API Key".to_string() } else { name };
+                let req = CreateApiTokenRequest { name, scopes: vec![scope] };
                 match create_api_token(tenant_id, req).await {
                     Ok(resp) => {
-                        generated_secret_key.set(Some(resp.token));
+                        generated_secret_key.set(Some(resp.secret));
                         t_toast.show_toast("Success", "API credential created.", "success");
                         refetch_trigger.update(|v| *v += 1);
                     }

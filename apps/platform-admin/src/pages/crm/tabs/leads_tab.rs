@@ -55,7 +55,7 @@ pub fn LeadsTab() -> impl IntoView {
         async move {
             let s  = if search.is_empty() { None } else { Some(search.as_str()) };
             let st = Some(stage.as_str());
-            get_leads(s, pg, PER_PAGE, st).await.unwrap_or_default()
+            get_leads(s, pg, PER_PAGE, st, None).await.unwrap_or_default()
         }
     });
 

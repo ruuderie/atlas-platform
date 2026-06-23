@@ -55,6 +55,8 @@ pub struct CrmListParams {
     pub stage: Option<String>,
     /// Optional tenant_id filter — super-admins only
     pub tenant_id: Option<String>,
+    /// Filter by source prefix (e.g. "waitlist:my-product") — in-memory starts_with match
+    pub source_prefix: Option<String>,
 }
 
 impl CrmListParams {
@@ -492,6 +494,13 @@ pub async fn get_leads(
                 || l.email.as_deref().unwrap_or("").to_lowercase().contains(&t)
                 || l.phone.as_deref().unwrap_or("").contains(&t)
                 || l.company.as_deref().unwrap_or("").to_lowercase().contains(&t)
+        });
+    }
+
+    // Source prefix filter — e.g. "waitlist:my-slug" for product waitlist leads
+    if let Some(ref prefix) = params.source_prefix {
+        leads.retain(|l| {
+            l.source.as_deref().unwrap_or("").starts_with(prefix.as_str())
         });
     }
 

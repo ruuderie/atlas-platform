@@ -1,6 +1,12 @@
 use leptos::prelude::*;
+use uuid::Uuid;
 use crate::api::models::UserInfo;
 use crate::api::profile::update_email;
+use crate::api::developer::{
+    list_api_tokens, create_api_token, revoke_api_token,
+    list_webhook_endpoints, create_webhook_endpoint, delete_webhook_endpoint,
+    CreateApiTokenRequest, CreateWebhookRequest,
+};
 use crate::app::GlobalToast;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
@@ -19,6 +25,32 @@ pub fn Settings() -> impl IntoView {
     let phone_input = RwSignal::new(String::new());
     let timezone_input = RwSignal::new("America/New_York (UTC-4)".to_string());
     let language_input = RwSignal::new("English (US)".to_string());
+
+    // Developer API state — keyed on active_network tenant UUID
+    let active_network = use_context::<ReadSignal<Option<Uuid>>>().expect("active network context");
+
+    let api_keys_res = LocalResource::new(move || async move {
+        match active_network.get() {
+            Some(tid) => list_api_tokens(tid).await.unwrap_or_default(),
+            None => vec![],
+        }
+    });
+    let webhooks_res = LocalResource::new(move || async move {
+        match active_network.get() {
+            Some(tid) => list_webhook_endpoints(tid).await.unwrap_or_default(),
+            None => vec![],
+        }
+    });
+
+    // New API key form state
+    let new_key_name   = RwSignal::new(String::new());
+    let new_key_scope  = RwSignal::new("read-write".to_string());
+    let is_gen_key     = RwSignal::new(false);
+    let created_secret = RwSignal::new(Option::<String>::None);
+
+    // New webhook form state
+    let new_hook_url    = RwSignal::new(String::new());
+    let is_add_hook     = RwSignal::new(false);
 
     // Modal control signals
     let (show_mfa_modal, set_show_mfa_modal) = signal(false);
@@ -332,39 +364,134 @@ pub fn Settings() -> impl IntoView {
                             <div>
                                 <div class="card">
                                     <div class="card-hdr">
-                                        <span class="card-title">"API Keys · Super-Admin Scope"</span>
-                                        <button class="btn btn-primary btn-sm" on:click=move |_| set_show_new_key_modal.set(true)>"+ New Key"</button>
+                                        <span class="card-title">"API Keys · Tenant Scope"</span>
+                                        {move || match active_network.get() {
+                                            Some(_) => view! {
+                                                <button class="btn btn-primary btn-sm" on:click=move |_| {
+                                                    new_key_name.set(String::new());
+                                                    created_secret.set(None);
+                                                    set_show_new_key_modal.set(true);
+                                                }>"+ New Key"</button>
+                                            }.into_any(),
+                                            None => view! {
+                                                <span class="text-xs text-on-surface-variant">"Select a tenant to manage keys"</span>
+                                            }.into_any()
+                                        }}
                                     </div>
-                                    <div class="api-key-row">
-                                        <span class="api-key-label">"Production Key"</span>
-                                        <span class="api-key-val">"atls_sk_live_4aJx9Q2…••••••••"</span>
-                                        <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — key ID not stored in context" disabled>"Revoke"</button>
-                                    </div>
-                                    <div class="api-key-row">
-                                        <span class="api-key-label">"Staging Key"</span>
-                                        <span class="api-key-val">"atls_sk_test_9bKm3P8…••••••••"</span>
-                                        <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Revoke pending — key ID not stored in context" disabled>"Revoke"</button>
-                                    </div>
-                                    <div class="api-key-row">
-                                        <span class="api-key-label">"Legacy Reporting"</span>
-                                        <span class="api-key-val">"atls_sk_live_2cFg1L4…••••••••"</span>
-                                        <span class="api-key-status" style="color:var(--text-muted);border-color:var(--border-default)">"Expired"</span>
-                                        <button class="btn btn-ghost btn-sm" style="color:var(--text-muted)" disabled=true>"Revoke"</button>
-                                    </div>
+                                    <Suspense fallback=move || view! { <div class="p-4 text-sm text-on-surface-variant">"Loading keys…"</div> }>
+                                    {move || {
+                                        let keys = api_keys_res.get().unwrap_or_default();
+                                        if keys.is_empty() {
+                                            view! { <div class="p-4 text-sm text-on-surface-variant">"No API keys yet. Generate one above."</div> }.into_any()
+                                        } else {
+                                            view! {
+                                                <div>
+                                                <For
+                                                    each=move || keys.clone()
+                                                    key=|k| k.id
+                                                    children=move |key| {
+                                                        let kid = key.id;
+                                                        let tid_for_revoke = active_network.get();
+                                                        let t = toast.clone();
+                                                        view! {
+                                                            <div class="api-key-row">
+                                                                <span class="api-key-label">{key.name.clone()}</span>
+                                                                <span class="api-key-val font-mono text-xs">{key.prefix.clone()}"••••••"</span>
+                                                                <span class="api-key-status" style=if key.is_active { "color:var(--green);border-color:var(--green);background:var(--green-dim)" } else { "color:var(--text-muted)" }>
+                                                                    {if key.is_active { "Active" } else { "Revoked" }}
+                                                                </span>
+                                                                {if key.is_active {
+                                                                    view! {
+                                                                        <button class="btn btn-ghost btn-sm"
+                                                                            on:click=move |_| {
+                                                                                if let Some(tid) = tid_for_revoke {
+                                                                                    let t2 = t.clone();
+                                                                                    leptos::task::spawn_local(async move {
+                                                                                        match revoke_api_token(tid, kid).await {
+                                                                                            Ok(_) => {
+                                                                                                t2.show_toast("Revoked", "API key revoked.", "success");
+                                                                                                api_keys_res.refetch();
+                                                                                            }
+                                                                                            Err(e) => t2.show_toast("Error", &format!("{e}"), "error"),
+                                                                                        }
+                                                                                    });
+                                                                                }
+                                                                            }
+                                                                        >"Revoke"</button>
+                                                                    }.into_any()
+                                                                } else {
+                                                                    view! { <span class="text-xs text-on-surface-variant/40">"—"</span> }.into_any()
+                                                                }}
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                                </div>
+                                            }.into_any()
+                                        }
+                                    }}
+                                    </Suspense>
                                 </div>
                                 <div class="card">
                                     <div class="card-hdr">
                                         <span class="card-title">"Webhook Endpoints"</span>
-                                        <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_add_webhook_modal.set(true)>"+ Add"</button>
+                                        {move || if active_network.get().is_some() {
+                                            view! {
+                                                <button class="btn btn-ghost btn-sm" on:click=move |_| {
+                                                    new_hook_url.set(String::new());
+                                                    set_show_add_webhook_modal.set(true);
+                                                }>"+ Add"</button>
+                                            }.into_any()
+                                        } else {
+                                            view! { <span></span> }.into_any()
+                                        }}
                                     </div>
-                                    <div class="api-key-row">
-                                        <span class="api-key-label">"Zapier → Slack"</span>
-                                        <span class="api-key-val">"https://hooks.zapier.com/hooks/catch/14…"</span>
-                                        <span class="api-key-status" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Remove pending — webhook ID not stored in context" disabled>"Remove"</button>
-                                    </div>
+                                    <Suspense fallback=move || view! { <div class="p-4 text-sm text-on-surface-variant">"Loading webhooks…"</div> }>
+                                    {move || {
+                                        let hooks = webhooks_res.get().unwrap_or_default();
+                                        if hooks.is_empty() {
+                                            view! { <div class="p-4 text-sm text-on-surface-variant">"No webhooks configured."</div> }.into_any()
+                                        } else {
+                                            view! {
+                                                <div>
+                                                <For
+                                                    each=move || hooks.clone()
+                                                    key=|h| h.id
+                                                    children=move |hook| {
+                                                        let hid = hook.id;
+                                                        let tid_for_del = active_network.get();
+                                                        let t = toast.clone();
+                                                        view! {
+                                                            <div class="api-key-row">
+                                                                <span class="api-key-label">{hook.target_url.clone()}</span>
+                                                                <span class="api-key-status" style=if hook.is_active { "color:var(--green);border-color:var(--green);background:var(--green-dim)" } else { "color:var(--text-muted)" }>
+                                                                    {if hook.is_active { "Active" } else { "Disabled" }}
+                                                                </span>
+                                                                <button class="btn btn-ghost btn-sm"
+                                                                    on:click=move |_| {
+                                                                        if let Some(tid) = tid_for_del {
+                                                                            let t2 = t.clone();
+                                                                            leptos::task::spawn_local(async move {
+                                                                                match delete_webhook_endpoint(tid, hid).await {
+                                                                                    Ok(_) => {
+                                                                                        t2.show_toast("Deleted", "Webhook removed.", "success");
+                                                                                        webhooks_res.refetch();
+                                                                                    }
+                                                                                    Err(e) => t2.show_toast("Error", &format!("{e}"), "error"),
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                >"Remove"</button>
+                                                            </div>
+                                                        }
+                                                    }
+                                                />
+                                                </div>
+                                            }.into_any()
+                                        }
+                                    }}
+                                    </Suspense>
                                 </div>
                             </div>
                         }.into_any(),
@@ -431,32 +558,70 @@ pub fn Settings() -> impl IntoView {
                             <h3 class="text-base font-bold text-on-surface">"Create API Key"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold" on:click=move |_| set_show_new_key_modal.set(false)>"✕"</button>
                         </div>
-                        <div class="space-y-4">
-                            <div class="form-row">
-                                <label class="form-label">"Key Name"</label>
-                                <input class="form-input" placeholder="e.g. CI/CD Pipeline Key"/>
-                            </div>
-                            <div class="form-row">
-                                <label class="form-label">"Scope"</label>
-                                <select class="form-select">
-                                    <option>"read-only"</option>
-                                    <option>"read-write"</option>
-                                    <option>"admin"</option>
-                                </select>
-                            </div>
-                            <div class="form-row">
-                                <label class="form-label">"Expiry"</label>
-                                <select class="form-select">
-                                    <option>"30 days"</option>
-                                    <option>"90 days"</option>
-                                    <option>"1 year"</option>
-                                    <option>"Never"</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
-                                <button class="btn btn-primary btn-sm opacity-50 cursor-not-allowed" title="Profile page API key creation pending — use Developer Console for tenant keys" disabled>"Generate Key"</button>
-                        </div>
+                        {move || {
+                            if let Some(secret) = created_secret.get() {
+                                view! {
+                                    <div class="space-y-4">
+                                        <p class="text-sm text-on-surface-variant">"Copy this key now — it won't be shown again."</p>
+                                        <div class="bg-surface-container-highest rounded-lg p-3 font-mono text-xs break-all text-on-surface">{secret}</div>
+                                    </div>
+                                    <div class="flex justify-end mt-6">
+                                        <button class="btn btn-primary btn-sm" on:click=move |_| set_show_new_key_modal.set(false)>"Done"</button>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="space-y-4">
+                                        <div class="form-row">
+                                            <label class="form-label">"Key Name"</label>
+                                            <input class="form-input" placeholder="e.g. CI/CD Pipeline Key"
+                                                prop:value=move || new_key_name.get()
+                                                on:input=move |e| new_key_name.set(event_target_value(&e))
+                                            />
+                                        </div>
+                                        <div class="form-row">
+                                            <label class="form-label">"Scope"</label>
+                                            <select class="form-select" on:change=move |e| new_key_scope.set(event_target_value(&e))>
+                                                <option value="read-only">"read-only"</option>
+                                                <option value="read-write" selected=true>"read-write"</option>
+                                                <option value="admin">"admin"</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
+                                        <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_new_key_modal.set(false)>"Cancel"</button>
+                                        <button
+                                            class="btn btn-primary btn-sm"
+                                            disabled=move || is_gen_key.get()
+                                            on:click=move |_| {
+                                                let name = new_key_name.get().trim().to_string();
+                                                if name.is_empty() { return; }
+                                                let Some(tid) = active_network.get() else { return; };
+                                                if is_gen_key.get() { return; }
+                                                is_gen_key.set(true);
+                                                let t = toast.clone();
+                                                leptos::task::spawn_local(async move {
+                                                    let req = CreateApiTokenRequest {
+                                                        name,
+                                                        scopes: vec![new_key_scope.get()],
+                                                    };
+                                                    match create_api_token(tid, req).await {
+                                                        Ok(resp) => {
+                                                            created_secret.set(Some(resp.secret));
+                                                            api_keys_res.refetch();
+                                                        }
+                                                        Err(e) => t.show_toast("Error", &format!("{e}"), "error"),
+                                                    }
+                                                    is_gen_key.set(false);
+                                                });
+                                            }
+                                        >
+                                            {move || if is_gen_key.get() { "Generating…" } else { "Generate Key" }}
+                                        </button>
+                                    </div>
+                                }.into_any()
+                            }
+                        }}
                     </div>
                 </div>
             </Show>
@@ -472,22 +637,44 @@ pub fn Settings() -> impl IntoView {
                         <div class="space-y-4">
                             <div class="form-row">
                                 <label class="form-label">"Endpoint URL"</label>
-                                <input class="form-input" type="url" placeholder="https://your-server.com/webhook"/>
-                            </div>
-                            <div class="form-row">
-                                <label class="form-label">"Events (select multiple)"</label>
-                                <select class="form-select" multiple=true style="height:100px">
-                                    <option>"lead.created"</option>
-                                    <option>"lead.converted"</option>
-                                    <option>"ledger.entry.created"</option>
-                                    <option>"tenant.subscription.updated"</option>
-                                    <option>"g27.anomaly.detected"</option>
-                                </select>
+                                <input class="form-input" type="url" placeholder="https://your-server.com/webhook"
+                                    prop:value=move || new_hook_url.get()
+                                    on:input=move |e| new_hook_url.set(event_target_value(&e))
+                                />
                             </div>
                         </div>
                         <div class="flex justify-end gap-3 mt-6 border-t border-outline-variant/10 pt-4">
                             <button class="btn btn-ghost btn-sm" on:click=move |_| set_show_add_webhook_modal.set(false)>"Cancel"</button>
-                            <button class="btn btn-primary btn-sm opacity-50 cursor-not-allowed" title="Use Developer Console to manage tenant webhooks" disabled>"Add Webhook"</button>
+                            <button
+                                class="btn btn-primary btn-sm"
+                                disabled=move || is_add_hook.get()
+                                on:click=move |_| {
+                                    let url = new_hook_url.get().trim().to_string();
+                                    if url.is_empty() { return; }
+                                    let Some(tid) = active_network.get() else { return; };
+                                    if is_add_hook.get() { return; }
+                                    is_add_hook.set(true);
+                                    let t = toast.clone();
+                                    leptos::task::spawn_local(async move {
+                                        let req = CreateWebhookRequest {
+                                            target_url: url,
+                                            events: vec!["*".to_string()],
+                                            secret: None,
+                                        };
+                                        match create_webhook_endpoint(tid, req).await {
+                                            Ok(_) => {
+                                                t.show_toast("Added", "Webhook endpoint registered.", "success");
+                                                set_show_add_webhook_modal.set(false);
+                                                webhooks_res.refetch();
+                                            }
+                                            Err(e) => t.show_toast("Error", &format!("{e}"), "error"),
+                                        }
+                                        is_add_hook.set(false);
+                                    });
+                                }
+                            >
+                                {move || if is_add_hook.get() { "Adding…" } else { "Add Webhook" }}
+                            </button>
                         </div>
                     </div>
                 </div>

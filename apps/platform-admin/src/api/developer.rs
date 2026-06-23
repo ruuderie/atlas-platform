@@ -8,21 +8,27 @@ use super::client::{api_url, create_client, with_credentials, api_request};
 pub struct ApiToken {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub token_hash: String,
+    /// Human-readable label set at creation time
+    pub name: Option<String>,
+    /// First 8 chars of the token, shown as a hint (e.g. "atls_sk_l")
+    pub prefix: Option<String>,
     pub scopes: serde_json::Value,
+    pub is_active: bool,
     pub expires_at: Option<String>,
     pub created_at: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateApiTokenRequest {
-    pub scopes: serde_json::Value,
+    pub name: String,
+    pub scopes: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateApiTokenResponse {
     pub id: Uuid,
-    pub token: String,
+    /// Full secret — only returned at creation time, store securely
+    pub secret: String,
     pub scopes: serde_json::Value,
     pub expires_at: Option<String>,
 }
@@ -41,7 +47,8 @@ pub struct WebhookEndpoint {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CreateWebhookRequest {
     pub target_url: String,
-    pub subscribed_events: serde_json::Value,
+    pub events: Vec<String>,
+    pub secret: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

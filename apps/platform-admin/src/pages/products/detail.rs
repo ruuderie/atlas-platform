@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::api::products::{get_product_detail, update_product_detail, publish_marketing};
 use crate::api::models::UpdateProductBody;
+use crate::api::crm::get_leads;
 use crate::app::GlobalToast;
 
 #[component]
@@ -47,6 +48,14 @@ pub fn ProductDetail() -> impl IntoView {
             waitlist_count.set(p.waitlist_count);
             pre_order_enabled.set(p.pre_order_enabled);
         }
+    });
+
+    // Waitlist leads — fetched on-demand when slug is known
+    let waitlist_leads_res = LocalResource::new(move || async move {
+        let slug = product_slug.get();
+        if slug.is_empty() { return vec![]; }
+        let prefix = format!("waitlist:{}", slug);
+        get_leads(None, 1, 200, None, Some(&prefix)).await.unwrap_or_default()
     });
 
     // ── SEO score derived from completeness of real fields ─────────────────
@@ -405,12 +414,58 @@ pub fn ProductDetail() -> impl IntoView {
                                 {move || format!("{} signups", waitlist_count.get())}
                             </span>
                         </div>
-                        <div class="overflow-x-auto border border-outline-variant/20 rounded-lg">
-                            <div class="p-8 text-center text-xs text-on-surface-variant/60 flex flex-col items-center gap-3">
-                                <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"hourglass_empty"</span>
-                                <p>"Waitlist lead details API is pending. "<strong>{move || waitlist_count.get().to_string()}</strong>" signup(s) recorded. Leads will appear here once the detail endpoint is connected."</p>
-                            </div>
-                        </div>
+                        <Suspense fallback=move || view! {
+                            <div class="p-8 text-center text-xs text-on-surface-variant/60">"Loading waitlist…"</div>
+                        }>
+                        {move || {
+                            let leads = waitlist_leads_res.get().unwrap_or_default();
+                            if leads.is_empty() {
+                                view! {
+                                    <div class="p-8 text-center text-xs text-on-surface-variant/60 flex flex-col items-center gap-3">
+                                        <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"hourglass_empty"</span>
+                                        <p>"No waitlist signups yet. Share the product page to start collecting leads."</p>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left text-sm">
+                                            <thead class="bg-surface-container-highest text-on-surface-variant uppercase text-xs tracking-wider">
+                                                <tr>
+                                                    <th class="px-4 py-3 font-medium rounded-tl-lg">"Name"</th>
+                                                    <th class="px-4 py-3 font-medium">"Email"</th>
+                                                    <th class="px-4 py-3 font-medium">"Status"</th>
+                                                    <th class="px-4 py-3 font-medium rounded-tr-lg">"Signed Up"</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-outline-variant/10">
+                                                <For
+                                                    each=move || leads.clone()
+                                                    key=|l| l.id.clone()
+                                                    children=move |lead| view! {
+                                                        <tr class="hover:bg-surface-bright/5">
+                                                            <td class="px-4 py-3 font-medium text-on-surface">{lead.name}</td>
+                                                            <td class="px-4 py-3 text-on-surface-variant font-mono text-xs">
+                                                                {lead.email.unwrap_or_else(|| "—".to_string())}
+                                                            </td>
+                                                            <td class="px-4 py-3">
+                                                                <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-primary/10 text-primary">
+                                                                    {lead.lead_status.unwrap_or_else(|| "New".to_string())}
+                                                                </span>
+                                                            </td>
+                                                            <td class="px-4 py-3 text-xs text-on-surface-variant">
+                                                                {lead.created_at.unwrap_or_else(|| "—".to_string())}
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                />
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }.into_any()
+                            }
+                        }}
+                        </Suspense>
                     </div>
                 </Show>
 

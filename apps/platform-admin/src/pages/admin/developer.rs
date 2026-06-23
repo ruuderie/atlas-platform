@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use crate::api::developer::*;
 use crate::app::GlobalToast;
 use uuid::Uuid;
-use serde_json::json;
+
 
 #[component]
 pub fn DeveloperConsole() -> impl IntoView {
@@ -58,10 +58,10 @@ pub fn DeveloperConsole() -> impl IntoView {
         async move {
             if let Some(tenant_id) = tenant {
                 // For now, give blanket scopes or prompt via modal. We just use ["*"]
-                let req = CreateApiTokenRequest { scopes: json!(["*"]) };
+                let req = CreateApiTokenRequest { name: "Developer Console Key".to_string(), scopes: vec!["*".to_string()] };
                 match create_api_token(tenant_id, req).await {
                     Ok(resp) => {
-                        new_api_token.set(Some(resp.token));
+                        new_api_token.set(Some(resp.secret));
                         t.show_toast("Success", "API Key created.", "success");
                         refetch_trigger.update(|v| *v += 1);
                     }
@@ -85,7 +85,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                 return;
             }
             if let Some(tenant_id) = tenant {
-                let req = CreateWebhookRequest { target_url: url, subscribed_events: json!(["*"]) };
+                let req = CreateWebhookRequest { target_url: url, events: vec!["*".to_string()], secret: None };
                 match create_webhook_endpoint(tenant_id, req).await {
                     Ok(_) => {
                         new_webhook_url.set(String::new());
@@ -190,7 +190,7 @@ pub fn DeveloperConsole() -> impl IntoView {
                                                                             <span class="text-sm font-medium text-on-surface">"Token"</span>
                                                                             <span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-secondary-container text-on-secondary-container">"Root"</span>
                                                                         </div>
-                                                                        <div class="text-xs text-on-surface-variant mt-1 font-mono">"Hash: " {key.token_hash.chars().take(15).collect::<String>()} "..."</div>
+                                                                        <div class="text-xs text-on-surface-variant mt-1 font-mono">{key.prefix.unwrap_or_default()}"••••••"</div>
                                                                     </div>
                                                                     <button on:click=move |_| { revoke_token_action.dispatch(kid); } class="text-error hover:text-error-container text-sm font-medium transition-colors">
                                                                         "Revoke"
