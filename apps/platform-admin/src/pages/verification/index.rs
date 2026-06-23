@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use crate::api::models::VerificationRequestModel;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]

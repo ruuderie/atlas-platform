@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::api::admin::{
     get_users, toggle_admin, UserModel, impersonate_user,
     get_invites, create_invite, revoke_invite, resend_invite, InviteModel,
-    get_audit_logs, AuditLogModel, get_tenant_stats,
+    get_audit_logs, get_tenant_stats,
 };
 use crate::app::GlobalToast;
 
@@ -557,7 +557,7 @@ pub fn PlatformAdmins() -> impl IntoView {
         <Show when=move || show_manage_modal.get().is_some()>
             {let user = show_manage_modal.get().unwrap();
              let u_id = user.id.clone();
-             let u_email = user.email.clone();
+             let _u_email = user.email.clone();
              let is_admin = user.is_admin;
              let is_real = user.id != Uuid::nil();
              view! {

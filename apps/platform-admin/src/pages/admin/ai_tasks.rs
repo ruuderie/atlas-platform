@@ -1,5 +1,4 @@
 use leptos::prelude::*;
-use serde_json::json;
 
 #[derive(Clone, Debug)]
 pub struct AiTaskItem {

@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use crate::api::products::get_products;
-use crate::api::models::PlatformProductModel;
 
 #[component]
 pub fn PlatformProducts() -> impl IntoView {

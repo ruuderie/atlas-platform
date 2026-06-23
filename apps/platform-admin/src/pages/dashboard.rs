@@ -12,7 +12,7 @@ pub fn Dashboard() -> impl IntoView {
     let mrr = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.value);
     let mrr_prev = Signal::derive(move || kpis_res.get().unwrap_or_default().mrr.previous_value);
     let active_subs = Signal::derive(move || kpis_res.get().unwrap_or_default().active_subscriptions.value);
-    let liquidity_index = Signal::derive(move || kpis_res.get().unwrap_or_default().network_liquidity_index.value);
+    let _liquidity_index = Signal::derive(move || kpis_res.get().unwrap_or_default().network_liquidity_index.value);
     let total_users = Signal::derive(move || engagement_res.get().unwrap_or_default().total_users.value);
     let active_listings = Signal::derive(move || engagement_res.get().unwrap_or_default().active_listings.value);
 

@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::api::audit_logs::{get_audit_logs, AuditLogModel};
 use crate::app::GlobalToast;
 
+#[allow(dead_code)]
 pub fn format_datetime_diff(dt: DateTime<Utc>) -> String {
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }

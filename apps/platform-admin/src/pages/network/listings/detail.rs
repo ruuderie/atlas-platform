@@ -10,7 +10,6 @@ use shared_ui::components::ui::table::{
 use shared_ui::components::properties_editor::PropertiesEditor;
 use shared_ui::components::card::Card;
 use crate::api::admin::end_ab_test;
-use crate::api::models::AdminAbTestWithVariantsModel;
 use crate::app::GlobalToast;
 
 #[component]

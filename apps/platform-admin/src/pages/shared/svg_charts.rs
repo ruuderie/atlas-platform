@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use std::cmp::max;
 
 
+#[allow(dead_code)]
 #[component]
 pub fn SvgLineChart(
     #[prop(into)] data: Signal<Vec<f32>>,

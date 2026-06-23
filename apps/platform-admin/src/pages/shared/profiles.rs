@@ -149,7 +149,7 @@ pub fn ProfilesPanel() -> impl IntoView {
                                         let display = u.email.split('@').next().unwrap_or("User").to_string();
                                         let display2 = display.clone();
                                         let email = u.email.clone();
-                                        let uid = u.id.to_string();
+                                        let _uid = u.id.to_string();
                                         let uid_short = u.id.to_string().chars().take(8).collect::<String>();
                                         let status = if u.is_active { "Active" } else { "Inactive" };
                                         view! {

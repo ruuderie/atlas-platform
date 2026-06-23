@@ -4,7 +4,6 @@ use shared_ui::components::badge::{Badge, BadgeIntent};
 use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use shared_ui::components::ui::switch::Switch;
 use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
