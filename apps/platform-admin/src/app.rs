@@ -1,18 +1,7 @@
-/* 
- * TODO(next-developer): MIGRATION TO AtlasApp API TRAIT REQUIRED
- * 
- * This legacy application currently has its routes, migrations, and background jobs
- * hardcoded into the global Atlas platform core. 
- * 
- * We have introduced a strict, standardized Rust API trait: `AtlasApp` 
- * located at `backend/src/traits/atlas_app.rs`. 
- * 
- * Future work requires refactoring this app to implement the `AtlasApp` trait 
- * (providing perfect encapsulation for its Axum Router, SeaORM Migrations, and Background Jobs) 
- * instead of manually merging them globally.
- * 
- * See the full integration protocol at: `docs/atlas_app_integration.md`
- */
+// FIXME(platform-admin): Migrate to the `AtlasApp` trait defined at
+// `backend/src/traits/atlas_app.rs`. Routes, SeaORM migrations, and
+// background jobs are currently hardcoded globally. See
+// `docs/atlas_app_integration.md` for the full protocol.
 use leptos::prelude::*;
 use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;
@@ -276,24 +265,24 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                 })}
                             </Suspense>
                         </select>
-                        // Notification
-                        <button class="icon-btn" title="Notifications">
+                        // Notification → Audit Ledger
+                        <a href="/logs" class="icon-btn" title="Audit Logs">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M8 2a4 4 0 0 0-4 4v2.5L2.5 10h11L12 8.5V6a4 4 0 0 0-4-4z"/><circle cx="8" cy="13" r="1.2"/>
                             </svg>
-                        </button>
-                        // Activity Log
-                        <button class="icon-btn" title="Activity">
+                        </a>
+                        // Activity → Audit Ledger
+                        <a href="/logs" class="icon-btn" title="Activity Log">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <polyline points="3,9 6,5 9,7 13,3"/><line x1="3" y1="13" x2="13" y2="13"/>
                             </svg>
-                        </button>
-                        // Docs
-                        <button class="icon-btn" title="Documentation">
+                        </a>
+                        // Docs → Developer Console
+                        <a href="/developer" class="icon-btn" title="Developer Console">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <rect x="3" y="2" width="10" height="12" rx="1"/><line x1="5" y1="5" x2="11" y2="5"/><line x1="5" y1="8" x2="9" y2="8"/>
                             </svg>
-                        </button>
+                        </a>
                         <div class="topbar-divider"></div>
                         <div class="avatar-btn" on:click=move |e| { e.stop_propagation(); set_show_profile_menu.update(|v| *v = !*v) }>
                             {move || user.get().map(|u| format!("{}{}", u.first_name.chars().next().unwrap_or('J'), u.last_name.chars().next().unwrap_or('D'))).unwrap_or_else(|| "JD".to_string())}

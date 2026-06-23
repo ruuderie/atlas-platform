@@ -57,7 +57,14 @@ pub fn Dashboard() -> impl IntoView {
                 <p class="page-subtitle">{move || format!("Platform-wide telemetry — {} tenants · Real-time", tenant_count_str())}</p>
             </div>
             <div class="page-header-actions">
-                <button class="btn btn-ghost btn-icon" title="Refresh">
+                <button
+                    class="btn btn-ghost btn-icon"
+                    title="Refresh"
+                    on:click=move |_| {
+                        let _ = web_sys::window()
+                            .and_then(|w| w.location().reload().ok());
+                    }
+                >
                     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M2 8a6 6 0 0 1 6-6 6 6 0 0 1 4.2 1.8L14 6"/>
                         <path d="M14 2v4h-4"/>
@@ -65,13 +72,18 @@ pub fn Dashboard() -> impl IntoView {
                         <path d="M2 14v-4h4"/>
                     </svg>
                 </button>
-                <button class="btn btn-ghost">"Export CSV"</button>
-                <button class="btn btn-primary">
+                <button
+                    class="btn btn-ghost"
+                    disabled
+                    title="CSV export coming soon"
+                    style="opacity:0.45;cursor:not-allowed"
+                >"Export CSV"</button>
+                <a href="/apps/new" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
                     <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
                         <path d="M8 3a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2H9v3a1 1 0 1 1-2 0V9H4a1 1 0 1 1 0-2h3V4a1 1 0 0 1 1-1z"/>
                     </svg>
                     "New Tenant"
-                </button>
+                </a>
             </div>
         </div>
 
