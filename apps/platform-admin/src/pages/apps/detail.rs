@@ -76,8 +76,8 @@ pub fn AppDashboard() -> impl IntoView {
             let toast = toast.clone();
             async move {
                 match crate::api::admin::add_app_domain(sid, domain).await {
-                    Ok(_) => { toast.message.set(Some("Domain securely attached.".to_string())); }
-                    Err(e) => { toast.message.set(Some(format!("Error adding domain: {}", e))); }
+                    Ok(_) => { toast.show_toast("Domains", "Domain securely attached.", "success"); }
+                    Err(e) => { toast.show_toast("Error", &format!("Error adding domain: {}", e), "error"); }
                 }
             }
         }

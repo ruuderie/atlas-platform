@@ -25,7 +25,7 @@ pub fn VerifyToken() -> impl IntoView {
                         match crate::api::auth::validate_session().await {
                             Ok(user) => {
                                 set_user.set(Some(user));
-                                toast_clone.message.set(Some("Token consumed! Please register a new Passkey immediately.".to_string()));
+                                toast_clone.show_toast("Auth", "Token consumed! Please register a new Passkey immediately.", "success");
                                 nav("/settings", Default::default());
                             }
                             Err(e) => {

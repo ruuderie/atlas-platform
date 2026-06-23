@@ -90,7 +90,7 @@ pub fn AppCreate() -> impl IntoView {
             let navigator = window.navigator();
             let clipboard = navigator.clipboard();
             let _ = clipboard.write_text(&url_val);
-            toast.message.set(Some("Setup link copied to clipboard!".to_string()));
+            toast.show_toast("Clipboard", "Setup link copied to clipboard!", "success");
         }
     };
 

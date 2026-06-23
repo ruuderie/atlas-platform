@@ -63,14 +63,29 @@ use crate::api::version::get_version;
 use crate::components::intel_sidebar::IntelSidebar;
 
 
+#[derive(Clone, Debug)]
+pub struct ToastPayload {
+    pub title: String,
+    pub message: String,
+    pub toast_type: String, // "success" | "error" | "info" | "warning"
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct GlobalToast {
-    pub message: RwSignal<Option<String>>,
+    payload: RwSignal<Option<ToastPayload>>,
 }
 
 impl GlobalToast {
-    pub fn show_toast(&self, _title: &str, msg: &str, _type: &str) {
-        self.message.set(Some(msg.to_string()));
+    pub fn show_toast(&self, title: &str, msg: &str, toast_type: &str) {
+        self.payload.set(Some(ToastPayload {
+            title: title.to_string(),
+            message: msg.to_string(),
+            toast_type: toast_type.to_string(),
+        }));
+    }
+
+    pub fn dismiss(&self) {
+        self.payload.set(None);
     }
 }
 
@@ -89,7 +104,7 @@ pub fn App() -> impl IntoView {
     provide_context(active_network);
     provide_context(set_active_network);
 
-    let toast = GlobalToast { message: RwSignal::new(None) };
+    let toast = GlobalToast { payload: RwSignal::new(None) };
     provide_context(toast);
 
     // Validate session on load
@@ -101,12 +116,33 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        <div class="fixed bottom-4 right-4 z-[9999] pointer-events-none">
-            {move || toast.message.get().map(|msg| view! {
-                <div class="glass-panel text-on-surface px-4 py-3 rounded-xl flex items-center justify-between min-w-[300px] pointer-events-auto border border-outline-variant/40">
-                    <span class="text-sm font-medium">{msg}</span>
-                    <button class="ml-4 hover:opacity-70 font-bold text-on-surface-variant" on:click=move |_| toast.message.set(None)>"✕"</button>
-                </div>
+        <div class="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col gap-2">
+            {move || toast.payload.get().map(|p| {
+                let border_color = match p.toast_type.as_str() {
+                    "success" => "#22c55e",
+                    "error"   => "#ef4444",
+                    "warning" => "#f59e0b",
+                    _         => "#6366f1", // info / default
+                };
+                let icon = match p.toast_type.as_str() {
+                    "success" => "check_circle",
+                    "error"   => "error",
+                    "warning" => "warning",
+                    _         => "info",
+                };
+                view! {
+                    <div class="glass-panel text-on-surface rounded-xl flex items-start gap-3 min-w-[300px] max-w-[420px] pointer-events-auto border border-outline-variant/40 overflow-hidden"
+                        style=format!("border-left: 3px solid {};", border_color)>
+                        <span class="material-symbols-outlined text-[18px] mt-3 ml-3 shrink-0"
+                            style=format!("color: {};", border_color)>{icon}</span>
+                        <div class="flex-1 py-3 pr-2">
+                            <div class="text-xs font-bold text-on-surface">{p.title.clone()}</div>
+                            <div class="text-sm text-on-surface-variant mt-0.5">{p.message.clone()}</div>
+                        </div>
+                        <button class="mt-2 mr-2 hover:opacity-70 font-bold text-on-surface-variant text-lg shrink-0"
+                            on:click=move |_| toast.dismiss()>"✕"</button>
+                    </div>
+                }
             })}
         </div>
         <crate::components::omnibar::Omnibar />

@@ -40,7 +40,7 @@ pub fn Login() -> impl IntoView {
                     return;
                 }
             }
-            toast.message.set(Some("Validated passkey, but session handshake failed.".to_string()));
+            toast.show_toast("Auth", "Validated passkey, but session handshake failed.", "error");
         });
     });
 
@@ -58,7 +58,7 @@ pub fn Login() -> impl IntoView {
             match purge_admin().await {
                 Ok(_) => { navigate("/setup", Default::default()); }
                 Err(e) => {
-                    toast.message.set(Some(e.clone()));
+                    toast.show_toast("Auth Error", &e, "error");
                     is_purging.set(false);
                 }
             }

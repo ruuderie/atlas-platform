@@ -86,11 +86,11 @@ pub fn CrmDetail() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match convert_lead(&id).await {
                 Ok(contact) => {
-                    toast.message.set(Some("Lead qualified and converted to Contact!".to_string()));
+                    toast.show_toast("CRM", "Lead qualified and converted to Contact!", "success");
                     navigate(&format!("/contacts/{}", contact.id), Default::default());
                 }
                 Err(e) => {
-                    toast.message.set(Some(format!("Failed to convert lead: {}", e)));
+                    toast.show_toast("Error", &format!("Failed to convert lead: {}", e), "error");
                 }
             }
         });
@@ -104,12 +104,12 @@ pub fn CrmDetail() -> impl IntoView {
         leptos::task::spawn_local(async move {
             match add_contact_note(&id, &content).await {
                 Ok(_) => {
-                    toast.message.set(Some("Note added successfully!".to_string()));
+                    toast.show_toast("CRM", "Note added successfully!", "success");
                     note_content.set("".to_string());
                     set_trigger_refresh.update(|v| *v += 1);
                 }
                 Err(e) => {
-                    toast.message.set(Some(format!("Failed to add note: {}", e)));
+                    toast.show_toast("Error", &format!("Failed to add note: {}", e), "error");
                 }
             }
         });

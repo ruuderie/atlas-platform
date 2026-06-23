@@ -140,7 +140,7 @@ pub fn ListingCreate() -> impl IntoView {
                         <a href="/network/listings">
                             <Button variant=ButtonVariant::Outline>"Cancel"</Button>
                         </a>
-                        <Button variant=ButtonVariant::Default>
+                        <Button variant=ButtonVariant::Default attr:r#type="submit">
                             {move || if is_submitting.get() { "Publishing..." } else { "Create Listing" }}
                         </Button>
                     </div>
