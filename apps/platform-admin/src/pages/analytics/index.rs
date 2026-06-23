@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use crate::api::analytics::{get_business_kpis, get_billing_summary};
-use crate::api::admin::get_tenant_stats;
+use crate::api::admin::{get_tenant_stats, create_campaign, CreateCampaignInput};
 
 #[component]
 pub fn Analytics() -> impl IntoView {
@@ -831,29 +831,13 @@ pub fn Analytics() -> impl IntoView {
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-outline-variant/5">
-                                    <tr class="hover:bg-surface-bright/5 transition-colors">
-                                        <td class="py-3 px-4 font-bold">"Logística Meridional"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/70">"Legal / Blockers"</td>
-                                        <td class="py-3 px-4 text-center font-mono text-on-surface-variant/50">"—"</td>
-                                        <td class="py-3 px-4 text-center font-mono">"6.2"</td>
-                                        <td class="py-3 px-4 text-center font-mono text-[#88cc00] font-bold">"7.0"</td>
-                                        <td class="py-3 px-4 text-center font-bold text-emerald-400">"+0.8"</td>
-                                        <td class="py-3 px-4 text-emerald-400 font-semibold">"↑ improving"</td>
-                                        <td class="py-3 px-4 text-center font-mono">+1.1</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/40">"—"</td>
-                                        <td class="py-3 px-4 text-center text-on-surface-variant/50 font-mono">"3"</td>
-                                    </tr>
-                                    <tr class="hover:bg-surface-bright/5 transition-colors">
-                                        <td class="py-3 px-4 font-bold">"Biscayne STR · Unit 12"</td>
-                                        <td class="py-3 px-4 text-on-surface-variant/70">"Cleanliness"</td>
-                                        <td class="py-3 px-4 text-center font-mono">"8.4"</td>
-                                        <td class="py-3 px-4 text-center font-mono">"8.1"</td>
-                                        <td class="py-3 px-4 text-center font-mono text-error font-bold">"6.2"</td>
-                                        <td class="py-3 px-4 text-center font-bold text-error">"-1.9"</td>
-                                        <td class="py-3 px-4 text-error font-semibold">"↓ declining"</td>
-                                        <td class="py-3 px-4 text-center font-mono text-error">-2.8</td>
-                                        <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-error-container/20 border border-error/30 text-error text-[10px] font-bold uppercase tracking-wider">"Spike (drop)"</span></td>
-                                        <td class="py-3 px-4 text-center text-on-surface-variant/50 font-mono">"7"</td>
+                                    <tr>
+                                        <td colspan="10" class="py-8 px-4 text-center">
+                                            <div class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-amber-400/80 bg-amber-400/10 border border-amber-400/20 px-3 py-1.5 rounded">
+                                                "Static — Pending get_scorecard_analytics() endpoint"
+                                            </div>
+                                            <p class="text-[10px] text-on-surface-variant/50 mt-2">"Scorecard anomaly data will populate here once the platform_metrics_daily aggregate is wired."</p>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1068,9 +1052,25 @@ pub fn Analytics() -> impl IntoView {
                             <button 
                                 class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold text-on-primary-container"
                                 on:click=move |_| {
+                                    let name = campaign_name.get();
+                                    let ctype = campaign_type.get();
+                                    let goal = campaign_goal.get();
+                                    let budget = campaign_budget.get().parse::<i64>().unwrap_or(0);
+                                    if name.is_empty() { return; }
+                                    let t_toast = toast.clone();
                                     show_campaign_modal.set(false);
-                                    toast.show_toast("Success", &format!("Campaign '{}' provisioned successfully.", campaign_name.get()), "success");
                                     campaign_name.set(String::new());
+                                    leptos::task::spawn_local(async move {
+                                        match create_campaign(CreateCampaignInput {
+                                            name: name.clone(),
+                                            campaign_type: ctype,
+                                            goal,
+                                            budget_cents: budget,
+                                        }).await {
+                                            Ok(_) => t_toast.show_toast("Campaign Created", &format!("Campaign '{}' provisioned successfully.", name), "success"),
+                                            Err(e) => t_toast.show_toast("Error", &format!("Failed to create campaign: {}", e), "error"),
+                                        }
+                                    });
                                 }
                             >
                                 "Create Campaign"

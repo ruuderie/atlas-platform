@@ -499,3 +499,21 @@ pub struct AuditLogModel {
 pub async fn get_audit_logs() -> Result<Vec<AuditLogModel>, String> {
     crate::api::client::api_get("api/admin/audit-logs").await
 }
+
+#[derive(serde::Serialize)]
+pub struct CreateCampaignInput {
+    pub name: String,
+    pub campaign_type: String,
+    pub goal: String,
+    pub budget_cents: i64,
+}
+
+/// Create a new marketing campaign.
+/// Calls `POST /api/admin/crm/campaigns`.
+pub async fn create_campaign(input: CreateCampaignInput) -> Result<serde_json::Value, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url("api/admin/crm/campaigns");
+    let req = client.post(&url).json(&input);
+    crate::api::client::api_request(req).await
+}
+

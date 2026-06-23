@@ -9,6 +9,8 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
+use crate::api::billing::{issue_credit, generate_invoice, change_plan};
+use crate::api::admin::create_invite;
 
 #[component]
 pub fn TenantLedger() -> impl IntoView {
@@ -78,31 +80,51 @@ pub fn TenantLedger() -> impl IntoView {
 
     // Actions implementation
     let handle_issue_credit = move |_| {
-        let amt = credit_amount.get();
+        let amt_str = credit_amount.get();
         let reason = credit_reason.get();
-        if amt.is_empty() { return; }
-        
-        toast.show_toast("Success", &format!("Billing credit of ${} issued successfully. Reason: {}", amt, reason), "success");
-        credit_amount.set("".to_string());
-        credit_reason.set("".to_string());
+        if amt_str.is_empty() { return; }
+        let tid = tenant_id_str();
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            let amount_cents = (amt_str.parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+            match issue_credit(&tid, amount_cents, reason).await {
+                Ok(_) => t_toast.show_toast("Credit Issued", &format!("Billing credit of ${} applied successfully.", amt_str), "success"),
+                Err(e) => t_toast.show_toast("Error", &format!("Failed to issue credit: {}", e), "error"),
+            }
+        });
+        credit_amount.set(String::new());
+        credit_reason.set(String::new());
         show_credit_modal.set(false);
     };
 
     let handle_send_invoice = move |_| {
-        let amt = invoice_amount.get();
+        let amt_str = invoice_amount.get();
         let period = invoice_period.get();
-        if amt.is_empty() { return; }
-
-        toast.show_toast("Success", &format!("Manual invoice of ${} generated for period {} and dispatched.", amt, period), "success");
-        invoice_amount.set("".to_string());
+        if amt_str.is_empty() { return; }
+        let tid = tenant_id_str();
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            let amount_cents = (amt_str.parse::<f64>().unwrap_or(0.0) * 100.0) as i64;
+            match generate_invoice(&tid, amount_cents, period.clone()).await {
+                Ok(_) => t_toast.show_toast("Invoice Generated", &format!("Manual invoice of ${} for period {} dispatched.", amt_str, period), "success"),
+                Err(e) => t_toast.show_toast("Error", &format!("Failed to generate invoice: {}", e), "error"),
+            }
+        });
+        invoice_amount.set(String::new());
         show_invoice_modal.set(false);
     };
 
     let handle_change_plan = move |_| {
         let plan_id = selected_plan_id.get();
         if plan_id.is_empty() { return; }
-
-        toast.show_toast("Success", "Platform subscription plan tier updated successfully.", "success");
+        let tid = tenant_id_str();
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match change_plan(&tid, plan_id).await {
+                Ok(_) => t_toast.show_toast("Plan Updated", "Subscription plan tier updated successfully.", "success"),
+                Err(e) => t_toast.show_toast("Error", &format!("Failed to change plan: {}", e), "error"),
+            }
+        });
         show_plan_modal.set(false);
     };
 
@@ -110,11 +132,17 @@ pub fn TenantLedger() -> impl IntoView {
         let name = invite_name.get();
         let email = invite_email.get();
         let role = invite_role.get();
+        let tid = tenant_id_str();
         if name.is_empty() || email.is_empty() { return; }
-
-        toast.show_toast("Success", &format!("Team invitation successfully dispatched to {} ({})", email, role), "success");
-        invite_name.set("".to_string());
-        invite_email.set("".to_string());
+        let t_toast = toast.clone();
+        leptos::task::spawn_local(async move {
+            match create_invite(email.clone(), role.clone(), tid).await {
+                Ok(_) => t_toast.show_toast("Invite Sent", &format!("Team invitation dispatched to {} ({}).", email, role), "success"),
+                Err(e) => t_toast.show_toast("Error", &format!("Failed to send invite: {}", e), "error"),
+            }
+        });
+        invite_name.set(String::new());
+        invite_email.set(String::new());
         show_invite_modal.set(false);
     };
 
@@ -126,19 +154,19 @@ pub fn TenantLedger() -> impl IntoView {
                     <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
                         <a href="/apps" class="hover:text-primary transition-colors">"Tenants"</a>
                         <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                        <span class="text-on-surface-variant/80">"Nexus Property Group"</span>
+                        <span class="text-on-surface-variant/80 font-mono">{tenant_id_str}</span>
                         <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
                         <span class="text-primary/70 font-semibold">"Billing & Ledger"</span>
                     </nav>
                     
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-primary/10 border border-primary/30 text-primary rounded-xl flex items-center justify-center font-bold text-lg">
-                            "N"
+                            "T"
                         </div>
                         <div>
-                            <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Nexus Property Group"</h1>
+                            <h1 class="text-2xl font-extrabold text-on-surface tracking-tight font-mono">{tenant_id_str}</h1>
                             <p class="text-xs text-on-surface-variant font-mono mt-0.5">
-                                "tenant_id: " {tenant_id_str} " · nexus.atlas.app · Enterprise Plan"
+                                "tenant_id: " {tenant_id_str} " · Enterprise Plan"
                             </p>
                         </div>
                     </div>

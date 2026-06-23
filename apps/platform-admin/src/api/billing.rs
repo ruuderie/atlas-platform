@@ -45,3 +45,42 @@ pub async fn reactivate_subscription(tenant_id: &str, subscription_id: &str) -> 
     let req = client.post(&url);
     api_request(req).await
 }
+
+#[derive(Serialize)]
+pub struct IssueCreditInput {
+    pub amount_cents: i64,
+    pub reason: String,
+}
+
+pub async fn issue_credit(tenant_id: &str, amount_cents: i64, reason: String) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/billing/tenant/{}/credits", tenant_id));
+    let req = client.post(&url).json(&IssueCreditInput { amount_cents, reason });
+    api_request(req).await
+}
+
+#[derive(Serialize)]
+pub struct GenerateInvoiceInput {
+    pub amount_cents: i64,
+    pub period: String,
+}
+
+pub async fn generate_invoice(tenant_id: &str, amount_cents: i64, period: String) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/billing/tenant/{}/invoices", tenant_id));
+    let req = client.post(&url).json(&GenerateInvoiceInput { amount_cents, period });
+    api_request(req).await
+}
+
+#[derive(Serialize)]
+pub struct ChangePlanInput {
+    pub plan_id: String,
+}
+
+pub async fn change_plan(tenant_id: &str, plan_id: String) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/billing/tenant/{}/plan", tenant_id));
+    let req = client.put(&url).json(&ChangePlanInput { plan_id });
+    api_request(req).await
+}
+
