@@ -1,6 +1,6 @@
 use leptos::prelude::*;
-use crate::api::crm::get_leads;
-use crate::api::models::LeadModel;
+use crate::api::crm::{get_leads, create_lead};
+use crate::api::models::{LeadModel, CreateLead};
 use crate::pages::crm::components::{
     filter_bar::{FilterBar, PillOption},
     kpi_strip::{KpiStrip, KpiItem},
@@ -35,6 +35,13 @@ pub fn LeadsPage() -> impl IntoView {
     let selected    = RwSignal::new(None::<LeadModel>);
     let drawer_open = RwSignal::new(false);
 
+    // ── Create modal ──────────────────────────────────────────────────────────
+    let show_create  = RwSignal::new(false);
+    let new_name     = RwSignal::new(String::new());
+    let new_email    = RwSignal::new(String::new());
+    let create_busy  = RwSignal::new(false);
+    let toast        = use_context::<crate::app::GlobalToast>().expect("toast");
+
     // 350 ms debounce
     Effect::new(move |_| {
         let val = search_filter.get();
@@ -55,6 +62,32 @@ pub fn LeadsPage() -> impl IntoView {
             get_leads(s, pg, PER_PAGE, st).await.unwrap_or_default()
         }
     });
+
+    let handle_create = move |_| {
+        let name = new_name.get();
+        if name.trim().is_empty() {
+            toast.show_toast("Error", "Name is required.", "error");
+            return;
+        }
+        let email = new_email.get();
+        let email_opt = if email.trim().is_empty() { None } else { Some(email.trim().to_string()) };
+        create_busy.set(true);
+        let resource = leads_res.clone();
+        leptos::task::spawn_local(async move {
+            let data = CreateLead { name: name.trim().to_string(), email: email_opt };
+            match create_lead(data).await {
+                Ok(_) => {
+                    toast.show_toast("Success", "Lead created.", "success");
+                    show_create.set(false);
+                    new_name.set(String::new());
+                    new_email.set(String::new());
+                    resource.refetch();
+                }
+                Err(e) => toast.show_toast("Error", &e, "error"),
+            }
+            create_busy.set(false);
+        });
+    };
 
     let kpi_items = Signal::derive(move || {
         let leads = leads_res.get().unwrap_or_default();
@@ -91,7 +124,11 @@ pub fn LeadsPage() -> impl IntoView {
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-ghost btn-sm">"Export CSV"</button>
-                    <button class="btn btn-primary btn-sm">
+                    <button class="btn btn-primary btn-sm" on:click=move |_| {
+                        new_name.set(String::new());
+                        new_email.set(String::new());
+                        show_create.set(true);
+                    }>
                         <svg viewBox="0 0 14 14" width="12" height="12" fill="currentColor" style="margin-right:4px;">
                             <path d="M7 2a1 1 0 0 1 1 1v3h3a1 1 0 1 1 0 2H8v3a1 1 0 1 1-2 0V8H3a1 1 0 1 1 0-2h3V3a1 1 0 0 1 1-1z"/>
                         </svg>
@@ -245,5 +282,60 @@ pub fn LeadsPage() -> impl IntoView {
                 </RecordDrawer>
             }
         })}
+
+        // ── Create Lead Modal ───────────────────────────────────────────────
+        <Show when=move || show_create.get()>
+            <div
+                style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;"
+                on:click=move |_| show_create.set(false)
+            >
+                <div
+                    style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:14px;width:420px;max-width:100%;padding:28px;position:relative;"
+                    on:click=move |e| e.stop_propagation()
+                >
+                    <button
+                        style="position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px;"
+                        on:click=move |_| show_create.set(false)
+                    >"✕"</button>
+
+                    <div style="font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text-primary)">"New Lead"</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">"Create a new lead in the CRM. Fields marked * are required."</div>
+
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">"Full Name *"</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Jane Doe"
+                                style="width:100%;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text-primary);outline:none;box-sizing:border-box;"
+                                prop:value=move || new_name.get()
+                                on:input=move |e| new_name.set(event_target_value(&e))
+                            />
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">"Email"</label>
+                            <input
+                                type="email"
+                                placeholder="jane@example.com"
+                                style="width:100%;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text-primary);outline:none;box-sizing:border-box;"
+                                prop:value=move || new_email.get()
+                                on:input=move |e| new_email.set(event_target_value(&e))
+                            />
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px;">
+                        <button class="btn btn-ghost btn-sm" on:click=move |_| show_create.set(false)>"Cancel"</button>
+                        <button
+                            class="btn btn-primary btn-sm"
+                            disabled=move || create_busy.get()
+                            on:click=handle_create
+                        >
+                            {move || if create_busy.get() { "Saving…" } else { "Create Lead" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Show>
     }
 }
