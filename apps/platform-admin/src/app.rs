@@ -454,13 +454,13 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/network/listings") view=Listings />
                         <Route path=path!("/network/listings/new") view=ListingCreate />
                         <Route path=path!("/network/listings/:id") view=ListingDetail />
-                        <Route path=path!("/leads")       view=LeadsPage />
+                        <Route path=path!("/leads")        view=LeadsPage />
                         <Route path=path!("/leads/:id")   view=crate::pages::crm::detail::CrmDetail />
-                        <Route path=path!("/contacts")    view=ContactsPage />
+                        <Route path=path!("/contacts")     view=ContactsPage />
                         <Route path=path!("/contacts/:id") view=crate::pages::crm::detail::CrmDetail />
-                        <Route path=path!("/accounts")    view=AccountsPage />
+                        <Route path=path!("/accounts")     view=AccountsPage />
                         <Route path=path!("/accounts/:id") view=crate::pages::crm::detail::CrmDetail />
-                        <Route path=path!("/pipeline")    view=OpportunitiesPage />
+                        <Route path=path!("/pipeline")     view=OpportunitiesPage />
                         <Route path=path!("/pipeline/:id") view=crate::pages::crm::detail::CrmDetail />
                         <Route path=path!("/products") view=PlatformProducts />
                         <Route path=path!("/products/:id") view=ProductDetail />

@@ -157,7 +157,7 @@ pub fn ContactsTab() -> impl IntoView {
             let id_c    = c.id.clone();
             let title    = Signal::derive(move || name_c.clone());
             let subtitle = Signal::derive(move || email_c.clone());
-            let href     = Signal::derive(move || format!("/crm/contact/{}", id_c));
+            let href     = Signal::derive(move || format!("/contacts/{}", id_c));
             let phone    = c.phone.clone().unwrap_or_else(|| "—".to_string());
             let whatsapp = c.whatsapp.clone().unwrap_or_else(|| "—".to_string());
             let telegram = c.telegram.clone().unwrap_or_else(|| "—".to_string());

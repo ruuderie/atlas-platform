@@ -188,7 +188,7 @@ pub fn LeadsTab() -> impl IntoView {
             let id_c      = l.id.clone();
             let title    = Signal::derive(move || name_c.clone());
             let subtitle = Signal::derive(move || email_c.clone());
-            let href     = Signal::derive(move || format!("/crm/lead/{}", id_c));
+            let href     = Signal::derive(move || format!("/leads/{}", id_c));
             let status   = l.lead_status.clone().unwrap_or_else(|| "New".to_string());
             let source   = l.source.clone().unwrap_or_else(|| "—".to_string());
             let company  = if company_c.is_empty() { "—".to_string() } else { company_c };

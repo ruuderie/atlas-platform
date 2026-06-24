@@ -157,7 +157,7 @@ pub fn AccountsTab() -> impl IntoView {
             let id_c     = a.id.clone();
             let title    = Signal::derive(move || name_c.clone());
             let subtitle = Signal::derive(|| "Account".to_string());
-            let href     = Signal::derive(move || format!("/crm/account/{}", id_c.clone()));
+            let href     = Signal::derive(move || format!("/accounts/{}", id_c.clone()));
             let full_id  = a.id.clone();
             let name     = a.name.clone();
 

@@ -181,7 +181,7 @@ pub fn OpportunitiesTab() -> impl IntoView {
             let id_c    = d.id.clone();
             let title    = Signal::derive(move || name_c.clone());
             let subtitle = Signal::derive(move || stage_c.clone());
-            let href     = Signal::derive(move || format!("/crm/deal/{}", id_c));
+            let href     = Signal::derive(move || format!("/pipeline/{}", id_c));
             let amount   = format!("${:.2}", d.amount);
             let stage    = d.stage.clone();
             let status   = d.status.clone();
