@@ -32,7 +32,6 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/tenants/{id}", put(update_tenant))
         .route("/api/tenants/{id}", delete(delete_tenant))
         .route("/api/tenants/{id}/provision-admin", post(provision_admin)) // deprecated: use /api/admin/tenants/provision
-        .route("/api/admin/tenants/provision", post(crate::handlers::admin_provision::provision_tenant))
         .route("/api/tenants/{id}/settings", get(get_tenant_settings))
         .route("/api/tenants/{id}/settings", post(upsert_tenant_setting))
 }
