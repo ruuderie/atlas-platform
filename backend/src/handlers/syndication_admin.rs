@@ -45,12 +45,12 @@ pub fn syndication_admin_routes() -> Router<DatabaseConnection> {
     Router::new()
         // Offer catalog
         .route("/api/admin/syndication/offers", get(list_offers).post(create_offer))
-        .route("/api/admin/syndication/offers/:id", get(get_offer).put(update_offer))
-        .route("/api/admin/syndication/offers/:id/retire", post(retire_offer))
-        .route("/api/admin/syndication/offers/:id/auto-provision", post(auto_provision_mandatory_links))
+        .route("/api/admin/syndication/offers/{id}", get(get_offer).put(update_offer))
+        .route("/api/admin/syndication/offers/{id}/retire", post(retire_offer))
+        .route("/api/admin/syndication/offers/{id}/auto-provision", post(auto_provision_mandatory_links))
         // Active links
         .route("/api/admin/syndication/links", get(list_links).post(create_link))
-        .route("/api/admin/syndication/links/:id", delete(revoke_link))
+        .route("/api/admin/syndication/links/{id}", delete(revoke_link))
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
