@@ -46,7 +46,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
         // Session management — list and targeted revoke
         .route("/api/me/sessions", get(sessions::list_user_sessions)
             .delete(sessions::revoke_all_other_sessions))
-        .route("/api/me/sessions/:session_id", delete(sessions::revoke_other_session))
+        .route("/api/me/sessions/{session_id}", delete(sessions::revoke_other_session))
         .layer(Extension(db.clone()))
         .layer(axum::middleware::from_fn(site_context_middleware));
 

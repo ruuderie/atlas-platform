@@ -25,6 +25,7 @@ pub mod version;
 pub mod products;
 pub mod billing;
 pub mod verification;
+pub mod communications;
 
 
 

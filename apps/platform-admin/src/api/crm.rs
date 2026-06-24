@@ -345,3 +345,60 @@ pub async fn update_lead(id: &str, status: &str) -> Result<LeadModel, String> {
         Err("Failed to update lead".into())
     }
 }
+
+// ── Call Logging ──────────────────────────────────────────────────────────────
+
+/// Log a manual call entry as an Activity (type = Log).
+/// Supports optional transcript file IDs (already uploaded to R2 + registered).
+/// Calls `POST /api/crm/activities`.
+pub async fn log_call_activity(
+    lead_id: Option<&str>,
+    contact_id: Option<&str>,
+    account_id: Option<&str>,
+    duration_min: u32,
+    direction: &str,   // "inbound" | "outbound"
+    outcome: &str,     // "connected" | "voicemail" | "no_answer"
+    notes: &str,
+    file_storage_paths: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    let title = format!("Call — {} ({})", outcome, direction);
+    let description = if notes.is_empty() { None } else { Some(notes) };
+
+    // Build files array for the activity — each entry needs id + storage_path
+    let files: Vec<serde_json::Value> = file_storage_paths
+        .into_iter()
+        .map(|path| {
+            let name = path.split('/').last().unwrap_or("transcript").to_string();
+            serde_json::json!({
+                "id": uuid::Uuid::new_v4(),
+                "name": name,
+                "storage_path": path,
+            })
+        })
+        .collect();
+
+    let payload = serde_json::json!({
+        "activity_type": "Log",
+        "title": title,
+        "description": description,
+        "status": "Completed",
+        "duration_minutes": duration_min,
+        "direction": direction,
+        "outcome": outcome,
+        "lead_id": lead_id,
+        "contact_id": contact_id,
+        "account_id": account_id,
+        "associated_entities": [],
+        "files": files,
+    });
+
+    let client = create_client();
+    let url = api_url("api/crm/activities");
+    let req = with_credentials(client.post(&url).json(&payload));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}

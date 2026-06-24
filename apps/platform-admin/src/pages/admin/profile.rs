@@ -8,6 +8,8 @@ use crate::api::developer::{
     CreateApiTokenRequest, CreateWebhookRequest,
 };
 use crate::api::admin::{list_my_sessions, revoke_session_by_id, revoke_all_other_sessions};
+use crate::api::files::{get_admin_presign, put_to_presigned_url, create_file_record, set_user_avatar};
+use crate::api::models::CreateFileInput;
 use crate::app::GlobalToast;
 use shared_ui::components::auth::passkey_manager::ManagePasskeys;
 
@@ -18,6 +20,73 @@ pub fn Settings() -> impl IntoView {
     let toast = use_context::<GlobalToast>().expect("GlobalToast not found");
 
     let active_tab = RwSignal::new("profile".to_string());
+
+    // ── Photo upload state ────────────────────────────────────────────────────
+    let avatar_url = RwSignal::new(Option::<String>::None);
+    let is_uploading_photo = RwSignal::new(false);
+    let photo_input_ref: NodeRef<leptos::html::Input> = NodeRef::new();
+
+    let handle_photo_change = move |ev: leptos::ev::Event| {
+        use wasm_bindgen::JsCast;
+        let input: web_sys::HtmlInputElement = ev.target().unwrap().dyn_into().unwrap();
+        let files = input.files().unwrap();
+        if files.length() == 0 { return; }
+        let file = files.item(0).unwrap();
+        let name = file.name();
+        let mime = file.type_();
+        let user_id = user.get().map(|u| u.id);
+        let toast2 = toast.clone();
+        is_uploading_photo.set(true);
+        leptos::task::spawn_local(async move {
+            // 1. Get presigned URL
+            let presign = match get_admin_presign(&name, &mime, "avatars").await {
+                Ok(p) => p,
+                Err(e) => {
+                    toast2.show_toast("Error", &format!("Presign failed: {}", e), "error");
+                    is_uploading_photo.set(false);
+                    return;
+                }
+            };
+            // 2. Read bytes
+            use wasm_bindgen_futures::JsFuture;
+            use wasm_bindgen::JsCast;
+            let ab = JsFuture::from(file.array_buffer()).await.unwrap();
+            let bytes = js_sys::Uint8Array::new(&ab).to_vec();
+            // 3. PUT to R2
+            if let Err(e) = put_to_presigned_url(&presign.upload_url, bytes, &mime).await {
+                toast2.show_toast("Error", &format!("Upload failed: {}", e), "error");
+                is_uploading_photo.set(false);
+                return;
+            }
+            // 4. Create file record
+            let size = file.size() as i64;
+            let file_record = match create_file_record(CreateFileInput {
+                name: name.clone(),
+                size,
+                mime_type: mime.clone(),
+                hash_sha256: String::new(),
+                storage_type: "S3".to_string(),
+                storage_path: presign.file_key.clone(),
+                is_anonymous: false,
+                user_id: user_id.clone().map(|id| id.to_string()),
+            }).await {
+                Ok(r) => r,
+                Err(e) => {
+                    toast2.show_toast("Error", &format!("File record failed: {}", e), "error");
+                    is_uploading_photo.set(false);
+                    return;
+                }
+            };
+            // 5. Associate with User entity
+            if let Some(uid) = user_id {
+                let _ = set_user_avatar(&uid, &file_record.id).await;
+            }
+            // 6. Show avatar immediately
+            avatar_url.set(Some(presign.public_url));
+            toast2.show_toast("Profile", "Photo updated!", "success");
+            is_uploading_photo.set(false);
+        });
+    };
 
     // Profile inputs
     let first_name_input = RwSignal::new(String::new());
@@ -178,7 +247,32 @@ pub fn Settings() -> impl IntoView {
                                             <div class="profile-role">
                                                 {move || user.get().map(|u| format!("{} · Atlas Platform · Member since Jan 2025", if u.is_admin { "Super-Admin" } else { "Admin" })).unwrap_or_default()}
                                             </div>
-                                            <button class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed" title="Photo upload pending storage integration" disabled style="margin-top:8px">"Change Photo"</button>
+                                            {move || {
+                                                if let Some(url) = avatar_url.get() {
+                                                    view! {
+                                                        <img src=url class="avatar-photo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:8px" alt="Profile photo" />
+                                                    }.into_any()
+                                                } else {
+                                                    view! { <div></div> }.into_any()
+                                                }
+                                            }}
+                                            <button
+                                                class=move || if is_uploading_photo.get() { "btn btn-ghost btn-sm opacity-60" } else { "btn btn-ghost btn-sm" }
+                                                style="margin-top:8px"
+                                                disabled=move || is_uploading_photo.get()
+                                                on:click=move |_| {
+                                                    if let Some(input) = photo_input_ref.get() {
+                                                        let _ = input.click();
+                                                    }
+                                                }
+                                            >{move || if is_uploading_photo.get() { "Uploading…" } else { "Change Photo" }}</button>
+                                            <input
+                                                node_ref=photo_input_ref
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp"
+                                                style="display:none"
+                                                on:change=handle_photo_change
+                                            />
                                         </div>
                                     </div>
                                 </div>
