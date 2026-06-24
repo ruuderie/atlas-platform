@@ -480,6 +480,8 @@ pub async fn create_my_listing(
         is_ad_placement: Set(false),
         category_id: Set(None),
         slug: Set(None),
+        // asset_id: set later when linked to an atlas_asset
+        asset_id: Set(None),
     };
     
     let inserted = new_listing.insert(&txn).await.map_err(|e| {

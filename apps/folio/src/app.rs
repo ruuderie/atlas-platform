@@ -39,11 +39,22 @@ use crate::pages::vendor::{
     invoices::VendorInvoices,
 };
 
+// PMC pages
+use crate::pages::pmc::{
+    dashboard::PmcDashboard,
+    client_book::ClientBook,
+};
+
+// Owner pages
+use crate::pages::owner::dashboard::OwnerDashboard;
+
 // Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
     landlord_layout::LandlordLayout,
     tenant_layout::TenantLayout,
     vendor_layout::VendorLayout,
+    pmc_layout::PmcLayout,
+    owner_layout::OwnerLayout,
 };
 
 /// Root application. Provides session context once, then routes to the
@@ -98,6 +109,21 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/work-orders")  view=WorkOrders/>
                     <Route path=path!("/invoices")     view=VendorInvoices/>
                 </ParentRoute>
+
+                // ── PMC namespace /pmc/** ──────────────────────────────────────
+                // Only accessible when folio_mode = "pmc" on the instance.
+                // PmcShell checks role = PropertyManager; backend guards check folio_mode.
+                <ParentRoute path=path!("/pmc") view=PmcShell>
+                    <Route path=path!("")          view=PmcDashboard/>
+                    <Route path=path!("/clients")  view=ClientBook/>
+                </ParentRoute>
+
+                // ── Owner namespace /o/** ──────────────────────────────────────
+                // Read-only portal for beneficial property owners.
+                // Owner cannot create, edit, or delete any resource.
+                <ParentRoute path=path!("/o") view=OwnerShell>
+                    <Route path=path!("")           view=OwnerDashboard/>
+                </ParentRoute>
             </Routes>
         </Router>
     }
@@ -127,6 +153,16 @@ fn TenantShell() -> impl IntoView {
 #[component]
 fn VendorShell() -> impl IntoView {
     role_shell_view(FolioRole::Vendor, || view! { <VendorLayout/> }.into_any())
+}
+
+#[component]
+fn PmcShell() -> impl IntoView {
+    role_shell_view(FolioRole::PropertyManager, || view! { <PmcLayout/> }.into_any())
+}
+
+#[component]
+fn OwnerShell() -> impl IntoView {
+    role_shell_view(FolioRole::Owner, || view! { <OwnerLayout/> }.into_any())
 }
 
 /// Shared guard logic for all role shells.

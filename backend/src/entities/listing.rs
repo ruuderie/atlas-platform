@@ -43,6 +43,12 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
     #[sea_orm(column_type = "Text", nullable)]
     pub slug: Option<String>,
+
+    // ── Syndication link (m20260914) ──────────────────────────────────────────
+    /// FK to `atlas_assets` — the physical/digital asset this listing markets.
+    /// Nullable: NULL = legacy listing not backed by a tracked asset,
+    /// or listing for a non-asset product. Does not affect syndication eligibility.
+    pub asset_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -52,6 +58,7 @@ pub enum Relation {
     Category,
     BasedOnTemplate,
     AdPurchase,
+    AtlasAsset,
 }
 
 impl RelationTrait for Relation {
@@ -74,6 +81,10 @@ impl RelationTrait for Relation {
                 .to(super::template::Column::Id)
                 .into(),
             Self::AdPurchase => Entity::has_many(super::ad_purchase::Entity).into(),
+            Self::AtlasAsset => Entity::belongs_to(super::atlas_asset::Entity)
+                .from(Column::AssetId)
+                .to(super::atlas_asset::Column::Id)
+                .into(),
         }
     }
 }
@@ -105,6 +116,12 @@ impl Related<super::template::Entity> for Entity {
 impl Related<super::ad_purchase::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AdPurchase.def()
+    }
+}
+
+impl Related<super::atlas_asset::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::AtlasAsset.def()
     }
 }
 

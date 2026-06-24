@@ -3,6 +3,11 @@ pub use server_fn::error::ServerFnError;
 use serde::{Deserialize, Serialize};
 
 // ── FolioRole — shared between SSR and WASM ───────────────────────────────────
+//
+// IMPORTANT: This enum must stay in sync with the backend `FolioRole` in
+// `backend/src/types/pm.rs`. When the backend adds a new variant the frontend
+// must add the corresponding arm here — otherwise the login redirect silently
+// falls back to Landlord for any new-variant user and their API calls return 403.
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -11,22 +16,43 @@ pub enum FolioRole {
     Landlord,
     Tenant,
     Vendor,
+    /// Property Management Company operator — manages multiple client landlord
+    /// accounts. Only valid when the tenant has `pmc_enabled: true` in their
+    /// `atlas_app_deployment_config`.
+    PropertyManager,
+    /// Beneficial property owner who has delegated day-to-day management to a
+    /// PMC. Read-only visibility into their own portfolio.
+    Owner,
+    /// Real estate agent — manages client files, listings, and deals.
+    /// Requires `folio_mode = "brokerage"` on the instance. Home path: `/a`.
+    Agent,
+    /// Licensed real estate broker — manages agents and the office.
+    /// Requires `folio_mode = "brokerage"` on the instance. Home path: `/b`.
+    Broker,
 }
 
 impl FolioRole {
     /// Frontend namespace path for this role.
     pub fn home_path(&self) -> &'static str {
         match self {
-            Self::Landlord => "/l",
-            Self::Tenant   => "/t",
-            Self::Vendor   => "/v",
+            Self::Landlord        => "/l",
+            Self::Tenant          => "/t",
+            Self::Vendor          => "/v",
+            Self::PropertyManager => "/pmc",
+            Self::Owner           => "/o",
+            Self::Agent           => "/a",
+            Self::Broker          => "/b",
         }
     }
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Landlord => "Property Manager",
-            Self::Tenant   => "Tenant Portal",
-            Self::Vendor   => "Vendor Portal",
+            Self::Landlord        => "Property Manager",
+            Self::Tenant          => "Tenant Portal",
+            Self::Vendor          => "Vendor Portal",
+            Self::PropertyManager => "PMC Dashboard",
+            Self::Owner           => "Owner Portal",
+            Self::Agent           => "Agent Portal",
+            Self::Broker          => "Broker Portal",
         }
     }
 }

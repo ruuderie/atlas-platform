@@ -936,12 +936,19 @@ pub enum FolioRole {
     Tenant,
     Vendor,
     /// Property Management Company operator — manages multiple client landlord accounts.
-    /// Requires `"pmc_enabled": true` inside `atlas_app_deployment_config.config` for the tenant.
+    /// Requires `folio_mode = "pmc"` in `atlas_app_deployment_config` for the instance.
     PropertyManager,
     /// Beneficial property owner who has delegated day-to-day management to a PMC.
-    /// Has **read-only** visibility into their own portfolio — cannot create, edit,
-    /// or delete any resource. Home path: `/owner`.
+    /// Has **read-only** visibility into their own portfolio. Home path: `/o`.
     Owner,
+    /// Real estate agent — manages client files, listings, and deals.
+    /// Requires `folio_mode = "brokerage"` in `atlas_app_deployment_config`.
+    /// Home path: `/a`.
+    Agent,
+    /// Licensed real estate broker — manages agents, co-signs deals, oversees the office.
+    /// Requires `folio_mode = "brokerage"` in `atlas_app_deployment_config`.
+    /// Home path: `/b`.
+    Broker,
 }
 
 impl FolioRole {
@@ -954,6 +961,8 @@ impl FolioRole {
             Self::Vendor          => "/work-orders",
             Self::PropertyManager => "/pm",
             Self::Owner           => "/owner",
+            Self::Agent           => "/a",
+            Self::Broker          => "/b",
         }
     }
 
@@ -966,6 +975,11 @@ impl FolioRole {
     pub fn is_owner(&self) -> bool {
         matches!(self, Self::Owner)
     }
+
+    /// Returns true if this role operates in the brokerage namespace.
+    pub fn is_brokerage(&self) -> bool {
+        matches!(self, Self::Agent | Self::Broker)
+    }
 }
 
 impl fmt::Display for FolioRole {
@@ -976,6 +990,8 @@ impl fmt::Display for FolioRole {
             Self::Vendor          => "vendor",
             Self::PropertyManager => "property_manager",
             Self::Owner           => "owner",
+            Self::Agent           => "agent",
+            Self::Broker          => "broker",
         })
     }
 }
@@ -989,6 +1005,8 @@ impl TryFrom<String> for FolioRole {
             "vendor"            => Ok(Self::Vendor),
             "property_manager"  => Ok(Self::PropertyManager),
             "owner"             => Ok(Self::Owner),
+            "agent"             => Ok(Self::Agent),
+            "broker"            => Ok(Self::Broker),
             other               => Err(format!("unknown FolioRole: '{other}'")),
         }
     }

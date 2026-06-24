@@ -186,3 +186,8 @@ pub mod flag_audit_log;
 // PLATFORM INVITATIONS
 pub mod platform_invite;
 
+// PLATFORM-GENERIC INSTANCE SYNDICATION (m20260912 + m20260913)
+// Layer A: offer catalog (platform admin controlled, tier-based monetization rules)
+pub mod atlas_syndication_offer;
+// Layer B: active links (one per source app instance ↔ NI pair)
+pub mod atlas_app_instance_syndication;

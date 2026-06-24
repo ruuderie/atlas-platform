@@ -136,6 +136,8 @@ impl IntoActiveModel<listing::ActiveModel> for ListingCreate {
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
             slug: Set(self.slug),
+            // asset_id: set later when the listing is linked to an atlas_asset
+            asset_id: Set(None),
         }
     }
 }

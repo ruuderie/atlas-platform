@@ -314,6 +314,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             is_active: Set(true),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
+            // Seed data pre-dates asset tracking; no atlas_asset to link
+            asset_id: Set(None),
         };
         
         lst.insert(&db).await?;

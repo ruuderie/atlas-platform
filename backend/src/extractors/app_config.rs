@@ -16,31 +16,17 @@
 //!
 //! ```rust,ignore
 //! use crate::extractors::app_config::AppDeploymentConfig;
+//! use crate::entities::atlas_app_deployment_config::FolioMode;
 //!
 //! async fn my_pm_handler(
 //!     ctx: TenantContext,
 //!     cfg: AppDeploymentConfig,
 //!     Extension(db): Extension<DatabaseConnection>,
 //! ) -> impl IntoResponse {
-//!     if !cfg.is_mode("property_management_co") {
+//!     if cfg.folio_mode != FolioMode::Pmc {
 //!         return StatusCode::FORBIDDEN.into_response();
 //!     }
 //!     // ... PMC logic
-//! }
-//! ```
-//!
-//! # Usage in middleware (for sub-router gating)
-//!
-//! ```rust,ignore
-//! async fn require_pmc_mode(
-//!     cfg: AppDeploymentConfig,
-//!     request: Request<Body>,
-//!     next: Next,
-//! ) -> Response {
-//!     if !cfg.is_mode("property_management_co") {
-//!         return StatusCode::FORBIDDEN.into_response();
-//!     }
-//!     next.run(request).await
 //! }
 //! ```
 //!
@@ -53,9 +39,8 @@
 //!
 //! # Fallback
 //!
-//! If no row exists for (tenant_id, app_slug), returns `mode = "standard"`
-//! and `config = {}`. This is fully backward-compatible — existing tenants
-//! that have not set a deployment config behave exactly as before.
+//! If no row exists for (tenant_id, app_slug), returns `mode = "standard"`,
+//! `folio_mode = "standard"`, and `config = {}`. Fully backward-compatible.
 
 use axum::{
     Extension,
@@ -66,26 +51,31 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::entities::atlas_app_deployment_config::{self, AppDeploymentMode};
+use crate::entities::atlas_app_deployment_config::{self, AppDeploymentMode, FolioMode};
 use crate::extractors::tenant::TenantContext;
 
 // Cache key — one per app slug per request
 #[derive(Clone, Debug)]
 struct CachedAppConfig {
-    app_slug: String,
-    mode:     AppDeploymentMode,
-    config:   Value,
+    app_slug:   String,
+    mode:       AppDeploymentMode,
+    folio_mode: FolioMode,
+    config:     Value,
 }
 
 /// Resolved deployment configuration for the current tenant + app.
 #[derive(Clone, Debug)]
 pub struct AppDeploymentConfig {
-    pub tenant_id: Uuid,
-    pub app_slug:  String,
-    /// Deployment mode topology.
-    pub mode:      AppDeploymentMode,
+    pub tenant_id:  Uuid,
+    pub app_slug:   String,
+    /// Platform-level deployment topology.
+    pub mode:       AppDeploymentMode,
+    /// Folio operational identity (standard | pmc | brokerage).
+    /// Only meaningful when `app_slug = "property_management"`.
+    /// Always `Standard` for other apps.
+    pub folio_mode: FolioMode,
     /// Arbitrary JSON config for this deployment. `{}` if not configured.
-    pub config:    Value,
+    pub config:     Value,
 }
 
 impl AppDeploymentConfig {
@@ -98,9 +88,23 @@ impl AppDeploymentConfig {
     pub fn config_u64(&self, key: &str) -> Option<u64> {
         self.config.get(key)?.as_u64()
     }
+
+    /// Returns `tenant_portal_enabled` config flag (default: false).
+    pub fn tenant_portal_enabled(&self) -> bool {
+        self.config.get("tenant_portal_enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    }
+
+    /// Returns `vendor_portal_enabled` config flag (default: false).
+    pub fn vendor_portal_enabled(&self) -> bool {
+        self.config.get("vendor_portal_enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    }
 }
 
-/// Extracts `AppDeploymentConfig` for the `"folio"` app slug.
+/// Extracts `AppDeploymentConfig` for the `"folio"` app slug (default).
 ///
 /// For other apps, implement a newtype wrapper or call the internal resolver
 /// directly. The extractor defaulting to "folio" is a convenience for
@@ -113,17 +117,14 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, StatusCode> {
         // Re-use cached result if the same request already resolved it.
-        if let Some((cached_slug, cached_mode, cached_config)) = parts
-            .extensions
-            .get::<CachedAppConfig>()
-            .map(|c| (c.app_slug.clone(), c.mode.clone(), c.config.clone()))
-        {
+        if let Some(cached) = parts.extensions.get::<CachedAppConfig>().cloned() {
             let ctx = TenantContext::from_request_parts(parts, state).await?;
             return Ok(AppDeploymentConfig {
-                tenant_id: ctx.tenant_id,
-                app_slug:  cached_slug,
-                mode:      cached_mode,
-                config:    cached_config,
+                tenant_id:  ctx.tenant_id,
+                app_slug:   cached.app_slug,
+                mode:       cached.mode,
+                folio_mode: cached.folio_mode,
+                config:     cached.config,
             });
         }
 
@@ -148,16 +149,21 @@ where
             .await
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let (mode, config) = match row {
-            Some(r) => (r.mode, r.config),
-            // Missing row = standard mode, empty config (backward compatible)
-            None => (AppDeploymentMode::Standard, Value::Object(Default::default())),
+        let (mode, folio_mode, config) = match row {
+            Some(r) => (r.mode, r.folio_mode, r.config),
+            // Missing row = standard mode, standard folio_mode, empty config (backward compatible)
+            None => (
+                AppDeploymentMode::Standard,
+                FolioMode::Standard,
+                Value::Object(Default::default()),
+            ),
         };
 
         let cached = CachedAppConfig {
-            app_slug: app_slug.clone(),
-            mode:     mode.clone(),
-            config:   config.clone(),
+            app_slug:   app_slug.clone(),
+            mode:       mode.clone(),
+            folio_mode: folio_mode.clone(),
+            config:     config.clone(),
         };
         parts.extensions.insert(cached);
 
@@ -165,6 +171,7 @@ where
             tenant_id: ctx.tenant_id,
             app_slug,
             mode,
+            folio_mode,
             config,
         })
     }

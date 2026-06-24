@@ -286,6 +286,11 @@ pub mod m20260906_subscription_grace_period;       // Billing Grace Period: adds
 pub mod m20260907_feature_flags;                   // Feature Flags: feature_flags, flag_overrides, flag_audit_log tables
 pub mod m20260908_platform_invitations;            // Platform Invitations: platform_invite table
 
+pub mod m20260909_folio_instance_mode;            // Folio instance mode: typed folio_mode column (standard/pmc/brokerage) replacing pmc_enabled JSON boolean
+pub mod m20260912_atlas_syndication_offer;         // Platform-generic syndication offer catalog (platform admin controlled)
+pub mod m20260913_atlas_app_instance_syndication;  // Platform-generic instance syndication active links
+pub mod m20260914_atlas_listing_asset_fk;          // atlas_listing: add asset_id FK to atlas_assets
+
 pub struct Migrator;
 
 #[async_trait::async_trait]
@@ -506,6 +511,19 @@ impl MigratorTrait for Migrator {
             Box::new(m20260907_feature_flags::Migration),
             // Platform Invitations: platform_invite table
             Box::new(m20260908_platform_invitations::Migration),
+            // Folio instance mode: typed folio_mode column (standard|pmc|brokerage) on atlas_app_deployment_config.
+            // Replaces the pmc_enabled JSON boolean with a DB-level CHECK constraint.
+            // Back-fills existing rows that had config->>'pmc_enabled'='true' to folio_mode='pmc'.
+            Box::new(m20260909_folio_instance_mode::Migration),
+            // Platform-generic syndication offer catalog (platform admin controlled).
+            // Defines what NI connections are available, their terms, and tier-based mandatory rules.
+            Box::new(m20260912_atlas_syndication_offer::Migration),
+            // Platform-generic instance syndication active links.
+            // One row per (source app instance, NI) pair. Any app can use this table.
+            Box::new(m20260913_atlas_app_instance_syndication::Migration),
+            // atlas_listing: add asset_id FK to atlas_assets.
+            // Formally links a listing to its source asset (currently implicit via profile_id).
+            Box::new(m20260914_atlas_listing_asset_fk::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
