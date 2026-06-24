@@ -196,7 +196,7 @@ pub async fn get_contacts(
 
 pub async fn get_contact_by_id(id: &str) -> Result<ContactModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/contacts/{}", id));
+    let url = api_url(&format!("/api/admin/contacts/{}", id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -208,7 +208,7 @@ pub async fn get_contact_by_id(id: &str) -> Result<ContactModel, String> {
 
 pub async fn create_contact(data: CreateContact) -> Result<ContactModel, String> {
     let client = create_client();
-    let url = api_url("/api/contacts");
+    let url = api_url("/api/admin/contacts");
     let req = with_credentials(client.post(&url).json(&data));
     let res = req.send().await.map_err(|e| e.to_string())?;
 
@@ -221,7 +221,7 @@ pub async fn create_contact(data: CreateContact) -> Result<ContactModel, String>
 
 pub async fn update_contact(id: &str, data: CreateContact) -> Result<ContactModel, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/contacts/{}", id));
+    let url = api_url(&format!("/api/admin/contacts/{}", id));
     let req = with_credentials(client.put(&url).json(&data));
     let res = req.send().await.map_err(|e| e.to_string())?;
 
@@ -234,7 +234,7 @@ pub async fn update_contact(id: &str, data: CreateContact) -> Result<ContactMode
 
 pub async fn get_contact_notes(contact_id: &str) -> Result<Vec<CrmNote>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/contacts/{}/notes", contact_id));
+    let url = api_url(&format!("/api/crm/notes?entity_type=Contact&entity_id={}", contact_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -246,7 +246,7 @@ pub async fn get_contact_notes(contact_id: &str) -> Result<Vec<CrmNote>, String>
 
 pub async fn add_contact_note(contact_id: &str, content: &str) -> Result<CrmNote, String> {
     let client = create_client();
-    let url = api_url("/api/notes");
+    let url = api_url("/api/crm/notes");
     let payload = serde_json::json!({
         "entity_type": "Contact",
         "entity_id": uuid::Uuid::parse_str(contact_id).unwrap_or_default(),
@@ -264,7 +264,7 @@ pub async fn add_contact_note(contact_id: &str, content: &str) -> Result<CrmNote
 
 pub async fn get_contact_activities(contact_id: &str) -> Result<Vec<CrmActivity>, String> {
     let client = create_client();
-    let url = api_url(&format!("/api/contacts/{}/activities", contact_id));
+    let url = api_url(&format!("/api/crm/activities?entity_type=Contact&entity_id={}", contact_id));
     let req = with_credentials(client.get(&url));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status() == StatusCode::OK {
@@ -276,7 +276,7 @@ pub async fn get_contact_activities(contact_id: &str) -> Result<Vec<CrmActivity>
 
 pub async fn log_contact_activity(contact_id: &str, activity_type: &str, description: &str) -> Result<CrmActivity, String> {
     let client = create_client();
-    let url = api_url("/api/activities");
+    let url = api_url("/api/crm/activities");
     let payload = serde_json::json!({
         "contact_id": uuid::Uuid::parse_str(contact_id).unwrap_or_default(),
         "activity_type": activity_type,
@@ -393,7 +393,7 @@ pub async fn log_call_activity(
     });
 
     let client = create_client();
-    let url = api_url("api/crm/activities");
+    let url = api_url("/api/crm/activities");
     let req = with_credentials(client.post(&url).json(&payload));
     let res = req.send().await.map_err(|e| e.to_string())?;
     if res.status().is_success() {

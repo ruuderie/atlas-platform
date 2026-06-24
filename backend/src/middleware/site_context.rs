@@ -22,7 +22,17 @@ static SITE_CACHE: Lazy<Arc<RwLock<HashMap<String, SiteConfig>>>> =
 
 // We'll hardcode the admin routing check as well
 fn is_admin_route(path: &str) -> bool {
-    path.starts_with("/api/admin") || path.starts_with("/admin")
+    path.starts_with("/api/admin")
+        || path.starts_with("/admin")
+        || path.starts_with("/api/crm")       // CRM sub-system: notes, activities, status-options
+        || path.starts_with("/api/notes")     // Legacy notes endpoint
+        || path.starts_with("/api/activities") // Legacy activities endpoint
+        || path.starts_with("/api/me")        // User self-service endpoints
+        || path.starts_with("/api/pub")       // Public product/CDN routes
+        || path.starts_with("/api/version")
+        || path.starts_with("/api/app-instances")
+        || path.starts_with("/api/platform")
+        || path.starts_with("/api/ws")
 }
 
 fn is_auth_route(path: &str) -> bool {
