@@ -537,114 +537,122 @@ mod marketplace_listing_tests {
     }
 }
 
-// ── App config extractor: mode comparisons ────────────────────────────────────
+// ── App config: mode comparisons ──────────────────────────────────────────────
+//
+// NOTE: This module previously tested a `pmc_enabled` JSON boolean approach
+// that was superseded by migration m20260909_folio_instance_mode, which
+// introduced the typed `folio_mode` column (standard|pmc|brokerage) with a
+// DB-level CHECK constraint. Those tests have been replaced with tests that
+// use the real FolioMode and AppDeploymentMode types.
 
 mod app_config_tests {
-    use crate::entities::atlas_app_deployment_config::AppDeploymentMode;
+    use crate::entities::atlas_app_deployment_config::{AppDeploymentMode, FolioMode};
+    use sea_orm::ActiveEnum;
 
-    /// Standalone struct mirroring `AppDeploymentConfig` public surface.
-    struct Config {
-        mode: AppDeploymentMode,
-        config: serde_json::Value,
+    // ── Note on Display vs DB value ───────────────────────────────────────────
+    // strum_macros::Display renders PascalCase variant names ("Standard", "Pmc").
+    // The DB string value ("standard", "pmc") comes from #[sea_orm(string_value)].
+    // Use .into_value() to get the DB-persisted string (returns String directly).
+
+    fn db_value(mode: FolioMode) -> String {
+        mode.into_value()
     }
 
-    impl Config {
-        fn is_mode(&self, mode: AppDeploymentMode) -> bool {
-            self.mode == mode
+    fn deploy_db_value(mode: AppDeploymentMode) -> String {
+        mode.into_value()
+    }
+
+    // ── FolioMode: DB string values ───────────────────────────────────────────
+
+    #[test]
+    fn folio_mode_standard_db_value_is_standard() {
+        assert_eq!(db_value(FolioMode::Standard), "standard");
+    }
+
+    #[test]
+    fn folio_mode_pmc_db_value_is_pmc() {
+        assert_eq!(db_value(FolioMode::Pmc), "pmc");
+    }
+
+    #[test]
+    fn folio_mode_brokerage_db_value_is_brokerage() {
+        assert_eq!(db_value(FolioMode::Brokerage), "brokerage");
+    }
+
+    // ── FolioMode: variant identity ───────────────────────────────────────────
+
+    #[test]
+    fn default_folio_mode_is_standard() {
+        assert_eq!(FolioMode::default(), FolioMode::Standard);
+    }
+
+    #[test]
+    fn pmc_mode_is_not_standard() {
+        assert_ne!(FolioMode::Pmc, FolioMode::Standard);
+    }
+
+    #[test]
+    fn brokerage_mode_is_not_pmc() {
+        // Platform rule: a single folio instance cannot be both PMC and brokerage
+        assert_ne!(FolioMode::Brokerage, FolioMode::Pmc);
+    }
+
+    #[test]
+    fn brokerage_mode_is_not_standard() {
+        assert_ne!(FolioMode::Brokerage, FolioMode::Standard);
+    }
+
+    // ── AppDeploymentMode: DB string values ───────────────────────────────────
+
+    #[test]
+    fn deployment_mode_standard_db_value_is_standard() {
+        assert_eq!(deploy_db_value(AppDeploymentMode::Standard), "standard");
+    }
+
+    #[test]
+    fn deployment_mode_internal_operator_db_value_is_snake_case() {
+        assert_eq!(deploy_db_value(AppDeploymentMode::InternalOperator), "internal_operator");
+    }
+
+    #[test]
+    fn deployment_modes_are_distinct() {
+        assert_ne!(AppDeploymentMode::Standard, AppDeploymentMode::InternalOperator);
+    }
+
+    // ── AppDeploymentMode ≠ FolioMode: they are independent axes ─────────────
+    //
+    // AppDeploymentMode governs operator topology (who deployed the platform).
+    // FolioMode governs operational identity (what kind of business this is).
+    // These are separate DB columns on atlas_app_deployment_config.
+
+    #[test]
+    fn folio_mode_db_values_do_not_include_internal_operator() {
+        let folio_db_values = [
+            db_value(FolioMode::Standard),
+            db_value(FolioMode::Pmc),
+            db_value(FolioMode::Brokerage),
+        ];
+        let internal_op = deploy_db_value(AppDeploymentMode::InternalOperator);
+        assert!(!folio_db_values.iter().any(|v| v == &internal_op));
+    }
+
+    #[test]
+    fn deployment_mode_db_values_do_not_include_pmc_or_brokerage() {
+        let deploy_db_values = [
+            deploy_db_value(AppDeploymentMode::Standard),
+            deploy_db_value(AppDeploymentMode::InternalOperator),
+        ];
+        assert!(!deploy_db_values.iter().any(|v| v == "pmc"));
+        assert!(!deploy_db_values.iter().any(|v| v == "brokerage"));
+    }
+
+    #[test]
+    fn all_folio_mode_db_values_are_lowercase_snake_case() {
+        for mode in [FolioMode::Standard, FolioMode::Pmc, FolioMode::Brokerage] {
+            let val = db_value(mode);
+            assert_eq!(val, val.to_lowercase(), "DB value must be lowercase: '{val}'");
+            assert!(!val.contains('-'), "DB value must use underscores: '{val}'");
         }
-
-        fn config_str(&self, key: &str) -> Option<&str> {
-            self.config.get(key)?.as_str()
-        }
-
-        fn config_u64(&self, key: &str) -> Option<u64> {
-            self.config.get(key)?.as_u64()
-        }
-
-        fn is_pmc_enabled(&self) -> bool {
-            self.config.get("pmc_enabled").and_then(|v| v.as_bool()).unwrap_or(false)
-        }
-    }
-
-    fn standard_config() -> Config {
-        Config {
-            mode:   AppDeploymentMode::Standard,
-            config: serde_json::json!({}),
-        }
-    }
-
-    fn pmc_config() -> Config {
-        Config {
-            mode:   AppDeploymentMode::Standard,
-            config: serde_json::json!({
-                "pmc_enabled": true,
-                "max_clients": 100,
-                "region": "us-southeast"
-            }),
-        }
-    }
-
-    fn internal_operator_config() -> Config {
-        Config {
-            mode:   AppDeploymentMode::InternalOperator,
-            config: serde_json::json!({}),
-        }
-    }
-
-    #[test]
-    fn standard_config_is_mode_standard() {
-        assert!(standard_config().is_mode(AppDeploymentMode::Standard));
-    }
-
-    #[test]
-    fn standard_config_is_not_internal_operator() {
-        assert!(!standard_config().is_mode(AppDeploymentMode::InternalOperator));
-    }
-
-    #[test]
-    fn internal_operator_config_is_mode_internal_operator() {
-        assert!(internal_operator_config().is_mode(AppDeploymentMode::InternalOperator));
-    }
-
-    #[test]
-    fn standard_config_does_not_have_pmc_enabled() {
-        assert!(!standard_config().is_pmc_enabled());
-    }
-
-    #[test]
-    fn pmc_config_has_pmc_enabled() {
-        assert!(pmc_config().is_pmc_enabled());
-    }
-
-    #[test]
-    fn config_str_reads_string_key() {
-        let cfg = pmc_config();
-        assert_eq!(cfg.config_str("region"), Some("us-southeast"));
-    }
-
-    #[test]
-    fn config_str_missing_key_returns_none() {
-        let cfg = pmc_config();
-        assert_eq!(cfg.config_str("nonexistent"), None);
-    }
-
-    #[test]
-    fn config_u64_reads_numeric_key() {
-        let cfg = pmc_config();
-        assert_eq!(cfg.config_u64("max_clients"), Some(100));
-    }
-
-    #[test]
-    fn config_u64_missing_key_returns_none() {
-        let cfg = pmc_config();
-        assert_eq!(cfg.config_u64("missing"), None);
-    }
-
-    #[test]
-    fn empty_config_all_keys_return_none() {
-        let cfg = standard_config();
-        assert!(cfg.config_str("anything").is_none());
-        assert!(cfg.config_u64("anything").is_none());
     }
 }
 

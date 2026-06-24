@@ -290,6 +290,7 @@ pub mod m20260909_folio_instance_mode;            // Folio instance mode: typed 
 pub mod m20260912_atlas_syndication_offer;         // Platform-generic syndication offer catalog (platform admin controlled)
 pub mod m20260913_atlas_app_instance_syndication;  // Platform-generic instance syndication active links
 pub mod m20260914_atlas_listing_asset_fk;          // atlas_listing: add asset_id FK to atlas_assets
+pub mod m20260915_atlas_syndication_outbox;        // G-05 Syndication Event Bus: outbox + integration events ledger
 
 pub struct Migrator;
 
@@ -524,6 +525,10 @@ impl MigratorTrait for Migrator {
             // atlas_listing: add asset_id FK to atlas_assets.
             // Formally links a listing to its source asset (currently implicit via profile_id).
             Box::new(m20260914_atlas_listing_asset_fk::Migration),
+            // G-05 Syndication Event Bus: atlas_syndication_outbox (transactional outbox with
+            // at-least-once delivery, exponential back-off, dead-letter after 5 attempts)
+            // + atlas_integration_events (immutable delivery ledger for audit trails).
+            Box::new(m20260915_atlas_syndication_outbox::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

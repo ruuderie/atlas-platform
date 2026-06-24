@@ -161,6 +161,8 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/ab-tests/{id}/end", axum::routing::post(crate::handlers::ab_testing::end_ab_test))
                 // Admin R2 presigned upload (avatars, transcripts) — no SiteConfig dependency
                 .merge(crate::admin::upload::routes())
+                // Platform-generic syndication: offer catalog + active link management
+                .merge(crate::handlers::syndication_admin::syndication_admin_routes())
 
                 //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
                 .with_state(db)

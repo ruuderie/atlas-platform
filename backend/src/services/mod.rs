@@ -47,6 +47,7 @@ pub mod data_sync;
 pub mod module_provisioning;
 pub mod ingress_provisioner;
 pub mod outbox_worker;
+pub mod syndication_event_bus;     // G-05 Syndication Event Bus
 pub mod crm_validator;
 pub mod rbac;              // G-32: platform-generic RBAC — role resolution, assignment, permission checks
 pub mod product_localization; // Product Launch Engine: AI-powered variant localization via G-08

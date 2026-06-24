@@ -48,6 +48,16 @@ use crate::pages::pmc::{
 // Owner pages
 use crate::pages::owner::dashboard::OwnerDashboard;
 
+// Agent pages
+use crate::pages::agent::dashboard::{
+    AgentDashboard, AgentClients, AgentListings, AgentDeals, AgentSchedule,
+};
+
+// Broker pages
+use crate::pages::broker::dashboard::{
+    BrokerDashboard, BrokerAgents, BrokerListings, BrokerCompliance, BrokerRevenue,
+};
+
 // Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
     landlord_layout::LandlordLayout,
@@ -55,6 +65,7 @@ use crate::components::layouts::{
     vendor_layout::VendorLayout,
     pmc_layout::PmcLayout,
     owner_layout::OwnerLayout,
+    brokerage_layouts::{AgentLayout, BrokerLayout},
 };
 
 /// Root application. Provides session context once, then routes to the
@@ -124,6 +135,26 @@ pub fn App() -> impl IntoView {
                 <ParentRoute path=path!("/o") view=OwnerShell>
                     <Route path=path!("")           view=OwnerDashboard/>
                 </ParentRoute>
+                // ── Agent namespace /a/** ──────────────────────────────────────
+                // Only valid when folio_mode = "brokerage" on the instance.
+                // Backend API guards enforce the folio_mode constraint.
+                <ParentRoute path=path!("/a") view=AgentShell>
+                    <Route path=path!("")            view=AgentDashboard/>
+                    <Route path=path!("/clients")   view=AgentClients/>
+                    <Route path=path!("/listings")  view=AgentListings/>
+                    <Route path=path!("/deals")     view=AgentDeals/>
+                    <Route path=path!("/schedule")  view=AgentSchedule/>
+                </ParentRoute>
+
+                // ── Broker namespace /b/** ─────────────────────────────────────
+                // Licensed broker — manages the office, agents, and compliance.
+                <ParentRoute path=path!("/b") view=BrokerShell>
+                    <Route path=path!("")             view=BrokerDashboard/>
+                    <Route path=path!("/agents")     view=BrokerAgents/>
+                    <Route path=path!("/listings")   view=BrokerListings/>
+                    <Route path=path!("/compliance") view=BrokerCompliance/>
+                    <Route path=path!("/revenue")    view=BrokerRevenue/>
+                </ParentRoute>
             </Routes>
         </Router>
     }
@@ -163,6 +194,16 @@ fn PmcShell() -> impl IntoView {
 #[component]
 fn OwnerShell() -> impl IntoView {
     role_shell_view(FolioRole::Owner, || view! { <OwnerLayout/> }.into_any())
+}
+
+#[component]
+fn AgentShell() -> impl IntoView {
+    role_shell_view(FolioRole::Agent, || view! { <AgentLayout/> }.into_any())
+}
+
+#[component]
+fn BrokerShell() -> impl IntoView {
+    role_shell_view(FolioRole::Broker, || view! { <BrokerLayout/> }.into_any())
 }
 
 /// Shared guard logic for all role shells.

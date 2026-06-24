@@ -58,6 +58,10 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
         .route("/api/admin/app-instances/{id}/suspend", post(suspend_instance))
         .route("/api/admin/app-instances/{id}/resume",  post(resume_instance))
         .route("/api/admin/app-instances/{id}/archive", post(archive_instance))
+        .route(
+            "/api/admin/app-instances/{id}/operational-config",
+            axum::routing::patch(update_operational_config),
+        )
 }
 
 /// Convenience wrapper with state applied (for standalone use / tests).
@@ -75,6 +79,14 @@ pub struct PublicConfigResponse {
     pub public_slug:      Option<String>,
     pub custom_domain:    Option<String>,
     pub instance_status:  String,
+    /// Folio operational mode: "standard" | "pmc" | "brokerage"
+    pub folio_mode:       String,
+    /// Billing tier key stored in config JSON: "free" | "starter" | "growth" | "enterprise"
+    pub billing_tier:     String,
+    /// Whether tenant self-service portal is active
+    pub tenant_portal_enabled: bool,
+    /// Whether vendor self-service portal is active
+    pub vendor_portal_enabled: bool,
     /// Only present on PUT response
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dns_instructions: Option<DnsInstructions>,
@@ -105,6 +117,17 @@ pub struct ArchiveBody {
     pub data_retention_days:    Option<u32>,
 }
 
+/// Body for PATCH /api/admin/app-instances/{id}/operational-config
+#[derive(Debug, Deserialize)]
+pub struct UpdateOperationalConfigBody {
+    /// "standard" | "pmc" | "brokerage"
+    pub folio_mode:            Option<String>,
+    /// "free" | "starter" | "growth" | "enterprise"
+    pub billing_tier:          Option<String>,
+    pub tenant_portal_enabled: Option<bool>,
+    pub vendor_portal_enabled: Option<bool>,
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn platform_cname_target() -> &'static str {
@@ -123,6 +146,19 @@ pub async fn get_public_config(
         .await
     {
         Ok(Some(cfg)) => {
+            let billing_tier = cfg.config
+                .get("billing_tier")
+                .and_then(|v| v.as_str())
+                .unwrap_or("starter")
+                .to_string();
+            let tenant_portal = cfg.config
+                .get("tenant_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let vendor_portal = cfg.config
+                .get("vendor_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let resp = PublicConfigResponse {
                 instance_id: cfg.id,
                 tenant_id:   cfg.tenant_id,
@@ -130,6 +166,10 @@ pub async fn get_public_config(
                 public_slug:     cfg.public_slug.clone(),
                 custom_domain:   cfg.custom_domain.clone(),
                 instance_status: cfg.instance_status.to_string(),
+                folio_mode:      cfg.folio_mode.to_string(),
+                billing_tier,
+                tenant_portal_enabled: tenant_portal,
+                vendor_portal_enabled: vendor_portal,
                 dns_instructions: None,
             };
             (StatusCode::OK, Json(resp)).into_response()
@@ -188,7 +228,19 @@ pub async fn update_public_config(
                     target = platform_cname_target()
                 ),
             });
-
+            let billing_tier = updated.config
+                .get("billing_tier")
+                .and_then(|v| v.as_str())
+                .unwrap_or("starter")
+                .to_string();
+            let tenant_portal = updated.config
+                .get("tenant_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let vendor_portal = updated.config
+                .get("vendor_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let resp = PublicConfigResponse {
                 instance_id:  updated.id,
                 tenant_id:    updated.tenant_id,
@@ -196,6 +248,10 @@ pub async fn update_public_config(
                 public_slug:  updated.public_slug,
                 custom_domain: updated.custom_domain,
                 instance_status: updated.instance_status.to_string(),
+                folio_mode: updated.folio_mode.to_string(),
+                billing_tier,
+                tenant_portal_enabled: tenant_portal,
+                vendor_portal_enabled: vendor_portal,
                 dns_instructions,
             };
             (StatusCode::OK, Json(resp)).into_response()
@@ -209,6 +265,93 @@ pub async fn update_public_config(
         }
         Err(e) => {
             tracing::error!("update_public_config: {e:#}");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        }
+    }
+}
+
+/// PATCH /api/admin/app-instances/{id}/operational-config
+///
+/// Updates folio_mode and/or config-JSON keys (billing_tier, portal flags)
+/// in a single atomic DB write.
+pub async fn update_operational_config(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(instance_id): Path<Uuid>,
+    Json(body): Json<UpdateOperationalConfigBody>,
+) -> impl IntoResponse {
+    use crate::entities::atlas_app_deployment_config::FolioMode;
+    use sea_orm::JsonValue;
+
+    let existing = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
+        .one(&db)
+        .await
+    {
+        Ok(Some(c)) => c,
+        Ok(None) => return (StatusCode::NOT_FOUND, "instance not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let mut active: atlas_app_deployment_config::ActiveModel = existing.clone().into();
+
+    // Update folio_mode if provided
+    if let Some(ref mode_str) = body.folio_mode {
+        let mode = match mode_str.as_str() {
+            "pmc"       => FolioMode::Pmc,
+            "brokerage" => FolioMode::Brokerage,
+            _           => FolioMode::Standard,
+        };
+        active.folio_mode = Set(mode);
+    }
+
+    // Merge config-JSON keys
+    let mut config: serde_json::Map<String, JsonValue> = existing.config
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
+
+    if let Some(tier) = &body.billing_tier {
+        config.insert("billing_tier".into(), JsonValue::String(tier.clone()));
+    }
+    if let Some(tp) = body.tenant_portal_enabled {
+        config.insert("tenant_portal_enabled".into(), JsonValue::Bool(tp));
+    }
+    if let Some(vp) = body.vendor_portal_enabled {
+        config.insert("vendor_portal_enabled".into(), JsonValue::Bool(vp));
+    }
+    active.config = Set(sea_orm::entity::prelude::Json::Object(config));
+
+    match active.update(&db).await {
+        Ok(updated) => {
+            let billing_tier = updated.config
+                .get("billing_tier")
+                .and_then(|v| v.as_str())
+                .unwrap_or("starter")
+                .to_string();
+            let tenant_portal = updated.config
+                .get("tenant_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let vendor_portal = updated.config
+                .get("vendor_portal_enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let resp = PublicConfigResponse {
+                instance_id:  updated.id,
+                tenant_id:    updated.tenant_id,
+                app_slug:     updated.app_slug,
+                public_slug:  updated.public_slug,
+                custom_domain: updated.custom_domain,
+                instance_status: updated.instance_status.to_string(),
+                folio_mode: updated.folio_mode.to_string(),
+                billing_tier,
+                tenant_portal_enabled: tenant_portal,
+                vendor_portal_enabled: vendor_portal,
+                dns_instructions: None,
+            };
+            (StatusCode::OK, Json(resp)).into_response()
+        }
+        Err(e) => {
+            tracing::error!("update_operational_config: {e:#}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
         }
     }

@@ -70,3 +70,6 @@ pub mod rbac;
 // PRODUCT LAUNCH ENGINE — public zero-auth endpoints
 pub mod pub_products;   // Product pages, variant pages, waitlist, pre-order, sitemap, view-count
 pub mod pub_resolve;    // Domain resolver: folio.app, miami.folio.app → product/variant context
+
+// PLATFORM-GENERIC SYNDICATION ADMIN
+pub mod syndication_admin;  // Offer catalog CRUD + active link management + auto-provision

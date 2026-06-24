@@ -158,7 +158,7 @@ pub fn Dashboard() -> impl IntoView {
                 </thead>
                 <tbody>
                     {move || tenants_res.get().unwrap_or_default().into_iter().map(|t| {
-                        let status_color = match t.site_status.as_deref().unwrap_or("active") {
+                                    let status_color = match t.site_status.as_deref().unwrap_or("active") {
                             "active" => "var(--green)",
                             "suspended" => "var(--red)",
                             "provisioning" => "var(--amber)",
@@ -170,8 +170,19 @@ pub fn Dashboard() -> impl IntoView {
                         let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
                         let joined = t.joined_at.clone().unwrap_or_else(|| "—".to_string());
                         let joined_short = joined.get(..7).unwrap_or(&joined).to_string();
+                        // Make each row navigate to the tenant's app detail page
+                        let href = format!("/apps/{}", t.tenant_id);
                         view! {
-                            <tr>
+                            <tr
+                                style="cursor:pointer;"
+                                on:click={
+                                    let href = href.clone();
+                                    move |_| {
+                                        let _ = web_sys::window()
+                                            .and_then(|w| w.location().assign(&href).ok());
+                                    }
+                                }
+                            >
                                 <td>
                                     <div class="tenant-name">{t.name.clone()}</div>
                                     <div class="tenant-domain" style="font-size:10px;color:var(--text-muted)">{t.tenant_id.clone()}</div>
@@ -221,8 +232,10 @@ pub fn Dashboard() -> impl IntoView {
                                 _ => "var(--text-muted)",
                             };
                             let status_label = app.site_status.clone();
+                            // Click navigates to the instance management tab
+                            let href = format!("/apps/{}/instance", app.tenant_id);
                             view! {
-                                <div class="product-row">
+                                <a href=href class="product-row" style="display:flex;align-items:center;text-decoration:none;color:inherit;">
                                     <span class="product-mode-dot" style=format!("background:{}", dot_color)></span>
                                     <div class="product-info">
                                         <div class="product-name">{app.name.clone()}</div>
@@ -232,7 +245,7 @@ pub fn Dashboard() -> impl IntoView {
                                         <span style="font-size:10px;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;font-weight:600;text-transform:uppercase">{status_label}</span>
                                         <span style="font-size:10px;color:var(--text-muted)">{app.app_type.clone()}</span>
                                     </div>
-                                </div>
+                                </a>
                             }
                         }).collect_view().into_any()
                     }
@@ -240,78 +253,76 @@ pub fn Dashboard() -> impl IntoView {
                 </Suspense>
             </div>
 
-            // Generics Coverage Panel
+            // Verification Queue (replaces static generics coverage)
             <div class="section">
                 <div class="section-header">
                     <div class="section-title">
                         <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="1" y="1" width="12" height="12" rx="1"/>
-                            <path d="M1 5h12M5 5v8"/>
+                            <path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/>
                         </svg>
-                        "Platform Generics — G01–G31"
-                        <span class="section-count">"Coverage"</span>
+                        "Verification Queue"
+                        <span class="section-count">
+                            {move || {
+                                let pending = verification_res.get().unwrap_or_default()
+                                    .iter()
+                                    .filter(|r| r.status == "pending" || r.status == "review")
+                                    .count();
+                                if pending == 0 { "All Clear".to_string() } else { format!("{} pending", pending) }
+                            }}
+                        </span>
                     </div>
-                    <a href="/billing/scorecards" class="section-action" style="text-decoration:none">"View Spec →"</a>
+                    <a href="/verification" class="section-action" style="text-decoration:none">"Review All →"</a>
                 </div>
-                <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 5px;background:var(--cobalt-dim)">"G27"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Scorecards"</span>
-                        <span style="font-size:10px;color:var(--green);font-weight:600">"● Deployed + UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--cobalt);border:1px solid var(--cobalt);border-radius:3px;padding:1px 5px;background:var(--cobalt-dim)">"G31"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Leads (atlas_lead)"</span>
-                        <span style="font-size:10px;color:var(--green);font-weight:600">"● Full UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G08"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"AI Tasks"</span>
-                        <span style="font-size:10px;color:var(--amber);font-weight:600">"⚠ No UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G19"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Campaigns"</span>
-                        <span style="font-size:10px;color:var(--amber);font-weight:600">"⚠ No UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G21"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Events"</span>
-                        <span style="font-size:10px;color:var(--amber);font-weight:600">"⚠ No UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G23"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Reservations"</span>
-                        <span style="font-size:10px;color:var(--amber);font-weight:600">"⚠ No UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G24"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Quotes"</span>
-                        <span style="font-size:10px;color:var(--amber);font-weight:600">"⚠ No UI"</span>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;padding:6px 0">
-                        <span style="font-size:9px;font-weight:600;color:var(--text-muted);border:1px solid var(--border-default);border-radius:3px;padding:1px 5px;">"G06"</span>
-                        <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">"Verification Queue"</span>
-                        {move || {
-                            let pending = verification_res.get().unwrap_or_default()
-                                .into_iter()
-                                .filter(|r| r.status == "pending" || r.status == "review")
-                                .count();
-                            if pending == 0 {
-                                view! { <span style="font-size:10px;color:var(--green);font-weight:600">"✓ Clear"</span> }.into_any()
-                            } else {
-                                view! { <span style="font-size:10px;color:var(--red);font-weight:600">{format!("✗ {} pending", pending)}</span> }.into_any()
-                            }
-                        }}
-                    </div>
-                </div>
+                <Suspense fallback=move || view! { <div class="p-4 muted">"Loading queue…"</div> }>
+                {move || {
+                    let items = verification_res.get().unwrap_or_default();
+                    let pending: Vec<_> = items.into_iter()
+                        .filter(|r| r.status == "pending" || r.status == "review")
+                        .take(6)
+                        .collect();
+                    if pending.is_empty() {
+                        view! {
+                            <div style="padding:20px 16px;display:flex;align-items:center;gap:10px;">
+                                <span style="font-size:20px">"✅"</span>
+                                <div>
+                                    <div style="font-size:13px;font-weight:600;color:var(--text-primary)">"Queue is clear"</div>
+                                    <div style="font-size:11px;color:var(--text-muted)">"No pending identity or document verification requests."</div>
+                                </div>
+                            </div>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <div style="padding:8px 0;display:flex;flex-direction:column;">
+                                {pending.into_iter().map(|item| {
+                                    let status_color = if item.status == "review" {
+                                        "var(--amber)"
+                                    } else {
+                                        "var(--cobalt)"
+                                    };
+                                    let label = item.req_type.clone();
+                                    let submitted = item.created_at.get(..10)
+                                        .map(|d| d.to_string())
+                                        .unwrap_or_else(|| "—".to_string());
+                                    let name = item.entity_name.clone();
+                                    view! {
+                                        <a
+                                            href="/verification"
+                                            style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border-subtle);text-decoration:none;transition:background 0.1s;"
+                                        >
+                                            <span style=format!("width:6px;height:6px;border-radius:50%;background:{};flex-shrink:0", status_color)></span>
+                                            <span style="font-size:12px;color:var(--text-primary);font-weight:500;flex:1">
+                                                {name}
+                                            </span>
+                                            <span style="font-size:10px;color:var(--text-muted);font-family:monospace">{label}</span>
+                                            <span style="font-size:10px;color:var(--text-muted)">{submitted}</span>
+                                        </a>
+                                    }
+                                }).collect_view()}
+                            </div>
+                        }.into_any()
+                    }
+                }}
+                </Suspense>
             </div>
         </div>
         </div>

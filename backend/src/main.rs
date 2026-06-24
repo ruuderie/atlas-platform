@@ -243,6 +243,11 @@ async fn main() {
     crate::services::data_sync::DataSyncService::start_worker(sync_db).await;
     let outbox_db = conn.clone();
     crate::services::outbox_worker::OutboxWorker::start_worker(outbox_db).await;
+    // G-05 Syndication Event Bus — polls atlas_syndication_outbox every 10s,
+    // dispatches outbound events to linked NI webhook URLs with HMAC-SHA256 signing,
+    // exponential back-off, and dead-letter after 5 failed attempts.
+    let syndication_db = conn.clone();
+    crate::services::syndication_event_bus::SyndicationEventBus::start_worker(syndication_db).await;
     let telemetry_db = conn.clone();
     tokio::spawn(async move {
         // Run every hour

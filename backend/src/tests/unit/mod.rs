@@ -13,3 +13,5 @@ pub mod type_system_unit_tests;
 pub mod pm_phase3_unit_tests;
 // G-33 PMC + G-34 Vendor Marketplace: aggregates, invite flow, geo SQL, endorsements, RBAC scoping
 pub mod pmc_marketplace_unit_tests;
+// G-05 Syndication Event Bus + Folio/NI config matrix + operational config semantics
+pub mod syndication_unit_tests;

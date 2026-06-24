@@ -191,3 +191,9 @@ pub mod platform_invite;
 pub mod atlas_syndication_offer;
 // Layer B: active links (one per source app instance ↔ NI pair)
 pub mod atlas_app_instance_syndication;
+
+// G-05 SYNDICATION EVENT BUS (m20260915)
+// Transactional outbox for outbound syndication events (listing.published, etc.)
+pub mod atlas_syndication_outbox;
+// Immutable delivery ledger — one row per dispatch attempt
+pub mod atlas_integration_events;

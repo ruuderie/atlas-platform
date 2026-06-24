@@ -15,4 +15,5 @@ pub mod shared;
 pub mod verification;
 pub mod products;
 pub mod marketing;
+pub mod syndication;
 

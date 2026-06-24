@@ -50,6 +50,8 @@ use crate::api::models::{UserInfo, PlatformAppModel};
 use crate::api::networks::get_networks;
 use crate::api::version::get_version;
 use crate::components::intel_sidebar::IntelSidebar;
+use crate::pages::syndication::offers::SyndicationOffers;
+use crate::pages::syndication::links::SyndicationLinks;
 
 
 #[derive(Clone, Debug)]
@@ -370,6 +372,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
                         "Syndication"
                     </a>
+                    <a href="/syndication/offers" class=move || side_active_class("/syndication")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M10 5l3 3-3 3M8 2v12"/></svg>
+                        "Offer Catalog"
+                    </a>
                     <a href="/verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
@@ -481,6 +487,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/flags") view=FeatureFlags />
                         <Route path=path!("/support") view=SupportQueue />
                         <Route path=path!("/marketing") view=MarketingLanding />
+                        // Syndication Offer Catalog (platform admin)
+                        <Route path=path!("/syndication/offers") view=SyndicationOffers />
+                        <Route path=path!("/syndication/links") view=SyndicationLinks />
                     </Routes>
                 </main>
 

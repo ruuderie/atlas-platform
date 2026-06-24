@@ -102,6 +102,10 @@ pub struct PublicConfigResponse {
     pub public_slug: Option<String>,
     pub custom_domain: Option<String>,
     pub instance_status: String,
+    pub folio_mode: String,
+    pub billing_tier: String,
+    pub tenant_portal_enabled: bool,
+    pub vendor_portal_enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -126,6 +130,27 @@ pub async fn update_public_config(id: Uuid, public_slug: Option<String>, custom_
         "custom_domain": custom_domain
     });
     let req = client.put(&url).json(&payload);
+    crate::api::client::api_request(req).await
+}
+
+/// PATCH /api/admin/app-instances/{id}/operational-config
+/// Updates folio_mode, billing_tier, and portal enablement flags.
+pub async fn update_operational_config(
+    id: Uuid,
+    folio_mode: Option<String>,
+    billing_tier: Option<String>,
+    tenant_portal_enabled: Option<bool>,
+    vendor_portal_enabled: Option<bool>,
+) -> Result<PublicConfigResponse, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url(&format!("api/admin/app-instances/{}/operational-config", id));
+    let payload = serde_json::json!({
+        "folio_mode": folio_mode,
+        "billing_tier": billing_tier,
+        "tenant_portal_enabled": tenant_portal_enabled,
+        "vendor_portal_enabled": vendor_portal_enabled,
+    });
+    let req = client.patch(&url).json(&payload);
     crate::api::client::api_request(req).await
 }
 

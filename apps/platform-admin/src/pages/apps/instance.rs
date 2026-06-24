@@ -6,6 +6,12 @@ use crate::api::admin::{
     upsert_module,
 };
 
+use crate::components::instance_syndication_panel::{
+    InstanceSyndicationPanel, AvailableOffersPanel,
+};
+use crate::components::instance_operational_config_panel::InstanceOperationalConfigPanel;
+use crate::components::tenant_users_panel::TenantUsersPanel;
+
 #[component]
 pub fn AppInstance() -> impl IntoView {
     let params = use_params_map();
@@ -352,9 +358,12 @@ pub fn AppInstance() -> impl IntoView {
                         {tab_button("t-onboarding", "Onboarding")}
                         {tab_button("t-modules", "Modules")}
                         {tab_button("t-folio-config", "App Config (Folio)")}
+                        {tab_button("t-operational-config", "Operational Config")}
+                        {tab_button("t-users", "Users")}
                         {tab_button("t-scorecards", "G-27 Scorecards")}
                         {tab_button("t-jobs", "Background Jobs")}
                         {tab_button("t-domain", "Domains & Routing")}
+                        {tab_button("t-syndication", "Syndication")}
                         {tab_button("t-compare", "App Type Comparison")}
                     }
                 }
@@ -961,16 +970,63 @@ pub fn AppInstance() -> impl IntoView {
                                     </div>
                                     <div class="flex justify-between items-start px-5 py-3 gap-8">
                                         <span class="text-on-surface font-semibold">"PMC Router"</span>
-                                        <span class="text-right text-primary">"Active · PMC clients, analytics, invite"</span>
+                                        <span class="text-right text-primary">{move || if deployment_mode.get() == "pmc" { "Active · client book, analytics" } else { "Disabled · requires folio_mode=pmc" }}</span>
                                     </div>
                                     <div class="flex justify-between items-start px-5 py-3 gap-8">
                                         <span class="text-on-surface font-semibold">"Owner Router"</span>
                                         <span class="text-right">"Active · read-only portfolio visibility"</span>
                                     </div>
+                                    <div class="flex justify-between items-start px-5 py-3 gap-8">
+                                        <span class="text-on-surface font-semibold">"Agent Router"</span>
+                                        <span class="text-right text-on-surface-variant/60">{move || if deployment_mode.get() == "brokerage" { "Active · clients, listings, deals, schedule" } else { "Disabled · requires folio_mode=brokerage" }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-start px-5 py-3 gap-8">
+                                        <span class="text-on-surface font-semibold">"Broker Router"</span>
+                                        <span class="text-right text-on-surface-variant/60">{move || if deployment_mode.get() == "brokerage" { "Active · agents, compliance, revenue" } else { "Disabled · requires folio_mode=brokerage" }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </Show>
+
+            // ── TAB CONTENT: Operational Config ──
+            <Show when=move || active_tab.get() == "t-operational-config">
+                <div class="space-y-6">
+                    {move || {
+                        let cfg = instance_config.get().flatten();
+                        let iid = instance_id_str();
+                        if let Ok(id) = uuid::Uuid::parse_str(&iid) {
+                            view! {
+                                <InstanceOperationalConfigPanel
+                                    instance_id=id
+                                    config=cfg
+                                />
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="p-6 muted text-xs">"Loading instance…"</div>
+                            }.into_any()
+                        }
+                    }}
+                </div>
+            </Show>
+
+            // ── TAB CONTENT: Users ──
+            <Show when=move || active_tab.get() == "t-users">
+                <div class="space-y-6">
+                    {move || {
+                        if let Some(tid) = tenant_id_sig() {
+                            view! {
+                                <TenantUsersPanel tenant_id=tid/>
+                            }.into_any()
+                        } else {
+                            view! {
+                                <div class="p-6 muted text-xs">"Waiting for tenant context…"</div>
+                            }.into_any()
+                        }
+                    }}
                 </div>
             </Show>
 
@@ -1486,6 +1542,97 @@ pub fn AppInstance() -> impl IntoView {
                                 "Save Config"
                             </button>
                         </div>
+                    </div>
+                </div>
+            </Show>
+
+            // ── TAB CONTENT: Syndication ──
+            <Show when=move || active_tab.get() == "t-syndication">
+                <div class="space-y-6">
+
+                    // ── Mode badge + explainer
+                    <div class="flex items-center gap-3 bg-surface-container-low border border-outline-variant/20 rounded-xl p-4">
+                        <div class="w-10 h-10 bg-primary/10 border border-primary/30 rounded-xl flex items-center justify-center text-primary font-black text-sm shrink-0">
+                            "↗"
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-on-surface">
+                                "Syndication — "
+                                {move || match deployment_mode.get().as_str() {
+                                    "pmc" => "PMC Mode: Syndicate tenant and vendor portals",
+                                    "brokerage" => "Brokerage Mode: Syndicate listings to MLS & marketplaces",
+                                    _ => "Standard Mode: Syndicate LTR / STR listings",
+                                }}
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-0.5">
+                                "Layer A offers are defined in the offer catalog. Active links (Layer B) route listing "
+                                "events from this instance to connected network instances via the G-05 event bus."
+                            </p>
+                        </div>
+                        <a
+                            href="/syndication/offers"
+                            class="ml-auto text-xs text-primary hover:underline font-semibold shrink-0"
+                        >
+                            "Manage Offer Catalog →"
+                        </a>
+                    </div>
+
+                    // ── Active Links for this instance
+                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                        <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-primary">
+                                    "sync_alt"
+                                </span>
+                                "Active Syndication Links · This Instance"
+                            </h3>
+                            <a
+                                href="/syndication/links"
+                                class="text-xs text-primary hover:underline"
+                            >
+                                "View all platform links →"
+                            </a>
+                        </div>
+                        // Inline link list filtered to this instance
+                        {move || {
+                            let iid = instance_id_str();
+                            view! {
+                                <crate::components::instance_syndication_panel::InstanceSyndicationPanel
+                                    instance_id=iid
+                                />
+                            }
+                        }}
+                    </div>
+
+                    // ── Self-service available offers
+                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                        <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-primary">
+                                    "add_link"
+                                </span>
+                                "Available Self-Service Offers"
+                            </h3>
+                        </div>
+                        <div class="p-6">
+                            <crate::components::instance_syndication_panel::AvailableOffersPanel
+                                instance_id=instance_id_str()
+                            />
+                        </div>
+                    </div>
+
+                    // ── Monetization note
+                    <div class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-300/80 leading-relaxed">
+                        <span class="font-bold text-amber-400">"🔒 Mandatory Links"</span>
+                        " — If this instance is on the "
+                        <span class="font-mono text-amber-400">"free"</span>
+                        " or "
+                        <span class="font-mono text-amber-400">"starter"</span>
+                        " billing tier, certain links are mandatory and cannot be deactivated. "
+                        "These feed listing traffic to the Atlas platform marketplace — the platform's revenue model on subsidised tiers. "
+                        "Upgrade to "
+                        <span class="font-mono text-amber-400">"pro"</span>
+                        " or higher to unlock full syndication control."
                     </div>
                 </div>
             </Show>
