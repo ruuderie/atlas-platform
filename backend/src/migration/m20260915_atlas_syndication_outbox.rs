@@ -28,7 +28,9 @@ impl MigrationTrait for Migration {
         manager
             .get_connection()
             .execute_unprepared(
-                "-- ── atlas_syndication_outbox ────────────────────────────────────────
+                "DROP TABLE IF EXISTS atlas_integration_events;
+
+                -- ── atlas_syndication_outbox ────────────────────────────────────────
                 CREATE TABLE IF NOT EXISTS atlas_syndication_outbox (
                     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
 

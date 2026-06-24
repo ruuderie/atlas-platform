@@ -121,8 +121,16 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Note: atlas_integration_events is now owned by m20260915_atlas_syndication_outbox.
+        // That migration's down() drops it first; use IF EXISTS here so rollback is safe
+        // regardless of which migration runs first in a partial rollback scenario.
         manager
-            .drop_table(Table::drop().table(AtlasIntegrationEvents::Table).to_owned())
+            .drop_table(
+                Table::drop()
+                    .table(AtlasIntegrationEvents::Table)
+                    .if_exists()
+                    .to_owned(),
+            )
             .await?;
 
         manager
