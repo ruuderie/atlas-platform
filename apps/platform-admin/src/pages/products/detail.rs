@@ -130,7 +130,7 @@ pub fn ProductDetail() -> impl IntoView {
     let not_found = move || matches!(product_res.get(), Some(None));
 
     view! {
-        <div class="space-y-6">
+        <div class="w-full space-y-6">
 
             // ── Loading / Not Found states ──
             <Show when=loading>
@@ -181,11 +181,11 @@ pub fn ProductDetail() -> impl IntoView {
                             {move || product_status.get()}
                         </span>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 shrink-0">
                         <button
                             class=move || format!(
-                                "btn-ghost px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 transition-all {}",
-                                if saving.get() { "opacity-40 cursor-not-allowed" } else { "hover:bg-surface-bright/20" }
+                                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-outline-variant/30 text-on-surface-variant transition-all {}",
+                                if saving.get() { "opacity-40 cursor-not-allowed" } else { "hover:bg-surface-container-high/60" }
                             )
                             disabled=move || saving.get()
                             on:click=handle_save
@@ -194,8 +194,8 @@ pub fn ProductDetail() -> impl IntoView {
                         </button>
                         <button
                             class=move || format!(
-                                "btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 transition-all {}",
-                                if publishing.get() { "opacity-40 cursor-not-allowed" } else { "" }
+                                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-on-primary shadow-sm transition-all {}",
+                                if publishing.get() { "opacity-40 cursor-not-allowed" } else { "hover:opacity-90" }
                             )
                             disabled=move || publishing.get()
                             on:click=handle_publish
@@ -206,7 +206,7 @@ pub fn ProductDetail() -> impl IntoView {
                 </div>
 
                 // ── Tab Navigation ──
-                <div class="flex border-b border-outline-variant/20 overflow-x-auto shrink-0 select-none">
+                <div class="flex border-b border-outline-variant/20 overflow-x-auto flex-shrink-0 select-none">
                     {
                         let tab_btn = move |id: &str, label: &str| {
                             let id = id.to_string();
