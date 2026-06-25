@@ -509,7 +509,7 @@ pub fn AnchorInstance(
             // Uses a consistent outer div (space-y-6) to match all other tabs
             // and suppress layout shift when switching tabs.
             <Show when=move || active_tab.get() == "t-operational-config">
-                <div class="space-y-6">
+                <div class="w-full space-y-6">
                 {move || {
                     let cfg_opt = Some(PublicConfigResponse {
                         instance_id,
@@ -541,7 +541,7 @@ pub fn AnchorInstance(
             // ── TAB: Users ──
             // Consistent outer div matches all other tab wrappers.
             <Show when=move || active_tab.get() == "t-users">
-                <div class="space-y-6">
+                <div class="w-full space-y-6">
                     <TenantUsersPanel tenant_id=tenant_id />
                 </div>
             </Show>
