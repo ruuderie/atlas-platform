@@ -68,28 +68,32 @@ pub fn InstanceOperationalConfigPanel(
     };
 
     view! {
-        <div class="section" style="margin-bottom:0;">
-            <div class="section-header">
-                <div class="section-title">
-                    <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+        // Full-width card — same Tailwind card pattern as every other tab so
+        // the component always fills its container and layout is consistent.
+        <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+
+            // ── Header ───────────────────────────────────────────────────────
+            <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
+                    <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
                         <circle cx="7" cy="7" r="5"/>
                         <path d="M7 4v3l2 2"/>
                     </svg>
                     "Operational Configuration"
-                </div>
+                </h3>
             </div>
 
-            <div style="padding:20px;display:flex;flex-direction:column;gap:24px;">
+            <div class="p-5 flex flex-col gap-6">
 
                 // ── Folio Mode (property_management instances only) ───────────
                 // Folio mode controls PMC / brokerage / standard roles.
-                // It is irrelevant for Anchor (CMS) and Network instances.
+                // Irrelevant for Anchor (CMS) and Network instances.
                 {if app_slug == "property_management" { Some(view! {
                 <div>
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">
+                    <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2.5">
                         "Folio Mode"
                     </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <div class="flex gap-2 flex-wrap">
                         <ModeCard
                             value="standard"
                             label="Standard"
@@ -112,8 +116,7 @@ pub fn InstanceOperationalConfigPanel(
                             signal=folio_mode
                         />
                     </div>
-                    // Warning when changing a live instance mode
-                    <div style="margin-top:10px;padding:8px 12px;background:color-mix(in srgb, var(--amber) 10%, transparent);border:1px solid color-mix(in srgb, var(--amber) 30%, transparent);border-radius:6px;font-size:11px;color:var(--amber);">
+                    <div class="mt-2.5 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-400">
                         "⚠ Changing mode affects which portals users can access. Existing sessions are not revoked automatically — plan a maintenance window for live tenants."
                     </div>
                 </div>
@@ -121,26 +124,26 @@ pub fn InstanceOperationalConfigPanel(
 
                 // ── Billing Tier ──────────────────────────────────────────────
                 <div>
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">
+                    <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2.5">
                         "Billing Tier"
                     </div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <div class="flex gap-2 flex-wrap">
                         <TierCard value="free"       label="Free"       color="var(--text-muted)"  signal=billing_tier/>
                         <TierCard value="starter"    label="Starter"    color="var(--cobalt)"      signal=billing_tier/>
                         <TierCard value="growth"     label="Growth"     color="var(--green)"       signal=billing_tier/>
                         <TierCard value="enterprise" label="Enterprise" color="var(--amber)"       signal=billing_tier/>
                     </div>
-                    <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+                    <div class="mt-2 text-[11px] text-on-surface-variant">
                         "Billing tier controls which syndication offers are mandatory and which optional features are accessible."
                     </div>
                 </div>
 
                 // ── Portal Flags ──────────────────────────────────────────────
                 <div>
-                    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">
+                    <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-3">
                         "Self-Service Portals"
                     </div>
-                    <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div class="flex flex-col gap-3">
                         <PortalToggle
                             label="Tenant Portal"
                             description="Tenants can register, view leases, submit maintenance requests, and pay rent."
@@ -157,9 +160,9 @@ pub fn InstanceOperationalConfigPanel(
                 </div>
 
                 // ── Save Button ───────────────────────────────────────────────
-                <div style="display:flex;justify-content:flex-end;">
+                <div class="flex justify-end">
                     <button
-                        class="btn btn-primary"
+                        class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all disabled:opacity-50"
                         on:click=handle_save
                         disabled=move || saving.get()
                     >
@@ -237,11 +240,11 @@ fn PortalToggle(
     signal: RwSignal<bool>,
 ) -> impl IntoView {
     view! {
-        <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--surface-container-low);">
+        <div class="flex items-center gap-3.5 px-3.5 py-3 rounded-lg border border-outline-variant/20 bg-surface-container">
             <span style="font-size:20px;flex-shrink:0;">{icon}</span>
-            <div style="flex:1;">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">{label}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">{description}</div>
+            <div class="flex-1">
+                <div class="text-[13px] font-semibold text-on-surface">{label}</div>
+                <div class="text-[11px] text-on-surface-variant mt-0.5">{description}</div>
             </div>
             // Toggle switch
             <button

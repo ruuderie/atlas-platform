@@ -110,6 +110,10 @@ pub struct DnsInstructions {
 pub struct PublicConfigResponse {
     pub instance_id: Uuid,
     pub tenant_id: Uuid,
+    /// Human-readable tenant name (e.g. "buildwithruud").
+    /// Populated by the backend from the tenant table — never a raw UUID.
+    #[serde(default)]
+    pub tenant_name: String,
     pub app_slug: String,
     pub public_slug: Option<String>,
     pub custom_domain: Option<String>,

@@ -63,24 +63,23 @@ pub fn TenantUsersPanel(
     };
 
     view! {
-        <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="w-full flex flex-col gap-5">
 
-            // ── Active Users ───────────────────────────────────────────────────
-            <div class="section" style="margin-bottom:0;">
-                <div class="section-header">
-                    <div class="section-title">
-                        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+            // ── Active Users ──────────────────────────────────────────────────
+            <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
+                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="7" cy="5" r="3"/>
                             <path d="M1 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
                         </svg>
                         "Users"
-                        <span class="section-count">
-                            {move || format!("{} users", users_res.get().unwrap_or_default().len())}
+                        <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
+                            {move || format!("({} users)", users_res.get().unwrap_or_default().len())}
                         </span>
-                    </div>
+                    </h3>
                     <button
-                        class="btn btn-primary"
-                        style="font-size:11px;padding:5px 12px;"
+                        class="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-primary text-on-primary hover:opacity-90 transition-all"
                         on:click=move |_| show_invite_modal.set(true)
                     >"+ Invite User"</button>
                 </div>
@@ -146,19 +145,19 @@ pub fn TenantUsersPanel(
                 </Suspense>
             </div>
 
-            // ── Pending Invitations ────────────────────────────────────────────
-            <div class="section" style="margin-bottom:0;">
-                <div class="section-header">
-                    <div class="section-title">
-                        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+            // ── Pending Invitations ─────────────────────────────────────────────
+            <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
+                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M1 4l6 4 6-4"/>
                             <rect x="1" y="3" width="12" height="8" rx="1"/>
                         </svg>
                         "Pending Invitations"
-                        <span class="section-count">
-                            {move || format!("{}", invites_res.get().unwrap_or_default().len())}
+                        <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
+                            {move || format!("({})", invites_res.get().unwrap_or_default().len())}
                         </span>
-                    </div>
+                    </h3>
                 </div>
 
                 <Suspense fallback=move || view! { <div class="p-4 muted">"Loading invites…"</div> }>

@@ -77,6 +77,9 @@ pub fn routes(db: DatabaseConnection) -> Router {
 pub struct PublicConfigResponse {
     pub instance_id:      Uuid,
     pub tenant_id:        Uuid,
+    /// Human-readable tenant name (e.g. "buildwithruud").
+    /// Resolved by joining the tenant table — never a UUID.
+    pub tenant_name:      String,
     pub app_slug:         String,
     pub public_slug:      Option<String>,
     pub custom_domain:    Option<String>,
@@ -181,9 +184,15 @@ pub async fn get_public_config(
                     target = platform_cname_target()
                 ),
             });
+            // Resolve tenant name for display (never a UUID in the UI).
+            let tenant_name = crate::entities::tenant::Entity::find_by_id(cfg.tenant_id)
+                .one(&db).await.unwrap_or(None)
+                .map(|t| t.name)
+                .unwrap_or_else(|| cfg.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id: cfg.id,
                 tenant_id:   cfg.tenant_id,
+                tenant_name,
                 app_slug:    cfg.app_slug.clone(),
                 public_slug:     cfg.public_slug.clone(),
                 custom_domain:   cfg.custom_domain.clone(),
@@ -255,9 +264,16 @@ pub async fn get_public_config(
                 .unwrap_or("starter")
                 .to_string();
 
+            // Resolve tenant name — use the name from app_instance's tenant_id.
+            let tenant_name = crate::entities::tenant::Entity::find_by_id(cfg.tenant_id)
+                .one(&db).await.unwrap_or(None)
+                .map(|t| t.name)
+                .unwrap_or_else(|| cfg.tenant_id.to_string());
+
             let resp = PublicConfigResponse {
                 instance_id: cfg.id,
                 tenant_id:   cfg.tenant_id,
+                tenant_name,
                 app_slug:    cfg.app_slug.clone(),
                 public_slug:     cfg.public_slug.clone(),
                 custom_domain:   cfg.custom_domain.clone(),
@@ -332,9 +348,14 @@ pub async fn update_public_config(
                 .get("vendor_portal_enabled")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let tenant_name = crate::entities::tenant::Entity::find_by_id(updated.tenant_id)
+                .one(&db).await.unwrap_or(None)
+                .map(|t| t.name)
+                .unwrap_or_else(|| updated.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id:  updated.id,
                 tenant_id:    updated.tenant_id,
+                tenant_name,
                 app_slug:     updated.app_slug,
                 public_slug:  updated.public_slug,
                 custom_domain: updated.custom_domain,
@@ -426,9 +447,14 @@ pub async fn update_operational_config(
                 .get("vendor_portal_enabled")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let tenant_name = crate::entities::tenant::Entity::find_by_id(updated.tenant_id)
+                .one(&db).await.unwrap_or(None)
+                .map(|t| t.name)
+                .unwrap_or_else(|| updated.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id:  updated.id,
                 tenant_id:    updated.tenant_id,
+                tenant_name,
                 app_slug:     updated.app_slug,
                 public_slug:  updated.public_slug,
                 custom_domain: updated.custom_domain,

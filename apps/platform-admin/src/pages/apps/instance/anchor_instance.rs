@@ -23,8 +23,10 @@ pub fn AnchorInstance(
 ) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
-    let instance_id = cfg.instance_id;
-    let tenant_id   = cfg.tenant_id;
+    let instance_id  = cfg.instance_id;
+    let tenant_id    = cfg.tenant_id;
+    // Human-readable name resolved by the backend — never show a raw UUID as the title.
+    let tenant_name  = StoredValue::new(cfg.tenant_name.clone());
 
     // ── Tab state ──
     let active_tab = RwSignal::new("t-overview".to_string());
@@ -71,47 +73,80 @@ pub fn AnchorInstance(
 
     view! {
         <div class="space-y-6">
+
             // ── Instance header ──
+            // Tenant name is the primary identity (e.g. "buildwithruud").
+            // Instance/tenant IDs are secondary, shown as monospace pills.
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
-                <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-                    <div class="flex items-start gap-5">
+
+                // Top row: icon + tenant name + badges
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+
+                    // Left: identity
+                    <div class="flex items-start gap-4">
+                        // Anchor icon badge
                         <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl shrink-0">
                             "⚓"
                         </div>
-                        <div>
+
+                        <div class="min-w-0">
+                            // Primary: tenant business name
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h1 class="text-xl font-bold text-on-surface">"Anchor CMS"</h1>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                    "Anchor"
+                                <h1 class="text-xl font-bold text-on-surface truncate">
+                                    {move || tenant_name.get_value()}
+                                </h1>
+                                // App type badge
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+                                    "⚓ Anchor CMS"
                                 </span>
+                                // Status badge
                                 {move || if is_suspended.get() {
                                     view! {
-                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-error/10 text-error border border-error/20 uppercase tracking-wider">
-                                            "Suspended"
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-error/10 text-error border border-error/20 uppercase tracking-wider shrink-0">
+                                            "● Suspended"
                                         </span>
                                     }.into_any()
                                 } else {
                                     view! {
-                                        <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider shrink-0">
                                             "● Live"
                                         </span>
                                     }.into_any()
                                 }}
                             </div>
-                            <div class="text-xs text-on-surface-variant mt-1 font-mono">
-                                "app_slug: anchor · inst: " {instance_id.to_string()}
+
+                            // Secondary: billing tier pill
+                            <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span class="text-xs text-on-surface-variant">
+                                    {move || billing_tier.get_value().to_uppercase()}
+                                    " tier"
+                                </span>
+                                <span class="text-on-surface-variant/30">"·"</span>
+                                <span class="text-xs text-on-surface-variant">
+                                    "Content Management System"
+                                </span>
                             </div>
-                            <div class="flex flex-wrap gap-3 mt-2 text-[10px] text-on-surface-variant/70 uppercase tracking-wider">
-                                <span>"CMS"</span>
-                                <span>{move || billing_tier.get_value().to_uppercase()}</span>
+
+                            // ID pills: instance + tenant side by side, copyable
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high border border-outline-variant/20">
+                                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/60">"INST"</span>
+                                    <span class="font-mono text-[10px] text-on-surface/70">{instance_id.to_string()}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high border border-outline-variant/20">
+                                    <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/60">"TENANT"</span>
+                                    <span class="font-mono text-[10px] text-on-surface/70">{tenant_id.to_string()}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3 shrink-0">
+
+                    // Right: action button, clearly separated
+                    <div class="shrink-0 self-start">
                         {move || if is_suspended.get() {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-emerald-500/40 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/15 transition-all"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -122,13 +157,13 @@ pub fn AnchorInstance(
                                         is_suspended.set(false);
                                     }
                                 >
-                                    "Resume Instance"
+                                    "▶ Resume Instance"
                                 </button>
                             }.into_any()
                         } else {
                             view! {
                                 <button
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold border border-error/30 text-error hover:bg-error/10 transition-all"
+                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:border-error/40 hover:text-error hover:bg-error/5 transition-all"
                                     on:click=move |_| {
                                         let id = instance_id;
                                         let t = toast.clone();
@@ -139,7 +174,7 @@ pub fn AnchorInstance(
                                         is_suspended.set(true);
                                     }
                                 >
-                                    "Suspend Instance"
+                                    "⏸ Suspend Instance"
                                 </button>
                             }.into_any()
                         }}
@@ -174,25 +209,23 @@ pub fn AnchorInstance(
             </div>
 
             // ── TAB: Overview ──
+            // Both cards use min-h-[180px] so the grid holds its full size
+            // while the Suspense stats card is loading — prevents the tab
+            // collapsing to a tiny height on first render.
             <Show when=move || active_tab.get() == "t-overview">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
                     // Identity card
-                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm min-h-[180px]">
                         <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Anchor CMS Identity"</h3>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Instance Identity"</h3>
                         </div>
                         <div class="divide-y divide-outline-variant/10 text-xs">
                             <div class="flex justify-between items-center px-5 py-3">
-                                <span class="text-on-surface-variant">"App Type"</span>
-                                <span class="font-semibold text-on-surface">"Anchor — CMS"</span>
-                            </div>
-                            <div class="flex justify-between items-center px-5 py-3">
-                                <span class="text-on-surface-variant">"Instance ID"</span>
-                                <span class="font-mono text-on-surface/80 text-[10px]">{instance_id.to_string()}</span>
-                            </div>
-                            <div class="flex justify-between items-center px-5 py-3">
                                 <span class="text-on-surface-variant">"Tenant"</span>
-                                <span class="font-mono text-on-surface/80 text-[10px]">{tenant_id.to_string()}</span>
+                                <div class="text-right">
+                                    <div class="font-semibold text-on-surface">{move || tenant_name.get_value()}</div>
+                                    <div class="font-mono text-[9px] text-on-surface/50 mt-0.5">{tenant_id.to_string()}</div>
+                                </div>
                             </div>
                             <div class="flex justify-between items-center px-5 py-3">
                                 <span class="text-on-surface-variant">"Platform Subdomain"</span>
@@ -221,7 +254,7 @@ pub fn AnchorInstance(
                     </div>
 
                     // Live CMS Stats from real backend
-                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm min-h-[180px]">
                         <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"CMS Activity"</h3>
                         </div>
@@ -321,7 +354,7 @@ pub fn AnchorInstance(
             // Editable public_slug and custom_domain.
             // After save, DNS instructions (CNAME record) are shown if a custom domain is set.
             <Show when=move || active_tab.get() == "t-domain">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
                     // ── Edit form ──
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                         <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
@@ -479,6 +512,7 @@ pub fn AnchorInstance(
                     let cfg_opt = Some(PublicConfigResponse {
                         instance_id,
                         tenant_id,
+                        tenant_name: tenant_name.get_value(),
                         app_slug: "anchor".to_string(),
                         public_slug: Some(public_slug.get()),
                         custom_domain: Some(custom_domain.get()),

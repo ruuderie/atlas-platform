@@ -28,6 +28,7 @@ pub fn FolioInstance(
 
     let instance_id = cfg.instance_id;
     let tenant_id   = cfg.tenant_id;
+    let tenant_name = StoredValue::new(cfg.tenant_name.clone());
 
     // ── Tab state ──
     let active_tab = RwSignal::new("t-overview".to_string());
@@ -291,6 +292,7 @@ pub fn FolioInstance(
                         let cfg_opt = Some(PublicConfigResponse {
                             instance_id,
                             tenant_id,
+                            tenant_name: tenant_name.get_value(),
                             app_slug: "property_management".to_string(),
                             public_slug: Some(public_slug.get()),
                             custom_domain: Some(custom_domain.get()),
