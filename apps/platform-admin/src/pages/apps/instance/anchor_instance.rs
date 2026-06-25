@@ -471,7 +471,10 @@ pub fn AnchorInstance(
             </Show>
 
             // ── TAB: Operational Config ──
+            // Uses a consistent outer div (space-y-6) to match all other tabs
+            // and suppress layout shift when switching tabs.
             <Show when=move || active_tab.get() == "t-operational-config">
+                <div class="space-y-6">
                 {move || {
                     let cfg_opt = Some(PublicConfigResponse {
                         instance_id,
@@ -484,17 +487,27 @@ pub fn AnchorInstance(
                         billing_tier: billing_tier.get_value(),
                         tenant_portal_enabled: false,
                         vendor_portal_enabled: false,
-                        dns_instructions: None, // not needed in operational config panel
+                        dns_instructions: None,
                     });
                     view! {
-                        <InstanceOperationalConfigPanel instance_id=instance_id config=cfg_opt />
+                        // app_slug="anchor" — Folio Mode section is hidden inside
+                        // the panel because anchor != "property_management".
+                        <InstanceOperationalConfigPanel
+                            instance_id=instance_id
+                            config=cfg_opt
+                            app_slug="anchor".to_string()
+                        />
                     }
                 }}
+                </div>
             </Show>
 
             // ── TAB: Users ──
+            // Consistent outer div matches all other tab wrappers.
             <Show when=move || active_tab.get() == "t-users">
-                <TenantUsersPanel tenant_id=tenant_id />
+                <div class="space-y-6">
+                    <TenantUsersPanel tenant_id=tenant_id />
+                </div>
             </Show>
         </div>
     }

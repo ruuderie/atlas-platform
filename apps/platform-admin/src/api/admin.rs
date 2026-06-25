@@ -13,8 +13,10 @@ pub struct UserModel {
 
 pub async fn get_users(network_id: Option<Uuid>) -> Result<Vec<UserModel>, String> {
     let client = create_client();
+    // NOTE: backend list_users handler reads `?tenant_id=`, not `?network_id=`.
+    // The param was previously mismatched, silently dropping the tenant filter.
     let url = if let Some(net_id) = network_id {
-        format!("{}?network_id={}", api_url("api/admin/users"), net_id)
+        format!("{}?tenant_id={}", api_url("api/admin/users"), net_id)
     } else {
         api_url("api/admin/users")
     };

@@ -19,6 +19,10 @@ pub fn InstanceOperationalConfigPanel(
     instance_id: Uuid,
     /// Initial config loaded by parent; panel derives its signal state from this
     config: Option<PublicConfigResponse>,
+    /// App type slug — used to conditionally show/hide Folio-specific controls.
+    /// Pass "property_management" to show Folio Mode; omit or pass anything else to hide it.
+    #[prop(default = String::new())]
+    app_slug: String,
 ) -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
@@ -77,7 +81,10 @@ pub fn InstanceOperationalConfigPanel(
 
             <div style="padding:20px;display:flex;flex-direction:column;gap:24px;">
 
-                // ── Folio Mode ────────────────────────────────────────────────
+                // ── Folio Mode (property_management instances only) ───────────
+                // Folio mode controls PMC / brokerage / standard roles.
+                // It is irrelevant for Anchor (CMS) and Network instances.
+                {if app_slug == "property_management" { Some(view! {
                 <div>
                     <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">
                         "Folio Mode"
@@ -110,6 +117,7 @@ pub fn InstanceOperationalConfigPanel(
                         "⚠ Changing mode affects which portals users can access. Existing sessions are not revoked automatically — plan a maintenance window for live tenants."
                     </div>
                 </div>
+                }) } else { None }}
 
                 // ── Billing Tier ──────────────────────────────────────────────
                 <div>

@@ -305,6 +305,7 @@ pub fn FolioInstance(
                             <InstanceOperationalConfigPanel
                                 instance_id=instance_id
                                 config=cfg_opt
+                                app_slug="property_management".to_string()
                             />
                         }
                     }}

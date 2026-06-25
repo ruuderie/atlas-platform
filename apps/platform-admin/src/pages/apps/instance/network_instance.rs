@@ -325,7 +325,11 @@ pub fn NetworkInstance(
                         dns_instructions: None,
                     });
                     view! {
-                        <InstanceOperationalConfigPanel instance_id=instance_id config=cfg_opt />
+                        <InstanceOperationalConfigPanel
+                            instance_id=instance_id
+                            config=cfg_opt
+                            app_slug="network_instance".to_string()
+                        />
                     }
                 }}
             </Show>

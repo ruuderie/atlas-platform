@@ -1,6 +1,6 @@
 //! TenantUsersPanel — per-instance user list with invite + role management.
 //!
-//! Fetches all users scoped to a tenant (via ?network_id= query param),
+//! Fetches all users scoped to a tenant (via ?tenant_id= query param),
 //! shows a table with email, username, admin status, and active state.
 //! Allows:
 //!   - Toggling platform admin status (toggle_admin)
