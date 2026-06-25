@@ -167,8 +167,16 @@ pub fn Dashboard() -> impl IntoView {
                         let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
                         let joined = t.joined_at.clone().unwrap_or_else(|| "—".to_string());
                         let joined_short = joined.get(..7).unwrap_or(&joined).to_string();
-                        // Make each row navigate to the tenant's app detail page
-                        let href = format!("/apps/{}", t.tenant_id);
+                        // Navigate directly to the anchor instance view.
+                        // Using anchor_instance_id (not tenant_id) is critical:
+                        // /apps/:id/instance resolves the instance via get_public_config(id),
+                        // which expects an instance UUID — a tenant UUID returns 404.
+                        let href = if let Some(ref inst_id) = t.anchor_instance_id {
+                            format!("/apps/{}/instance", inst_id)
+                        } else {
+                            // Fallback: tenant has no anchor instance (unusual — data issue)
+                            format!("/apps?tenant={}", t.tenant_id)
+                        };
                         view! {
                             <tr
                                 style="cursor:pointer;"

@@ -143,11 +143,21 @@ pub async fn get_public_config(
     Extension(db): Extension<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match atlas_app_deployment_config::Entity::find_by_id(instance_id)
+    use crate::entities::app_instance;
+    use sea_orm::IntoActiveModel;
+
+    // First attempt: look up in atlas_app_deployment_config (the canonical source).
+    let deployment_cfg = atlas_app_deployment_config::Entity::find_by_id(instance_id)
         .one(&db)
-        .await
-    {
+        .await;
+
+    match deployment_cfg {
+        Err(e) => {
+            tracing::error!("get_public_config: db error {e:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
         Ok(Some(cfg)) => {
+            // Fast path: deployment config row exists.
             let billing_tier = cfg.config
                 .get("billing_tier")
                 .and_then(|v| v.as_str())
@@ -184,12 +194,81 @@ pub async fn get_public_config(
                 vendor_portal_enabled: vendor_portal,
                 dns_instructions,
             };
-            (StatusCode::OK, Json(resp)).into_response()
+            return (StatusCode::OK, Json(resp)).into_response();
         }
-        Ok(None) => (StatusCode::NOT_FOUND, "instance not found").into_response(),
-        Err(e) => {
-            tracing::error!("get_public_config: {e:#}");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        Ok(None) => {
+            // Fallback path: no deployment config row yet — look up via app_instances.
+            // This happens for tenants provisioned before G-33 (atlas_app_deployment_config) was added.
+            let inst_opt = app_instance::Entity::find_by_id(instance_id)
+                .one(&db)
+                .await
+                .unwrap_or(None);
+
+            let Some(inst) = inst_opt else {
+                // Instance doesn't exist in either table — genuinely not found.
+                return (StatusCode::NOT_FOUND, "instance not found").into_response();
+            };
+
+            // Auto-seed a minimal deployment config row so future GET/PUT calls work.
+            // app_type on app_instances matches app_slug on atlas_app_deployment_config.
+            // Derive a stable public_slug from app_type + first 8 hex chars of instance ID
+            // (app_instance::Model has no name field — the tenant name is on the tenant row).
+            let derived_slug = format!("{}-{}", inst.app_type, &inst.id.to_string()[..8]);
+            let seed = atlas_app_deployment_config::ActiveModel {
+                id:              Set(inst.id),
+                tenant_id:       Set(inst.tenant_id),
+                app_slug:        Set(inst.app_type.clone()),
+                public_slug:     Set(Some(derived_slug)),
+                custom_domain:   Set(None),
+                instance_status: Set(atlas_app_deployment_config::AppInstanceStatus::Active),
+                folio_mode:      Set(atlas_app_deployment_config::FolioMode::Standard),
+                config:          Set(serde_json::json!({ "billing_tier": "starter" })),
+                ..Default::default()
+            };
+
+            // ON CONFLICT DO NOTHING — if two requests race, the second is a no-op.
+            let _ = atlas_app_deployment_config::Entity::insert(seed)
+                .on_conflict(
+                    sea_orm::sea_query::OnConflict::column(atlas_app_deployment_config::Column::Id)
+                        .do_nothing()
+                        .to_owned(),
+                )
+                .exec(&db)
+                .await;
+
+            // Re-fetch after seeding (or if the race was lost, read the winning row).
+            let cfg = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
+                .one(&db)
+                .await
+            {
+                Ok(Some(c)) => c,
+                _ => {
+                    // Still not found — data integrity issue, surface a useful error.
+                    tracing::error!("get_public_config: failed to seed config for instance {instance_id}");
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "failed to initialize instance config").into_response();
+                }
+            };
+
+            let billing_tier = cfg.config
+                .get("billing_tier")
+                .and_then(|v| v.as_str())
+                .unwrap_or("starter")
+                .to_string();
+
+            let resp = PublicConfigResponse {
+                instance_id: cfg.id,
+                tenant_id:   cfg.tenant_id,
+                app_slug:    cfg.app_slug.clone(),
+                public_slug:     cfg.public_slug.clone(),
+                custom_domain:   cfg.custom_domain.clone(),
+                instance_status: cfg.instance_status.to_string(),
+                folio_mode:      cfg.folio_mode.to_string(),
+                billing_tier,
+                tenant_portal_enabled: false,
+                vendor_portal_enabled: false,
+                dns_instructions: None,
+            };
+            (StatusCode::OK, Json(resp)).into_response()
         }
     }
 }

@@ -562,6 +562,10 @@ pub struct TenantStatModel {
     pub mrr_cents: Option<i64>,
     pub site_status: Option<String>,
     pub joined_at: Option<String>,
+    /// UUID of the tenant's primary (anchor) app instance.
+    /// Use this to navigate to /apps/{anchor_instance_id}/instance.
+    /// None only when the tenant was provisioned without an anchor instance (unusual).
+    pub anchor_instance_id: Option<String>,
 }
 
 /// Returned by `GET /api/admin/platform/apps` (one row per app instance).

@@ -36,6 +36,10 @@ pub struct NetworkStats {
     mrr_cents: Option<i64>,
     site_status: String,
     joined_at: Option<String>,
+    /// UUID of the tenant's primary (anchor) app instance.
+    /// Used by the frontend to build a direct link to `/apps/{id}/instance`
+    /// so the Tenant Registry navigates to the correct instance view.
+    anchor_instance_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -490,6 +494,7 @@ pub async fn get_all_network_stats(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::{app_instance};
 
     let networks = tenant::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -533,6 +538,16 @@ pub async fn get_all_network_stats(
             .map(|s| (Some(s.billing_interval.clone()), Some(s.price_cents)))
             .unwrap_or((None, None));
 
+        // Resolve the tenant's primary anchor app_instance so the UI can link
+        // directly to /apps/{instance_id}/instance (not the tenant UUID).
+        let anchor_instance_id = app_instance::Entity::find()
+            .filter(app_instance::Column::TenantId.eq(dir.id))
+            .filter(app_instance::Column::AppType.eq("anchor"))
+            .one(&db)
+            .await
+            .unwrap_or(None)
+            .map(|inst| inst.id);
+
         stats.push(NetworkStats {
             tenant_id: dir.id,
             name: dir.name,
@@ -543,6 +558,7 @@ pub async fn get_all_network_stats(
             mrr_cents,
             site_status: dir.site_status.clone(),
             joined_at: Some(dir.created_at.to_rfc3339()),
+            anchor_instance_id,
         });
     }
 
@@ -583,6 +599,15 @@ pub async fn get_network_stats(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    use crate::entities::app_instance;
+    let anchor_instance_id = app_instance::Entity::find()
+        .filter(app_instance::Column::TenantId.eq(tenant_id))
+        .filter(app_instance::Column::AppType.eq("anchor"))
+        .one(&db)
+        .await
+        .unwrap_or(None)
+        .map(|inst| inst.id);
+
     let stats = NetworkStats {
         tenant_id: network.id,
         name: network.name.clone(),
@@ -593,6 +618,7 @@ pub async fn get_network_stats(
         mrr_cents: None,
         site_status: network.site_status.clone(),
         joined_at: Some(network.created_at.to_rfc3339()),
+        anchor_instance_id,
     };
 
     Ok(Json(stats))
