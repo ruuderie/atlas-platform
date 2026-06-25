@@ -322,6 +322,7 @@ pub fn NetworkInstance(
                         billing_tier: billing_tier.get_value(),
                         tenant_portal_enabled: false,
                         vendor_portal_enabled: false,
+                        dns_instructions: None,
                     });
                     view! {
                         <InstanceOperationalConfigPanel instance_id=instance_id config=cfg_opt />

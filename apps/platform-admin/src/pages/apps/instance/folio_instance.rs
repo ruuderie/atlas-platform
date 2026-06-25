@@ -299,6 +299,7 @@ pub fn FolioInstance(
                             billing_tier: billing_tier_display.get_value(),
                             tenant_portal_enabled: false,
                             vendor_portal_enabled: false,
+                            dns_instructions: None,
                         });
                         view! {
                             <InstanceOperationalConfigPanel

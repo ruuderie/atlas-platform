@@ -108,13 +108,21 @@ pub async fn get_platform_apps(
     
     for (instance, tenant_opt) in instances {
         if let Some(tenant_model) = tenant_opt {
+            // Skip the internal platform sentinel tenant (nil UUID / __platform__).
+            if tenant_model.id == uuid::Uuid::nil() {
+                continue;
+            }
             let domains = app_domain::Entity::find()
                 .filter(app_domain::Column::AppInstanceId.eq(instance.id))
                 .all(&db)
                 .await
                 .unwrap_or_default();
                 
-            let domain_name = domains.into_iter().next().map(|d| d.domain_name).unwrap_or_else(|| "unknown.local".to_string());
+            let domain_name = domains.into_iter().next()
+                .map(|d| d.domain_name)
+                // Derive a sensible platform subdomain when no explicit domain is registered.
+                // "{slug}.atlas.app" is the canonical default — "unknown.local" was misleading.
+                .unwrap_or_else(|| format!("{}.atlas.app", tenant_model.name));
             
             result.push(PlatformAppModel {
                 tenant_id: tenant_model.id.to_string(),
@@ -487,6 +495,11 @@ pub async fn get_all_network_stats(
 
     let mut stats = Vec::new();
     for dir in networks {
+        // Skip the internal platform sentinel tenant (nil UUID / __platform__).
+        // It exists as a system anchor and must never appear in the admin UI registry.
+        if dir.id == uuid::Uuid::nil() {
+            continue;
+        }
         let profile_count = profile::Entity::find()
             .filter(profile::Column::TenantId.eq(dir.id))
             .count(&db)

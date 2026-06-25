@@ -161,6 +161,16 @@ pub async fn get_public_config(
                 .get("vendor_portal_enabled")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
+            let dns_instructions = cfg.custom_domain.as_ref().map(|domain| DnsInstructions {
+                record_type: "CNAME".to_string(),
+                name:        domain.clone(),
+                value:       platform_cname_target().to_string(),
+                note: format!(
+                    "Point {domain} as a CNAME to {target}. \
+                     SSL is provisioned automatically via Cloudflare.",
+                    target = platform_cname_target()
+                ),
+            });
             let resp = PublicConfigResponse {
                 instance_id: cfg.id,
                 tenant_id:   cfg.tenant_id,
@@ -172,7 +182,7 @@ pub async fn get_public_config(
                 billing_tier,
                 tenant_portal_enabled: tenant_portal,
                 vendor_portal_enabled: vendor_portal,
-                dns_instructions: None,
+                dns_instructions,
             };
             (StatusCode::OK, Json(resp)).into_response()
         }

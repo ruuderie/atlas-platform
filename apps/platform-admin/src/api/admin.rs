@@ -94,6 +94,16 @@ pub async fn remove_app_domain(instance_id: String, domain_name: String) -> Resu
     }
 }
 
+/// DNS record the tenant must set in their registrar when using a custom domain.
+/// Returned by `GET /api/admin/app-instances/{id}/public-config` when `custom_domain` is set.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct DnsInstructions {
+    pub record_type: String, // "CNAME"
+    pub name:        String, // the custom domain itself
+    pub value:       String, // platform CNAME target
+    pub note:        String, // human-readable instructions
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PublicConfigResponse {
     pub instance_id: Uuid,
@@ -106,6 +116,9 @@ pub struct PublicConfigResponse {
     pub billing_tier: String,
     pub tenant_portal_enabled: bool,
     pub vendor_portal_enabled: bool,
+    /// Present when the instance has a custom_domain configured.
+    /// Contains the CNAME record the tenant must set in their DNS registrar.
+    pub dns_instructions: Option<DnsInstructions>,
 }
 
 /// Live per-instance activity counts — returned by

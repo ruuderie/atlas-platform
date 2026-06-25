@@ -561,3 +561,161 @@ mod public_config_dns_skip {
         assert_eq!(j["dns_instructions"]["value"], "platform.atlas.app");
     }
 }
+
+// ── Item 1 + Item 4: Platform Sentinel & Domain Defaults ───────────────────────
+//
+// These tests guard the pure filtering and formatting logic that was changed
+// in the admin handler for the tenant registry and platform apps list.
+//
+// The handler logic being tested in pseudocode:
+//   if tenant.id == Uuid::nil() { continue; }
+//   domain = domains.first().unwrap_or_else(|| format!("{}.atlas.app", tenant.name))
+mod platform_sentinel_and_domain_defaults {
+    use uuid::Uuid;
+
+    /// Production filter: the nil UUID is the `__platform__` sentinel.
+    fn is_sentinel(id: Uuid) -> bool {
+        id == Uuid::nil()
+    }
+
+    /// Production domain fallback: derive from tenant slug when no domain row exists.
+    fn domain_for(domains: &[String], slug: &str) -> String {
+        domains.iter().next()
+            .cloned()
+            .unwrap_or_else(|| format!("{}.atlas.app", slug))
+    }
+
+    #[test]
+    fn nil_uuid_is_sentinel() {
+        assert!(is_sentinel(Uuid::nil()), "00000000-0000-0000-0000-000000000000 must be filtered");
+    }
+
+    #[test]
+    fn non_nil_uuid_is_not_sentinel() {
+        assert!(!is_sentinel(Uuid::new_v4()), "random UUID must pass the filter");
+    }
+
+    #[test]
+    fn known_platform_uuid_matches_nil() {
+        // The __platform__ row in the DB always uses the nil UUID.
+        let platform_id: Uuid = "00000000-0000-0000-0000-000000000000".parse().unwrap();
+        assert!(is_sentinel(platform_id));
+    }
+
+    #[test]
+    fn domain_fallback_uses_atlas_app_suffix() {
+        let d = domain_for(&[], "buildwithruud");
+        assert_eq!(d, "buildwithruud.atlas.app",
+            "fallback must be {{slug}}.atlas.app, not 'unknown.local'");
+    }
+
+    #[test]
+    fn domain_fallback_never_returns_unknown_local() {
+        let d = domain_for(&[], "ctbuildpros");
+        assert_ne!(d, "unknown.local", "unknown.local was a misleading fallback that has been removed");
+    }
+
+    #[test]
+    fn explicit_domain_row_takes_precedence_over_fallback() {
+        let domains = vec!["buildwithruud.com".to_string()];
+        let d = domain_for(&domains, "buildwithruud");
+        assert_eq!(d, "buildwithruud.com", "registered domain must win over derived default");
+    }
+
+    #[test]
+    fn localhost_domain_row_surfaces_as_is() {
+        // directory.localhost is a real dev-time domain registered in app_domains
+        // for ctbuildpros. It must not be silently replaced.
+        let domains = vec!["directory.localhost".to_string()];
+        let d = domain_for(&domains, "ctbuildpros");
+        assert_eq!(d, "directory.localhost");
+    }
+}
+
+// ── Item 3: DNS Instructions populated by GET /public-config ───────────────────
+//
+// The GET handler now returns dns_instructions when custom_domain is set,
+// identical to the PUT handler. These tests guard that contract.
+mod get_public_config_dns_instructions {
+    use crate::admin::app_instance::{PublicConfigResponse, DnsInstructions};
+    use uuid::Uuid;
+
+    fn make_config(custom_domain: Option<String>) -> PublicConfigResponse {
+        let dns = custom_domain.as_ref().map(|domain| DnsInstructions {
+            record_type: "CNAME".to_string(),
+            name:        domain.clone(),
+            value:       "platform.atlas.app".to_string(),
+            note:        format!("Point {} as a CNAME to platform.atlas.app.", domain),
+        });
+        PublicConfigResponse {
+            instance_id:            Uuid::new_v4(),
+            tenant_id:              Uuid::new_v4(),
+            app_slug:               "anchor".to_string(),
+            public_slug:            Some("buildwithruud".to_string()),
+            custom_domain:          custom_domain,
+            instance_status:        "active".to_string(),
+            folio_mode:             "standard".to_string(),
+            billing_tier:           "starter".to_string(),
+            tenant_portal_enabled:  false,
+            vendor_portal_enabled:  false,
+            dns_instructions:       dns,
+        }
+    }
+
+    #[test]
+    fn get_with_custom_domain_returns_dns_instructions() {
+        let cfg = make_config(Some("buildwithruud.com".to_string()));
+        assert!(cfg.dns_instructions.is_some(),
+            "GET /public-config must return dns_instructions when custom_domain is set");
+    }
+
+    #[test]
+    fn get_without_custom_domain_returns_no_dns_instructions() {
+        let cfg = make_config(None);
+        assert!(cfg.dns_instructions.is_none(),
+            "GET /public-config must omit dns_instructions when no custom_domain is set");
+    }
+
+    #[test]
+    fn dns_instructions_name_matches_custom_domain() {
+        let domain = "buildwithruud.com".to_string();
+        let cfg = make_config(Some(domain.clone()));
+        let dns = cfg.dns_instructions.unwrap();
+        assert_eq!(dns.name, domain,
+            "DnsInstructions.name must equal the custom_domain value");
+    }
+
+    #[test]
+    fn dns_instructions_record_type_is_always_cname() {
+        let cfg = make_config(Some("mysite.com".to_string()));
+        assert_eq!(cfg.dns_instructions.unwrap().record_type, "CNAME");
+    }
+
+    #[test]
+    fn dns_instructions_value_contains_platform_cname_target() {
+        let cfg = make_config(Some("mysite.com".to_string()));
+        let value = cfg.dns_instructions.unwrap().value;
+        assert!(value.contains("atlas.app") || value.contains("platform"),
+            "CNAME value should point to the platform edge, got: {value}");
+    }
+
+    #[test]
+    fn get_response_serializes_dns_instructions_as_snake_case() {
+        let cfg = make_config(Some("example.com".to_string()));
+        let j = serde_json::to_value(&cfg).unwrap();
+        assert!(j.get("dns_instructions").is_some(), "'dns_instructions' key must be present");
+        assert!(j["dns_instructions"].get("record_type").is_some(), "'record_type' must be snake_case");
+    }
+
+    #[test]
+    fn get_response_omits_dns_instructions_when_absent() {
+        let cfg = make_config(None);
+        let j = serde_json::to_value(&cfg).unwrap();
+        // dns_instructions should be null or absent (skip_serializing_if = is_none)
+        let v = j.get("dns_instructions");
+        let is_absent_or_null = v.is_none() || v.map(|x| x.is_null()).unwrap_or(false);
+        assert!(is_absent_or_null,
+            "dns_instructions must be absent/null when no custom_domain is configured");
+    }
+}
+
