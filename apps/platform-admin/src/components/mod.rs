@@ -11,4 +11,5 @@ pub mod intel_sidebar;
 pub mod instance_syndication_panel;
 pub mod instance_operational_config_panel;
 pub mod tenant_users_panel;
+pub mod callout;
 

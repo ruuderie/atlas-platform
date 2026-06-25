@@ -69,10 +69,6 @@ pub fn TenantUsersPanel(
             <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                 <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
-                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="7" cy="5" r="3"/>
-                            <path d="M1 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/>
-                        </svg>
                         "Users"
                         <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
                             {move || format!("({} users)", users_res.get().unwrap_or_default().len())}
@@ -149,10 +145,6 @@ pub fn TenantUsersPanel(
             <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                 <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
-                        <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M1 4l6 4 6-4"/>
-                            <rect x="1" y="3" width="12" height="8" rx="1"/>
-                        </svg>
                         "Pending Invitations"
                         <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
                             {move || format!("({})", invites_res.get().unwrap_or_default().len())}

@@ -187,7 +187,7 @@ pub async fn get_public_config(
             // Resolve tenant name for display (never a UUID in the UI).
             let tenant_name = crate::entities::tenant::Entity::find_by_id(cfg.tenant_id)
                 .one(&db).await.unwrap_or(None)
-                .map(|t| t.name)
+                .map(|t| t.page_title.unwrap_or(t.name))
                 .unwrap_or_else(|| cfg.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id: cfg.id,
@@ -267,7 +267,7 @@ pub async fn get_public_config(
             // Resolve tenant name — use the name from app_instance's tenant_id.
             let tenant_name = crate::entities::tenant::Entity::find_by_id(cfg.tenant_id)
                 .one(&db).await.unwrap_or(None)
-                .map(|t| t.name)
+                .map(|t| t.page_title.unwrap_or(t.name))
                 .unwrap_or_else(|| cfg.tenant_id.to_string());
 
             let resp = PublicConfigResponse {
@@ -350,7 +350,7 @@ pub async fn update_public_config(
                 .unwrap_or(false);
             let tenant_name = crate::entities::tenant::Entity::find_by_id(updated.tenant_id)
                 .one(&db).await.unwrap_or(None)
-                .map(|t| t.name)
+                .map(|t| t.page_title.unwrap_or(t.name))
                 .unwrap_or_else(|| updated.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id:  updated.id,
@@ -449,7 +449,7 @@ pub async fn update_operational_config(
                 .unwrap_or(false);
             let tenant_name = crate::entities::tenant::Entity::find_by_id(updated.tenant_id)
                 .one(&db).await.unwrap_or(None)
-                .map(|t| t.name)
+                .map(|t| t.page_title.unwrap_or(t.name))
                 .unwrap_or_else(|| updated.tenant_id.to_string());
             let resp = PublicConfigResponse {
                 instance_id:  updated.id,

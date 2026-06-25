@@ -16,6 +16,7 @@ use leptos::prelude::*;
 use crate::api::admin::{PublicConfigResponse, get_instance_stats, update_public_config};
 use crate::components::instance_operational_config_panel::InstanceOperationalConfigPanel;
 use crate::components::tenant_users_panel::TenantUsersPanel;
+use crate::components::callout::Callout;
 
 #[component]
 pub fn AnchorInstance(
@@ -292,12 +293,11 @@ pub fn AnchorInstance(
             // Links out to the tenant's Anchor admin panel once subdomain is confirmed.
             <Show when=move || active_tab.get() == "t-content">
                 <div class="space-y-4">
-                    <div class="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-xs text-on-surface-variant leading-relaxed">
-                        <span class="text-amber-400 font-bold">"Anchor CMS — "  </span>
+                    <Callout variant="warning" title="Anchor CMS">
                         "Manages pages, menus, templates, and lead capture forms for this tenant's public site. "
                         "Content is served via the CMS router and optionally routed through a custom domain. "
                         "No scorecards are auto-seeded for Anchor instances."
-                    </div>
+                    </Callout>
                     <Suspense fallback=move || view! { <div class="p-5 text-xs text-on-surface-variant">"Loading stats…"</div> }>
                     {move || {
                         let s = stats.get().flatten();
@@ -395,9 +395,10 @@ pub fn AnchorInstance(
                                     "DNS instructions will appear below after saving."
                                 </p>
                             </div>
-                            // Save button
+                            // Save button — right-aligned, same weight as all other primary CTAs
+                            <div class="flex justify-end">
                             <button
-                                class="w-full px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold shadow transition-all hover:opacity-90 disabled:opacity-50"
+                                class="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold shadow transition-all hover:opacity-90 disabled:opacity-50"
                                 disabled=move || saving_domain.get()
                                 on:click=move |_| {
                                     let id = instance_id;
@@ -435,6 +436,7 @@ pub fn AnchorInstance(
                             >
                                 {move || if saving_domain.get() { "Saving…" } else { "Save Domain Config" }}
                             </button>
+                            </div>
                         </div>
                         // Current routing summary
                         <div class="border-t border-outline-variant/10 divide-y divide-outline-variant/10 text-xs">

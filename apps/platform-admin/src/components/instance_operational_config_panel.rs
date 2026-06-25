@@ -74,11 +74,7 @@ pub fn InstanceOperationalConfigPanel(
 
             // ── Header ───────────────────────────────────────────────────────
             <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40 flex items-center justify-between">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
-                    <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <circle cx="7" cy="7" r="5"/>
-                        <path d="M7 4v3l2 2"/>
-                    </svg>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                     "Operational Configuration"
                 </h3>
             </div>
