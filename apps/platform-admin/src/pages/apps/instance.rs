@@ -49,7 +49,7 @@ pub fn AppInstance() -> impl IntoView {
     });
 
     view! {
-        <div class="p-6 max-w-7xl mx-auto">
+        <div class="w-full p-6 max-w-7xl mx-auto">
             <Suspense fallback=move || view! {
                 <div class="flex items-center justify-center h-64">
                     <div class="text-on-surface-variant text-sm animate-pulse">"Loading instance…"</div>
@@ -81,7 +81,7 @@ pub fn AppInstance() -> impl IntoView {
                                 other => view! {
                                     // Generic fallback for unknown or future app types.
                                     // Shows identity card so ops can still inspect the instance.
-                                    <div class="space-y-6">
+                                    <div class="w-full space-y-6">
                                         <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 text-xs text-amber-400">
                                             "Unknown app_slug: " {other.to_string()}
                                             ". No type-specific UI is registered. Please add a new instance component."

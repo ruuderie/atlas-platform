@@ -84,7 +84,7 @@ pub fn FolioInstance(
     };
 
     view! {
-        <div class="space-y-6">
+        <div class="w-full space-y-6">
             // ── Instance header ──
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
                 <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">

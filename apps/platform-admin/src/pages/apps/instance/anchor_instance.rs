@@ -73,7 +73,7 @@ pub fn AnchorInstance(
     };
 
     view! {
-        <div class="space-y-6">
+        <div class="w-full space-y-6">
 
             // ── Instance header ──
             // Tenant name is the primary identity (e.g. "buildwithruud").
