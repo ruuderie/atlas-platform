@@ -1,6 +1,6 @@
 //! Admin — App Instance Public Config handler
 //!
-//! Manages per-instance `public_slug` and `custom_domain` on
+//! Manages per-instance `public_slug`, `custom_domain`, and live stats on
 //! `atlas_app_deployment_config`. These two fields enable the
 //! zero-tenant domain resolver at `GET /api/pub/tenant-context`.
 //!
@@ -39,7 +39,7 @@ use axum::{
 };
 use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, ActiveModelTrait,
-    ActiveValue::Set,
+    ActiveValue::Set, PaginatorTrait, QuerySelect,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -62,6 +62,8 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
             "/api/admin/app-instances/{id}/operational-config",
             axum::routing::patch(update_operational_config),
         )
+        // Phase 5: live per-instance activity stats
+        .route("/api/admin/app-instances/{id}/stats", get(get_instance_stats))
 }
 
 /// Convenience wrapper with state applied (for standalone use / tests).
@@ -430,3 +432,112 @@ async fn set_instance_status(
         }
     }
 }
+
+// ── Per-instance stats ────────────────────────────────────────────────────────
+
+/// Response for GET /api/admin/app-instances/{id}/stats
+/// All counts are scoped to the instance's tenant_id.
+#[derive(Debug, Serialize)]
+pub struct InstanceStatsResponse {
+    pub instance_id:          Uuid,
+    pub tenant_id:            Uuid,
+    pub app_slug:             String,
+    /// atlas_assets count (Folio: properties/units)
+    pub asset_count:          u64,
+    /// atlas_contracts with status = 'active' (Folio: active leases)
+    pub active_contract_count: u64,
+    /// atlas_lead total (all apps that surface leads)
+    pub lead_count:           u64,
+    /// atlas_cases with status != 'closed' (open cases/work orders)
+    pub open_case_count:      u64,
+    /// atlas_service_providers (Folio: active vendors)
+    pub vendor_count:         u64,
+    /// listing count (Network Instance: active listings)
+    pub active_listing_count: u64,
+}
+
+/// GET /api/admin/app-instances/{id}/stats
+///
+/// Returns per-instance activity counts scoped to the instance's `tenant_id`.
+/// All counts are live DB queries — no hardcoded values.
+pub async fn get_instance_stats(
+    Extension(db): Extension<DatabaseConnection>,
+    Path(instance_id): Path<Uuid>,
+) -> impl IntoResponse {
+    use crate::entities::{
+        atlas_asset, atlas_contract, atlas_lead, atlas_case,
+        atlas_service_provider, listing,
+    };
+    use crate::models::listing::ListingStatus;
+
+    // Resolve the instance config to get tenant_id and app_slug
+    let cfg = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
+        .one(&db)
+        .await
+    {
+        Ok(Some(c)) => c,
+        Ok(None) => return (StatusCode::NOT_FOUND, "instance not found").into_response(),
+        Err(e) => {
+            tracing::error!("get_instance_stats: config lookup failed: {e:#}");
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
+    };
+
+    let tenant_id = cfg.tenant_id;
+    let app_slug  = cfg.app_slug.clone();
+
+    // Sequential counts — sea_orm's count() is not Send+Sync-compatible inside tokio::join!
+    let asset_count = atlas_asset::Entity::find()
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let active_contract_count = atlas_contract::Entity::find()
+        .filter(atlas_contract::Column::TenantId.eq(tenant_id))
+        .filter(atlas_contract::Column::Status.eq("active"))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let lead_count = atlas_lead::Entity::find()
+        .filter(atlas_lead::Column::TenantId.eq(tenant_id))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let open_case_count = atlas_case::Entity::find()
+        .filter(atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(atlas_case::Column::Status.ne("closed"))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let vendor_count = atlas_service_provider::Entity::find()
+        .filter(atlas_service_provider::Column::TenantId.eq(tenant_id))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let active_listing_count = listing::Entity::find()
+        .filter(listing::Column::TenantId.eq(tenant_id))
+        .filter(listing::Column::Status.eq(ListingStatus::Approved))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    let stats = InstanceStatsResponse {
+        instance_id,
+        tenant_id,
+        app_slug,
+        asset_count,
+        active_contract_count,
+        lead_count,
+        open_case_count,
+        vendor_count,
+        active_listing_count,
+    };
+
+    (StatusCode::OK, Json(stats)).into_response()
+}
+

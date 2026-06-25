@@ -108,6 +108,28 @@ pub struct PublicConfigResponse {
     pub vendor_portal_enabled: bool,
 }
 
+/// Live per-instance activity counts — returned by
+/// `GET /api/admin/app-instances/{id}/stats`.
+/// All counts are scoped to the instance's tenant_id and sourced from real DB queries.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
+pub struct InstanceStatsResponse {
+    pub instance_id: Uuid,
+    pub tenant_id: Uuid,
+    pub app_slug: String,
+    /// atlas_assets count (Folio: properties/units)
+    pub asset_count: u64,
+    /// atlas_contracts with status = 'active' (active leases)
+    pub active_contract_count: u64,
+    /// atlas_lead total
+    pub lead_count: u64,
+    /// atlas_cases with status != 'closed'
+    pub open_case_count: u64,
+    /// atlas_service_providers (Folio: vendors)
+    pub vendor_count: u64,
+    /// listing count with status = 'approved' (NI: active listings)
+    pub active_listing_count: u64,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct AdminModuleConfig {
     pub module_type: String,
@@ -120,6 +142,12 @@ pub struct AdminModuleConfig {
 
 pub async fn get_public_config(id: Uuid) -> Result<PublicConfigResponse, String> {
     crate::api::client::api_get(&format!("api/admin/app-instances/{}/public-config", id)).await
+}
+
+/// Fetch live per-instance activity stats.
+/// Calls `GET /api/admin/app-instances/{id}/stats`.
+pub async fn get_instance_stats(id: Uuid) -> Result<InstanceStatsResponse, String> {
+    crate::api::client::api_get(&format!("api/admin/app-instances/{}/stats", id)).await
 }
 
 pub async fn update_public_config(id: Uuid, public_slug: Option<String>, custom_domain: Option<String>) -> Result<PublicConfigResponse, String> {
