@@ -20,7 +20,9 @@ use crate::pages::network::syndication::SyndicationManager;
 use crate::pages::network::index::NetworkRegistry;
 use crate::pages::network::create::NetworkCreate;
 use crate::pages::network::detail::NetworkDetail;
-use crate::pages::marketing::index::MarketingLanding;
+// MarketingLanding is intentionally NOT imported here.
+// The /marketing route is a public-facing product page (served unauthenticated);
+// it must not appear in the authenticated operator shell.
 use crate::pages::auth::login::Login;
 use crate::pages::auth::verify_token::VerifyToken;
 use crate::pages::auth::setup::Setup;
@@ -534,7 +536,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/admin/security") view=crate::pages::admin::security::SecurityPasskeys />
                         <Route path=path!("/flags") view=FeatureFlags />
                         <Route path=path!("/support") view=SupportQueue />
-                        <Route path=path!("/marketing") view=MarketingLanding />
+                        // /marketing is intentionally removed from the authenticated shell.
+                        // Re-add as a public route in App() if needed as a product landing page.
                         // Syndication Offer Catalog (platform admin)
                         <Route path=path!("/syndication/offers") view=SyndicationOffers />
                         <Route path=path!("/syndication/links") view=SyndicationLinks />

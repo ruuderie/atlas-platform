@@ -27,6 +27,8 @@ pub fn AuditLogs() -> impl IntoView {
 
     let (filter_cat, set_filter_cat) = signal("all".to_string());
     let (search_query, set_search_query) = signal("".to_string());
+    let (date_from, set_date_from) = signal(String::new());
+    let (date_to, set_date_to) = signal(String::new());
 
     let active_network = use_context::<ReadSignal<Option<uuid::Uuid>>>().expect("active network missing");
     let toast = use_context::<GlobalToast>().expect("toast context missing");
@@ -47,6 +49,11 @@ pub fn AuditLogs() -> impl IntoView {
             set_loading.set(false);
         });
     };
+
+    let csv_export_url = Signal::derive(move || {
+        let tenant = active_network.get().map(|id| id.to_string()).unwrap_or_default();
+        format!("/api/audit-logs/export?tenant_id={}&start={}&end={}", tenant, date_from.get(), date_to.get())
+    });
 
     Effect::new(move |_| {
         fetch_logs();
@@ -98,15 +105,25 @@ pub fn AuditLogs() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <h1 class="page-title">"Security Audit Ledger"</h1>
-                    <p class="page-subtitle">"Immutable log of critical system operations and state changes."</p>
+                    <p class="page-subtitle">"Immutable log of critical system operations and state changes. Filter by tenant or date range for compliance exports."</p>
                 </div>
-                <button 
-                    class="btn btn-ghost btn-sm"
-                    on:click=move |_| fetch_logs()
-                >
-                    <span class="material-symbols-outlined text-sm" style="margin-right:4px;vertical-align:middle;display:inline-block;">"refresh"</span>
-                    "Refresh Logs"
-                </button>
+                <div style="display:flex;gap:8px;">
+                    <button 
+                        class="btn btn-ghost btn-sm"
+                        on:click=move |_| fetch_logs()
+                    >
+                        <span class="material-symbols-outlined text-sm" style="margin-right:4px;vertical-align:middle;display:inline-block;">"refresh"</span>
+                        "Refresh"
+                    </button>
+                    // CSV export — direct download URL with tenant + date filters applied
+                    <a
+                        href=move || csv_export_url.get()
+                        download="audit-log.csv"
+                        class="btn btn-ghost btn-sm"
+                        style="text-decoration:none;"
+                        title="Download filtered audit log as CSV"
+                    >"Download CSV"</a>
+                </div>
             </div>
 
             // ── Stat Strip ──
@@ -153,28 +170,63 @@ pub fn AuditLogs() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Filter Bar ──
-            <div class="filter-bar">
-                <select 
-                    class="filter-select" 
-                    on:change=move |ev| set_filter_cat.set(event_target_value(&ev))
-                >
-                    <option value="all">"All Categories"</option>
-                    <option value="security">"Security"</option>
-                    <option value="ni">"NI / Tenant"</option>
-                    <option value="billing">"Billing"</option>
-                    <option value="flags">"Flags"</option>
-                </select>
-                <div style="flex:1"></div>
-                <div class="flag-search-wrap" style="width:260px">
-                    <input 
-                        type="text" 
-                        class="date-input" 
-                        style="width:100%"
-                        placeholder="Search logs..."
-                        prop:value=search_query
-                        on:input=move |ev| set_search_query.set(event_target_value(&ev))
+            // ── Filter Bar — two rows: tenant+date | category+search ──
+            <div style="display:flex;flex-direction:column;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border,rgba(255,255,255,0.06));">
+                // Row 1: tenant filter + date range
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <label style="font-size:10px;color:var(--text-muted);white-space:nowrap;">
+                        "Tenant ID"
+                    </label>
+                    // Display-only — changing the tenant in the topbar dropdown re-fetches.
+                    // The input shows the currently active tenant UUID for reference.
+                    <input
+                        type="text"
+                        class="date-input"
+                        style="width:280px;font-family:monospace;font-size:11px;opacity:0.7;"
+                        placeholder="Select tenant in top bar to filter"
+                        prop:value=move || active_network.get().map(|id| id.to_string()).unwrap_or_else(|| "All tenants".to_string())
+                        readonly=true
                     />
+                    <label style="font-size:10px;color:var(--text-muted);white-space:nowrap;">"From"</label>
+                    <input
+                        type="date"
+                        class="date-input"
+                        prop:value=date_from
+                        on:change=move |ev| { set_date_from.set(event_target_value(&ev)); fetch_logs(); }
+                    />
+                    <label style="font-size:10px;color:var(--text-muted);white-space:nowrap;">"To"</label>
+                    <input
+                        type="date"
+                        class="date-input"
+                        prop:value=date_to
+                        on:change=move |ev| { set_date_to.set(event_target_value(&ev)); fetch_logs(); }
+                    />
+                </div>
+                // Row 2: category filter + text search
+                <div class="filter-bar" style="padding:0;border:none;margin:0;">
+                    <select 
+                        class="filter-select" 
+                        on:change=move |ev| set_filter_cat.set(event_target_value(&ev))
+                    >
+                        <option value="all">"All Categories"</option>
+                        <option value="security">"Security"</option>
+                        <option value="ni">"NI / Tenant"</option>
+                        <option value="billing">"Billing"</option>
+                        <option value="flags">"Flags"</option>
+                        <option value="syndication">"Syndication"</option>
+                        <option value="config">"Config"</option>
+                    </select>
+                    <div style="flex:1"></div>
+                    <div class="flag-search-wrap" style="width:260px">
+                        <input 
+                            type="text" 
+                            class="date-input" 
+                            style="width:100%"
+                            placeholder="Search action, entity, actor..."
+                            prop:value=search_query
+                            on:input=move |ev| set_search_query.set(event_target_value(&ev))
+                        />
+                    </div>
                 </div>
             </div>
 
