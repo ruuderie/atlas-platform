@@ -204,6 +204,9 @@ pub fn BillingDashboard() -> impl IntoView {
                 <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>
                     "Products & Plans"
                 </button>
+                <button class=move || tab_class("rev_intel") on:click=move |_| active_tab.set("rev_intel".to_string())>
+                    "Revenue Intelligence"
+                </button>
                 <button class=move || tab_class("ledger") on:click=move |_| active_tab.set("ledger".to_string())>
                     "Ledger · G-03"
                 </button>
@@ -655,6 +658,180 @@ pub fn BillingDashboard() -> impl IntoView {
                     </div>
                 </div>
             </Show>
+            // ── TAB CONTENT: Revenue Intelligence ────────────────────────────────
+            <Show when=move || active_tab.get() == "rev_intel">
+                <div class="space-y-6">
+                    <Suspense fallback=move || view! { <div class="p-8 text-center text-xs text-on-surface-variant/50">"Loading..."</div> }>
+                    {move || tenant_list.get().map(|tenants| {
+                        // ─ Tier distribution ─────────────────────────────────────
+                        let total = tenants.len().max(1);
+                        let enterprise_tenants: Vec<_> = tenants.iter().filter(|t| t.plan.as_deref().map(|p| p.to_lowercase().contains("enterprise")).unwrap_or(false)).collect();
+                        let growth_tenants: Vec<_> = tenants.iter().filter(|t| t.plan.as_deref().map(|p| p.to_lowercase().contains("growth")).unwrap_or(false)).collect();
+                        let starter_tenants: Vec<_> = tenants.iter().filter(|t| t.plan.as_deref().map(|p| {
+                            let pl = p.to_lowercase();
+                            pl.contains("starter") || pl.contains("basic") || pl.contains("free")
+                        }).unwrap_or(false)).collect();
+                        let no_plan_count = tenants.iter().filter(|t| t.plan.is_none() || t.plan.as_deref() == Some("")).count();
+
+                        // MRR by tier (from mrr_cents field)
+                        let enterprise_mrr: i64 = enterprise_tenants.iter().filter_map(|t| t.mrr_cents).sum();
+                        let growth_mrr: i64 = growth_tenants.iter().filter_map(|t| t.mrr_cents).sum();
+                        let starter_mrr: i64 = starter_tenants.iter().filter_map(|t| t.mrr_cents).sum();
+                        let total_mrr = (enterprise_mrr + growth_mrr + starter_mrr).max(1);
+
+                        let tiers = vec![
+                            ("Enterprise", enterprise_tenants.len(), enterprise_mrr, "#818cf8", "rgba(99,102,241,0.12)"),
+                            ("Growth",     growth_tenants.len(),     growth_mrr,     "#34d399", "rgba(16,185,129,0.12)"),
+                            ("Starter",    starter_tenants.len(),    starter_mrr,    "#fbbf24", "rgba(245,158,11,0.12)"),
+                        ];
+
+                        // MRR by app type (from tenant_list; only rough but honest)
+                        // We'll use plan as proxy since we don't have per-app-type MRR in this endpoint.
+
+                        // Grace period alert — use billing_summary signal
+                        let grace_count = billing_summary.get().flatten().map(|s| s.in_grace_period).unwrap_or(0);
+                        let suspended_count = billing_summary.get().flatten().map(|s| s.suspended).unwrap_or(0);
+
+                        view! {
+                            <div class="space-y-6">
+                                // ─ Grace Period Alert Banner
+                                {if grace_count > 0 || suspended_count > 0 {
+                                    view! {
+                                        <div style="\
+                                            display:flex;\
+                                            align-items:center;\
+                                            gap:12px;\
+                                            padding:14px 18px;\
+                                            background:rgba(239,68,68,0.08);\
+                                            border:1px solid rgba(239,68,68,0.3);\
+                                            border-radius:10px;\
+                                            font-size:12px;\
+                                        ">
+                                            <span style="font-size:20px;">"⚠️"</span>
+                                            <div>
+                                                <div style="font-weight:700;color:#ef4444;margin-bottom:2px;">
+                                                    {format!("{} tenant{} in grace period · {} suspended",
+                                                        grace_count,
+                                                        if grace_count == 1 { "" } else { "s" },
+                                                        suspended_count
+                                                    )}
+                                                </div>
+                                                <div style="color:var(--text-muted);font-size:11px;">
+                                                    "Auto-suspension runs daily. Review overdue accounts to prevent involuntary churn."
+                                                    <a href="#" style="color:var(--cobalt);margin-left:6px;text-decoration:none;"
+                                                        on:click=move |_| active_tab.set("overdue".to_string())
+                                                    >"View overdue →"</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }.into_any()
+                                } else {
+                                    view! { <></> }.into_any()
+                                }}
+
+                                // ─ Plan Tier Distribution
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                                    <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20">
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                                            "Plan Tier Distribution · MRR Share"
+                                        </h3>
+                                        <span class="text-[10px] text-on-surface-variant/60">{format!("{} tenants total", total)}</span>
+                                    </div>
+                                    <div class="p-5 space-y-5">
+                                        {tiers.into_iter().map(|(tier_name, count, mrr_cents, color, bg)| {
+                                            let count_pct = (count as f64 / total as f64 * 100.0) as u32;
+                                            let mrr_pct = (mrr_cents as f64 / total_mrr as f64 * 100.0) as u32;
+                                            let mrr_dollars = mrr_cents / 100;
+                                            view! {
+                                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                                                        <div style="display:flex;align-items:center;gap:8px;">
+                                                            <span style=format!("display:inline-block;width:10px;height:10px;border-radius:2px;background:{};", color)></span>
+                                                            <span style="font-size:12px;font-weight:600;">{tier_name}</span>
+                                                            <span style=format!("font-size:10px;padding:1px 7px;border-radius:4px;background:{};color:{};", bg, color)>
+                                                                {format!("{} tenant{}", count, if count == 1 { "" } else { "s" })}
+                                                            </span>
+                                                        </div>
+                                                        <div style="font-size:11px;font-family:monospace;color:var(--text-muted);">
+                                                            {format!("${}/mo · {}% MRR", mrr_dollars, mrr_pct)}
+                                                        </div>
+                                                    </div>
+                                                    // Dual-bar: tenant count (faint) + MRR share (solid)
+                                                    <div style="position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;">
+                                                        <div style=format!("position:absolute;left:0;top:0;height:6px;border-radius:3px;width:{}%;background:{};", count_pct, color)></div>
+                                                    </div>
+                                                    <div style="position:relative;height:3px;background:rgba(255,255,255,0.04);border-radius:2px;margin-top:-3px;">
+                                                        <div style=format!("position:absolute;left:0;top:0;height:3px;border-radius:2px;width:{}%;background:{}88;", mrr_pct, color)></div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }).collect_view()}
+                                        {if no_plan_count > 0 {
+                                            view! {
+                                                <div style="font-size:11px;color:var(--text-muted);padding-top:4px;border-top:1px solid var(--border-subtle);">
+                                                    {format!("{} tenant{} with no plan assigned", no_plan_count, if no_plan_count == 1 { "" } else { "s" })}
+                                                    <a href="/tenants" style="color:var(--cobalt);margin-left:6px;text-decoration:none;">"Review →"</a>
+                                                </div>
+                                            }.into_any()
+                                        } else {
+                                            view! { <></> }.into_any()
+                                        }}
+                                    </div>
+                                </div>
+
+                                // ─ Tenant MRR Ranking Table
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                                    <div class="px-5 py-3.5 border-b border-outline-variant/20">
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Top Tenants by MRR"</h3>
+                                    </div>
+                                    <div style="overflow-x:auto;">
+                                        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                                            <thead>
+                                                <tr style="background:rgba(255,255,255,0.03);">
+                                                    <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Tenant"</th>
+                                                    <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Plan"</th>
+                                                    <th style="text-align:right;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"MRR"</th>
+                                                    <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Status"</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{
+                                                    let mut sorted = tenants.clone();
+                                                    sorted.sort_by(|a, b| b.mrr_cents.unwrap_or(0).cmp(&a.mrr_cents.unwrap_or(0)));
+                                                    sorted.into_iter().take(15).map(|t| {
+                                                        let mrr_str = t.mrr_cents.map(|c| format!("${}/mo", c / 100)).unwrap_or_else(|| "—".to_string());
+                                                        let plan_str = t.plan.clone().unwrap_or_else(|| "No plan".to_string());
+                                                        let status = t.site_status.clone().unwrap_or_default();
+                                                        let (status_color, status_label) = match status.to_lowercase().as_str() {
+                                                            "active" => ("#22c55e", "Live"),
+                                                            "suspended" => ("#ef4444", "Suspended"),
+                                                            _ => ("#f59e0b", "—"),
+                                                        };
+                                                        view! {
+                                                            <tr style="border-bottom:1px solid var(--border-subtle);">
+                                                                <td style="padding:9px 16px;font-weight:500;">{t.name.clone()}</td>
+                                                                <td style="padding:9px 16px;color:var(--text-muted);">{plan_str}</td>
+                                                                <td style="padding:9px 16px;text-align:right;font-family:monospace;font-weight:700;color:var(--cobalt);">{mrr_str}</td>
+                                                                <td style="padding:9px 16px;">
+                                                                    <span style=format!("font-size:9px;font-weight:700;color:{};padding:2px 7px;background:{}22;border-radius:4px;", status_color, status_color)>
+                                                                        {status_label}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }).collect_view()
+                                                }}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }.into_any()
+                    })}
+                    </Suspense>
+                </div>
+            </Show>
+
         </div>
     }
 }

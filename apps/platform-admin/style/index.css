@@ -997,6 +997,23 @@ thead th.sortable:hover::after { opacity: 1; }
 .product-row:last-child { border-bottom: none; }
 .product-row:hover { background: var(--bg-elevated); }
 
+/* ── App Instance List Rows (Tenant 360 App Instances tab) ────────────────── */
+.instance-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.instance-row:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
 .product-mode-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .product-info { flex: 1; min-width: 0; }
 .product-name { font-size: 12.5px; font-weight: 500; color: var(--text-primary); }

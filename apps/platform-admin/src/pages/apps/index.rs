@@ -308,109 +308,147 @@ pub fn Apps() -> impl IntoView {
 
                                 // ── APP INSTANCES TAB ────────────────────────
                                 "apps" => view! {
-                                    <div>
-                                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-                                            <div class="section-label" style="margin-bottom:0">
-                                                {format!("{} App Instances · {} Live · {} Beta", total_apps, live_count, beta_count)}
+                                    <div style="display:flex;flex-direction:column;gap:16px;">
+                                        // Header strip
+                                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                                            <div style="font-size:11px;color:var(--text-muted);">
+                                                {format!("{} instance{} · {} live",
+                                                    total_apps,
+                                                    if total_apps == 1 { "" } else { "s" },
+                                                    live_count
+                                                )}
                                             </div>
-                                            <a href="/apps/new" class="btn btn-ghost btn-sm" style="text-decoration:none">
-                                                "+ Provision New Instance"
+                                            <a href="/apps/new"
+                                               class="btn btn-ghost btn-sm"
+                                               style="text-decoration:none;font-size:11px;"
+                                            >
+                                                "+ Provision Instance"
                                             </a>
                                         </div>
 
-                                        <div class="apps-grid">
+                                        // Instance list
+                                        <div style="display:flex;flex-direction:column;gap:10px;">
                                             <For
                                                 each=move || apps_val.with_value(|a| a.clone())
                                                 key=|app| app.instance_id.clone()
                                                 children=move |app| {
-                                                    let is_live = app.site_status.to_lowercase() == "active";
-                                                    let (app_emoji, app_label) = app_type_label(&app.app_type);
-                                                    // Both buttons link to /apps/:id/instance (the operational view)
+                                                    let status = app.site_status.to_lowercase();
+                                                    let is_live = status == "active";
+                                                    let is_suspended = status == "suspended";
+
+                                                    let (status_bg, status_color, status_label) = if is_live {
+                                                        ("rgba(34,197,94,0.1)", "#22c55e", "LIVE")
+                                                    } else if is_suspended {
+                                                        ("rgba(239,68,68,0.1)", "#ef4444", "SUSPENDED")
+                                                    } else {
+                                                        ("rgba(245,158,11,0.1)", "#f59e0b", "PROVISIONING")
+                                                    };
+
+                                                    let (type_bg, type_color, type_emoji, type_label) = match app.app_type.to_lowercase().as_str() {
+                                                        "anchor"              => ("rgba(99,102,241,0.12)",  "#818cf8", "⚓", "Anchor CMS"),
+                                                        "property_management" => ("rgba(59,130,246,0.12)",  "#60a5fa", "🏠", "Folio PM"),
+                                                        "network_instance"    => ("rgba(16,185,129,0.12)", "#34d399", "🔗", "Network"),
+                                                        "str"                 => ("rgba(245,158,11,0.12)", "#fbbf24", "🏖️", "STR"),
+                                                        _                     => ("rgba(107,114,128,0.12)", "#9ca3af", "📦", "App"),
+                                                    };
+
                                                     let instance_url = format!("/apps/{}/instance", app.instance_id);
-                                                    let detail_url   = format!("/apps/{}", app.instance_id);
 
                                                     view! {
-                                                        <div class="app-card" on:click={
-                                                            let url = instance_url.clone();
-                                                            move |_| {
-                                                                let navigate = leptos_router::hooks::use_navigate();
-                                                                navigate(&url, Default::default());
+                                                        // Each instance as a clean horizontal row card
+                                                        <div class="instance-row"
+                                                            on:click={
+                                                                let url = instance_url.clone();
+                                                                move |_| { let _ = web_sys::window().and_then(|w| w.location().assign(&url).ok()); }
                                                             }
-                                                        }>
-                                                            <div class="app-card-hdr">
-                                                                <div class="app-icon" style="background:var(--cobalt-dim);color:var(--cobalt);font-size:18px">
-                                                                    {app_emoji}
-                                                                </div>
-                                                                {if is_live {
-                                                                    view! {
-                                                                        <div class="app-mode mode-live">
-                                                                            <span class="live-dot" style="background:var(--green)"></span>
-                                                                            "Live"
-                                                                        </div>
-                                                                    }.into_any()
-                                                                } else {
-                                                                    view! {
-                                                                        <div class="app-mode mode-beta">"Suspended"</div>
-                                                                    }.into_any()
-                                                                }}
+                                                        >
+                                                            // App type icon
+                                                            <div style=format!("\
+                                                                width:40px;\
+                                                                height:40px;\
+                                                                border-radius:8px;\
+                                                                background:{};\
+                                                                display:flex;\
+                                                                align-items:center;\
+                                                                justify-content:center;\
+                                                                font-size:18px;\
+                                                                flex-shrink:0;\
+                                                            ", type_bg)>
+                                                                {type_emoji}
                                                             </div>
-                                                            <div class="app-name">{app_label}</div>
-                                                            <div class="app-domain">{app.domain.clone()}</div>
 
-                                                            // Feature module chips — shows what's included
-                                                            {
-                                                                let at = app.app_type.to_lowercase();
-                                                                let features: &[(&str, bool)] = match at.as_str() {
-                                                                    "anchor"     => &[("Pages", true), ("Media", true), ("Forms", true), ("SEO", true), ("Analytics", true), ("Custom Fields", false)],
-                                                                    "str"        => &[("Listings", true), ("Bookings", true), ("Payments", true), ("Pricing", true), ("Reviews", false), ("Analytics", true)],
-                                                                    "net" | "network_instance" => &[("Directory", true), ("Search", true), ("Listings", true), ("Maps", true), ("Profiles", true), ("Messaging", false)],
-                                                                    "com" | "property_management" => &[("Listings", true), ("Leases", true), ("Payments", true), ("Tenants", true), ("Analytics", true), ("Maintenance", false)],
-                                                                    _ => &[("Leads", true), ("Listings", true), ("Payments", true), ("Analytics", true), ("Events", true), ("Custom Fields", false)],
-                                                                };
-                                                                view! {
-                                                                    <div class="app-modules" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
-                                                                        {features.iter().map(|(label, active)| {
-                                                                            view! {
-                                                                                <span class=if *active { "mod-chip on" } else { "mod-chip" }>{*label}</span>
-                                                                            }
-                                                                        }).collect_view()}
-                                                                    </div>
-                                                                }
-                                                            }
-
-                                                            <div class="app-card-footer">
-                                                                <span class="app-footer-meta">{format!("{} instance", app.app_type.to_uppercase())}</span>
-                                                                <div class="app-footer-actions">
-                                                                    // Config → legacy detail view (breadcrumb / settings)
-                                                                    {
-                                                                        let durl = StoredValue::new(detail_url.clone());
-                                                                        view! {
-                                                                            <a
-                                                                                href=move || durl.get_value()
-                                                                                class="btn btn-ghost btn-sm"
-                                                                                style="text-decoration:none"
-                                                                                on:click=move |e| e.stop_propagation()
-                                                                            >"Config"</a>
-                                                                        }
-                                                                    }
-                                                                    // Open → operational instance view
-                                                                    <button class="btn btn-primary btn-sm" on:click={
-                                                                        let url = instance_url.clone();
-                                                                        move |e| {
-                                                                            e.stop_propagation();
-                                                                            let navigate = leptos_router::hooks::use_navigate();
-                                                                            navigate(&url, Default::default());
-                                                                        }
-                                                                    }>"Open →"</button>
+                                                            // Main content block
+                                                            <div style="flex:1;min-width:0;">
+                                                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                                                                    // App type label
+                                                                    <span style=format!("font-size:13px;font-weight:700;color:{}", type_color)>
+                                                                        {type_label}
+                                                                    </span>
+                                                                    // Status pill
+                                                                    <span style=format!("\
+                                                                        font-size:9.5px;\
+                                                                        font-weight:700;\
+                                                                        letter-spacing:0.05em;\
+                                                                        padding:2px 7px;\
+                                                                        border-radius:4px;\
+                                                                        background:{};\
+                                                                        color:{};\
+                                                                    ", status_bg, status_color)>
+                                                                        {status_label}
+                                                                    </span>
+                                                                </div>
+                                                                // Domain + instance ID
+                                                                <div style="font-size:11.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                                                    {app.domain.clone()}
+                                                                </div>
+                                                                <div style="font-size:9.5px;font-family:monospace;color:var(--text-muted);opacity:0.6;margin-top:2px;">
+                                                                    {app.instance_id.clone()}
                                                                 </div>
                                                             </div>
+
+                                                            // Right side: CTA
+                                                            <a
+                                                                href=instance_url.clone()
+                                                                class="btn btn-ghost btn-sm"
+                                                                style="text-decoration:none;white-space:nowrap;flex-shrink:0;"
+                                                                on:click=move |e| e.stop_propagation()
+                                                            >
+                                                                "Open Instance →"
+                                                            </a>
                                                         </div>
                                                     }
                                                 }
                                             />
                                         </div>
+
+                                        // Empty state
+                                        {if total_apps == 0 {
+                                            view! {
+                                                <div style="\
+                                                    padding:40px 24px;\
+                                                    text-align:center;\
+                                                    color:var(--text-muted);\
+                                                    font-size:13px;\
+                                                    background:var(--bg-surface);\
+                                                    border:1px dashed var(--border-default);\
+                                                    border-radius:8px;\
+                                                ">
+                                                    <div style="font-size:28px;margin-bottom:12px;">"📦"</div>
+                                                    <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px;">"No instances provisioned"</div>
+                                                    <div style="font-size:11px;margin-bottom:16px;">
+                                                        "Provision an Anchor, Folio, or Network instance to deploy a product for this tenant."
+                                                    </div>
+                                                    <a href="/apps/new" class="btn btn-primary" style="text-decoration:none;">
+                                                        "Provision First Instance"
+                                                    </a>
+                                                </div>
+                                            }.into_any()
+                                        } else {
+                                            view! { <></> }.into_any()
+                                        }}
                                     </div>
                                 }.into_any(),
+
 
                                 // ── CRM — ALL APPS TAB ────────────────────────
                                 "crm" => {
@@ -601,66 +639,110 @@ pub fn Apps() -> impl IntoView {
                                 // ── CONFIGURATION TAB ─────────────────────────
                                 "config" => view! {
                                     <div style="display:flex;flex-direction:column;gap:14px;">
+                                        // ── Subscription Plan ──────────────────
                                         <div class="card">
                                             <div class="card-hdr">
-                                                <span class="card-title">"Tenant Settings"</span>
-                                                <a href="/developer" class="btn btn-ghost btn-sm" style="text-decoration:none;">
-                                                    "→ Full Config"
+                                                <span class="card-title">"Subscription"
+                                                </span>
+                                                <a href="/billing" class="btn btn-ghost btn-sm" style="text-decoration:none;">
+                                                    "View Billing →"
                                                 </a>
                                             </div>
                                             <div class="stat-row">
-                                                <span class="s-label">"Plan"</span>
-                                                {if plan_label != "—" && !plan_label.is_empty() {
-                                                    view! { <span class="s-value cobalt">{plan_label.clone()}</span> }.into_any()
+                                                <span class="s-label">"Current Plan"</span>
+                                                {if !plan_label.is_empty() && plan_label != "—" {
+                                                    view! {
+                                                        <span class="s-value" style="color:var(--cobalt);font-weight:700;">
+                                                            {plan_label.clone()}
+                                                        </span>
+                                                    }.into_any()
                                                 } else {
-                                                    view! { <span class="s-value" style="color:var(--text-muted)">"—"</span> }.into_any()
+                                                    view! {
+                                                        <span class="s-value" style="color:var(--text-muted);">
+                                                            "No active subscription"
+                                                        </span>
+                                                    }.into_any()
                                                 }}
                                             </div>
                                             <div class="stat-row">
-                                                <span class="s-label">"Region"</span>
-                                                <span class="s-value">"us-east-1"</span>
+                                                <span class="s-label">"App Instances"</span>
+                                                <span class="s-value">{total_apps.to_string()}" provisioned"</span>
                                             </div>
-                                            <div class="stat-row">
-                                                <span class="s-label">"Data Residency"</span>
-                                                <span class="s-value">"US — AWS"</span>
+                                        </div>
+
+                                        // ── Platform Tools ─────────────────────
+                                        <div class="card">
+                                            <div class="card-hdr">
+                                                <span class="card-title">"Platform Tools"</span>
                                             </div>
                                             <div class="stat-row">
                                                 <span class="s-label">"Feature Flags"</span>
-                                                <a href="/flags" class="s-value" style="color:var(--cobalt);text-decoration:none;">
-                                                    "→ Manage flags"
+                                                <a
+                                                    href=format!("/flags?tenant_id={}", tenant_id_clone.clone())
+                                                    class="s-value"
+                                                    style="color:var(--cobalt);text-decoration:none;font-size:12px;"
+                                                >
+                                                    "Manage flags →"
                                                 </a>
                                             </div>
                                             <div class="stat-row">
                                                 <span class="s-label">"Audit Log"</span>
-                                                // Pre-filter audit log to this tenant
                                                 <a
                                                     href=format!("/logs?tenant_id={}", tenant_id_clone.clone())
-                                                    class="s-value" style="color:var(--cobalt);text-decoration:none;"
+                                                    class="s-value"
+                                                    style="color:var(--cobalt);text-decoration:none;font-size:12px;"
                                                 >
-                                                    "→ View audit log"
+                                                    "View audit log →"
+                                                </a>
+                                            </div>
+                                            <div class="stat-row">
+                                                <span class="s-label">"Verification"
+                                                </span>
+                                                <a
+                                                    href="/verification"
+                                                    class="s-value"
+                                                    style="color:var(--cobalt);text-decoration:none;font-size:12px;"
+                                                >
+                                                    "Review queue →"
                                                 </a>
                                             </div>
                                         </div>
+
+                                        // ── Per-App Instance Config ─────────────
                                         <div class="card">
                                             <div class="card-hdr">
-                                                <span class="card-title">"Per-App Overrides"</span>
+                                                <span class="card-title">"App Instance Configuration"</span>
                                             </div>
-                                            // List actual instances with direct links
                                             {if total_apps > 0 {
                                                 view! {
-                                                    <div style="display:flex;flex-direction:column;gap:6px;padding:4px 0;">
+                                                    <div style="display:flex;flex-direction:column;">
                                                         <For
                                                             each=move || apps_val.with_value(|a| a.clone())
                                                             key=|app| app.instance_id.clone()
                                                             children=move |app| {
-                                                                let (emoji, label) = app_type_label(&app.app_type);
+                                                                let (emoji, _label) = app_type_label(&app.app_type);
                                                                 let url = format!("/apps/{}/instance", app.instance_id);
+                                                                let status = app.site_status.to_lowercase();
+                                                                let (status_color, status_text) = if status == "active" {
+                                                                    ("#22c55e", "Live")
+                                                                } else if status == "suspended" {
+                                                                    ("#ef4444", "Suspended")
+                                                                } else {
+                                                                    ("#f59e0b", "Provisioning")
+                                                                };
                                                                 view! {
-                                                                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border,rgba(255,255,255,0.05));">
-                                                                        <span style="font-size:13px;">
-                                                                            {emoji}" "{label}" — "{app.domain.clone()}
+                                                                    <div class="stat-row">
+                                                                        <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-primary);">
+                                                                            <span>{emoji}</span>
+                                                                            <span>{app.app_type.clone()}</span>
+                                                                            <span style=format!("font-size:9px;font-weight:700;color:{};padding:1px 6px;background:{}22;border-radius:3px;", status_color, status_color)>
+                                                                                {status_text}
+                                                                            </span>
                                                                         </span>
-                                                                        <a href=url style="color:var(--cobalt);font-size:12px;text-decoration:none;white-space:nowrap">
+                                                                        <a
+                                                                            href=url
+                                                                            style="color:var(--cobalt);font-size:12px;text-decoration:none;white-space:nowrap;"
+                                                                        >
                                                                             "Configure →"
                                                                         </a>
                                                                     </div>
@@ -671,14 +753,16 @@ pub fn Apps() -> impl IntoView {
                                                 }.into_any()
                                             } else {
                                                 view! {
-                                                    <div style="font-size:12px;color:var(--text-muted);padding:8px 0;">
-                                                        "No app instances provisioned. Provision an instance to configure per-app settings."
+                                                    <div style="font-size:12px;color:var(--text-muted);padding:12px 14px;">
+                                                        "No app instances provisioned. "
+                                                        <a href="/apps/new" style="color:var(--cobalt);text-decoration:none;">"Provision one →"</a>
                                                     </div>
                                                 }.into_any()
                                             }}
                                         </div>
                                     </div>
                                 }.into_any(),
+
 
                                 // ── AUDIT LOG TAB ─────────────────────────────
                                 "audit" => {

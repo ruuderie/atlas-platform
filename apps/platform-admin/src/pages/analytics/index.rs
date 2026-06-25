@@ -176,6 +176,7 @@ pub fn Analytics() -> impl IntoView {
                         }
                     };
                     view! {
+                    {tab_btn("p-bi", "Platform BI · Revenue")}
                         {tab_btn("p-overview", "Overview")}
                         {tab_btn("p-revenue", "Revenue & GMV")}
                         {tab_btn("p-crm", "CRM Funnel")}
@@ -1079,6 +1080,174 @@ pub fn Analytics() -> impl IntoView {
                     </div>
                 </div>
             </Show>
+            // ── TAB CONTENT: Platform BI ─────────────────────────────────────
+            <Show when=move || active_tab.get() == "p-bi">
+                <div class="space-y-6">
+                    // BI Header
+                    <div class="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl text-xs text-on-surface-variant leading-relaxed">
+                        <span class="material-symbols-outlined text-primary text-base">"insights"</span>
+                        <span>
+                            <strong class="text-on-surface">"Platform Business Intelligence"</strong>
+                            " — MRR breakdown by plan tier, subscription health cohort, and tenant ranking. "
+                            "Data sourced from live tenant registry and billing summary."
+                        </span>
+                    </div>
+
+                    // Subscription health funnel (from billing_summary)
+                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                        <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Subscription Lifecycle · Health Funnel"</h3>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <Suspense fallback=move || view! { <div class="py-4 text-center text-xs text-on-surface-variant/50">"Loading..."</div> }>
+                            {move || billing_summary.get().map(|res| match res {
+                                Ok(data) => view! {
+                                    <div class="space-y-3">
+                                        {{
+                                            let total = (data.active_subscriptions + data.in_trial + data.in_grace_period + data.suspended + data.canceled).max(1);
+                                            let stages = vec![
+                                                ("Active",       data.active_subscriptions, "#22c55e"),
+                                                ("In Trial",     data.in_trial,             "#818cf8"),
+                                                ("Grace Period", data.in_grace_period,      "#f59e0b"),
+                                                ("Suspended",    data.suspended,            "#ef4444"),
+                                                ("Canceled",     data.canceled,             "#6b7280"),
+                                            ];
+                                            stages.into_iter().map(|(label, count, color)| {
+                                                let pct = (count as f64 / total as f64 * 100.0) as u32;
+                                                view! {
+                                                    <div style="display:flex;flex-direction:column;gap:4px;">
+                                                        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;">
+                                                            <div style="display:flex;align-items:center;gap:7px;">
+                                                                <span style=format!("display:inline-block;width:8px;height:8px;border-radius:50%;background:{};", color)></span>
+                                                                <span>{label}</span>
+                                                            </div>
+                                                            <span style="font-family:monospace;color:var(--text-muted);">
+                                                                {format!("{} ({pct}%)" , count)}
+                                                            </span>
+                                                        </div>
+                                                        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;">
+                                                            <div style=format!("height:5px;border-radius:3px;width:{}%;background:{};", pct, color)></div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }).collect_view()
+                                        }}
+                                    </div>
+                                }.into_any(),
+                                Err(_) => view! {
+                                    <p class="text-xs text-on-surface-variant/50 py-4 text-center">"Billing summary unavailable."</p>
+                                }.into_any(),
+                            })}
+                            </Suspense>
+                        </div>
+                    </div>
+
+                    // MRR by tier + tenant cohort (from tenant_list)
+                    <Suspense fallback=move || view! { <div class="p-6 text-center text-xs text-on-surface-variant/50">"Loading tenant data..."</div> }>
+                    {move || tenant_list.get().map(|tenants| {
+                        let total = tenants.len().max(1);
+
+                        let enterprise: Vec<_> = tenants.iter().filter(|t| t.plan.as_deref().map(|p| p.to_lowercase().contains("enterprise")).unwrap_or(false)).collect();
+                        let growth: Vec<_>     = tenants.iter().filter(|t| t.plan.as_deref().map(|p| p.to_lowercase().contains("growth")).unwrap_or(false)).collect();
+                        let starter: Vec<_>    = tenants.iter().filter(|t| t.plan.as_deref().map(|p| {
+                            let p = p.to_lowercase(); p.contains("starter") || p.contains("basic") || p.contains("free")
+                        }).unwrap_or(false)).collect();
+
+                        let e_mrr: i64 = enterprise.iter().filter_map(|t| t.mrr_cents).sum();
+                        let g_mrr: i64 = growth.iter().filter_map(|t| t.mrr_cents).sum();
+                        let s_mrr: i64 = starter.iter().filter_map(|t| t.mrr_cents).sum();
+                        let total_mrr = (e_mrr + g_mrr + s_mrr).max(1);
+
+                        let tier_rows = vec![
+                            ("Enterprise", enterprise.len(), e_mrr, "#818cf8"),
+                            ("Growth",     growth.len(),     g_mrr, "#34d399"),
+                            ("Starter",    starter.len(),    s_mrr, "#fbbf24"),
+                        ];
+
+                        view! {
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                                // MRR by tier breakdown
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                                    <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20">
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"MRR by Plan Tier"</h3>
+                                        <span class="text-[10px] text-on-surface-variant/60">{format!("${}/mo total", total_mrr / 100)}</span>
+                                    </div>
+                                    <div class="p-5 space-y-4">
+                                        {tier_rows.into_iter().map(|(name, count, mrr, color)| {
+                                            let mrr_pct = (mrr as f64 / total_mrr as f64 * 100.0) as u32;
+                                            let count_pct = (count as f64 / total as f64 * 100.0) as u32;
+                                            view! {
+                                                <div style="display:flex;flex-direction:column;gap:5px;">
+                                                    <div style="display:flex;justify-content:space-between;font-size:12px;">
+                                                        <div style="display:flex;align-items:center;gap:7px;">
+                                                            <span style=format!("width:9px;height:9px;border-radius:2px;background:{};display:inline-block;", color)></span>
+                                                            <span style="font-weight:600;">{name}</span>
+                                                            <span style="color:var(--text-muted);font-size:10px;">{format!("{} tenants ({}%)", count, count_pct)}</span>
+                                                        </div>
+                                                        <span style="font-family:monospace;font-weight:700;">
+                                                            {format!("${}/mo · {}%", mrr / 100, mrr_pct)}
+                                                        </span>
+                                                    </div>
+                                                    <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;">
+                                                        <div style=format!("height:6px;border-radius:3px;width:{}%;background:{};", mrr_pct, color)></div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }).collect_view()}
+                                    </div>
+                                </div>
+
+                                // Tenant cohort — full/partial/inactive
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden">
+                                    <div class="px-5 py-3.5 border-b border-outline-variant/20">
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Activation Cohort"</h3>
+                                    </div>
+                                    <div class="p-5 space-y-4">
+                                        {{
+                                            let fully_live = tenants.iter().filter(|t| {
+                                                t.site_status.as_deref().map(|s| s == "active").unwrap_or(false)
+                                                && t.mrr_cents.unwrap_or(0) > 0
+                                            }).count();
+                                            let partial = tenants.iter().filter(|t| {
+                                                t.site_status.as_deref().map(|s| s == "active").unwrap_or(false)
+                                                && t.mrr_cents.unwrap_or(0) == 0
+                                            }).count();
+                                            let inactive = tenants.iter().filter(|t| {
+                                                !t.site_status.as_deref().map(|s| s == "active").unwrap_or(false)
+                                            }).count();
+
+                                            let cohorts = vec![
+                                                ("Fully Live + Paying", fully_live, "#22c55e"),
+                                                ("Live · No Billing",   partial,    "#f59e0b"),
+                                                ("Inactive / Suspended",inactive,   "#ef4444"),
+                                            ];
+                                            cohorts.into_iter().map(|(label, count, color)| {
+                                                let pct = (count as f64 / total as f64 * 100.0) as u32;
+                                                view! {
+                                                    <div style="display:flex;flex-direction:column;gap:4px;">
+                                                        <div style="display:flex;justify-content:space-between;font-size:11px;">
+                                                            <div style="display:flex;align-items:center;gap:7px;">
+                                                                <span style=format!("width:8px;height:8px;border-radius:50%;background:{};display:inline-block;", color)></span>
+                                                                <span>{label}</span>
+                                                            </div>
+                                                            <span style="font-family:monospace;color:var(--text-muted);">{format!("{} ({pct}%)", count)}</span>
+                                                        </div>
+                                                        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;">
+                                                            <div style=format!("height:5px;border-radius:3px;width:{}%;background:{};", pct, color)></div>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            }).collect_view()
+                                        }}
+                                    </div>
+                                </div>
+                            </div>
+                        }.into_any()
+                    })}
+                    </Suspense>
+                </div>
+            </Show>
+
         </div>
     }
 }
