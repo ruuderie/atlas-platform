@@ -71,7 +71,12 @@ pub fn TenantUsersPanel(
                     <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
                         "Users"
                         <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
-                            {move || format!("({} users)", users_res.get().unwrap_or_default().len())}
+                            {move || {
+                                // .read() returns the current value without suspending the parent boundary.
+                                // Shows 0 while the fetch is in-flight, count once resolved.
+                                let n = users_res.read().as_ref().map(|v| v.len()).unwrap_or(0);
+                                format!("({n} users)")
+                            }}
                         </span>
                     </h3>
                     <button
@@ -147,7 +152,10 @@ pub fn TenantUsersPanel(
                     <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-2">
                         "Pending Invitations"
                         <span class="text-[10px] text-on-surface-variant/60 font-normal normal-case tracking-normal">
-                            {move || format!("({})", invites_res.get().unwrap_or_default().len())}
+                            {move || {
+                                let n = invites_res.read().as_ref().map(|v| v.len()).unwrap_or(0);
+                                format!("({n})")
+                            }}
                         </span>
                     </h3>
                 </div>
