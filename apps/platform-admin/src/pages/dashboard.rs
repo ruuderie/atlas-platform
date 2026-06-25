@@ -149,10 +149,7 @@ pub fn Dashboard() -> impl IntoView {
                     <tr>
                         <th>"Tenant / Domain"</th>
                         <th>"Plan"</th>
-                        <th>"Profiles"</th>
-                        <th>"Listings"</th>
                         <th class="center">"Status"</th>
-                        <th class="right">"MRR"</th>
                         <th class="right">"Joined"</th>
                     </tr>
                 </thead>
@@ -185,13 +182,10 @@ pub fn Dashboard() -> impl IntoView {
                             >
                                 <td>
                                     <div class="tenant-name">{t.name.clone()}</div>
-                                    <div class="tenant-domain" style="font-size:10px;color:var(--text-muted)">{t.tenant_id.clone()}</div>
+                                    <div class="tenant-domain" style="font-size:10px;color:var(--text-muted);font-family:monospace">{t.tenant_id.clone()}</div>
                                 </td>
                                 <td><span class="plan-badge">{plan}</span></td>
-                                <td class="right mono">{t.profile_count.to_string()}</td>
-                                <td class="right mono">{t.listing_count.to_string()}</td>
                                 <td class="center"><span class="status-dot" style=format!("background:{}", status_color)></span></td>
-                                <td class="right mono">{mrr_str}</td>
                                 <td class="right muted">{joined_short}</td>
                             </tr>
                         }
@@ -232,8 +226,11 @@ pub fn Dashboard() -> impl IntoView {
                                 _ => "var(--text-muted)",
                             };
                             let status_label = app.site_status.clone();
-                            // Click navigates to the instance management tab
-                            let href = format!("/apps/{}/instance", app.tenant_id);
+                            // Click navigates to the instance management tab.
+                            // IMPORTANT: use instance_id, NOT tenant_id.
+                            // The /apps/:id/instance route resolves the instance via
+                            // GET /api/admin/app-instances/{id}/public-config which expects the instance UUID.
+                            let href = format!("/apps/{}/instance", app.instance_id);
                             view! {
                                 <a href=href class="product-row" style="display:flex;align-items:center;text-decoration:none;color:inherit;">
                                     <span class="product-mode-dot" style=format!("background:{}", dot_color)></span>
