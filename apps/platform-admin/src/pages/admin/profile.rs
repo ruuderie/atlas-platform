@@ -49,7 +49,6 @@ pub fn Settings() -> impl IntoView {
             };
             // 2. Read bytes
             use wasm_bindgen_futures::JsFuture;
-            use wasm_bindgen::JsCast;
             let ab = JsFuture::from(file.array_buffer()).await.unwrap();
             let bytes = js_sys::Uint8Array::new(&ab).to_vec();
             // 3. PUT to R2

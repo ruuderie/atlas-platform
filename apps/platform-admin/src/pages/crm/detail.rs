@@ -217,7 +217,6 @@ pub fn CrmDetail() -> impl IntoView {
             };
             // 2. Read file bytes
             use wasm_bindgen_futures::JsFuture;
-            use wasm_bindgen::JsCast;
             let array_buf = JsFuture::from(file.array_buffer()).await.unwrap();
             let bytes = js_sys::Uint8Array::new(&array_buf).to_vec();
             // 3. PUT to R2

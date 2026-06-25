@@ -36,11 +36,11 @@ pub fn FolioInstance(
     let public_slug   = RwSignal::new(cfg.public_slug.clone().unwrap_or_default());
     let custom_domain = RwSignal::new(cfg.custom_domain.clone().unwrap_or_default());
     let is_suspended  = RwSignal::new(cfg.instance_status == "suspended");
-    let suspend_reason = RwSignal::new(String::new());
+    let _suspend_reason = RwSignal::new(String::new());
 
     // ── Modal visibility signals ──
     let show_suspend_modal    = RwSignal::new(false);
-    let show_add_rail_modal   = RwSignal::new(false);
+    let _show_add_rail_modal   = RwSignal::new(false);
     let show_edit_config_modal = RwSignal::new(false);
 
     // ── Folio config form signals (seeded with sensible defaults) ──
@@ -49,8 +49,8 @@ pub fn FolioInstance(
     let str_ordinance     = RwSignal::new("Miami-Dade Ord. 2023-89".to_string());
     let tdt_rate          = RwSignal::new("7% (Miami-Dade)".to_string());
     let deployment_mode   = RwSignal::new(cfg.folio_mode.clone());
-    let pix_status        = RwSignal::new("Disabled".to_string());
-    let lookback_hours    = RwSignal::new("25".to_string());
+    let _pix_status        = RwSignal::new("Disabled".to_string());
+    let _lookback_hours    = RwSignal::new("25".to_string());
 
     // ── Live stats from /stats endpoint ──
     let stats = LocalResource::new(move || async move {

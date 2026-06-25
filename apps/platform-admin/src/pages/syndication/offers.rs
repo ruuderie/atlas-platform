@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::api::syndication::{
     list_syndication_offers, create_syndication_offer, retire_syndication_offer,
-    auto_provision_mandatory_links, CreateOfferInput, SyndicationOfferModel,
+    auto_provision_mandatory_links, CreateOfferInput,
 };
 
 #[component]
@@ -236,7 +236,7 @@ pub fn SyndicationOffers() -> impl IntoView {
                                     let display_name = offer.display_name.clone();
                                     let id_prefix = offer.id.chars().take(8).collect::<String>() + "…";
                                     let link_type = offer.link_type.clone();
-                                    let link_type2 = link_type.clone();
+                                    let _link_type2 = link_type.clone();
                                     let link_label = offer.link_type_label().to_string();
                                     let types_display = offer.types_display();
                                     let has_mandatory = offer.is_mandatory_for_tiers.as_array().map(|a| !a.is_empty()).unwrap_or(false);

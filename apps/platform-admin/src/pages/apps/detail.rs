@@ -3,11 +3,9 @@ use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
 use shared_ui::components::ui::button::{Button, ButtonVariant};
-
 use shared_ui::components::badge::{Badge, BadgeIntent};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-
 
 use crate::components::upsell_banner::UpsellBanner;
 use crate::components::onboarding_wizard::OnboardingWizard;
@@ -16,6 +14,18 @@ use crate::api::onboarding::get_onboarding_status;
 use crate::api::admin::{suspend_instance, resume_instance};
 use crate::api::listings::update_listing;
 use crate::api::models::ListingUpdate;
+
+/// Maps a canonical `app_slug` / `app_type` to (icon, display label, accent css suffix).
+/// accent suffix is used as `text-{accent}-400` / `bg-{accent}-500/10`.
+fn app_type_display(slug: &str) -> (&'static str, &'static str, &'static str) {
+    match slug {
+        "property_management" => ("🏠", "Folio PM",       "violet"),
+        "anchor"              => ("⚓", "Anchor CMS",      "amber"),
+        "network_instance"    => ("🔗", "Network Directory","blue"),
+        "str"                 => ("🏖️","Atlas STR",        "emerald"),
+        _                     => ("📦", "App Instance",    "slate"),
+    }
+}
 
 #[component]
 pub fn AppDashboard() -> impl IntoView {
@@ -243,7 +253,7 @@ pub fn AppDashboard() -> impl IntoView {
                             </div>
                         </div>
                     </div>
-                    <div class="hero-right">
+                        <div class="hero-right">
                         <a href=move || {
                             let d = domain_bind.get();
                             if d.starts_with("http") { d } else if !d.is_empty() { format!("https://{}", d) } else { "#".to_string() }
@@ -311,12 +321,12 @@ pub fn AppDashboard() -> impl IntoView {
                                 </button>
                             }
                         }
-                        // Edit Tenant → navigate to tenant settings
+                        // Provision New — navigate to the full wizard
                         <a
-                            href=move || format!("/apps/{}", site_id())
+                            href="/apps/new"
                             class="btn btn-primary"
                             style="text-decoration:none"
-                        >"Edit Tenant"</a>
+                        >"+ Provision New"</a>
                     </div>
                 </div>
 
@@ -370,6 +380,88 @@ pub fn AppDashboard() -> impl IntoView {
                         />
                     </div>
                 </Show>
+
+                // ── Instance Cards — all instances belonging to this tenant ──
+                {move || {
+                    let current_id = site_id();
+                    // Find the tenant_id for the current instance
+                    let tenant_id_opt = dirs.get().and_then(|d| {
+                        d.into_iter()
+                            .find(|dir| dir.instance_id == current_id)
+                            .map(|dir| dir.tenant_id.clone())
+                    });
+                    if let Some(tenant_id) = tenant_id_opt {
+                        // Collect all instances under the same tenant
+                        let siblings: Vec<_> = dirs.get().unwrap_or_default()
+                            .into_iter()
+                            .filter(|dir| dir.tenant_id == tenant_id)
+                            .collect();
+                        if siblings.len() > 1 || siblings.iter().any(|s| s.instance_id != current_id) {
+                            let cards = siblings.into_iter().map(|dir| {
+                                let (icon, label, _accent) = app_type_display(&dir.app_type);
+                                let is_current = dir.instance_id == current_id;
+                                let status_live = dir.site_status == "active" || dir.site_status == "Active";
+                                let manage_url = format!("/apps/{}/instance", dir.instance_id);
+                                let iid_short = dir.instance_id.chars().take(8).collect::<String>() + "…";
+                                view! {
+                                    <a
+                                        href=manage_url
+                                        class=move || if is_current {
+                                            "flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/40 bg-primary/5 text-on-surface hover:bg-primary/10 transition-all no-underline"
+                                        } else {
+                                            "flex items-center gap-3 px-4 py-3 rounded-xl border border-outline-variant/20 bg-surface-container-low hover:bg-surface-container-high/60 text-on-surface transition-all no-underline"
+                                        }
+                                    >
+                                        <span class="text-xl shrink-0">{icon}</span>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-on-surface">{label}</span>
+                                                {if is_current {
+                                                    view! { <span class="text-[9px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">"CURRENT"</span> }.into_any()
+                                                } else {
+                                                    view! { <span></span> }.into_any()
+                                                }}
+                                            </div>
+                                            <div class="text-[10px] font-mono text-on-surface-variant/60 mt-0.5">{iid_short}</div>
+                                        </div>
+                                        <span class=if status_live {
+                                            "text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                                        } else {
+                                            "text-[9px] font-bold bg-error/10 text-error border border-error/20 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                                        }>{
+                                            if status_live { "● Live" } else { "⊘ Suspended" }
+                                        }</span>
+                                    </a>
+                                }
+                            }).collect_view();
+                            view! {
+                                <div class="px-6 mt-4">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant/60">"Tenant App Instances"</span>
+                                        <a href="/apps/new" class="text-xs text-primary hover:underline font-semibold">"+ Provision New"</a>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">{cards}</div>
+                                </div>
+                            }.into_any()
+                        } else {
+                            // Single instance — still show a manage link
+                            let iid = current_id.clone();
+                            view! {
+                                <div class="px-6 mt-4 flex items-center justify-between">
+                                    <a
+                                        href=format!("/apps/{}/instance", iid)
+                                        class="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:underline"
+                                    >
+                                        "View Instance Config →"
+                                    </a>
+                                    <a href="/apps/new" class="text-xs text-on-surface-variant hover:text-primary hover:underline font-semibold">"+ Provision New Instance"</a>
+                                </div>
+                            }.into_any()
+                        }
+                    } else {
+                        view! { <div></div> }.into_any()
+                    }
+                }}
 
                 // ── Tab Bar ──
                 <div class="tab-bar">

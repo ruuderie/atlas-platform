@@ -6,7 +6,6 @@
 //!   /api/admin/syndication/offers/:id/auto-provision
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use serde_json::Value;
 
 use super::client::{api_get, api_post, api_put, api_delete};

@@ -12,6 +12,7 @@ pub struct ProvisionTenantPayload {
     pub admin_first_name: String,
     pub admin_last_name: String,
     pub apps: Option<Vec<String>>,
+    pub bypass_dns_verification: Option<bool>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
