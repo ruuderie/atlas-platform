@@ -53,7 +53,7 @@ pub fn AppInstance() -> impl IntoView {
     let custom_domain = RwSignal::new(String::new());
     let public_slug = RwSignal::new(String::new());
 
-    // Seed public_slug / custom_domain / is_suspended from API once loaded
+    // Seed public_slug / custom_domain / is_suspended / active_instance_type from API once loaded
     let _seed_effect = Effect::new(move |_| {
         if let Some(Some(cfg)) = instance_config.get() {
             if let Some(slug) = cfg.public_slug {
@@ -63,6 +63,17 @@ pub fn AppInstance() -> impl IntoView {
                 custom_domain.set(domain);
             }
             is_suspended.set(cfg.instance_status == "suspended");
+
+            // Derive the active instance type from the app_slug returned by the API.
+            // This ensures the header, badges, and tab content match the actual app type
+            // instead of always showing the Folio PM fallback.
+            let inst_type = match cfg.app_slug.as_str() {
+                s if s.contains("anchor") => "anchor",
+                s if s.contains("network") || s.contains("ni_") => "network",
+                s if s.contains("str") => "str",
+                _ => "folio",
+            };
+            active_instance_type.set(inst_type.to_string());
         }
     });
 
