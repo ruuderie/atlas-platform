@@ -1,6 +1,18 @@
 # CI refresh: 2026-06-21
+# ── Manual full-rebuild override ─────────────────────────────────────────────
+# To force ALL app Docker builds regardless of which files changed:
+#   1. Go to Woodpecker UI → this repo → Pipelines → "Run Pipeline"
+#   2. Select branch (dev or uat)
+#   3. Under Variables, add:  FORCE_BUILD_ALL = true
+#   4. Click Run
+# On normal push: FORCE_BUILD_ALL is unset (treated as false) and path filters apply.
+# ─────────────────────────────────────────────────────────────────────────────
 when:
   - event: [push]
+    branch:
+      - uat
+      - dev
+  - event: [manual]
     branch:
       - uat
       - dev
@@ -112,13 +124,15 @@ steps:
           exit 1
         fi
     when:
-      branch: [dev, uat]
-      path:
-        - 'apps/anchor/Cargo.toml'
-        - 'apps/anchor/src/app.rs'
-        - 'apps/network-instance/Cargo.toml'
-        - 'apps/network-instance/src/app.rs'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: [dev, uat]
+      - branch: [dev, uat]
+        path:
+          - 'apps/anchor/Cargo.toml'
+          - 'apps/anchor/src/app.rs'
+          - 'apps/network-instance/Cargo.toml'
+          - 'apps/network-instance/src/app.rs'
+          - '.woodpecker.yml'
 
   # ── Apps Compile Gate ──────────────────────────────────────────────────────
   # This runs BEFORE Docker builds and catches Rust compile errors in the
@@ -151,10 +165,12 @@ steps:
       - |
         cp -r $CARGO_HOME /cache/cargo 2>/dev/null || true
     when:
-      branch: [dev, uat]
-      path:
-        - 'apps/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: [dev, uat]
+      - branch: [dev, uat]
+        path:
+          - 'apps/**'
+          - '.woodpecker.yml'
 
 
   publish_platform_admin_dev:
@@ -178,11 +194,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
-      path:
-        - 'apps/platform-admin/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
+        path:
+          - 'apps/platform-admin/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_platform_admin_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -205,11 +223,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
-      path:
-        - 'apps/platform-admin/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
+        path:
+          - 'apps/platform-admin/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_backend_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -232,7 +252,9 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
 
   publish_backend_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -255,7 +277,9 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
 
   publish_ingress_sidecar_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -277,11 +301,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
-      path:
-        - 'backend/src/bin/ingress_sidecar.rs'
-        - 'backend/Dockerfile.sidecar'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
+        path:
+          - 'backend/src/bin/ingress_sidecar.rs'
+          - 'backend/Dockerfile.sidecar'
+          - '.woodpecker.yml'
 
   publish_ingress_sidecar_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -303,11 +329,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
-      path:
-        - 'backend/src/bin/ingress_sidecar.rs'
-        - 'backend/Dockerfile.sidecar'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
+        path:
+          - 'backend/src/bin/ingress_sidecar.rs'
+          - 'backend/Dockerfile.sidecar'
+          - '.woodpecker.yml'
 
   publish_network_instance_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -330,11 +358,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
-      path:
-        - 'apps/network-instance/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
+        path:
+          - 'apps/network-instance/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_network_instance_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -357,11 +387,13 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
-      path:
-        - 'apps/network-instance/**'
-        - 'apps/shared-ui/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
+        path:
+          - 'apps/network-instance/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_anchor_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -384,7 +416,9 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
 
   publish_anchor_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -407,7 +441,9 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
 
   publish_folio_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -430,10 +466,12 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: dev
-      path:
-        - 'apps/folio/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: dev
+      - branch: dev
+        path:
+          - 'apps/folio/**'
+          - '.woodpecker.yml'
 
   publish_folio_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -456,10 +494,12 @@ steps:
       password:
         from_secret: docker_password
     when:
-      branch: uat
-      path:
-        - 'apps/folio/**'
-        - '.woodpecker.yml'
+      - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
+        branch: uat
+      - branch: uat
+        path:
+          - 'apps/folio/**'
+          - '.woodpecker.yml'
 
 
   # ── Deployment Markers ──────────────────────────────────────────────────────
