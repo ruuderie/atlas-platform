@@ -15,3 +15,5 @@ pub mod pm_phase3_unit_tests;
 pub mod pmc_marketplace_unit_tests;
 // G-05 Syndication Event Bus + Folio/NI config matrix + operational config semantics
 pub mod syndication_unit_tests;
+// AppInstance decomposition: stats response shape, slug dispatch, provision logic, DNS instructions
+pub mod app_instance_unit_tests;
