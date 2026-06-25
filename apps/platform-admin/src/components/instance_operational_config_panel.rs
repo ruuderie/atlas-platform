@@ -1,8 +1,11 @@
-//! InstanceOperationalConfigPanel — folio_mode selector, billing tier, portal toggles.
+//! InstanceOperationalConfigPanel — per-app-type operational configuration UI.
 //!
-//! Consumes the `PublicConfigResponse` already loaded by the parent `AppInstance`
-//! page and lets a platform operator change any of the four operational knobs
-//! without touching the public URL config (slug / domain).
+//! The panel adapts its content entirely based on `app_slug`:
+//!
+//!   "property_management" → Folio Mode + Billing Tier + Portal Toggles
+//!   "anchor"              → CMS Billing Tier + CMS-specific notes (no PM portals)
+//!   "network_instance"    → Network Billing Tier + NI-specific notes
+//!   anything else         → Billing Tier only
 //!
 //! All writes go to:
 //!   PATCH /api/admin/app-instances/{id}/operational-config
@@ -19,8 +22,8 @@ pub fn InstanceOperationalConfigPanel(
     instance_id: Uuid,
     /// Initial config loaded by parent; panel derives its signal state from this
     config: Option<PublicConfigResponse>,
-    /// App type slug — used to conditionally show/hide Folio-specific controls.
-    /// Pass "property_management" to show Folio Mode; omit or pass anything else to hide it.
+    /// App type slug — drives which sections are visible.
+    /// "property_management" | "anchor" | "network_instance"
     #[prop(default = String::new())]
     app_slug: String,
 ) -> impl IntoView {
@@ -42,14 +45,20 @@ pub fn InstanceOperationalConfigPanel(
 
     let saving = RwSignal::new(false);
 
+    // Whether this is a Folio PM instance
+    let is_folio = app_slug == "property_management";
+    let is_anchor = app_slug == "anchor";
+    let is_network = app_slug == "network_instance";
+
     // ── Save handler ──────────────────────────────────────────────────────────
     let handle_save = move |_| {
         let t = toast.clone();
         let id = instance_id;
-        let mode = folio_mode.get();
+        let mode = if is_folio { folio_mode.get() } else { "standard".to_string() };
         let tier = billing_tier.get();
-        let tp = tenant_portal.get();
-        let vp = vendor_portal.get();
+        // Portal flags are only meaningful for Folio — send false for other types
+        let tp = if is_folio { tenant_portal.get() } else { false };
+        let vp = if is_folio { vendor_portal.get() } else { false };
 
         saving.set(true);
         leptos::task::spawn_local(async move {
@@ -68,8 +77,6 @@ pub fn InstanceOperationalConfigPanel(
     };
 
     view! {
-        // Full-width card — same Tailwind card pattern as every other tab so
-        // the component always fills its container and layout is consistent.
         <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
 
             // ── Header ───────────────────────────────────────────────────────
@@ -77,48 +84,141 @@ pub fn InstanceOperationalConfigPanel(
                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                     "Operational Configuration"
                 </h3>
+                // App-type badge so the operator always knows what type they're editing
+                <span class=if is_folio {
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                } else if is_anchor {
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                } else {
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/20"
+                }>
+                    {if is_folio { "⚙ Folio PM" } else if is_anchor { "⚓ Anchor CMS" } else { "🌐 Network" }}
+                </span>
             </div>
 
             <div class="p-5 flex flex-col gap-6">
 
-                // ── Folio Mode (property_management instances only) ───────────
-                // Folio mode controls PMC / brokerage / standard roles.
-                // Irrelevant for Anchor (CMS) and Network instances.
-                {if app_slug == "property_management" { Some(view! {
-                <div>
-                    <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2.5">
-                        "Folio Mode"
+                // ── FOLIO PM: Mode selector ───────────────────────────────────
+                // Only shown for property_management instances.
+                {if is_folio { Some(view! {
+                    <div>
+                        <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2.5">
+                            "Folio Mode"
+                        </div>
+                        <div class="flex gap-2 flex-wrap">
+                            <ModeCard
+                                value="standard"
+                                label="Standard"
+                                description="Landlord-operated property management. Supports LTR and STR modules."
+                                icon="🏠"
+                                signal=folio_mode
+                            />
+                            <ModeCard
+                                value="pmc"
+                                label="PMC"
+                                description="Property Management Company — manages multiple client landlord accounts."
+                                icon="🏢"
+                                signal=folio_mode
+                            />
+                            <ModeCard
+                                value="brokerage"
+                                label="Brokerage"
+                                description="Licensed brokerage office — agent + broker portals, commission plans."
+                                icon="🤝"
+                                signal=folio_mode
+                            />
+                        </div>
+                        <div class="mt-2.5 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-400">
+                            "⚠ Changing mode affects which portals users can access. Existing sessions are not revoked automatically — plan a maintenance window for live tenants."
+                        </div>
                     </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <ModeCard
-                            value="standard"
-                            label="Standard"
-                            description="Landlord-operated property management. Supports LTR and STR modules."
-                            icon="🏠"
-                            signal=folio_mode
-                        />
-                        <ModeCard
-                            value="pmc"
-                            label="PMC"
-                            description="Property Management Company — manages multiple client landlord accounts."
-                            icon="🏢"
-                            signal=folio_mode
-                        />
-                        <ModeCard
-                            value="brokerage"
-                            label="Brokerage"
-                            description="Licensed brokerage office — agent + broker portals, commission plans."
-                            icon="🤝"
-                            signal=folio_mode
-                        />
-                    </div>
-                    <div class="mt-2.5 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-400">
-                        "⚠ Changing mode affects which portals users can access. Existing sessions are not revoked automatically — plan a maintenance window for live tenants."
-                    </div>
-                </div>
                 }) } else { None }}
 
-                // ── Billing Tier ──────────────────────────────────────────────
+                // ── ANCHOR CMS: App-specific context ─────────────────────────
+                // Anchor does not have PM portals. Show CMS-relevant info instead.
+                {if is_anchor { Some(view! {
+                    <div class="space-y-3">
+                        <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                            "CMS Configuration"
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"📄"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Page Engine"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "CMS pages, menus, templates, and rich content blocks are managed through the Anchor admin panel."
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"🔗"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Lead Capture (G-31)"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "Form builders on CMS pages route leads into the Atlas lead pipeline for this tenant."
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"🌍"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Domain Routing"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "Configure the public slug and custom domain in the Domains & Routing tab."
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"📊"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Analytics"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "CMS engagement metrics are aggregated by the platform telemetry service hourly."
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant/60 leading-relaxed pt-1">
+                            "Anchor CMS instances do not have Folio PM portals (tenant, vendor, owner). "
+                            "PM features are available on Folio (property_management) instances only."
+                        </p>
+                    </div>
+                }) } else { None }}
+
+                // ── NETWORK INSTANCE: App-specific context ────────────────────
+                {if is_network { Some(view! {
+                    <div class="space-y-3">
+                        <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                            "Network Configuration"
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"🗂"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Listing Directory"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "This instance hosts the public marketplace directory — search, listings, categories, and lead forms."
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 px-4 py-3.5 rounded-xl border border-outline-variant/20 bg-surface-container">
+                                <span class="text-lg shrink-0">"🔗"</span>
+                                <div>
+                                    <div class="text-xs font-bold text-on-surface">"Syndication Links (G-05)"</div>
+                                    <div class="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
+                                        "Manage inbound syndication offers from partner networks in the Syndication tab."
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant/60 leading-relaxed pt-1">
+                            "Network instances do not have Folio PM portals. PM features are available on Folio instances only."
+                        </p>
+                    </div>
+                }) } else { None }}
+
+                // ── Billing Tier — all instance types ────────────────────────
                 <div>
                     <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-2.5">
                         "Billing Tier"
@@ -130,30 +230,40 @@ pub fn InstanceOperationalConfigPanel(
                         <TierCard value="enterprise" label="Enterprise" color="var(--amber)"       signal=billing_tier/>
                     </div>
                     <div class="mt-2 text-[11px] text-on-surface-variant">
-                        "Billing tier controls which syndication offers are mandatory and which optional features are accessible."
+                        {if is_folio {
+                            "Billing tier controls which syndication offers are mandatory and which optional Folio features are accessible."
+                        } else if is_anchor {
+                            "Billing tier controls CMS page limits, CDN bandwidth, and available marketing integrations."
+                        } else {
+                            "Billing tier controls listing capacity, search indexing frequency, and directory API rate limits."
+                        }}
                     </div>
                 </div>
 
-                // ── Portal Flags ──────────────────────────────────────────────
-                <div>
-                    <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-3">
-                        "Self-Service Portals"
+                // ── FOLIO PM ONLY: Self-Service Portal Flags ──────────────────
+                // Tenant and Vendor portals only apply to Folio PM instances.
+                // Showing them on CMS or Network instances is architecturally incorrect.
+                {if is_folio { Some(view! {
+                    <div>
+                        <div class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-3">
+                            "Self-Service Portals"
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <PortalToggle
+                                label="Tenant Portal"
+                                description="Tenants can register, view leases, submit maintenance requests, and pay rent."
+                                icon="🏡"
+                                signal=tenant_portal
+                            />
+                            <PortalToggle
+                                label="Vendor Portal"
+                                description="Vendors can accept work orders, submit invoices, and track payment status."
+                                icon="🔧"
+                                signal=vendor_portal
+                            />
+                        </div>
                     </div>
-                    <div class="flex flex-col gap-3">
-                        <PortalToggle
-                            label="Tenant Portal"
-                            description="Tenants can register, view leases, submit maintenance requests, and pay rent."
-                            icon="🏡"
-                            signal=tenant_portal
-                        />
-                        <PortalToggle
-                            label="Vendor Portal"
-                            description="Vendors can accept work orders, submit invoices, and track payment status."
-                            icon="🔧"
-                            signal=vendor_portal
-                        />
-                    </div>
-                </div>
+                }) } else { None }}
 
                 // ── Save Button ───────────────────────────────────────────────
                 <div class="flex justify-end">
@@ -162,7 +272,7 @@ pub fn InstanceOperationalConfigPanel(
                         on:click=handle_save
                         disabled=move || saving.get()
                     >
-                        {move || if saving.get() { "Saving…" } else { "Save Operational Config" }}
+                        {move || if saving.get() { "Saving…" } else { "Save Config" }}
                     </button>
                 </div>
 
