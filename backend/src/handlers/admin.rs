@@ -253,24 +253,31 @@ pub async fn list_users(
 
     if let Some(dir_id_str) = query.get("tenant_id") {
         if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
-                let profiles = profile::Entity::find()
-                    .filter(profile::Column::TenantId.eq(dir_id))
-                    .all(&db)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                
-                let account_ids: Vec<Uuid> = profiles.into_iter().map(|p| p.account_id).collect();
-                
-                let user_accounts = user_account::Entity::find()
-                    .filter(user_account::Column::AccountId.is_in(account_ids))
-                    .all(&db)
-                    .await
-                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                    
-                let user_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.user_id).collect();
-                user_ids_to_filter = Some(user_ids);
-            }
+            // Query path: account.tenant_id → user_account.account_id → user.id
+            //
+            // NOTE: We deliberately use `account.tenant_id` rather than
+            // `profile.tenant_id`. Platform admin users created via magic-link or
+            // direct signup always receive an `account` row scoped to the tenant,
+            // but they may not have a corresponding `profile` row. Using the
+            // profile path silently drops those users from the list.
+            let accounts = account::Entity::find()
+                .filter(account::Column::TenantId.eq(dir_id))
+                .all(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            let account_ids: Vec<Uuid> = accounts.into_iter().map(|a| a.id).collect();
+
+            let user_accounts = user_account::Entity::find()
+                .filter(user_account::Column::AccountId.is_in(account_ids))
+                .all(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            let user_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.user_id).collect();
+            user_ids_to_filter = Some(user_ids);
         }
+    }
 
     let mut find_query = user::Entity::find();
     if let Some(ids) = user_ids_to_filter {

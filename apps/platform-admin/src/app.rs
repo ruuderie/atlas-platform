@@ -349,7 +349,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Platform"</span>
-                    <a href="/apps" class=move || side_active_class("/apps")>
+                    <a href="/apps" class=move || {
+                        // Exact match only — /apps/:id (app instance pages) should NOT
+                        // highlight the Tenants nav item. Only /apps itself and /apps/create
+                        // (the provisioning wizard) belong to this nav section.
+                        let p = current_path.get();
+                        let active = p == "/apps" || p == "/apps/create" || p == "/apps/new";
+                        if active { "nav-item active" } else { "nav-item" }
+                    }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
                         "Tenants"
                     </a>
