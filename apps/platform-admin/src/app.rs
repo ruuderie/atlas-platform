@@ -360,6 +360,46 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
                         "Tenants"
                     </a>
+
+                    // ── Contextual: App Instance sub-nav ─────────────────────
+                    // Renders ONLY when the operator is drilling into a specific
+                    // app instance (/apps/:uuid or /apps/:uuid/instance).
+                    // Shows: parent breadcrumb back to Tenants + "App Instance" indicator.
+                    {move || {
+                        let p = current_path.get();
+                        // Detect: /apps/<uuid> or /apps/<uuid>/instance
+                        // A UUID has 36 chars; /apps/ prefix is 6 chars.
+                        // We exclude /apps, /apps/create, /apps/new.
+                        let is_instance = p.starts_with("/apps/")
+                            && p != "/apps/create"
+                            && p != "/apps/new";
+                        if is_instance {
+                            view! {
+                                <div class="ml-3 border-l border-primary/30 pl-2.5 mt-0.5 flex flex-col gap-0.5">
+                                    // Breadcrumb back link — always takes you to Tenants list
+                                    <a href="/apps"
+                                        class="flex items-center gap-1.5 text-[10px] text-on-surface-variant/70 hover:text-primary py-1 transition-colors"
+                                    >
+                                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" class="w-3 h-3 shrink-0">
+                                            <path d="M10 3L5 8l5 5"/>
+                                        </svg>
+                                        "Back to Tenants"
+                                    </a>
+                                    // Current context indicator — not a link, just location label
+                                    <div class="flex items-center gap-1.5 text-[10.5px] font-semibold text-primary py-1">
+                                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="w-3 h-3 shrink-0">
+                                            <rect x="2" y="3" width="12" height="10" rx="1.5"/>
+                                            <line x1="5" y1="7" x2="11" y2="7"/>
+                                            <line x1="5" y1="10" x2="9" y2="10"/>
+                                        </svg>
+                                        "App Instance"
+                                    </div>
+                                </div>
+                            }.into_any()
+                        } else {
+                            view! { <></> }.into_any()
+                        }
+                    }}
                     <a href="/billing" class=move || side_active_class("/billing")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="12" height="8" rx="1"/><line x1="2" y1="9" x2="14" y2="9"/></svg>
                         "Billing"

@@ -249,54 +249,75 @@ pub async fn list_users(
 ) -> Result<impl IntoResponse, StatusCode> {
     tracing::info!("Listing users via admin route");
 
-    let mut user_ids_to_filter: Option<Vec<Uuid>> = None;
+    // When a tenant_id filter is present we want ALL of:
+    //
+    //   (A) Users with an account scoped to this tenant
+    //       account.tenant_id = dir_id → user_account.account_id → user.id
+    //
+    //   (B) Platform super-admin users regardless of tenant scope
+    //       user_account.role = PlatformSuperAdmin → user.id
+    //
+    // (B) ensures the platform admin who created the tenant always appears
+    // in the Users tab, even when their own account lives under a different
+    // tenant_id (e.g. a bootstrap/platform tenant created during setup).
 
     if let Some(dir_id_str) = query.get("tenant_id") {
         if let Ok(dir_id) = Uuid::parse_str(dir_id_str) {
-            // Query path: account.tenant_id → user_account.account_id → user.id
-            //
-            // NOTE: We deliberately use `account.tenant_id` rather than
-            // `profile.tenant_id`. Platform admin users created via magic-link or
-            // direct signup always receive an `account` row scoped to the tenant,
-            // but they may not have a corresponding `profile` row. Using the
-            // profile path silently drops those users from the list.
+            use crate::entities::user_account::UserRole;
+
+            // (A) tenant-scoped users: account.tenant_id → user_account → user
             let accounts = account::Entity::find()
                 .filter(account::Column::TenantId.eq(dir_id))
                 .all(&db)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
             let account_ids: Vec<Uuid> = accounts.into_iter().map(|a| a.id).collect();
 
-            let user_accounts = user_account::Entity::find()
+            let tenant_user_accounts = user_account::Entity::find()
                 .filter(user_account::Column::AccountId.is_in(account_ids))
                 .all(&db)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let mut user_ids: Vec<Uuid> = tenant_user_accounts
+                .into_iter()
+                .map(|ua| ua.user_id)
+                .collect();
 
-            let user_ids: Vec<Uuid> = user_accounts.into_iter().map(|ua| ua.user_id).collect();
-            user_ids_to_filter = Some(user_ids);
+            // (B) platform super-admins — always included when scoped to a tenant
+            let super_admin_accounts = user_account::Entity::find()
+                .filter(user_account::Column::Role.eq(UserRole::PlatformSuperAdmin))
+                .all(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            for ua in super_admin_accounts {
+                if !user_ids.contains(&ua.user_id) {
+                    user_ids.push(ua.user_id);
+                }
+            }
+
+            if user_ids.is_empty() {
+                return Ok(Json(Vec::<user::Model>::new()));
+            }
+
+            let users = user::Entity::find()
+                .filter(user::Column::Id.is_in(user_ids))
+                .all(&db)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+            return Ok(Json(users));
         }
     }
 
-    let mut find_query = user::Entity::find();
-    if let Some(ids) = user_ids_to_filter {
-        // If there are no users in that network, early return an empty list 
-        // because `is_in([])` might fetch all or fail depending on the SQL builder, 
-        // though `sea-orm` usually handles it safely. We can just be explicit:
-        if ids.is_empty() {
-            return Ok(Json(Vec::<user::Model>::new()));
-        }
-        find_query = find_query.filter(user::Column::Id.is_in(ids));
-    }
-
-    let users = find_query
+    // No tenant_id filter — return all users (super-admin route).
+    let users = user::Entity::find()
         .all(&db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(users))
 }
+
 
 pub async fn get_user(
     State(db): State<DatabaseConnection>,
