@@ -622,26 +622,3 @@ pub async fn revoke_all_other_sessions() -> Result<serde_json::Value, String> {
     let req = crate::api::client::with_credentials(client.delete(&url));
     crate::api::client::api_request(req).await
 }
-
-// ── Version check ─────────────────────────────────────────────────────────────
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct VersionInfo {
-    pub version: String,
-    pub build_sha: String,
-    pub build_date: String,
-    pub environment: String,
-}
-
-/// `GET /api/version` — no auth required.
-/// Used by the version banner to detect when a new backend deployment is live.
-pub async fn get_backend_version() -> Result<VersionInfo, String> {
-    let client = create_client();
-    let url = api_url("api/version");
-    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
-    if res.status().is_success() {
-        res.json::<VersionInfo>().await.map_err(|e| e.to_string())
-    } else {
-        Err(res.text().await.unwrap_or_default())
-    }
-}

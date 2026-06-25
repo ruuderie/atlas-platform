@@ -107,7 +107,7 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
-        <crate::components::version_banner::VersionBanner />
+        <shared_ui::components::version_banner::VersionBanner api_base="/" />
         <div class="fixed bottom-4 right-4 z-[9999] pointer-events-none flex flex-col gap-2">
             {move || toast.payload.get().map(|p| {
                 let border_color = match p.toast_type.as_str() {

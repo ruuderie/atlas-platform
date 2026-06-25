@@ -23,3 +23,8 @@ pub mod configurator;
 /// G-27 Scorecard — component suite (widget, nudge prompt, display rules builder).
 /// Use this for new features; configurator.rs remains for backward compat.
 pub mod scorecard;
+
+/// Platform-wide deployment detection banner.
+/// Use `version_banner::VersionBanner` for the default UI, or
+/// `hooks::use_version_check::use_version_check` for headless access.
+pub mod version_banner;

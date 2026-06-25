@@ -24,3 +24,4 @@ pub mod use_pagination;
 pub mod use_column_state;
 pub mod use_form;
 pub mod use_can_scroll;
+pub mod use_version_check;
