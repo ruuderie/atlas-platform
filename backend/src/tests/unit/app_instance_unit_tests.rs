@@ -510,6 +510,7 @@ mod public_config_dns_skip {
         PublicConfigResponse {
             instance_id:           Uuid::new_v4(),
             tenant_id:             Uuid::new_v4(),
+            tenant_name:           "test-tenant".to_string(),
             app_slug:              "anchor".to_string(),
             public_slug:           Some("acme".to_string()),
             custom_domain:         None,
@@ -650,6 +651,7 @@ mod get_public_config_dns_instructions {
         PublicConfigResponse {
             instance_id:            Uuid::new_v4(),
             tenant_id:              Uuid::new_v4(),
+            tenant_name:            "buildwithruud".to_string(),
             app_slug:               "anchor".to_string(),
             public_slug:            Some("buildwithruud".to_string()),
             custom_domain:          custom_domain,
