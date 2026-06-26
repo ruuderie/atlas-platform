@@ -35,8 +35,13 @@ pub fn SupportQueue() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── Server data ──────────────────────────────────────────────────────────
-    let cases_resource = LocalResource::new(|| async move {
-        crate::api::admin::get_admin_cases().await
+    let refresh = RwSignal::new(0u32);
+    let support_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let cases_resource = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        let res = crate::api::admin::get_admin_cases().await;
+        if let Err(ref e) = res { support_error.set(Some(e.clone())); } else { support_error.set(None); }
+        res
     });
 
     // Selected case ID
@@ -124,7 +129,9 @@ pub fn SupportQueue() -> impl IntoView {
     };
 
     view! {
-        <div class="h-[calc(100vh-140px)] flex bg-surface border border-outline-variant/10 rounded-2xl overflow-hidden shadow-lg text-on-surface">
+        <div class="space-y-1">
+            {move || support_error.get().map(|e| crate::utils::inline_error(&e))}
+        <div class="h-[calc(100vh-160px)] flex bg-surface border border-outline-variant/10 rounded-2xl overflow-hidden shadow-lg text-on-surface">
 
             // ── Left panel: ticket list ──────────────────────────────────────
             <div class="w-80 flex-shrink-0 border-r border-outline-variant/10 flex flex-col bg-surface-container/20">
@@ -135,7 +142,7 @@ pub fn SupportQueue() -> impl IntoView {
                             <button
                                 class="p-1 rounded hover:bg-surface-bright/20 text-on-surface-variant hover:text-on-surface transition-colors"
                                 title="Refresh queue"
-                                on:click=move |_| cases_resource.refetch()
+                                on:click=move |_| refresh.update(|n| *n += 1)
                             >
                                 <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
                                     <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
@@ -558,6 +565,7 @@ pub fn SupportQueue() -> impl IntoView {
                     </div>
                 </div>
             </Show>
+        </div>
         </div>
     }
 }

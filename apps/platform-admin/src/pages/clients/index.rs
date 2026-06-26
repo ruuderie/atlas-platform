@@ -206,8 +206,18 @@ fn LinkAccountModal(
 pub fn ClientsPage() -> impl IntoView {
     // Refresh trigger: increment to force resource re-fetch
     let refresh = RwSignal::new(0u32);
-    let tenants_res  = LocalResource::new(move || async move { let _ = refresh.get(); get_tenant_stats().await.unwrap_or_default() });
-    let apps_res     = LocalResource::new(move || async move { let _ = refresh.get(); get_all_platform_apps().await.unwrap_or_default() });
+    let clients_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let tenants_res = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        match get_tenant_stats().await {
+            Ok(v) => { clients_error.set(None); v }
+            Err(e) => { clients_error.set(Some(e)); vec![] }
+        }
+    });
+    let apps_res = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_all_platform_apps().await.unwrap_or_default()
+    });
 
     let search        = RwSignal::new(String::new());
     let filter_status = RwSignal::new("all".to_string());
@@ -264,6 +274,9 @@ pub fn ClientsPage() -> impl IntoView {
                     </a>
                 </div>
             </div>
+
+            // ── Error Banner ───────────────────────────────────────────────────
+            {move || clients_error.get().map(|e| crate::utils::inline_error(&e))}
 
             // ── KPI Row ──────────────────────────────────────────────────────
             <Suspense fallback=|| view! { <div class="h-20 animate-pulse bg-surface-container-low rounded-xl" /> }>

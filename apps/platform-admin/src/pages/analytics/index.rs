@@ -23,9 +23,22 @@ pub fn Analytics() -> impl IntoView {
     let campaign_budget = RwSignal::new("500000".to_string());
     
     // Resources fetching real backend metrics
-    let business_kpis = LocalResource::new(move || async move { get_business_kpis().await });
-    let billing_summary = LocalResource::new(move || async move { get_billing_summary().await });
-    let tenant_list = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let refresh = RwSignal::new(0u32);
+    let analytics_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let business_kpis = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        let res = get_business_kpis().await;
+        if let Err(ref e) = res { analytics_error.set(Some(e.clone())); } else { analytics_error.set(None); }
+        res
+    });
+    let billing_summary = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_billing_summary().await
+    });
+    let tenant_list = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_tenant_stats().await.unwrap_or_default()
+    });
 
     view! {
         <div class="space-y-6">
@@ -61,6 +74,15 @@ pub fn Analytics() -> impl IntoView {
                         }).collect_view()}
                     </select>
                     <button 
+                        class="btn-ghost text-xs px-3.5 py-2 border border-outline-variant/30 rounded-lg hover:bg-surface-bright/20 transition-all font-semibold flex items-center gap-1.5"
+                        on:click=move |_| refresh.update(|n| *n += 1)
+                    >
+                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
+                    <button 
                         class="btn-ghost text-xs px-3.5 py-2 border border-outline-variant/30 rounded-lg hover:bg-surface-bright/20 transition-all font-semibold"
                         on:click=move |_| toast.show_toast("Export Queue", "Analytics CSV export triggered.", "success")
                     >
@@ -74,6 +96,9 @@ pub fn Analytics() -> impl IntoView {
                     </button>
                 </div>
             </div>
+
+            // ── Error Banner ──
+            {move || analytics_error.get().map(|e| crate::utils::inline_error(&e))}
 
             // ── KPI Strip ──
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4 bg-surface-container-low border border-outline-variant/15 p-4 rounded-xl shadow-inner overflow-x-auto shrink-0 select-none">

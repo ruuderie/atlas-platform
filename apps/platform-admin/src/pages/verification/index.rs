@@ -65,12 +65,17 @@ pub fn Verification() -> impl IntoView {
     let trigger_fetch = RwSignal::new(0);
 
     // Resource for database verification requests
+    let ver_error: RwSignal<Option<String>> = RwSignal::new(None);
     let db_requests = LocalResource::new(move || {
         trigger_fetch.get();
         let filter_val = active_filter.get();
         async move {
             let filter = if filter_val == "all" { None } else { Some(filter_val) };
-            crate::api::verification::get_verification_requests(None, filter).await.unwrap_or_default()
+            let res = crate::api::verification::get_verification_requests(None, filter).await;
+            match res {
+                Ok(v) => { ver_error.set(None); v }
+                Err(e) => { ver_error.set(Some(e)); vec![] }
+            }
         }
     });
 
@@ -183,6 +188,8 @@ pub fn Verification() -> impl IntoView {
     };
 
     view! {
+        <div class="space-y-1">
+            {move || ver_error.get().map(|e| crate::utils::inline_error(&e))}
         <Suspense fallback=|| view! {
             <div class="main-canvas">
                 <div class="animate-pulse flex flex-col items-center justify-center h-64">
@@ -624,5 +631,6 @@ pub fn Verification() -> impl IntoView {
                 </div>
             </div>
         </Show>
+        </div>
     }
 }
