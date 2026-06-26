@@ -56,10 +56,12 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
             get(list_enrollments),
         )
         .route("/api/folio/campaigns/events", post(record_event))
-        // Export campaign members as a direct-mail-ready CSV
+        // Export campaign members as a direct-mail-ready CSV (leads + contacts)
         .route("/api/folio/campaigns/{id}/enrollments/export", get(export_enrollments_csv))
-        // Bulk-enroll a list of leads by lead ID
+        // Bulk-enroll atlas_leads by lead ID
         .route("/api/folio/campaigns/{id}/enroll-leads", post(enroll_leads_bulk))
+        // Bulk-enroll atlas_contacts by contact ID (address resolved from linked account)
+        .route("/api/folio/campaigns/{id}/enroll-contacts", post(enroll_contacts_bulk))
 }
 
 // ── Shared tenant resolution ──────────────────────────────────────────────────
@@ -532,8 +534,10 @@ async fn record_event(
 // Columns: first_name, last_name, company, email, phone,
 //          street_address, city, state, postal_code, country
 //
-// Mailing data is sourced from the atlas_leads table (joined via contact_email)
-// with fallback to enrollment metadata for any field not found on the lead.
+// Supports members enrolled via enroll_leads_bulk OR enroll_contacts_bulk:
+//   lead members    → contact_metadata.lead_id → atlas_leads
+//   contact members → contact_metadata.contact_id → atlas_contacts + atlas_accounts
+// Falls back to enrollment.contact_metadata values for any missing field.
 
 #[derive(Deserialize)]
 struct ExportQuery {
@@ -563,61 +567,143 @@ async fn export_enrollments_csv(
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    // Load all leads for this tenant so we can join on email
-    let all_leads = crate::entities::atlas_lead::Entity::find()
-        .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
-        .order_by_asc(crate::entities::atlas_lead::Column::CreatedAt)
-        .all(&db)
-        .await
-        .unwrap_or_default();
-
-    // Build email → lead index for O(1) lookup
     use std::collections::HashMap;
-    let lead_by_email: HashMap<String, _> = all_leads
-        .into_iter()
-        .filter_map(|l| l.email.clone().map(|e| (e.to_lowercase(), l)))
+
+    // ── Collect which entity IDs appear in enrollment metadata ──────────────
+    let mut lead_ids_in_meta: Vec<Uuid> = Vec::new();
+    let mut contact_ids_in_meta: Vec<Uuid> = Vec::new();
+    for e in &enrollments {
+        if let Some(meta) = &e.contact_metadata {
+            if let Some(id_val) = meta.get("lead_id").and_then(|v| v.as_str()) {
+                if let Ok(uid) = id_val.parse::<Uuid>() { lead_ids_in_meta.push(uid); }
+            }
+            if let Some(id_val) = meta.get("contact_id").and_then(|v| v.as_str()) {
+                if let Ok(uid) = id_val.parse::<Uuid>() { contact_ids_in_meta.push(uid); }
+            }
+        }
+    }
+
+    // ── Batch-load leads (tenant-scoped) ────────────────────────────────────
+    let leads = if !lead_ids_in_meta.is_empty() {
+        crate::entities::atlas_lead::Entity::find()
+            .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::atlas_lead::Column::Id.is_in(lead_ids_in_meta))
+            .all(&db).await.unwrap_or_default()
+    } else {
+        // Also load via email for backwards-compat with enrollments that predate metadata lead_id
+        crate::entities::atlas_lead::Entity::find()
+            .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
+            .all(&db).await.unwrap_or_default()
+    };
+    let lead_by_id: HashMap<Uuid, _> = leads.iter().map(|l| (l.id, l)).collect();
+    let lead_by_email: HashMap<String, _> = leads.iter()
+        .filter_map(|l| l.email.as_ref().map(|e| (e.to_lowercase(), l)))
         .collect();
+
+    // ── Batch-load contacts ──────────────────────────────────────────────────
+    let contacts = if !contact_ids_in_meta.is_empty() {
+        crate::entities::atlas_contact::Entity::find()
+            .filter(crate::entities::atlas_contact::Column::TenantId.eq(tenant_id))
+            .filter(crate::entities::atlas_contact::Column::Id.is_in(contact_ids_in_meta))
+            .all(&db).await.unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    // ── Batch-load accounts for those contacts ───────────────────────────────
+    let account_ids: Vec<Uuid> = contacts.iter().map(|c| c.account_id).collect();
+    let accounts = if !account_ids.is_empty() {
+        crate::entities::atlas_account::Entity::find()
+            .filter(crate::entities::atlas_account::Column::Id.is_in(account_ids))
+            .all(&db).await.unwrap_or_default()
+    } else {
+        vec![]
+    };
+    let contact_by_id: HashMap<Uuid, _> = contacts.iter().map(|c| (c.id, c)).collect();
+    let account_by_id: HashMap<Uuid, _> = accounts.iter().map(|a| (a.id, a)).collect();
 
     // ── Build CSV ────────────────────────────────────────────────────────────
     let mut csv = String::from(
         "first_name,last_name,company,email,phone,street_address,city,state,postal_code,country\r\n"
     );
 
+    fn esc(s: &str) -> String {
+        if s.contains(',') || s.contains('"') || s.contains('\n') {
+            format!("\"{}\"", s.replace('"', "\"\""))
+        } else {
+            s.to_string()
+        }
+    }
+
+    fn meta_str<'a>(meta: Option<&'a serde_json::Value>, key: &str) -> &'a str {
+        meta.and_then(|m| m.get(key)).and_then(|v| v.as_str()).unwrap_or("")
+    }
+
     for enrollment in &enrollments {
-        // Try to resolve mailing details from lead record
-        let lead = enrollment.contact_email.as_deref()
-            .and_then(|e| lead_by_email.get(&e.to_lowercase()));
+        let meta = enrollment.contact_metadata.as_ref();
 
-        // Parse contact_name into first/last (space-split, best effort)
-        let full_name = enrollment.contact_name.as_deref().unwrap_or("");
-        let mut name_parts = full_name.splitn(2, ' ');
-        let first_name = name_parts.next().unwrap_or("");
-        let last_name  = name_parts.next().unwrap_or("");
+        // ── Resolve which entity backs this enrollment ────────────────────
+        // Priority: contact_metadata.lead_id > contact_metadata.contact_id
+        //           > email fallback into lead table > raw metadata
+        let lead_id = meta
+            .and_then(|m| m.get("lead_id")).and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<Uuid>().ok());
+        let contact_id = meta
+            .and_then(|m| m.get("contact_id")).and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<Uuid>().ok());
 
-        // Company from lead or enrollment metadata
-        let company = lead
-            .and_then(|l| l.company.as_deref())
-            .or_else(|| {
-                enrollment.contact_metadata.as_ref()
-                    .and_then(|m| m.get("company"))
-                    .and_then(|v| v.as_str())
-            })
+        let lead = lead_id
+            .and_then(|lid| lead_by_id.get(&lid).copied())
+            .or_else(|| enrollment.contact_email.as_deref()
+                .and_then(|e| lead_by_email.get(&e.to_lowercase()).copied()));
+
+        let (contact, account) = if let Some(cid) = contact_id {
+            let c = contact_by_id.get(&cid).copied();
+            let a = c.and_then(|c| account_by_id.get(&c.account_id).copied());
+            (c, a)
+        } else {
+            (None, None)
+        };
+
+        // ── first_name / last_name ───────────────────────────────────────
+        let (first_name, last_name) = if let Some(l) = lead {
+            (
+                l.first_name.as_deref().unwrap_or(""),
+                l.last_name.as_deref().unwrap_or(""),
+            )
+        } else if let Some(c) = contact {
+            (
+                c.first_name.as_deref().unwrap_or(""),
+                c.last_name.as_deref().unwrap_or(""),
+            )
+        } else {
+            // fall back: split enrollment.contact_name
+            let full = enrollment.contact_name.as_deref().unwrap_or("");
+            let mut parts = full.splitn(2, ' ');
+            (parts.next().unwrap_or(""), parts.next().unwrap_or(""))
+        };
+
+        // ── company ──────────────────────────────────────────────────────
+        let company = lead.and_then(|l| l.company.as_deref())
+            .or_else(|| account.map(|a| a.name.as_str()))
+            .or_else(|| meta_str(meta, "company").into())
             .unwrap_or("");
 
-        let email = enrollment.contact_email.as_deref().unwrap_or("");
-
-        let phone = lead
-            .and_then(|l| l.phone.as_deref())
-            .or_else(|| {
-                enrollment.contact_metadata.as_ref()
-                    .and_then(|m| m.get("phone"))
-                    .and_then(|v| v.as_str())
-            })
+        // ── email ────────────────────────────────────────────────────────
+        let email = lead.and_then(|l| l.email.as_deref())
+            .or_else(|| contact.and_then(|c| c.email.as_deref()))
+            .or(enrollment.contact_email.as_deref())
             .unwrap_or("");
 
-        // Mailing address: prefer typed mailing_address JSONB, fall back to street_address columns
+        // ── phone ────────────────────────────────────────────────────────
+        let phone = lead.and_then(|l| l.phone.as_deref())
+            .or_else(|| contact.and_then(|c| c.phone.as_deref()))
+            .or_else(|| account.and_then(|a| a.company_phone.as_deref()))
+            .or_else(|| meta_str(meta, "phone").into())
+            .unwrap_or("");
+
+        // ── mailing address ──────────────────────────────────────────────
         let (street, city, state, zip, country) = if let Some(lead) = lead {
-            // mailing_address_typed() returns Result<Option<MailingAddress>>
             let ma: Option<crate::types::shared::MailingAddress> =
                 lead.mailing_address_typed().ok().flatten();
             (
@@ -632,20 +718,25 @@ async fn export_enrollments_csv(
                 ma.as_ref().and_then(|a| a.country.as_deref())
                     .unwrap_or(&lead.country).to_string(),
             )
+        } else if let Some(acct) = account {
+            // Contact → account address
+            (
+                acct.street_address.as_deref().unwrap_or("").to_string(),
+                acct.city.as_deref().unwrap_or("").to_string(),
+                acct.state.as_deref().unwrap_or("").to_string(),
+                acct.postal_code.as_deref().unwrap_or("").to_string(),
+                acct.country.as_deref().unwrap_or("US").to_string(),
+            )
         } else {
-            // Fall back to enrollment metadata
-            let meta = enrollment.contact_metadata.as_ref();
-            let g = |k: &str| meta.and_then(|m| m.get(k)).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            (g("street_address"), g("city"), g("state"), g("zip"), g("country"))
+            // Fall back to enrollment.contact_metadata values
+            (
+                meta_str(meta, "street_address").to_string(),
+                meta_str(meta, "city").to_string(),
+                meta_str(meta, "state").to_string(),
+                meta_str(meta, "zip").to_string(),
+                { let c = meta_str(meta, "country"); if c.is_empty() { "US" } else { c } }.to_string(),
+            )
         };
-
-        fn esc(s: &str) -> String {
-            if s.contains(',') || s.contains('"') || s.contains('\n') {
-                format!("\"{}\"", s.replace('"', "\"\""))
-            } else {
-                s.to_string()
-            }
-        }
 
         csv.push_str(&format!(
             "{},{},{},{},{},{},{},{},{},{}\r\n",
@@ -729,6 +820,103 @@ async fn enroll_leads_bulk(
     (StatusCode::OK, Json(serde_json::json!({
         "enrolled": enrolled,
         "requested": req.lead_ids.len(),
+        "errors": errors,
+    }))).into_response()
+}
+
+// ── enroll_contacts_bulk ──────────────────────────────────────────────────────
+//
+// POST /api/folio/campaigns/{id}/enroll-contacts
+// Body: { "contact_ids": ["uuid", ...] }
+//
+// Resolves each contact's name/email from atlas_contacts and their mailing
+// address from the linked atlas_account record. Stores all resolved data in
+// enrollment.contact_metadata so the CSV export works without additional joins.
+
+#[derive(Deserialize)]
+struct EnrollContactsRequest {
+    contact_ids: Vec<Uuid>,
+}
+
+async fn enroll_contacts_bulk(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(campaign_id): Path<Uuid>,
+    Json(req): Json<EnrollContactsRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match resolve_tenant_id(&db, current_user.id).await {
+        Ok(id) => id,
+        Err(e) => return e.into_response(),
+    };
+
+    // ── Batch-load contacts (tenant-scoped) ──────────────────────────────────
+    let contacts = crate::entities::atlas_contact::Entity::find()
+        .filter(crate::entities::atlas_contact::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_contact::Column::Id.is_in(req.contact_ids.clone()))
+        .all(&db)
+        .await
+        .unwrap_or_default();
+
+    // ── Batch-load linked accounts (one query, not N) ────────────────────────
+    use std::collections::HashMap;
+    let account_ids: Vec<Uuid> = contacts.iter().map(|c| c.account_id).collect();
+    let accounts = if !account_ids.is_empty() {
+        crate::entities::atlas_account::Entity::find()
+            .filter(crate::entities::atlas_account::Column::Id.is_in(account_ids))
+            .all(&db).await.unwrap_or_default()
+    } else {
+        vec![]
+    };
+    let account_by_id: HashMap<Uuid, _> = accounts.into_iter().map(|a| (a.id, a)).collect();
+
+    let mut enrolled = 0usize;
+    let mut errors: Vec<String> = Vec::new();
+
+    for contact in contacts {
+        let acct = account_by_id.get(&contact.account_id);
+
+        // Resolve display name — prefer full_name, fall back to first + last
+        let contact_name = contact.full_name.clone()
+            .or_else(|| {
+                let f = contact.first_name.as_deref().unwrap_or("");
+                let l = contact.last_name.as_deref().unwrap_or("");
+                let full = format!("{} {}", f, l).trim().to_string();
+                if full.is_empty() { None } else { Some(full) }
+            });
+
+        let payload = EnrollContactPayload {
+            campaign_id,
+            contact_user_id: None,
+            contact_email: contact.email.clone(),
+            contact_name,
+            contact_metadata: Some(serde_json::json!({
+                // ID tags so the CSV export batch-loads without N+1
+                "contact_id": contact.id,
+                "account_id": contact.account_id,
+                // Denormalized snapshot at enroll time
+                "company":        acct.map(|a| a.name.as_str()).unwrap_or(""),
+                "phone":          contact.phone.as_deref()
+                                    .or_else(|| acct.and_then(|a| a.company_phone.as_deref()))
+                                    .unwrap_or(""),
+                "street_address": acct.and_then(|a| a.street_address.as_deref()).unwrap_or(""),
+                "city":           acct.and_then(|a| a.city.as_deref()).unwrap_or(""),
+                "state":          acct.and_then(|a| a.state.as_deref()).unwrap_or(""),
+                "zip":            acct.and_then(|a| a.postal_code.as_deref()).unwrap_or(""),
+                "country":        acct.and_then(|a| a.country.as_deref()).unwrap_or("US"),
+            })),
+            external_enrollment_id: None,
+            next_step_at: None,
+        };
+
+        match CampaignService::enroll(&db, tenant_id, payload).await {
+            Ok(_) => enrolled += 1,
+            Err(e) => errors.push(format!("contact {}: {}", contact.id, e)),
+        }
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "enrolled": enrolled,
+        "requested": req.contact_ids.len(),
         "errors": errors,
     }))).into_response()
 }

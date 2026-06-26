@@ -664,6 +664,16 @@ pub async fn enroll_leads(campaign_id: uuid::Uuid, lead_ids: Vec<uuid::Uuid>) ->
     crate::api::client::api_request(req).await
 }
 
+/// Enroll a batch of contacts into a campaign by contact ID.
+/// Address is resolved from the linked account at enroll time.
+/// Calls `POST /api/folio/campaigns/{id}/enroll-contacts`.
+pub async fn enroll_contacts(campaign_id: uuid::Uuid, contact_ids: Vec<uuid::Uuid>) -> Result<serde_json::Value, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url(&format!("api/folio/campaigns/{}/enroll-contacts", campaign_id));
+    let req = client.post(&url).json(&serde_json::json!({ "contact_ids": contact_ids }));
+    crate::api::client::api_request(req).await
+}
+
 /// Returns the download URL for the campaign member CSV (direct mail export).
 /// The browser navigates to this URL directly to trigger the file download.
 pub fn campaign_export_url(campaign_id: uuid::Uuid) -> String {
