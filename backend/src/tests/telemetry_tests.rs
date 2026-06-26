@@ -65,8 +65,11 @@ async fn test_telemetry_kpi_engine_aggregates_correctly() {
         Some(json!({"mrr": 50.0})),
     );
 
-    // Wait a brief moment for tokio::spawn to finish inserting
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    // Wait for all tokio::spawn'd DB inserts to complete before running the processor.
+    // log_event() is fire-and-forget (tokio::spawn), so we must wait for the async
+    // inserts to land before process_daily_metrics() runs its SELECT. 200ms is
+    // sufficient for local Postgres round-trips even under moderate load.
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
     // Run processor
     let process_res = TelemetryService::process_daily_metrics(&db).await;
