@@ -1,7 +1,17 @@
-// FIXME(platform-admin): Migrate to the `AtlasApp` trait defined at
-// `backend/src/traits/atlas_app.rs`. Routes, SeaORM migrations, and
-// background jobs are currently hardcoded globally. See
-// `docs/atlas_app_integration.md` for the full protocol.
+// Platform-Admin Frontend Application
+//
+// This file is the root Leptos component for the operator-facing platform-admin SPA.
+// It is compiled to WASM and runs entirely in the browser. It has no Axum router,
+// no SeaORM migrations, and no background jobs.
+//
+// Backend integration: All /api/admin/* routes are served by PlatformAdminApp
+// (backend/src/atlas_apps/platform_admin.rs), which implements the AtlasApp trait
+// and is registered in backend/src/atlas_apps/mod.rs::get_active_apps().
+//
+// AtlasApp migration status: COMPLETE as of 2026-06-26.
+//   - Routes:      Owned by PlatformAdminApp::authenticated_router() via admin_routes_raw()
+//   - Migrations:  Owned by CorePlatformApp (shared platform schema — no tenant-scoped tables)
+//   - Background:  None — platform-admin is a read/write UI tool, not a service
 use leptos::prelude::*;
 use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;

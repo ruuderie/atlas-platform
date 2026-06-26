@@ -19,7 +19,6 @@ use axum::{Router, Extension, routing::post, routing::get, routing::delete};
 use sea_orm::DatabaseConnection;
 use crate::handlers::{users, accounts, my_accounts, ab_testing, user_accounts, sessions, health, auth_frontend, setup};
 use crate::middleware::{auth_middleware, site_context_middleware};
-use crate::admin::routes::admin_routes;
 use tower_http::trace::TraceLayer;
 use crate::middleware::rate_limiter::RateLimiter;
 use axum::{extract::Request, middleware::Next};
@@ -82,11 +81,11 @@ pub fn create_router(db: DatabaseConnection) -> Router {
 
     // Authenticated routes — Tier 3 infrastructure only.
     // Tier 1 and Tier 2 authenticated routes are injected via the get_active_apps() loop below.
+    // /api/admin/* routes are injected via PlatformAdminApp in get_active_apps() — no longer hardcoded here.
     let mut authenticated_routes = Router::new()
         .route("/logout", post(users::logout_user))
         .merge(accounts::routes())
         .merge(user_accounts::routes())
-        .merge(admin_routes(db.clone()))
         .merge(users::authenticated_routes(db.clone()))
         .merge(auth_frontend::authenticated_routes())
         .merge(my_accounts::authenticated_routes())

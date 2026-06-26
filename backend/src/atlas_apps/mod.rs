@@ -2,6 +2,7 @@ pub mod anchor;
 pub mod core_platform;
 pub mod folio;
 pub mod network_instance;
+pub mod platform_admin;
 pub mod seeds;
 
 use crate::traits::atlas_app::AtlasApp;
@@ -18,5 +19,8 @@ pub fn get_active_apps() -> Vec<Box<dyn AtlasApp>> {
         Box::new(anchor::AnchorApp),
         Box::new(folio::FolioApp),
         Box::new(network_instance::NetworkInstanceApp),
+        // PlatformAdminApp owns all /api/admin/* routes.
+        // Registered last: no route-ordering dependency relative to tenant sub-apps.
+        Box::new(platform_admin::PlatformAdminApp),
     ]
 }

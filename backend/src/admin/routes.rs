@@ -10,6 +10,21 @@ use crate::admin::provision::provision_tenant;
 
 
 pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
+    tracing::debug!("Setting up admin routes (legacy shim)");
+    admin_routes_raw().with_state(db)
+}
+
+/// State-free admin route constructor — complies with the AtlasApp state-binding contract.
+///
+/// Returns all platform-admin–only Axum routes WITHOUT calling `.with_state(db)`.
+/// State is applied exactly once at the `AtlasApp` boundary in `PlatformAdminApp::authenticated_router()`.
+///
+/// # Why this exists
+/// The original `admin_routes(db)` called `.with_state(db)` internally.
+/// Per the AtlasApp contract, state must NOT be applied inside route constructors that are
+/// merged via `get_active_apps()` — Axum silently drops routes from pre-finalized sub-routers.
+/// This function provides the state-free form that `PlatformAdminApp` can safely use.
+pub fn admin_routes_raw() -> Router<DatabaseConnection> {
     tracing::debug!("Setting up admin routes");
     Router::new()
         .merge({
@@ -169,9 +184,5 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .merge(crate::admin::upload::routes())
                 // Platform-generic syndication: offer catalog + active link management
                 .merge(crate::handlers::syndication_admin::syndication_admin_routes())
-
-                //.layer(axum::middleware::from_fn_with_state(db.clone(), auth_middleware))
-                .with_state(db)
         })
-
 }
