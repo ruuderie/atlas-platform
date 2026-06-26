@@ -151,16 +151,19 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                         <span class=format!("text-[10px] font-semibold {}", sc)>
                                                             {format!("● {}", status_str)}
                                                         </span>
-                                                    </div>
-                                                    // Purpose badge — shown when set in config["purpose"]
-                                                    {purpose_label.as_deref().map(|p| {
-                                                        let (label, cls) = purpose_badge(p);
-                                                        view! {
-                                                            <span class=format!("px-2 py-0.5 rounded text-[9px] font-semibold border {}", cls)>
-                                                                {label}
-                                                            </span>
+                                                        // Purpose badge — shown when set in config["purpose"]
+                                                        {
+                                                            let pl_badge = purpose_label.clone();
+                                                            pl_badge.as_deref().map(|p| {
+                                                                let (badge_label, cls) = purpose_badge(p);
+                                                                view! {
+                                                                    <span class=format!("px-2 py-0.5 rounded text-[9px] font-semibold border {}", cls)>
+                                                                        {badge_label}
+                                                                    </span>
+                                                                }
+                                                            })
                                                         }
-                                                    })}
+                                                    </div>
                                                 </div>
 
                                                 // Card body
@@ -178,19 +181,47 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                     }}
                                                 </div>
 
-                                                // Card footer — actions
-                                                <div class="px-4 pb-4 flex items-center gap-2">
-                                                    <a href=format!("/apps/{}/instance", instance_id)
-                                                        class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high/40 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-                                                    >
-                                                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="8" y1="5" x2="8" y2="11"/></svg>
-                                                        "Manage"
-                                                    </a>
-                                                    <a href=format!("/network/{}", iid2)
-                                                        class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-                                                    >
-                                                        "Config"
-                                                    </a>
+                                                // Card footer — actions + purpose selector
+                                                <div class="px-4 pb-4 space-y-2">
+                                                    // Purpose selector
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-[9px] text-on-surface-variant/50 uppercase tracking-wider shrink-0">{"Purpose"}</span>
+                                                        <select
+                                                            class="flex-1 bg-surface-container-low border border-outline-variant/30 rounded px-2 py-1 text-[10px] text-on-surface focus:border-primary/60 outline-none"
+                                                            on:change={
+                                                                let tid = app.tenant_id.clone();
+                                                                move |ev| {
+                                                                    let val = event_target_value(&ev);
+                                                                    let tid2    = tid.clone();
+                                                                    let purpose = val.clone();
+                                                                    leptos::task::spawn_local(async move {
+                                                                        let p = if purpose == "none" { None } else { Some(purpose.as_str()) };
+                                                                        let _ = crate::api::admin::set_deployment_purpose(&tid2, p).await;
+                                                                    });
+                                                                }
+                                                            }
+                                                        >
+                                                            {let pl = purpose_label.clone(); view! { <option value="none" selected=move || pl.is_none()>{"— not set —"}</option> }}
+                                                            {let pl = purpose_label.clone(); view! { <option value="demo"            selected=move || pl.as_deref() == Some("demo")>{"Demo"}</option> }}
+                                                            {let pl = purpose_label.clone(); view! { <option value="test"            selected=move || pl.as_deref() == Some("test")>{"Test"}</option> }}
+                                                            {let pl = purpose_label.clone(); view! { <option value="staging"         selected=move || pl.as_deref() == Some("staging")>{"Staging"}</option> }}
+                                                            {let pl = purpose_label.clone(); view! { <option value="managed_service" selected=move || pl.as_deref() == Some("managed_service")>{"Managed Service"}</option> }}
+                                                        </select>
+                                                    </div>
+                                                    // Action buttons
+                                                    <div class="flex items-center gap-2">
+                                                        <a href=format!("/apps/{}/instance", instance_id)
+                                                            class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high/40 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                        >
+                                                            <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="8" y1="5" x2="8" y2="11"/></svg>
+                                                            "Manage"
+                                                        </a>
+                                                        <a href=format!("/network/{}", iid2)
+                                                            class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
+                                                        >
+                                                            "Config"
+                                                        </a>
+                                                    </div>
                                                 </div>
                                             </div>
                                         }

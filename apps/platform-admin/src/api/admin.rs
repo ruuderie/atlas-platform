@@ -260,6 +260,35 @@ pub async fn get_all_platform_apps() -> Result<Vec<crate::api::models::PlatformA
     crate::api::client::api_get("api/admin/platform/apps").await
 }
 
+/// Link a client deployment to a CRM Account (or unlink by passing account_id=None).
+/// Calls `PUT /api/admin/platform/apps/{tenant_id}/account`.
+pub async fn link_deployment_account(tenant_id: &str, account_id: Option<&str>) -> Result<(), String> {
+    use serde_json::json;
+    let body = json!({ "account_id": account_id });
+    crate::api::client::api_put::<_, serde_json::Value>(
+        &format!("api/admin/platform/apps/{}/account", tenant_id),
+        &body,
+    ).await.map(|_| ())
+}
+
+/// Set the operational purpose label for an internal deployment.
+/// Calls `PUT /api/admin/platform/apps/{tenant_id}/purpose`.
+/// Valid values: "demo" | "test" | "staging" | "managed_service" | null (to clear).
+pub async fn set_deployment_purpose(tenant_id: &str, purpose: Option<&str>) -> Result<(), String> {
+    use serde_json::json;
+    let body = json!({ "purpose": purpose });
+    crate::api::client::api_put::<_, serde_json::Value>(
+        &format!("api/admin/platform/apps/{}/purpose", tenant_id),
+        &body,
+    ).await.map(|_| ())
+}
+
+/// Fetch CRM accounts for the account search picker.
+/// Calls `GET /api/admin/accounts`.
+pub async fn get_crm_accounts() -> Result<Vec<crate::api::models::AccountSummary>, String> {
+    crate::api::client::api_get("api/admin/accounts").await
+}
+
 /// Fetch all billing plans from the platform.
 /// Calls `GET /api/admin/billing/plans`.
 pub async fn get_billing_plans() -> Result<Vec<crate::api::models::BillingPlanModel>, String> {

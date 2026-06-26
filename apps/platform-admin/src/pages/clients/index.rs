@@ -11,8 +11,12 @@
 /// Data: get_tenant_stats() → TenantStatModel (tenant-centric)
 ///       get_all_platform_apps() → PlatformAppSummary (instance details)
 use leptos::prelude::*;
-use crate::api::admin::{get_tenant_stats, get_all_platform_apps, suspend_instance, resume_instance};
-use crate::api::models::{TenantStatModel, PlatformAppSummary};
+use crate::api::admin::{
+    get_tenant_stats, get_all_platform_apps,
+    link_deployment_account, get_crm_accounts,
+    suspend_instance, resume_instance,
+};
+use crate::api::models::{TenantStatModel, PlatformAppSummary, AccountSummary};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +46,160 @@ fn app_type_label(t: &str) -> &'static str {
     }
 }
 
+// ── Link Account Modal ────────────────────────────────────────────────────────
+// A lightweight slide-in panel for linking a client deployment to a CRM Account.
+// Shown when the operator clicks "Link Account" on a Clients row.
+
+#[component]
+fn LinkAccountModal(
+    tenant_id: String,
+    /// If Some, the current linked account id.
+    current_account_id: Option<String>,
+    on_close: Callback<()>,
+    on_saved: Callback<()>,
+) -> impl IntoView {
+    let search   = RwSignal::new(String::new());
+    let saving   = RwSignal::new(false);
+    let err_msg  = RwSignal::new(Option::<String>::None);
+    let selected = RwSignal::new(current_account_id.clone());
+
+    let accounts_res = LocalResource::new(|| async move {
+        get_crm_accounts().await.unwrap_or_default()
+    });
+
+    let tid_save    = tenant_id.clone();
+    let on_save = move |_| {
+        let tid  = tid_save.clone();
+        let acct = selected.get();
+        saving.set(true);
+        err_msg.set(None);
+        let on_saved_cb = on_saved.clone();
+        leptos::task::spawn_local(async move {
+            let result = link_deployment_account(
+                &tid,
+                acct.as_deref(),
+            ).await;
+            saving.set(false);
+            match result {
+                Ok(_)  => on_saved_cb.run(()),
+                Err(e) => err_msg.set(Some(format!("Save failed: {}", e))),
+            }
+        });
+    };
+
+    let on_close_cb = on_close.clone();
+
+    view! {
+        // Backdrop
+        <div
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            on:click=move |_| on_close_cb.run(())
+        />
+        // Panel
+        <div class="fixed right-0 top-0 bottom-0 w-96 bg-surface-container border-l border-outline-variant/30 z-50 flex flex-col shadow-2xl">
+            // Header
+            <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
+                <div>
+                    <h2 class="text-sm font-bold text-on-surface">"Link CRM Account"</h2>
+                    <p class="text-[10px] text-on-surface-variant/60 mt-0.5">{format!("Tenant: {}", &tenant_id[..8])}</p>
+                </div>
+                <button
+                    on:click=move |_| on_close.run(())
+                    class="p-1.5 rounded hover:bg-surface-container-high/50 text-on-surface-variant transition-colors"
+                >
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
+                        <path d="M3 3l10 10M13 3L3 13"/>
+                    </svg>
+                </button>
+            </div>
+
+            // Search
+            <div class="px-5 pt-4 pb-2">
+                <input
+                    type="text"
+                    placeholder="Search accounts..."
+                    class="w-full bg-surface-container-low border border-outline-variant/30 rounded-lg px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/40 focus:border-primary/60 outline-none"
+                    on:input=move |ev| search.set(event_target_value(&ev))
+                />
+            </div>
+
+            // Account list
+            <div class="flex-1 overflow-y-auto px-5 pb-4 space-y-1">
+                // "No link" option
+                <button
+                    class=move || {
+                        if selected.get().is_none() {
+                            "w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30 text-primary"
+                        } else {
+                            "w-full text-left px-3 py-2.5 rounded-lg text-xs text-on-surface-variant hover:bg-surface-container-high/40 transition-colors"
+                        }
+                    }
+                    on:click=move |_| selected.set(None)
+                >
+                    <div class="flex items-center gap-2">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="w-3 h-3 shrink-0">
+                            <path d="M3 3l10 10M13 3L3 13"/>
+                        </svg>
+                        "Unlink (no account)"
+                    </div>
+                </button>
+
+                <Suspense fallback=|| view! { <p class="text-xs text-on-surface-variant/50 text-center py-4 animate-pulse">"Loading..."</p> }>
+                    {move || {
+                        let accounts = accounts_res.get().unwrap_or_default();
+                        let q = search.get().to_lowercase();
+                        let filtered: Vec<AccountSummary> = accounts.into_iter()
+                            .filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q))
+                            .collect();
+                        if filtered.is_empty() {
+                            view! { <p class="text-xs text-on-surface-variant/50 text-center py-4">"No accounts found"</p> }.into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-1">
+                                    {filtered.into_iter().map(|acct| {
+                                        let aid = acct.id.clone();
+                                        let aid2 = aid.clone();
+                                        let id_short = acct.id.chars().take(8).collect::<String>();
+                                        view! {
+                                            <button
+                                                class=move || {
+                                                    if selected.get().as_deref() == Some(&aid2) {
+                                                        "w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium bg-primary/10 border border-primary/30 text-primary"
+                                                    } else {
+                                                        "w-full text-left px-3 py-2.5 rounded-lg text-xs text-on-surface hover:bg-surface-container-high/40 transition-colors"
+                                                    }
+                                                }
+                                                on:click=move |_| selected.set(Some(aid.clone()))
+                                            >
+                                                <div class="font-medium">{acct.name.clone()}</div>
+                                                <div class="text-[10px] text-on-surface-variant/50 mt-0.5 font-mono">{id_short}</div>
+                                            </button>
+                                        }
+                                    }).collect_view()}
+                                </div>
+                            }.into_any()
+                        }
+                    }}
+                </Suspense>
+            </div>
+
+            // Footer
+            <div class="px-5 py-4 border-t border-outline-variant/20 space-y-2">
+                {move || err_msg.get().map(|e| view! {
+                    <p class="text-xs text-red-400">{e}</p>
+                })}
+                <button
+                    on:click=on_save
+                    disabled=saving
+                    class="w-full px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                    {move || if saving.get() { "Saving..." } else { "Save Link" }}
+                </button>
+            </div>
+        </div>
+    }
+}
+
 // ── Page Component ────────────────────────────────────────────────────────────
 
 #[component]
@@ -49,11 +207,32 @@ pub fn ClientsPage() -> impl IntoView {
     let tenants_res  = LocalResource::new(move || async move { get_tenant_stats().await.unwrap_or_default() });
     let apps_res     = LocalResource::new(move || async move { get_all_platform_apps().await.unwrap_or_default() });
 
-    let search       = RwSignal::new(String::new());
+    let search        = RwSignal::new(String::new());
     let filter_status = RwSignal::new("all".to_string());
+    // Modal state: Some(tenant_id) = modal open for that tenant
+    let modal_tenant_id  = RwSignal::new(Option::<String>::None);
+    let modal_account_id = RwSignal::new(Option::<String>::None);
+    // Refresh trigger: increment to force resource re-fetch
+    let refresh = RwSignal::new(0u32);
 
     view! {
         <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
+
+        // ── Link Account Modal (rendered outside main scroll) ───────────
+        {move || modal_tenant_id.get().map(|tid| {
+            let current_acct = modal_account_id.get();
+            view! {
+                <LinkAccountModal
+                    tenant_id=tid
+                    current_account_id=current_acct
+                    on_close=Callback::new(move |_| modal_tenant_id.set(None))
+                    on_saved=Callback::new(move |_| {
+                        modal_tenant_id.set(None);
+                        refresh.update(|n| *n += 1);
+                    })
+                />
+            }
+        })}
 
             // ── Page Header ──────────────────────────────────────────────────
             <div class="flex items-start justify-between flex-wrap gap-4">
@@ -248,13 +427,25 @@ pub fn ClientsPage() -> impl IntoView {
                                                         // Actions
                                                         <td class="py-3.5 px-5">
                                                             <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                // View Account — only visible when platform_account_id is set
+                                                                // View Account — visible when platform_account_id is already set
                                                                 {primary_app.and_then(|a| a.platform_account_id.clone()).map(|acct_id| view! {
                                                                     <a href=format!("/crm/accounts/{}", acct_id)
                                                                         class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
                                                                         title="View CRM Account"
                                                                     >"CRM Account"</a>
                                                                 })}
+                                                                // Link Account — always visible, opens the modal
+                                                                <button
+                                                                    class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
+                                                                    on:click={
+                                                                        let tid = tenant_id_str.clone();
+                                                                        let acct = primary_app.and_then(|a| a.platform_account_id.clone());
+                                                                        move |_| {
+                                                                            modal_account_id.set(acct.clone());
+                                                                            modal_tenant_id.set(Some(tid.clone()));
+                                                                        }
+                                                                    }
+                                                                >"Link Account"</button>
                                                                 {anchor_id.clone().map(|aid| view! {
                                                                     <a href=format!("/apps/{}/instance", aid)
                                                                         class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"

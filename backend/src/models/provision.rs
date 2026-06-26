@@ -38,6 +38,17 @@ pub struct ProvisionTenantPayload {
     /// Bypass the DNS TXT record ownership verification.
     /// Must be explicitly set to true by PlatformSuperAdmin.
     pub bypass_dns_verification: Option<bool>,
+
+    /// Optional: pre-link the new deployment to an existing CRM Account.
+    /// When set, `atlas_app_deployment_config.platform_account_id` is set
+    /// to this value immediately after provisioning — no manual "Link Account"
+    /// step needed for inbound signups that already have a CRM record.
+    pub platform_account_id: Option<Uuid>,
+
+    /// Optional: CRM lead ID that converted to this provisioning.
+    /// Stored in the deployment config for pipeline tracking
+    /// (Lead → Opportunity → Account → Client Instance).
+    pub lead_id: Option<Uuid>,
 }
 
 // ── Response ──────────────────────────────────────────────────────────────────

@@ -232,6 +232,16 @@ pub struct AccountModel {
     pub name: String,
 }
 
+/// Lightweight account record for the platform admin CRM account search picker.
+/// Returned by `GET /api/admin/accounts`. Fields match `account::Model` serialization.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AccountSummary {
+    pub id:         String,
+    pub name:       String,
+    pub is_active:  bool,
+    pub tenant_id:  String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateAccount {
     pub name: String,

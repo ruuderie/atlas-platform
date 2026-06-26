@@ -199,6 +199,189 @@ pub async fn get_platform_apps(
     Ok(Json(result))
 }
 
+// ── Platform App Config Mutations ─────────────────────────────────────────────
+
+/// Body for `PUT /api/admin/platform/apps/{tenant_id}/account`
+#[derive(Deserialize)]
+pub struct LinkAccountInput {
+    /// UUID of the atlas_accounts record to link. Pass null to unlink.
+    pub account_id: Option<Uuid>,
+    /// The app slug to target (defaults to "property_management" if omitted).
+    pub app_slug: Option<String>,
+}
+
+/// `PUT /api/admin/platform/apps/{tenant_id}/account`
+///
+/// Links (or unlinks) a client deployment to a CRM Account record by setting
+/// `platform_account_id` on the `atlas_app_deployment_config` row.
+///
+/// - If a config row exists for `(tenant_id, app_slug)` it is updated in-place.
+/// - If no config row exists it is created with mode=Standard and the account ID.
+/// Core logic for linking a tenant deployment config to a CRM Account.
+/// Called both by the Axum handler and by `provision_tenant` for auto-linking.
+pub async fn link_deployment_account_inner(
+    db: &DatabaseConnection,
+    tenant_id: &str,
+    account_id: Option<&str>,
+) -> Result<(), String> {
+    use crate::entities::atlas_app_deployment_config::{self, ActiveModel, AppDeploymentMode, FolioMode, AppInstanceStatus};
+    use sea_orm::{ActiveValue::Set, IntoActiveModel};
+
+    let tenant_uuid = uuid::Uuid::parse_str(tenant_id)
+        .map_err(|e| format!("Invalid tenant_id UUID: {}", e))?;
+    let account_uuid: Option<uuid::Uuid> = account_id
+        .map(|s| uuid::Uuid::parse_str(s).map_err(|e| format!("Invalid account_id UUID: {}", e)))
+        .transpose()?;
+
+    let app_slug = "property_management".to_string();
+
+    let existing = atlas_app_deployment_config::Entity::find()
+        .filter(atlas_app_deployment_config::Column::TenantId.eq(tenant_uuid))
+        .filter(atlas_app_deployment_config::Column::AppSlug.eq(&app_slug))
+        .one(db)
+        .await
+        .map_err(|e| format!("DB error finding deployment config: {}", e))?;
+
+    match existing {
+        Some(row) => {
+            let mut active: ActiveModel = row.into_active_model();
+            active.platform_account_id = Set(account_uuid);
+            active.update(db).await
+                .map_err(|e| format!("Failed to update platform_account_id: {}", e))?;
+        }
+        None => {
+            let new_row = ActiveModel {
+                id:                  Set(uuid::Uuid::new_v4()),
+                tenant_id:           Set(tenant_uuid),
+                app_slug:            Set(app_slug),
+                mode:                Set(AppDeploymentMode::Standard),
+                config:              Set(serde_json::json!({})),
+                folio_mode:          Set(FolioMode::Standard),
+                public_slug:         Set(None),
+                custom_domain:       Set(None),
+                instance_status:     Set(AppInstanceStatus::Active),
+                platform_account_id: Set(account_uuid),
+                created_at:          Set(chrono::Utc::now().into()),
+                updated_at:          Set(chrono::Utc::now().into()),
+            };
+            new_row.insert(db).await
+                .map_err(|e| format!("Failed to create deployment config: {}", e))?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn link_deployment_account(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+    Path(tenant_id): Path<Uuid>,
+    Json(body): Json<LinkAccountInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let account_id_str: Option<String> = body.account_id.map(|u| u.to_string());
+    link_deployment_account_inner(
+        &db,
+        &tenant_id.to_string(),
+        account_id_str.as_deref(),
+    ).await
+    .map(|_| StatusCode::NO_CONTENT)
+    .map_err(|e| {
+        tracing::error!("link_deployment_account failed: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
+}
+
+/// Body for `PUT /api/admin/platform/apps/{tenant_id}/purpose`
+#[derive(Deserialize)]
+pub struct SetPurposeInput {
+    /// One of: "demo" | "test" | "staging" | "managed_service" | null (to clear)
+    pub purpose: Option<String>,
+    pub app_slug: Option<String>,
+}
+
+/// `PUT /api/admin/platform/apps/{tenant_id}/purpose`
+///
+/// Sets the `purpose` key in `atlas_app_deployment_config.config` JSONB.
+/// Used by the Internal Instances page to classify a deployment (demo/test/staging/managed).
+/// Merges into the existing config so other keys are preserved.
+pub async fn set_deployment_purpose(
+    State(db): State<DatabaseConnection>,
+    Extension(_current_user): Extension<user::Model>,
+    Extension(_current_session): Extension<session::Model>,
+    Path(tenant_id): Path<Uuid>,
+    Json(body): Json<SetPurposeInput>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use crate::entities::atlas_app_deployment_config::{self, ActiveModel, AppDeploymentMode, FolioMode, AppInstanceStatus};
+    use sea_orm::{ActiveValue::Set, IntoActiveModel};
+
+    let app_slug = body.app_slug.unwrap_or_else(|| "property_management".to_string());
+
+    let existing = atlas_app_deployment_config::Entity::find()
+        .filter(atlas_app_deployment_config::Column::TenantId.eq(tenant_id))
+        .filter(atlas_app_deployment_config::Column::AppSlug.eq(&app_slug))
+        .one(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!("DB error finding deployment config: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let validate_purpose = |p: &str| {
+        matches!(p, "demo" | "test" | "staging" | "managed_service")
+    };
+
+    // Reject invalid values early
+    if let Some(ref p) = body.purpose {
+        if !validate_purpose(p) {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    match existing {
+        Some(row) => {
+            // Merge purpose key into existing config
+            let mut config = row.config.clone();
+            match body.purpose {
+                Some(ref p) => { config["purpose"] = serde_json::json!(p); }
+                None        => { config.as_object_mut().map(|m| m.remove("purpose")); }
+            }
+            let mut active: ActiveModel = row.into_active_model();
+            active.config = Set(config);
+            active.update(&db).await.map_err(|e| {
+                tracing::error!("Failed to update deployment purpose: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+        }
+        None => {
+            // Create config row with just the purpose set
+            let config = match body.purpose {
+                Some(ref p) => serde_json::json!({"purpose": p}),
+                None        => serde_json::json!({}),
+            };
+            let new_row = ActiveModel {
+                id:                  Set(Uuid::new_v4()),
+                tenant_id:           Set(tenant_id),
+                app_slug:            Set(app_slug),
+                mode:                Set(AppDeploymentMode::InternalOperator),
+                config:              Set(config),
+                folio_mode:          Set(FolioMode::Standard),
+                public_slug:         Set(None),
+                custom_domain:       Set(None),
+                instance_status:     Set(AppInstanceStatus::Active),
+                platform_account_id: Set(None),
+                created_at:          Set(chrono::Utc::now().into()),
+                updated_at:          Set(chrono::Utc::now().into()),
+            };
+            new_row.insert(&db).await.map_err(|e| {
+                tracing::error!("Failed to create deployment config: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+        }
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 #[derive(Deserialize)]
 pub struct AppDomainInput {
     pub domain_name: String,

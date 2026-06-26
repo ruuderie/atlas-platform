@@ -397,6 +397,37 @@ pub async fn provision_tenant(
         admin_email = %payload.admin_email,
     );
 
+    // ── 12. Auto-link to CRM Account if supplied in payload ────────────────────
+    // When provisioning is triggered by an inbound signup that already has a
+    // CRM account record, pre-link the deployment config so the Clients page
+    // shows the account link immediately — no manual step needed.
+    if let Some(platform_account_id) = payload.platform_account_id {
+        let tenant_id_str = tenant_id.to_string();
+        let account_id_str = platform_account_id.to_string();
+        let db_link = db.clone();
+        // Non-fatal — provision already succeeded; just log any linking failure.
+        tokio::spawn(async move {
+            if let Err(e) = crate::handlers::admin::link_deployment_account_inner(
+                &db_link,
+                &tenant_id_str,
+                Some(account_id_str.as_str()),
+            ).await {
+                tracing::warn!(
+                    event = "provision.link_account.failed",
+                    tenant_id = %tenant_id_str,
+                    account_id = %account_id_str,
+                    error = %e,
+                );
+            } else {
+                tracing::info!(
+                    event = "provision.link_account.ok",
+                    tenant_id = %tenant_id_str,
+                    account_id = %account_id_str,
+                );
+            }
+        });
+    }
+
     Ok((StatusCode::CREATED, Json(ProvisionTenantResponse {
         tenant_id,
         account_id,
