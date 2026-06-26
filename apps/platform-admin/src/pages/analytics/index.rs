@@ -1090,12 +1090,14 @@ pub fn Analytics() -> impl IntoView {
                                         match create_campaign(CreateCampaignInput {
                                             name: name.clone(),
                                             campaign_type: ctype,
+                                            tenant_id: uuid::Uuid::nil(),
                                             goal_type: Some(goal),
                                             budget_cents: Some(budget),
                                             utm_source: None,
                                             utm_medium: None,
                                             utm_campaign: None,
-                                            attribution_window_days: None,
+                                            starts_at: None,
+                                            ends_at: None,
                                         }).await {
                                             Ok(_) => t_toast.show_toast("Campaign Created", &format!("Campaign '{}' provisioned successfully.", name), "success"),
                                             Err(e) => t_toast.show_toast("Error", &format!("Failed to create campaign: {}", e), "error"),
