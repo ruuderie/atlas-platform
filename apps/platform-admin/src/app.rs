@@ -350,11 +350,19 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         "Pipeline"
                     </a>
 
-                    <span class="nav-label nav-section-label">"Platform"</span>
+                    // ── Subscriptions section: what was 'Platform' + subscriber client mgmt ──
+                    <span class="nav-label nav-section-label">"Subscriptions"</span>
+                    // Clients = paying subscriber tenants and their deployed instances.
+                    // Each row is a tenant (not a raw app instance).
+                    <a href="/clients" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/clients") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 12c0-2.2-2.2-4-5-4S3 9.8 3 12"/><circle cx="8" cy="5" r="3"/></svg>
+                        "Clients"
+                    </a>
+                    // Apps = raw infrastructure provisioning view (all tenants).
                     <a href="/apps" class=move || {
-                        // Exact match only — /apps/:id (app instance pages) should NOT
-                        // highlight the Tenants nav item. Only /apps itself and /apps/create
-                        // (the provisioning wizard) belong to this nav section.
                         let p = current_path.get();
                         let active = p == "/apps" || p == "/apps/create" || p == "/apps/new";
                         if active { "nav-item active" } else { "nav-item" }
@@ -364,21 +372,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     // ── Contextual: App Instance sub-nav ─────────────────────
-                    // Renders ONLY when the operator is drilling into a specific
-                    // app instance (/apps/:uuid or /apps/:uuid/instance).
-                    // Shows: parent breadcrumb back to Tenants + "App Instance" indicator.
                     {move || {
                         let p = current_path.get();
-                        // Detect: /apps/<uuid> or /apps/<uuid>/instance
-                        // A UUID has 36 chars; /apps/ prefix is 6 chars.
-                        // We exclude /apps, /apps/create, /apps/new.
                         let is_instance = p.starts_with("/apps/")
                             && p != "/apps/create"
                             && p != "/apps/new";
                         if is_instance {
                             view! {
                                 <div class="ml-3 border-l border-primary/30 pl-2.5 mt-0.5 flex flex-col gap-0.5">
-                                    // Breadcrumb back link — always takes you to Tenants list
                                     <a href="/apps"
                                         class="flex items-center gap-1.5 text-[10px] text-on-surface-variant/70 hover:text-primary py-1 transition-colors"
                                     >
@@ -387,7 +388,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                         </svg>
                                         "Back to Tenants"
                                     </a>
-                                    // Current context indicator — not a link, just location label
                                     <div class="flex items-center gap-1.5 text-[10.5px] font-semibold text-primary py-1">
                                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="w-3 h-3 shrink-0">
                                             <rect x="2" y="3" width="12" height="10" rx="1.5"/>
@@ -412,8 +412,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Go-to-Market"</span>
-                    // Landing Pages = the canonical home for all product/market management.
-                    // Covers content, SEO, variants, pixels, domains, and waitlist in one place.
+                    // Landing Pages = all product/market management (content, SEO, variants, pixels, domains).
                     <a href="/products" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/products") { "nav-item active" } else { "nav-item" }
@@ -421,18 +420,13 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg>
                         "Landing Pages"
                     </a>
-                    // Campaigns = outreach execution hub (direct mail, email, paid).
-                    // Connects campaigns to landing pages via UTM, tracks full funnel.
+                    // Campaigns = outreach execution hub. Connects to landing pages via UTM slug.
                     <a href="/campaigns" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/campaigns") { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v5c0 2.5-2.5 4.5-6 5-3.5-.5-6-2.5-6-5V5z"/><path d="M8 8l2 1.5-2 1"/></svg>
                         "Campaigns"
-                    </a>
-                    <a href="/network" class=move || side_active_class("/network")>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M1 8h14M8 1a12 12 0 0 1 0 14A12 12 0 0 1 8 1"/></svg>
-                        "Network Instances"
                     </a>
                     <a href="/network/syndication" class=move || side_active_class("/network/syndication")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
@@ -448,12 +442,21 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Operations"</span>
+                    // Internal Instances = InternalOperator mode deployments (our infra, demos, staging).
+                    // External client deployments live in Clients above.
+                    <a href="/internal-instances" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/internal-instances") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1.5"/><line x1="5" y1="7" x2="11" y2="7"/><line x1="5" y1="10" x2="9" y2="10"/><line x1="1" y1="7" x2="3" y2="7"/></svg>
+                        "Internal Instances"
+                    </a>
                     <a href="/flags" class=move || side_active_class("/flags")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l-2 3.5L11 9H3"/></svg>
                         "Feature Flags"
                     </a>
                     <a href="/support" class=move || side_active_class("/support")>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6a2 2 0 1 1 2.5 2C8 9 8 9.5 8 10"/><circle cx="8" cy="12" r="0.5" fill="currentColor"/></svg>
                         "Support Queue"
                     </a>
                     <a href="/logs" class=move || side_active_class("/logs")>
@@ -506,7 +509,12 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/apps/new") view=crate::pages::apps::create::AppCreate />
                         <Route path=path!("/apps/:id") view=crate::pages::apps::detail::AppDashboard />
                         <Route path=path!("/apps/:id/instance") view=AppInstance />
-                        <Route path=path!("/network") view=NetworkRegistry />
+                        <Route path=path!("/clients") view=crate::pages::clients::index::ClientsPage />
+                        <Route path=path!("/internal-instances") view=crate::pages::internal_instances::index::InternalInstancesPage />
+                        // /network redirects to /clients for backwards compatibility
+                        <Route path=path!("/network") view=|| view! {
+                            <crate::components::redirect::Redirect to="/clients" />
+                        } />
                         <Route path=path!("/network/new") view=NetworkCreate />
                         <Route path=path!("/network/:id") view=NetworkDetail />
                         <Route path=path!("/network/syndication") view=SyndicationManager />

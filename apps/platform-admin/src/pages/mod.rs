@@ -16,4 +16,6 @@ pub mod verification;
 pub mod products;
 pub mod marketing;
 pub mod syndication;
+pub mod clients;
+pub mod internal_instances;
 
