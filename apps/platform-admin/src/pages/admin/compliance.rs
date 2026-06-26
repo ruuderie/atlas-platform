@@ -218,19 +218,19 @@ pub fn Compliance() -> impl IntoView {
                 class=move || format!("tab {}", if active_tab.get() == "regulatory" { "active" } else { "" })
                 on:click=move |_| active_tab.set("regulatory".to_string())
             >
-                "Regulatory Registrations (G-16)"
+                "Regulatory Registrations"
             </button>
             <button 
                 class=move || format!("tab {}", if active_tab.get() == "contracts" { "active" } else { "" })
                 on:click=move |_| active_tab.set("contracts".to_string())
             >
-                "Active Contracts (G-11)"
+                "Active Contracts"
             </button>
             <button 
                 class=move || format!("tab {}", if active_tab.get() == "geo" { "active" } else { "" })
                 on:click=move |_| active_tab.set("geo".to_string())
             >
-                "PostGIS Geo Zones (G-01)"
+                "Geographic Zones"
             </button>
         </div>
 

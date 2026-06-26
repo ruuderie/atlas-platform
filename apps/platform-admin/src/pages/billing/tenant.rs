@@ -631,14 +631,14 @@ pub fn TenantLedger() -> impl IntoView {
                     <h3 class="text-sm font-bold uppercase tracking-wider text-primary mb-4">"Provisioned Platform Features"</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                         {[
-                            ("G-01: Spatial Service Areas", "PostGIS dynamic location bounding boxes and mapping queries.", true),
-                            ("G-02: Private Vault (R2)", "Secure tenant file attachments with short-lived pre-signed URLs.", true),
-                            ("G-04: Hybrid Subscription Engine", "Flat base platform pricing + user-overage seat calculations.", true),
-                            ("G-11: Contracts & SLA", "Vault-isolated contract PDFs, signed dates, and renewal periods.", true),
-                            ("G-16: Regulatory Registry", "Short-term rental certificates, municipal license check loops.", true),
-                            ("G-27: Contributor Calibration", "Scorecard ratings pipelines, time-series aggregation.", true),
-                            ("G-31: High-Ticket Leads", "Waitlist submissions, city-based target parameters.", true),
-                            ("G-33: Custom Domain Matrix", "CNAME domain overrides, dynamic Ingress route sidecar.", true),
+                            ("Spatial Service Areas", "PostGIS dynamic location bounding boxes and mapping queries.", true),
+                            ("Private File Vault", "Secure tenant file attachments with short-lived pre-signed URLs.", true),
+                            ("Hybrid Subscription Engine", "Flat base platform pricing + user-overage seat calculations.", true),
+                            ("Contracts & SLA", "Vault-isolated contract PDFs, signed dates, and renewal periods.", true),
+                            ("Regulatory Registry", "Short-term rental certificates, municipal license check loops.", true),
+                            ("Contributor Scorecards", "Scorecard ratings pipelines, time-series aggregation.", true),
+                            ("High-Ticket Lead Pipeline", "Waitlist submissions, city-based target parameters.", true),
+                            ("Custom Domain Matrix", "CNAME domain overrides, dynamic Ingress route sidecar.", true),
                         ].into_iter().map(|(title, desc, active)| view! {
                             <div class="flex items-start gap-3 p-4 bg-surface-container-high/40 rounded-xl border border-outline-variant/10">
                                 <span class=format!("material-symbols-outlined text-base mt-0.5 {}", if active { "text-emerald-400" } else { "text-on-surface-variant/40" })>

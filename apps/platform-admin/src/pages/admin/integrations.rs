@@ -131,7 +131,7 @@ pub fn Integrations() -> impl IntoView {
         <div class="page-header">
             <div>
                 <h1 class="page-title">"Integrations & Webhooks"</h1>
-                <p class="page-subtitle">"Manage platform-wide API connections and webhook dispatch systems · G-05"</p>
+                <p class="page-subtitle">"Manage platform-wide API connections and webhook dispatch systems"</p>
             </div>
             <div class="page-actions">
                 <button 
@@ -151,16 +151,26 @@ pub fn Integrations() -> impl IntoView {
         // KPI Row
         <div class="kpi-row">
             <div class="kpi-card">
-                <span class="kpi-label">"Connected Services"</span>
+                <span class="kpi-label">"Platform Services"</span>
                 <span class="kpi-value">"4"</span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">"Webhook deliveries (24h)"</span>
-                <span class="kpi-value">"8,642"</span>
+                <span class="kpi-label">"Webhook Deliveries (24h)"</span>
+                <span class="kpi-value">
+                    {move || webhooks_res.get().map(|d| d.len().to_string()).unwrap_or_else(|| "—".to_string())}
+                </span>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">"Successful Deliveries"</span>
-                <span class="kpi-value" style="color:var(--green)">"99.64%"</span>
+                <span class="kpi-label">"Delivery Success Rate"</span>
+                <span class="kpi-value" style="color:var(--green)">
+                    {move || {
+                        let d = webhooks_res.get().unwrap_or_default();
+                        if d.is_empty() { "—".to_string() } else {
+                            let ok = d.iter().filter(|w| w.response_status.map(|s| s >= 200 && s < 300).unwrap_or(false)).count();
+                            format!("{:.1}%", ok as f64 / d.len() as f64 * 100.0)
+                        }
+                    }}
+                </span>
             </div>
             <div class="kpi-card">
                 <span class="kpi-label">"Active API Credentials"</span>
@@ -176,13 +186,13 @@ pub fn Integrations() -> impl IntoView {
                 class=move || if active_tab.get() == "services" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("services".to_string())
             >
-                "Connected Services"
+                "Platform Services"
             </button>
             <button 
                 class=move || if active_tab.get() == "webhooks" { "tab active" } else { "tab" }
                 on:click=move |_| active_tab.set("webhooks".to_string())
             >
-                "Webhook Logs (G-05)"
+                "Webhook Logs"
             </button>
             <button 
                 class=move || if active_tab.get() == "credentials" { "tab active" } else { "tab" }
@@ -192,40 +202,54 @@ pub fn Integrations() -> impl IntoView {
             </button>
         </div>
 
-        // Connected Services Content
+        // Platform Services Content
         <Show when=move || active_tab.get() == "services">
+            // Operator notice banner
+            <div class="card" style="padding:12px 16px;border-left:3px solid var(--amber);margin-bottom:12px">
+                <p class="text-xs" style="color:var(--amber);font-weight:600;margin:0 0 2px">"Platform-Level Services"</p>
+                <p class="muted" style="font-size:11px;margin:0">"These are infrastructure services configured by the platform operator (HipTen), not by individual tenants. Status reflects environment configuration — not a live ping. To update credentials, deploy a new environment variable."
+                </p>
+            </div>
             <div class="grid-cards">
                 <div class="card-item">
                     <div class="card-icon" style="background:#635BFF22;color:#635BFF">"💳"</div>
                     <div class="card-info">
                         <div class="card-name">"Stripe Connect"</div>
-                        <div class="card-desc">"Payment splits and MRR collecting (MoR). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                        <div class="card-desc">"Payment splits and MRR collection (Merchant of Record). "
+                            <span class="tag" style="background:rgba(0,168,107,0.15);color:#00A86B;font-size:9.5px">"Platform Configured"</span>
+                        </div>
                     </div>
-                    <button on:click=move |_| handle_test_connection("stripe") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                    <button on:click=move |_| handle_test_connection("stripe") class="btn btn-ghost btn-sm">"Test"</button>
                 </div>
                 <div class="card-item">
                     <div class="card-icon" style="background:#00A86B22;color:#00A86B">"🗺"</div>
                     <div class="card-info">
                         <div class="card-name">"PostGIS Geography Engine"</div>
-                        <div class="card-desc">"Geo boundaries and PostGIS queries (G-01). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                        <div class="card-desc">"Geo boundaries and PostGIS queries (G-01). "
+                            <span class="tag" style="background:rgba(0,168,107,0.15);color:#00A86B;font-size:9.5px">"Platform Configured"</span>
+                        </div>
                     </div>
-                    <button on:click=move |_| handle_test_connection("postgis") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                    <button on:click=move |_| handle_test_connection("postgis") class="btn btn-ghost btn-sm">"Test"</button>
                 </div>
                 <div class="card-item">
                     <div class="card-icon" style="background:#E5484D22;color:#E5484D">"📧"</div>
                     <div class="card-info">
-                        <div class="card-name">"SendGrid transactional"</div>
-                        <div class="card-desc">"Outgoing SMTP transactional and campaigns (G-19). Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                        <div class="card-name">"SendGrid Transactional"</div>
+                        <div class="card-desc">"Outgoing SMTP for transactional emails and campaigns (G-19). "
+                            <span class="tag" style="background:rgba(0,168,107,0.15);color:#00A86B;font-size:9.5px">"Platform Configured"</span>
+                        </div>
                     </div>
-                    <button on:click=move |_| handle_test_connection("sendgrid") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                    <button on:click=move |_| handle_test_connection("sendgrid") class="btn btn-ghost btn-sm">"Test"</button>
                 </div>
                 <div class="card-item">
                     <div class="card-icon" style="background:#7C3AED22;color:#7C3AED">"🔑"</div>
                     <div class="card-info">
                         <div class="card-name">"WebAuthn (Passkeys) Registry"</div>
-                        <div class="card-desc">"Dynamic multi-tenant passkey authentication. Status: "<span class="tag tag-ok" style="font-size:9.5px">"Active"</span></div>
+                        <div class="card-desc">"Dynamic multi-tenant passkey authentication layer. "
+                            <span class="tag" style="background:rgba(0,168,107,0.15);color:#00A86B;font-size:9.5px">"Platform Configured"</span>
+                        </div>
                     </div>
-                    <button on:click=move |_| handle_test_connection("webauthn") class="btn btn-ghost btn-sm">"Test Connection"</button>
+                    <button on:click=move |_| handle_test_connection("webauthn") class="btn btn-ghost btn-sm">"Test"</button>
                 </div>
             </div>
         </Show>

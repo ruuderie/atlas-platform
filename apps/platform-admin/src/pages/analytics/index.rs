@@ -207,7 +207,7 @@ pub fn Analytics() -> impl IntoView {
                         {tab_btn("p-crm", "CRM Funnel")}
                         {tab_btn("p-attribution", "Attribution · UTM")}
                         {tab_btn("p-campaigns", "Campaigns")}
-                        {tab_btn("p-scorecards", "G-27 Trends")}
+                        {tab_btn("p-scorecards", "Scorecard Trends")}
                         {tab_btn("p-platform", "Platform Metrics · Raw")}
                         {tab_btn("p-api", "API & Request Log")}
                     }

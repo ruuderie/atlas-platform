@@ -363,18 +363,18 @@ pub fn FolioInstance(
             <Show when=move || active_tab.get() == "t-modules">
                 <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                     <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"PM Module Toggles · G-33"</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Module Toggles"</h3>
                     </div>
                     <div class="divide-y divide-outline-variant/10">
                         {vec![
-                            ("Portfolio Management (G-09)", module_portfolio),
-                            ("Leases & Contracts (G-11)", module_leases),
-                            ("Maintenance Requests (G-13)", module_maintenance),
-                            ("Vendor Network (G-12)", module_vendors),
-                            ("Reservations (G-23)", module_reservations),
-                            ("Scorecard Engine (G-27)", module_scorecards),
-                            ("Lead Pipeline (G-31)", module_leads),
-                            ("Billing & Ledger (G-03)", module_billing),
+                            ("Portfolio Management", module_portfolio),
+                            ("Leases & Contracts", module_leases),
+                            ("Maintenance Requests", module_maintenance),
+                            ("Vendor Network", module_vendors),
+                            ("Reservations", module_reservations),
+                            ("Scorecard Engine", module_scorecards),
+                            ("Lead Pipeline", module_leads),
+                            ("Billing & Ledger", module_billing),
                         ].into_iter().map(|(label, signal)| {
                             let label_str = label.to_string();
                             view! {
