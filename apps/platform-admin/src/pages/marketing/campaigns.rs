@@ -96,12 +96,15 @@ pub fn CampaignsPage() -> impl IntoView {
         let input = CreateCampaignInput {
             name,
             campaign_type: new_type.get(),
+            // platform-admin campaigns: tenant_id is nil (cross-tenant) until wired to a tenant selector
+            tenant_id: uuid::Uuid::nil(),
             goal_type: Some(new_goal.get()),
             budget_cents: budget,
             utm_source: Some(new_utm_src.get()).filter(|s| !s.is_empty()),
             utm_medium: Some(new_utm_med.get()).filter(|s| !s.is_empty()),
             utm_campaign: Some(new_utm_cmp.get()).filter(|s| !s.is_empty()),
-            attribution_window_days: Some(30),
+            starts_at: None,
+            ends_at: None,
         };
         leptos::task::spawn_local(async move {
             let _ = create_campaign(input).await;

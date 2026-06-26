@@ -146,6 +146,27 @@ pub fn LeadsPage() -> impl IntoView {
                 search_placeholder="Search name, email, company…"
             />
 
+            // ── Top pagination bar (compact) ──────────────────────────────────
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px;border-bottom:1px solid var(--border-default);flex-shrink:0;font-size:11px;color:var(--text-muted);background:var(--bg-surface);">
+                <span>
+                    "Page " {move || page.get().to_string()}
+                    " · " {move || page_count.get().to_string()}
+                    " records"
+                </span>
+                <div style="display:flex;gap:6px;">
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        disabled=move || page.get() <= 1
+                        on:click=move |_| { if page.get() > 1 { page.update(|p| *p -= 1); } }
+                    >"← Prev"</button>
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        disabled=move || (page_count.get() as u64) < PER_PAGE
+                        on:click=move |_| { if (page_count.get() as u64) >= PER_PAGE { page.update(|p| *p += 1); } }
+                    >"Next →"</button>
+                </div>
+            </div>
+
             <div class="table-container">
                 <Suspense fallback=move || view! {
                     <div style="padding:32px;text-align:center;color:var(--text-muted)">
@@ -230,7 +251,10 @@ pub fn LeadsPage() -> impl IntoView {
                 </Suspense>
             </div>
 
-            <Pagination page=page per_page=PER_PAGE count=page_count />
+            // Bottom pagination — sticky at bottom of entity-page
+            <div style="position:sticky;bottom:0;z-index:2;">
+                <Pagination page=page per_page=PER_PAGE count=page_count />
+            </div>
         </div>
 
         // Drawer rendered outside the scroll container — does not re-mount on data refresh

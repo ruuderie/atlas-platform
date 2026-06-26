@@ -235,25 +235,25 @@ pub fn BillingDashboard() -> impl IntoView {
             // ── Tabs Bar ──
             <div class="flex border-b border-outline-variant/15 overflow-x-auto shrink-0 select-none">
                 <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>
-                    "Products & Plans"
+                    "Pricing Plans"
                 </button>
                 <button class=move || tab_class("rev_intel") on:click=move |_| active_tab.set("rev_intel".to_string())>
-                    "Revenue Intelligence"
+                    "Revenue"
                 </button>
                 <button class=move || tab_class("ledger") on:click=move |_| active_tab.set("ledger".to_string())>
-                    "Ledger · G-03"
+                    "Client Billing"
                 </button>
                 <button class=move || tab_class("overdue") on:click=move |_| active_tab.set("overdue".to_string())>
-                    "Overdue & Disputes (3)"
+                    "Overdue & Disputes"
                 </button>
                 <button class=move || tab_class("rails") on:click=move |_| active_tab.set("rails".to_string())>
                     "Payment Rails"
                 </button>
                 <button class=move || tab_class("commissions") on:click=move |_| active_tab.set("commissions".to_string())>
-                    "Commission Plans · G-25"
+                    "Commission Plans"
                 </button>
                 <button class=move || tab_class("tax") on:click=move |_| active_tab.set("tax".to_string())>
-                    "Tax & Filings · G-17"
+                    "Tax & Filings"
                 </button>
             </div>
 

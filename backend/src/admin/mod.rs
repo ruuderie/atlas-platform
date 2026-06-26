@@ -13,6 +13,7 @@ pub mod ai_tasks;
 pub mod users;
 pub mod passkeys_admin;      // Super-admin passkey management: list + revoke all users' passkeys
 pub mod upload;              // Admin-scoped R2 presigned upload URL (avatars, transcripts)
+pub mod campaigns;           // G-19 — Campaign registry: list, detail, create, status update, enrollments
 
 
 

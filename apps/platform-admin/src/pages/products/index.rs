@@ -85,7 +85,7 @@ pub fn PlatformProducts() -> impl IntoView {
                                         .unwrap_or_else(|| format!("{}.rentals/landing", slug));
                                     let desc_text = p.tagline.clone()
                                         .unwrap_or_else(|| format!("Enterprise-grade service engine for {}.", p.name));
-                                    let href = format!("/products/{}", slug);
+                                    let href = format!("/products/{}", p.id);
 
                                     view! {
                                         <a

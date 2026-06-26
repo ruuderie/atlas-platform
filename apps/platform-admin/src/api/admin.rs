@@ -621,13 +621,14 @@ pub async fn get_audit_logs() -> Result<Vec<AuditLogModel>, String> {
     crate::api::client::api_get("api/admin/audit-logs").await
 }
 
-// ============================================================
-// CAMPAIGNS
-// ============================================================
+// ── Campaign API (G-19) ──────────────────────────────────────────────────────
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+/// Campaign summary model returned by the backend admin campaigns handler.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Default)]
+#[serde(default)]
 pub struct CampaignModel {
     pub id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
     pub name: String,
     pub campaign_type: String,
     pub status: String,
@@ -635,9 +636,10 @@ pub struct CampaignModel {
     pub budget_cents: Option<i64>,
     pub spent_cents: i64,
     pub total_contacts: i32,
-    pub total_conversions: i32,
     pub total_opens: i32,
     pub total_clicks: i32,
+    pub total_replies: i32,
+    pub total_conversions: i32,
     pub attribution_window_days: i32,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
@@ -645,9 +647,12 @@ pub struct CampaignModel {
     pub starts_at: Option<String>,
     pub ends_at: Option<String>,
     pub created_at: String,
+    pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+/// Campaign enrollment model for the members list.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Default)]
+#[serde(default)]
 pub struct CampaignEnrollmentModel {
     pub id: uuid::Uuid,
     pub campaign_id: uuid::Uuid,
@@ -661,72 +666,103 @@ pub struct CampaignEnrollmentModel {
     pub contact_metadata: Option<serde_json::Value>,
 }
 
-#[derive(serde::Serialize)]
+/// Payload for creating a new campaign.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CreateCampaignInput {
     pub name: String,
     pub campaign_type: String,
+    pub tenant_id: uuid::Uuid,
     pub goal_type: Option<String>,
     pub budget_cents: Option<i64>,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
-    pub attribution_window_days: Option<i32>,
+    pub starts_at: Option<String>,
+    pub ends_at: Option<String>,
 }
 
-/// List all campaigns for the current tenant.
-/// Calls `GET /api/folio/campaigns`.
+/// GET /api/admin/campaigns — list all campaigns.
 pub async fn list_campaigns() -> Result<Vec<CampaignModel>, String> {
-    use crate::api::client::api_get_key;
-    api_get_key("api/folio/campaigns", "campaigns").await
+    let client = create_client();
+    let url = api_url("api/admin/campaigns");
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<Vec<CampaignModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
-/// Get a single campaign by ID.
-/// Calls `GET /api/folio/campaigns/{id}`.
+/// GET /api/admin/campaigns/:id — single campaign detail.
 pub async fn get_campaign(id: uuid::Uuid) -> Result<CampaignModel, String> {
-    use crate::api::client::api_get_key;
-    api_get_key(&format!("api/folio/campaigns/{}", id), "campaign").await
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}", id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<CampaignModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
-/// Create a new campaign.
-/// Calls `POST /api/folio/campaigns`.
+/// POST /api/admin/campaigns — create a new campaign.
 pub async fn create_campaign(input: CreateCampaignInput) -> Result<CampaignModel, String> {
-    let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url("api/folio/campaigns");
-    let req = client.post(&url).json(&input);
-    use crate::api::client::api_request_key;
-    api_request_key(req, "campaign").await
+    let client = create_client();
+    let url = api_url("api/admin/campaigns");
+    let req = with_credentials(client.post(&url)).json(&input);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<CampaignModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
-/// List enrollments (members) for a campaign.
-/// Calls `GET /api/folio/campaigns/{id}/enrollments`.
-pub async fn list_campaign_members(id: uuid::Uuid) -> Result<Vec<CampaignEnrollmentModel>, String> {
-    use crate::api::client::api_get_key;
-    api_get_key(&format!("api/folio/campaigns/{}/enrollments", id), "enrollments").await
+/// GET /api/admin/campaigns/:id/enrollments — list members enrolled in a campaign.
+pub async fn list_campaign_members(campaign_id: uuid::Uuid) -> Result<Vec<CampaignEnrollmentModel>, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/enrollments", campaign_id));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<Vec<CampaignEnrollmentModel>>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+/// PUT /api/admin/campaigns/:id/status — transition campaign status.
+pub async fn update_campaign_status(id: uuid::Uuid, status: String) -> Result<CampaignModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/status", id));
+    let req = with_credentials(client.put(&url))
+        .json(&serde_json::json!({ "status": status }));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<CampaignModel>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
 /// Enroll a batch of leads into a campaign by lead ID.
-/// Calls `POST /api/folio/campaigns/{id}/enroll-leads`.
 pub async fn enroll_leads(campaign_id: uuid::Uuid, lead_ids: Vec<uuid::Uuid>) -> Result<serde_json::Value, String> {
-    let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url(&format!("api/folio/campaigns/{}/enroll-leads", campaign_id));
-    let req = client.post(&url).json(&serde_json::json!({ "lead_ids": lead_ids }));
-    crate::api::client::api_request(req).await
+    let client = create_client();
+    let url = api_url(&format!("api/admin/campaigns/{}/enroll-leads", campaign_id));
+    let req = with_credentials(client.post(&url)).json(&serde_json::json!({ "lead_ids": lead_ids }));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
 }
 
-/// Enroll a batch of contacts into a campaign by contact ID.
-/// Address is resolved from the linked account at enroll time.
-/// Calls `POST /api/folio/campaigns/{id}/enroll-contacts`.
-pub async fn enroll_contacts(campaign_id: uuid::Uuid, contact_ids: Vec<uuid::Uuid>) -> Result<serde_json::Value, String> {
-    let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url(&format!("api/folio/campaigns/{}/enroll-contacts", campaign_id));
-    let req = client.post(&url).json(&serde_json::json!({ "contact_ids": contact_ids }));
-    crate::api::client::api_request(req).await
-}
-
-/// Returns the download URL for the campaign member CSV (direct mail export).
-/// The browser navigates to this URL directly to trigger the file download.
+/// Returns the download URL for the campaign member CSV export.
 pub fn campaign_export_url(campaign_id: uuid::Uuid) -> String {
-    crate::api::client::api_url(&format!("api/folio/campaigns/{}/enrollments/export", campaign_id))
+    api_url(&format!("api/admin/campaigns/{}/enrollments/export.csv", campaign_id))
 }
 
 

@@ -184,5 +184,7 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
                 .merge(crate::admin::upload::routes())
                 // Platform-generic syndication: offer catalog + active link management
                 .merge(crate::handlers::syndication_admin::syndication_admin_routes())
+                // G-19 Campaigns: list/create campaigns + enrollments
+                .merge(crate::admin::campaigns::routes_raw())
         })
 }

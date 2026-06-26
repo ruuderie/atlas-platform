@@ -400,7 +400,6 @@ pub fn ClientsPage() -> impl IntoView {
                                                     .filter(|a| a.tenant_id == t.tenant_id)
                                                     .collect();
                                                 let primary_app = tenant_apps.first().cloned();
-                                                let instance_id = primary_app.map(|a| a.instance_id.clone()).unwrap_or_default();
                                                 let domain = primary_app.map(|a| a.domain.clone()).unwrap_or("—".to_string());
                                                 let app_type = primary_app.map(|a| app_type_label(&a.app_type).to_string()).unwrap_or("—".to_string());
                                                 let instance_status = t.site_status.clone().unwrap_or("unknown".to_string());
@@ -410,14 +409,31 @@ pub fn ClientsPage() -> impl IntoView {
                                                 let tenant_id_str = t.tenant_id.clone();
 
                                                 view! {
-                                                    <tr class="hover:bg-surface-bright/5 transition-colors group">
-                                                        // Client name + ID
+                                                    <tr class="hover:bg-surface-bright/5 transition-colors cursor-pointer">
+                                                        // Client name + ID — clicking the name navigates to instance detail
                                                         <td class="py-3.5 px-5">
-                                                            <div class="font-semibold text-on-surface">{t.name.clone()}</div>
-                                                            <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
-                                                                {tenant_id_str.clone().chars().take(8).collect::<String>()}
-                                                                "..."
-                                                            </div>
+                                                            {if let Some(ref aid) = anchor_id {
+                                                                let aid2 = aid.clone();
+                                                                view! {
+                                                                    <a href=format!("/apps/{}", aid2) class="block group/link">
+                                                                        <div class="font-semibold text-on-surface group-hover/link:text-primary transition-colors">{t.name.clone()}</div>
+                                                                        <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                            {tenant_id_str.clone().chars().take(8).collect::<String>()}
+                                                                            "..."
+                                                                        </div>
+                                                                    </a>
+                                                                }.into_any()
+                                                            } else {
+                                                                view! {
+                                                                    <div>
+                                                                        <div class="font-semibold text-on-surface">{t.name.clone()}</div>
+                                                                        <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                            {tenant_id_str.clone().chars().take(8).collect::<String>()}
+                                                                            "..."
+                                                                        </div>
+                                                                    </div>
+                                                                }.into_any()
+                                                            }}
                                                         </td>
                                                         // App type
                                                         <td class="py-3.5 px-5">
@@ -448,17 +464,23 @@ pub fn ClientsPage() -> impl IntoView {
                                                                 <span title="Profiles">{format!("{} users", t.profile_count)}</span>
                                                             </div>
                                                         </td>
-                                                        // Actions
+                                                        // Actions — always visible
                                                         <td class="py-3.5 px-5">
-                                                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                // View Account — visible when platform_account_id is already set
+                                                            <div class="flex items-center gap-2">
+                                                                // View instance — always shown when anchor_id is set
+                                                                {anchor_id.clone().map(|aid| view! {
+                                                                    <a href=format!("/apps/{}", aid)
+                                                                        class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                                                    >"View →"</a>
+                                                                })}
+                                                                // View CRM Account
                                                                 {primary_app.and_then(|a| a.platform_account_id.clone()).map(|acct_id| view! {
                                                                     <a href=format!("/crm/accounts/{}", acct_id)
-                                                                        class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                                                        class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
                                                                         title="View CRM Account"
-                                                                    >"CRM Account"</a>
+                                                                    >"CRM"</a>
                                                                 })}
-                                                                // Link Account — always visible, opens the modal
+                                                                // Link Account
                                                                 <button
                                                                     class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
                                                                     on:click={
@@ -469,12 +491,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                                             modal_tenant_id.set(Some(tid.clone()));
                                                                         }
                                                                     }
-                                                                >"Link Account"</button>
-                                                                {anchor_id.clone().map(|aid| view! {
-                                                                    <a href=format!("/apps/{}/instance", aid)
-                                                                        class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-                                                                    >"Instance"</a>
-                                                                })}
+                                                                >"Link Acct"</button>
                                                                 <a href=format!("/billing/tenant/{}", tenant_id_str)
                                                                     class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
                                                                 >"Billing"</a>

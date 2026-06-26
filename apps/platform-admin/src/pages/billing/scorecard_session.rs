@@ -263,7 +263,7 @@ pub fn ScorecardSession() -> impl IntoView {
                                     />
                                 </div>
                                 <div class="space-y-2 text-xs">
-                                    <span class="font-bold text-on-surface-variant uppercase tracking-wider">"Outstanding Ledgers (G-03)"</span>
+                                    <span class="font-bold text-on-surface-variant uppercase tracking-wider">"Outstanding Billing"</span>
                                     <label class="flex items-center gap-3 bg-surface-container p-3 rounded-lg border border-outline-variant/20 cursor-pointer">
                                         <input type="checkbox" checked=true class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
                                         <span>"No overdue billing invoices in past 6 months"</span>

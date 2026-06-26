@@ -175,36 +175,39 @@ pub fn Dashboard() -> impl IntoView {
                     type_list.sort_by(|a, b| b.1.cmp(&a.1)); // most live first
 
                     view! {
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;padding:12px 0 4px;">
-                            {type_list.into_iter().map(|(slug, live, suspended)| {
-                                let emoji = app_type_emoji(&slug);
-                                let label = app_type_label(&slug);
-                                let all = live + suspended;
-                                let health_pct = if all > 0 { (live * 100) / all } else { 0 };
-                                let bar_color = if health_pct == 100 { "var(--green)" }
-                                    else if health_pct >= 50 { "var(--amber)" }
-                                    else { "var(--red)" };
-                                view! {
-                                    <div style="background:var(--surface-container,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:10px;padding:14px 16px;">
-                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                            <span style="font-size:18px">{emoji}</span>
-                                            <span style="font-size:12px;font-weight:600;color:var(--text-primary)">{label}</span>
+                        <div style="overflow-x:auto;">
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px 0 8px;min-width:600px;">
+                                {type_list.into_iter().map(|(slug, live, suspended)| {
+                                    let emoji = app_type_emoji(&slug);
+                                    let label = app_type_label(&slug);
+                                    let all = live + suspended;
+                                    let health_pct = if all > 0 { (live * 100) / all } else { 0 };
+                                    let bar_color = if health_pct == 100 { "var(--green)" }
+                                        else if health_pct >= 50 { "var(--amber)" }
+                                        else { "var(--red)" };
+                                    view! {
+                                        <div style="background:var(--surface-container,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:10px;padding:16px 18px;">
+                                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                                <span style="font-size:22px">{emoji}</span>
+                                                <span style="font-size:13px;font-weight:600;color:var(--text-primary)">{label}</span>
+                                            </div>
+                                            <div style="display:flex;gap:16px;font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+                                                <span><strong style="color:var(--green);font-size:16px;font-family:monospace">{live.to_string()}</strong>" live"</span>
+                                                {if suspended > 0 {
+                                                    view! { <span><strong style="color:var(--red)">{suspended.to_string()}</strong>" suspended"</span> }.into_any()
+                                                } else {
+                                                    view! { <></> }.into_any()
+                                                }}
+                                            </div>
+                                            // Health bar
+                                            <div style="height:4px;background:var(--border,rgba(255,255,255,0.07));border-radius:2px;overflow:hidden;">
+                                                <div style=format!("height:100%;width:{}%;background:{};border-radius:2px;transition:width 0.4s;", health_pct, bar_color)></div>
+                                            </div>
+                                            <div style="margin-top:6px;font-size:10px;color:var(--text-muted);font-family:monospace">{format!("{}% healthy", health_pct)}</div>
                                         </div>
-                                        <div style="display:flex;gap:12px;font-size:11px;color:var(--text-muted);margin-bottom:8px;">
-                                            <span><strong style=format!("color:var(--green)")+"">{live.to_string()}</strong>" live"</span>
-                                            {if suspended > 0 {
-                                                view! { <span><strong style="color:var(--red)">{suspended.to_string()}</strong>" suspended"</span> }.into_any()
-                                            } else {
-                                                view! { <></> }.into_any()
-                                            }}
-                                        </div>
-                                        // Health bar
-                                        <div style="height:3px;background:var(--border,rgba(255,255,255,0.07));border-radius:2px;overflow:hidden;">
-                                            <div style=format!("height:100%;width:{}%;background:{};border-radius:2px;transition:width 0.4s;", health_pct, bar_color)></div>
-                                        </div>
-                                    </div>
-                                }
-                            }).collect_view()}
+                                    }
+                                }).collect_view()}
+                            </div>
                         </div>
                     }.into_any()
                 }}

@@ -32,7 +32,7 @@ pub fn Scorecards() -> impl IntoView {
             // ── Page Header ──
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
                 <div>
-                    <h1 class="text-2xl font-extrabold tracking-tight text-on-surface">"Scorecards · G-27"</h1>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-on-surface">"Scorecards"</h1>
                     <p class="text-xs text-on-surface-variant mt-1">"Universal structured evaluation engine · 6 active templates · 1,204 evaluations"</p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -223,7 +223,7 @@ pub fn Scorecards() -> impl IntoView {
                                         class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all cursor-pointer"
                                         on:change=move |ev| selected_template_entity.set(event_target_value(&ev))
                                     >
-                                        <option value="Lead" selected=move || selected_template_entity.get() == "Lead">"G-31 Lead"</option>
+                                        <option value="Lead" selected=move || selected_template_entity.get() == "Lead">"Lead"</option>
                                         <option value="Property" selected=move || selected_template_entity.get() == "Property">"Property Listing"</option>
                                         <option value="Vendor" selected=move || selected_template_entity.get() == "Vendor">"Maintenance Vendor"</option>
                                         <option value="Tenant" selected=move || selected_template_entity.get() == "Tenant">"Platform Tenant"</option>
