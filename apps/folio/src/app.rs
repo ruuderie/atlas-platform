@@ -7,6 +7,7 @@ use crate::auth::{FolioRole, SessionInfo, check_session};
 use crate::pages::not_found::NotFound;
 use crate::pages::login::Login;
 use crate::pages::verify::Verify;
+use crate::pages::marketing::market_landing_page::MarketLandingPage;
 
 // Landlord pages
 use crate::pages::landlord::{
@@ -84,6 +85,13 @@ pub fn App() -> impl IntoView {
                 // ── Public ────────────────────────────────────────────────────
                 <Route path=path!("/login")  view=Login/>
                 <Route path=path!("/verify") view=Verify/>
+
+                // ── Marketing landing pages (zero-auth SSR) ───────────────────
+                // /lp              → product master page (folio.app)
+                // /lp/:variant_slug → market variant    (miami.folio.app → /lp/miami-fl)
+                // Placed before role dispatch so CDN requests match without auth.
+                <Route path=path!("/lp")               view=MarketLandingPage/>
+                <Route path=path!("/lp/:variant_slug") view=MarketLandingPage/>
 
                 // ── Role dispatch: / → namespace ──────────────────────────────
                 <Route path=path!("/") view=RoleRedirect/>

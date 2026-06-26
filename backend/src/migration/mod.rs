@@ -291,6 +291,8 @@ pub mod m20260912_atlas_syndication_offer;         // Platform-generic syndicati
 pub mod m20260913_atlas_app_instance_syndication;  // Platform-generic instance syndication active links
 pub mod m20260914_atlas_listing_asset_fk;          // atlas_listing: add asset_id FK to atlas_assets
 pub mod m20260915_atlas_syndication_outbox;        // G-05 Syndication Event Bus: outbox + integration events ledger
+pub mod m20260916_product_tracking_pixels;         // GTM Landing Page Engine: per-product tracking pixels (GA4, GTM, Meta, LinkedIn, custom)
+pub mod m20260917_platform_products_app_slug;      // GTM Landing Page Engine: app_slug on platform_products — explicit product→app binary binding
 
 pub struct Migrator;
 
@@ -529,6 +531,12 @@ impl MigratorTrait for Migrator {
             // at-least-once delivery, exponential back-off, dead-letter after 5 attempts)
             // + atlas_integration_events (immutable delivery ledger for audit trails).
             Box::new(m20260915_atlas_syndication_outbox::Migration),
+            // GTM Landing Page Engine: per-product tracking pixel snippets injected at SSR render time.
+            Box::new(m20260916_product_tracking_pixels::Migration),
+            // GTM Landing Page Engine: app_slug on platform_products.
+            // Makes the product→app binary binding explicit and DB-enforced.
+            // pub_resolve returns app_slug so CDN workers route to the correct SSR binary.
+            Box::new(m20260917_platform_products_app_slug::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

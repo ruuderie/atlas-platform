@@ -8,3 +8,4 @@ pub mod broker;
 pub mod login;
 pub mod verify;
 pub mod not_found;
+pub mod marketing;  // zero-auth SSR landing pages served at /lp/*

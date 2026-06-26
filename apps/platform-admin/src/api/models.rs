@@ -1,6 +1,91 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+// ── GTM discriminant enums ────────────────────────────────────────────────────
+//
+// Mirror of backend::types::gtm — kept in sync by convention since there is
+// no shared crate yet. Each enum uses #[serde(rename_all = "snake_case")] so
+// JSON from the backend round-trips transparently.
+//
+// Rule: if the backend adds a variant here, add it here too. The compiler will
+// then flag every non-exhaustive match site in the UI.
+
+/// Controls what a visitor sees when landing on a product page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchMode {
+    Active,
+    Waitlist,
+    PreOrder,
+    PreLaunch,
+    Draft,
+}
+
+impl LaunchMode {
+    /// Human-friendly label shown in the platform-admin UI.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Active    => "Active",
+            Self::Waitlist  => "Waitlist",
+            Self::PreOrder  => "Pre-Order",
+            Self::PreLaunch => "Pre-Launch",
+            Self::Draft     => "Draft",
+        }
+    }
+
+    /// Badge CSS class for the variants table.
+    pub fn badge_class(&self) -> &'static str {
+        match self {
+            Self::Active    => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+            Self::Waitlist  => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20",
+            Self::PreOrder  => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20",
+            Self::PreLaunch => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-sky-500/10 text-sky-400 border border-sky-500/20",
+            Self::Draft     => "inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold bg-outline-variant/20 text-on-surface-variant border border-outline-variant/20",
+        }
+    }
+}
+
+/// How a variant's copy was authored / last modified.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalizationStatus {
+    Base,
+    AiLocalized,
+    Manual,
+    Pending,
+}
+
+impl LocalizationStatus {
+    /// Short badge label shown in the variants table.
+    pub fn badge_label(&self) -> Option<&'static str> {
+        match self {
+            Self::AiLocalized => Some("AI"),
+            Self::Manual      => Some("Manual"),
+            Self::Pending     => Some("Pending"),
+            Self::Base        => None,
+        }
+    }
+
+    /// Badge CSS class — returns `None` for `Base` (no badge rendered).
+    pub fn badge_class(&self) -> Option<&'static str> {
+        match self {
+            Self::AiLocalized => Some("bg-violet-500/10 text-violet-400 border-violet-500/20"),
+            Self::Manual      => Some("bg-sky-500/10 text-sky-400 border-sky-500/20"),
+            Self::Pending     => Some("bg-amber-500/10 text-amber-400 border-amber-500/20"),
+            Self::Base        => None,
+        }
+    }
+}
+
+/// The strategy used when generating a variant's copy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CopyStrategy {
+    Localized,
+    BaseCopy,
+    AiGenerated,
+}
+
 /// The backend-side `TenantModel` returned by `POST /api/tenants`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantCreatedModel {
@@ -475,7 +560,8 @@ pub struct ProductVariantModel {
     pub og_image_url: Option<String>,
     pub canonical_url: Option<String>,
     pub structured_data: Option<serde_json::Value>,
-    pub launch_mode: String,
+    /// Typed — compiler enforces exhaustive match in UI components.
+    pub launch_mode: LaunchMode,
     pub is_published: bool,
     pub cta_label: Option<String>,
     pub cta_action: Option<String>,
@@ -483,8 +569,10 @@ pub struct ProductVariantModel {
     pub pre_order_sold: i32,
     pub lead_count: i32,
     pub view_count: i32,
-    pub copy_strategy: String,
-    pub localization_status: String,
+    /// Typed — compiler enforces exhaustive match in UI components.
+    pub copy_strategy: CopyStrategy,
+    /// Typed — compiler enforces exhaustive match in UI components.
+    pub localization_status: LocalizationStatus,
     pub localization_task_id: Option<uuid::Uuid>,
     pub subdomain_override: Option<String>,
     pub created_at: String,

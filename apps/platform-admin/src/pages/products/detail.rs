@@ -2,8 +2,8 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
-use crate::api::products::{get_product_detail, update_product_detail, publish_marketing};
-use crate::api::models::UpdateProductBody;
+use crate::api::products::{get_product_detail, get_variants, update_product_detail, publish_marketing};
+use crate::api::models::{LaunchMode, LocalizationStatus, UpdateProductBody};
 use crate::api::crm::get_leads;
 use crate::app::GlobalToast;
 
@@ -56,6 +56,14 @@ pub fn ProductDetail() -> impl IntoView {
         if slug.is_empty() { return vec![]; }
         let prefix = format!("waitlist:{}", slug);
         get_leads(None, 1, 200, None, Some(&prefix)).await.unwrap_or_default()
+    });
+
+    // Variants — fetched when product_uuid is known
+    let variants_res = LocalResource::new(move || async move {
+        match product_uuid() {
+            Some(id) => get_variants(id).await.unwrap_or_default(),
+            None => vec![],
+        }
     });
 
     // ── SEO score derived from completeness of real fields ─────────────────
@@ -229,6 +237,9 @@ pub fn ProductDetail() -> impl IntoView {
                         view! {
                             {tab_btn("general", "General Info")}
                             {tab_btn("pricing", "Pricing & Plans")}
+                            {tab_btn("variants", "Variants")}
+                            {tab_btn("pixels", "Pixels")}
+                            {tab_btn("domains", "Domains")}
                             {tab_btn("waitlist", "Waitlist Leads")}
                             {tab_btn("seo", "SEO & Metadata")}
                         }
@@ -553,6 +564,269 @@ pub fn ProductDetail() -> impl IntoView {
                                     }}
                                 </p>
                             </div>
+                        </div>
+                    </div>
+                </Show>
+
+                // ── TAB CONTENT: Variants (GTM Launcher) ──
+                <Show when=move || active_tab.get() == "variants">
+                    <div class="space-y-4">
+                        // Header
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-on-surface">"Market Variants"</h3>
+                                <p class="text-xs text-on-surface-variant/70 mt-0.5">
+                                    "Each variant is a landing page targeting a specific market, city, or niche."
+                                </p>
+                            </div>
+                            <a
+                                href=move || format!("/products/{}/variants/new", product_slug.get())
+                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                id="btn-new-variant"
+                            >
+                                <span class="material-symbols-outlined text-[14px]">"add"</span>
+                                "New Variant"
+                            </a>
+                        </div>
+
+                        // Variants table
+                        <Suspense fallback=|| view! {
+                            <div class="p-8 text-center text-xs text-on-surface-variant/60">"Loading variants…"</div>
+                        }>
+                        {move || {
+                            let variants = variants_res.get().unwrap_or_default();
+                            if variants.is_empty() {
+                                view! {
+                                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-12 flex flex-col items-center gap-3 text-center">
+                                        <span class="material-symbols-outlined text-[36px] text-on-surface-variant/30">"travel_explore"</span>
+                                        <p class="text-sm font-semibold text-on-surface-variant">"No variants yet"</p>
+                                        <p class="text-xs text-on-surface-variant/60 max-w-xs">
+                                            "Create a variant to build a market-specific landing page for a city, niche, or audience."
+                                        </p>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
+                                        <table class="w-full text-left text-sm">
+                                            <thead>
+                                                <tr class="border-b border-outline-variant/10 bg-surface-container">
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Slug"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Market"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Launch Mode"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Status"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Leads"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Views"</th>
+                                                    <th class="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Actions"</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-outline-variant/10">
+                                                <For
+                                                    each=move || variants_res.get().unwrap_or_default()
+                                                    key=|v| v.id
+                                                    children=move |v| {
+                                                        let preview_url = format!(
+                                                            "/api/pub/products/{}/{}",
+                                                            product_slug.get(),
+                                                            v.variant_slug
+                                                        );
+                                                        let market = match (&v.city, &v.region) {
+                                                            (Some(c), Some(r)) => format!("{}, {}", c, r),
+                                                            (Some(c), None)    => c.clone(),
+                                                            (None, Some(r))    => r.clone(),
+                                                            _                  => v.locale.clone(),
+                                                        };
+                                                        // — Use typed enum methods; compiler enforces exhaustive coverage —
+                                                        let launch_mode_class = v.launch_mode.badge_class();
+                                                        let launch_mode_label = v.launch_mode.label();
+                                                        let loc_badge = v.localization_status
+                                                            .badge_label()
+                                                            .zip(v.localization_status.badge_class());
+                                                        view! {
+                                                            <tr class="hover:bg-surface-container-high/30 transition-colors">
+                                                                <td class="px-4 py-3">
+                                                                    <code class="text-xs font-mono text-primary/80">
+                                                                        {v.variant_slug.clone()}
+                                                                    </code>
+                                                                    {loc_badge.map(|(label, cls)| view! {
+                                                                        <span class=format!("ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold border {}", cls)>
+                                                                            {label}
+                                                                        </span>
+                                                                    })}
+                                                                </td>
+                                                                <td class="px-4 py-3 text-xs text-on-surface-variant">{market}</td>
+                                                                <td class="px-4 py-3">
+                                                                    <span class=launch_mode_class>
+                                                                        {launch_mode_label}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-4 py-3">
+                                                                    <span class=if v.is_published {
+                                                                        "inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400"
+                                                                    } else {
+                                                                        "inline-flex items-center gap-1 text-[9px] font-bold text-on-surface-variant/50"
+                                                                    }>
+                                                                        {if v.is_published { "● Live" } else { "○ Draft" }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="px-4 py-3 text-xs font-mono font-bold text-on-surface">
+                                                                    {v.lead_count}
+                                                                </td>
+                                                                <td class="px-4 py-3 text-xs font-mono text-on-surface-variant">
+                                                                    {v.view_count}
+                                                                </td>
+                                                                <td class="px-4 py-3">
+                                                                    <div class="flex items-center gap-2">
+                                                                        <a
+                                                                            href=preview_url
+                                                                            target="_blank"
+                                                                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 transition-all"
+                                                                            title="Preview page data"
+                                                                        >
+                                                                            <span class="material-symbols-outlined text-[11px]">"open_in_new"</span>
+                                                                            "Preview"
+                                                                        </a>
+                                                                        <button
+                                                                            class="inline-flex items-center px-2.5 py-1 rounded text-[10px] font-semibold border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:border-outline-variant/60 transition-all"
+                                                                            title="Duplicate variant"
+                                                                        >
+                                                                            "Duplicate"
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                />
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }.into_any()
+                            }
+                        }}
+                        </Suspense>
+
+                        // Bulk ops bar
+                        <div class="flex items-center gap-3 pt-2">
+                            <span class="text-xs text-on-surface-variant/60">
+                                {move || format!("{} variant(s)", variants_res.get().unwrap_or_default().len())}
+                            </span>
+                            <div class="ml-auto flex gap-2">
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high/50 transition-all">
+                                    "Bulk Localize (AI)"
+                                </button>
+                                <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high/50 transition-all">
+                                    "Bulk Publish"
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </Show>
+
+                // ── TAB CONTENT: Pixels ──
+                <Show when=move || active_tab.get() == "pixels">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-on-surface">"Tracking Pixels"</h3>
+                                <p class="text-xs text-on-surface-variant/70 mt-0.5">
+                                    "Snippets injected into every landing page for this product at serve time."
+                                </p>
+                            </div>
+                            <button
+                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                id="btn-add-pixel"
+                                on:click=move |_| toast.show_toast("Add Pixel", "Pixel editor coming soon — wire to product_tracking_pixels API.", "info")
+                            >
+                                <span class="material-symbols-outlined text-[14px]">"add"</span>
+                                "Add Pixel"
+                            </button>
+                        </div>
+
+                        // Pixel types guide
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4">"Configured Pixels"</p>
+                            <div class="space-y-3">
+                                // Empty state — pixels come from product_tracking_pixels table
+                                <div class="flex flex-col items-center gap-3 py-8 text-center">
+                                    <span class="material-symbols-outlined text-[32px] text-on-surface-variant/30">"track_changes"</span>
+                                    <p class="text-xs text-on-surface-variant/60 max-w-xs">
+                                        "No tracking pixels configured. Add GA4, Meta Pixel, GTM, or LinkedIn tags — "
+                                        "they'll be injected into every landing page for this product."
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        // Pixel type reference
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-4">"Supported Pixel Types"</p>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {["GA4", "GTM", "Meta", "LinkedIn", "TikTok", "Custom"].into_iter().map(|t| view! {
+                                    <div class="flex items-center gap-2 p-3 rounded-lg border border-outline-variant/20 bg-surface-container">
+                                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant/60">"code"</span>
+                                        <span class="text-xs font-semibold text-on-surface">{t}</span>
+                                    </div>
+                                }).collect_view()}
+                            </div>
+                        </div>
+                    </div>
+                </Show>
+
+                // ── TAB CONTENT: Domains ──
+                <Show when=move || active_tab.get() == "domains">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-on-surface">"Domain Aliases"</h3>
+                                <p class="text-xs text-on-surface-variant/70 mt-0.5">
+                                    "Custom domains or subdomains that route to this product's landing pages."
+                                </p>
+                            </div>
+                            <button
+                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                                id="btn-add-domain"
+                                on:click=move |_| toast.show_toast("Add Domain", "Domain management coming soon — wire to product_domain_aliases API.", "info")
+                            >
+                                <span class="material-symbols-outlined text-[14px]">"add"</span>
+                                "Add Domain"
+                            </button>
+                        </div>
+
+                        // Apex domain card
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">
+                            <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">"Apex Domain"</p>
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-emerald-400 text-[18px]">"language"</span>
+                                <div>
+                                    <p class="text-sm font-mono font-semibold text-on-surface">
+                                        {move || if product_domain.get().is_empty() {
+                                            "Not configured".to_string()
+                                        } else {
+                                            product_domain.get()
+                                        }}
+                                    </p>
+                                    <p class="text-[10px] text-on-surface-variant/60 mt-0.5">
+                                        "Set in General Info. All subdomain variants resolve under this apex."
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        // How domain routing works
+                        <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm space-y-3">
+                            <p class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"How Domain Resolution Works"</p>
+                            {[
+                                ("Subdomain", "miami.folio.app → variant with subdomain_override=\"miami\""),
+                                ("Path", "folio.app/miami → variant with variant_slug=\"miami\""),
+                                ("Custom domain", "yourdomain.com → matched via product_domain_aliases table"),
+                                ("Apex fallback", "folio.app → product default (master template)"),
+                            ].into_iter().map(|(kind, desc)| view! {
+                                <div class="flex items-start gap-3 py-3 border-t border-outline-variant/10 first:border-0 first:pt-0">
+                                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0 mt-0.5 uppercase tracking-wider">{{kind}}</span>
+                                    <p class="text-xs text-on-surface-variant font-mono">{desc}</p>
+                                </div>
+                            }).collect_view()}
                         </div>
                     </div>
                 </Show>

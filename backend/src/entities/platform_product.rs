@@ -40,9 +40,17 @@ pub struct Model {
     pub apex_domain:            Option<String>,
     pub apex_domain_verified:   bool,
 
+    // ── App binding (m20260917) ────────────────────────────────────────────────────
+    /// Which Atlas app binary owns this product's landing page rendering.
+    /// Raw string form of `AppId` — parse via `AppId::try_from(&self.app_slug)`
+    /// in handlers. Same pattern as `launch_mode`. DB CHECK constraint enforces
+    /// the value is a valid `AppId` discriminant.
+    pub app_slug:               String,
+
     pub created_at:             DateTimeWithTimeZone,
     pub updated_at:             DateTimeWithTimeZone,
 }
+
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}

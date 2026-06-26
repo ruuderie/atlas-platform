@@ -61,6 +61,7 @@ use crate::entities::{
     platform_product,
     product_page::variant,
 };
+use crate::types::gtm::{AppId, LaunchMode, ResolutionType};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -72,7 +73,11 @@ pub struct ResolveQuery {
 
 #[derive(Debug, Serialize)]
 pub struct ResolveResponse {
-    pub resolution_type: String, // "product" | "variant" | "tenant_app" | "not_found"
+    /// Discriminant: drives the Folio frontend's rendering path selection.
+    pub resolution_type: ResolutionType,
+    /// Which app binary owns this product / tenant. Used by CDN workers to
+    /// route requests to the correct SSR origin without guessing from the slug.
+    pub app_slug:        String,
     pub product_id:      Option<Uuid>,
     pub product_slug:    Option<String>,
     pub product_name:    Option<String>,
@@ -80,7 +85,8 @@ pub struct ResolveResponse {
     pub variant_id:      Option<Uuid>,
     pub variant_slug:    Option<String>,
     pub locale:          Option<String>,
-    pub launch_mode:     Option<String>,
+    /// Typed launch mode so the frontend can gate CTA actions without string compares.
+    pub launch_mode:     Option<LaunchMode>,
     // Tenant-level (white-label app deployments)
     pub tenant_id:       Option<Uuid>,
     pub brand_name:      Option<String>,
@@ -131,7 +137,8 @@ pub async fn resolve_domain(
 
     // ── 404 ──────────────────────────────────────────────────────────────────
     let resp = ResolveResponse {
-        resolution_type: "not_found".to_string(),
+        resolution_type: ResolutionType::NotFound,
+        app_slug:     AppId::CorePlatform.to_string(), // sentinel; edge ignores on 404
         product_id:   None, product_slug:  None, product_name: None,
         apex_domain:  None, variant_id:    None, variant_slug: None,
         locale:       None, launch_mode:   None,
@@ -168,7 +175,8 @@ async fn try_resolve_subdomain(db: &DatabaseConnection, domain: &str) -> Option<
         .ok()??;
 
     Some(ResolveResponse {
-        resolution_type: "variant".to_string(),
+        resolution_type: ResolutionType::Variant,
+        app_slug:     product.app_slug.to_string(),
         product_id:   Some(product.id),
         product_slug: Some(product.slug.clone()),
         product_name: Some(product.name.clone()),
@@ -176,7 +184,7 @@ async fn try_resolve_subdomain(db: &DatabaseConnection, domain: &str) -> Option<
         variant_id:   Some(v.id),
         variant_slug: Some(v.variant_slug.clone()),
         locale:       Some(v.locale.clone()),
-        launch_mode:  Some(v.launch_mode.clone()),
+        launch_mode:  LaunchMode::try_from(v.launch_mode.as_str()).ok(),
         tenant_id:    None,
         brand_name:   None,
     })
@@ -201,7 +209,8 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
             .await
         {
             return Some(ResolveResponse {
-                resolution_type: "variant".to_string(),
+                resolution_type: ResolutionType::Variant,
+                app_slug:     product.app_slug.to_string(),
                 product_id:   Some(product.id),
                 product_slug: Some(product.slug.clone()),
                 product_name: Some(product.name.clone()),
@@ -209,7 +218,7 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
                 variant_id:   Some(v.id),
                 variant_slug: Some(v.variant_slug.clone()),
                 locale:       Some(v.locale.clone()),
-                launch_mode:  Some(v.launch_mode.clone()),
+                launch_mode:  LaunchMode::try_from(v.launch_mode.as_str()).ok(),
                 tenant_id:    None,
                 brand_name:   None,
             });
@@ -218,7 +227,8 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
 
     // Root apex → product master
     Some(ResolveResponse {
-        resolution_type: "product".to_string(),
+        resolution_type: ResolutionType::Product,
+        app_slug:     product.app_slug.to_string(),
         product_id:   Some(product.id),
         product_slug: Some(product.slug.clone()),
         product_name: Some(product.name.clone()),
@@ -226,7 +236,7 @@ async fn try_resolve_apex(db: &DatabaseConnection, domain: &str, path: &str) -> 
         variant_id:   None,
         variant_slug: None,
         locale:       Some("en".to_string()),
-        launch_mode:  Some(product.launch_mode.clone()),
+        launch_mode:  LaunchMode::try_from(product.launch_mode.as_str()).ok(),
         tenant_id:    None,
         brand_name:   None,
     })
@@ -241,7 +251,8 @@ async fn try_resolve_tenant_domain(db: &DatabaseConnection, domain: &str) -> Opt
         .ok()??;
 
     Some(ResolveResponse {
-        resolution_type: "tenant_app".to_string(),
+        resolution_type: ResolutionType::TenantApp,
+        app_slug:     cfg.app_slug.clone(), // atlas_app_deployment_config already has app_slug
         product_id:   None,
         product_slug: Some(cfg.app_slug.clone()),
         product_name: None,

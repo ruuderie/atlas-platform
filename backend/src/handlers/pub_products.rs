@@ -42,6 +42,7 @@ use crate::entities::{
     product_page::{template, variant},
     atlas_lead,
 };
+use crate::types::gtm::PlanTier;
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -113,10 +114,32 @@ pub struct HreflangEntry {
 
 #[derive(Debug, Deserialize)]
 pub struct WaitlistBody {
-    pub email:   String,
-    pub name:    Option<String>,
-    pub phone:   Option<String>,
-    pub company: Option<String>,
+    // Contact
+    pub email:        String,
+    pub name:         Option<String>,
+    pub phone:        Option<String>,
+    pub company:      Option<String>,
+
+    // UTM attribution (populated by JS utm_passthrough snippet)
+    pub utm_source:   Option<String>,
+    pub utm_medium:   Option<String>,
+    pub utm_campaign: Option<String>,
+    pub utm_content:  Option<String>,
+    pub utm_term:     Option<String>,
+
+    // Click IDs
+    pub gclid:        Option<String>,   // Google Ads
+    pub fbclid:       Option<String>,   // Meta
+    pub msclkid:      Option<String>,   // Microsoft Ads
+
+    // Landing context
+    pub referrer:     Option<String>,
+    pub landing_url:  Option<String>,
+
+    // Plan selection (for Trial mode — step 3 of modal)
+    /// `None` means the visitor did not select a plan during signup.
+    pub plan:         Option<PlanTier>,  // Starter | Professional | Portfolio
+    pub unit_count:   Option<i32>,       // self-reported portfolio size
 }
 
 #[derive(Debug, Deserialize)]
@@ -530,6 +553,23 @@ async fn join_waitlist_inner(
             lead_status: Set("new".to_string()),
             email_verified: Set(false),
             phone_verified: Set(false),
+            // Attribution + landing context stored in lead_metadata JSONB
+            lead_metadata: Set(Some(json!({
+                "variant_slug":  variant_slug,
+                "utm_source":    body.utm_source,
+                "utm_medium":    body.utm_medium,
+                "utm_campaign":  body.utm_campaign,
+                "utm_content":   body.utm_content,
+                "utm_term":      body.utm_term,
+                "gclid":         body.gclid,
+                "fbclid":        body.fbclid,
+                "msclkid":       body.msclkid,
+                "referrer":      body.referrer,
+                "landing_url":   body.landing_url,
+                "plan":          body.plan,
+                "unit_count":    body.unit_count,
+                "captured_at":   Utc::now().to_rfc3339(),
+            }))),
             created_at:  Set(Utc::now()),
             updated_at:  Set(Utc::now()),
             ..Default::default()
