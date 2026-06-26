@@ -406,13 +406,20 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="12" height="8" rx="1"/><line x1="2" y1="9" x2="14" y2="9"/></svg>
                         "Billing"
                     </a>
-                    <a href="/billing/products" class=move || side_active_class("/billing/products")>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 5.5l-6-3.5L2 5.5v5l6 3.5 6-3.5v-5z"/><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="5.5" x2="14" y2="5.5"/></svg>
-                        "Products & Plans"
+                    <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z"/></svg>
+                        "Scorecards"
                     </a>
-                    <a href="/products" class=move || side_active_class("/products")>
+
+                    <span class="nav-label nav-section-label">"Go-to-Market"</span>
+                    // Landing Pages = the canonical home for all product/market management.
+                    // Covers content, SEO, variants, pixels, domains, and waitlist in one place.
+                    <a href="/products" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/products") { "nav-item active" } else { "nav-item" }
+                    }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg>
-                        "Storefront Pages"
+                        "Landing Pages"
                     </a>
                     <a href="/network" class=move || side_active_class("/network")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M1 8h14M8 1a12 12 0 0 1 0 14A12 12 0 0 1 8 1"/></svg>
@@ -429,10 +436,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     <a href="/verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
-                    </a>
-                    <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z"/></svg>
-                        "Scorecards"
                     </a>
 
                     <span class="nav-label nav-section-label">"Operations"</span>
@@ -523,7 +526,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/admins") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant::TenantLedger />
-                        <Route path=path!("/billing/products") view=crate::pages::billing::products::BillingProducts />
+                        // /billing/products is retired — redirect to the canonical /products page.
+                        // Landing page management (content, markets, pixels, domains) all live at /products now.
+                        <Route path=path!("/billing/products") view=|| view! {
+                            <crate::components::redirect::Redirect to="/products" />
+                        } />
                         <Route path=path!("/billing/scorecards") view=Scorecards />
                         <Route path=path!("/billing/scorecards/session") view=ScorecardSession />
                         <Route path=path!("/verification") view=Verification />

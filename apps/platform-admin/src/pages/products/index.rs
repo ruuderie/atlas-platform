@@ -3,16 +3,11 @@ use crate::api::products::get_products;
 
 #[component]
 pub fn PlatformProducts() -> impl IntoView {
-    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // Load real platform products from database
     let products_res = LocalResource::new(move || async move {
         get_products().await.unwrap_or_default()
     });
-
-    let handle_import = move |_| {
-        toast.show_toast("Import", "Storefront page import template initialized.", "info");
-    };
 
     view! {
         <Suspense fallback=|| view! {
@@ -36,23 +31,16 @@ pub fn PlatformProducts() -> impl IntoView {
                         // ── Page Header ──
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
-                                <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Platform Products"</h1>
-                                <p class="text-sm text-on-surface-variant mt-1">"Marketing pages, pricing tiers, and storefront configuration"</p>
+                                <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Landing Pages"</h1>
+                                <p class="text-sm text-on-surface-variant mt-1">"Manage product landing pages, markets, localization, and tracking."</p>
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
-                                <button
-                                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high/50 transition-all"
-                                    id="btn-import-page"
-                                    on:click=handle_import
-                                >
-                                    "Import page"
-                                </button>
                                 <a
-                                    href="/billing/products"
+                                    href="/products/new"
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                     id="btn-new-product"
                                 >
-                                    "+ New product"
+                                    "+ New Product"
                                 </a>
                             </div>
                         </div>
@@ -68,18 +56,8 @@ pub fn PlatformProducts() -> impl IntoView {
                                 <span class="text-3xl font-black text-emerald-400 font-mono">{live_pages}</span>
                             </div>
                             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Total Leads (30d)"</span>
-                                <div class="flex items-end gap-2">
-                                    <span class="text-3xl font-black text-on-surface font-mono">{total_leads}</span>
-                                    <span class="text-xs font-bold text-emerald-400 mb-1">"↑ 34%"</span>
-                                </div>
-                            </div>
-                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Conversion Rate"</span>
-                                <div class="flex items-end gap-2">
-                                    <span class="text-3xl font-black text-on-surface font-mono">"4.1%"</span>
-                                    <span class="text-xs font-bold text-emerald-400 mb-1">"↑ 0.7pp"</span>
-                                </div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Leads (30 d)"</span>
+                                <span class="text-3xl font-black text-on-surface font-mono">{total_leads}</span>
                             </div>
                         </div>
 
@@ -175,7 +153,7 @@ pub fn PlatformProducts() -> impl IntoView {
                                         <p class="text-xs text-on-surface-variant/60 mt-1">"Create your first product to start building marketing pages."</p>
                                     </div>
                                     <a
-                                        href="/billing/products"
+                                        href="/products/new"
                                         class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                     >
                                         "+ Create Product"
