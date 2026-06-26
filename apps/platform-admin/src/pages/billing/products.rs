@@ -1,8 +1,9 @@
 use leptos::prelude::*;
 use uuid::Uuid;
 use crate::api::models::{
+    CopyStrategy, LaunchMode, LocalizationStatus,
     PlatformProductModel, ProductVariantModel, UpdateProductBody,
-    BulkGenerateBody, MarketSpec
+    BulkGenerateBody, MarketSpec,
 };
 
 #[component]
@@ -141,7 +142,7 @@ pub fn BillingProducts() -> impl IntoView {
                 og_image_url: None,
                 canonical_url: None,
                 structured_data: None,
-                launch_mode: "live".to_string(),
+                launch_mode: LaunchMode::Active,
                 is_published: true,
                 cta_label: None,
                 cta_action: None,
@@ -149,8 +150,8 @@ pub fn BillingProducts() -> impl IntoView {
                 pre_order_sold: 0,
                 lead_count: 0,
                 view_count: 0,
-                copy_strategy: "Source Content".to_string(),
-                localization_status: "live".to_string(),
+                copy_strategy: CopyStrategy::BaseCopy,
+                localization_status: LocalizationStatus::Base,
                 localization_task_id: None,
                 subdomain_override: None,
                 created_at: "".to_string(),
@@ -174,7 +175,7 @@ pub fn BillingProducts() -> impl IntoView {
                 og_image_url: None,
                 canonical_url: None,
                 structured_data: None,
-                launch_mode: "live".to_string(),
+                launch_mode: LaunchMode::Active,
                 is_published: true,
                 cta_label: None,
                 cta_action: None,
@@ -182,8 +183,8 @@ pub fn BillingProducts() -> impl IntoView {
                 pre_order_sold: 0,
                 lead_count: 0,
                 view_count: 0,
-                copy_strategy: "AI ✦ Auto-Trans".to_string(),
-                localization_status: "live".to_string(),
+                copy_strategy: CopyStrategy::AiGenerated,
+                localization_status: LocalizationStatus::AiLocalized,
                 localization_task_id: None,
                 subdomain_override: None,
                 created_at: "Jun 08".to_string(),
@@ -207,7 +208,7 @@ pub fn BillingProducts() -> impl IntoView {
                 og_image_url: None,
                 canonical_url: None,
                 structured_data: None,
-                launch_mode: "awaiting_review".to_string(),
+                launch_mode: LaunchMode::PreLaunch,
                 is_published: false,
                 cta_label: None,
                 cta_action: None,
@@ -215,8 +216,8 @@ pub fn BillingProducts() -> impl IntoView {
                 pre_order_sold: 0,
                 lead_count: 0,
                 view_count: 0,
-                copy_strategy: "AI ✦ Auto-Trans".to_string(),
-                localization_status: "awaiting_review".to_string(),
+                copy_strategy: CopyStrategy::AiGenerated,
+                localization_status: LocalizationStatus::Pending,
                 localization_task_id: None,
                 subdomain_override: None,
                 created_at: "Jun 09".to_string(),
@@ -664,19 +665,19 @@ pub fn BillingProducts() -> impl IntoView {
                                                             children=move |v| {
                                                                 let status_color = if v.is_published {
                                                                     "text-[#c6fff3] font-semibold".to_string()
-                                                                } else if v.launch_mode == "awaiting_review" {
+                                                                } else if v.localization_status == LocalizationStatus::Pending {
                                                                     "text-amber-400 font-semibold".to_string()
                                                                 } else {
                                                                     "text-on-surface-variant".to_string()
                                                                 };
                                                                 let status_txt = if v.is_published {
                                                                     "● Live".to_string()
-                                                                } else if v.launch_mode == "awaiting_review" {
+                                                                } else if v.localization_status == LocalizationStatus::Pending {
                                                                     "⚠ Awaiting Review".to_string()
                                                                 } else {
-                                                                    format!("● {}", v.launch_mode)
+                                                                    format!("● {}", v.launch_mode.label())
                                                                 };
-                                                                let is_ai = v.copy_strategy.contains("AI");
+                                                                let is_ai = v.copy_strategy == CopyStrategy::AiGenerated;
                                                                 let strategy_color = if is_ai {
                                                                     "text-primary font-semibold"
                                                                 } else {
@@ -695,10 +696,10 @@ pub fn BillingProducts() -> impl IntoView {
                                                                         <td class="py-3 px-4">{market_name}</td>
                                                                         <td class=format!("py-3 px-4 {}", status_color)>{status_txt}</td>
                                                                         <td class="py-3 px-4 text-on-surface-variant">{last_run}</td>
-                                                                        <td class=format!("py-3 px-4 {}", strategy_color)>{v.copy_strategy.clone()}</td>
+                                                                        <td class=format!("py-3 px-4 {}", strategy_color)>{v.copy_strategy.label()}</td>
                                                                         <td class="py-3 px-4 text-right">
                                                                             <Show
-                                                                                when=move || v.launch_mode == "awaiting_review"
+                                                                                when=move || v.localization_status == LocalizationStatus::Pending
                                                                                 fallback=move || view! {
                                                                                     <button class="px-2 py-1 bg-surface-bright text-on-surface rounded text-[10px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Opening locale config...", "success")>"Config"</button>
                                                                                 }

@@ -45,6 +45,12 @@ impl LaunchMode {
     }
 }
 
+impl std::fmt::Display for LaunchMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
 /// How a variant's copy was authored / last modified.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -84,6 +90,23 @@ pub enum CopyStrategy {
     Localized,
     BaseCopy,
     AiGenerated,
+}
+
+impl CopyStrategy {
+    /// Human-friendly label shown in the variants table.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Localized    => "Source Content",
+            Self::BaseCopy     => "Base Copy",
+            Self::AiGenerated  => "AI ✦ Auto-Trans",
+        }
+    }
+}
+
+impl std::fmt::Display for CopyStrategy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
 }
 
 /// The backend-side `TenantModel` returned by `POST /api/tenants`.

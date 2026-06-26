@@ -3,7 +3,7 @@ use leptos_router::hooks::use_params_map;
 use uuid::Uuid;
 
 use crate::api::products::{get_product_detail, get_variants, update_product_detail, publish_marketing};
-use crate::api::models::{LaunchMode, LocalizationStatus, UpdateProductBody};
+use crate::api::models::UpdateProductBody;
 use crate::api::crm::get_leads;
 use crate::app::GlobalToast;
 
