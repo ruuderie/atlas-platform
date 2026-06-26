@@ -181,7 +181,7 @@ pub async fn update_public_config(id: Uuid, public_slug: Option<String>, custom_
 }
 
 /// PATCH /api/admin/app-instances/{id}/operational-config
-/// Updates folio_mode, billing_tier, and portal enablement flags.
+/// Updates folio_mode, billing_tier, portal flags, and/or branding.
 pub async fn update_operational_config(
     id: Uuid,
     folio_mode: Option<String>,
@@ -196,6 +196,26 @@ pub async fn update_operational_config(
         "billing_tier": billing_tier,
         "tenant_portal_enabled": tenant_portal_enabled,
         "vendor_portal_enabled": vendor_portal_enabled,
+    });
+    let req = client.patch(&url).json(&payload);
+    crate::api::client::api_request(req).await
+}
+
+/// PATCH /api/admin/app-instances/{id}/operational-config
+/// Saves branding settings only (theme, primary color, font).
+/// Stored in config["branding"] JSONB on the backend.
+pub async fn update_branding_config(
+    id: Uuid,
+    branding_theme: Option<String>,
+    branding_color: Option<String>,
+    branding_font: Option<String>,
+) -> Result<PublicConfigResponse, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url(&format!("api/admin/app-instances/{}/operational-config", id));
+    let payload = serde_json::json!({
+        "branding_theme": branding_theme,
+        "branding_color": branding_color,
+        "branding_font": branding_font,
     });
     let req = client.patch(&url).json(&payload);
     crate::api::client::api_request(req).await

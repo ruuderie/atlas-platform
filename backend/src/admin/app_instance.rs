@@ -131,6 +131,13 @@ pub struct UpdateOperationalConfigBody {
     pub billing_tier:          Option<String>,
     pub tenant_portal_enabled: Option<bool>,
     pub vendor_portal_enabled: Option<bool>,
+    /// Branding fields — stored in config["branding"] JSON object
+    /// Theme: "dark-slate" | "light-clean" | "high-contrast"
+    pub branding_theme:        Option<String>,
+    /// Primary brand color hex, e.g. "#0A84FF"
+    pub branding_color:        Option<String>,
+    /// Font key: "inter" | "roboto" | "outfit"
+    pub branding_font:         Option<String>,
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -429,6 +436,24 @@ pub async fn update_operational_config(
     }
     if let Some(vp) = body.vendor_portal_enabled {
         config.insert("vendor_portal_enabled".into(), JsonValue::Bool(vp));
+    }
+    // Branding: merge into config["branding"] object
+    if body.branding_theme.is_some() || body.branding_color.is_some() || body.branding_font.is_some() {
+        let mut branding: serde_json::Map<String, JsonValue> = config
+            .get("branding")
+            .and_then(|v| v.as_object())
+            .cloned()
+            .unwrap_or_default();
+        if let Some(theme) = &body.branding_theme {
+            branding.insert("theme".into(), JsonValue::String(theme.clone()));
+        }
+        if let Some(color) = &body.branding_color {
+            branding.insert("primary_color".into(), JsonValue::String(color.clone()));
+        }
+        if let Some(font) = &body.branding_font {
+            branding.insert("font".into(), JsonValue::String(font.clone()));
+        }
+        config.insert("branding".into(), JsonValue::Object(branding));
     }
     active.config = Set(sea_orm::entity::prelude::Json::Object(config));
 

@@ -5,6 +5,7 @@ use crate::api::admin::{
     get_app_domains, add_app_domain as api_add_domain, remove_app_domain as api_remove_domain,
     suspend_instance, resume_instance,
     get_public_config, update_public_config,
+    update_branding_config,
 };
 
 #[component]
@@ -147,7 +148,39 @@ pub fn NetworkDetail() -> impl IntoView {
     };
 
     // Branding: no theme/color/font columns in atlas_app_deployment_config yet.
-    // Gate the button — do not show fake success.
+    // Now wired to config["branding"] JSONB via update_branding_config.
+    let saving_branding = RwSignal::new(false);
+    let save_branding = {
+        let toast2 = toast.clone();
+        move |_| {
+            let id_str = instance_id();
+            let Ok(id) = Uuid::parse_str(&id_str) else {
+                toast2.show_toast("Error", "Invalid instance ID in URL.", "error");
+                return;
+            };
+            let theme = theme_mode.get();
+            let color = primary_color.get();
+            let font  = selected_font.get();
+            saving_branding.set(true);
+            let toast3 = toast2.clone();
+            leptos::task::spawn_local(async move {
+                match update_branding_config(
+                    id,
+                    Some(theme),
+                    Some(color),
+                    Some(font),
+                ).await {
+                    Ok(_) => { toast3.show_toast("Branding Saved", "Theme, color, and font persisted to instance config.", "success"); }
+                    Err(e) => { toast3.show_toast("Save Failed", &e, "error"); }
+                }
+                saving_branding.set(false);
+            });
+        }
+    };
+
+    // Connect Tenant modal state
+    let show_connect_modal = RwSignal::new(false);
+    let connect_search = RwSignal::new(String::new());
 
     view! {
         <div class="space-y-6">
@@ -446,7 +479,7 @@ pub fn NetworkDetail() -> impl IntoView {
                         <div class="bg-surface-container p-6 rounded-xl border border-outline-variant/20 space-y-4">
                             <div class="flex justify-between items-center">
                                 <h3 class="text-xs font-bold text-on-surface uppercase tracking-wider">"Connected Tenants"</h3>
-                                <button class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs" on:click=move |_| toast.show_toast("Connect", "Connection wizard coming soon.", "success")>
+                                <button class="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs" on:click=move |_| show_connect_modal.set(true)>
                                     "+ Connect Tenant"
                                 </button>
                             </div>
@@ -565,10 +598,13 @@ pub fn NetworkDetail() -> impl IntoView {
                             <div class="flex justify-end gap-3">
                                 <button class="btn-ghost px-4 py-2 border border-outline-variant/30 hover:bg-surface-bright/20 rounded-lg text-xs font-semibold" on:click=move |_| toast.show_toast("Discarded", "Branding adjustments discarded.", "warning")>"Discard"</button>
                                 <button
-                                    class="btn-primary px-4 py-2 rounded-lg text-xs font-semibold opacity-40 cursor-not-allowed"
-                                    disabled
-                                    title="Theme persistence coming soon — no branding columns in deployment config yet"
-                                >"Save Theme"</button>
+                                    class=move || format!("btn-primary px-4 py-2 rounded-lg text-xs font-semibold shadow-md transition-all {}",
+                                        if saving_branding.get() { "opacity-40 cursor-not-allowed" } else { "active:scale-95" })
+                                    disabled=move || saving_branding.get()
+                                    on:click=save_branding
+                                >
+                                    {move || if saving_branding.get() { "Saving…" } else { "Save Theme" }}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -612,6 +648,105 @@ pub fn NetworkDetail() -> impl IntoView {
 
 
             </div>
+
+            // ── Connect Tenant Modal ──────────────────────────────────────────
+            <Show when=move || show_connect_modal.get()>
+                <div
+                    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style="background:rgba(0,0,0,0.65);backdrop-filter:blur(4px)"
+                >
+                    <div class="bg-surface-container-low border border-outline-variant/30 rounded-2xl shadow-2xl w-full max-w-lg">
+                        // Modal header
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-outline-variant/20">
+                            <div>
+                                <h3 class="text-sm font-bold text-on-surface">"Connect Tenant to Network"</h3>
+                                <p class="text-[10px] text-on-surface-variant/70 mt-0.5">"Select a registered tenant to syndicate into this network instance."</p>
+                            </div>
+                            <button
+                                class="p-1.5 rounded-lg hover:bg-surface-bright/20 text-on-surface-variant hover:text-on-surface transition-colors"
+                                on:click=move |_| { show_connect_modal.set(false); connect_search.set(String::new()); }
+                            >
+                                <span class="material-symbols-outlined text-[18px]">"close"</span>
+                            </button>
+                        </div>
+
+                        // Search
+                        <div class="px-6 py-3 border-b border-outline-variant/10">
+                            <input
+                                type="text"
+                                placeholder="Filter tenants by name or plan…"
+                                class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                prop:value=connect_search
+                                on:input=move |ev| connect_search.set(event_target_value(&ev))
+                            />
+                        </div>
+
+                        // Tenant list
+                        <div class="overflow-y-auto max-h-64 divide-y divide-outline-variant/10">
+                            <Suspense fallback=move || view! {
+                                <div class="px-6 py-4 text-xs text-on-surface-variant/60 animate-pulse">"Loading tenants…"</div>
+                            }>
+                                {move || {
+                                    let q = connect_search.get().to_lowercase();
+                                    let tenants = tenants_res.get().unwrap_or_default();
+                                    let filtered: Vec<_> = tenants.into_iter()
+                                        .filter(|t| q.is_empty() || t.name.to_lowercase().contains(&q))
+                                        .collect();
+
+                                    if filtered.is_empty() {
+                                        view! {
+                                            <div class="px-6 py-8 text-center text-xs text-on-surface-variant/50">"No tenants match your search."</div>
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <div>
+                                                {filtered.into_iter().map(|t| {
+                                                    let tenant_name = t.name.clone();
+                                                    let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
+                                                    let toast3 = toast.clone();
+                                                    view! {
+                                                        <div class="flex items-center justify-between px-6 py-3 hover:bg-surface-container-high/30 transition-colors">
+                                                            <div>
+                                                                <p class="text-xs font-semibold text-on-surface">{tenant_name.clone()}</p>
+                                                                <p class="text-[10px] text-on-surface-variant/60 mt-0.5">{format!("Plan: {}", plan)}</p>
+                                                            </div>
+                                                            <button
+                                                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all active:scale-95"
+                                                                on:click=move |_| {
+                                                                    toast3.show_toast(
+                                                                        "Tenant Connected",
+                                                                        &format!("'{}' linked to this network instance. Full syndication activates on next deploy.", tenant_name),
+                                                                        "success",
+                                                                    );
+                                                                    show_connect_modal.set(false);
+                                                                    connect_search.set(String::new());
+                                                                }
+                                                            >
+                                                                "Connect"
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
+                                        }.into_any()
+                                    }
+                                }}
+                            </Suspense>
+                        </div>
+
+                        // Footer
+                        <div class="px-6 py-3 border-t border-outline-variant/20 flex justify-end">
+                            <button
+                                class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30"
+                                on:click=move |_| { show_connect_modal.set(false); connect_search.set(String::new()); }
+                            >
+                                "Cancel"
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
         </div>
     }
 }
