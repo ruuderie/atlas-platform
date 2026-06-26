@@ -130,12 +130,15 @@ pub fn admin_routes(db: DatabaseConnection) -> Router<DatabaseConnection> {
                 .route("/api/admin/analytics/billing_summary", get(crate::admin::analytics::get_billing_summary))
                 
                 // Billing & Monetization
-                .route("/api/admin/billing/plans", get(crate::admin::billing::list_billing_plans))
+                .route("/api/admin/billing/plans", get(crate::admin::billing::list_billing_plans).post(crate::admin::billing::create_billing_plan))
+                .route("/api/admin/billing/plans/{id}", put(crate::admin::billing::update_billing_plan).delete(crate::admin::billing::delete_billing_plan))
                 .route("/api/admin/billing/transactions", get(crate::admin::billing::list_transactions))
                 .route("/api/admin/billing/tenant/{tenant_id}", get(crate::admin::billing::get_tenant_ledger))
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/exemption", post(crate::admin::billing::set_subscription_exemption))
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/suspend", post(crate::admin::billing::suspend_subscription))
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/reactivate", post(crate::admin::billing::reactivate_subscription))
+                // AI Task logs
+                .route("/api/admin/ai-tasks/{id}/logs", get(crate::admin::ai_tasks::get_task_logs))
                 // Developer Console
                 .route("/api/admin/developer/tenant/{tenant_id}/api-tokens", get(crate::admin::developer_console::list_api_tokens).post(crate::admin::developer_console::create_api_token))
                 .route("/api/admin/developer/tenant/{tenant_id}/api-tokens/{token_id}", delete(crate::admin::developer_console::revoke_api_token))

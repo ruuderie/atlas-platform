@@ -236,3 +236,23 @@ pub async fn rerun_ai_task(
 
     Ok(StatusCode::OK)
 }
+
+/// `GET /api/admin/ai-tasks/{id}/logs`
+///
+/// Returns the current log lines for a task, derived from its DB state.
+/// The frontend polls this every 2s while status = "running" to show live progress.
+/// Returns a complete snapshot each call — frontend replaces its log buffer.
+pub async fn get_task_logs(
+    State(db): State<DatabaseConnection>,
+    Path(id_str): Path<String>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tasks = atlas_ai_task::Entity::find().all(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let clean_id = id_str.replace("ait_", "");
+    let task = tasks
+        .into_iter()
+        .find(|t| t.id.to_string().starts_with(&clean_id))
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let logs = generate_task_logs(&task);
+    Ok(Json(logs))
+}

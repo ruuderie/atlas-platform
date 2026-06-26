@@ -28,6 +28,10 @@ pub struct UpdateUserInput {
 pub struct NetworkStats {
     tenant_id: Uuid,
     name: String,
+    /// Tenant slug — the internal `tenant.name` field (unique, human-readable).
+    /// Used by the Flags page to display readable tenant identifiers
+    /// instead of raw UUIDs in the targeting dropdown.
+    slug: String,
     profile_count: u64,
     listing_count: u64,
     ad_purchase_count: u64,
@@ -817,7 +821,8 @@ pub async fn get_all_network_stats(
 
         stats.push(NetworkStats {
             tenant_id: dir.id,
-            name: dir.name,
+            name: dir.name.clone(),
+            slug: dir.name.clone(),
             profile_count,
             listing_count,
             ad_purchase_count,
@@ -878,6 +883,7 @@ pub async fn get_network_stats(
     let stats = NetworkStats {
         tenant_id: network.id,
         name: network.name.clone(),
+        slug: network.name.clone(),
         profile_count,
         listing_count,
         ad_purchase_count,

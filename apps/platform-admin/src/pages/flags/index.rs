@@ -81,7 +81,7 @@ impl TenantOption {
         let icon_char = stat.name.chars().next().unwrap_or('?');
         Self {
             id: stat.tenant_id.clone(),
-            slug: stat.tenant_id.clone(), // slug not yet in TenantStatModel; use id as unique key
+            slug: stat.slug.clone(),
             name: stat.name.clone(),
             plan: stat.plan.clone().unwrap_or_else(|| "—".to_string()),
             icon_char,

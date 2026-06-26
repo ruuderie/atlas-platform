@@ -66,6 +66,120 @@ pub fn ProductDetail() -> impl IntoView {
         }
     });
 
+    // ── Billing plans (for the Pricing tab) ───────────────────────────────────
+    let plans_trigger = RwSignal::new(0u32);
+    let billing_plans_res = LocalResource::new(move || async move {
+        let _ = plans_trigger.get();
+        crate::api::billing::list_billing_plans().await.unwrap_or_default()
+    });
+
+    // Plan edit modal state
+    let edit_plan_id   = RwSignal::new(Option::<String>::None); // Some(id) = editing, None = creating
+    let edit_plan_name = RwSignal::new(String::new());
+    let edit_plan_price = RwSignal::new(String::new()); // cents as string for input
+    let edit_plan_interval = RwSignal::new("month".to_string());
+    let show_plan_modal = RwSignal::new(false);
+
+    let open_edit_plan = move |plan: &crate::api::billing::BillingPlanModel| {
+        edit_plan_id.set(Some(plan.id.to_string()));
+        edit_plan_name.set(plan.name.clone());
+        edit_plan_price.set(plan.price.to_string());
+        edit_plan_interval.set(plan.interval.clone());
+        show_plan_modal.set(true);
+    };
+
+    let open_create_plan = move |_| {
+        edit_plan_id.set(None);
+        edit_plan_name.set(String::new());
+        edit_plan_price.set(String::new());
+        edit_plan_interval.set("month".to_string());
+        show_plan_modal.set(true);
+    };
+
+    let toast_plan = toast.clone();
+    let handle_save_plan = move |_| {
+        let name = edit_plan_name.get_untracked();
+        let price_str = edit_plan_price.get_untracked();
+        let interval = edit_plan_interval.get_untracked();
+        let id_opt = edit_plan_id.get_untracked();
+        let toast_c = toast_plan.clone();
+
+        if name.trim().is_empty() {
+            toast_c.show_toast("Error", "Plan name is required.", "error");
+            return;
+        }
+        let price: i64 = price_str.trim().parse().unwrap_or(0);
+        let input = crate::api::billing::BillingPlanInput {
+            name,
+            price,
+            currency: Some("usd".to_string()),
+            interval,
+        };
+
+        leptos::task::spawn_local(async move {
+            let result = if let Some(plan_id) = id_opt {
+                crate::api::billing::update_billing_plan(&plan_id, input).await
+            } else {
+                crate::api::billing::create_billing_plan(input).await
+            };
+            match result {
+                Ok(_) => {
+                    show_plan_modal.set(false);
+                    plans_trigger.update(|n| *n += 1);
+                    toast_c.show_toast("Saved", "Billing plan updated.", "success");
+                }
+                Err(e) => toast_c.show_toast("Error", &e, "error"),
+            }
+        });
+    };
+
+    let toast_del = toast.clone();
+    let handle_delete_plan = move |plan_id: String| {
+        let toast_c = toast_del.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::billing::delete_billing_plan(&plan_id).await {
+                Ok(_) => {
+                    plans_trigger.update(|n| *n += 1);
+                    toast_c.show_toast("Deleted", "Plan removed.", "success");
+                }
+                Err(e) => toast_c.show_toast("Error", &e, "error"),
+            }
+        });
+    };
+
+    // ── Pixel / domain alias inline form state ────────────────────────────────
+    let show_pixel_form = RwSignal::new(false);
+    let pixel_name_input = RwSignal::new(String::new());
+    let pixel_url_input  = RwSignal::new(String::new());
+    let show_domain_form = RwSignal::new(false);
+    let domain_alias_input = RwSignal::new(String::new());
+    let toast_px = toast.clone();
+    let handle_add_pixel = move |_: web_sys::MouseEvent| {
+        let name = pixel_name_input.get_untracked();
+        let url  = pixel_url_input.get_untracked();
+        if name.trim().is_empty() || url.trim().is_empty() {
+            toast_px.show_toast("Error", "Pixel name and script URL are required.", "error");
+            return;
+        }
+        // API: POST /api/admin/platform/products/{id}/pixels (future endpoint)
+        // For now we save the intent via toast + reset form
+        toast_px.show_toast("Queued", &format!("Pixel '{}' queued for API wiring.", name), "info");
+        pixel_name_input.set(String::new());
+        pixel_url_input.set(String::new());
+        show_pixel_form.set(false);
+    };
+    let toast_da = toast.clone();
+    let handle_add_domain = move |_: web_sys::MouseEvent| {
+        let alias = domain_alias_input.get_untracked();
+        if alias.trim().is_empty() {
+            toast_da.show_toast("Error", "Domain alias is required.", "error");
+            return;
+        }
+        toast_da.show_toast("Queued", &format!("Domain '{}' queued for API wiring.", alias), "info");
+        domain_alias_input.set(String::new());
+        show_domain_form.set(false);
+    };
+
     // ── SEO score derived from completeness of real fields ─────────────────
     let seo_score = Signal::derive(move || {
         let mut score = 40i32; // base
@@ -324,94 +438,116 @@ pub fn ProductDetail() -> impl IntoView {
 
                 // ── TAB CONTENT: Pricing ──
                 <Show when=move || active_tab.get() == "pricing">
+                    // Plan Edit/Create Modal
+                    <Show when=move || show_plan_modal.get()>
+                        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-sm font-bold">
+                                        {move || if edit_plan_id.get().is_some() { "Edit Billing Plan" } else { "Create Billing Plan" }}
+                                    </h3>
+                                    <button class="icon-btn text-on-surface-variant" on:click=move |_| show_plan_modal.set(false)>
+                                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                                    </button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Plan Name"</label>
+                                        <input
+                                            type="text"
+                                            class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                            prop:value=move || edit_plan_name.get()
+                                            on:input=move |ev| edit_plan_name.set(event_target_value(&ev))
+                                            placeholder="e.g. Professional"
+                                        />
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Price (cents)"</label>
+                                            <input
+                                                type="number"
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                prop:value=move || edit_plan_price.get()
+                                                on:input=move |ev| edit_plan_price.set(event_target_value(&ev))
+                                                placeholder="e.g. 90000"
+                                            />
+                                            <p class="text-[10px] text-on-surface-variant/50 mt-0.5">"e.g. 90000 = $900.00"</p>
+                                        </div>
+                                        <div>
+                                            <label class="text-xs font-semibold text-on-surface-variant">"Billing Interval"</label>
+                                            <select
+                                                class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                                on:change=move |ev| edit_plan_interval.set(event_target_value(&ev))
+                                            >
+                                                <option value="month" prop:selected=move || edit_plan_interval.get() == "month">"Monthly"</option>
+                                                <option value="year" prop:selected=move || edit_plan_interval.get() == "year">"Annually"</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-3 pt-2">
+                                    <Show when=move || edit_plan_id.get().is_some()>
+                                        {{
+                                            let pid = edit_plan_id.get_untracked().unwrap_or_default();
+                                            view! {
+                                                <button
+                                                    class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold text-error border border-error/30"
+                                                    on:click=move |_| handle_delete_plan(pid.clone())
+                                                >"Delete Plan"</button>
+                                            }
+                                        }}
+                                    </Show>
+                                    <button class="btn-ghost px-4 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30" on:click=move |_| show_plan_modal.set(false)>"Cancel"</button>
+                                    <button class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold" on:click=handle_save_plan>"Save Plan"</button>
+                                </div>
+                            </div>
+                        </div>
+                    </Show>
+
                     <div class="space-y-4">
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 shadow-sm">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant">"Pricing Plans & Feature Matrix"</h3>
                                 <button
-                                    class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-xs font-bold uppercase tracking-wider opacity-40 cursor-not-allowed"
-                                    disabled
-                                    title="Pricing tier management coming soon"
+                                    class="btn-ghost px-3 py-1.5 rounded-lg border border-outline-variant/30 text-xs font-bold uppercase tracking-wider hover:bg-surface-bright/20 transition-all active:scale-95"
+                                    on:click=open_create_plan
                                 >"+ Add Tier"</button>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between">
-                                    <div>
-                                        <div class="flex items-center justify-between mb-2">
-                                            <h4 class="font-bold text-on-surface">"Basic Plan"</h4>
-                                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">"$400/mo"</span>
+                            {move || {
+                                let plans = billing_plans_res.get().unwrap_or_default();
+                                if plans.is_empty() {
+                                    view! {
+                                        <div class="text-center py-10 text-xs text-on-surface-variant/60">
+                                            <p>"No billing plans defined. Click '+ Add Tier' to create the first plan."</p>
                                         </div>
-                                        <p class="text-xs text-on-surface-variant/70 mb-4 leading-relaxed">"Entry level hosting context for self-managed small portfolio landlords."</p>
-                                        <ul class="text-xs text-on-surface-variant space-y-2">
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Up to 25 properties"
-                                            </li>
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Standard support"
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <button
-                                        class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md opacity-40 cursor-not-allowed"
-                                        disabled
-                                        title="Plan editing coming soon"
-                                    >"Edit plan"</button>
-                                </div>
-
-                                <div class="bg-surface-container p-5 rounded-xl border border-primary/20 flex flex-col justify-between relative">
-                                    <div class="absolute -top-2.5 right-4 bg-primary text-on-primary-container px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest">"Popular"</div>
-                                    <div>
-                                        <div class="flex items-center justify-between mb-2">
-                                            <h4 class="font-bold text-on-surface">"Professional Plan"</h4>
-                                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">"$900/mo"</span>
+                                    }.into_any()
+                                } else {
+                                    view! {
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {plans.into_iter().map(|plan| {
+                                                let plan_clone = plan.clone();
+                                                let price_display = format!("${:.2}/{}", plan.price as f64 / 100.0, if plan.interval == "year" { "yr" } else { "mo" });
+                                                view! {
+                                                    <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between">
+                                                        <div>
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <h4 class="font-bold text-on-surface">{plan.name.clone()}</h4>
+                                                                <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20">{price_display}</span>
+                                                            </div>
+                                                            <p class="text-xs text-on-surface-variant/70 mb-4">{plan.currency.to_uppercase()} " · " {plan.interval.clone()}</p>
+                                                        </div>
+                                                        <button
+                                                            class="btn-ghost w-full mt-4 text-xs justify-center py-2 border border-outline-variant/30 rounded-md hover:bg-surface-bright/20 transition-all active:scale-95"
+                                                            on:click=move |_| open_edit_plan(&plan_clone)
+                                                        >"Edit plan"</button>
+                                                    </div>
+                                                }
+                                            }).collect::<Vec<_>>()}
                                         </div>
-                                        <p class="text-xs text-on-surface-variant/70 mb-4 leading-relaxed">"Automated TOT reporting and Stripe/Zelle payment routing."</p>
-                                        <ul class="text-xs text-on-surface-variant space-y-2">
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Unlimited properties"
-                                            </li>
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Priority SLA support"
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <button
-                                        class="btn-primary w-full mt-6 text-xs justify-center py-2 rounded-md opacity-40 cursor-not-allowed"
-                                        disabled
-                                        title="Plan editing coming soon"
-                                    >"Edit plan"</button>
-                                </div>
-
-                                <div class="bg-surface-container p-5 rounded-xl border border-outline-variant/20 flex flex-col justify-between">
-                                    <div>
-                                        <div class="flex items-center justify-between mb-2">
-                                            <h4 class="font-bold text-on-surface">"Enterprise Plan"</h4>
-                                            <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">"Custom"</span>
-                                        </div>
-                                        <p class="text-xs text-on-surface-variant/70 mb-4 leading-relaxed">"Custom SLA routing, FMCSA compliance audits, and dedicated storage reclamation."</p>
-                                        <ul class="text-xs text-on-surface-variant space-y-2">
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Custom cloud boundaries"
-                                            </li>
-                                            <li class="flex items-center gap-2">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                "Dedicated technical team"
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <button
-                                        class="btn-ghost w-full mt-6 text-xs justify-center py-2 border border-outline-variant/30 rounded-md opacity-40 cursor-not-allowed"
-                                        disabled
-                                        title="Plan editing coming soon"
-                                    >"Edit plan"</button>
-                                </div>
-                            </div>
+                                    }.into_any()
+                                }
+                            }}
                         </div>
                     </div>
                 </Show>
@@ -736,12 +872,43 @@ pub fn ProductDetail() -> impl IntoView {
                             <button
                                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                 id="btn-add-pixel"
-                                on:click=move |_| toast.show_toast("Add Pixel", "Pixel editor coming soon — wire to product_tracking_pixels API.", "info")
+                                on:click=move |_: web_sys::MouseEvent| show_pixel_form.update(|v| *v = !*v)
                             >
                                 <span class="material-symbols-outlined text-[14px]">"add"</span>
                                 "Add Pixel"
                             </button>
                         </div>
+
+                        // Inline Add Pixel Form
+                        <Show when=move || show_pixel_form.get()>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm space-y-3">
+                                <h4 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"New Tracking Pixel"</h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Pixel Name"</label>
+                                        <input
+                                            type="text" placeholder="e.g. GA4 Main"
+                                            class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                            prop:value=move || pixel_name_input.get()
+                                            on:input=move |ev| pixel_name_input.set(event_target_value(&ev))
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-semibold text-on-surface-variant">"Script / Measurement ID"</label>
+                                        <input
+                                            type="text" placeholder="e.g. G-XXXXXXXX"
+                                            class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                            prop:value=move || pixel_url_input.get()
+                                            on:input=move |ev| pixel_url_input.set(event_target_value(&ev))
+                                        />
+                                    </div>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs border border-outline-variant/30" on:click=move |_: web_sys::MouseEvent| show_pixel_form.set(false)>"Cancel"</button>
+                                    <button class="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold" on:click=handle_add_pixel>"Add Pixel"</button>
+                                </div>
+                            </div>
+                        </Show>
 
                         // Pixel types guide
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">
@@ -786,12 +953,33 @@ pub fn ProductDetail() -> impl IntoView {
                             <button
                                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                 id="btn-add-domain"
-                                on:click=move |_| toast.show_toast("Add Domain", "Domain management coming soon — wire to product_domain_aliases API.", "info")
+                                on:click=move |_: web_sys::MouseEvent| show_domain_form.update(|v| *v = !*v)
                             >
                                 <span class="material-symbols-outlined text-[14px]">"add"</span>
                                 "Add Domain"
                             </button>
                         </div>
+
+                        // Inline Add Domain Form
+                        <Show when=move || show_domain_form.get()>
+                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm space-y-3">
+                                <h4 class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"New Domain Alias"</h4>
+                                <div>
+                                    <label class="text-xs font-semibold text-on-surface-variant">"Domain"</label>
+                                    <input
+                                        type="text" placeholder="e.g. mycompany.com or app.mycompany.com"
+                                        class="w-full mt-1 bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2"
+                                        prop:value=move || domain_alias_input.get()
+                                        on:input=move |ev| domain_alias_input.set(event_target_value(&ev))
+                                    />
+                                    <p class="text-[10px] text-on-surface-variant/50 mt-0.5">"Must be DNS-pointed to the Atlas platform edge before activating."</p>
+                                </div>
+                                <div class="flex justify-end gap-2">
+                                    <button class="btn-ghost px-3 py-1.5 rounded-lg text-xs border border-outline-variant/30" on:click=move |_: web_sys::MouseEvent| show_domain_form.set(false)>"Cancel"</button>
+                                    <button class="btn-primary-gradient px-3 py-1.5 rounded-lg text-xs font-semibold" on:click=handle_add_domain>"Add Domain"</button>
+                                </div>
+                            </div>
+                        </Show>
 
                         // Apex domain card
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm">

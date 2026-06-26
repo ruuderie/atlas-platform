@@ -17,7 +17,6 @@ use crate::pages::products::detail::ProductDetail;
 use crate::pages::billing::scorecards::Scorecards;
 use crate::pages::billing::scorecard_session::ScorecardSession;
 use crate::pages::network::syndication::SyndicationManager;
-use crate::pages::network::index::NetworkRegistry;
 use crate::pages::network::create::NetworkCreate;
 use crate::pages::network::detail::NetworkDetail;
 // MarketingLanding is intentionally NOT imported here.
@@ -442,8 +441,6 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Operations"</span>
-                    // Internal Instances = InternalOperator mode deployments (our infra, demos, staging).
-                    // External client deployments live in Clients above.
                     <a href="/internal-instances" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/internal-instances") { "nav-item active" } else { "nav-item" }

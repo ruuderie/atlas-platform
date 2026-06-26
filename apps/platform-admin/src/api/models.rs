@@ -675,6 +675,9 @@ pub struct VerificationRequestModel {
 pub struct TenantStatModel {
     pub tenant_id: String,
     pub name: String,
+    /// Human-readable unique slug (same as `tenant.name` in the DB).
+    /// Shown in the Feature Flags tenant targeting dropdown.
+    pub slug: String,
     pub profile_count: u64,
     pub listing_count: u64,
     pub ad_purchase_count: u64,
@@ -684,8 +687,6 @@ pub struct TenantStatModel {
     pub site_status: Option<String>,
     pub joined_at: Option<String>,
     /// UUID of the tenant's primary (anchor) app instance.
-    /// Use this to navigate to /apps/{anchor_instance_id}/instance.
-    /// None only when the tenant was provisioned without an anchor instance (unusual).
     pub anchor_instance_id: Option<String>,
 }
 

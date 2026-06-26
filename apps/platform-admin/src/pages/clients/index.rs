@@ -204,16 +204,16 @@ fn LinkAccountModal(
 
 #[component]
 pub fn ClientsPage() -> impl IntoView {
-    let tenants_res  = LocalResource::new(move || async move { get_tenant_stats().await.unwrap_or_default() });
-    let apps_res     = LocalResource::new(move || async move { get_all_platform_apps().await.unwrap_or_default() });
+    // Refresh trigger: increment to force resource re-fetch
+    let refresh = RwSignal::new(0u32);
+    let tenants_res  = LocalResource::new(move || async move { let _ = refresh.get(); get_tenant_stats().await.unwrap_or_default() });
+    let apps_res     = LocalResource::new(move || async move { let _ = refresh.get(); get_all_platform_apps().await.unwrap_or_default() });
 
     let search        = RwSignal::new(String::new());
     let filter_status = RwSignal::new("all".to_string());
     // Modal state: Some(tenant_id) = modal open for that tenant
     let modal_tenant_id  = RwSignal::new(Option::<String>::None);
     let modal_account_id = RwSignal::new(Option::<String>::None);
-    // Refresh trigger: increment to force resource re-fetch
-    let refresh = RwSignal::new(0u32);
 
     view! {
         <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
@@ -246,12 +246,23 @@ pub fn ClientsPage() -> impl IntoView {
                         "."
                     </p>
                 </div>
-                <a href="/network/new"
-                    class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
-                    "Provision Client"
-                </a>
+                <div class="flex items-center gap-3">
+                    <button
+                        class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 flex items-center gap-1.5 hover:bg-surface-bright/20 transition-all active:scale-95"
+                        on:click=move |_| refresh.update(|n| *n += 1)
+                    >
+                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
+                    <a href="/network/new"
+                        class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
+                    >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
+                        "Provision Client"
+                    </a>
+                </div>
             </div>
 
             // ── KPI Row ──────────────────────────────────────────────────────

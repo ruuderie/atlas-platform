@@ -131,16 +131,27 @@ pub fn SupportQueue() -> impl IntoView {
                 <div class="p-4 border-b border-outline-variant/10 flex-shrink-0">
                     <div class="flex items-center justify-between font-bold text-sm">
                         <span>"Support Queue"</span>
-                        <Suspense fallback=|| view! { <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-surface-container border border-outline-variant/20 text-on-surface-variant">"..."</span> }>
-                            {move || cases_resource.get().map(|r| {
-                                let count = r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "open").count()).unwrap_or(0);
-                                view! {
-                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
-                                        {count.to_string()} " Open"
-                                    </span>
-                                }
-                            })}
-                        </Suspense>
+                        <div class="flex items-center gap-2">
+                            <button
+                                class="p-1 rounded hover:bg-surface-bright/20 text-on-surface-variant hover:text-on-surface transition-colors"
+                                title="Refresh queue"
+                                on:click=move |_| cases_resource.refetch()
+                            >
+                                <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                                    <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                                </svg>
+                            </button>
+                            <Suspense fallback=|| view! { <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-surface-container border border-outline-variant/20 text-on-surface-variant">"..."</span> }>
+                                {move || cases_resource.get().map(|r| {
+                                    let count = r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "open").count()).unwrap_or(0);
+                                    view! {
+                                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-500/10 border border-red-500/30 text-red-400">
+                                            {count.to_string()} " Open"
+                                        </span>
+                                    }
+                                })}
+                            </Suspense>
+                        </div>
                     </div>
                     <p class="text-[10.5px] text-on-surface-variant mt-1">"Tenant operational issues and support cases"</p>
                 </div>

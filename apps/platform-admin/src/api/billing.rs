@@ -14,14 +14,18 @@ pub struct TransactionModel {
     pub created_at: Option<String>,
 }
 
+/// Matches `backend/src/entities/billing_plan::Model`
+/// Returned by `GET /api/admin/billing/plans`
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BillingPlanModel {
     pub id: Uuid,
     pub name: String,
-    pub slug: String,
-    pub base_price_cents: i64,
-    pub include_seats: i32,
-    pub overage_seat_price_cents: i64,
+    /// Price in cents (e.g. 90000 = $900.00)
+    pub price: i64,
+    pub currency: String,
+    /// "month" or "year"
+    pub interval: String,
+    pub created_at: Option<String>,
 }
 
 pub async fn get_tenant_ledger(tenant_id: &str) -> Result<Vec<TransactionModel>, String> {
@@ -84,3 +88,48 @@ pub async fn change_plan(tenant_id: &str, plan_id: String) -> Result<serde_json:
     api_request(req).await
 }
 
+// ── Billing Plan CRUD ─────────────────────────────────────────────────────────
+
+#[derive(Serialize, Clone, Debug)]
+pub struct BillingPlanInput {
+    pub name: String,
+    /// Price in cents
+    pub price: i64,
+    pub currency: Option<String>,
+    /// "month" | "year"
+    pub interval: String,
+}
+
+/// `POST /api/admin/billing/plans`
+pub async fn create_billing_plan(input: BillingPlanInput) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url("api/admin/billing/plans");
+    let req = client.post(&url).json(&input);
+    api_request(req).await
+}
+
+/// `PUT /api/admin/billing/plans/{id}`
+pub async fn update_billing_plan(plan_id: &str, input: BillingPlanInput) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/billing/plans/{}", plan_id));
+    let req = client.put(&url).json(&input);
+    api_request(req).await
+}
+
+/// `DELETE /api/admin/billing/plans/{id}`
+pub async fn delete_billing_plan(plan_id: &str) -> Result<serde_json::Value, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/billing/plans/{}", plan_id));
+    let req = client.delete(&url);
+    api_request(req).await
+}
+
+// ── AI Task Logs ──────────────────────────────────────────────────────────────
+
+/// `GET /api/admin/ai-tasks/{id}/logs`
+///
+/// Returns a snapshot of log lines for a task from the backend.
+/// Frontend polls this every 2s while status = "running".
+pub async fn get_ai_task_logs(task_id: &str) -> Result<Vec<String>, String> {
+    api_get(&format!("api/admin/ai-tasks/{}/logs", task_id)).await
+}

@@ -79,43 +79,44 @@ pub fn AiTasks() -> impl IntoView {
             console_logs.set(t.initial_logs.clone());
             detail_tab.set("console".to_string());
             
-            // If the selected task is Running and streamable, simulate real-time log streaming
+        // If the selected task is Running and streamable, poll the logs endpoint every 2s
             if t.status.get() == "Running" && t.streamable {
                 streaming_active.set(true);
                 let logs_signal = console_logs;
-                let active_status = t.status;
-                let active_class = t.status_class;
-                let active_runtime = t.runtime;
-                let active_completed = t.completed;
                 let t_id = task_id.clone();
                 let toast_clone = toast.clone();
-                
+
                 leptos::task::spawn_local(async move {
-                    let stream_lines = vec![
-                        "[INFO] Executing prompt formatting pipeline...".to_string(),
-                        "[INFO] Contact score weights calculated: Cleanliness 9.3, Compliance 9.6.".to_string(),
-                        "[INFO] Executing aggregate calibration checker...".to_string(),
-                        "[SUCCESS] Generated final scorecard vector output safely.".to_string(),
-                        "[INFO] Saving state to database...".to_string(),
-                        "[SUCCESS] Task execution completed in 4.22s. Logs closed.".to_string(),
-                    ];
-                    
-                    for line in stream_lines {
-                        // Check if selection changed or streaming aborted
-                        if selected_task_id.get_untracked() != Some(t_id.clone()) || !streaming_active.get_untracked() {
+                    // Poll every 2s while still active
+                    loop {
+                        // Stop if selection changed or streaming was aborted
+                        if selected_task_id.get_untracked() != Some(t_id.clone())
+                            || !streaming_active.get_untracked()
+                        {
                             return;
                         }
-                        gloo_timers::future::TimeoutFuture::new(1000).await;
-                        logs_signal.update(|logs| logs.push(line));
-                    }
-                    
-                    if selected_task_id.get_untracked() == Some(t_id) && streaming_active.get_untracked() {
-                        streaming_active.set(false);
-                        active_status.set("Success".to_string());
-                        active_class.set("bg-emerald-500/10 border-emerald-500/30 text-emerald-400".to_string());
-                        active_runtime.set("4.22s".to_string());
-                        active_completed.set("Just now".to_string());
-                        toast_clone.show_toast("Success", "Task completed successfully.", "success");
+
+                        match crate::api::billing::get_ai_task_logs(&t_id).await {
+                            Ok(lines) => {
+                                logs_signal.set(lines.clone());
+                                // If the last log line signals completion, stop polling
+                                let done = lines.iter().any(|l| {
+                                    l.contains("[SUCCESS] Task execution completed")
+                                        || l.contains("[ERROR]")
+                                        || l.contains("[ABORT]")
+                                });
+                                if done {
+                                    streaming_active.set(false);
+                                    toast_clone.show_toast("Done", "Task completed.", "success");
+                                    return;
+                                }
+                            }
+                            Err(_) => {
+                                // Network error — keep trying, just don't panic
+                            }
+                        }
+
+                        gloo_timers::future::TimeoutFuture::new(2000).await;
                     }
                 });
             } else {

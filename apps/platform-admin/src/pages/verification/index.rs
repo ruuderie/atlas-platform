@@ -205,7 +205,15 @@ pub fn Verification() -> impl IntoView {
                                     }}
                                 </span>
                             </div>
-                            <button class="pill" style="font-size:10px;padding:2px 6px;" on:click=move |_| toast.show_toast("Info", "Verification logs compiled.", "info")>"Export"</button>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    class="pill"
+                                    style="font-size:10px;padding:2px 6px;"
+                                    title="Reload queue from backend"
+                                    on:click=move |_| trigger_fetch.set(trigger_fetch.get() + 1)
+                                >"Refresh"</button>
+                                <button class="pill" style="font-size:10px;padding:2px 6px;" on:click=move |_| toast.show_toast("Info", "Verification logs compiled.", "info")>"Export"</button>
+                            </div>
                         </div>
                         <div class="filter-row">
                             {

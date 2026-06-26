@@ -731,7 +731,7 @@ pub fn TenantLedger() -> impl IntoView {
                                                 key=|p| p.id
                                                 children=move |p| {
                                                     view! {
-                                                        <option value=p.id.to_string()>{p.name.clone()} " ($" {p.base_price_cents / 100} "/mo)"</option>
+                                                        <option value=p.id.to_string()>{p.name.clone()} " ($" {p.price / 100} "/mo)"</option>
                                                     }
                                                 }
                                             />
