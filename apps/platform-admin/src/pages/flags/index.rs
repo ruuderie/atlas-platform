@@ -96,8 +96,13 @@ pub fn FeatureFlags() -> impl IntoView {
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
     // ── Server resource ───────────────────────────────────────────────────────
-    let flags_resource = LocalResource::new(|| async move {
-        crate::api::admin::get_admin_flags().await
+    let refresh = RwSignal::new(0u32);
+    let flags_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let flags_resource = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        let res = crate::api::admin::get_admin_flags().await;
+        if let Err(ref e) = res { flags_error.set(Some(e.clone())); } else { flags_error.set(None); }
+        res
     });
 
     // Derive stable FlagState list from server data.
@@ -111,7 +116,8 @@ pub fn FeatureFlags() -> impl IntoView {
     });
 
     // Live tenant list from the API — used by the NI override autocomplete.
-    let tenants_resource = LocalResource::new(|| async move {
+    let tenants_resource = LocalResource::new(move || async move {
+        let _ = refresh.get();
         crate::api::admin::get_tenant_stats().await
     });
 
@@ -349,6 +355,16 @@ pub fn FeatureFlags() -> impl IntoView {
                     <div class="page-subtitle">"Flag registry · Each flag may have a Global variant, Plan gate, and per-NI overrides — all managed here"</div>
                 </div>
                 <div class="page-actions">
+                    <button
+                        on:click=move |_| refresh.update(|n| *n += 1)
+                        class="btn btn-ghost btn-sm"
+                        title="Reload flags from backend"
+                    >
+                        <svg class="w-3 h-3 inline-block mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
                     <button 
                         on:click=move |_| toast.show_toast("Info", "Exporting flag audit logs to CSV...", "info")
                         class="btn btn-ghost btn-sm"
@@ -373,6 +389,9 @@ pub fn FeatureFlags() -> impl IntoView {
                     </button>
                 </div>
             </div>
+
+            // ── Error banner ──
+            {move || flags_error.get().map(|e| crate::utils::inline_error(&e))}
 
             // ── Stat Strip ──
             <div class="stat-strip">

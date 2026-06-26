@@ -51,11 +51,31 @@ pub fn BillingDashboard() -> impl IntoView {
     };
 
     // ── Real data resources ──
-    let billing_summary = LocalResource::new(|| async move { get_billing_summary().await.ok() });
-    let business_kpis = LocalResource::new(|| async move { get_business_kpis().await.ok() });
-    let billing_plans = LocalResource::new(|| async move { get_billing_plans().await.unwrap_or_default() });
-    let transactions = LocalResource::new(|| async move { get_all_transactions().await.unwrap_or_default() });
-    let tenant_list = LocalResource::new(|| async move { get_tenant_stats().await.unwrap_or_default() });
+    let refresh = RwSignal::new(0u32);
+    let data_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let billing_summary = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        match get_billing_summary().await {
+            Ok(v) => { data_error.set(None); Some(v) }
+            Err(e) => { data_error.set(Some(format!("Billing summary: {}", e))); None }
+        }
+    });
+    let business_kpis = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_business_kpis().await.ok()
+    });
+    let billing_plans = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_billing_plans().await.unwrap_or_default()
+    });
+    let transactions = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_all_transactions().await.unwrap_or_default()
+    });
+    let tenant_list = LocalResource::new(move || async move {
+        let _ = refresh.get();
+        get_tenant_stats().await.unwrap_or_default()
+    });
 
 
     // Handle Form actions
@@ -124,6 +144,16 @@ pub fn BillingDashboard() -> impl IntoView {
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
+                    <button
+                        class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 flex items-center gap-1.5 hover:bg-surface-bright/20 transition-all active:scale-95"
+                        on:click=move |_| refresh.update(|n| *n += 1)
+                        title="Reload billing data"
+                    >
+                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
                     <select class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary">
                         <option>"June 2026"</option>
                         <option>"May 2026"</option>
@@ -135,6 +165,9 @@ pub fn BillingDashboard() -> impl IntoView {
                     </Button>
                 </div>
             </div>
+
+            // ── Error banner ──
+            {move || data_error.get().map(|e| crate::utils::inline_error(&e))}
 
             // ── KPI Strip ──
             <div class="grid grid-cols-2 md:grid-cols-7 gap-4 bg-surface-container-low border border-outline-variant/10 p-5 rounded-2xl shadow-xs overflow-x-auto select-none">

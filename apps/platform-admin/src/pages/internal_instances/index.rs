@@ -53,8 +53,14 @@ fn purpose_badge(p: &str) -> (&'static str, &'static str) {
 
 #[component]
 pub fn InternalInstancesPage() -> impl IntoView {
+    let refresh = RwSignal::new(0u32);
+    let error_msg: RwSignal<Option<String>> = RwSignal::new(None);
     let apps_res = LocalResource::new(move || async move {
-        get_all_platform_apps().await.unwrap_or_default()
+        let _ = refresh.get();
+        match get_all_platform_apps().await {
+            Ok(v) => { error_msg.set(None); v }
+            Err(e) => { error_msg.set(Some(e)); vec![] }
+        }
     });
 
     let search = RwSignal::new(String::new());
@@ -76,6 +82,15 @@ pub fn InternalInstancesPage() -> impl IntoView {
                         "."
                     </p>
                 </div>
+                <button
+                    class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 flex items-center gap-1.5 hover:bg-surface-bright/20 transition-all active:scale-95 mt-1"
+                    on:click=move |_| refresh.update(|n| *n += 1)
+                >
+                    <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                    </svg>
+                    "Refresh"
+                </button>
             </div>
 
             // ── Ops Context Banner REMOVED — mode filtering is now live ─────────
@@ -93,6 +108,7 @@ pub fn InternalInstancesPage() -> impl IntoView {
             </div>
 
             // ── Instance Grid ─────────────────────────────────────────────────
+            {move || error_msg.get().map(|e| crate::utils::inline_error(&e))}
             <Suspense fallback=|| view! {
                 <div class="text-xs text-on-surface-variant/60 animate-pulse text-center py-8">"Loading instances..."</div>
             }>
