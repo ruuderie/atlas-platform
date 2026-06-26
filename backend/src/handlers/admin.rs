@@ -79,13 +79,24 @@ pub struct ActivityReport {
 
 #[derive(Serialize)]
 pub struct PlatformAppModel {
-    pub tenant_id: String,
-    pub instance_id: String,
-    pub name: String,
-    pub app_type: String,
-    pub domain: String,
-    pub site_status: String,
-    pub description: String,
+    pub tenant_id:            String,
+    pub instance_id:          String,
+    pub name:                 String,
+    pub app_type:             String,
+    pub domain:               String,
+    /// From atlas_app_deployment_config.mode ("standard" | "internal_operator").
+    /// Defaults to "standard" when no deployment config row exists.
+    pub mode:                 String,
+    /// From atlas_app_deployment_config.instance_status ("active" | "suspended" | "archived").
+    /// Falls back to tenant.site_status when no config row exists.
+    pub site_status:          String,
+    pub description:          String,
+    /// FK to atlas_accounts.id — set when the admin links a deployment to a CRM Account.
+    /// None = not yet linked. Rendered as a "View Account" link on the Clients page.
+    pub platform_account_id:  Option<String>,
+    /// Operational purpose from config JSONB ("demo"|"test"|"staging"|"managed_service").
+    /// None for Standard mode client deployments.
+    pub purpose:              Option<String>,
 }
 
 
@@ -97,7 +108,8 @@ pub async fn get_platform_apps(
     Extension(_current_user): Extension<user::Model>,
     Extension(_current_session): Extension<session::Model>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    use crate::entities::{tenant, app_instance, app_domain};
+    use crate::entities::{tenant, app_instance, app_domain, atlas_app_deployment_config};
+    use sea_orm::ColumnTrait;
 
     let instances = app_instance::Entity::find()
         .find_also_related(tenant::Entity)
@@ -109,37 +121,81 @@ pub async fn get_platform_apps(
         })?;
 
     let mut result = Vec::new();
-    
+
     for (instance, tenant_opt) in instances {
         if let Some(tenant_model) = tenant_opt {
             // Skip the internal platform sentinel tenant (nil UUID / __platform__).
             if tenant_model.id == uuid::Uuid::nil() {
                 continue;
             }
+
             let domains = app_domain::Entity::find()
                 .filter(app_domain::Column::AppInstanceId.eq(instance.id))
                 .all(&db)
                 .await
                 .unwrap_or_default();
-                
+
             let domain_name = domains.into_iter().next()
                 .map(|d| d.domain_name)
-                // Derive a sensible platform subdomain when no explicit domain is registered.
-                // "{slug}.atlas.app" is the canonical default — "unknown.local" was misleading.
                 .unwrap_or_else(|| format!("{}.atlas.app", tenant_model.name));
-            
+
+            // Fetch the deployment config for this (tenant, app_type) pair.
+            // Missing row = standard mode (per atlas_app_deployment_config docs).
+            let deployment = atlas_app_deployment_config::Entity::find()
+                .filter(atlas_app_deployment_config::Column::TenantId.eq(tenant_model.id))
+                .filter(atlas_app_deployment_config::Column::AppSlug.eq(&instance.app_type))
+                .one(&db)
+                .await
+                .unwrap_or(None);
+
+            let mode = deployment
+                .as_ref()
+                .map(|d| match d.mode {
+                    atlas_app_deployment_config::AppDeploymentMode::InternalOperator =>
+                        "internal_operator".to_string(),
+                    atlas_app_deployment_config::AppDeploymentMode::Standard =>
+                        "standard".to_string(),
+                })
+                .unwrap_or_else(|| "standard".to_string());
+
+            let site_status = deployment
+                .as_ref()
+                .map(|d| match d.instance_status {
+                    atlas_app_deployment_config::AppInstanceStatus::Active   => "active",
+                    atlas_app_deployment_config::AppInstanceStatus::Suspended => "suspended",
+                    atlas_app_deployment_config::AppInstanceStatus::Archived  => "archived",
+                })
+                .unwrap_or(tenant_model.site_status.as_str())
+                .to_string();
+
+            let platform_account_id = deployment
+                .as_ref()
+                .and_then(|d| d.platform_account_id)
+                .map(|id| id.to_string());
+
+            // Extract purpose from config JSONB — no migration needed (schemaless).
+            // Expected values for InternalOperator: "demo"|"test"|"staging"|"managed_service"
+            let purpose = deployment
+                .as_ref()
+                .and_then(|d| d.config.get("purpose"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
             result.push(PlatformAppModel {
-                tenant_id: tenant_model.id.to_string(),
-                instance_id: instance.id.to_string(),
-                name: tenant_model.name.clone(),
-                app_type: instance.app_type.clone(),
-                domain: domain_name,
-                site_status: tenant_model.site_status.clone(),
-                description: tenant_model.description.clone(),
+                tenant_id:           tenant_model.id.to_string(),
+                instance_id:         instance.id.to_string(),
+                name:                tenant_model.name.clone(),
+                app_type:            instance.app_type.clone(),
+                domain:              domain_name,
+                mode,
+                site_status,
+                description:         tenant_model.description.clone(),
+                platform_account_id,
+                purpose,
             });
         }
     }
-    
+
     Ok(Json(result))
 }
 

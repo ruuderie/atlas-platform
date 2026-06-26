@@ -145,11 +145,20 @@ pub fn ClientsPage() -> impl IntoView {
                     let q       = search.get().to_lowercase();
                     let f_status = filter_status.get();
 
+                    // Filter to Standard mode (paying subscriber clients) only.
+                    // InternalOperator instances are visible under /internal-instances.
                     let filtered: Vec<TenantStatModel> = tenants.into_iter()
                         .filter(|t| {
+                            // Determine mode from matching app
+                            let app_mode = apps.iter()
+                                .find(|a| a.tenant_id == t.tenant_id)
+                                .map(|a| a.mode.as_str())
+                                .unwrap_or("standard");
+                            let is_client = app_mode == "standard";
                             let name_match = q.is_empty() || t.name.to_lowercase().contains(&q);
-                            let status_match = f_status == "all" || t.site_status.as_deref().unwrap_or("") == f_status;
-                            name_match && status_match
+                            let status_match = f_status == "all"
+                                || t.site_status.as_deref().unwrap_or("") == f_status;
+                            is_client && name_match && status_match
                         })
                         .collect();
 
@@ -188,6 +197,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                     .filter(|a| a.tenant_id == t.tenant_id)
                                                     .collect();
                                                 let primary_app = tenant_apps.first().cloned();
+                                                let instance_id = primary_app.map(|a| a.instance_id.clone()).unwrap_or_default();
                                                 let domain = primary_app.map(|a| a.domain.clone()).unwrap_or("—".to_string());
                                                 let app_type = primary_app.map(|a| app_type_label(&a.app_type).to_string()).unwrap_or("—".to_string());
                                                 let instance_status = t.site_status.clone().unwrap_or("unknown".to_string());
@@ -238,10 +248,17 @@ pub fn ClientsPage() -> impl IntoView {
                                                         // Actions
                                                         <td class="py-3.5 px-5">
                                                             <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                // View Account — only visible when platform_account_id is set
+                                                                {primary_app.and_then(|a| a.platform_account_id.clone()).map(|acct_id| view! {
+                                                                    <a href=format!("/crm/accounts/{}", acct_id)
+                                                                        class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                                                        title="View CRM Account"
+                                                                    >"CRM Account"</a>
+                                                                })}
                                                                 {anchor_id.clone().map(|aid| view! {
                                                                     <a href=format!("/apps/{}/instance", aid)
                                                                         class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
-                                                                    >"Open Instance"</a>
+                                                                    >"Instance"</a>
                                                                 })}
                                                                 <a href=format!("/billing/tenant/{}", tenant_id_str)
                                                                     class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"

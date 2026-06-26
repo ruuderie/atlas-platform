@@ -2,17 +2,14 @@
 ///
 /// Route: /internal-instances
 ///
-/// Shows app instances that are internally managed by the Atlas Platform team —
-/// demo environments, staging, test tenants, and managed services operated on
-/// behalf of a client (as distinct from client self-service instances).
+/// Shows app instances that are internally managed by the Atlas Platform team:
+/// demo environments, staging, test environments, and managed services operated
+/// on behalf of a client (InternalOperator mode).
 ///
-/// NOTE: Filtering by `mode = InternalOperator` requires a backend schema change
-/// to expose the `mode` field from `atlas_app_deployment_config` in the
-/// `/api/admin/platform/apps` response. Until then, this page surfaces ALL
-/// platform apps with an operational focus (health, provisioning, actions)
-/// and documents what to add next.
+/// Filters to `mode = InternalOperator` via the backend `GET /api/admin/platform/apps`
+/// response. Standard paying-client deployments are shown in /clients.
 use leptos::prelude::*;
-use crate::api::admin::{get_all_platform_apps, suspend_instance, resume_instance};
+use crate::api::admin::get_all_platform_apps;
 
 fn status_class(s: &str) -> &'static str {
     match s {
@@ -39,6 +36,18 @@ fn app_label(t: &str) -> &'static str {
         "anchor"   => "Anchor",
         "meridian" => "Meridian",
         _          => "App",
+    }
+}
+
+/// Returns (display label, CSS classes) for an instance purpose tag.
+/// Purpose is stored in atlas_app_deployment_config.config["purpose"].
+fn purpose_badge(p: &str) -> (&'static str, &'static str) {
+    match p {
+        "demo"            => ("Demo",            "bg-blue-500/10 border-blue-500/20 text-blue-400"),
+        "test"            => ("Test",            "bg-amber-500/10 border-amber-500/20 text-amber-400"),
+        "staging"         => ("Staging",         "bg-purple-500/10 border-purple-500/20 text-purple-400"),
+        "managed_service" => ("Managed Service", "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"),
+        _                 => ("Internal",        "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant/70"),
     }
 }
 
@@ -69,21 +78,9 @@ pub fn InternalInstancesPage() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Ops Context Banner ────────────────────────────────────────────
-            <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl px-5 py-4 flex gap-3 text-xs">
-                <svg class="w-4 h-4 text-blue-400 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r="0.5" fill="currentColor"/>
-                </svg>
-                <div class="text-on-surface-variant/70 leading-relaxed">
-                    <span class="font-semibold text-blue-300">"Mode filtering coming soon. "</span>
-                    "Currently showing all platform instances. Once the backend exposes "
-                    <span class="font-mono text-blue-300/70">"mode = internal_operator"</span>
-                    " in the API response, this page will filter to internally managed deployments only. "
-                    "Use the search filter or "
-                    <a href="/clients" class="text-primary hover:underline">"Clients page"</a>
-                    " to distinguish subscriber tenants for now."
-                </div>
-            </div>
+            // ── Ops Context Banner REMOVED — mode filtering is now live ─────────
+            // InternalInstancesPage now filters to mode = "internal_operator" from
+            // the backend. Standard client deployments are visible in /clients.
 
             // ── Search ────────────────────────────────────────────────────────
             <div class="flex items-center gap-3">
@@ -103,12 +100,17 @@ pub fn InternalInstancesPage() -> impl IntoView {
                     let apps = apps_res.get().unwrap_or_default();
                     let q = search.get().to_lowercase();
 
+                    // Filter to InternalOperator mode only.
+                    // Standard client deployments are in /clients.
                     let filtered: Vec<_> = apps.into_iter()
                         .filter(|a| {
-                            q.is_empty()
+                            let is_internal = a.mode == "internal_operator";
+                            let matches = q.is_empty()
                                 || a.name.to_lowercase().contains(&q)
                                 || a.domain.to_lowercase().contains(&q)
                                 || a.app_type.to_lowercase().contains(&q)
+                                || a.purpose.as_deref().unwrap_or("").to_lowercase().contains(&q);
+                            is_internal && matches
                         })
                         .collect();
 
@@ -136,6 +138,7 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                         let label = app_label(&app.app_type).to_string();
                                         let instance_id = app.instance_id.clone();
                                         let iid2 = instance_id.clone();
+                                        let purpose_label = app.purpose.clone();
 
                                         view! {
                                             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden hover:border-outline-variant/50 transition-all">
@@ -149,6 +152,15 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                             {format!("● {}", status_str)}
                                                         </span>
                                                     </div>
+                                                    // Purpose badge — shown when set in config["purpose"]
+                                                    {purpose_label.as_deref().map(|p| {
+                                                        let (label, cls) = purpose_badge(p);
+                                                        view! {
+                                                            <span class=format!("px-2 py-0.5 rounded text-[9px] font-semibold border {}", cls)>
+                                                                {label}
+                                                            </span>
+                                                        }
+                                                    })}
                                                 </div>
 
                                                 // Card body

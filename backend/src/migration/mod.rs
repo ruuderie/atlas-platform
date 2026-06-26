@@ -293,6 +293,7 @@ pub mod m20260914_atlas_listing_asset_fk;          // atlas_listing: add asset_i
 pub mod m20260915_atlas_syndication_outbox;        // G-05 Syndication Event Bus: outbox + integration events ledger
 pub mod m20260916_product_tracking_pixels;         // GTM Landing Page Engine: per-product tracking pixels (GA4, GTM, Meta, LinkedIn, custom)
 pub mod m20260917_platform_products_app_slug;      // GTM Landing Page Engine: app_slug on platform_products — explicit product→app binary binding
+pub mod m20260918_deployment_config_account_link;  // Client Mgmt: platform_account_id FK on atlas_app_deployment_config → CRM Account cross-link
 
 pub struct Migrator;
 
@@ -537,6 +538,11 @@ impl MigratorTrait for Migrator {
             // Makes the product→app binary binding explicit and DB-enforced.
             // pub_resolve returns app_slug so CDN workers route to the correct SSR binary.
             Box::new(m20260917_platform_products_app_slug::Migration),
+            // Client Mgmt: platform_account_id — nullable FK on atlas_app_deployment_config
+            // linking a client deployment to its CRM Account record in atlas_accounts.
+            // Enables "View Account" quick action on the Clients page without a join.
+            // SET NULL on delete: removing an account does not affect the deployment config.
+            Box::new(m20260918_deployment_config_account_link::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

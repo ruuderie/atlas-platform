@@ -47,6 +47,13 @@ pub struct Model {
     /// Instance operational lifecycle status
     pub instance_status: AppInstanceStatus,
 
+    // ── CRM Account cross-link (m20260918) ───────────────────────────────────
+    /// Optional FK to atlas_accounts.id — links this deployment to the
+    /// platform admin CRM Account record representing the client.
+    /// NULL = not yet linked (new deployments or internal instances).
+    /// SET NULL on account delete (no cascade).
+    pub platform_account_id: Option<Uuid>,
+
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }

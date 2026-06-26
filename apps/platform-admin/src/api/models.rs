@@ -682,13 +682,20 @@ pub struct TenantStatModel {
 /// Returned by `GET /api/admin/platform/apps` (one row per app instance).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformAppSummary {
-    pub tenant_id: String,
-    pub instance_id: String,
-    pub name: String,
-    pub app_type: String,
-    pub domain: String,
-    pub site_status: String,
-    pub description: String,
+    pub tenant_id:           String,
+    pub instance_id:         String,
+    pub name:                String,
+    pub app_type:            String,
+    pub domain:              String,
+    /// "standard" | "internal_operator". Defaults to "standard" when no deployment config exists.
+    pub mode:                String,
+    /// From deployment config instance_status, falls back to tenant.site_status.
+    pub site_status:         String,
+    pub description:         String,
+    /// Set when the operator links this deployment to a CRM Account. Enables "View Account" action.
+    pub platform_account_id: Option<String>,
+    /// For InternalOperator instances: "demo" | "test" | "staging" | "managed_service".
+    pub purpose:             Option<String>,
 }
 
 // ==== BILLING ====
