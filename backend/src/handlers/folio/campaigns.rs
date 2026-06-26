@@ -17,13 +17,14 @@
 //! | POST   | /api/folio/campaigns/events | Record campaign event (webhook entrypoint) |
 
 use axum::{
+    body::Body,
     extract::{Extension, Json, Path, Query},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -55,6 +56,10 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
             get(list_enrollments),
         )
         .route("/api/folio/campaigns/events", post(record_event))
+        // Export campaign members as a direct-mail-ready CSV
+        .route("/api/folio/campaigns/{id}/enrollments/export", get(export_enrollments_csv))
+        // Bulk-enroll a list of leads by lead ID
+        .route("/api/folio/campaigns/{id}/enroll-leads", post(enroll_leads_bulk))
 }
 
 // ── Shared tenant resolution ──────────────────────────────────────────────────
@@ -515,4 +520,215 @@ async fn record_event(
         )
             .into_response(),
     }
+}
+
+// ── export_enrollments_csv ────────────────────────────────────────────────────
+//
+// GET /api/folio/campaigns/{id}/enrollments/export
+//
+// Returns a CSV suitable for uploading directly to a direct mail provider
+// (PostGrid, Lob, USPS EDDM, Taradel, etc.).
+//
+// Columns: first_name, last_name, company, email, phone,
+//          street_address, city, state, postal_code, country
+//
+// Mailing data is sourced from the atlas_leads table (joined via contact_email)
+// with fallback to enrollment metadata for any field not found on the lead.
+
+#[derive(Deserialize)]
+struct ExportQuery {
+    /// Optional status filter. Defaults to all statuses.
+    status: Option<String>,
+}
+
+async fn export_enrollments_csv(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(id): Path<Uuid>,
+    Query(q): Query<ExportQuery>,
+) -> Response {
+    let tenant_id = match resolve_tenant_id(&db, current_user.id).await {
+        Ok(tid) => tid,
+        Err(s) => return (s, "tenant resolution failed").into_response(),
+    };
+
+    let status_filter = match q.status.as_deref().map(EnrollmentStatus::try_from) {
+        Some(Err(e)) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))).into_response(),
+        Some(Ok(s)) => Some(s),
+        None => None,
+    };
+
+    let enrollments = match CampaignService::list_enrollments(&db, tenant_id, id, status_filter).await {
+        Ok(e) => e,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    // Load all leads for this tenant so we can join on email
+    let all_leads = crate::entities::atlas_lead::Entity::find()
+        .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
+        .order_by_asc(crate::entities::atlas_lead::Column::CreatedAt)
+        .all(&db)
+        .await
+        .unwrap_or_default();
+
+    // Build email → lead index for O(1) lookup
+    use std::collections::HashMap;
+    let lead_by_email: HashMap<String, _> = all_leads
+        .into_iter()
+        .filter_map(|l| l.email.clone().map(|e| (e.to_lowercase(), l)))
+        .collect();
+
+    // ── Build CSV ────────────────────────────────────────────────────────────
+    let mut csv = String::from(
+        "first_name,last_name,company,email,phone,street_address,city,state,postal_code,country\r\n"
+    );
+
+    for enrollment in &enrollments {
+        // Try to resolve mailing details from lead record
+        let lead = enrollment.contact_email.as_deref()
+            .and_then(|e| lead_by_email.get(&e.to_lowercase()));
+
+        // Parse contact_name into first/last (space-split, best effort)
+        let full_name = enrollment.contact_name.as_deref().unwrap_or("");
+        let mut name_parts = full_name.splitn(2, ' ');
+        let first_name = name_parts.next().unwrap_or("");
+        let last_name  = name_parts.next().unwrap_or("");
+
+        // Company from lead or enrollment metadata
+        let company = lead
+            .and_then(|l| l.company.as_deref())
+            .or_else(|| {
+                enrollment.contact_metadata.as_ref()
+                    .and_then(|m| m.get("company"))
+                    .and_then(|v| v.as_str())
+            })
+            .unwrap_or("");
+
+        let email = enrollment.contact_email.as_deref().unwrap_or("");
+
+        let phone = lead
+            .and_then(|l| l.phone.as_deref())
+            .or_else(|| {
+                enrollment.contact_metadata.as_ref()
+                    .and_then(|m| m.get("phone"))
+                    .and_then(|v| v.as_str())
+            })
+            .unwrap_or("");
+
+        // Mailing address: prefer typed mailing_address JSONB, fall back to street_address columns
+        let (street, city, state, zip, country) = if let Some(lead) = lead {
+            // mailing_address_typed() returns Result<Option<MailingAddress>>
+            let ma: Option<crate::types::shared::MailingAddress> =
+                lead.mailing_address_typed().ok().flatten();
+            (
+                ma.as_ref().and_then(|a| a.street.as_deref())
+                    .or(lead.street_address.as_deref()).unwrap_or("").to_string(),
+                ma.as_ref().and_then(|a| a.city.as_deref())
+                    .or(lead.city.as_deref()).unwrap_or("").to_string(),
+                ma.as_ref().and_then(|a| a.state.as_deref())
+                    .or(lead.state.as_deref()).unwrap_or("").to_string(),
+                ma.as_ref().and_then(|a| a.postal_code.as_deref())
+                    .or(lead.postal_code.as_deref()).unwrap_or("").to_string(),
+                ma.as_ref().and_then(|a| a.country.as_deref())
+                    .unwrap_or(&lead.country).to_string(),
+            )
+        } else {
+            // Fall back to enrollment metadata
+            let meta = enrollment.contact_metadata.as_ref();
+            let g = |k: &str| meta.and_then(|m| m.get(k)).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            (g("street_address"), g("city"), g("state"), g("zip"), g("country"))
+        };
+
+        fn esc(s: &str) -> String {
+            if s.contains(',') || s.contains('"') || s.contains('\n') {
+                format!("\"{}\"", s.replace('"', "\"\""))
+            } else {
+                s.to_string()
+            }
+        }
+
+        csv.push_str(&format!(
+            "{},{},{},{},{},{},{},{},{},{}\r\n",
+            esc(first_name), esc(last_name), esc(company), esc(email),
+            esc(phone), esc(&street), esc(&city), esc(&state), esc(&zip), esc(&country)
+        ));
+    }
+
+    let filename = format!("campaign_{}_members.csv", id);
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/csv; charset=utf-8")
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{filename}\""))
+        .body(Body::from(csv))
+        .unwrap()
+}
+
+// ── enroll_leads_bulk ─────────────────────────────────────────────────────────
+//
+// POST /api/folio/campaigns/{id}/enroll-leads
+// Body: { "lead_ids": ["uuid", ...] }
+//
+// Looks up each lead by ID (tenant-scoped), then enrolls them into the campaign.
+// Returns a count of successfully enrolled + any errors.
+
+#[derive(Deserialize)]
+struct EnrollLeadsRequest {
+    lead_ids: Vec<Uuid>,
+}
+
+async fn enroll_leads_bulk(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(campaign_id): Path<Uuid>,
+    Json(req): Json<EnrollLeadsRequest>,
+) -> impl IntoResponse {
+    let tenant_id = match resolve_tenant_id(&db, current_user.id).await {
+        Ok(id) => id,
+        Err(e) => return e.into_response(),
+    };
+
+    // Load all requested leads (tenant-scoped for safety)
+    let leads = crate::entities::atlas_lead::Entity::find()
+        .filter(crate::entities::atlas_lead::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_lead::Column::Id.is_in(req.lead_ids.clone()))
+        .all(&db)
+        .await
+        .unwrap_or_default();
+
+    let mut enrolled = 0usize;
+    let mut errors: Vec<String> = Vec::new();
+
+    for lead in leads {
+        let payload = EnrollContactPayload {
+            campaign_id,
+            contact_user_id: None,
+            contact_email: lead.email.clone(),
+            contact_name: Some(format!("{} {}",
+                lead.first_name.as_deref().unwrap_or(""),
+                lead.last_name.as_deref().unwrap_or(""),
+            ).trim().to_string()).filter(|s| !s.is_empty()),
+            contact_metadata: Some(serde_json::json!({
+                "lead_id": lead.id,
+                "company": lead.company,
+                "phone": lead.phone,
+                "street_address": lead.street_address,
+                "city": lead.city,
+                "state": lead.state,
+                "zip": lead.postal_code,
+                "source": lead.source,
+            })),
+            external_enrollment_id: None,
+            next_step_at: None,
+        };
+        match CampaignService::enroll(&db, tenant_id, payload).await {
+            Ok(_) => enrolled += 1,
+            Err(e) => errors.push(format!("lead {}: {}", lead.id, e)),
+        }
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "enrolled": enrolled,
+        "requested": req.lead_ids.len(),
+        "errors": errors,
+    }))).into_response()
 }

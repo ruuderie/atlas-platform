@@ -572,22 +572,104 @@ pub async fn get_audit_logs() -> Result<Vec<AuditLogModel>, String> {
     crate::api::client::api_get("api/admin/audit-logs").await
 }
 
+// ============================================================
+// CAMPAIGNS
+// ============================================================
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct CampaignModel {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub campaign_type: String,
+    pub status: String,
+    pub goal_type: Option<String>,
+    pub budget_cents: Option<i64>,
+    pub spent_cents: i64,
+    pub total_contacts: i32,
+    pub total_conversions: i32,
+    pub total_opens: i32,
+    pub total_clicks: i32,
+    pub attribution_window_days: i32,
+    pub utm_source: Option<String>,
+    pub utm_medium: Option<String>,
+    pub utm_campaign: Option<String>,
+    pub starts_at: Option<String>,
+    pub ends_at: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct CampaignEnrollmentModel {
+    pub id: uuid::Uuid,
+    pub campaign_id: uuid::Uuid,
+    pub contact_email: Option<String>,
+    pub contact_name: Option<String>,
+    pub status: String,
+    pub current_step: i32,
+    pub exit_reason: Option<String>,
+    pub converted_at: Option<String>,
+    pub enrolled_at: String,
+    pub contact_metadata: Option<serde_json::Value>,
+}
+
 #[derive(serde::Serialize)]
 pub struct CreateCampaignInput {
     pub name: String,
     pub campaign_type: String,
-    pub goal: String,
-    pub budget_cents: i64,
+    pub goal_type: Option<String>,
+    pub budget_cents: Option<i64>,
+    pub utm_source: Option<String>,
+    pub utm_medium: Option<String>,
+    pub utm_campaign: Option<String>,
+    pub attribution_window_days: Option<i32>,
 }
 
-/// Create a new marketing campaign.
-/// Calls `POST /api/admin/crm/campaigns`.
-pub async fn create_campaign(input: CreateCampaignInput) -> Result<serde_json::Value, String> {
+/// List all campaigns for the current tenant.
+/// Calls `GET /api/folio/campaigns`.
+pub async fn list_campaigns() -> Result<Vec<CampaignModel>, String> {
+    use crate::api::client::api_get_key;
+    api_get_key("api/folio/campaigns", "campaigns").await
+}
+
+/// Get a single campaign by ID.
+/// Calls `GET /api/folio/campaigns/{id}`.
+pub async fn get_campaign(id: uuid::Uuid) -> Result<CampaignModel, String> {
+    use crate::api::client::api_get_key;
+    api_get_key(&format!("api/folio/campaigns/{}", id), "campaign").await
+}
+
+/// Create a new campaign.
+/// Calls `POST /api/folio/campaigns`.
+pub async fn create_campaign(input: CreateCampaignInput) -> Result<CampaignModel, String> {
     let client = crate::api::client::create_client();
-    let url = crate::api::client::api_url("api/admin/crm/campaigns");
+    let url = crate::api::client::api_url("api/folio/campaigns");
     let req = client.post(&url).json(&input);
+    use crate::api::client::api_request_key;
+    api_request_key(req, "campaign").await
+}
+
+/// List enrollments (members) for a campaign.
+/// Calls `GET /api/folio/campaigns/{id}/enrollments`.
+pub async fn list_campaign_members(id: uuid::Uuid) -> Result<Vec<CampaignEnrollmentModel>, String> {
+    use crate::api::client::api_get_key;
+    api_get_key(&format!("api/folio/campaigns/{}/enrollments", id), "enrollments").await
+}
+
+/// Enroll a batch of leads into a campaign by lead ID.
+/// Calls `POST /api/folio/campaigns/{id}/enroll-leads`.
+pub async fn enroll_leads(campaign_id: uuid::Uuid, lead_ids: Vec<uuid::Uuid>) -> Result<serde_json::Value, String> {
+    let client = crate::api::client::create_client();
+    let url = crate::api::client::api_url(&format!("api/folio/campaigns/{}/enroll-leads", campaign_id));
+    let req = client.post(&url).json(&serde_json::json!({ "lead_ids": lead_ids }));
     crate::api::client::api_request(req).await
 }
+
+/// Returns the download URL for the campaign member CSV (direct mail export).
+/// The browser navigates to this URL directly to trigger the file download.
+pub fn campaign_export_url(campaign_id: uuid::Uuid) -> String {
+    crate::api::client::api_url(&format!("api/folio/campaigns/{}/enrollments/export", campaign_id))
+}
+
 
 // ============================================================
 // SESSION MANAGEMENT

@@ -1435,6 +1435,8 @@ impl TryFrom<&str> for BookingChannel {
 pub enum CampaignType {
     /// Multi-step cold email sequence (Instantly.ai, Lemlist, Apollo)
     ColdEmail,
+    /// Physical direct mail (postcards, letters, flyers via USPS/Lob/PostGrid)
+    DirectMail,
     /// Pay-per-click ads (Google Ads, Meta Ads, LinkedIn Ads)
     Ppc,
     /// Organic or paid social media posts
@@ -1455,6 +1457,7 @@ impl fmt::Display for CampaignType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CampaignType::ColdEmail   => write!(f, "cold_email"),
+            CampaignType::DirectMail  => write!(f, "direct_mail"),
             CampaignType::Ppc         => write!(f, "ppc"),
             CampaignType::Social      => write!(f, "social"),
             CampaignType::EventBased  => write!(f, "event_based"),
@@ -1470,15 +1473,16 @@ impl TryFrom<String> for CampaignType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "cold_email"  => Ok(CampaignType::ColdEmail),
-            "ppc"         => Ok(CampaignType::Ppc),
-            "social"      => Ok(CampaignType::Social),
-            "event_based" => Ok(CampaignType::EventBased),
-            "sms"         => Ok(CampaignType::Sms),
-            "content"     => Ok(CampaignType::Content),
-            "referral"    => Ok(CampaignType::Referral),
-            "retargeting" => Ok(CampaignType::Retargeting),
-            other         => Err(format!("unknown CampaignType: {other}")),
+            "cold_email"   => Ok(CampaignType::ColdEmail),
+            "direct_mail"  => Ok(CampaignType::DirectMail),
+            "ppc"          => Ok(CampaignType::Ppc),
+            "social"       => Ok(CampaignType::Social),
+            "event_based"  => Ok(CampaignType::EventBased),
+            "sms"          => Ok(CampaignType::Sms),
+            "content"      => Ok(CampaignType::Content),
+            "referral"     => Ok(CampaignType::Referral),
+            "retargeting"  => Ok(CampaignType::Retargeting),
+            other          => Err(format!("unknown CampaignType: {other}")),
         }
     }
 }

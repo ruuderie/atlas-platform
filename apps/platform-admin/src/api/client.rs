@@ -180,3 +180,32 @@ pub async fn api_delete(path: &str) -> Result<(), String> {
         Err(format!("DELETE {} failed: {}", path, res.status()))
     }
 }
+
+/// GET a path and unwrap a JSON envelope.
+///
+/// The API returns `{ "<key>": <value> }` — this helper extracts the value
+/// under `key` and deserializes it directly into `T`.
+///
+/// Example: `api_get_key("api/folio/campaigns", "campaigns")` parses
+/// `{"campaigns": [...]}` into `Vec<CampaignModel>`.
+pub async fn api_get_key<T: serde::de::DeserializeOwned>(path: &str, key: &str) -> Result<T, String> {
+    let raw: serde_json::Value = api_get(path).await?;
+    raw.get(key)
+        .cloned()
+        .ok_or_else(|| format!("response missing key \"{key}\""))
+        .and_then(|v| serde_json::from_value(v).map_err(|e| e.to_string()))
+}
+
+/// POST/PATCH a request and unwrap a JSON envelope.
+///
+/// Mirrors `api_get_key` for mutating requests.
+pub async fn api_request_key<T: serde::de::DeserializeOwned>(
+    req: reqwest::RequestBuilder,
+    key: &str,
+) -> Result<T, String> {
+    let raw: serde_json::Value = api_request(req).await?;
+    raw.get(key)
+        .cloned()
+        .ok_or_else(|| format!("response missing key \"{key}\""))
+        .and_then(|v| serde_json::from_value(v).map_err(|e| e.to_string()))
+}
