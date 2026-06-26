@@ -266,10 +266,10 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/campaigns",
             get(list_campaigns).post(create_campaign))
-        .route("/api/admin/campaigns/:id",
+        .route("/api/admin/campaigns/{id}",
             get(get_campaign))
-        .route("/api/admin/campaigns/:id/status",
+        .route("/api/admin/campaigns/{id}/status",
             put(update_campaign_status))
-        .route("/api/admin/campaigns/:id/enrollments",
+        .route("/api/admin/campaigns/{id}/enrollments",
             get(list_campaign_enrollments))
 }
