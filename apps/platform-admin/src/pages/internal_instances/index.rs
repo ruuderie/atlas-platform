@@ -66,7 +66,7 @@ pub fn InternalInstancesPage() -> impl IntoView {
     let search = RwSignal::new(String::new());
 
     view! {
-        <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
+        <div class="space-y-6">
 
             // ── Header ────────────────────────────────────────────────────────
             <div class="flex items-start justify-between flex-wrap gap-4">

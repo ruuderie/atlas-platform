@@ -49,7 +49,7 @@ pub fn AppInstance() -> impl IntoView {
     });
 
     view! {
-        <div class="w-full p-6 max-w-7xl mx-auto">
+        <div class="w-full p-6">
             <Suspense fallback=move || view! {
                 <div class="flex items-center justify-center h-64">
                     <div class="text-on-surface-variant text-sm animate-pulse">"Loading instance…"</div>

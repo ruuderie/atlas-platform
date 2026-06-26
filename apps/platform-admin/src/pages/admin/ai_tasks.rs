@@ -207,7 +207,7 @@ pub fn AiTasks() -> impl IntoView {
     });
 
     view! {
-        <div class="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
+        <div class="space-y-6 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
             // Header
             <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
                 <div>

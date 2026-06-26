@@ -453,7 +453,7 @@ pub fn CampaignDetail() -> impl IntoView {
                     let utm_medium = campaign.utm_medium.clone().unwrap_or_default();
 
                     view! {
-                        <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
+                        <div class="space-y-6">
 
                             // ── Breadcrumb ───────────────────────────────────
                             <div class="flex items-center gap-2 text-xs text-on-surface-variant/60">
