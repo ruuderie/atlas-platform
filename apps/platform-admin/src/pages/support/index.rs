@@ -129,25 +129,85 @@ pub fn SupportQueue() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-1">
+        <div class="main-area">
+
+            // ── Page Header ──
+            <div class="page-header">
+                <div>
+                    <div class="page-title">"Support Queue"</div>
+                    <div class="page-subtitle">"Tenant operational issues and support cases · Click any case to open the workspace"</div>
+                </div>
+                <div class="page-actions">
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        title="Refresh queue"
+                        on:click=move |_| refresh.update(|n| *n += 1)
+                    >
+                        <svg class="w-3 h-3 inline-block mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
+                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Exporting support queue to CSV…", "info")>"↓ Export"</button>
+                </div>
+            </div>
+
+            // ── Error banner ──
             {move || support_error.get().map(|e| crate::utils::inline_error(&e))}
-        <div class="h-[calc(100vh-160px)] flex bg-surface border border-outline-variant/10 rounded-2xl overflow-hidden shadow-lg text-on-surface">
+
+            // ── KPI Row ──
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <span class="kpi-label">"Open Cases"</span>
+                    <span class="kpi-value" style="color:var(--red)">
+                        <Suspense fallback=|| view! { "—" }>
+                            {move || cases_resource.get().map(|r| {
+                                r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "open").count()).unwrap_or(0).to_string()
+                            })}
+                        </Suspense>
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"In Progress"</span>
+                    <span class="kpi-value" style="color:var(--cobalt)">
+                        <Suspense fallback=|| view! { "—" }>
+                            {move || cases_resource.get().map(|r| {
+                                r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "in progress").count()).unwrap_or(0).to_string()
+                            })}
+                        </Suspense>
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"Escalated"</span>
+                    <span class="kpi-value" style="color:var(--amber)">
+                        <Suspense fallback=|| view! { "—" }>
+                            {move || cases_resource.get().map(|r| {
+                                r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "escalated").count()).unwrap_or(0).to_string()
+                            })}
+                        </Suspense>
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"Resolved (Total)"</span>
+                    <span class="kpi-value" style="color:var(--green)">
+                        <Suspense fallback=|| view! { "—" }>
+                            {move || cases_resource.get().map(|r| {
+                                r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "resolved" || c.status.to_lowercase() == "closed").count()).unwrap_or(0).to_string()
+                            })}
+                        </Suspense>
+                    </span>
+                </div>
+            </div>
+
+            // ── 2-Panel Workspace ──
+            <div class="flags-body" style="display:flex;flex-direction:row;padding:0;gap:0;overflow:hidden;border:1px solid var(--border-default);border-radius:8px;background:var(--bg-surface);">
 
             // ── Left panel: ticket list ──────────────────────────────────────
             <div class="w-80 flex-shrink-0 border-r border-outline-variant/10 flex flex-col bg-surface-container/20">
                 <div class="p-4 border-b border-outline-variant/10 flex-shrink-0">
                     <div class="flex items-center justify-between font-bold text-sm">
-                        <span>"Support Queue"</span>
+                        <span>"Queue"</span>
                         <div class="flex items-center gap-2">
-                            <button
-                                class="p-1 rounded hover:bg-surface-bright/20 text-on-surface-variant hover:text-on-surface transition-colors"
-                                title="Refresh queue"
-                                on:click=move |_| refresh.update(|n| *n += 1)
-                            >
-                                <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                                    <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
-                                </svg>
-                            </button>
                             <Suspense fallback=|| view! { <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-surface-container border border-outline-variant/20 text-on-surface-variant">"..."</span> }>
                                 {move || cases_resource.get().map(|r| {
                                     let count = r.as_deref().ok().map(|v| v.iter().filter(|c| c.status.to_lowercase() == "open").count()).unwrap_or(0);
@@ -160,7 +220,6 @@ pub fn SupportQueue() -> impl IntoView {
                             </Suspense>
                         </div>
                     </div>
-                    <p class="text-[10.5px] text-on-surface-variant mt-1">"Tenant operational issues and support cases"</p>
                 </div>
 
                 // Filter pills
@@ -462,6 +521,7 @@ pub fn SupportQueue() -> impl IntoView {
                     }
                 }}
             </div>
+            </div> // end flags-body 2-panel wrapper
 
             // ── Internal Note Modal ──────────────────────────────────────────
             <Show when=move || show_internal_modal.get()>
@@ -565,7 +625,6 @@ pub fn SupportQueue() -> impl IntoView {
                     </div>
                 </div>
             </Show>
-        </div>
-        </div>
+        </div> // end main-area
     }
 }

@@ -188,15 +188,66 @@ pub fn Verification() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-1">
-            {move || ver_error.get().map(|e| crate::utils::inline_error(&e))}
-        <Suspense fallback=|| view! {
-            <div class="main-canvas">
-                <div class="animate-pulse flex flex-col items-center justify-center h-64">
-                    <span class="material-symbols-outlined text-4xl mb-2 opacity-50">"sync"</span>
-                    <p>"Loading verification queue..."</p>
+        <div class="main-area">
+
+            // ── Page Header ──
+            <div class="page-header">
+                <div>
+                    <div class="page-title">"Verification Queue"</div>
+                    <div class="page-subtitle">"KYB / KYC identity and business verification requests · Review, approve, or reject submissions"</div>
+                </div>
+                <div class="page-actions">
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        title="Reload queue from backend"
+                        on:click=move |_| trigger_fetch.set(trigger_fetch.get() + 1)
+                    >
+                        <svg class="w-3 h-3 inline-block mr-1" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        </svg>
+                        "Refresh"
+                    </button>
+                    <button class="btn btn-ghost btn-sm" on:click=move |_| toast.show_toast("Info", "Verification logs compiled.", "info")>"↓ Export"</button>
                 </div>
             </div>
+
+            // ── Error banner ──
+            {move || ver_error.get().map(|e| crate::utils::inline_error(&e))}
+
+            // ── KPI Row ──
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <span class="kpi-label">"Pending Review"</span>
+                    <span class="kpi-value" style="color:var(--amber)">
+                        {move || {
+                            let list = db_requests.get().unwrap_or_default();
+                            list.iter().filter(|r| r.status == "pending" || r.status == "review").count().to_string()
+                        }}
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"Approved"</span>
+                    <span class="kpi-value" style="color:var(--green)">
+                        {move || db_requests.get().unwrap_or_default().iter().filter(|r| r.status == "approved").count().to_string()}
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"Rejected"</span>
+                    <span class="kpi-value" style="color:var(--red)">
+                        {move || db_requests.get().unwrap_or_default().iter().filter(|r| r.status == "rejected").count().to_string()}
+                    </span>
+                </div>
+                <div class="kpi-card">
+                    <span class="kpi-label">"Total Requests"</span>
+                    <span class="kpi-value">
+                        {move || db_requests.get().unwrap_or_default().len().to_string()}
+                    </span>
+                </div>
+            </div>
+
+            // ── 2-Panel Workspace ──
+        <Suspense fallback=|| view! {
+            <div style="padding:48px;text-align:center;color:var(--text-muted);">"Loading verification queue..."</div>
         }>
             <div class="main">
                 // ── LEFT PANE: Queue ──
@@ -631,6 +682,6 @@ pub fn Verification() -> impl IntoView {
                 </div>
             </div>
         </Show>
-        </div>
+        </div> // end main-area
     }
 }

@@ -152,47 +152,46 @@ pub fn PlatformAdmins() -> impl IntoView {
     };
 
     view! {
+        <div class="main-area">
         // Page Header
-        <div class="page-hdr">
+        <div class="page-header">
             <div>
                 <div class="page-title">"Users & Access Control"</div>
-                <div class="page-sub">"Platform users · Roles · Invitations · Audit log"</div>
+                <div class="page-subtitle">"Platform users · Roles · Invitations · Audit log"</div>
             </div>
+            <div class="page-actions">
             <button class="btn btn-primary btn-sm" on:click=move |_| {
                 invite_email.set(String::new());
                 show_invite_modal.set(true);
             }>"+ Invite User"</button>
+            </div>
         </div>
 
-        // KPI Strip
-        <div class="kpi-strip">
-            <div class="kpi">
-                <div class="kpi-label">"Total Users"</div>
-                <div class="kpi-value">
+        // KPI Row
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <span class="kpi-label">"Total Users"</span>
+                <span class="kpi-value">
                     {move || users_res.get().map(|v| v.len().to_string()).unwrap_or_else(|| "—".to_string())}
-                </div>
-                <div class="kpi-sub">"Registered in DB"</div>
+                </span>
             </div>
-            <div class="kpi">
-                <div class="kpi-label">"Admins"</div>
-                <div class="kpi-value" style="color:var(--cobalt)">
+            <div class="kpi-card">
+                <span class="kpi-label">"Admins"</span>
+                <span class="kpi-value" style="color:var(--cobalt)">
                     {move || users_res.get().map(|v| v.iter().filter(|u| u.is_admin).count().to_string()).unwrap_or_else(|| "—".to_string())}
-                </div>
-                <div class="kpi-sub">"Platform-wide access"</div>
+                </span>
             </div>
-            <div class="kpi">
-                <div class="kpi-label">"Pending Invites"</div>
-                <div class="kpi-value" style="color:var(--amber)">
+            <div class="kpi-card">
+                <span class="kpi-label">"Pending Invites"</span>
+                <span class="kpi-value" style="color:var(--amber)">
                     {move || invites_res.get().map(|list| list.len().to_string()).unwrap_or_else(|| "0".to_string())}
-                </div>
-                <div class="kpi-sub">"Awaiting acceptance"</div>
+                </span>
             </div>
-            <div class="kpi">
-                <div class="kpi-label">"Audit Events"</div>
-                <div class="kpi-value mono">
+            <div class="kpi-card">
+                <span class="kpi-label">"Audit Events"</span>
+                <span class="kpi-value">
                     {move || audit_logs_res.get().map(|v| v.len().to_string()).unwrap_or_else(|| "—".to_string())}
-                </div>
-                <div class="kpi-sub">"All recorded actions"</div>
+                </span>
             </div>
         </div>
 
@@ -595,5 +594,6 @@ pub fn PlatformAdmins() -> impl IntoView {
                 </div>
             }}
         </Show>
+        </div> // end main-area
     }
 }
