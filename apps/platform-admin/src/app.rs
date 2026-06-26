@@ -421,6 +421,15 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg>
                         "Landing Pages"
                     </a>
+                    // Campaigns = outreach execution hub (direct mail, email, paid).
+                    // Connects campaigns to landing pages via UTM, tracks full funnel.
+                    <a href="/campaigns" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/campaigns") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v5c0 2.5-2.5 4.5-6 5-3.5-.5-6-2.5-6-5V5z"/><path d="M8 8l2 1.5-2 1"/></svg>
+                        "Campaigns"
+                    </a>
                     <a href="/network" class=move || side_active_class("/network")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M1 8h14M8 1a12 12 0 0 1 0 14A12 12 0 0 1 8 1"/></svg>
                         "Network Instances"
@@ -523,6 +532,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/pipeline/:id") view=crate::pages::crm::detail::CrmDetail />
                         <Route path=path!("/products") view=PlatformProducts />
                         <Route path=path!("/products/:id") view=ProductDetail />
+                        <Route path=path!("/campaigns") view=crate::pages::marketing::campaigns::CampaignsPage />
+                        <Route path=path!("/campaigns/:id") view=crate::pages::marketing::campaigns::CampaignDetail />
                         <Route path=path!("/admins") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant::TenantLedger />
