@@ -744,6 +744,28 @@ Rules:
 
 ---
 
+## 29. CURRENT_STATE.md — Remind When It's Time to Refresh
+
+`docs/CURRENT_STATE.md` is the ground-truth registry of platform implementation status. The user has an automated workflow (`/update-current-state`) to keep it accurate — **do not run it yourself**.
+
+Your job is to surface a reminder at the right moment, then stop. The decision to run it belongs to the user.
+
+**Remind the user to run `/update-current-state` when:**
+- 5 or more pages have been implemented since the last reminder
+- You are about to read CURRENT_STATE.md and notice its "Last modified" date is more than 2 weeks old
+- A new generic has just been proposed or confirmed (Rule 27)
+- The user asks a question whose answer depends on platform implementation status
+
+**Format — one line, at the end of your response:**
+
+```
+💡 Good time to run `/update-current-state` — [X] pages landed since last refresh.
+```
+
+That's it. Do not explain what the workflow does. Do not offer to run it. Do not repeat the reminder in the same session unless the user explicitly asks about platform status again.
+
+---
+
 ## 27. Proactive Generic Discovery
 
 The platform's backend is built around **Platform Generics** (G01–G34+) — reusable, service-backed entities that power multiple roles and apps. When implementing a new page or feature, actively evaluate whether the data it needs maps to an existing generic or represents a gap that should become one.
