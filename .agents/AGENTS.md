@@ -415,7 +415,111 @@ Generic codes (G-01 through G-34+) are internal engineering identifiers. They be
 
 ---
 
+## 19. Leptos 0.8+ — Mandatory API Version
+
+All frontend apps on this platform use **Leptos 0.8** (pinned in `Cargo.toml`). Do not write Leptos 0.6 or 0.7 idioms — many are API-breaking changes that compile with outdated training knowledge but fail at runtime or produce wrong behavior.
+
+### Breaking differences from 0.7 that agents commonly get wrong
+
+**Signals — use `ReadSignal` / `RwSignal` from `leptos::prelude::*`**
+```rust
+// ❌ 0.7 API — does not exist in 0.8
+let (count, set_count) = create_signal(0);
+
+// ✅ 0.8 API
+let count = RwSignal::new(0);
+let (read, write) = signal(0);   // tuple form still works
+```
+
+**Resources — `Resource::new` vs `LocalResource::new`**
+```rust
+// ✅ Resource::new — SSR-compatible, runs on server AND client
+// MUST be inside <Suspense> when read
+let data = Resource::new(|| (), |_| async move { fetch_data().await });
+
+// ✅ LocalResource::new — WASM-only, skips SSR pass
+// Use when data is not needed for initial HTML (e.g. after user interaction)
+let local = LocalResource::new(|| async move { client_only_fetch().await });
+
+// Rule: if the data should be in the SSR-rendered HTML → Resource
+//       if the data only matters after hydration → LocalResource
+```
+
+**Router — `path!()` macro + typed params**
+```rust
+// ✅ 0.8 — use path!() macro in Leptos routes
+<Route path=path!("/l/assets/:id") view=AssetDetail/>
+
+// ✅ Extracting params in the page component
+let params = use_params_map();
+let id = params.get().get("id").unwrap_or_default();
+
+// ❌ Axum route syntax in Leptos path — does NOT work
+<Route path="/l/assets/{id}" view=AssetDetail/>  // {id} is Axum syntax
+```
+
+**`IntoView` — no more `view!` inside `if` without `.into_any()`**
+```rust
+// ✅ 0.8 — different branches must have the same type
+{move || match result {
+    Ok(data) => view! { <DataView data=data/> }.into_any(),
+    Err(_)   => view! { <ErrorState/> }.into_any(),
+}}
+
+// ❌ Will not compile — branches have different concrete types
+{move || if loading { view! { <Spinner/> } else { view! { <Content/> } }}
+```
+
+**`use_navigate` — explicit navigation**
+```rust
+// ✅ 0.8
+let navigate = use_navigate();
+navigate(FolioRoute::LandlordDashboard.path(), Default::default());
+
+// ❌ Do not use window.location for internal SPA navigation (bypasses router)
+web_sys::window().unwrap().location().set_href("/l");
+```
+
+**`#[server]` — endpoint path is `/api` not `/server_fns`**
+```rust
+// ✅ Correct endpoint prefix for this platform
+#[server(GetAssets, "/api")]
+pub async fn get_assets() -> Result<Vec<Asset>, ServerFnError> { ... }
+```
+
+**`collect_view()` — required for iterators in `view!`**
+```rust
+// ✅ 0.8
+items.iter().map(|item| view! { <Row item=item.clone()/> }).collect_view()
+
+// ❌ Calling .collect::<Vec<_>>() inside view! does not work correctly
+```
+
+**Reactive closures — `move ||` not `|| move`**
+```rust
+// ✅
+on:click=move |_| { /* captures outer vars by move */ }
+
+// ❌ Wrong order
+on:click=|| move |_| { }
+```
+
+### Pinned versions (as of June 2026)
+
+| Crate | Version | Location |
+|---|---|---|
+| `leptos` | `0.8` (resolves to 0.8.x latest) | `apps/folio/Cargo.toml` |
+| `leptos` | `0.8.17` | `apps/shared-ui/Cargo.toml` |
+| `leptos_axum` | `0.8` | `apps/folio/Cargo.toml` |
+| `leptos_router` | `0.8` | `apps/folio/Cargo.toml` |
+| `leptos_meta` | `0.8` | `apps/folio/Cargo.toml` |
+
+When in doubt about the 0.8 API for a specific pattern, consult `docs/leptos_ssr_shell_pattern.md` or look at an existing working page in `apps/folio/src/pages/` before writing from training knowledge.
+
+---
+
 ## Exceptions Policy
+
 
 A deviation from these rules is permitted only if:
 
