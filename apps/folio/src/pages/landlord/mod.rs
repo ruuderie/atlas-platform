@@ -8,6 +8,7 @@ pub mod tenant_profile;
 pub mod maintenance_queue;
 pub mod ledger;
 pub mod violations;
+pub mod inspections;
 pub mod leads;
 pub mod campaigns;
 pub mod billing;
