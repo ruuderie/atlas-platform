@@ -31,18 +31,18 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/communications` | `atlas_ws_room.rs` |
 | `[x]` | Notifications | `l_notifications` | `pages/landlord/notifications.rs` | `/l/notifications` | `atlas_notification.rs` |
 | `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
-| `[ ]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
+| `[x]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
 | `[x]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `violations.rs` |
 | `[x]` | Building Systems | `l_building_systems` | `pages/landlord/building_systems.rs` | `/l/systems` | `asset.rs` |
 | `[x]` | Unit Appliances | `l_unit_appliances` | `pages/landlord/unit_appliances.rs` | `/l/appliances` | `asset.rs` |
-| `[ ]` | Syndication | `l_syndication` | `pages/landlord/syndication.rs` | `/l/syndication` | `syndication_admin.rs` |
-| `[ ]` | Wholesaling | `l_wholesaling` | `pages/landlord/wholesaling.rs` | `/l/wholesaling` | TBD |
-| `[ ]` | Listing Network Preview | `l_listing_network_preview` | `pages/landlord/listing_preview.rs` | `/l/assets/:id/preview` | `catalog.rs` |
-| `[ ]` | Contractor Marketplace | `l_contractor_marketplace` | `pages/landlord/contractor_marketplace.rs` | `/l/marketplace` | `vendor.rs` |
-| `[ ]` | Account Billing | `l_account_billing` | `pages/landlord/account_billing.rs` | `/l/account/billing` | `billing.rs` |
+| `[x]` | Syndication | `l_syndication` | `pages/landlord/syndication.rs` | `/l/syndication` | `syndication_admin.rs` |
+| `[x]` | Wholesaling | `l_wholesaling` | `pages/landlord/wholesaling.rs` | `/l/wholesaling` | TBD |
+| `[x]` | Listing Network Preview | `l_listing_network_preview` | `pages/landlord/listing_preview.rs` | `/l/assets/:id/preview` | `catalog.rs` |
+| `[x]` | Contractor Marketplace | `l_contractor_marketplace` | `pages/landlord/contractor_marketplace.rs` | `/l/marketplace` | `vendor.rs` |
+| `[x]` | Account Billing | `l_account_billing` | `pages/landlord/account_billing.rs` | `/l/account/billing` | `billing.rs` |
 | `[ ]` | G27 Configurator | `l_g27_configurator` | `pages/landlord/meridian_config.rs` | `/l/meridian/configure` | G-27 analytics |
-| `[ ]` | Asset Alerts | `l_asset_alerts` | `pages/landlord/asset_alerts.rs` | `/l/assets/:id/alerts` | `asset.rs` |
+| `[x]` | Asset Alerts | `l_asset_alerts` | `pages/landlord/asset_alerts.rs` | `/l/assets/:id/alerts` | `asset.rs` |
 
 ---
 
@@ -62,9 +62,9 @@ _Tenant retention. Their UX determines renewal rates._
 | `[x]` | Payment History | `t_payment_history` | `pages/tenant/payment_history.rs` | `/t/payments/history` | `billing.rs` |
 | `[x]` | Profile | `t_profile` | `pages/tenant/profile.rs` | `/t/profile` | `user_accounts` |
 | `[x]` | Violations | `t_violations` | `pages/tenant/violations.rs` | `/t/violations` | `case.rs` |
-| `[ ]` | Reports | `t_reports` | `pages/tenant/reports.rs` | `/t/reports` | `billing.rs` |
-| `[ ]` | Maintenance Detail | `t_maintenance_detail` | `pages/tenant/maintenance_detail.rs` | `/t/maintenance/:id` | `case.rs` |
-| `[ ]` | Application Status | `t_application_status` | `pages/tenant/application_status.rs` | `/t/application` | `application.rs` |
+| `[x]` | Reports | `t_reports` | `pages/tenant/reports.rs` | `/t/reports` | `billing.rs` |
+| `[x]` | Maintenance Detail | `t_maintenance_detail` | `pages/tenant/maintenance_detail.rs` | `/t/maintenance/:id` | `case.rs` |
+| `[x]` | Application Status | `t_application_status` | `pages/tenant/application_status.rs` | `/t/application` | `application.rs` |
 
 ---
 
@@ -108,7 +108,7 @@ _Standard mode, `listing_mode = str`. Folio hosts who run short-term rentals._
 | `[ ]` | Channel Manager | `s_channel_manager` | `pages/str_host/channels.rs` | `/s/channels` | `syndication_admin.rs` |
 | `[ ]` | Guest Messaging | `s_guest_messaging` | `pages/str_host/messages.rs` | `/s/messages` | `comms.rs` |
 | `[ ]` | Reviews | `s_reviews` | `pages/str_host/reviews.rs` | `/s/reviews` | TBD |
-| `[ ]` | Syndication | `s_syndication` | `pages/str_host/syndication.rs` | `/s/syndication` | `syndication_admin.rs` |
+| `[x]` | Syndication | `s_syndication` | `pages/str_host/syndication.rs` | `/s/syndication` | `syndication_admin.rs` |
 | `[ ]` | Incidents / Violations | `s_incidents` | `pages/str_host/incidents.rs` | `/s/incidents` | `case.rs` |
 | `[ ]` | Violation Filing | `s_violation_filing` | `pages/str_host/violation_file.rs` | `/s/violations/new` | `case.rs` |
 
