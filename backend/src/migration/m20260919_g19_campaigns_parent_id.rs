@@ -19,12 +19,14 @@ impl MigrationName for Migration {
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Add the column only if it doesn't already exist (idempotent guard).
+        // Add all three columns that the entity model references but the original
+        // G-19 migration omitted. All guards are idempotent.
         let db = manager.get_connection();
         db.execute_unprepared(
             r#"
             DO $$
             BEGIN
+                -- parent_campaign_id: self-referential FK for campaign hierarchy
                 IF NOT EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_name = 'atlas_campaigns'
@@ -33,11 +35,26 @@ impl MigrationTrait for Migration {
                     ALTER TABLE atlas_campaigns
                         ADD COLUMN parent_campaign_id UUID
                         REFERENCES atlas_campaigns(id) ON DELETE SET NULL;
+                END IF;
 
-                    CREATE INDEX CONCURRENTLY IF NOT EXISTS
-                        idx_atlas_campaigns_parent_id
-                        ON atlas_campaigns(parent_campaign_id)
-                        WHERE parent_campaign_id IS NOT NULL;
+                -- audience_segment_id: FK to audience segment (nullable)
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'atlas_campaigns'
+                      AND column_name = 'audience_segment_id'
+                ) THEN
+                    ALTER TABLE atlas_campaigns
+                        ADD COLUMN audience_segment_id UUID;
+                END IF;
+
+                -- updated_at: required by SeaORM entity but missing from original migration
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'atlas_campaigns'
+                      AND column_name = 'updated_at'
+                ) THEN
+                    ALTER TABLE atlas_campaigns
+                        ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;
                 END IF;
             END
             $$;
