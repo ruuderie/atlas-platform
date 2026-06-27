@@ -499,6 +499,71 @@ impl OutboxWorker {
                 crate::types::outbox::OutboxJobType::ReleaseExpiredReservationHolds => {
                     Ok(()) // delegated — outbox worker is not the executor for this type
                 }
+
+                // G-07 ext: Notification channel delivery
+                // Dispatches telegram / whatsapp / sms / email to one channel per job.
+                // Records delivery status in atlas_notification.channels_attempted.
+                crate::types::outbox::OutboxJobType::NotifyChannel => {
+                    use crate::services::notification_service::{NotifyChannelPayload, channels};
+                    use crate::entities::atlas_notification;
+                    use sea_orm::{EntityTrait, ActiveModelTrait, Set};
+                    use chrono::Utc;
+
+                    let payload = match serde_json::from_value::<NotifyChannelPayload>(job.payload.clone()) {
+                        Ok(p)  => p,
+                        Err(e) => return Err(sea_orm::DbErr::Custom(format!("NotifyChannel: failed to deserialise payload: {e}"))),
+                    };
+
+                    // Fetch tenant settings for channel credentials
+                    let settings: std::collections::HashMap<String, String> = {
+                        use crate::entities::tenant_setting;
+                        use sea_orm::{QueryFilter, ColumnTrait};
+                        tenant_setting::Entity::find()
+                            .filter(tenant_setting::Column::TenantId.eq(payload.tenant_id))
+                            .all(db)
+                            .await
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|s| (s.key, s.value))
+                            .collect()
+                    };
+
+                    let result = channels::dispatch_channel_job(&payload, &settings).await;
+
+                    // Write delivery receipt into atlas_notification.channels_attempted
+                    let receipt = match &result {
+                        channels::ChannelResult::Delivered      => serde_json::json!({ "channel": payload.channel, "status": "delivered",  "attempted_at": Utc::now() }),
+                        channels::ChannelResult::Skipped { reason } => serde_json::json!({ "channel": payload.channel, "status": "skipped",   "attempted_at": Utc::now(), "reason": reason }),
+                        channels::ChannelResult::Failed { error }   => serde_json::json!({ "channel": payload.channel, "status": "failed",    "attempted_at": Utc::now(), "error": error }),
+                    };
+
+                    // Append receipt to channels_attempted via read-modify-write
+                    if let Ok(Some(notif)) = atlas_notification::Entity::find_by_id(payload.notification_id)
+                        .one(db)
+                        .await
+                    {
+                        use sea_orm::{ActiveModelTrait, Set};
+                        let mut existing: Vec<serde_json::Value> = notif.channels_attempted
+                            .as_array()
+                            .cloned()
+                            .unwrap_or_default();
+                        existing.push(receipt);
+                        let mut active: atlas_notification::ActiveModel = notif.into();
+                        active.channels_attempted = Set(serde_json::Value::Array(existing));
+                        let _ = active.update(db).await;
+                    }
+
+                    match result {
+                        channels::ChannelResult::Delivered                => Ok(()),
+                        channels::ChannelResult::Skipped { reason }       => {
+                            info!("NotifyChannel: skipped channel={} reason={}", payload.channel, reason);
+                            Ok(()) // Skipped is not an error
+                        }
+                        channels::ChannelResult::Failed { error }         => {
+                            Err(format!("NotifyChannel: channel={} error={}", payload.channel, error))
+                        }
+                    }
+                }
             };
 
             let duration = start_time.elapsed().as_secs_f64();

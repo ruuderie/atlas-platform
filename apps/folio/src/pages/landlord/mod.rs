@@ -13,6 +13,7 @@ pub mod building_systems;
 pub mod unit_appliances;
 pub mod communications;
 pub mod map_portfolio;
+pub mod notifications;
 pub mod leads;
 pub mod campaigns;
 pub mod billing;

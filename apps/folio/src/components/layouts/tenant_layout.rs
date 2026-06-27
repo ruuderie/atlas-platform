@@ -22,7 +22,7 @@ pub fn TenantLayout() -> impl IntoView {
                         Err(_) => (None, None),
                     };
                     view! {
-                        <SidebarNav config=&TENANT_NAV user_name=name initials=initials/>
+                        <SidebarNav config=&TENANT_NAV user_name=name.unwrap_or_default() initials=initials.unwrap_or_default()/>
                     }
                 })}
             </Suspense>

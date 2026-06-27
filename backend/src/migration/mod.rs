@@ -298,6 +298,7 @@ pub mod m20260918_deployment_config_account_link;  // Client Mgmt: platform_acco
 // The original m20260804 migration created the table without this column despite the
 // entity model referencing it, causing HTTP 500 on every admin campaigns API call.
 pub mod m20260919_g19_campaigns_parent_id;
+pub mod m20260920_atlas_notifications;     // G-07 ext: atlas_notification inbox + atlas_user_notification_pref
 
 pub struct Migrator;
 
@@ -552,6 +553,10 @@ impl MigratorTrait for Migrator {
             // the entity model and query code reference it, causing HTTP 500 on all
             // admin campaigns API calls ("column atlas_campaigns.parent_campaign_id does not exist").
             Box::new(m20260919_g19_campaigns_parent_id::Migration),
+            // G-07 ext: Notification inbox + per-user channel preferences.
+            // atlas_notification: persistent in-app inbox with delivery receipt log.
+            // atlas_user_notification_pref: per-user, per-tenant, per-channel opt-in (telegram/whatsapp/sms/email).
+            Box::new(m20260920_atlas_notifications::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

@@ -31,6 +31,7 @@ pub mod subscription_service;              // GENERIC-04
 pub mod external_integration_service;      // GENERIC-05
 pub mod verification_service;              // GENERIC-06
 pub mod realtime_service;                  // GENERIC-07
+pub mod notification_service;              // GENERIC-07 ext: multi-channel notification dispatch
 pub mod ai_task_service;                   // GENERIC-08
 pub mod geo_service;                       // GENERIC-01: Spatial context
 

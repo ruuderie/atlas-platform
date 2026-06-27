@@ -103,6 +103,8 @@ pub mod atlas_verification_request;
 // GENERIC-07: Real-time WebSocket rooms + messages
 pub mod atlas_ws_room;
 pub mod atlas_ws_message;
+pub mod atlas_notification;              // G-07 ext: in-app notification inbox
+pub mod atlas_user_notification_pref;   // G-07 ext: per-user channel opt-in prefs
 
 // GENERIC-04: B2C recurring subscriptions
 pub mod atlas_subscription;

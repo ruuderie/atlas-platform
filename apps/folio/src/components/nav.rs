@@ -172,6 +172,8 @@ pub enum FolioRoute {
     LandlordInspections,
     LandlordViolations,
     LandlordTenantProfile,    // /l/tenants/:id — landlord view of a counterparty tenant
+    LandlordCommunications,   // /l/communications — multi-party messaging
+    LandlordNotifications,    // /l/notifications  — notification inbox + channel prefs
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -273,6 +275,8 @@ impl FolioRoute {
             Self::LandlordInspections    => "/l/inspections",
             Self::LandlordViolations     => "/l/violations",
             Self::LandlordTenantProfile  => "/l/tenants/:id",
+            Self::LandlordCommunications => "/l/communications",
+            Self::LandlordNotifications  => "/l/notifications",
 
             Self::TenantDashboard        => "/t",
             Self::TenantMyLease          => "/t/my-lease",
@@ -399,7 +403,7 @@ pub struct NavConfig {
 // Derived from: designs/stitch/project_pm/folio/l_assets/code.html
 // and designs/stitch/project_pm/folio/ROUTES.md
 
-static LANDLORD_NAV: NavConfig = NavConfig {
+pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
     role_label: "Landlord",
     groups: &[
         NavGroup {
@@ -410,6 +414,7 @@ static LANDLORD_NAV: NavConfig = NavConfig {
                 NavItem::new(FolioRoute::LandlordAssets,      "Assets",      NavIcon::Apartment),
                 NavItem::new(FolioRoute::LandlordLeases,      "Leases",      NavIcon::Description),
                 NavItem::new(FolioRoute::LandlordLeads,       "Leads",       NavIcon::PersonSearch),
+                NavItem::new(FolioRoute::LandlordMap,         "Map",         NavIcon::Map),
             ],
         },
         NavGroup {
@@ -430,6 +435,13 @@ static LANDLORD_NAV: NavConfig = NavConfig {
             ],
         },
         NavGroup {
+            label: Some("Connect"),
+            items: &[
+                NavItem::new(FolioRoute::LandlordCommunications, "Messages",      NavIcon::Inbox),
+                NavItem::new(FolioRoute::LandlordNotifications,  "Notifications", NavIcon::Campaign),
+            ],
+        },
+        NavGroup {
             label: Some("Compliance"),
             items: &[
                 NavItem::new(FolioRoute::LandlordStrCompliance, "STR Compliance", NavIcon::Gavel),
@@ -444,7 +456,8 @@ static LANDLORD_NAV: NavConfig = NavConfig {
     ],
 };
 
-static TENANT_NAV: NavConfig = NavConfig {
+
+pub(crate) static TENANT_NAV: NavConfig = NavConfig {
     role_label: "Tenant",
     groups: &[NavGroup {
         label: None,

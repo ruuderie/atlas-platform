@@ -26,6 +26,7 @@ use crate::pages::landlord::{
     unit_appliances::UnitAppliances,
     communications::Communications,
     map_portfolio::MapPortfolio,
+    notifications::NotificationsPage,
     leads::Leads,
     campaigns::Campaigns,
     billing::Billing,
@@ -128,6 +129,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/appliances")      view=UnitAppliances/>
                     <Route path=path!("/communications")  view=Communications/>
                     <Route path=path!("/map")             view=MapPortfolio/>
+                    <Route path=path!("/notifications")   view=NotificationsPage/>
                     <Route path=path!("/leads")       view=Leads/>
                     <Route path=path!("/campaigns")   view=Campaigns/>
                     <Route path=path!("/billing")     view=Billing/>
