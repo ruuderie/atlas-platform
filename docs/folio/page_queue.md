@@ -56,9 +56,9 @@ _Tenant retention. Their UX determines renewal rates._
 | `[x]` | Payments | `t_payments` | `pages/tenant/payments.rs` | `/t/payments` | `billing.rs` |
 | `[x]` | Maintenance | `t_maintenance` | `pages/tenant/maintenance.rs` | `/t/maintenance` | `case.rs` |
 | `[x]` | Reservations | `t_reservations` | `pages/tenant/reservations.rs` | `/t/reservations` | `reservation.rs` |
-| `[ ]` | Inbox | `t_inbox` | `pages/tenant/inbox.rs` | `/t/inbox` | `comms.rs` |
+| `[x]` | Inbox | `t_inbox` | `pages/tenant/inbox.rs` | `/t/inbox` | `comms.rs` |
 | `[ ]` | Documents | `t_documents` | `pages/tenant/documents.rs` | `/t/docs` | file attachments |
-| `[ ]` | Household | `t_household` | `pages/tenant/household.rs` | `/t/household` | `lease.rs` |
+| `[x]` | Household | `t_household` | `pages/tenant/household.rs` | `/t/household` | `lease.rs` |
 | `[ ]` | Payment History | `t_payment_history` | `pages/tenant/payment_history.rs` | `/t/payments/history` | `billing.rs` |
 | `[ ]` | Profile | `t_profile` | `pages/tenant/profile.rs` | `/t/profile` | `user_accounts` |
 | `[ ]` | Violations | `t_violations` | `pages/tenant/violations.rs` | `/t/violations` | `case.rs` |
