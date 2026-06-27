@@ -29,6 +29,7 @@ _The primary operator. Nothing else works until this works._
 | `[ ]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `analytics` (G-27) |
 | `[x]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
 | `[x]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/communications` | `atlas_ws_room.rs` |
+| `[x]` | Notifications | `l_notifications` | `pages/landlord/notifications.rs` | `/l/notifications` | `atlas_notification.rs` |
 | `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
 | `[ ]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
