@@ -28,7 +28,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Maintenance Queue | `l_maintenance_queue` | `pages/landlord/maintenance_queue.rs` | `/l/maintenance` | `maintenance.rs` |
 | `[ ]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `analytics` (G-27) |
 | `[x]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
-| `[ ]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/comms` | `comms.rs` |
+| `[x]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/communications` | `atlas_ws_room.rs` |
 | `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
 | `[ ]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
