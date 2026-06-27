@@ -1,6 +1,7 @@
 pub mod dashboard;
 pub mod portfolio;
 pub mod assets;
+pub mod asset_detail;
 pub mod leases;
 pub mod leads;
 pub mod campaigns;

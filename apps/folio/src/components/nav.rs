@@ -67,6 +67,10 @@ pub enum NavIcon {
     // STR / reviews
     Star,            // reviews
     Report,          // incidents / violations
+
+    // Navigation helpers (not sidebar items — used in page chrome)
+    ChevronRight,    // breadcrumb separator
+    ArrowBack,       // back-navigation link
 }
 
 impl NavIcon {
@@ -116,6 +120,9 @@ impl NavIcon {
 
             Self::Star           => "star",
             Self::Report         => "report",
+
+            Self::ChevronRight   => "chevron_right",
+            Self::ArrowBack      => "arrow_back",
         }
     }
 }
