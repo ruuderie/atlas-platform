@@ -9,6 +9,7 @@ pub mod maintenance_queue;
 pub mod ledger;
 pub mod violations;
 pub mod inspections;
+pub mod building_systems;
 pub mod leads;
 pub mod campaigns;
 pub mod billing;
