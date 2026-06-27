@@ -14,3 +14,5 @@ fn main() {
     leptos::mount::mount_to_body(App);
 }
 // Trigger CI
+
+// ci-build-trigger
