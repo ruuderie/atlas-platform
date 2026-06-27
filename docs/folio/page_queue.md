@@ -57,11 +57,11 @@ _Tenant retention. Their UX determines renewal rates._
 | `[x]` | Maintenance | `t_maintenance` | `pages/tenant/maintenance.rs` | `/t/maintenance` | `case.rs` |
 | `[x]` | Reservations | `t_reservations` | `pages/tenant/reservations.rs` | `/t/reservations` | `reservation.rs` |
 | `[x]` | Inbox | `t_inbox` | `pages/tenant/inbox.rs` | `/t/inbox` | `comms.rs` |
-| `[ ]` | Documents | `t_documents` | `pages/tenant/documents.rs` | `/t/docs` | file attachments |
+| `[x]` | Documents | `t_documents` | `pages/tenant/documents.rs` | `/t/docs` | file attachments |
 | `[x]` | Household | `t_household` | `pages/tenant/household.rs` | `/t/household` | `lease.rs` |
-| `[ ]` | Payment History | `t_payment_history` | `pages/tenant/payment_history.rs` | `/t/payments/history` | `billing.rs` |
-| `[ ]` | Profile | `t_profile` | `pages/tenant/profile.rs` | `/t/profile` | `user_accounts` |
-| `[ ]` | Violations | `t_violations` | `pages/tenant/violations.rs` | `/t/violations` | `case.rs` |
+| `[x]` | Payment History | `t_payment_history` | `pages/tenant/payment_history.rs` | `/t/payments/history` | `billing.rs` |
+| `[x]` | Profile | `t_profile` | `pages/tenant/profile.rs` | `/t/profile` | `user_accounts` |
+| `[x]` | Violations | `t_violations` | `pages/tenant/violations.rs` | `/t/violations` | `case.rs` |
 | `[ ]` | Reports | `t_reports` | `pages/tenant/reports.rs` | `/t/reports` | `billing.rs` |
 | `[ ]` | Maintenance Detail | `t_maintenance_detail` | `pages/tenant/maintenance_detail.rs` | `/t/maintenance/:id` | `case.rs` |
 | `[ ]` | Application Status | `t_application_status` | `pages/tenant/application_status.rs` | `/t/application` | `application.rs` |
