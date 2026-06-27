@@ -30,6 +30,8 @@ use uuid::Uuid;
 
 use crate::entities::user;
 use crate::services::pm::asset::{AssetService, CreateUnitInput};
+use crate::services::pm::event::EventService;
+use crate::services::pm::record_relationship::RecordRelationshipService;
 use crate::types::pm::PropertyType;
 
 // ── Route registration ────────────────────────────────────────────────────────
@@ -38,6 +40,11 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/assets", get(list_assets).post(create_asset))
         .route("/api/folio/assets/{id}", get(get_asset))
+        // Sub-resource endpoints — backed by G-21 (atlas_events) and G-22
+        // (atlas_record_relationships). These are thin Folio-scoped views over
+        // generic platform services; no new tables are added.
+        .route("/api/folio/assets/{id}/events", get(list_asset_events))
+        .route("/api/folio/assets/{id}/contractor", get(get_asset_contractor))
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -77,6 +84,35 @@ pub struct CreateAssetHttpInput {
 #[derive(Debug, Serialize)]
 struct CreateAssetResponse {
     pub id: Uuid,
+}
+
+// ── Sub-resource response types ──────────────────────────────────────────────
+
+/// A single event tied to this asset via G-21 `atlas_events`.
+/// `subject_entity_type = "atlas_asset"` and `subject_entity_id = asset.id`.
+#[derive(Debug, Serialize)]
+struct AssetEventSummary {
+    pub id: Uuid,
+    pub name: String,
+    pub event_type: String,
+    pub status: String,
+    pub starts_at: chrono::DateTime<chrono::Utc>,
+    pub ends_at: chrono::DateTime<chrono::Utc>,
+    pub venue_name: Option<String>,
+}
+
+/// The primary assigned contractor for this asset, resolved via G-22
+/// `atlas_record_relationships` (`relationship_type = "assigned_contractor"`).
+/// Returns `None` when no relationship record exists.
+#[derive(Debug, Serialize)]
+struct AssetContractorSummary {
+    pub vendor_id: Uuid,
+    pub business_name: String,
+    /// First entry of `marketplace_trade_types`, if any.
+    pub primary_trade: Option<String>,
+    /// The G-22 relationship_type string used — always `"assigned_contractor"`
+    /// for Folio. Other verticals use their own labels against the same service.
+    pub relationship_type: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -211,6 +247,139 @@ async fn get_asset(
         attributes: asset.attributes,
         created_at: asset.created_at,
     }))
+}
+
+/// GET /api/folio/assets/:id/events
+///
+/// Returns all platform events whose `subject_entity_type = "atlas_asset"` and
+/// `subject_entity_id = id`, scoped to the caller's tenant.
+///
+/// Backed by G-21 `EventService::find_by_subject`. The entity type string
+/// `"atlas_asset"` is the cross-platform contract defined by G-21 — other
+/// verticals (fleet, clinical) query the same service with their own type strings.
+async fn list_asset_events(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    // Verify the asset exists and belongs to this tenant before exposing events.
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "list_asset_events: asset lookup error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    let events = EventService::find_by_subject(
+        &db,
+        tenant_id,
+        "atlas_asset",
+        asset_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "list_asset_events error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let summaries: Vec<AssetEventSummary> = events
+        .into_iter()
+        .map(|ev| AssetEventSummary {
+            id: ev.id,
+            name: ev.name,
+            event_type: ev.event_type,
+            status: ev.status,
+            starts_at: ev.starts_at,
+            ends_at: ev.ends_at,
+            venue_name: ev.venue_name,
+        })
+        .collect();
+
+    Ok(axum::response::Json(summaries))
+}
+
+/// GET /api/folio/assets/:id/contractor
+///
+/// Returns the primary assigned contractor for this asset, or `null` if none.
+///
+/// Backed by G-22 `RecordRelationshipService::find_targets` with
+/// `relationship_type = "assigned_contractor"`. The relationship is created via
+/// `POST /api/folio/relationships` — no separate assignment endpoint is needed
+/// because the generic relationship service already handles it.
+///
+/// Other verticals use the same service with their own semantic labels
+/// (e.g. `"assigned_garage"` for fleet, `"assigned_specialist"` for clinical).
+async fn get_asset_contractor(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(asset_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    // Verify asset ownership before traversing relationships.
+    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                tracing::error!(%tenant_id, %asset_id, "get_asset_contractor: asset lookup error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        })?;
+
+    // Traverse G-22: atlas_asset → [assigned_contractor] → atlas_service_providers
+    let relationships = RecordRelationshipService::find_targets(
+        &db,
+        tenant_id,
+        "atlas_asset",
+        asset_id,
+        "assigned_contractor",
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(%tenant_id, %asset_id, "get_asset_contractor: relationship lookup error: {e:#}");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    // Take the most recently created assignment (last in the ordered list).
+    let Some(rel) = relationships.into_iter().last() else {
+        return Ok(axum::response::Json(serde_json::Value::Null));
+    };
+
+    let vendor_id = rel.target_entity_id;
+
+    let vendor = crate::entities::atlas_service_provider::Entity::find_by_id(vendor_id)
+        .filter(crate::entities::atlas_service_provider::Column::TenantId.eq(tenant_id))
+        .one(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %vendor_id, "get_asset_contractor: vendor lookup error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let Some(vendor) = vendor else {
+        // Relationship record exists but vendor was deleted — return null gracefully.
+        tracing::warn!(%tenant_id, %asset_id, %vendor_id, "get_asset_contractor: vendor not found (deleted?)");
+        return Ok(axum::response::Json(serde_json::Value::Null));
+    };
+
+    let summary = AssetContractorSummary {
+        vendor_id: vendor.id,
+        business_name: vendor.business_name.unwrap_or_else(|| "Unknown Vendor".to_string()),
+        primary_trade: vendor.marketplace_trade_types.into_iter().next(),
+        relationship_type: rel.relationship_type,
+    };
+
+    Ok(axum::response::Json(serde_json::json!(summary)))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

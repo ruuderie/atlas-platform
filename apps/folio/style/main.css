@@ -339,3 +339,93 @@ body { background: var(--folio-bg); color: var(--folio-text); }
 }
 .asset-detail-back-link:hover { opacity: 0.8; }
 
+/* ── Asset Detail — Timeline (G-21 events) ───────────────────────────────── */
+.asset-timeline { display: flex; flex-direction: column; gap: 0; }
+.asset-timeline-item {
+  display: flex; gap: 0.875rem; position: relative; padding-bottom: 1.25rem;
+}
+.asset-timeline-item::before {
+  content: ''; position: absolute; left: 0.9375rem; top: 2.25rem; bottom: 0;
+  width: 1.5px; background: var(--folio-border);
+}
+.asset-timeline-item:last-child::before { display: none; }
+.asset-tl-icon {
+  width: 2rem; height: 2rem; border-radius: 9999px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; border: 2px solid; margin-top: 0.125rem;
+}
+.asset-tl-icon--complete  { background: rgba(104,219,169,.1); border-color: rgba(133,248,196,.4); color: #069669; }
+.asset-tl-icon--scheduled { background: var(--folio-surface); border-color: var(--folio-border); color: var(--folio-muted); }
+.asset-tl-icon--cancelled { background: rgba(255,218,214,.1); border-color: rgba(186,26,26,.3); color: #ba1a1a; }
+.asset-tl-body { flex: 1; min-width: 0; }
+.asset-tl-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
+.asset-tl-name { font-size: 0.875rem; font-weight: 600; }
+.asset-tl-meta { font-size: 0.75rem; color: var(--folio-muted); margin-top: 0.2rem; }
+
+/* Timeline loading pulse */
+.asset-timeline-loading {
+  height: 6rem; border-radius: var(--folio-radius);
+  background: linear-gradient(90deg, var(--folio-surface) 25%, var(--folio-border) 50%, var(--folio-surface) 75%);
+  background-size: 200% 100%; animation: asset-shimmer 1.5s infinite linear;
+}
+
+/* Event status pills */
+.asset-event-pill {
+  display: inline-flex; align-items: center;
+  padding: 0.1rem 0.45rem; border-radius: 0.25rem;
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  white-space: nowrap; flex-shrink: 0;
+}
+.asset-event-pill--complete  { background: rgba(104,219,169,.15); color: #069669; border: 1px solid rgba(133,248,196,.3); }
+.asset-event-pill--scheduled { background: rgba(198,198,205,.2); color: var(--folio-muted); border: 1px solid rgba(198,198,205,.3); }
+.asset-event-pill--active    { background: rgba(99,102,241,.12); color: var(--folio-accent2); border: 1px solid rgba(99,102,241,.25); }
+.asset-event-pill--cancelled { background: rgba(255,218,214,.2); color: #ba1a1a; border: 1px solid rgba(186,26,26,.3); }
+
+/* ── Asset Detail — Lifecycle status grid (G-10 fields) ──────────────────── */
+.asset-lifecycle-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 1rem; margin-top: 0.25rem;
+}
+.asset-lifecycle-cell__label {
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--folio-muted); margin-bottom: 0.25rem;
+}
+.asset-lifecycle-cell__value { font-size: 0.875rem; font-weight: 600; }
+
+/* Condition pills (extend asset-status-pill) */
+.asset-cond-pill--excellent { background: rgba(104,219,169,.15); color: #069669; border: 1px solid rgba(133,248,196,.3); }
+.asset-cond-pill--good      { background: rgba(104,219,169,.10); color: #069669; border: 1px solid rgba(133,248,196,.2); }
+.asset-cond-pill--fair      { background: rgba(247,147,26,.12); color: #d97706; border: 1px solid rgba(247,147,26,.3); }
+.asset-cond-pill--poor      { background: rgba(255,218,214,.2); color: #ba1a1a; border: 1px solid rgba(186,26,26,.3); }
+.asset-cond-pill--retired   { background: rgba(198,198,205,.2); color: var(--folio-muted); border: 1px solid rgba(198,198,205,.3); }
+.asset-cond-pill--unknown   { background: rgba(198,198,205,.2); color: var(--folio-muted); border: 1px solid rgba(198,198,205,.3); }
+
+/* ── Asset Detail — Contractor card (G-22 relationship) ─────────────────── */
+.asset-contractor-card {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;
+}
+.asset-contractor-avatar {
+  width: 2.25rem; height: 2.25rem; border-radius: 9999px; flex-shrink: 0;
+  background: var(--folio-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.875rem; font-weight: 700;
+}
+.asset-contractor-info { flex: 1; min-width: 0; }
+.asset-contractor-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+
+/* Contractor loading pulse */
+.asset-contractor-loading {
+  height: 3.5rem; border-radius: var(--folio-radius);
+  background: linear-gradient(90deg, var(--folio-surface) 25%, var(--folio-border) 50%, var(--folio-surface) 75%);
+  background-size: 200% 100%; animation: asset-shimmer 1.5s infinite linear;
+}
+
+/* Inline code / link helpers */
+.asset-inline-code {
+  font-family: monospace; font-size: 0.7rem; color: var(--folio-accent2);
+  background: rgba(99,102,241,0.08); padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem; border: 1px solid rgba(99,102,241,0.2);
+}
+.asset-inline-link {
+  color: var(--folio-accent2); text-decoration: underline; text-underline-offset: 2px;
+}
