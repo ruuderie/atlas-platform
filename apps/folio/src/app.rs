@@ -45,6 +45,10 @@ use crate::pages::tenant::{
     reservations::TenantReservations,
     inbox::TenantInbox,
     household::TenantHousehold,
+    documents::TenantDocuments,
+    payment_history::TenantPaymentHistory,
+    violations::TenantViolations,
+    profile::TenantProfile as TenantProfilePage,
 };
 
 // Vendor pages
@@ -143,13 +147,17 @@ pub fn App() -> impl IntoView {
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
                 <ParentRoute path=path!("/t") view=TenantShell>
-                    <Route path=path!("")              view=TenantDashboard/>
-                    <Route path=path!("/my-lease")     view=MyLease/>
-                    <Route path=path!("/payments")     view=TenantPayments/>
-                    <Route path=path!("/maintenance")  view=MaintenanceRequests/>
-                    <Route path=path!("/reservations") view=TenantReservations/>
-                    <Route path=path!("/inbox")        view=TenantInbox/>
-                    <Route path=path!("/household")    view=TenantHousehold/>
+                    <Route path=path!("")                   view=TenantDashboard/>
+                    <Route path=path!("/my-lease")          view=MyLease/>
+                    <Route path=path!("/payments")          view=TenantPayments/>
+                    <Route path=path!("/payments/history")  view=TenantPaymentHistory/>
+                    <Route path=path!("/maintenance")       view=MaintenanceRequests/>
+                    <Route path=path!("/reservations")      view=TenantReservations/>
+                    <Route path=path!("/inbox")             view=TenantInbox/>
+                    <Route path=path!("/household")         view=TenantHousehold/>
+                    <Route path=path!("/docs")              view=TenantDocuments/>
+                    <Route path=path!("/violations")        view=TenantViolations/>
+                    <Route path=path!("/profile")           view=TenantProfilePage/>
                 </ParentRoute>
 
                 // ── Vendor namespace /v/** ─────────────────────────────────────

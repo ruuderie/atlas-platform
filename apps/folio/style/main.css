@@ -3264,3 +3264,223 @@ body { background: var(--folio-bg); color: var(--folio-text); }
 .hh-former-summary::before { content: "▸ "; }
 details[open] .hh-former-summary::before { content: "▾ "; }
 
+
+/* ═══════════════════════════════════════════════════════════════════
+   TENANT DOCUMENTS  (/t/docs)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.doc-action-banner {
+  display: flex; align-items: center; gap: 0.875rem;
+  background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 10px; padding: 0.875rem 1.25rem; margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+}
+.doc-action-icon { font-size: 1.4rem; flex-shrink: 0; }
+.doc-action-btn {
+  margin-left: auto; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
+  color: #fbbf24; border-radius: 7px; padding: 0.35rem 0.875rem;
+  font-size: 0.75rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.doc-action-btn:hover { background: rgba(251,191,36,0.18); }
+
+.doc-filter-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.filter-pill {
+  padding: 0.35rem 0.875rem; border-radius: 999px;
+  border: 1px solid var(--border-default); background: var(--bg-surface-high);
+  font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-pill:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
+.filter-pill--active { background: rgba(10,132,255,0.15); border-color: rgba(10,132,255,0.4); color: #0A84FF; }
+
+.doc-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
+}
+.doc-card {
+  display: flex; flex-direction: column; gap: 0.625rem;
+  background: var(--bg-surface-high); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.15s;
+  position: relative;
+}
+.doc-card:hover { border-color: rgba(255,255,255,0.18); transform: translateY(-1px); }
+.doc-card-icon  { font-size: 2rem; }
+.doc-card-body  { display: flex; flex-direction: column; gap: 0.2rem; }
+.doc-card-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.doc-card-meta  { font-size: 0.68rem; color: var(--text-secondary); }
+.doc-card-badges{ display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.375rem; }
+
+.doc-badge        { padding: 0.18rem 0.5rem; border-radius: 999px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.doc-badge--action  { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.doc-badge--signed  { background: rgba(34,197,94,0.1);  color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+.doc-badge--shared  { background: rgba(10,132,255,0.1); color: #60a5fa; border: 1px solid rgba(10,132,255,0.25); }
+
+.doc-empty { padding: 3rem; text-align: center; color: var(--text-secondary); font-size: 0.82rem; }
+
+.doc-detail-list { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.25rem; font-size: 0.82rem; }
+.doc-detail-list dt { font-weight: 600; color: var(--text-secondary); }
+.doc-detail-list dd { color: var(--text-primary); }
+
+.doc-sign-prompt {
+  background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 8px; padding: 0.875rem 1rem; font-size: 0.78rem; color: #fbbf24; margin-top: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TENANT PAYMENT HISTORY  (/t/payments/history)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.ph-table-wrap {
+  overflow-x: auto; border: 1px solid var(--border-default);
+  border-radius: 8px; background: var(--bg-surface-high);
+}
+.ph-table {
+  width: 100%; border-collapse: collapse; font-size: 0.8rem;
+}
+.ph-table thead th {
+  padding: 0.75rem 1rem; text-align: left; font-size: 0.68rem;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-secondary); border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+}
+.ph-row { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
+.ph-row:last-child { border-bottom: none; }
+.ph-row:hover { background: rgba(255,255,255,0.025); }
+.ph-row td { padding: 0.75rem 1rem; vertical-align: middle; }
+
+.ph-date   { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; }
+.ph-desc   { font-weight: 500; color: var(--text-primary); max-width: 18rem; }
+.ph-rail   { white-space: nowrap; }
+.ph-rail-wrap { display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-secondary); }
+.ph-amount { font-weight: 700; font-family: monospace; white-space: nowrap; }
+.ph-due    { font-size: 0.75rem; color: var(--text-secondary); }
+.ph-paid-at { color: #4ade80; }
+
+.ph-badge        { padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.ph-badge--paid      { background: rgba(34,197,94,0.1);  color: #4ade80; }
+.ph-badge--pending   { background: rgba(251,191,36,0.1); color: #fbbf24; }
+.ph-badge--overdue   { background: rgba(239,68,68,0.1);  color: #f87171; }
+.ph-badge--cancelled { background: rgba(148,163,184,0.1);color: #94a3b8; }
+.ph-badge--default   { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TENANT VIOLATIONS  (/t/violations)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.viol-info-banner {
+  display: flex; gap: 0.875rem; align-items: flex-start;
+  background: rgba(10,132,255,0.05); border: 1px solid rgba(10,132,255,0.15);
+  border-radius: 10px; padding: 0.875rem 1.25rem; margin-bottom: 1.25rem;
+  font-size: 0.78rem; color: var(--text-secondary);
+}
+.viol-info-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+.viol-info-text { line-height: 1.55; }
+
+.viol-list { display: flex; flex-direction: column; gap: 0.875rem; }
+.viol-card {
+  display: flex; gap: 0.875rem; align-items: flex-start;
+  background: var(--bg-surface-high); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 1rem 1.25rem; cursor: pointer; transition: all 0.15s;
+  position: relative;
+}
+.viol-card:hover { border-color: rgba(255,255,255,0.15); }
+.viol-card--active { border-left: 3px solid #f87171; }
+.viol-card-icon    { font-size: 1.5rem; flex-shrink: 0; }
+.viol-card-body    { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; }
+.viol-card-subject { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+.viol-card-category{ font-size: 0.72rem; font-weight: 500; color: var(--text-secondary); }
+.viol-card-meta    { font-size: 0.7rem; color: var(--text-secondary); }
+.viol-card-meta strong { color: #f87171; }
+
+.viol-badge          { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.viol-badge--open      { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.viol-badge--cured     { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.viol-badge--escalated { background: rgba(239,68,68,0.12);  color: #f87171; }
+.viol-badge--dismissed { background: rgba(148,163,184,0.1); color: #94a3b8; }
+.viol-badge--default   { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+
+.viol-empty { padding: 3rem; text-align: center; }
+.viol-empty-icon  { font-size: 2.5rem; margin-bottom: 0.5rem; }
+.viol-empty-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+.viol-empty-sub   { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+.viol-detail-section { display: flex; flex-direction: column; gap: 0.375rem; }
+.viol-detail-label   { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); }
+.viol-detail-body    { font-size: 0.82rem; color: var(--text-primary); line-height: 1.55; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 0.75rem; border: 1px solid rgba(255,255,255,0.06); }
+
+.viol-cure-prompt {
+  background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 8px; padding: 0.875rem; font-size: 0.78rem; color: var(--text-primary);
+}
+.viol-cure-prompt p { margin-top: 0.35rem; color: var(--text-secondary); line-height: 1.55; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TENANT PROFILE  (/t/profile)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.profile-skeleton {
+  padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.82rem;
+}
+.profile-layout {
+  display: grid; grid-template-columns: 15rem 1fr; gap: 1.5rem; align-items: start;
+}
+@media (max-width: 700px) {
+  .profile-layout { grid-template-columns: 1fr; }
+}
+
+/* Avatar card */
+.profile-avatar-card {
+  background: var(--bg-surface-high); border: 1px solid var(--border-default);
+  border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column;
+  align-items: center; gap: 0.5rem; text-align: center;
+}
+.profile-avatar {
+  width: 4.5rem; height: 4.5rem; border-radius: 50%;
+  background: linear-gradient(135deg, #0A84FF, #5E5CE6);
+  color: #fff; font-size: 1.5rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.profile-name       { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
+.profile-role-chip  {
+  padding: 0.2rem 0.75rem; border-radius: 999px;
+  background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.25);
+  color: #60a5fa; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.profile-email { font-size: 0.72rem; color: var(--text-secondary); }
+
+/* Detail panel */
+.profile-details { display: flex; flex-direction: column; gap: 1rem; }
+.profile-section {
+  background: var(--bg-surface-high); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 1.25rem;
+}
+.profile-section--danger { border-color: rgba(239,68,68,0.2); }
+.profile-section-title {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.875rem;
+}
+
+.profile-dl {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.25rem;
+  font-size: 0.82rem;
+}
+.profile-dl dt { font-weight: 600; color: var(--text-secondary); }
+.profile-dl dd { color: var(--text-primary); }
+.profile-edit-row { display: flex; gap: 0.5rem; align-items: center; }
+.profile-edit-row .form-input { flex: 1; }
+
+.profile-security-row  { display: flex; flex-direction: column; gap: 0.875rem; }
+.profile-security-item {
+  display: flex; align-items: center; gap: 0.875rem;
+  padding: 0.75rem; border-radius: 8px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+}
+.profile-security-icon { font-size: 1.3rem; flex-shrink: 0; }
+.profile-security-label{ font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
+.profile-security-sub  { font-size: 0.7rem; color: var(--text-secondary); }
+.profile-security-item .btn { margin-left: auto; flex-shrink: 0; }
+
+.profile-danger-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; font-size: 0.82rem;
+}
+

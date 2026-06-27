@@ -5,3 +5,7 @@ pub mod maintenance;
 pub mod reservations;
 pub mod inbox;
 pub mod household;
+pub mod documents;
+pub mod payment_history;
+pub mod violations;
+pub mod profile;
