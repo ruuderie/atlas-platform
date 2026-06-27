@@ -23,7 +23,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Catalog | `l_catalog` | `pages/landlord/catalog.rs` | `/l/catalog` | `catalog.rs` |
 | `[x]` | Reservations | `l_reservations` | `pages/landlord/reservations.rs` | `/l/reservations` | `reservation.rs` |
 | `[x]` | Asset Detail | `l_asset_detail` | `pages/landlord/asset_detail.rs` | `/l/assets/:id` | `asset.rs`, `maintenance.rs` |
-| `[ ]` | Lease Detail | `l_lease_detail` | `pages/landlord/lease_detail.rs` | `/l/leases/:id` | `lease.rs` |
+| `[x]` | Lease Detail | `l_lease_detail` | `pages/landlord/lease_detail.rs` | `/l/leases/:id` | `leases.rs` |
 | `[ ]` | Tenant Profile | `l_tenant_profile` | `pages/landlord/tenant_profile.rs` | `/l/tenants/:id` | `lease.rs` / `vendor.rs` |
 | `[ ]` | Maintenance Queue | `l_maintenance_queue` | `pages/landlord/maintenance_queue.rs` | `/l/maintenance` | `case.rs` |
 | `[ ]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `analytics` (G-27) |
@@ -157,7 +157,7 @@ _Folio-hosted public surfaces (not Network Instance)._
 ## Progress Summary
 
 ```
-P0 Landlord:  12 done / 31 total   █████░░░░░░░░░░░░░░░░░░░  39%
+P0 Landlord:  13 done / 31 total   █████░░░░░░░░░░░░░░░░░░░  42%
 P1 Tenant:     5 done / 14 total   ████░░░░░░░░░░░░░░░░░░░░  36%
 P2 Vendor:     3 done /  5 total   ████████████░░░░░░░░░░░░  60%
 P3 PMC:        2 done /  6 total   ████░░░░░░░░░░░░░░░░░░░░  33%
@@ -166,7 +166,7 @@ P5 Owner:      0 done /  5 total   ░░░░░░░░░░░░░░░
 P6 Wizards:    0 done /  4 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P7 Public:     1 done /  8 total   ██░░░░░░░░░░░░░░░░░░░░░░  12%
 ─────────────────────────────────────────────────────────
-Total:        23 done / 84 total   ██████░░░░░░░░░░░░░░░░░░  27%
+Total:        24 done / 84 total   ██████░░░░░░░░░░░░░░░░░░  29%
 ```
 
 ---
