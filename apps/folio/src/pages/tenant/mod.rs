@@ -9,3 +9,6 @@ pub mod documents;
 pub mod payment_history;
 pub mod violations;
 pub mod profile;
+pub mod maintenance_detail;
+pub mod application_status;
+pub mod reports;

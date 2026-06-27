@@ -34,6 +34,13 @@ use crate::pages::landlord::{
     catalog::Catalog,
     vendors::Vendors,
     reservations::LandlordReservations,
+    contractor_marketplace::ContractorMarketplace,
+    digital_vault::LandlordDigitalVault,
+    syndication::LandlordSyndication,
+    wholesaling::LandlordWholesaling,
+    listing_preview::ListingNetworkPreview,
+    account_billing::LandlordAccountBilling,
+    asset_alerts::AssetAlerts,
 };
 
 // Tenant pages
@@ -49,6 +56,9 @@ use crate::pages::tenant::{
     payment_history::TenantPaymentHistory,
     violations::TenantViolations,
     profile::TenantProfile as TenantProfilePage,
+    maintenance_detail::TenantMaintenanceDetail,
+    application_status::TenantApplicationStatus,
+    reports::TenantReports,
 };
 
 // Vendor pages
@@ -120,44 +130,54 @@ pub fn App() -> impl IntoView {
                 // LandlordShell: checks role, redirects if wrong, then renders
                 // LandlordLayout which contains <Outlet/> for child routes.
                 <ParentRoute path=path!("/l") view=LandlordShell>
-                    <Route path=path!("")             view=LandlordDashboard/>
-                    <Route path=path!("/portfolio")   view=Portfolio/>
-                    <Route path=path!("/assets")      view=Assets/>
-                    <Route path=path!("/assets/:id")  view=AssetDetail/>
-                    <Route path=path!("/leases")      view=Leases/>
-                    <Route path=path!("/leases/:id")  view=LeaseDetail/>
-                    <Route path=path!("/tenants/:id") view=TenantProfile/>
-                    <Route path=path!("/maintenance") view=MaintenanceQueue/>
-                    <Route path=path!("/ledger")      view=Ledger/>
-                    <Route path=path!("/violations")  view=Violations/>
-                    <Route path=path!("/inspections") view=Inspections/>
-                    <Route path=path!("/systems")     view=BuildingSystems/>
-                    <Route path=path!("/appliances")      view=UnitAppliances/>
-                    <Route path=path!("/communications")  view=Communications/>
-                    <Route path=path!("/map")             view=MapPortfolio/>
-                    <Route path=path!("/notifications")   view=NotificationsPage/>
-                    <Route path=path!("/leads")       view=Leads/>
-                    <Route path=path!("/campaigns")   view=Campaigns/>
-                    <Route path=path!("/billing")     view=Billing/>
-                    <Route path=path!("/str")         view=StrCompliance/>
-                    <Route path=path!("/catalog")     view=Catalog/>
-                    <Route path=path!("/vendors")     view=Vendors/>
-                    <Route path=path!("/reservations") view=LandlordReservations/>
+                    <Route path=path!("")               view=LandlordDashboard/>
+                    <Route path=path!("/portfolio")     view=Portfolio/>
+                    <Route path=path!("/assets")        view=Assets/>
+                    <Route path=path!("/assets/:id")    view=AssetDetail/>
+                    <Route path=path!("/assets/:id/preview") view=ListingNetworkPreview/>
+                    <Route path=path!("/assets/:id/alerts")  view=AssetAlerts/>
+                    <Route path=path!("/leases")        view=Leases/>
+                    <Route path=path!("/leases/:id")    view=LeaseDetail/>
+                    <Route path=path!("/tenants/:id")   view=TenantProfile/>
+                    <Route path=path!("/maintenance")   view=MaintenanceQueue/>
+                    <Route path=path!("/ledger")        view=Ledger/>
+                    <Route path=path!("/violations")    view=Violations/>
+                    <Route path=path!("/inspections")   view=Inspections/>
+                    <Route path=path!("/systems")       view=BuildingSystems/>
+                    <Route path=path!("/appliances")    view=UnitAppliances/>
+                    <Route path=path!("/communications")view=Communications/>
+                    <Route path=path!("/map")           view=MapPortfolio/>
+                    <Route path=path!("/notifications") view=NotificationsPage/>
+                    <Route path=path!("/leads")         view=Leads/>
+                    <Route path=path!("/campaigns")     view=Campaigns/>
+                    <Route path=path!("/billing")       view=Billing/>
+                    <Route path=path!("/str")           view=StrCompliance/>
+                    <Route path=path!("/catalog")       view=Catalog/>
+                    <Route path=path!("/vendors")       view=Vendors/>
+                    <Route path=path!("/reservations")  view=LandlordReservations/>
+                    <Route path=path!("/marketplace")   view=ContractorMarketplace/>
+                    <Route path=path!("/vault")         view=LandlordDigitalVault/>
+                    <Route path=path!("/syndication")   view=LandlordSyndication/>
+                    <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
+                    <Route path=path!("/account/billing")view=LandlordAccountBilling/>
                 </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
                 <ParentRoute path=path!("/t") view=TenantShell>
-                    <Route path=path!("")                   view=TenantDashboard/>
-                    <Route path=path!("/my-lease")          view=MyLease/>
-                    <Route path=path!("/payments")          view=TenantPayments/>
-                    <Route path=path!("/payments/history")  view=TenantPaymentHistory/>
-                    <Route path=path!("/maintenance")       view=MaintenanceRequests/>
-                    <Route path=path!("/reservations")      view=TenantReservations/>
-                    <Route path=path!("/inbox")             view=TenantInbox/>
-                    <Route path=path!("/household")         view=TenantHousehold/>
-                    <Route path=path!("/docs")              view=TenantDocuments/>
-                    <Route path=path!("/violations")        view=TenantViolations/>
-                    <Route path=path!("/profile")           view=TenantProfilePage/>
+                    <Route path=path!("")                    view=TenantDashboard/>
+                    <Route path=path!("/my-lease")           view=MyLease/>
+                    <Route path=path!("/payments")           view=TenantPayments/>
+                    <Route path=path!("/payments/history")   view=TenantPaymentHistory/>
+                    <Route path=path!("/maintenance")        view=MaintenanceRequests/>
+                    <Route path=path!("/maintenance/:id")    view=TenantMaintenanceDetail/>
+                    <Route path=path!("/reservations")       view=TenantReservations/>
+                    <Route path=path!("/inbox")              view=TenantInbox/>
+                    <Route path=path!("/household")          view=TenantHousehold/>
+                    <Route path=path!("/docs")               view=TenantDocuments/>
+                    <Route path=path!("/violations")         view=TenantViolations/>
+                    <Route path=path!("/profile")            view=TenantProfilePage/>
+                    <Route path=path!("/application")        view=TenantApplicationStatus/>
+                    <Route path=path!("/reports")            view=TenantReports/>
                 </ParentRoute>
 
                 // ── Vendor namespace /v/** ─────────────────────────────────────
