@@ -171,6 +171,7 @@ pub enum FolioRoute {
     LandlordVault,
     LandlordInspections,
     LandlordViolations,
+    LandlordTenantProfile,    // /l/tenants/:id — landlord view of a counterparty tenant
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -271,6 +272,7 @@ impl FolioRoute {
             Self::LandlordVault          => "/l/vault",
             Self::LandlordInspections    => "/l/inspections",
             Self::LandlordViolations     => "/l/violations",
+            Self::LandlordTenantProfile  => "/l/tenants/:id",
 
             Self::TenantDashboard        => "/t",
             Self::TenantMyLease          => "/t/my-lease",
