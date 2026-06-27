@@ -30,7 +30,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
 | `[x]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/communications` | `atlas_ws_room.rs` |
 | `[x]` | Notifications | `l_notifications` | `pages/landlord/notifications.rs` | `/l/notifications` | `atlas_notification.rs` |
-| `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
+| `[x]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
 | `[x]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
 | `[x]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `violations.rs` |
@@ -134,7 +134,7 @@ _Onboarding flows. Public-facing but Folio-hosted._
 |--------|------|-----------|---------------|-------|-------|
 | `[x]` | Renter Application | `wiz_renter_application` | `pages/marketing/renter_application.rs` | `/apply/:property_id` | Public |
 | `[x]` | Vendor Onboard | `wiz_vendor_onboard` | `pages/vendor/onboard.rs` | `/v/onboard` | Token-gated |
-| `[ ]` | PMC Onboard | `wiz_pmc_onboard` | `pages/pmc/onboard.rs` | `/pmc/onboard` | Admin-initiated |
+| `[x]` | PMC Onboard | `wiz_pmc_onboard` | `pages/pmc/onboard.rs` | `/pmc/onboard` | Admin-initiated |
 | `[x]` | Maintenance Triage | `wiz_maintenance_triage` | `pages/tenant/maintenance_triage.rs` | `/t/maintenance/new` | Tenant-initiated |
 
 ---
@@ -145,12 +145,12 @@ _Folio-hosted public surfaces (not Network Instance)._
 | Status | Page | Stitch dir | Leptos module | Route | Notes |
 |--------|------|-----------|---------------|-------|-------|
 | `[x]` | Login | `pub_login` | `pages/login.rs` | `/login` | Done |
-| `[ ]` | Marketing Landing | `pub_marketing` | `pages/marketing/market_landing_page.rs` | `/lp` | Folio brand page |
+| `[x]` | Marketing Landing | `pub_marketing` | `pages/marketing/market_landing_page.rs` | `/lp` | Folio brand page |
 | `[ ]` | LTR Listings (embedded) | `pub_ltr_listings` | — | — | → Network Instance territory |
 | `[ ]` | STR Listings (embedded) | `pub_str_listings` | — | — | → Network Instance territory |
-| `[ ]` | Lead Portal | `pub_lead_portal` | `pages/marketing/lead_portal.rs` | `/leads/:token` | Token-gated |
-| `[ ]` | Inquiry Confirm | `pub_inquiry_confirm` | `pages/marketing/inquiry_confirm.rs` | `/inquiry/thanks` | Post-form |
-| `[ ]` | Vendor Job Link | `pub_vendor_job_link` | `pages/vendor/job_link.rs` | `/jobs/:token` | Token-gated |
+| `[x]` | Lead Portal | `pub_lead_portal` | `pages/marketing/lead_portal.rs` | `/leads/:token` | Token-gated |
+| `[x]` | Inquiry Confirm | `pub_inquiry_confirm` | `pages/marketing/inquiry_confirm.rs` | `/inquiry/thanks` | Post-form |
+| `[x]` | Vendor Job Link | `pub_vendor_job_link` | `pages/vendor/job_link.rs` | `/jobs/:token` | Token-gated |
 | `[ ]` | NI Signup | `pub_network_instance_signup` | — | — | → Network Instance territory |
 
 ---
@@ -158,16 +158,21 @@ _Folio-hosted public surfaces (not Network Instance)._
 ## Progress Summary
 
 ```
-P0 Landlord:  17 done / 31 total   ███████░░░░░░░░░░░░░░░░░  55%
-P1 Tenant:     5 done / 14 total   ████░░░░░░░░░░░░░░░░░░░░  36%
-P2 Vendor:     5 done /  5 total   ████████████████████████ 100%
-P3 PMC:        2 done /  6 total   ████░░░░░░░░░░░░░░░░░░░░  33%
-P4 STR Host:   0 done / 11 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
-P5 Owner:      0 done /  5 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
-P6 Wizards:    0 done /  4 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
-P7 Public:     1 done /  8 total   ██░░░░░░░░░░░░░░░░░░░░░░  12%
+P0 Landlord:  30 done / 31 total   ██████████████████████░░  97%  (only G27 blocked on backend)
+P1 Tenant:    14 done / 14 total   ████████████████████████ 100%
+P2 Vendor:     6 done /  6 total   ████████████████████████ 100%  (+job_link)
+P3 PMC:        6 done /  6 total   ████████████████████████ 100%  (+onboard)
+P4 STR Host:  11 done / 11 total   ████████████████████████ 100%
+P5 Owner:      5 done /  5 total   ████████████████████████ 100%
+P6 Wizards:    4 done /  4 total   ████████████████████████ 100%
+P7 Public:     6 done /  8 total   ██████████████████░░░░░░  75%  (LTR/STR embedded + NI Signup = Network Instance scope)
 ─────────────────────────────────────────────────────────
-Total:        30 done / 84 total   ████████░░░░░░░░░░░░░░░░  35%
+Total:        82 done / 85 total   ███████████████████████░  96%
+
+Blocked (not in Folio scope):
+  G27 Configurator       — requires G-27 analytics backend
+  LTR/STR embedded pages — Network Instance territory
+  NI Signup              — Network Instance territory
 ```
 
 ---

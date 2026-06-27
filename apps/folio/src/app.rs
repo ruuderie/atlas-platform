@@ -104,8 +104,12 @@ use crate::pages::str_host::{
 
 // Wizard pages (public + token-gated)
 use crate::pages::marketing::renter_application::RenterApplication;
+use crate::pages::marketing::lead_portal::LeadPortal;
+use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
 use crate::pages::vendor::onboard::VendorOnboard;
+use crate::pages::vendor::job_link::VendorJobLink;
 use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
+use crate::pages::pmc::onboard::PmcOnboard;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -258,6 +262,10 @@ pub fn App() -> impl IntoView {
 
                 // ── Public wizards (no auth required) ─────────────────────────
                 <Route path=path!("/apply/:property_id") view=RenterApplication/>
+                <Route path=path!("/leads/:token")       view=LeadPortal/>
+                <Route path=path!("/inquiry/thanks")     view=InquiryConfirm/>
+                <Route path=path!("/jobs/:token")        view=VendorJobLink/>
+                <Route path=path!("/pmc/onboard")        view=PmcOnboard/>
                 // ── Agent namespace /a/** ──────────────────────────────────────
                 // Only valid when folio_mode = "brokerage" on the instance.
                 // Backend API guards enforce the folio_mode constraint.

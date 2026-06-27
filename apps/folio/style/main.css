@@ -4041,3 +4041,63 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .listing-no-listing { display:flex; flex-direction:column; align-items:center; gap:.75rem; padding:3rem; color:var(--on-surface-variant); text-align:center; }
 .listing-no-icon { font-size:3rem; }
 .listing-no-title { font-size:1.2rem; font-weight:700; color:var(--on-surface); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Lead Portal styles
+   ───────────────────────────────────────────────────────────────────────────── */
+.lead-portal-card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:1rem; padding:1.5rem; width:100%; max-width:32rem; }
+.lead-hero { margin-bottom:1.25rem; }
+.lead-hero-type { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--on-surface-variant); margin-bottom:.3rem; }
+.lead-hero-name { font-size:1.5rem; font-weight:800; }
+.lead-hero-address { font-size:.88rem; color:var(--on-surface-variant); margin:.25rem 0; }
+.lead-hero-meta { display:flex; gap:.5rem; flex-wrap:wrap; margin:.6rem 0; }
+.lead-hero-chip { font-size:.78rem; padding:.25rem .6rem; border-radius:9999px; background:rgba(255,255,255,.07); }
+.lead-hero-chip--green { background:rgba(34,197,94,.12); color:#4ade80; font-weight:700; }
+.lead-avail { font-size:.8rem; color:var(--cobalt); margin-top:.25rem; }
+.lead-campaign-badge { font-size:.76rem; margin-top:.35rem; color:var(--amber); }
+.lead-agent-row { display:flex; align-items:center; gap:.75rem; padding:.75rem; background:rgba(255,255,255,.04); border-radius:.75rem; margin-bottom:1rem; }
+.lead-agent-avatar { width:2.25rem; height:2.25rem; border-radius:50%; background:rgba(10,132,255,.2); display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--cobalt); flex-shrink:0; }
+.lead-agent-name { font-weight:600; font-size:.9rem; }
+.lead-agent-phone { font-size:.78rem; color:var(--on-surface-variant); }
+.lead-action-tabs { display:flex; gap:.5rem; margin-bottom:1rem; }
+.lead-action-tab { flex:1; padding:.5rem; background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.08); border-radius:.5rem; cursor:pointer; font-size:.82rem; transition:all .15s; color:inherit; }
+.lead-action-tab--active { background:rgba(10,132,255,.15); border-color:rgba(10,132,255,.4); color:var(--cobalt); font-weight:600; }
+.lead-schedule-note { font-size:.8rem; color:var(--amber); background:rgba(251,191,36,.08); border-radius:.5rem; padding:.5rem .75rem; margin:.5rem 0; }
+.lead-success { text-align:center; padding:1.5rem 0; }
+.lead-success-title { font-size:1.1rem; font-weight:700; margin-top:.5rem; }
+
+/* Inquiry confirm */
+.inquiry-confirm-name { font-size:1rem; font-weight:600; margin:.75rem 0 .25rem; color:var(--cobalt); }
+.inquiry-confirm-property { margin:.4rem 0; }
+.inquiry-confirm-ref { font-size:.75rem; color:var(--on-surface-variant); margin-top:.5rem; }
+.inquiry-confirm-ref code { font-family:monospace; color:var(--on-surface); }
+.inquiry-confirm-next { background:rgba(255,255,255,.04); border-radius:.75rem; padding:1rem 1.25rem; margin-top:1.25rem; text-align:left; }
+.inquiry-confirm-next-title { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--on-surface-variant); margin-bottom:.75rem; }
+.inquiry-confirm-step { display:flex; align-items:flex-start; gap:.75rem; font-size:.85rem; margin-bottom:.5rem; }
+.inquiry-confirm-step-num { width:1.4rem; height:1.4rem; border-radius:50%; background:rgba(10,132,255,.2); color:var(--cobalt); display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; flex-shrink:0; }
+
+/* Vendor job link */
+.job-link-header { margin-bottom:1rem; }
+.job-link-category { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--on-surface-variant); }
+.job-link-subject { font-size:1.3rem; font-weight:800; margin:.2rem 0 .4rem; }
+.job-link-meta { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; font-size:.82rem; }
+.job-link-address { color:var(--on-surface-variant); }
+.job-link-details { background:rgba(255,255,255,.04); border-radius:.75rem; padding:.75rem 1rem; margin-bottom:1rem; display:flex; flex-direction:column; gap:.4rem; }
+.job-link-detail-row { display:flex; justify-content:space-between; font-size:.85rem; }
+.job-link-detail-label { color:var(--on-surface-variant); }
+.job-link-detail-val { font-weight:600; }
+.job-link-desc { margin-bottom:1rem; }
+.job-link-desc-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--on-surface-variant); margin-bottom:.35rem; }
+.job-link-desc-text { font-size:.88rem; line-height:1.6; }
+.job-link-action-section { margin-top:.5rem; }
+.job-link-cta-row { display:flex; gap:.75rem; margin-top:.75rem; }
+.job-link-cta-row .btn { flex:1; justify-content:center; }
+.job-link-response-banner { display:flex; align-items:center; gap:1rem; border:1.5px solid; border-radius:.75rem; padding:1rem 1.25rem; margin-top:.75rem; }
+
+/* PMC Onboard extras */
+.pmc-markets-grid { display:flex; flex-wrap:wrap; gap:.5rem; }
+.pmc-market-chip { display:flex; align-items:center; gap:.4rem; padding:.3rem .7rem; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:9999px; cursor:pointer; font-size:.8rem; transition:background .12s; }
+.pmc-market-chip:hover { background:rgba(255,255,255,.09); }
+.pmc-market-chip input { accent-color:var(--cobalt); }
+.pmc-onboard-platform-info { background:rgba(10,132,255,.07); border:1px solid rgba(10,132,255,.2); border-radius:.75rem; padding:.85rem 1rem; margin:.75rem 0; }
+.pmc-onboard-plan-badge { font-size:.8rem; font-weight:700; color:var(--cobalt); }
