@@ -329,7 +329,13 @@ pub fn SupportQueue() -> impl IntoView {
                         None => view! {
                             <div class="flex-1 flex items-center justify-center">
                                 <div class="text-center text-on-surface-variant">
-                                    <div class="text-4xl mb-3">"🎫"</div>
+                                    <svg class="w-12 h-12 mx-auto mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                                        <rect x="3" y="4" width="18" height="16" rx="2"/>
+                                        <line x1="7" y1="9" x2="17" y2="9"/>
+                                        <line x1="7" y1="13" x2="14" y2="13"/>
+                                        <circle cx="17" cy="17" r="3" fill="none"/>
+                                        <line x1="19.5" y1="19.5" x2="21" y2="21"/>
+                                    </svg>
                                     <p class="text-sm font-semibold">"Select a case to view details"</p>
                                     <p class="text-xs mt-1">"Pick a support case from the list on the left"</p>
                                 </div>

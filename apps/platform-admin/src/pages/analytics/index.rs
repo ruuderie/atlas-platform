@@ -149,7 +149,7 @@ pub fn Analytics() -> impl IntoView {
                     <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Collection Rate"</span>
                     <span class="text-lg font-black font-mono text-emerald-400">
                         {move || match billing_summary.get() {
-                            Some(Ok(s)) => format!("{:.0}%", s.collection_success_rate * 100.0),
+                            Some(Ok(s)) => format!("{:.0}%", s.collection_success_rate),
                             _ => "—".to_string(),
                         }}
                     </span>
@@ -159,7 +159,7 @@ pub fn Analytics() -> impl IntoView {
                     <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Churn Rate"</span>
                     <span class="text-lg font-black font-mono">
                         {move || match billing_summary.get() {
-                            Some(Ok(s)) => format!("{:.1}%", s.gross_churn_rate * 100.0),
+                            Some(Ok(s)) => format!("{:.1}%", s.gross_churn_rate),
                             _ => "—".to_string(),
                         }}
                     </span>

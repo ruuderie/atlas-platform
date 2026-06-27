@@ -205,9 +205,9 @@ pub fn BillingDashboard() -> impl IntoView {
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
                     <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Collection Rate"</span>
                     <div class="text-xl font-extrabold text-emerald-400 font-mono">
-                        {move || billing_summary.get().flatten().map(|s| format!("{:.0}%", s.collection_success_rate * 100.0)).unwrap_or("—".to_string())}
+                        {move || billing_summary.get().flatten().map(|s| format!("{:.0}%", s.collection_success_rate)).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-on-surface-variant/80">"G-03"</p>
+                    <p class="text-[10px] text-on-surface-variant/80">"Invoiced vs paid"</p>
                 </div>
                 <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
                     <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Billing Plans"</span>

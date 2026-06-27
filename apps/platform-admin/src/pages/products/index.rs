@@ -40,7 +40,7 @@ pub fn PlatformProducts() -> impl IntoView {
                                     class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                     id="btn-new-product"
                                 >
-                                    "+ New Product"
+                                    "+ New Landing Page"
                                 </a>
                             </div>
                         </div>
@@ -145,14 +145,24 @@ pub fn PlatformProducts() -> impl IntoView {
 
                                             // ── Stats row ──
                                             <div class="flex items-center gap-4 pt-2 border-t border-outline-variant/10 text-xs">
-                                                <span class="text-on-surface-variant">
-                                                    <strong class="text-on-surface font-bold font-mono">{p.waitlist_count}</strong>
-                                                    " leads"
-                                                </span>
-                                                <span class="text-on-surface-variant">
-                                                    <strong class="text-on-surface font-bold font-mono">{p.pre_order_sold}</strong>
-                                                    " pre-orders"
-                                                </span>
+                                                {if p.waitlist_count == 0 && p.pre_order_sold == 0 {
+                                                    view! {
+                                                        <span class="text-on-surface-variant/60 italic">
+                                                            "No leads yet — share your page to start tracking"
+                                                        </span>
+                                                    }.into_any()
+                                                } else {
+                                                    view! {
+                                                        <span class="text-on-surface-variant">
+                                                            <strong class="text-on-surface font-bold font-mono">{p.waitlist_count}</strong>
+                                                            " leads"
+                                                        </span>
+                                                        <span class="text-on-surface-variant">
+                                                            <strong class="text-on-surface font-bold font-mono">{p.pre_order_sold}</strong>
+                                                            " pre-orders"
+                                                        </span>
+                                                    }.into_any()
+                                                }}
                                             </div>
                                         </a>
                                     }
@@ -164,16 +174,19 @@ pub fn PlatformProducts() -> impl IntoView {
                         {move || if products_res.get().unwrap_or_default().is_empty() {
                             view! {
                                 <div class="flex flex-col items-center justify-center gap-4 py-20 text-center">
-                                    <span class="material-symbols-outlined text-[48px] text-on-surface-variant/30">"inventory_2"</span>
+                                    <svg class="w-12 h-12 text-on-surface-variant/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                                        <path d="M3 7h18M3 7v13h18V7M3 7l9-4 9 4"/>
+                                        <line x1="10" y1="13" x2="14" y2="13"/>
+                                    </svg>
                                     <div>
-                                        <p class="text-sm font-semibold text-on-surface-variant">"No products yet"</p>
-                                        <p class="text-xs text-on-surface-variant/60 mt-1">"Create your first product to start building marketing pages."</p>
+                                        <p class="text-sm font-semibold text-on-surface-variant">"No landing pages yet"</p>
+                                        <p class="text-xs text-on-surface-variant/60 mt-1">"Create your first landing page to start capturing leads."</p>
                                     </div>
                                     <a
                                         href="/products/new"
                                         class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                                     >
-                                        "+ Create Product"
+                                        "+ New Landing Page"
                                     </a>
                                 </div>
                             }.into_any()

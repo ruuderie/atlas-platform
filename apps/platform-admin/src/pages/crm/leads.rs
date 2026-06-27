@@ -188,7 +188,6 @@ pub fn LeadsPage() -> impl IntoView {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
                                         <th style="width:30%" class="sortable">"Lead"</th>
                                         <th style="width:25%" class="sortable">"Email / Phone"</th>
                                         <th style="width:12%" class="sortable">"Source"</th>
@@ -214,7 +213,6 @@ pub fn LeadsPage() -> impl IntoView {
                                                 selected.set(Some(l_click.clone()));
                                                 drawer_open.set(true);
                                             }>
-                                                <td><input type="checkbox" on:click=move |e| e.stop_propagation() style="accent-color:var(--cobalt)"/></td>
                                                 <td>
                                                     <RecordRow
                                                         initials=ini

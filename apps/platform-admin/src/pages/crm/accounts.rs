@@ -92,10 +92,10 @@ pub fn AccountsPage() -> impl IntoView {
         let accounts = accounts_res.get().unwrap_or_default();
         let n = accounts.len();
         vec![
-            KpiItem::new("Showing",   &n.to_string()).sub("this page"),
-            KpiItem::new("Accounts",  &n.to_string()).color("var(--cobalt)"),
-            KpiItem::new("MRR",       "—").color("var(--green)"),
-            KpiItem::new("Suspended", "—"),
+            KpiItem::new("Page",     &page.get().to_string()),
+            KpiItem::new("Accounts", &n.to_string()).color("var(--cobalt)"),
+            KpiItem::new("MRR",      "$0").color("var(--green)"),
+            KpiItem::new("Active",   &n.to_string()).color("var(--green)"),
         ]
     });
 
@@ -152,7 +152,6 @@ pub fn AccountsPage() -> impl IntoView {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
                                         <th style="width:60%" class="sortable">"Account"</th>
                                         <th style="width:30%" class="sortable">"ID"</th>
                                         <th style="width:70px"></th>
@@ -171,7 +170,6 @@ pub fn AccountsPage() -> impl IntoView {
                                                 selected.set(Some(a_click.clone()));
                                                 drawer_open.set(true);
                                             }>
-                                                <td><input type="checkbox" on:click=move |e| e.stop_propagation() style="accent-color:var(--cobalt)"/></td>
                                                 <td>
                                                     <RecordRow
                                                         initials=ini

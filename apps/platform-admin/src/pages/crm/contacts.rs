@@ -82,15 +82,15 @@ pub fn ContactsPage() -> impl IntoView {
     };
 
     let kpi_items = Signal::derive(move || {
-        let contacts  = contacts_res.get().unwrap_or_default();
-        let n         = contacts.len();
-        let has_email = contacts.iter().filter(|c| c.email.is_some()).count();
-        let has_phone = contacts.iter().filter(|c| c.phone.is_some()).count();
+        let contacts   = contacts_res.get().unwrap_or_default();
+        let n          = contacts.len();
+        let has_email  = contacts.iter().filter(|c| c.email.is_some()).count();
+        let missing    = contacts.iter().filter(|c| c.email.is_none() && c.phone.is_none()).count();
         vec![
-            KpiItem::new("Showing",   &n.to_string()).sub("this page"),
-            KpiItem::new("Has Email", &has_email.to_string()).color("var(--cobalt)"),
-            KpiItem::new("Has Phone", &has_phone.to_string()),
-            KpiItem::new("Verified",  "—").color("var(--green)"),
+            KpiItem::new("Page",         &page.get().to_string()),
+            KpiItem::new("Has Email",    &has_email.to_string()).color("var(--cobalt)"),
+            KpiItem::new("Missing Info", &missing.to_string()).color(if missing > 0 { "var(--amber)" } else { "var(--green)" }),
+            KpiItem::new("Total",        &n.to_string()),
         ]
     });
 
@@ -149,7 +149,6 @@ pub fn ContactsPage() -> impl IntoView {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width:32px"><input type="checkbox" style="accent-color:var(--cobalt)"/></th>
                                         <th style="width:32%" class="sortable">"Contact"</th>
                                         <th style="width:28%" class="sortable">"Email"</th>
                                         <th style="width:16%" class="sortable">"Phone"</th>
@@ -174,7 +173,6 @@ pub fn ContactsPage() -> impl IntoView {
                                                 selected.set(Some(c_click.clone()));
                                                 drawer_open.set(true);
                                             }>
-                                                <td><input type="checkbox" on:click=move |e| e.stop_propagation() style="accent-color:var(--cobalt)"/></td>
                                                 <td>
                                                     <RecordRow
                                                         initials=ini
