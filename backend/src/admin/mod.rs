@@ -14,6 +14,7 @@ pub mod users;
 pub mod passkeys_admin;      // Super-admin passkey management: list + revoke all users' passkeys
 pub mod upload;              // Admin-scoped R2 presigned upload URL (avatars, transcripts)
 pub mod campaigns;           // G-19 — Campaign registry: list, detail, create, status update, enrollments
+pub mod support_inbox;       // G-07 — Platform support inbox: cross-tenant platform_support room management
 
 
 
