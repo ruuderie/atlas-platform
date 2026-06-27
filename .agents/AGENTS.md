@@ -742,6 +742,126 @@ Rules:
 // m20261001_add_folio_str_host_mode.rs — adds the new column/constraint
 ```
 
+## 30. Unit Tests — Real Types, Realistic Scenarios, Regression Guards
+
+Unit tests are the safety net that confirms the app works as operators will actually use it. Tests written against fake types or invented strings give false confidence — they pass when the enum variant is renamed or the status slug changes, which is exactly when you need them to fail.
+
+### Three categories — all required when adding a new type or feature
+
+**1. Enum roundtrip tests** — every `Display`/`TryFrom` pair must be exhaustively covered
+
+Every enum variant must be in the test. No wildcard shortcuts. If a new variant is added and the test doesn't include it, the test should fail or the author should consciously add it.
+
+```rust
+// ✅ From backend/src/tests/unit/type_system_unit_tests.rs — the established pattern
+#[test]
+fn asset_status_display_roundtrip() {
+    // ALL variants listed — not "a few representative ones"
+    let variants = [
+        (AssetStatus::Active,   "active"),
+        (AssetStatus::Inactive, "inactive"),
+        (AssetStatus::Pending,  "pending"),
+        (AssetStatus::Archived, "archived"),
+    ];
+    for (variant, slug) in &variants {
+        assert_eq!(variant.to_string(), *slug, "Display mismatch for {variant:?}");
+        let parsed = AssetStatus::try_from(slug.to_string())
+            .expect("TryFrom should succeed for valid slug");
+        assert_eq!(&parsed, variant, "TryFrom roundtrip failed for '{slug}'");
+    }
+}
+
+#[test]
+fn asset_status_invalid_slug_returns_err() {
+    assert!(AssetStatus::try_from("ACTIVE".to_string()).is_err(), "must be lowercase");
+    assert!(AssetStatus::try_from("".to_string()).is_err());
+    assert!(AssetStatus::try_from("unknown".to_string()).is_err());
+}
+```
+
+**2. State machine / business rule tests** — terminal states, allowed transitions, computed properties
+
+```rust
+// ✅ Tests mirror what operators actually care about
+#[test]
+fn lease_status_terminal_states() {
+    // Operators cannot take action on terminated leases — regression guard
+    assert!(LeaseStatus::Expired.is_terminal());
+    assert!(LeaseStatus::Terminated.is_terminal());
+    assert!(!LeaseStatus::Active.is_terminal());
+    assert!(!LeaseStatus::PendingRenewal.is_terminal());
+}
+
+#[test]
+fn case_priority_ordering() {
+    // Vendors sort by priority — ordering must be stable
+    assert!(CasePriority::Emergency > CasePriority::High);
+    assert!(CasePriority::High > CasePriority::Medium);
+    assert!(CasePriority::Medium > CasePriority::Low);
+}
+```
+
+**3. Regression guard tests** — label and comment the specific bug or security property being protected
+
+Regression guards use the `T<N> REGRESSION GUARD:` comment pattern established in `session_unit_tests.rs`. They protect a specific, named invariant and explain *why* it must hold.
+
+```rust
+// T5 REGRESSION GUARD: asset_id must be scoped to tenant_id in the same query.
+// GET /api/folio/assets/:id must return 404 — not 403 — when the asset belongs
+// to a different tenant, preventing enumeration of valid UUIDs.
+// See AGENTS.md Rule 20 (IDOR prevention).
+#[test]
+fn asset_query_requires_tenant_scope() {
+    let asset_tenant_id = Uuid::new_v4();
+    let requesting_tenant_id = Uuid::new_v4(); // different tenant
+    let result = filter_asset_for_tenant(some_asset(asset_tenant_id), requesting_tenant_id);
+    assert!(result.is_none(), "cross-tenant asset access must return None, not the asset");
+}
+```
+
+### Rules that apply to every test in this codebase
+
+**Use real app types — never invent test-only stringly-typed data:**
+```rust
+// ❌ BANNED — if AssetStatus variants are renamed, this test still passes
+let status: &str = "active";
+assert_eq!(status, "active"); // proves nothing
+
+// ✅ REQUIRED — compiler catches renames
+let status = AssetStatus::Active;
+assert_eq!(status.to_string(), "active");
+```
+
+**Use realistic field values — names, amounts, and IDs that reflect actual operator data:**
+```rust
+// ❌ BANNED — foo/bar/baz test data
+let asset = Asset { name: "foo".to_string(), rent_cents: 0, tenant_id: Uuid::nil() };
+
+// ✅ REQUIRED — values that reflect real operator usage
+let asset = Asset {
+    name: "Maple Blvd Unit 4B".to_string(), // plausible property name
+    rent_cents: 195000,                      // $1,950/mo — realistic rent
+    tenant_id: Uuid::new_v4(),               // random but valid UUID
+    status: AssetStatus::Active,             // real enum variant, not "active"
+};
+```
+
+**No `unwrap()` in tests that test error paths — use `assert!(result.is_err())`:**
+```rust
+// ❌ BANNED — panics instead of failing the test cleanly
+let result = AssetStatus::try_from("bad".to_string()).unwrap_err();
+
+// ✅ REQUIRED
+assert!(AssetStatus::try_from("bad".to_string()).is_err());
+```
+
+**Test file location:**
+- Backend types and services → `backend/src/tests/unit/[domain]_unit_tests.rs`
+- Folio server functions → inline `#[cfg(test)] mod tests { ... }` at the bottom of the page file
+- Shared-ui components → inline in the component file (logic only — no DOM rendering in unit tests)
+
+**Test naming:** `snake_case` describing what it asserts, not what it calls. `fn lease_expired_status_is_terminal()` not `fn test_lease_status()`.
+
 ---
 
 ## 29. CURRENT_STATE.md — Remind When It's Time to Refresh
