@@ -75,8 +75,8 @@ _Stubs exist — wire to real data._
 | `[x]` | Dashboard | `v_dashboard` | `pages/vendor/dashboard.rs` | `/v` | `vendor.rs` |
 | `[x]` | Work Orders | `v_work_orders` | `pages/vendor/work_orders.rs` | `/v/work-orders` | `case.rs` |
 | `[x]` | Invoices | `v_invoices` | `pages/vendor/invoices.rs` | `/v/invoices` | `billing.rs` |
-| `[ ]` | Network Profile | `v_network_profile` | `pages/vendor/network_profile.rs` | `/v/profile` | `vendor.rs` |
-| `[ ]` | Schedule | `v_schedule` | `pages/vendor/schedule.rs` | `/v/schedule` | `case.rs` |
+| `[x]` | Network Profile | `v_network_profile` | `pages/vendor/network_profile.rs` | `/v/profile` | `vendor.rs` |
+| `[x]` | Schedule | `v_schedule` | `pages/vendor/schedule.rs` | `/v/schedule` | `case.rs` |
 
 ---
 
@@ -159,14 +159,14 @@ _Folio-hosted public surfaces (not Network Instance)._
 ```
 P0 Landlord:  17 done / 31 total   ███████░░░░░░░░░░░░░░░░░  55%
 P1 Tenant:     5 done / 14 total   ████░░░░░░░░░░░░░░░░░░░░  36%
-P2 Vendor:     3 done /  5 total   ████████████░░░░░░░░░░░░  60%
+P2 Vendor:     5 done /  5 total   ████████████████████████ 100%
 P3 PMC:        2 done /  6 total   ████░░░░░░░░░░░░░░░░░░░░  33%
 P4 STR Host:   0 done / 11 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P5 Owner:      0 done /  5 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P6 Wizards:    0 done /  4 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P7 Public:     1 done /  8 total   ██░░░░░░░░░░░░░░░░░░░░░░  12%
 ─────────────────────────────────────────────────────────
-Total:        28 done / 84 total   ███████░░░░░░░░░░░░░░░░░  33%
+Total:        30 done / 84 total   ████████░░░░░░░░░░░░░░░░  35%
 ```
 
 ---
