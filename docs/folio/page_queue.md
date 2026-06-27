@@ -27,7 +27,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Tenant Profile | `l_tenant_profile` | `pages/landlord/tenant_profile.rs` | `/l/tenants/:id` | `users.rs` (new) |
 | `[x]` | Maintenance Queue | `l_maintenance_queue` | `pages/landlord/maintenance_queue.rs` | `/l/maintenance` | `maintenance.rs` |
 | `[ ]` | Meridian Analytics | `l_meridian` | `pages/landlord/meridian.rs` | `/l/meridian` | `analytics` (G-27) |
-| `[ ]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
+| `[x]` | Ledger | `l_ledger` | `pages/landlord/ledger.rs` | `/l/ledger` | `billing.rs` |
 | `[ ]` | Communications | `l_communications` | `pages/landlord/communications.rs` | `/l/comms` | `comms.rs` |
 | `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
 | `[ ]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
@@ -157,7 +157,7 @@ _Folio-hosted public surfaces (not Network Instance)._
 ## Progress Summary
 
 ```
-P0 Landlord:  15 done / 31 total   ██████░░░░░░░░░░░░░░░░░░  48%
+P0 Landlord:  16 done / 31 total   ██████░░░░░░░░░░░░░░░░░░  52%
 P1 Tenant:     5 done / 14 total   ████░░░░░░░░░░░░░░░░░░░░  36%
 P2 Vendor:     3 done /  5 total   ████████████░░░░░░░░░░░░  60%
 P3 PMC:        2 done /  6 total   ████░░░░░░░░░░░░░░░░░░░░  33%
@@ -166,7 +166,7 @@ P5 Owner:      0 done /  5 total   ░░░░░░░░░░░░░░░
 P6 Wizards:    0 done /  4 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P7 Public:     1 done /  8 total   ██░░░░░░░░░░░░░░░░░░░░░░  12%
 ─────────────────────────────────────────────────────────
-Total:        26 done / 84 total   ██████░░░░░░░░░░░░░░░░░░  31%
+Total:        27 done / 84 total   ███████░░░░░░░░░░░░░░░░░  32%
 ```
 
 ---
