@@ -38,7 +38,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -70,6 +70,31 @@ struct MaintenanceSummary {
     pub subject: String,
     pub status: String,
     pub priority: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Folio-shaped response for `GET /api/folio/assets/{asset_id}/inspections`.
+///
+/// Extends `InspectionDetail` with a denormalized `assigned_vendor_name` so the
+/// asset detail timeline can display the contractor without a second round-trip.
+/// The name is resolved from `atlas_service_providers` by
+/// `assigned_service_provider_id`; it is `None` when no contractor is assigned
+/// or the provider record has been deleted.
+#[derive(Debug, Serialize)]
+pub struct AssetCaseSummary {
+    pub id: Uuid,
+    /// G-13 `case_type` string — `"maintenance"` or `"scheduled_inspection"` for Folio.
+    pub case_type: String,
+    /// User-authored title, e.g. `"Annual flush & anode rod"`.
+    pub subject: String,
+    pub status: String,
+    pub priority: String,
+    pub scheduled_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub estimated_cost_cents: Option<i64>,
+    pub actual_cost_cents: Option<i64>,
+    /// Vendor name resolved from `atlas_service_providers` — `None` when unassigned.
+    pub assigned_vendor_name: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -242,19 +267,89 @@ async fn complete_inspection(
 }
 
 /// GET /api/folio/assets/{asset_id}/inspections
+///
+/// Returns all G-13 cases for this asset (`maintenance` + `scheduled_inspection`)
+/// with vendor name denormalized. Sorted by `scheduled_at` descending so the
+/// most recent activity appears first in the timeline.
 async fn list_inspections_for_asset(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(asset_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
+    use crate::types::pm::PmCaseType;
+
     let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-    let inspections = MaintenanceService::list_inspections_for_asset(&db, tenant_id, asset_id)
+
+    // Fetch all maintenance + inspection cases for this asset.
+    let cases = crate::entities::atlas_case::Entity::find()
+        .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_case::Column::AssetId.eq(asset_id))
+        .filter(
+            sea_orm::Condition::any()
+                .add(crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::Maintenance.to_string()))
+                .add(crate::entities::atlas_case::Column::CaseType.eq(PmCaseType::ScheduledInspection.to_string()))
+        )
+        .order_by_desc(crate::entities::atlas_case::Column::ScheduledAt)
+        .all(&db)
         .await
         .map_err(|e| {
             tracing::error!(%tenant_id, %asset_id, "list_inspections_for_asset error: {e:#}");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-    Ok(axum::response::Json(inspections))
+
+    let cases: Vec<crate::entities::atlas_case::Model> = cases;
+
+    // Denormalize vendor names: collect unique service_provider_ids, batch fetch.
+    let provider_ids: Vec<Uuid> = cases
+        .iter()
+        .filter_map(|c| c.assigned_service_provider_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let providers = if provider_ids.is_empty() {
+        vec![]
+    } else {
+        crate::entities::atlas_service_provider::Entity::find()
+            .filter(crate::entities::atlas_service_provider::Column::Id.is_in(provider_ids))
+            .all(&db)
+            .await
+            .map_err(|e| {
+                tracing::error!(%tenant_id, "list_inspections_for_asset: vendor lookup error: {e:#}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+    };
+
+    // Build a lookup map id → business_name.
+    let vendor_map: std::collections::HashMap<Uuid, Option<String>> = providers
+        .into_iter()
+        .map(|p| (p.id, p.business_name))
+        .collect();
+
+    let summaries: Vec<AssetCaseSummary> = cases
+        .into_iter()
+        .map(|c| {
+            let vendor_name = c
+                .assigned_service_provider_id
+                .and_then(|id| vendor_map.get(&id))
+                .and_then(|name| name.clone());
+            AssetCaseSummary {
+                id: c.id,
+                case_type: c.case_type,
+                subject: c.subject,
+                status: c.status,
+                priority: c.priority,
+                scheduled_at: c.scheduled_at,
+                completed_at: c.completed_at,
+                estimated_cost_cents: c.estimated_cost_cents,
+                actual_cost_cents: c.actual_cost_cents,
+                assigned_vendor_name: vendor_name,
+                created_at: c.created_at,
+            }
+        })
+        .collect();
+
+    Ok(axum::response::Json(summaries))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

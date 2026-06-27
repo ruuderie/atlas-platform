@@ -429,3 +429,49 @@ body { background: var(--folio-bg); color: var(--folio-text); }
 .asset-inline-link {
   color: var(--folio-accent2); text-decoration: underline; text-underline-offset: 2px;
 }
+/* ── Asset Detail — Timeline additions ───────────────────────────────────── */
+.asset-tl-icon--maintenance { background: rgba(99,102,241,.10); border-color: rgba(99,102,241,.3); color: var(--folio-accent2); }
+.asset-tl-icon--compliance  { background: rgba(247,147,26,.10); border-color: rgba(247,147,26,.3); color: #d97706; }
+.asset-tl-icon--lease       { background: rgba(104,219,169,.10); border-color: rgba(133,248,196,.3); color: #069669; }
+.asset-tl-icon--event       { background: var(--folio-surface); border-color: var(--folio-border); color: var(--folio-muted); }
+.asset-tl-badges            { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+.asset-timeline-section-label {
+  font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--folio-muted); margin-bottom: .5rem;
+}
+/* Cost badge */
+.asset-cost-badge {
+  display: inline-flex; align-items: center;
+  padding: .1rem .4rem; border-radius: .25rem;
+  font-size: .6rem; font-weight: 700;
+  background: rgba(104,219,169,.12); color: #069669;
+  border: 1px solid rgba(133,248,196,.3); white-space: nowrap;
+}
+/* Empty inline state */
+.asset-empty-inline        { display: flex; align-items: center; gap: .5rem; opacity: .7; }
+.asset-empty-icon--sm      { font-size: 1rem !important; }
+.asset-empty-text--sm      { font-size: .8rem; }
+/* Contractor remove button */
+.asset-contractor-remove {
+  background: none; border: none; cursor: pointer; padding: .25rem;
+  color: var(--folio-muted); border-radius: .25rem; transition: color .15s, background .15s;
+}
+.asset-contractor-remove:hover { color: #ba1a1a; background: rgba(186,26,26,.08); }
+/* Contractor hint */
+.asset-contractor-hint { font-size: .72rem; color: var(--folio-muted); margin: .1rem 0 .75rem; }
+/* Vendor selector dropdown */
+.asset-vendor-selector {
+  border-top: 1px solid var(--folio-border); margin-top: .75rem; padding-top: .75rem;
+  display: flex; flex-direction: column; gap: .25rem;
+}
+.asset-vendor-selector__label { font-size: .7rem; font-weight: 600; color: var(--folio-muted); margin-bottom: .25rem; }
+.asset-vendor-option {
+  display: flex; align-items: center; gap: .5rem; width: 100%;
+  padding: .4rem .5rem; border-radius: .375rem; border: 1px solid transparent;
+  background: none; cursor: pointer; text-align: left;
+  transition: background .15s, border-color .15s;
+}
+.asset-vendor-option:hover {
+  background: var(--folio-surface); border-color: var(--folio-border);
+}
+.asset-vendor-option:disabled { opacity: .5; cursor: not-allowed; }

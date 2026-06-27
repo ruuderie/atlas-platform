@@ -30,7 +30,6 @@ use uuid::Uuid;
 
 use crate::entities::user;
 use crate::services::pm::asset::{AssetService, CreateUnitInput};
-use crate::services::pm::event::EventService;
 use crate::services::pm::record_relationship::RecordRelationshipService;
 use crate::types::pm::PropertyType;
 
@@ -40,10 +39,11 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/assets", get(list_assets).post(create_asset))
         .route("/api/folio/assets/{id}", get(get_asset))
-        // Sub-resource endpoints — backed by G-21 (atlas_events) and G-22
-        // (atlas_record_relationships). These are thin Folio-scoped views over
-        // generic platform services; no new tables are added.
-        .route("/api/folio/assets/{id}/events", get(list_asset_events))
+        // Default contractor for this asset — backed by G-22 (atlas_record_relationships).
+        // This is the preferred dispatch suggestion, not ownership.
+        // Event/inspection history is served by:
+        //   GET /api/folio/assets/{id}/inspections  (maintenance.rs — G-13 cases)
+        //   GET /api/folio/events?subject_entity_type=atlas_asset&subject_entity_id={id}  (events.rs — G-21)
         .route("/api/folio/assets/{id}/contractor", get(get_asset_contractor))
 }
 
@@ -86,32 +86,18 @@ struct CreateAssetResponse {
     pub id: Uuid,
 }
 
-// ── Sub-resource response types ──────────────────────────────────────────────
-
-/// A single event tied to this asset via G-21 `atlas_events`.
-/// `subject_entity_type = "atlas_asset"` and `subject_entity_id = asset.id`.
-#[derive(Debug, Serialize)]
-struct AssetEventSummary {
-    pub id: Uuid,
-    pub name: String,
-    pub event_type: String,
-    pub status: String,
-    pub starts_at: chrono::DateTime<chrono::Utc>,
-    pub ends_at: chrono::DateTime<chrono::Utc>,
-    pub venue_name: Option<String>,
-}
-
-/// The primary assigned contractor for this asset, resolved via G-22
-/// `atlas_record_relationships` (`relationship_type = "assigned_contractor"`).
-/// Returns `None` when no relationship record exists.
+/// The default contractor for this asset, resolved via G-22
+/// `atlas_record_relationships` (`relationship_type = "default_contractor"`).
+/// This is a dispatch suggestion pre-filled when scheduling maintenance.
+/// The actual contractor on a specific job lives on `atlas_cases.assigned_service_provider_id`.
+/// Returns `None` when no default has been set.
 #[derive(Debug, Serialize)]
 struct AssetContractorSummary {
     pub vendor_id: Uuid,
     pub business_name: String,
     /// First entry of `marketplace_trade_types`, if any.
     pub primary_trade: Option<String>,
-    /// The G-22 relationship_type string used — always `"assigned_contractor"`
-    /// for Folio. Other verticals use their own labels against the same service.
+    /// Always `"default_contractor"` for Folio. Other verticals use their own labels.
     pub relationship_type: String,
 }
 
@@ -249,73 +235,18 @@ async fn get_asset(
     }))
 }
 
-/// GET /api/folio/assets/:id/events
-///
-/// Returns all platform events whose `subject_entity_type = "atlas_asset"` and
-/// `subject_entity_id = id`, scoped to the caller's tenant.
-///
-/// Backed by G-21 `EventService::find_by_subject`. The entity type string
-/// `"atlas_asset"` is the cross-platform contract defined by G-21 — other
-/// verticals (fleet, clinical) query the same service with their own type strings.
-async fn list_asset_events(
-    Extension(db): Extension<DatabaseConnection>,
-    Extension(current_user): Extension<user::Model>,
-    Path(asset_id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
-
-    // Verify the asset exists and belongs to this tenant before exposing events.
-    let _asset = AssetService::get_unit(&db, tenant_id, asset_id)
-        .await
-        .map_err(|e| {
-            let msg = e.to_string();
-            if msg.contains("not found") {
-                StatusCode::NOT_FOUND
-            } else {
-                tracing::error!(%tenant_id, %asset_id, "list_asset_events: asset lookup error: {e:#}");
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        })?;
-
-    let events = EventService::find_by_subject(
-        &db,
-        tenant_id,
-        "atlas_asset",
-        asset_id,
-    )
-    .await
-    .map_err(|e| {
-        tracing::error!(%tenant_id, %asset_id, "list_asset_events error: {e:#}");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    let summaries: Vec<AssetEventSummary> = events
-        .into_iter()
-        .map(|ev| AssetEventSummary {
-            id: ev.id,
-            name: ev.name,
-            event_type: ev.event_type,
-            status: ev.status,
-            starts_at: ev.starts_at,
-            ends_at: ev.ends_at,
-            venue_name: ev.venue_name,
-        })
-        .collect();
-
-    Ok(axum::response::Json(summaries))
-}
 
 /// GET /api/folio/assets/:id/contractor
 ///
-/// Returns the primary assigned contractor for this asset, or `null` if none.
+/// Returns the default contractor for this asset, or `null` if none has been set.
 ///
 /// Backed by G-22 `RecordRelationshipService::find_targets` with
-/// `relationship_type = "assigned_contractor"`. The relationship is created via
-/// `POST /api/folio/relationships` — no separate assignment endpoint is needed
-/// because the generic relationship service already handles it.
+/// `relationship_type = "default_contractor"`. This is a dispatch suggestion
+/// pre-filled when scheduling maintenance — the actual contractor on a specific job
+/// lives on `atlas_cases.assigned_service_provider_id`.
 ///
-/// Other verticals use the same service with their own semantic labels
-/// (e.g. `"assigned_garage"` for fleet, `"assigned_specialist"` for clinical).
+/// The relationship is created/deleted via `POST|DELETE /api/folio/relationships`.
+/// Other verticals use their own semantic labels (e.g. "default_garage" for fleet).
 async fn get_asset_contractor(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
@@ -336,13 +267,18 @@ async fn get_asset_contractor(
             }
         })?;
 
-    // Traverse G-22: atlas_asset → [assigned_contractor] → atlas_service_providers
+    // Traverse G-22: atlas_asset → [default_contractor] → atlas_service_providers.
+    //
+    // relationship_type = "default_contractor" signals this is a dispatch
+    // *suggestion* pre-filled when scheduling maintenance — not ownership.
+    // The actual contractor on a specific job lives on atlas_cases.assigned_service_provider_id.
+    // Other verticals use their own semantic labels (e.g. "default_garage" for fleet).
     let relationships = RecordRelationshipService::find_targets(
         &db,
         tenant_id,
         "atlas_asset",
         asset_id,
-        "assigned_contractor",
+        "default_contractor",
     )
     .await
     .map_err(|e| {
