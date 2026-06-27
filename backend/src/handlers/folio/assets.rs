@@ -38,6 +38,9 @@ use crate::types::pm::PropertyType;
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/assets", get(list_assets).post(create_asset))
+        // Map pin endpoint — all properties with lat/lon for portfolio map.
+        // Must be registered BEFORE /{id} to avoid route shadowing.
+        .route("/api/folio/assets/map", get(list_assets_map))
         .route("/api/folio/assets/{id}", get(get_asset))
         // Default contractor for this asset — backed by G-22 (atlas_record_relationships).
         // This is the preferred dispatch suggestion, not ownership.
@@ -337,4 +340,66 @@ async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uui
         .ok_or(StatusCode::FORBIDDEN)?;
 
     Ok(profile.tenant_id)
+}
+// ── GET /api/folio/assets/map ─────────────────────────────────────────────────
+//
+// Returns all tenant assets with lat/lon stored in attributes.coordinates.
+// Used to render the portfolio map.
+
+#[derive(serde::Serialize)]
+struct MapPin {
+    pub id:             uuid::Uuid,
+    pub name:           String,
+    pub asset_type:     String,
+    pub status:         String,
+    pub latitude:       f64,
+    pub longitude:      f64,
+    pub address_line_1: Option<String>,
+    pub city:           Option<String>,
+    pub state_province: Option<String>,
+    pub postal_code:    Option<String>,
+}
+
+async fn list_assets_map(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+) -> Result<impl IntoResponse, StatusCode> {
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    let assets = crate::entities::atlas_asset::Entity::find()
+        .filter(crate::entities::atlas_asset::Column::TenantId.eq(tenant_id))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_assets_map error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let pins: Vec<MapPin> = assets
+        .into_iter()
+        .filter_map(|a| {
+            // Coordinates stored in attributes.coordinates.{lat,lng}
+            let attrs = a.attributes.as_ref()?;
+            let coords = attrs.get("coordinates")?;
+            let lat = coords.get("lat").and_then(|v| v.as_f64())?;
+            let lng = coords.get("lng").and_then(|v| v.as_f64())?;
+            // Skip zero-zero pins (unset)
+            if lat == 0.0 && lng == 0.0 { return None; }
+            Some(MapPin {
+                id:             a.id,
+                name:           a.name,
+                asset_type:     a.asset_type,
+                status:         a.status,
+                latitude:       lat,
+                longitude:      lng,
+                address_line_1: a.address_line_1,
+                city:           a.city,
+                state_province: a.state_province,
+                postal_code:    a.postal_code,
+            })
+        })
+        .collect();
+
+    Ok(axum::response::Json(pins))
 }

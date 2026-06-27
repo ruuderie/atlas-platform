@@ -31,3 +31,4 @@ pub mod violations;       // G-13 — Compliance violation filing + cure status 
 pub mod reporting;        // Cross-table — Tenant reports + landlord/vendor analytics
 pub mod owner;            // G-22 — Beneficial owner read-only portal + PMC link management
 pub mod str_guest;        // G-22 — STR guest/vehicle registration + special requests per booking
+pub mod comms;            // G-07 — Unified communications: rooms, messages, platform_support
