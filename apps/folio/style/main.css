@@ -2270,3 +2270,184 @@ body { background: var(--folio-bg); color: var(--folio-text); }
 }
 .bsys-error .material-symbols-outlined { font-size: 2.5rem; }
 .bsys-error p { color: var(--color-text-secondary); margin: 0; }
+
+/* ── Unit Appliances page ──────────────────────────────────────────────────────
+   Prefix: appl-
+   Route:  /l/appliances
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.appl-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2rem 2.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.appl-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; }
+.appl-header-left { display: flex; flex-direction: column; gap: 0.25rem; }
+.appl-title { font-size: 1.75rem; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.appl-subtitle { font-size: 0.875rem; color: var(--color-text-tertiary); margin: 0; }
+
+/* Buttons */
+.appl-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.6rem 1.25rem; border-radius: var(--radius-md);
+  font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  border: none; transition: background 0.15s, opacity 0.15s;
+}
+.appl-btn--ghost {
+  background: transparent; border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.appl-btn--ghost:hover { background: var(--color-surface-raised); }
+
+/* KPI strip */
+.appl-kpi-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+}
+@media (max-width: 900px) { .appl-kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+.appl-kpi-strip--loading { min-height: 90px; }
+
+.appl-kpi-card {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.appl-kpi-card--overdue  { border-color: rgba(239,68,68,0.5); }
+.appl-kpi-card--due-soon { border-color: rgba(251,146,60,0.5); }
+.appl-kpi-card--warranty { border-color: rgba(99,102,241,0.4); }
+
+.appl-kpi-icon { font-size: 1.75rem; color: var(--color-brand); opacity: 0.85; }
+.appl-kpi-card--overdue  .appl-kpi-icon { color: #f87171; }
+.appl-kpi-card--due-soon .appl-kpi-icon { color: #fb923c; }
+.appl-kpi-card--warranty .appl-kpi-icon { color: #818cf8; }
+
+.appl-kpi-body { display: flex; flex-direction: column; }
+.appl-kpi-value { font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary); line-height: 1; }
+.appl-kpi-label { font-size: 0.75rem; color: var(--color-text-tertiary); margin-top: 0.2rem; }
+.appl-kpi-skel {
+  height: 90px; border-radius: var(--radius-lg);
+  background: var(--color-skeleton-base, rgba(255,255,255,0.06));
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Filter bar */
+.appl-filter-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.appl-search-wrap { position: relative; flex: 1; min-width: 200px; }
+.appl-search-icon {
+  position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+  font-size: 1.1rem; color: var(--color-text-tertiary); pointer-events: none;
+}
+.appl-search-input {
+  width: 100%; padding: 0.6rem 0.75rem 0.6rem 2.25rem;
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); color: var(--color-text-primary);
+  font-size: 0.875rem; outline: none; transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.appl-search-input:focus { border-color: var(--color-brand); }
+
+.appl-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.appl-chip {
+  padding: 0.35rem 0.875rem; border-radius: 999px;
+  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--color-border); background: transparent;
+  color: var(--color-text-secondary); transition: all 0.15s;
+}
+.appl-chip:hover { background: var(--color-surface-raised); }
+.appl-chip--active { background: var(--color-brand); border-color: var(--color-brand); color: #fff; }
+
+/* Card grid */
+.appl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Cards */
+.appl-card {
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.appl-card:hover {
+  border-color: var(--color-brand-muted, rgba(99,102,241,0.4));
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.appl-card--overdue  { border-color: rgba(239,68,68,0.5);  background: rgba(239,68,68,0.04); }
+.appl-card--due-soon { border-color: rgba(251,146,60,0.4); background: rgba(251,146,60,0.04); }
+.appl-card--unknown  { opacity: 0.85; }
+
+/* Card header */
+.appl-card-header { display: flex; align-items: flex-start; gap: 0.75rem; }
+.appl-card-icon { font-size: 1.5rem; color: var(--color-brand); margin-top: 0.1rem; flex-shrink: 0; }
+.appl-card--overdue  .appl-card-icon { color: #f87171; }
+.appl-card--due-soon .appl-card-icon { color: #fb923c; }
+.appl-card-title-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.appl-card-name { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.appl-card-type { font-size: 0.75rem; color: var(--color-text-tertiary); }
+
+/* Badges */
+.appl-badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.appl-badge--overdue   { background: rgba(239,68,68,0.2);    color: #f87171; }
+.appl-badge--due-soon  { background: rgba(251,146,60,0.2);   color: #fb923c; }
+.appl-badge--ok        { background: rgba(34,197,94,0.15);   color: #4ade80; }
+.appl-badge--unknown   { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+/* Card meta */
+.appl-card-meta {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 0.75rem; background: var(--color-surface, rgba(0,0,0,0.15));
+  border-radius: var(--radius-md);
+}
+.appl-meta-row { display: flex; align-items: center; gap: 0.5rem; }
+.appl-meta-icon { font-size: 0.9rem; color: var(--color-text-tertiary); flex-shrink: 0; }
+.appl-meta-val { font-size: 0.8125rem; color: var(--color-text-secondary); }
+
+/* Condition pill */
+.appl-cond { font-size: 0.8125rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 4px; }
+.appl-cond--good     { background: rgba(34,197,94,0.15);   color: #4ade80; }
+.appl-cond--fair     { background: rgba(251,146,60,0.15);  color: #fb923c; }
+.appl-cond--poor     { background: rgba(239,68,68,0.15);   color: #f87171; }
+.appl-cond--critical { background: rgba(239,68,68,0.3);    color: #ef4444; font-weight: 800; }
+.appl-cond--unknown  { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+/* Date section */
+.appl-card-dates { display: flex; gap: 1rem; align-items: flex-start; }
+.appl-date-item { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+.appl-date-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); font-weight: 600; }
+.appl-date-val { font-size: 0.875rem; font-weight: 500; color: var(--color-text-primary); }
+.appl-date-sub { font-size: 0.75rem; color: var(--color-text-tertiary); }
+.appl-date-divider { width: 1px; background: var(--color-border); align-self: stretch; margin-top: 0.25rem; }
+
+/* Skeleton */
+.appl-card-skel {
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.875rem;
+}
+.appl-skel {
+  border-radius: 4px;
+  background: var(--color-skeleton-base, rgba(255,255,255,0.06));
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.appl-skel--icon  { width: 2rem; height: 2rem; border-radius: 50%; }
+.appl-skel--title { height: 1rem; width: 65%; }
+.appl-skel--sub   { height: 0.75rem; width: 40%; }
+.appl-skel--meta  { height: 3rem; }
+.appl-skel--date  { height: 0.75rem; width: 55%; }
+
+/* Empty / error */
+.appl-empty { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 5rem 2rem; text-align: center; }
+.appl-empty-icon  { font-size: 3rem; color: var(--color-text-tertiary); }
+.appl-empty-title { font-size: 1.125rem; font-weight: 600; color: var(--color-text-primary); margin: 0; }
+.appl-empty-sub   { font-size: 0.875rem; color: var(--color-text-tertiary); margin: 0; }
+.appl-error { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 4rem 2rem; text-align: center; color: var(--color-error, #f87171); }
+.appl-error .material-symbols-outlined { font-size: 2.5rem; }
+.appl-error p { color: var(--color-text-secondary); margin: 0; }
