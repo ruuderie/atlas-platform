@@ -385,7 +385,7 @@ impl ViolationService {
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
-fn to_violation_record(c: atlas_case::Model) -> ViolationRecord {
+pub fn to_violation_record(c: atlas_case::Model) -> ViolationRecord {
     let meta = c.case_metadata.as_ref();
     let cure_status = meta
         .and_then(|m| m["cure_status"].as_str())

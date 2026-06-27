@@ -5,6 +5,10 @@
 //! ```ignore
 //! --- Landlord routes ---
 //!
+//! GET  /api/folio/violations
+//!      All violations across the landlord's entire portfolio, newest-first.
+//!      -> 200 [ViolationRecord]
+//!
 //! POST /api/folio/violations
 //!      File a violation against a tenant's unit.
 //!      Body: FileViolationHttpInput
@@ -46,7 +50,7 @@ use crate::services::pm::violation::{
 
 pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/violations", post(file_violation))
+        .route("/api/folio/violations", get(list_all).post(file_violation))
         .route("/api/folio/violations/{id}/status", patch(update_cure_status))
         .route("/api/folio/assets/{asset_id}/violations", get(list_for_asset))
         .route("/api/folio/tenant/violations", get(list_for_tenant))
@@ -76,7 +80,42 @@ pub struct UpdateCureStatusHttpInput {
     pub resolution_notes: Option<String>,
 }
 
-// ── Handlers ──────────────────────────────────────────────────────────────────
+// ── Handlers ─────────────────────────────────────────────────────────────────────
+
+/// GET /api/folio/violations
+///
+/// Returns all compliance violations across the landlord's entire portfolio,
+/// ordered newest-first. The landlord uses this as a global compliance queue —
+/// open violations needing cure action surface at the top.
+async fn list_all(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(tenant_id): Extension<Uuid>,
+) -> impl IntoResponse {
+    use crate::types::pm::PmCaseType;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+
+    match crate::entities::atlas_case::Entity::find()
+        .filter(crate::entities::atlas_case::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_case::Column::CaseType.eq(
+            PmCaseType::ComplianceViolation.to_string(),
+        ))
+        .order_by_desc(crate::entities::atlas_case::Column::CreatedAt)
+        .all(&db)
+        .await
+    {
+        Ok(cases) => {
+            let records: Vec<crate::services::pm::violation::ViolationRecord> = cases
+                .into_iter()
+                .map(crate::services::pm::violation::to_violation_record)
+                .collect();
+            (StatusCode::OK, Json(records)).into_response()
+        }
+        Err(e) => {
+            tracing::error!(%tenant_id, "list_violations: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
 
 async fn file_violation(
     Extension(db): Extension<DatabaseConnection>,
