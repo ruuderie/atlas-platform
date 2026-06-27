@@ -3,6 +3,7 @@ pub mod portfolio;
 pub mod assets;
 pub mod asset_detail;
 pub mod leases;
+pub mod lease_detail;
 pub mod leads;
 pub mod campaigns;
 pub mod billing;
