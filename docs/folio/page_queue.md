@@ -34,7 +34,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
 | `[x]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `violations.rs` |
 | `[x]` | Building Systems | `l_building_systems` | `pages/landlord/building_systems.rs` | `/l/systems` | `asset.rs` |
-| `[ ]` | Unit Appliances | `l_unit_appliances` | `pages/landlord/unit_appliances.rs` | `/l/assets/:id/appliances` | `asset.rs` |
+| `[x]` | Unit Appliances | `l_unit_appliances` | `pages/landlord/unit_appliances.rs` | `/l/appliances` | `asset.rs` |
 | `[ ]` | Syndication | `l_syndication` | `pages/landlord/syndication.rs` | `/l/syndication` | `syndication_admin.rs` |
 | `[ ]` | Wholesaling | `l_wholesaling` | `pages/landlord/wholesaling.rs` | `/l/wholesaling` | TBD |
 | `[ ]` | Listing Network Preview | `l_listing_network_preview` | `pages/landlord/listing_preview.rs` | `/l/assets/:id/preview` | `catalog.rs` |
