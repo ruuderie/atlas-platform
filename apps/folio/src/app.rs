@@ -43,6 +43,8 @@ use crate::pages::tenant::{
     payments::TenantPayments,
     maintenance::MaintenanceRequests,
     reservations::TenantReservations,
+    inbox::TenantInbox,
+    household::TenantHousehold,
 };
 
 // Vendor pages
@@ -146,6 +148,8 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/payments")     view=TenantPayments/>
                     <Route path=path!("/maintenance")  view=MaintenanceRequests/>
                     <Route path=path!("/reservations") view=TenantReservations/>
+                    <Route path=path!("/inbox")        view=TenantInbox/>
+                    <Route path=path!("/household")    view=TenantHousehold/>
                 </ParentRoute>
 
                 // ── Vendor namespace /v/** ─────────────────────────────────────

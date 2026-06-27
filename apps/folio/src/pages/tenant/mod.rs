@@ -3,3 +3,5 @@ pub mod my_lease;
 pub mod payments;
 pub mod maintenance;
 pub mod reservations;
+pub mod inbox;
+pub mod household;
