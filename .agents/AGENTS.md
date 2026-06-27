@@ -1,99 +1,117 @@
 # Atlas Platform — Agent Rules
 
 > **Scope:** All code generation, refactoring, and documentation in this workspace.  
-> These rules are non-negotiable. If you believe a rule prevents correct implementation, document why explicitly and propose an exception — do not silently violate it.
+> These rules are non-negotiable. If you believe a rule prevents correct implementation, document why explicitly and propose an exception — do not silently violate it.  
+> **Start every session by reading [`docs/CURRENT_STATE.md`](../docs/CURRENT_STATE.md).** It is the single most important document for understanding where the platform is today.
+
+---
+
+## 0. Orientation — Read These First
+
+Before writing any code, read in this order:
+
+1. `docs/CURRENT_STATE.md` — ground-truth platform status (generics, services, entities)
+2. `docs/folio/folio_vs_network_instance.md` — which app owns which user type
+3. `apps/folio/src/components/nav.rs` — `FolioRoute` and `NavIcon` enums; all routes and icons live here
+4. `docs/leptos_ssr_shell_pattern.md` — critical SSR gotchas that cause 502s and hydration mismatches
+5. `.agents/AGENTS.md` (this file)
 
 ---
 
 ## 1. Rust Type System — Use It Fully
 
-**Enums over strings for any finite set of values.**
+**Enums over strings for any finite set of values.** This is non-negotiable.
 
-Every finite, bounded set of values in this codebase MUST be an enum. This is non-negotiable.
+Every finite, bounded set of values MUST be an enum — not `&str`, not `String`, not `i32`.
 
 ```rust
 // ❌ BANNED
 let icon: &'static str = "apartment";
 let route: &'static str = "/l/assets";
 let status: &str = "active";
+let mode: String = "brokerage".to_string();
 
 // ✅ REQUIRED
 let icon: NavIcon = NavIcon::Apartment;
 let route: FolioRoute = FolioRoute::LandlordAssets;
 let status: AssetStatus = AssetStatus::Active;
+let mode: FolioMode = FolioMode::Brokerage;
 ```
 
-**The compiler must enforce correctness, not tests or code review.**
-
-If you add a new variant to an enum, the compiler will point to every match arm that needs updating. This is the goal. Never use `_ => {}` wildcard arms in exhaustive matches on enums you own — it defeats this protection.
+**No `_ => {}` wildcard arms on enums you own.** When a new variant is added, the compiler should point to every match arm that needs updating. Wildcards defeat this.
 
 ```rust
-// ❌ BANNED in owned enums
+// ❌ BANNED — new variants added silently pass through
 match status {
-    AssetStatus::Active => ...,
-    _ => {} // silently ignores new variants
+    AssetStatus::Active => show_green(),
+    _ => {}
 }
 
-// ✅ REQUIRED
+// ✅ REQUIRED — compiler enforces completeness
 match status {
-    AssetStatus::Active   => ...,
-    AssetStatus::Inactive => ...,
-    AssetStatus::Pending  => ...,
-    // compiler forces this arm when Archived is added
+    AssetStatus::Active   => show_green(),
+    AssetStatus::Inactive => show_gray(),
+    AssetStatus::Pending  => show_amber(),
+    // Adding AssetStatus::Archived → compile error here → forces a decision
 }
 ```
 
 ---
 
-## 2. Zero-Cost Abstractions — const fn and &'static str
+## 2. Zero-Cost Abstractions — `const fn` and `&'static str`
 
-Use `const fn` for methods on enums that return `&'static str`. This produces no runtime allocation and no indirection.
+Use `const fn` for methods on enums that return `&'static str`. No runtime allocation.
 
 ```rust
-// ✅ Correct — no allocation, resolved at compile time
+// ✅ Correct — zero allocation, resolved at compile time
 impl NavIcon {
     pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Apartment => "apartment",
-            // ...
-        }
+        match self { Self::Apartment => "apartment", ... }
     }
 }
 
 // ❌ Wrong — allocates a String unnecessarily
 impl NavIcon {
-    pub fn to_string(self) -> String {
-        match self {
-            Self::Apartment => "apartment".to_string(),
-        }
+    pub fn to_icon_string(self) -> String {
+        "apartment".to_string()
     }
 }
 ```
 
-Implement `std::fmt::Display` by delegating to `as_str()` — never by constructing a `String`.
+Implement `std::fmt::Display` by delegating to `as_str()`. Derive `Copy` on enums that contain no heap data — not just `Clone`.
+
+```rust
+// ✅ Small descriptive enum — derives Copy
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FolioMode { Standard, Pmc, Brokerage }
+
+// ✅ Data-bearing struct — Clone only, not Copy
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Asset { pub name: String }
+```
 
 ---
 
 ## 3. No Panics on Server Paths
 
-`unwrap()`, `expect()`, and `panic!()` are **banned in all server function bodies and backend handlers**. No exceptions.
+`unwrap()`, `expect()`, and `panic!()` are **banned in all `#[server]` fn bodies and backend handlers**.
 
 ```rust
-// ❌ BANNED in #[server] fns
+// ❌ BANNED
 let val = something.unwrap();
-let val = something.expect("this should never happen");
+let val = something.expect("should never fail");
 
 // ✅ REQUIRED — propagate with ?
 let val = something.map_err(|e| ServerFnError::new(e.to_string()))?;
 ```
 
-`unwrap()` in tests is acceptable. `unwrap()` on `Option` in view macros is acceptable only when the value is provably non-None by construction (document why inline).
+`unwrap()` in `#[cfg(test)]` blocks is acceptable. `unwrap()` on Option in view macros is acceptable only when the value is provably non-None by construction — document why inline.
 
 ---
 
 ## 4. No Mock Data in Production Code Paths
 
-No hardcoded business data (names, amounts, addresses, IDs) anywhere in `apps/folio/src/` or `apps/network-instance/src/`.
+No hardcoded business data (names, amounts, addresses, UUIDs, counts) anywhere in `apps/folio/src/`, `apps/network-instance/src/`, or `apps/shared-ui/src/`.
 
 ```rust
 // ❌ BANNED
@@ -101,10 +119,9 @@ let items = vec![
     Asset { name: "Maple Blvd".to_string(), revenue: 14400 },
 ];
 
-// ✅ REQUIRED — return Err if endpoint not ready yet
+// ✅ REQUIRED — Err if endpoint not ready
 #[server]
 async fn get_assets() -> Result<Vec<Asset>, ServerFnError> {
-    // If the endpoint doesn't exist yet:
     Err(ServerFnError::new("not implemented — needs GET /api/folio/assets"))
     // NOT: Ok(vec![Asset { name: "Mock".to_string() ... }])
 }
@@ -122,15 +139,13 @@ All navigation, redirects, and `href` attributes MUST use `FolioRoute::Variant.p
 // ❌ BANNED
 <a href="/l/assets">
 window.location.set_href("/login");
-Redirect::to("/l");
 
 // ✅ REQUIRED
 <a href=FolioRoute::LandlordAssets.path()>
 window.location.set_href(FolioRoute::Login.path());
-view! { <Redirect path=FolioRole::Landlord.home_path()/> }
 ```
 
-When adding a new route to `app.rs`, simultaneously add it to `FolioRoute` in `nav.rs`. The route string appears in exactly one place.
+When adding a route to `app.rs`, simultaneously add it to `FolioRoute` in `nav.rs`. The path string appears in exactly one place.
 
 ---
 
@@ -146,129 +161,268 @@ All Material Symbols icon names MUST be `NavIcon::Variant.as_str()`. String lite
 <span class="material-symbols-outlined">{NavIcon::Apartment.as_str()}</span>
 ```
 
-When the design calls for a new icon, add it to the `NavIcon` enum first, then use it.
+When a new icon is needed, add it to `NavIcon` first, then use it.
 
 ---
 
-## 7. SSR Safety — No Window Calls in Server Context
+## 7. SSR Safety — cfg-Gated Code in Reactive Closures
 
-`web_sys::window()`, `document()`, `localStorage`, and any browser API MUST be gated:
+**Never call a `#[cfg]`-gated function that returns environment-dependent values inside a reactive closure** in an SSR+hydrate app. This causes hydration mismatches that manifest as full page reloads on every button/tab click.
 
 ```rust
-// ✅ For hydrate-only logic
-#[cfg(feature = "hydrate")]
-fn client_only_thing() { ... }
+// ❌ WRONG — SSR returns cluster URL, WASM returns public URL → mismatch → page reload
+{move || {
+    let url = format!("{}/api/passkeys", get_atlas_api_url()); // cfg-gated!
+    view! { <PasskeyLoginButton api_base_url=url /> }
+}}
 
-// ✅ For event handlers (already WASM-only by nature)
-on:click=move |_| { web_sys::window()... }  // OK — event handlers only run client-side
+// ✅ CORRECT — compute once at setup, stable across both compile passes
+#[cfg(feature = "ssr")]
+let passkey_api_base = String::new();         // empty string — never used server-side
+#[cfg(not(feature = "ssr"))]
+let passkey_api_base = get_atlas_api_url();   // real URL — only used in browser
 
-// ❌ BANNED — will panic on SSR
-#[server]
-async fn my_server_fn() -> Result<(), ServerFnError> {
-    let win = web_sys::window().unwrap(); // PANIC on server
+{move || view! { <PasskeyLoginButton api_base_url=passkey_api_base.clone() /> }}
+```
+
+See `docs/leptos_ssr_shell_pattern.md` § "cfg-gated values in reactive closures" for the full explanation.
+
+**Other SSR safety rules:**
+- `web_sys::window()`, `document()`, `localStorage` — only in event handlers or `#[cfg(feature = "hydrate")]`
+- `Resource::new` reads must be inside `<Suspense>` — or switch to `LocalResource`
+- `#[server]` fn parameters must be `Clone + Serialize + Deserialize`
+
+---
+
+## 8. SSR Shell — Required for Every New SSR App
+
+Every new app using `leptos_axum` MUST have a `shell()` function wired into `leptos_routes`. Passing `<App/>` directly to the router is a **silent migration bug** from Leptos 0.7 — the code compiles, but `leptos_meta` panics at runtime with:
+
+```
+thread 'tokio-rt-worker' panicked: you are using leptos_meta without a </head> tag
+```
+
+Canonical pattern (copy verbatim):
+```rust
+#[cfg(feature = "ssr")]
+pub fn shell(options: LeptosOptions) -> impl IntoView {
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone()/>
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body><App/></body>
+        </html>
+    }
+}
+```
+
+See `docs/leptos_ssr_shell_pattern.md` for the full wiring pattern and k8s hash-files configuration.
+
+---
+
+## 9. Deployment — File Hashing (Three Layers Required)
+
+Every Leptos SSR app deployed behind Cloudflare MUST have file hashing enabled in all three layers. Missing any one causes a different failure mode:
+
+| Layer | Setting | Failure if missing |
+|---|---|---|
+| `Cargo.toml` | `hash-files = true` | Stale bundles served from CDN |
+| `Dockerfile` | `ENV LEPTOS_HASH_FILES="true"` | Fails in local Docker only |
+| `k8s/base/<app>.yaml` | `env: LEPTOS_HASH_FILES: "true"` | 502 — pod starts but serves dead static HTML |
+
+The k8s `env:` block is mandatory because `envFrom: configMapRef` does NOT preserve `ENV` values baked into the Docker image. See `docs/leptos_ssr_shell_pattern.md` § "CDN Cache Busting".
+
+---
+
+## 10. App Boundary — Folio vs Network Instance vs Platform Admin
+
+**Folio** = authenticated operational workspace. Every logged-in user (landlord, tenant, vendor, PMC, owner, agent, broker) uses Folio.
+
+**Network Instance** = public-facing marketplace. No authenticated workflows. No role-based navigation.
+
+**Platform Admin** = Oplyst super-admin only. CSR, not SSR.
+
+```
+If the user needs to be logged in → Folio.
+If a search engine needs to index it → Network Instance.
+If it's a platform operation (provisioning, billing oversight) → Platform Admin.
+```
+
+`folio_mode` is **per-instance, not per-user**: `standard` (default), `pmc`, or `brokerage`. A user's `FolioRole` (landlord, tenant, etc.) is independent of the instance's `folio_mode`. Both affect routing. See `docs/folio/folio_vs_network_instance.md`.
+
+---
+
+## 11. Shared-UI Component Extraction — Three Criteria
+
+A UI pattern belongs in `apps/shared-ui` if and only if it meets **all three**:
+
+1. **Zero domain logic** — no references to `FolioRole`, `LeaseId`, `TenantId`, or any platform entity
+2. **Presentational or headless** — no `#[server]` calls, no direct `fetch()`, purely visual or layout
+3. **Cross-app usage** — used in at least two separate apps (`folio` + `network-instance`, or `folio` + `platform-admin`, etc.)
+
+When a shared component needs different behaviour per-context, use **prop-controlled visibility**:
+
+```rust
+// ✅ One component, two rendering contexts
+#[component]
+pub fn ListingCard(
+    listing: ListingModel,
+    #[prop(optional)] show_agent_controls: bool, // Folio passes true; NI passes nothing
+) -> impl IntoView { ... }
+```
+
+Components that are Folio-specific (auth shells, nav layouts, role-scoped panels) stay in `apps/folio/src/`. Never extract a layout shell to shared-ui.
+
+---
+
+## 12. Multi-Tenant Data — tenant_id Is Always Required
+
+Every database entity is scoped to a `tenant_id`. Queries that span tenant boundaries are bugs.
+
+Backend handlers must:
+- Extract `tenant_id` from the authenticated session (not from query params or request body)
+- Include `tenant_id` in every WHERE clause that touches tenant-scoped tables
+- Never accept a `tenant_id` override from the client
+
+```rust
+// ❌ BANNED — client-supplied tenant_id
+async fn get_assets(tenant_id: Uuid) -> Result<Vec<Asset>, ServerFnError> { ... }
+
+// ✅ REQUIRED — tenant_id from authenticated session only
+async fn get_assets(session: &SessionInfo) -> Result<Vec<Asset>, ServerFnError> {
+    let tenant_id = session.tenant_id.ok_or_else(|| ServerFnError::new("no tenant"))?;
+    // ...
 }
 ```
 
 ---
 
-## 8. Role → Config via FolioRole, Not Imports
+## 13. Design Tokens — No Hardcoded Colors
 
-Layouts and components derive nav, theme, and permissions from the `FolioRole` enum, not from importing specific static configs.
+No hardcoded color values in Rust view macros or CSS. All colors come from the token system in `apps/folio/tailwind.config.js`.
+
+Banned patterns (stitch artifacts — must not enter production):
+```rust
+// ❌ ALL BANNED
+<div style="background: #131b2e; color: white;">
+class="bg-slate-100"          // use surface-container-low
+class="text-slate-700"        // use text-on-surface-variant
+class="bg-white"              // use bg-surface-container-lowest
+class="bg-black"              // use bg-primary
+```
+
+Token reference: `docs/folio/design_preview.html` (open in browser, no build step).
+
+---
+
+## 14. Role → Config via FolioRole, Not Imports
+
+Layouts derive nav config from the session's `FolioRole` enum, not by importing specific statics.
 
 ```rust
-// ❌ BANNED — import couples layout to specific config
+// ❌ BANNED — import couples layout to a specific config static
 use crate::components::nav::LANDLORD_NAV;
 <SidebarNav config=&LANDLORD_NAV/>
 
-// ✅ REQUIRED — role IS the index
-let config = session_info.folio_role.nav_config();
+// ✅ REQUIRED — role IS the index; adding a FolioRole variant forces nav config creation
+let config = session.folio_role.nav_config();
 <SidebarNav config=config/>
 ```
 
-This means adding a new `FolioRole` variant automatically triggers a compiler error at the `nav_config()` match arm — forcing nav config creation before the new role can compile.
+---
+
+## 15. Platform Generics — G01–G34+ Are the Source of Truth
+
+The platform's backend is organized around **Platform Generics** (G01–G34+). When implementing a frontend page, always map its data requirements to the correct generic first.
+
+| Domain | Generics | Key service |
+|---|---|---|
+| Portfolios/assets | G09, G10 | `PortfolioService`, `AssetService` |
+| Contracts/leases | G11 | `ContractService` |
+| Vendors | G12 | `ServiceProviderService` |
+| Cases/maintenance | G13 | `CaseService` |
+| Opportunities/leads | G15 | `OpportunityService` |
+| Campaigns | G19 | `pm/campaign.rs` |
+| Billing/ledger | G03 | `LedgerService` |
+| Syndication | G05 | `SyndicationEventBus` |
+| Regulatory/STR | G16 | `RegulatoryRegistrationService` |
+| Analytics (Meridian) | G27 | `MeridianService` |
+| Reservations | G26 | `ReservationService` |
+
+Use `grep -r "router.route" backend/src/handlers/folio/` to find the exact endpoint string for any generic's Folio-facing API. **Do not invent new endpoints if one already exists for the generic.**
 
 ---
 
-## 9. Design Tokens Over Literals
+## 16. Explicit Error Types in Internal Boundaries
 
-No hardcoded color values in Rust view macros or CSS. All colors must come from the design token system defined in `apps/folio/tailwind.config.js`.
-
-```rust
-// ❌ BANNED
-<div style="background: #131b2e; color: white;">
-
-// ✅ REQUIRED
-<div class="bg-primary-container text-on-primary">
-```
-
-Banned CSS classes (stitch artifacts that must not enter production code):
-- `bg-slate-*`, `text-slate-*` → use `surface-container-*` / `on-surface*`
-- `bg-white` → `bg-surface-container-lowest`
-- Inline `style=""` with color values → extract to `apps/folio/style/main.css`
-- Hardcoded `#hex` anywhere in Rust strings
-
----
-
-## 10. Copy for Small Enums, Clone for Data
-
-Enums that are purely descriptive (no heap data) MUST derive `Copy`. Structs containing `String`, `Vec`, or other heap types derive `Clone` only.
+Public server functions return `Result<T, ServerFnError>` (the wire type). Internal module-to-module boundaries should use typed error enums, not strings.
 
 ```rust
-// ✅ Small descriptive enum — derives Copy
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NavIcon { Home, Apartment, ... }
-
-// ✅ Data-bearing struct — Clone only
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Asset { pub name: String, pub address: String }
-```
-
----
-
-## 11. Explicit Error Types in Public APIs
-
-Public-facing server functions return `Result<T, ServerFnError>`. Internal functions between modules return domain-specific `Result<T, MyError>` where `MyError` is a typed enum, not a string.
-
-```rust
-// ❌ Acceptable only in server fn boundary (ServerFnError is the wire type)
-Err(ServerFnError::new("something went wrong"))
-
-// ✅ Preferred for internal module boundaries
+// ✅ Preferred for internal APIs
 #[derive(Debug, thiserror::Error)]
 pub enum AssetError {
-    #[error("asset not found: {0}")]
+    #[error("asset {0} not found")]
     NotFound(Uuid),
     #[error("permission denied")]
     Forbidden,
+    #[error("database error: {0}")]
+    Db(#[from] sqlx::Error),
 }
 ```
 
 ---
 
-## 12. Consistency — The One-Place Rule
+## 17. The One-Place Rule
 
-Every piece of information that could drift has exactly one source of truth:
+Every piece of information that could drift has exactly one source of truth. Do not duplicate it.
 
 | Information | Single source |
 |---|---|
-| Route paths | `FolioRoute::path()` in `nav.rs` |
-| Icon names | `NavIcon::as_str()` in `nav.rs` |
-| Nav items per role | `*_NAV` statics in `nav.rs` |
-| Role → nav config binding | `FolioRole::nav_config()` |
-| Role → home path | `FolioRole::home_path()` in `auth.rs` |
-| Design tokens | `apps/folio/tailwind.config.js` |
-| Backend routes | `backend/src/handlers/folio/*.rs` |
-| Page implementation status | `docs/folio/page_queue.md` |
+| Route path strings | `FolioRoute::path()` in `apps/folio/src/components/nav.rs` |
+| Icon name strings | `NavIcon::as_str()` in `apps/folio/src/components/nav.rs` |
+| Nav items per role | `*_NAV` statics in `apps/folio/src/components/nav.rs` |
+| Role → nav config | `FolioRole::nav_config()` |
+| Role → home path | `FolioRole::home_path()` in `apps/folio/src/auth.rs` |
+| Design color tokens | `apps/folio/tailwind.config.js` |
+| Platform state | `docs/CURRENT_STATE.md` |
+| Page implementation queue | `docs/folio/page_queue.md` |
+| App boundary decisions | `docs/folio/folio_vs_network_instance.md` |
+| Backend routes | `backend/src/handlers/folio/*.rs` router definitions |
 
 If you find information duplicated across two files, consolidate before adding more.
+
+---
+
+## 18. Operator-Facing UI — No Internal Generic Codes
+
+The operator-facing UI (all Folio portals) must never expose internal platform identifiers:
+
+```
+// ❌ BANNED in any label, tab title, or description visible to operators
+"G-05 Syndication", "G-27 Meridian", "G-13 Cases"
+
+// ✅ REQUIRED — use the human-readable product name
+"Syndication", "Analytics", "Maintenance & Cases"
+```
+
+Generic codes (G-01 through G-34+) are internal engineering identifiers. They belong in code comments, database migration names, and internal docs — never in rendered UI.
 
 ---
 
 ## Exceptions Policy
 
 A deviation from these rules is permitted only if:
-1. The Leptos or Rust compiler makes the typed approach impossible in this specific context, AND
-2. The deviation is documented with a `// EXCEPTION: <reason>` comment inline, AND
-3. A GitHub issue or TODO links to the future fix
 
-"It's faster to write as a string" is not a valid exception.
+1. The Leptos or Rust compiler makes the typed approach impossible in this specific context (document the compiler constraint), AND
+2. The deviation is marked with `// EXCEPTION: <reason>` inline, AND
+3. A `// TODO: fix when <condition>` comment documents the path back to compliance
+
+"It's faster to write as a string" is **not** a valid exception.  
+"The stitch prototype does it this way" is **not** a valid exception.  
+"It's just a prototype" is **not** a valid exception — there are no prototypes that don't eventually ship.
