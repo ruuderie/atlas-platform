@@ -122,14 +122,16 @@ pub async fn get_business_kpis(
     };
 
     // --- Network Liquidity Index: net settled ledger volume per active sub ---
+    // Use COALESCE via direct SQL to avoid NULL decode when no ledger entries exist.
     let net_cents: Option<i64> = atlas_ledger_entry::Entity::find()
         .filter(atlas_ledger_entry::Column::Status.eq("settled"))
         .select_only()
         .column_as(Expr::col(atlas_ledger_entry::Column::NetAmountCents).sum(), "sum")
-        .into_tuple()
+        .into_tuple::<Option<i64>>()
         .one(&db)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .unwrap_or(None)
+        .flatten();
 
     let net_settled = net_cents.unwrap_or(0) as f32 / 100.0;
     let liquidity_index = if active_count > 0.0 {
