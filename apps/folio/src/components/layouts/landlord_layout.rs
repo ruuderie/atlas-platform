@@ -1,34 +1,36 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
+use crate::components::nav::{SidebarNav, LANDLORD_NAV};
+use crate::auth::SessionInfo;
 
 /// Persistent shell for all /l/** landlord routes.
-/// Renders left sidebar nav + main content area.
+/// Nav items are driven by `LANDLORD_NAV` in `components/nav.rs`.
+/// To add/remove/rename nav items, edit that file only.
 #[component]
 pub fn LandlordLayout() -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
+        .expect("Session context missing");
+
     view! {
         <div class="folio-layout folio-layout--landlord">
-            <nav class="folio-nav">
-                <div class="nav-brand">
-                    <span class="nav-logo">"Folio"</span>
-                    <span class="nav-role-badge">"Property Manager"</span>
-                </div>
-                <ul class="nav-links">
-                    <NavLink href="/l"              label="Overview"     icon="⊞"/>
-                    <NavLink href="/l/portfolio"    label="Portfolio"    icon="🏠"/>
-                    <NavLink href="/l/assets"       label="Assets"       icon="🗂"/>
-                    <NavLink href="/l/leases"       label="Leases"       icon="📋"/>
-                    <NavLink href="/l/leads"        label="Leads"        icon="👤"/>
-                    <NavLink href="/l/reservations" label="Reservations" icon="📅"/>
-                    <NavLink href="/l/campaigns"    label="Campaigns"    icon="📣"/>
-                    <NavLink href="/l/vendors"      label="Vendors"      icon="🔧"/>
-                    <NavLink href="/l/billing"      label="Billing"      icon="💰"/>
-                    <NavLink href="/l/str"          label="STR Permits"  icon="🏷"/>
-                    <NavLink href="/l/catalog"      label="Catalog"      icon="📦"/>
-                </ul>
-                <div class="nav-footer">
-                    <LogoutButton/>
-                </div>
-            </nav>
+            <Suspense fallback=|| view! { <div class="sidebar-loading"/> }>
+                {move || session.get().map(|r| {
+                    let (name, initials) = match r {
+                        Ok(ref info) => (
+                            info.display_name.clone(),
+                            info.display_name.as_deref().map(user_initials),
+                        ),
+                        Err(_) => (None, None),
+                    };
+                    view! {
+                        <SidebarNav
+                            config=&LANDLORD_NAV
+                            user_name=name
+                            initials=initials
+                        />
+                    }
+                })}
+            </Suspense>
             <main class="folio-main">
                 <Outlet/>
             </main>
@@ -36,26 +38,10 @@ pub fn LandlordLayout() -> impl IntoView {
     }
 }
 
-#[component]
-fn NavLink(href: &'static str, label: &'static str, icon: &'static str) -> impl IntoView {
-    view! {
-        <li>
-            <a href=href class="nav-link">
-                <span class="nav-icon">{icon}</span>
-                <span class="nav-label">{label}</span>
-            </a>
-        </li>
-    }
-}
-
-#[component]
-fn LogoutButton() -> impl IntoView {
-    view! {
-        <button class="nav-logout" on:click=move |_| {
-            leptos::task::spawn_local(async {
-                let _ = crate::auth::revoke_session().await;
-                let _ = web_sys::window().map(|w| { let _ = w.location().set_href("/login"); });
-            });
-        }>"Sign out"</button>
-    }
+fn user_initials(name: &str) -> String {
+    name.split_whitespace()
+        .filter_map(|w| w.chars().next())
+        .take(2)
+        .collect::<String>()
+        .to_uppercase()
 }
