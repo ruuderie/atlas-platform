@@ -94,18 +94,20 @@ pub struct Asset { pub name: String }
 
 ## 3. No Panics on Server Paths
 
-`unwrap()`, `expect()`, and `panic!()` are **banned in all `#[server]` fn bodies and backend handlers**.
+`unwrap()`, `expect()`, `panic!()`, and `todo!()` are **banned in all `#[server]` fn bodies and backend handlers**. No exceptions.
 
 ```rust
-// ❌ BANNED
+// ❌ ALL BANNED in server/handler paths
 let val = something.unwrap();
 let val = something.expect("should never fail");
+todo!()         // crashes the server process on that code path
+unreachable!()  // same — if it's truly unreachable, prove it with the type system instead
 
 // ✅ REQUIRED — propagate with ?
 let val = something.map_err(|e| ServerFnError::new(e.to_string()))?;
 ```
 
-`unwrap()` in `#[cfg(test)]` blocks is acceptable. `unwrap()` on Option in view macros is acceptable only when the value is provably non-None by construction — document why inline.
+`unwrap()` and `todo!()` in `#[cfg(test)]` blocks are acceptable. `unwrap()` on `Option` in view macros is acceptable only when the value is provably non-None by construction — comment why inline.
 
 ---
 
@@ -518,15 +520,346 @@ When in doubt about the 0.8 API for a specific pattern, consult `docs/leptos_ssr
 
 ---
 
-## Exceptions Policy
+## 20. Security — Resource-Level Authorization (IDOR Prevention)
 
+**Rule 12 (tenant_id from session) is necessary but not sufficient.** An attacker who has a valid session for tenant A can still probe resource IDs that belong to tenant B. Every individual resource fetch must verify that the requested resource belongs to the authenticated tenant.
+
+```rust
+// ❌ CRITICAL BUG — tenant_id is in session, but the query doesn't filter by it.
+// Any valid session can read any asset UUID by guessing or enumerating IDs.
+async fn get_asset(session: SessionInfo, asset_id: Uuid) -> Result<Asset, ServerFnError> {
+    db.find_asset_by_id(asset_id).await  // returns ANY asset — IDOR vulnerability
+}
+
+// ✅ REQUIRED — filter by BOTH resource ID AND tenant_id in the same query
+async fn get_asset(session: SessionInfo, asset_id: Uuid) -> Result<Asset, ServerFnError> {
+    let tenant_id = session.tenant_id.ok_or_else(|| ServerFnError::new("no tenant"))?;
+    db.find_asset_for_tenant(asset_id, tenant_id)
+        .await?
+        .ok_or_else(|| ServerFnError::new("not found"))
+        // If asset_id belongs to another tenant, query returns None → 404.
+        // The caller cannot distinguish "doesn't exist" from "not yours".
+}
+```
+
+The SQL pattern must be: `WHERE id = $1 AND tenant_id = $2`. Never `WHERE id = $1` followed by an in-memory ownership check.
+
+---
+
+## 21. Security — Server Function Input Validation
+
+Every `#[server]` fn parameter that accepts user-supplied data must be validated before use. The client controls all inputs to server functions — assume adversarial input.
+
+```rust
+// ❌ DANGEROUS — no validation; attacker can send negative amounts, empty strings,
+// SQL-injection via ORM edge cases, or IDs pointing to other tenants' data
+#[server]
+async fn create_payment(amount: f64, note: String) -> Result<(), ServerFnError> {
+    db.insert_payment(amount, note).await
+}
+
+// ✅ REQUIRED — validate at the server fn boundary before any DB or service call
+#[server]
+async fn create_payment(
+    amount_cents: i64,
+    note: String,
+) -> Result<(), ServerFnError> {
+    // Validate: amount must be positive
+    if amount_cents <= 0 {
+        return Err(ServerFnError::new("amount must be positive"));
+    }
+    // Validate: note length (prevent DB column overflow and log spam)
+    if note.len() > 500 {
+        return Err(ServerFnError::new("note too long"));
+    }
+    // Validate: strip any control characters from text fields
+    let note = note.trim().to_string();
+    db.insert_payment(amount_cents, note).await
+        .map_err(|e| ServerFnError::new(e.to_string()))
+}
+```
+
+Minimum validations for every server fn:
+- Numeric ranges (positive amounts, valid page sizes, max pagination limits)
+- String lengths (prevents column overflow and memory exhaustion)
+- UUID format (sqlx handles this, but validate before expensive joins)
+- Enum membership (already enforced if you use typed enums per Rule 1)
+
+---
+
+## 22. Security — No Secrets in the Frontend
+
+Session tokens, API keys, and any credentials must **never** appear in:
+- Leptos signals or `RwSignal` values
+- `provide_context` values that propagate to WASM
+- `LocalStorage` or `SessionStorage`
+- URL query parameters
+- Any value rendered into the DOM
+
+```rust
+// ❌ BANNED — session token in a signal is visible in DevTools WASM heap inspection
+let token = RwSignal::new(get_session_token());
+
+// ❌ BANNED — token in localStorage is accessible to any JS (XSS exposure)
+web_sys::window().unwrap()
+    .local_storage().unwrap().unwrap()
+    .set_item("token", &token).unwrap();
+
+// ✅ REQUIRED — tokens live in httpOnly, SameSite=Strict cookies set by the server
+// The cookie is invisible to JavaScript and inaccessible to WASM.
+// The frontend never touches the token directly — it's sent automatically with every request.
+```
+
+The Atlas backend already uses `atlas_session` as an httpOnly cookie. Do not add any client-side token storage. If a component needs to know "is the user logged in?", it calls `check_session()` — it does not read a stored token.
+
+**Environment variables with secrets** must only appear in server-gated code:
+```rust
+// ✅ Only accessible on the server — never compiled into the WASM bundle
+#[cfg(feature = "ssr")]
+fn get_api_key() -> String {
+    std::env::var("ATLAS_API_KEY").expect("ATLAS_API_KEY not set")
+}
+```
+
+---
+
+## 23. Security — No Raw HTML Injection (`inner_html`)
+
+Leptos `view!` macro prevents XSS by design — all string values are escaped. **Never bypass this** using raw DOM manipulation.
+
+```rust
+// ❌ BANNED — bypasses Leptos escaping; attacker-controlled content becomes executable JS
+let user_content = get_user_bio(); // e.g. "<script>steal_cookies()</script>"
+element.set_inner_html(&user_content); // XSS
+
+// ❌ BANNED — same problem via web_sys
+div_ref.get().unwrap().set_inner_html(&markdown_output);
+
+// ✅ REQUIRED — use Leptos typed view for user content (auto-escaped)
+view! { <p>{user_content}</p> }
+
+// ✅ For Markdown: sanitize FIRST with a whitelist-based sanitizer, then use inner_html
+// only with the sanitized output. Document the sanitizer used inline.
+// EXCEPTION requires explicit security review.
+```
+
+If you need to render Markdown or rich text (e.g., property descriptions), sanitize with a whitelist-based HTML sanitizer **on the server** before the data ever reaches the frontend. Raw unsanitized HTML from any user-controlled source into the DOM is an unconditional ban.
+
+---
+
+## 24. Financial Arithmetic — No `f64` for Money
+
+Floating-point arithmetic is **banned for all monetary values**. IEEE 754 `f64` cannot represent most decimal fractions exactly, causing rounding errors that compound over transactions.
+
+```rust
+// ❌ BANNED — f64 loses precision; $0.10 + $0.20 ≠ $0.30 in IEEE 754
+let rent: f64 = 1450.00;
+let fee: f64 = 0.10 * rent;  // may be 144.99999999999997
+
+// ✅ REQUIRED — integer cents (no fractions lost)
+let rent_cents: i64 = 145000;   // $1,450.00
+let fee_cents: i64 = rent_cents / 10;
+
+// ✅ ALSO ACCEPTABLE — rust_decimal crate for display/formatting
+use rust_decimal::Decimal;
+use rust_decimal::prelude::*;
+let rent = Decimal::new(145000, 2);  // $1,450.00
+
+// ✅ REQUIRED for arithmetic on integers — use checked math to prevent overflow
+let total = rent_cents.checked_add(fee_cents)
+    .ok_or_else(|| ServerFnError::new("arithmetic overflow"))?;
+```
+
+The database stores monetary values as `BIGINT` (cents) or `NUMERIC(19,4)`. The frontend receives cents and formats for display. Never accept `f64` from a server fn for an amount field — use `i64` (cents) or `Decimal`.
+
+---
+
+## 25. Code Quality — Clippy Is Law
+
+`cargo clippy -- -D warnings` must pass with zero warnings. Clippy warnings are bugs waiting to happen — treat them as errors.
+
+```bash
+# Run before every commit
+cargo clippy --workspace --all-features -- -D warnings
+```
+
+`#[allow(clippy::some_lint)]` suppressions require an inline justification comment:
+
+```rust
+// ❌ BANNED — silent suppression
+#[allow(clippy::too_many_arguments)]
+fn process(...) { }
+
+// ✅ REQUIRED — document why
+// CLIPPY-ALLOW: This function coordinates 8 independent subsystem configs.
+// Refactoring into a builder would add 200 lines for no behavioral improvement.
+// Filed: TODO track in issue #NNN
+#[allow(clippy::too_many_arguments)]
+fn process(...) { }
+```
+
+The most important Clippy lints for this codebase:
+
+| Lint | Why it matters here |
+|---|---|
+| `clippy::unwrap_used` | Enforces Rule 3 — no panics on server paths |
+| `clippy::expect_used` | Same |
+| `clippy::panic` | Same |
+| `clippy::float_arithmetic` | Enforces Rule 24 — no f64 money |
+| `clippy::arithmetic_side_effects` | Catches unchecked integer overflow in financial code |
+| `clippy::clone_on_ref_ptr` | Prevents accidental Arc clone explosions |
+| `clippy::large_futures` | Catches futures that will overflow the async stack |
+
+---
+
+## 26. Database Migrations — Naming and Scope
+
+Migration files follow the naming convention established in the codebase:
+
+```
+m{YYYYMMDD}_{short_snake_case_description}
+```
+
+Examples from the codebase:
+```
+m20260909_folio_instance_mode
+m20260910_brokerage_portals
+m20260911_asset_listing_mode
+```
+
+Rules:
+- **One logical change per migration** — do not bundle unrelated schema changes
+- **Never edit a migration that has run in UAT or PROD** — always add a new migration
+- **No data mutations in schema migrations** — data backfills are separate migrations named `m{YYYYMMDD}_backfill_{description}`
+- **All migrations are reversible** — implement the `Down` side even if it's `// not reversible — document why`
+- **Foreign key additions must be preceded by index creation** in the same or a prior migration to avoid full-table scans on `JOIN`
+
+```rust
+// ❌ BANNED — editing an existing migration that has already run
+// (will corrupt UAT/PROD schema state)
+
+// ✅ REQUIRED — new migration for any change
+// m20261001_add_folio_str_host_mode.rs — adds the new column/constraint
+```
+
+---
+
+## 27. Proactive Generic Discovery
+
+The platform's backend is built around **Platform Generics** (G01–G34+) — reusable, service-backed entities that power multiple roles and apps. When implementing a new page or feature, actively evaluate whether the data it needs maps to an existing generic or represents a gap that should become one.
+
+**Do this check before writing a single line of implementation:**
+
+Read `docs/CURRENT_STATE.md` Generics Registry. If the data pattern on the page doesn't appear there, score it against these five criteria:
+
+| Criterion | Question |
+|---|---|
+| **Own entity** | Does it need its own database table (not just a column on an existing table)? |
+| **Lifecycle** | Does it have statuses, state transitions, or a workflow? (created → active → closed) |
+| **Cross-role usage** | Is it consumed by more than one user role? (e.g., both landlord AND tenant see it) |
+| **Cross-app potential** | Could this data appear in both Folio AND Network Instance or Platform Admin? |
+| **Service boundary** | Does it need its own service methods independent of other entities? |
+
+**Score 3 or more → flag as a potential new generic before implementing.**
+
+### How to surface the finding (non-blocking)
+
+Do not stop work to ask permission. Complete the analysis, then append a callout at the **end** of your implementation output — after the code, not before:
+
+```
+---
+## 🔍 Potential New Generic Identified
+
+**Data pattern:** Inspection Reports
+**Seen in:** `/l/inspections` stitch design (`l_inspections/code.html`)
+**Criteria met:** Own entity ✅ | Lifecycle ✅ | Cross-role (landlord + vendor) ✅ | Service boundary ✅
+**Score:** 4/5 — recommend new generic
+
+**Proposed:** `atlas_inspections` (G-35?)
+- Tables: `atlas_inspections`, `atlas_inspection_items`
+- Service: `InspectionService`
+- Roles that consume it: Landlord (/l/inspections), Vendor (/v/work-orders detail), Tenant (read-only)
+- Similar pattern to: G-13 `atlas_cases` (has items, statuses, assignments)
+
+**Recommendation:** Define this generic in a backend migration + service before wiring the Folio page.
+This prevents the page from being implemented against a one-off schema that can't be reused.
+
+**Action needed:** Confirm generic definition or explain why this is domain-specific.
+```
+
+### When NOT to propose a new generic
+
+- The data is a **property/attribute of an existing entity** (e.g., adding a `furnished: bool` column to `atlas_assets` is not a new generic)
+- The feature is **only ever used by one role** in one portal with no plausible cross-app future (e.g., a very specific broker-only commission split formula)
+- The data is **configuration, not operational** (e.g., a setting stored in `atlas_app_deployment_config`)
+- An existing generic already handles it and just needs a new endpoint (check the handler files first)
+
+When in doubt, propose it — a false positive costs one conversation; a missed generic costs a refactor.
+
+---
+
+## 28. AGENTS.md Is a Living Document — Propose Amendments
+
+This file must evolve with the codebase. When a conversation reveals a pattern, antipattern, security issue, architectural decision, or Leptos quirk that isn't captured here, **propose an amendment at the end of your response**.
+
+### Four triggers that should always produce a proposal
+
+1. **A new antipattern discovered in the codebase** — you find code that violates a rule not yet written (e.g., a new category of mock data, a new SSR footgun, a new Leptos 0.8 API misuse)
+2. **An architectural decision made during the conversation** — you and the user settled on something that will affect future implementations (e.g., "STR Host is a distinct FolioRole, not a sub-view of Landlord")
+3. **A rule that turns out to be incomplete or ambiguous** — implementation reveals an edge case the rule didn't cover
+4. **A security or quality concern surfaced during code review** — something you catch in existing code that isn't in the rules yet
+
+### Format for proposals (append to end of response, never interrupt the primary task)
+
+```markdown
+---
+## 📋 Proposed AGENTS.md Amendment
+
+**Rule:** [New Rule N] or [Amendment to Rule N]
+**Trigger:** [Which of the 4 triggers above]
+**Context:** [One sentence — what in this conversation revealed the gap]
+
+**Proposed addition:**
+> [The rule text, written in the same style as existing rules — with ✅/❌ code examples if applicable]
+
+**Confidence:** [High / Medium — High means "this is clearly missing", Medium means "worth discussing"]
+
+Respond "add it" to commit, or tell me to adjust.
+```
+
+### What NOT to propose
+
+- Trivial style preferences with no quality or safety impact
+- Rules that duplicate existing rules with minor rewording
+- Changes that conflict with the Exceptions Policy without an override rationale
+- Proposals triggered by a one-off quirk that is unlikely to recur
+
+### Keeping the file current
+
+When a proposal is approved, update AGENTS.md and commit immediately with:
+```bash
+git add .agents/AGENTS.md && \
+git commit -m "docs(agents): Rule N — <short description>
+
+<what triggered the addition and why it matters>"
+```
+
+The AGENTS.md commit history is the audit trail for how quality standards evolved. Every addition should be traceable to a specific conversation, decision, or discovered antipattern.
+
+---
+
+## Exceptions Policy
 
 A deviation from these rules is permitted only if:
 
 1. The Leptos or Rust compiler makes the typed approach impossible in this specific context (document the compiler constraint), AND
-2. The deviation is marked with `// EXCEPTION: <reason>` inline, AND
-3. A `// TODO: fix when <condition>` comment documents the path back to compliance
+2. A **type-system solution** was genuinely evaluated and ruled out (explain why), AND
+3. The deviation is marked with `// EXCEPTION: <reason>` inline, AND
+4. A `// TODO: fix when <condition>` comment documents the path back to compliance
 
 "It's faster to write as a string" is **not** a valid exception.  
 "The stitch prototype does it this way" is **not** a valid exception.  
-"It's just a prototype" is **not** a valid exception — there are no prototypes that don't eventually ship.
+"It's just a prototype" is **not** a valid exception — there are no prototypes that don't eventually ship.  
+"The endpoint doesn't exist yet" is **not** a valid exception for mock data — return `Err(ServerFnError::new("not implemented"))` instead.
+
+
