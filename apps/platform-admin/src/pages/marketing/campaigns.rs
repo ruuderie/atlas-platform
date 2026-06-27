@@ -169,7 +169,28 @@ pub fn CampaignsPage() -> impl IntoView {
             }>
                 {move || campaigns.get().map(|result| match result {
                     Err(e) => view! {
-                        <div class="text-sm text-error py-4">{format!("Error: {}", e)}</div>
+                        <div class="bg-surface-container-low border border-error/30 rounded-xl p-8 text-center space-y-3">
+                            <svg class="w-10 h-10 text-error/40 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+                            </svg>
+                            <p class="text-sm font-semibold text-on-surface">
+                                "Failed to load campaigns"
+                            </p>
+                            <p class="text-xs text-error/80 font-mono bg-error/5 border border-error/15 rounded px-3 py-2 max-w-lg mx-auto text-left break-all">
+                                {e.clone()}
+                            </p>
+                            <p class="text-xs text-on-surface-variant/60 max-w-xs mx-auto">
+                                "This is usually a backend or database configuration issue. Contact your platform administrator if this persists."
+                            </p>
+                            <button
+                                class="mt-2 px-4 py-2 text-xs font-semibold border border-outline-variant/30 rounded-lg text-on-surface-variant hover:text-on-surface transition-colors"
+                                on:click=move |_| { let _ = campaigns.refetch(); }
+                            >
+                                "↺ Retry"
+                            </button>
+                        </div>
                     }.into_any(),
                     Ok(list) if list.is_empty() => view! {
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-12 text-center">

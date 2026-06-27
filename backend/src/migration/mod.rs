@@ -294,6 +294,10 @@ pub mod m20260915_atlas_syndication_outbox;        // G-05 Syndication Event Bus
 pub mod m20260916_product_tracking_pixels;         // GTM Landing Page Engine: per-product tracking pixels (GA4, GTM, Meta, LinkedIn, custom)
 pub mod m20260917_platform_products_app_slug;      // GTM Landing Page Engine: app_slug on platform_products — explicit product→app binary binding
 pub mod m20260918_deployment_config_account_link;  // Client Mgmt: platform_account_id FK on atlas_app_deployment_config → CRM Account cross-link
+// G-19 gap-fill: adds parent_campaign_id (self-referential FK) to atlas_campaigns.
+// The original m20260804 migration created the table without this column despite the
+// entity model referencing it, causing HTTP 500 on every admin campaigns API call.
+pub mod m20260919_g19_campaigns_parent_id;
 
 pub struct Migrator;
 
@@ -543,6 +547,11 @@ impl MigratorTrait for Migrator {
             // Enables "View Account" quick action on the Clients page without a join.
             // SET NULL on delete: removing an account does not affect the deployment config.
             Box::new(m20260918_deployment_config_account_link::Migration),
+            // G-19 gap-fill: adds parent_campaign_id (self-referential nullable FK) to
+            // atlas_campaigns. The original G-19 table creation omitted this column even though
+            // the entity model and query code reference it, causing HTTP 500 on all
+            // admin campaigns API calls ("column atlas_campaigns.parent_campaign_id does not exist").
+            Box::new(m20260919_g19_campaigns_parent_id::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

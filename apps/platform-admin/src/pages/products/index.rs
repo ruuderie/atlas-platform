@@ -45,6 +45,23 @@ pub fn PlatformProducts() -> impl IntoView {
                             </div>
                         </div>
 
+                        // ── Explainer banner ──
+                        <div class="bg-surface-container-low border border-outline-variant/15 rounded-xl px-5 py-4 text-xs text-on-surface-variant/80 space-y-1">
+                            <p class="font-semibold text-on-surface text-sm">
+                                "What are Landing Pages?"
+                            </p>
+                            <p>
+                                "Each product has a public landing page your prospects land on. "
+                                "Share the link directly or attach a UTM campaign slug to track where leads come from "
+                                "(e.g. a postcard, ad, or cold email)."
+                            </p>
+                            <p class="text-on-surface-variant/60 text-[11px]">
+                                "Tip: Go to "
+                                <a href="/campaigns" class="text-primary hover:underline font-semibold">"Campaigns"</a>
+                                " to connect a campaign to a landing page via the utm_campaign field."
+                            </p>
+                        </div>
+
                         // ── KPIs ──
                         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">

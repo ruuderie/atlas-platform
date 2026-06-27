@@ -402,6 +402,16 @@ path {
   min-width: 0;
 }
 
+/* leptos-router <Routes> renders a plain div — ensure it fills the container */
+.main-content-layout > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  height: 100%;
+}
+
 .main-canvas {
   flex: 1;
   overflow-y: auto;
@@ -896,6 +906,10 @@ thead th.sortable:hover::after { opacity: 1; }
   color: var(--text-muted);
   flex-shrink: 0;
   background: var(--bg-surface);
+  /* Always anchor to the bottom of the entity-page container */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 .crm-pagination-btns { display: flex; gap: 6px; }
 

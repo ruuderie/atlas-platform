@@ -88,12 +88,6 @@ pub fn Analytics() -> impl IntoView {
                     >
                         "↓ Export CSV"
                     </button>
-                    <button 
-                        class="btn-primary-gradient text-xs px-3.5 py-2 rounded-lg font-semibold text-on-primary-container shadow hover:opacity-90 active:scale-95 transition-all"
-                        on:click=move |_| show_campaign_modal.set(true)
-                    >
-                        "+ New Campaign"
-                    </button>
                 </div>
             </div>
 
@@ -107,7 +101,7 @@ pub fn Analytics() -> impl IntoView {
                     <span class="text-lg font-black text-primary">
                         {move || match business_kpis.get() {
                             Some(Ok(kpis)) => format!("${:.0}k", kpis.mrr.value / 1000.0),
-                            Some(Err(_)) => "Err".to_string(),
+                            Some(Err(_)) => "—".to_string(),
                             None => "—".to_string(),
                         }}
                     </span>
@@ -159,7 +153,7 @@ pub fn Analytics() -> impl IntoView {
                             _ => "—".to_string(),
                         }}
                     </span>
-                    <span class="text-[9.5px] text-on-surface-variant/70">"G-03"</span>
+                    <span class="text-[9.5px] text-on-surface-variant/70">"Invoiced vs collected"</span>
                 </div>
                 <div class="flex flex-col gap-1 p-2 border-r border-outline-variant/10">
                     <span class="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Churn Rate"</span>
@@ -241,7 +235,7 @@ pub fn Analytics() -> impl IntoView {
                         <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                             <div class="flex justify-between items-center px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                                 <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                    "Subscription Lifecycle · G-03"
+                                    "Subscription Lifecycle"
                                 </h3>
                             </div>
                             <div class="p-5 space-y-3">
@@ -836,7 +830,7 @@ pub fn Analytics() -> impl IntoView {
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">
                         <div class="px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-high/40">
                             <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                                "G-27 Scorecard Time Series · atlas_scorecard_time_series"
+                                "Scorecard Time Series"
                                 <span class="text-[10px] text-on-surface-variant/60 font-normal block mt-0.5">"Hourly refresh · Anomaly threshold: |z| > 2.0 · Trend threshold: Δ ±0.3"</span>
                             </h3>
                         </div>
