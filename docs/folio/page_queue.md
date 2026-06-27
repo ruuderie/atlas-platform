@@ -32,7 +32,7 @@ _The primary operator. Nothing else works until this works._
 | `[ ]` | Map Portfolio | `l_map_portfolio` | `pages/landlord/map_portfolio.rs` | `/l/map` | `portfolio.rs` |
 | `[ ]` | Digital Vault | `l_digital_vault` | `pages/landlord/digital_vault.rs` | `/l/vault` | `file_attachments` |
 | `[ ]` | Inspections | `l_inspections` | `pages/landlord/inspections.rs` | `/l/inspections` | `case.rs` |
-| `[ ]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `case.rs` |
+| `[x]` | Violations | `l_violations` | `pages/landlord/violations.rs` | `/l/violations` | `violations.rs` |
 | `[ ]` | Building Systems | `l_building_systems` | `pages/landlord/building_systems.rs` | `/l/systems` | `asset.rs` |
 | `[ ]` | Unit Appliances | `l_unit_appliances` | `pages/landlord/unit_appliances.rs` | `/l/assets/:id/appliances` | `asset.rs` |
 | `[ ]` | Syndication | `l_syndication` | `pages/landlord/syndication.rs` | `/l/syndication` | `syndication_admin.rs` |
@@ -157,7 +157,7 @@ _Folio-hosted public surfaces (not Network Instance)._
 ## Progress Summary
 
 ```
-P0 Landlord:  16 done / 31 total   ██████░░░░░░░░░░░░░░░░░░  52%
+P0 Landlord:  17 done / 31 total   ███████░░░░░░░░░░░░░░░░░  55%
 P1 Tenant:     5 done / 14 total   ████░░░░░░░░░░░░░░░░░░░░  36%
 P2 Vendor:     3 done /  5 total   ████████████░░░░░░░░░░░░  60%
 P3 PMC:        2 done /  6 total   ████░░░░░░░░░░░░░░░░░░░░  33%
@@ -166,7 +166,7 @@ P5 Owner:      0 done /  5 total   ░░░░░░░░░░░░░░░
 P6 Wizards:    0 done /  4 total   ░░░░░░░░░░░░░░░░░░░░░░░░   0%
 P7 Public:     1 done /  8 total   ██░░░░░░░░░░░░░░░░░░░░░░  12%
 ─────────────────────────────────────────────────────────
-Total:        27 done / 84 total   ███████░░░░░░░░░░░░░░░░░  32%
+Total:        28 done / 84 total   ███████░░░░░░░░░░░░░░░░░  33%
 ```
 
 ---
