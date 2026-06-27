@@ -366,6 +366,10 @@ fn earliest_date(a: Option<NaiveDate>, b: Option<NaiveDate>) -> Option<NaiveDate
     }
 }
 
+pub fn to_detail_pub(a: atlas_asset::Model) -> ApplianceDetail {
+    to_detail(a)
+}
+
 fn to_detail(a: atlas_asset::Model) -> ApplianceDetail {
     ApplianceDetail {
         id: a.id,
