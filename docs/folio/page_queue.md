@@ -88,10 +88,10 @@ _Unlocks enterprise accounts. Requires `folio_mode = pmc`._
 |--------|------|-----------|---------------|-------|-----------------|
 | `[x]` | Dashboard | `p_analytics` | `pages/pmc/dashboard.rs` | `/pmc` | `portfolio.rs` |
 | `[x]` | Client Book | `p_client_book` | `pages/pmc/client_book.rs` | `/pmc/clients` | `portfolio.rs` |
-| `[ ]` | Client Detail | `p_client_detail` | `pages/pmc/client_detail.rs` | `/pmc/clients/:id` | `portfolio.rs` |
-| `[ ]` | Maintenance Dispatch | `p_maintenance_dispatch` | `pages/pmc/maintenance_dispatch.rs` | `/pmc/maintenance` | `case.rs` |
-| `[ ]` | Portfolio Map | `p_portfolio_map` | `pages/pmc/portfolio_map.rs` | `/pmc/map` | `portfolio.rs` |
-| `[ ]` | Owner Statement Batch | `p_owner_statement_batch` | `pages/pmc/owner_statements.rs` | `/pmc/statements` | `billing.rs` |
+| `[x]` | Client Detail | `p_client_detail` | `pages/pmc/client_detail.rs` | `/pmc/clients/:id` | `portfolio.rs` |
+| `[x]` | Maintenance Dispatch | `p_maintenance_dispatch` | `pages/pmc/maintenance_dispatch.rs` | `/pmc/maintenance` | `case.rs` |
+| `[x]` | Portfolio Map | `p_portfolio_map` | `pages/pmc/portfolio_map.rs` | `/pmc/map` | `portfolio.rs` |
+| `[x]` | Owner Statement Batch | `p_owner_statement_batch` | `pages/pmc/owner_statements.rs` | `/pmc/statements` | `billing.rs` |
 
 ---
 
@@ -100,17 +100,17 @@ _Standard mode, `listing_mode = str`. Folio hosts who run short-term rentals._
 
 | Status | Page | Stitch dir | Leptos module | Route | Backend handler |
 |--------|------|-----------|---------------|-------|-----------------|
-| `[ ]` | Dashboard | `s_dashboard` | `pages/str_host/dashboard.rs` | `/s` | `reservation.rs` |
-| `[ ]` | Calendar | `s_calendar` | `pages/str_host/calendar.rs` | `/s/calendar` | `reservation.rs` |
-| `[ ]` | Reservation Manifest | `s_reservation_manifest` | `pages/str_host/reservations.rs` | `/s/reservations` | `reservation.rs` |
-| `[ ]` | Listing Detail | `s_listing_detail` | `pages/str_host/listing.rs` | `/s/listings/:id` | `catalog.rs` |
-| `[ ]` | Pricing Rules | `s_pricing_rules` | `pages/str_host/pricing.rs` | `/s/pricing` | `catalog.rs` |
-| `[ ]` | Channel Manager | `s_channel_manager` | `pages/str_host/channels.rs` | `/s/channels` | `syndication_admin.rs` |
-| `[ ]` | Guest Messaging | `s_guest_messaging` | `pages/str_host/messages.rs` | `/s/messages` | `comms.rs` |
-| `[ ]` | Reviews | `s_reviews` | `pages/str_host/reviews.rs` | `/s/reviews` | TBD |
+| `[x]` | Dashboard | `s_dashboard` | `pages/str_host/dashboard.rs` | `/s` | `reservation.rs` |
+| `[x]` | Calendar | `s_calendar` | `pages/str_host/calendar.rs` | `/s/calendar` | `reservation.rs` |
+| `[x]` | Reservation Manifest | `s_reservation_manifest` | `pages/str_host/reservations.rs` | `/s/reservations` | `reservation.rs` |
+| `[x]` | Listing Detail | `s_listing_detail` | `pages/str_host/listing.rs` | `/s/listings/:id` | `catalog.rs` |
+| `[x]` | Pricing Rules | `s_pricing_rules` | `pages/str_host/pricing.rs` | `/s/pricing` | `catalog.rs` |
+| `[x]` | Channel Manager | `s_channel_manager` | `pages/str_host/channels.rs` | `/s/channels` | `syndication_admin.rs` |
+| `[x]` | Guest Messaging | `s_guest_messaging` | `pages/str_host/messages.rs` | `/s/messages` | `comms.rs` |
+| `[x]` | Reviews | `s_reviews` | `pages/str_host/reviews.rs` | `/s/reviews` | TBD |
 | `[x]` | Syndication | `s_syndication` | `pages/str_host/syndication.rs` | `/s/syndication` | `syndication_admin.rs` |
-| `[ ]` | Incidents / Violations | `s_incidents` | `pages/str_host/incidents.rs` | `/s/incidents` | `case.rs` |
-| `[ ]` | Violation Filing | `s_violation_filing` | `pages/str_host/violation_file.rs` | `/s/violations/new` | `case.rs` |
+| `[x]` | Incidents / Violations | `s_incidents` | `pages/str_host/incidents.rs` | `/s/incidents` | `case.rs` |
+| `[x]` | Violation Filing | `s_violation_filing` | `pages/str_host/violation_file.rs` | `/s/violations/new` | `case.rs` |
 
 ---
 
@@ -119,11 +119,11 @@ _Read-only financial visibility._
 
 | Status | Page | Stitch dir | Leptos module | Route | Backend handler |
 |--------|------|-----------|---------------|-------|-----------------|
-| `[ ]` | Dashboard | `o_dashboard` | `pages/owner/dashboard.rs` | `/o` | `portfolio.rs` |
-| `[ ]` | Property Detail | `o_property_detail` | `pages/owner/property.rs` | `/o/properties/:id` | `asset.rs` |
-| `[ ]` | Statements | `o_statements` | `pages/owner/statements.rs` | `/o/statements` | `billing.rs` |
-| `[ ]` | Distributions | `o_distributions` | `pages/owner/distributions.rs` | `/o/distributions` | `billing.rs` |
-| `[ ]` | Maintenance Approval | `o_maintenance_approval` | `pages/owner/maintenance.rs` | `/o/maintenance` | `case.rs` |
+| `[x]` | Dashboard | `o_dashboard` | `pages/owner/dashboard.rs` | `/o` | `portfolio.rs` |
+| `[x]` | Property Detail | `o_property_detail` | `pages/owner/property.rs` | `/o/properties/:id` | `asset.rs` |
+| `[x]` | Statements | `o_statements` | `pages/owner/statements.rs` | `/o/statements` | `billing.rs` |
+| `[x]` | Distributions | `o_distributions` | `pages/owner/distributions.rs` | `/o/distributions` | `billing.rs` |
+| `[x]` | Maintenance Approval | `o_maintenance_approval` | `pages/owner/maintenance.rs` | `/o/maintenance` | `case.rs` |
 
 ---
 
@@ -132,10 +132,10 @@ _Onboarding flows. Public-facing but Folio-hosted._
 
 | Status | Page | Stitch dir | Leptos module | Route | Notes |
 |--------|------|-----------|---------------|-------|-------|
-| `[ ]` | Renter Application | `wiz_renter_application` | `pages/marketing/renter_application.rs` | `/apply/:property_id` | Public |
-| `[ ]` | Vendor Onboard | `wiz_vendor_onboard` | `pages/vendor/onboard.rs` | `/v/onboard` | Token-gated |
+| `[x]` | Renter Application | `wiz_renter_application` | `pages/marketing/renter_application.rs` | `/apply/:property_id` | Public |
+| `[x]` | Vendor Onboard | `wiz_vendor_onboard` | `pages/vendor/onboard.rs` | `/v/onboard` | Token-gated |
 | `[ ]` | PMC Onboard | `wiz_pmc_onboard` | `pages/pmc/onboard.rs` | `/pmc/onboard` | Admin-initiated |
-| `[ ]` | Maintenance Triage | `wiz_maintenance_triage` | `pages/tenant/maintenance_triage.rs` | `/t/maintenance/new` | Tenant-initiated |
+| `[x]` | Maintenance Triage | `wiz_maintenance_triage` | `pages/tenant/maintenance_triage.rs` | `/t/maintenance/new` | Tenant-initiated |
 
 ---
 
