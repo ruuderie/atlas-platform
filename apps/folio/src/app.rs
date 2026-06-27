@@ -44,6 +44,8 @@ use crate::pages::vendor::{
     dashboard::VendorDashboard,
     work_orders::WorkOrders,
     invoices::VendorInvoices,
+    network_profile::VendorNetworkProfile,
+    schedule::VendorSchedule,
 };
 
 // PMC pages
@@ -139,6 +141,8 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("")              view=VendorDashboard/>
                     <Route path=path!("/work-orders")  view=WorkOrders/>
                     <Route path=path!("/invoices")     view=VendorInvoices/>
+                    <Route path=path!("/schedule")     view=VendorSchedule/>
+                    <Route path=path!("/profile")      view=VendorNetworkProfile/>
                 </ParentRoute>
 
                 // ── PMC namespace /pmc/** ──────────────────────────────────────

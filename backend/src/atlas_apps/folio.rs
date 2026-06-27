@@ -125,7 +125,8 @@ impl AtlasApp for FolioApp {
         // Grouped here for organisational clarity.
         let vendor_router = Router::new()
             .merge(crate::handlers::folio::vendor::work_orders::authenticated_routes_raw())
-            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw());
+            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw())
+            .merge(crate::handlers::folio::vendor::profile::authenticated_routes_raw());
 
         // ── PMC sub-router (PropertyManager role + PMC mode) ─────────────────
         // Each handler extracts `PropertyManagerOnly` which verifies:

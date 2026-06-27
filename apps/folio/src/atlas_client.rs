@@ -79,3 +79,22 @@ pub async fn authenticated_delete(
     }
     Ok(())
 }
+
+/// Authenticated PATCH — forwards session + tenant, serializes body as JSON.
+pub async fn authenticated_patch<B: Serialize, T: DeserializeOwned>(
+    path: &str,
+    session_token: &str,
+    body: B,
+) -> Result<T, String> {
+    let url = format!("{}{}", get_atlas_api_url(), path);
+    let req = CLIENT
+        .patch(&url)
+        .header("Authorization", format!("Bearer {}", session_token))
+        .json(&body);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(format!("API {}", res.status()));
+    }
+    res.json::<T>().await.map_err(|e| e.to_string())
+}
+
