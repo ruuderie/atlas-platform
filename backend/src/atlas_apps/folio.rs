@@ -151,7 +151,8 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::marketplace::listing::authenticated_routes_raw())
             .merge(crate::handlers::folio::reporting::authenticated_routes())
             .merge(crate::handlers::folio::comms::authenticated_routes_raw())
-            .merge(crate::handlers::folio::notifications::authenticated_routes_raw());
+            .merge(crate::handlers::folio::notifications::authenticated_routes_raw())
+            .merge(crate::handlers::folio::onboarding_submit::routes());
 
         // ── Owner-only sub-router ─────────────────────────────────────────────
         // Beneficial property owners — read-only visibility into their portfolio.

@@ -20,6 +20,12 @@ pub struct FolioMeResponse {
     pub has_passkey:        bool,
     /// True when all required onboarding steps are complete for this instance.
     pub onboarding_complete: bool,
+    /// Number of wizard steps with a `completed_at` timestamp.
+    pub wizard_steps_completed: usize,
+    /// Total number of wizard steps for this app instance.
+    pub wizard_steps_total: usize,
+    /// True if the user previously dismissed the onboarding banner.
+    pub wizard_dismissed: bool,
 }
 
 /// `GET /api/folio/me`
@@ -133,7 +139,6 @@ pub async fn get_folio_me(
         // Quick check: does every required step for this app_instance have a
         // completed_at in onboarding_progress?  We use a NOT EXISTS subquery
         // to avoid pulling the full step list — non-fatal, defaults to false.
-        use sea_orm::{ConnectionTrait, DbBackend, Statement};
         let row = db
             .query_one(Statement::from_sql_and_values(
                 DbBackend::Postgres,
@@ -155,6 +160,55 @@ pub async fn get_folio_me(
         false
     };
 
+    // ── 8. Wizard step counts for banner accuracy ─────────────────────────────
+    let (wizard_steps_completed, wizard_steps_total) = if let Some(ai) = app_instance_id {
+        let row = db
+            .query_one(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                r#"SELECT
+                     COUNT(*) FILTER (WHERE completed_at IS NOT NULL AND step_id != 'wizard_dismissed') AS completed,
+                     COUNT(*) FILTER (WHERE step_id != 'wizard_dismissed')                              AS total
+                   FROM onboarding_progress
+                   WHERE app_instance_id = $1"#,
+                [ai.into()],
+            ))
+            .await
+            .ok()
+            .flatten();
+        if let Some(r) = row {
+            let completed = r.try_get::<i64>("", "completed").unwrap_or(0) as usize;
+            let total     = r.try_get::<i64>("", "total").unwrap_or(0) as usize;
+            (completed, total.max(7)) // floor at 7 (the wizard has 7 steps)
+        } else {
+            (0, 7)
+        }
+    } else {
+        (0, 7)
+    };
+
+    // ── 9. Check wizard_dismissed flag ────────────────────────────────────────
+    let wizard_dismissed = if let Some(ai) = app_instance_id {
+        let row = db
+            .query_one(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                r#"SELECT dismissed_at
+                   FROM onboarding_progress
+                   WHERE app_instance_id = $1
+                     AND step_id = 'wizard_dismissed'
+                   LIMIT 1"#,
+                [ai.into()],
+            ))
+            .await
+            .ok()
+            .flatten();
+        // If the row exists and dismissed_at is not null, it's been dismissed.
+        row.and_then(|r| r.try_get::<Option<chrono::DateTime<chrono::Utc>>>("", "dismissed_at").ok())
+            .flatten()
+            .is_some()
+    } else {
+        false
+    };
+
     Ok(Json(FolioMeResponse {
         user_id: user_row.id,
         tenant_id: Some(tid),
@@ -163,6 +217,9 @@ pub async fn get_folio_me(
         folio_role,
         has_passkey,
         onboarding_complete,
+        wizard_steps_completed,
+        wizard_steps_total,
+        wizard_dismissed,
     }))
 }
 

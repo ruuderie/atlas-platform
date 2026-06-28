@@ -72,7 +72,19 @@ pub struct SessionInfo {
     /// True when all required onboarding steps are complete for their instance.
     #[serde(default)]
     pub onboarding_complete: bool,
+    /// Number of wizard steps with a `completed_at` timestamp (for banner progress).
+    #[serde(default)]
+    pub wizard_steps_completed: usize,
+    /// Total wizard steps for this instance (floor 7).
+    #[serde(default = "default_wizard_total")]
+    pub wizard_steps_total:  usize,
+    /// True if the user previously dismissed the setup banner (persisted server-side).
+    #[serde(default)]
+    pub wizard_dismissed:    bool,
 }
+
+fn default_wizard_total() -> usize { 7 }
+
 
 // ── Server functions ──────────────────────────────────────────────────────────
 

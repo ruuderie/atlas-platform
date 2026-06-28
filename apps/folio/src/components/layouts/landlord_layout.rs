@@ -37,13 +37,14 @@ pub fn LandlordLayout() -> impl IntoView {
                 <Suspense fallback=|| view! { <div/> }>
                     {move || session.get().map(|r| {
                         let status = match r {
-                            Ok(info) if info.onboarding_complete && info.has_passkey => {
+                            Ok(ref info) if info.onboarding_complete && info.has_passkey => {
                                 SetupStatus::Complete
                             }
-                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
-                            Ok(_) => SetupStatus::WizardInProgress {
-                                completed: 0,
-                                total: 7,
+                            Ok(ref info) if info.wizard_dismissed => SetupStatus::Complete,
+                            Ok(ref info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(ref info) => SetupStatus::WizardInProgress {
+                                completed: info.wizard_steps_completed,
+                                total: info.wizard_steps_total,
                             },
                             Err(_) => SetupStatus::Complete, // don't block on auth errors
                         };

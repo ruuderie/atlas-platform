@@ -32,4 +32,5 @@ pub mod reporting;        // Cross-table — Tenant reports + landlord/vendor an
 pub mod owner;            // G-22 — Beneficial owner read-only portal + PMC link management
 pub mod str_guest;        // G-22 — STR guest/vehicle registration + special requests per booking
 pub mod comms;            // G-07 — Unified communications: rooms, messages, platform_support
-pub mod notifications;    // G-07 ext — Notification inbox, channel prefs, tenant channel settings
+pub mod notifications;      // G-07 ext — Notification inbox, channel prefs, tenant channel settings
+pub mod onboarding_submit; // POST /api/folio/onboarding/submit — atomic first-run wizard save
