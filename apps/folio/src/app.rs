@@ -98,6 +98,7 @@ use crate::pages::str_host::{
     listing::StrListingDetail,
     pricing::StrPricingRules,
     channels::StrChannelManager,
+    syndication::StrSyndication,
     messages::StrGuestMessaging,
     reviews::StrReviews,
     incidents::StrIncidents,
@@ -245,6 +246,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/incidents")        view=StrIncidents/>
                     <Route path=path!("/violations/new")   view=StrViolationFiling/>
                     <Route path=path!("/listings")         view=StrListingIndex/>      // index — nav target
+                    <Route path=path!("/syndication")      view=StrSyndication/>       // per-listing channel distribution
                     // /s/listings/:id  — detail, linked from cards (no shell nav item)
                 </ParentRoute>
 
@@ -276,7 +278,11 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/leads/:token")       view=LeadPortal/>
                 <Route path=path!("/inquiry/thanks")     view=InquiryConfirm/>
                 <Route path=path!("/jobs/:token")        view=VendorJobLink/>
+                // /pmc/onboard — admin-initiated wizard, not reachable from PMC sidebar nav.
+                // Invoked via email link sent by an Atlas platform administrator.
+                // See docs/folio/page_queue.md § P3 for rationale.
                 <Route path=path!("/pmc/onboard")        view=PmcOnboard/>
+
                 <Route path=path!("/listings/ltr")       view=LtrListings/>
                 <Route path=path!("/listings/str")       view=StrListings/>
                 <Route path=path!("/ni/signup")          view=NiSignup/>

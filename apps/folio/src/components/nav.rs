@@ -164,7 +164,8 @@ pub enum FolioRoute {
     LandlordReservations,
     LandlordMaintenance,
     LandlordSyndication,
-    LandlordMeridian,
+    // LandlordMeridian removed — nav footer now uses LandlordMeridianConfig directly.
+    // Kept as a comment to avoid future confusion about /l/meridian intent.
     LandlordMeridianConfig,
     LandlordAccountBilling,
     LandlordMap,
@@ -268,7 +269,7 @@ impl FolioRoute {
             Self::LandlordReservations   => "/l/reservations",
             Self::LandlordMaintenance    => "/l/maintenance",
             Self::LandlordSyndication    => "/l/syndication",
-            Self::LandlordMeridian       => "/l/meridian",
+            // LandlordMeridian path removed (variant removed — was /l/meridian).
             Self::LandlordMeridianConfig => "/l/meridian/configure",
             Self::LandlordAccountBilling => "/l/account/billing",
             Self::LandlordMap            => "/l/map",
@@ -573,6 +574,7 @@ static STR_HOST_NAV: NavConfig = NavConfig {
             NavItem::new(FolioRoute::StrHostListingIndex,  "Listings",     NavIcon::Apartment),
             NavItem::new(FolioRoute::StrHostPricing,      "Pricing",      NavIcon::Sell),
             NavItem::new(FolioRoute::StrHostChannels,     "Channels",     NavIcon::SyncAlt),
+            NavItem::new(FolioRoute::StrHostSyndication,  "Syndication",  NavIcon::SyncAlt),
             NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),
         ],
     }],
