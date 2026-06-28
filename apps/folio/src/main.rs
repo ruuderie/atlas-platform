@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 #[cfg(feature = "ssr")]
 use axum::http::{HeaderValue, header};
 use folio::app::App;
