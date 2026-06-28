@@ -212,7 +212,7 @@ pub fn VendorOnboard() -> impl IntoView {
                                 <input type="checkbox"
                                     prop:checked=move || insured.get()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                         if let Some(el) = el { insured.set(el.checked()); }
                                     }
                                 />

@@ -201,7 +201,7 @@ pub fn NiSignup() -> impl IntoView {
                                         <input type="checkbox" style="display:none;"
                                             prop:checked=move || use_case_ltr.get()
                                             on:change=move |ev: web_sys::Event| {
-                                                let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                 if let Some(el) = el { use_case_ltr.set(el.checked()); }
                                             }
                                         />
@@ -213,7 +213,7 @@ pub fn NiSignup() -> impl IntoView {
                                         <input type="checkbox" style="display:none;"
                                             prop:checked=move || use_case_str.get()
                                             on:change=move |ev: web_sys::Event| {
-                                                let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                 if let Some(el) = el { use_case_str.set(el.checked()); }
                                             }
                                         />

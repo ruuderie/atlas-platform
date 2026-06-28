@@ -136,7 +136,7 @@ pub fn ContractorMarketplace() -> impl IntoView {
                 </div>
                 <label class="mkt-emerg-toggle">
                     <input type="checkbox" on:change=move |ev: web_sys::Event| {
-                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                         if let Some(el) = el { new_emerg.set(el.checked()); }
                     }/>
                     "🚨 Emergency Available Only"
@@ -250,7 +250,7 @@ pub fn ContractorMarketplace() -> impl IntoView {
                                 <label class="form-label flex items-center gap-2">
                                     <input type="checkbox" class="form-checkbox"
                                         on:change=move |ev: web_sys::Event| {
-                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                            let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                             if let Some(el) = el { new_emerg.set(el.checked()); }
                                         }
                                     />

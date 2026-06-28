@@ -76,12 +76,12 @@ pub fn PmcOnboard() -> impl IntoView {
     let submitted    = RwSignal::new(false);
     let error        = RwSignal::new(None::<String>);
 
-    let token2 = token.clone();
+    let token_sv = store_value(token.clone());
     let handle_submit = move |_| {
         if !consented.get() { return; }
         submitting.set(true);
         let input = PmcOnboardInput {
-            invite_token:    token2.clone(),
+            invite_token:    token_sv.get_value(),
             company_name:    company_name.get(),
             company_type:    company_type.get(),
             website:         if website.get().is_empty() { None } else { Some(website.get()) },
@@ -275,7 +275,7 @@ pub fn PmcOnboard() -> impl IntoView {
                                                 <input type="checkbox"
                                                     prop:checked=move || markets.get().contains(m)
                                                     on:change=move |ev: web_sys::Event| {
-                                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                         if let Some(el) = el {
                                                             markets.update(|s| {
                                                                 if el.checked() { s.insert(m); } else { s.remove(m); }
@@ -328,7 +328,7 @@ pub fn PmcOnboard() -> impl IntoView {
                                 <input type="checkbox"
                                     prop:checked=move || consented.get()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                         if let Some(el) = el { consented.set(el.checked()); }
                                     }
                                 />

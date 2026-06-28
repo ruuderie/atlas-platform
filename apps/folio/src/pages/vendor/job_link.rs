@@ -101,7 +101,10 @@ pub fn VendorJobLink() -> impl IntoView {
         let h = handle_respond.clone();
         move |_| h("accept".to_string())
     };
-    let handle_decline = move |_| handle_respond("decline".to_string());
+    let handle_decline = {
+        let h = handle_respond.clone();
+        move |_| h("decline".to_string())
+    };
 
     view! {
         <div class="apply-layout">

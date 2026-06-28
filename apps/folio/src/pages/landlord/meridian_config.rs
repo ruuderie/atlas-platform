@@ -618,7 +618,7 @@ fn G27SurfacesTab() -> impl IntoView {
                                 <input type="checkbox" class="syndic-toggle-input"
                                     prop:checked=move || is_on()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                         if let Some(el) = el {
                                             let checked = el.checked();
                                             cfg.update(|c| match key {

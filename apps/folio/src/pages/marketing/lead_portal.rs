@@ -84,11 +84,12 @@ pub fn LeadPortal() -> impl IntoView {
         |t| fetch_lead_portal(t),
     );
 
+    let token_sv = store_value(token.clone());
     let handle_submit = move |_| {
         if name.get().trim().is_empty() || email.get().trim().is_empty() { return; }
         submitting.set(true);
         let sub = LeadSubmission {
-            token:   token2.clone(),
+            token:   token_sv.get_value(),
             name:    name.get(),
             email:   email.get(),
             phone:   if phone.get().is_empty() { None } else { Some(phone.get()) },

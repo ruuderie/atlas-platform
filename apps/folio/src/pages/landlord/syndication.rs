@@ -153,7 +153,7 @@ pub fn LandlordSyndication() -> impl IntoView {
                                                         prop:checked=move || enabled_channels.get().contains(ch_id)
                                                         disabled=is_atlas
                                                         on:change=move |ev: web_sys::Event| {
-                                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                            let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                             if let Some(el) = el {
                                                                 enabled_channels.update(|s| {
                                                                     if el.checked() { s.insert(ch_id); }

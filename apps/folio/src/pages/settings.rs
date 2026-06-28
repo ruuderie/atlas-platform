@@ -451,7 +451,7 @@ fn NotificationsTab() -> impl IntoView {
                                             <input type="checkbox" class="syndic-toggle-input"
                                                 prop:checked=move || email_on()
                                                 on:change=move |ev: web_sys::Event| {
-                                                    let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                    let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                     if let Some(el) = el { let c = el.checked(); prefs.update(|p| match key {
                                                         "maint"   => p.maint_email   = c,
                                                         "lease"   => p.lease_email   = c,
@@ -468,7 +468,7 @@ fn NotificationsTab() -> impl IntoView {
                                             <input type="checkbox" class="syndic-toggle-input"
                                                 prop:checked=move || sms_on()
                                                 on:change=move |ev: web_sys::Event| {
-                                                    let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                    let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                     if let Some(el) = el { let c = el.checked(); prefs.update(|p| match key {
                                                         "maint"   => p.maint_sms   = c,
                                                         "lease"   => p.lease_sms   = c,
@@ -485,7 +485,7 @@ fn NotificationsTab() -> impl IntoView {
                                             <input type="checkbox" class="syndic-toggle-input"
                                                 prop:checked=move || inapp_on()
                                                 on:change=move |ev: web_sys::Event| {
-                                                    let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                                    let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                                     if let Some(el) = el { let c = el.checked(); prefs.update(|p| match key {
                                                         "maint"   => p.maint_in_app   = c,
                                                         "lease"   => p.lease_in_app   = c,

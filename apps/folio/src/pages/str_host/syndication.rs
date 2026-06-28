@@ -396,7 +396,7 @@ pub fn StrSyndication() -> impl IntoView {
                                         prop:checked=move || is_on()
                                         prop:disabled=move || cid == "atlas_network"
                                         on:change=move |ev: web_sys::Event| {
-                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                            let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                             if let Some(el) = el {
                                                 let checked = el.checked();
                                                 enabled.update(|s| {

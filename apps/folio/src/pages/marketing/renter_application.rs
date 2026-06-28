@@ -237,7 +237,7 @@ pub fn RenterApplication() -> impl IntoView {
                                 <input type="checkbox"
                                     prop:checked=move || consented.get()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
+                                        let el = Some(event_target::<web_sys::HtmlInputElement>(&ev));
                                         if let Some(el) = el { consented.set(el.checked()); }
                                     }
                                 />
