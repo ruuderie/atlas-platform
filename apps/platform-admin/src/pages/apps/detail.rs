@@ -19,11 +19,11 @@ use crate::api::models::ListingUpdate;
 /// accent suffix is used as `text-{accent}-400` / `bg-{accent}-500/10`.
 fn app_type_display(slug: &str) -> (&'static str, &'static str, &'static str) {
     match slug {
-        "property_management" => ("🏠", "Folio PM",       "violet"),
-        "anchor"              => ("⚓", "Anchor CMS",      "amber"),
-        "network_instance"    => ("🔗", "Network Directory","blue"),
-        "str"                 => ("🏖️","Atlas STR",        "emerald"),
-        _                     => ("📦", "App Instance",    "slate"),
+        "property_management" | "folio" => ("🏠", "Folio PM",        "violet"),
+        "anchor"                        => ("⚓", "Anchor CMS",       "amber"),
+        "network_instance" | "network"  => ("🔗", "Network Directory","blue"),
+        "str"                           => ("🏖️","Atlas STR",         "emerald"),
+        _                               => ("📦", "App Instance",     "slate"),
     }
 }
 

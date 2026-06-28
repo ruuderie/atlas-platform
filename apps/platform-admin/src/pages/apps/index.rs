@@ -20,9 +20,9 @@ fn fmt_mrr(cents: i64) -> String {
 /// Maps a canonical `app_slug` / `app_type` to (emoji, display label).
 fn app_type_label(slug: &str) -> (&'static str, &'static str) {
     match slug {
-        "property_management" => ("🏠", "Folio PM"),
+        "property_management" | "folio" => ("🏠", "Folio PM"),
         "anchor"              => ("⚓", "Anchor CMS"),
-        "network_instance"    => ("🔗", "Network"),
+        "network_instance" | "network" => ("🔗", "Network"),
         "str"                 => ("🏖️", "Atlas STR"),
         _                     => ("📦", "App"),
     }
@@ -345,11 +345,11 @@ pub fn Apps() -> impl IntoView {
                                                     };
 
                                                     let (type_bg, type_color, type_emoji, type_label) = match app.app_type.to_lowercase().as_str() {
-                                                        "anchor"              => ("rgba(99,102,241,0.12)",  "#818cf8", "⚓", "Anchor CMS"),
-                                                        "property_management" => ("rgba(59,130,246,0.12)",  "#60a5fa", "🏠", "Folio PM"),
-                                                        "network_instance"    => ("rgba(16,185,129,0.12)", "#34d399", "🔗", "Network"),
-                                                        "str"                 => ("rgba(245,158,11,0.12)", "#fbbf24", "🏖️", "STR"),
-                                                        _                     => ("rgba(107,114,128,0.12)", "#9ca3af", "📦", "App"),
+                                                        "anchor"                         => ("rgba(99,102,241,0.12)",  "#818cf8", "⚓", "Anchor CMS"),
+                                                        "property_management" | "folio"  => ("rgba(59,130,246,0.12)",  "#60a5fa", "🏠", "Folio PM"),
+                                                        "network_instance" | "network"   => ("rgba(16,185,129,0.12)", "#34d399", "🔗", "Network"),
+                                                        "str"                            => ("rgba(245,158,11,0.12)", "#fbbf24", "🏖️", "STR"),
+                                                        _                                => ("rgba(107,114,128,0.12)", "#9ca3af", "📦", "App"),
                                                     };
 
                                                     let instance_url = format!("/apps/{}/instance", app.instance_id);

@@ -45,10 +45,10 @@ pub fn InstanceOperationalConfigPanel(
 
     let saving = RwSignal::new(false);
 
-    // Whether this is a Folio PM instance
-    let is_folio = app_slug == "property_management";
+    // Whether this is a Folio PM instance (canonical: "property_management"; alias: "folio")
+    let is_folio = app_slug == "property_management" || app_slug == "folio";
     let is_anchor = app_slug == "anchor";
-    let is_network = app_slug == "network_instance";
+    let is_network = app_slug == "network_instance" || app_slug == "network";
 
     // ── Save handler ──────────────────────────────────────────────────────────
     let handle_save = move |_| {

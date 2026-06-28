@@ -348,3 +348,101 @@ async fn provision_fails_without_dns_bypass_and_missing_txt() {
     let msg = body["message"].as_str().unwrap_or("");
     assert!(msg.contains("DNS verification failed"), "Expected DNS verification error, got: {}", msg);
 }
+
+/// Folio-only tenant (no anchor) succeeds — domain binds to the folio instance.
+#[tokio::test]
+async fn provision_folio_only_without_anchor_succeeds() {
+    let (app, db) = setup_test_app().await;
+    let (_, admin_token) = super::test_utils::create_and_login_admin_user(&app, &db).await;
+
+    let slug = unique_slug();
+    let domain = unique_domain();
+
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/admin/tenants/provision")
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", admin_token))
+                .header("Host", "localhost")
+                .body(Body::from(json!({
+                    "tenant_name": slug,
+                    "display_name": format!("Test Folio Tenant {}", slug),
+                    "domain": domain,
+                    "admin_email": format!("admin@{}", domain),
+                    "admin_first_name": "Test",
+                    "admin_last_name": "Admin",
+                    "bypass_dns_verification": true,
+                    "apps": ["property_management"]
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED, "Folio-only provision should succeed");
+
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    let tenant_id: uuid::Uuid = body["tenant_id"].as_str()
+        .and_then(|s| s.parse().ok())
+        .expect("tenant_id in response");
+
+    // Verify folio instance was created
+    let instances = app_instance::Entity::find()
+        .filter(app_instance::Column::TenantId.eq(tenant_id))
+        .all(&db).await.unwrap();
+    assert_eq!(instances.len(), 1, "only one instance should exist");
+    assert_eq!(instances[0].app_type, "property_management", "folio instance should have canonical app_type");
+
+    // Verify domain is bound to the folio instance (not anchor)
+    let domains = app_domain::Entity::find()
+        .filter(app_domain::Column::AppInstanceId.eq(instances[0].id))
+        .all(&db).await.unwrap();
+    assert!(!domains.is_empty(), "domain should be bound to the folio instance");
+    assert_eq!(domains[0].domain_name, domain);
+}
+
+/// Unknown app type in the apps list is rejected with 400.
+#[tokio::test]
+async fn provision_rejects_unknown_app_type() {
+    let (app, _db) = setup_test_app().await;
+    let (_, admin_token) = super::test_utils::create_and_login_admin_user(&app, &_db).await;
+
+    let slug = unique_slug();
+    let domain = unique_domain();
+
+    let response = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/admin/tenants/provision")
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", admin_token))
+                .header("Host", "localhost")
+                .body(Body::from(json!({
+                    "tenant_name": slug,
+                    "display_name": "Bad App Test",
+                    "domain": domain,
+                    "admin_email": format!("admin@{}", domain),
+                    "admin_first_name": "Test",
+                    "admin_last_name": "Admin",
+                    "bypass_dns_verification": true,
+                    "apps": ["folio"]   // "folio" is the short alias, not the canonical ID
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST, "Unknown app type should return 400");
+    let bytes = response.into_body().collect().await.unwrap().to_bytes();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap_or_default();
+    let msg = body["message"].as_str().unwrap_or("");
+    assert!(
+        msg.contains("unknown app") && msg.contains("property_management"),
+        "Error should mention the canonical valid value, got: {}",
+        msg
+    );
+}

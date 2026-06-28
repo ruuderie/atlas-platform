@@ -142,19 +142,24 @@ pub async fn provision_tenant(
         .map_err(|e| bad_request(e))?;
 
     // Determine which apps to provision. Defaults to ["anchor"] when omitted.
-    // Any non-empty subset of valid app IDs is accepted; callers provisioning
-    // Folio-only or Network-only tenants should pass apps: ["folio"] explicitly.
+    // Any non-empty subset of canonical app IDs is accepted.  Callers provisioning
+    // Folio-only tenants should pass apps: ["property_management"] explicitly.
     let apps: Vec<String> = payload.apps
         .clone()
         .unwrap_or_else(|| vec!["anchor".to_string()]);
 
-    let valid_apps = ["anchor", "folio", "network"];
+    // Canonical app-type IDs as stored in the app_instances.app_type column.
+    // The provision wizard in platform-admin sends these exact strings.
+    let valid_apps = ["anchor", "property_management", "network_instance"];
     if apps.is_empty() {
         return Err(bad_request("apps must not be empty"));
     }
     for app in &apps {
         if !valid_apps.contains(&app.as_str()) {
-            return Err(bad_request(format!("unknown app '{}'; valid values: anchor, folio, network", app)));
+            return Err(bad_request(format!(
+                "unknown app '{}'; valid values: anchor, property_management, network_instance",
+                app
+            )));
         }
     }
 
@@ -240,7 +245,10 @@ pub async fn provision_tenant(
     new_account.insert(&txn).await.map_err(|e| internal(e))?;
 
     // 3c. INSERT app_instances (one per requested app type)
+    // Track the anchor instance separately for domain binding; if the tenant does not
+    // include Anchor (e.g. Folio-only), fall back to the first provisioned instance.
     let mut anchor_instance_id: Option<Uuid> = None;
+    let mut first_instance_id: Option<Uuid> = None;
     for app_type in &apps {
         let instance_id = Uuid::new_v4();
         let new_instance = app_instance::ActiveModel {
@@ -254,19 +262,24 @@ pub async fn provision_tenant(
             updated_at: Set(now),
         };
         new_instance.insert(&txn).await.map_err(|e| internal(e))?;
+        if first_instance_id.is_none() {
+            first_instance_id = Some(instance_id);
+        }
         if app_type == "anchor" {
             anchor_instance_id = Some(instance_id);
         }
         tracing::info!(event = "provision.app_instance.created", tenant_id = %tenant_id, app_type = %app_type, instance_id = %instance_id);
     }
 
-    let anchor_instance_id = anchor_instance_id
-        .ok_or_else(|| internal("anchor instance_id unexpectedly missing after insert"))?;
+    // Primary instance for domain binding: prefer anchor, fall back to first instance.
+    let primary_instance_id = anchor_instance_id
+        .or(first_instance_id)
+        .ok_or_else(|| internal("no app instances were created"))?;
 
-    // 3d. INSERT app_domain — binds the FQDN to the anchor instance
+    // 3d. INSERT app_domain — binds the FQDN to the primary instance
     let new_domain = app_domain::ActiveModel {
         id: Set(Uuid::new_v4()),
-        app_instance_id: Set(anchor_instance_id),
+        app_instance_id: Set(primary_instance_id),
         domain_name: Set(payload.domain.clone()),
         created_at: Set(now),
     };

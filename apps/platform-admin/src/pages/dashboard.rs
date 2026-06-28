@@ -6,21 +6,21 @@ use crate::api::verification::get_verification_requests;
 // ── Helper ────────────────────────────────────────────────────────────────────
 fn app_type_emoji(slug: &str) -> &'static str {
     match slug {
-        "anchor"               => "⚓",
-        "property_management"  => "🏠",
-        "network_instance"     => "🔗",
-        "str"                  => "🏖️",
-        _                      => "📦",
+        "anchor"                        => "⚓",
+        "property_management" | "folio" => "🏠",
+        "network_instance" | "network"  => "🔗",
+        "str"                           => "🏖️",
+        _                               => "📦",
     }
 }
 
 fn app_type_label(slug: &str) -> &'static str {
     match slug {
-        "anchor"               => "Anchor CMS",
-        "property_management"  => "Folio PM",
-        "network_instance"     => "Network",
-        "str"                  => "Atlas STR",
-        _                      => "App",
+        "anchor"                        => "Anchor CMS",
+        "property_management" | "folio" => "Folio PM",
+        "network_instance" | "network"  => "Network",
+        "str"                           => "Atlas STR",
+        _                               => "App",
     }
 }
 
