@@ -125,7 +125,7 @@ pub fn VendorJobLink() -> impl IntoView {
                                         <div class="job-link-subject">{job.subject.clone()}</div>
                                         <div class="job-link-meta">
                                             <span class="job-link-priority"
-                                                style=format!("color:{pcolor};font-weight:700;">
+                                                style=format!("color:{pcolor};font-weight:700;")>
                                                 {job.priority.clone()}
                                             </span>
                                             <span class="job-link-address">"📍 " {job.asset_address.clone()}

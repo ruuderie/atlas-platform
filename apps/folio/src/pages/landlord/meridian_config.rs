@@ -186,7 +186,8 @@ fn score_bar(score: f64) -> impl IntoView {
             <div style=format!("width:6rem;height:.4rem;border-radius:9999px;background:rgba(255,255,255,.1);overflow:hidden;")>
                 <div style=format!("width:{pct}%;height:100%;background:{color};transition:width .3s;border-radius:9999px;")></div>
             </div>
-            <span style=format!("font-size:.78rem;font-weight:700;color:{color};">{format!("{:.0}%", score * 100.0)}</span>
+            <span style=format!("font-size:.78rem;font-weight:700;color:{color};")>{format!("{:.0}%", score * 100.0)}</span>
+
         </div>
     }
 }
