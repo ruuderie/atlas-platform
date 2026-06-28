@@ -76,7 +76,7 @@ pub fn PmcOnboard() -> impl IntoView {
     let submitted    = RwSignal::new(false);
     let error        = RwSignal::new(None::<String>);
 
-    let token_sv = store_value(token.clone());
+    let token_sv = StoredValue::new(token.clone());
     let handle_submit = move |_| {
         if !consented.get() { return; }
         submitting.set(true);

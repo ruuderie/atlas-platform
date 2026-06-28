@@ -57,7 +57,7 @@ pub fn RenterApplication() -> impl IntoView {
     let submitted     = RwSignal::new(false);
     let error         = RwSignal::new(None::<String>);
 
-    let property_id_sv = store_value(property_id.clone());
+    let property_id_sv = StoredValue::new(property_id.clone());
     let handle_submit = move |_| {
         if !consented.get() { return; }
         submitting.set(true);

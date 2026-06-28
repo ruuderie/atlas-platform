@@ -97,11 +97,11 @@ pub fn VendorJobLink() -> impl IntoView {
             }
         });
     };
-    let handle_accept  = store_value({
+    let handle_accept  = StoredValue::new({
         let h = handle_respond.clone();
         move |_: web_sys::MouseEvent| h("accept".to_string())
     });
-    let handle_decline = store_value({
+    let handle_decline = StoredValue::new({
         let h = handle_respond.clone();
         move |_: web_sys::MouseEvent| h("decline".to_string())
     });

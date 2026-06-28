@@ -62,7 +62,7 @@ fn app_status_info(status: &str) -> (&'static str, &'static str, &'static str) {
         "approved"               => ("✅", "app-status--approved", "Approved"),
         "denied" | "rejected"    => ("❌", "app-status--denied",   "Not Approved"),
         "withdrawn" | "cancelled"=> ("🚪", "app-status--neutral",  "Withdrawn"),
-        _                        => ("📋", "app-status--neutral",  status),
+        _                        => ("📋", "app-status--neutral",  "Unknown"),
     }
 }
 

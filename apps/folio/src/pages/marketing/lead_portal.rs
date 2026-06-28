@@ -78,7 +78,7 @@ pub fn LeadPortal() -> impl IntoView {
     let submitted  = RwSignal::new(false);
     let sub_error  = RwSignal::new(None::<String>);
 
-    let token_sv = store_value(token.clone());
+    let token_sv = StoredValue::new(token.clone());
     let res = Resource::new(
         move || token.clone(),
         |t| fetch_lead_portal(t),
