@@ -446,12 +446,34 @@ pub async fn set_session_cookie(token: String) -> Result<(), ServerFnError> {
             .get("host")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("localhost");
+        
         let is_https = !host.starts_with("localhost") && !host.starts_with("127.");
-        let secure_flag = if is_https { "; Secure" } else { "" };
-        let cookie_val = format!(
-            "session={}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400{}",
-            token, secure_flag
-        );
+
+        // Derive root domain for cross-subdomain scope (e.g. "dev.atlas.oply.co" → ".oply.co").
+        // This ensures the session cookie is sent to api.dev.atlas.oply.co on cross-subdomain
+        // fetch requests. Only applied on production HTTPS to avoid local-dev issues.
+        let parts: Vec<&str> = host.split('.').collect();
+        let domain_attr = if is_https && parts.len() >= 2 {
+            let root = parts[parts.len()-2..].join(".");
+            format!("; Domain=.{}", root)
+        } else {
+            "".to_string()
+        };
+
+        // SameSite=None; Secure is required for cross-subdomain cookies on HTTPS
+        // (api.* and dev.* share the eTLD+1 but are cross-origin for fetch).
+        // On localhost we use SameSite=Lax (no Secure flag needed).
+        let cookie_val = if is_https {
+            format!(
+                "session={}; HttpOnly; SameSite=None; Secure; Path=/; Max-Age=86400{}",
+                token, domain_attr
+            )
+        } else {
+            format!(
+                "session={}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400",
+                token
+            )
+        };
 
         response.append_header(
             axum::http::header::SET_COOKIE,

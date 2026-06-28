@@ -38,14 +38,26 @@ pub fn with_credentials(builder: RequestBuilder) -> RequestBuilder {
     }
 }
 
+/// Counts consecutive 401 responses. A single transient 401 (e.g. a race during
+/// navigation before the session cookie propagates) is surfaced as an error but
+/// does NOT redirect. Two consecutive 401s mean the session is genuinely gone.
+static CONSECUTIVE_401S: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) -> Result<T, String> {
     let req = with_credentials(req);
     let res = req.send().await.map_err(|e| e.to_string())?;
 
     if res.status() == StatusCode::UNAUTHORIZED {
-        mark_session_expired();
-        return Err("Session expired. Redirecting to login.".into());
+        let count = CONSECUTIVE_401S.fetch_add(1, Ordering::SeqCst) + 1;
+        if count >= 2 {
+            // Two back-to-back 401s: the session is definitively gone.
+            mark_session_expired();
+        }
+        return Err("Unauthorized — session may have expired.".into());
     }
+
+    // Reset the counter on any non-401 response.
+    CONSECUTIVE_401S.store(0, Ordering::SeqCst);
 
     if res.status().is_success() {
         res.json::<T>().await.map_err(|e| e.to_string())
@@ -58,6 +70,7 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
         }
     }
 }
+
 
 static AUTH_TOKEN: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
