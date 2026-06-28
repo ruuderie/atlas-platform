@@ -78,13 +78,12 @@ pub fn LeadPortal() -> impl IntoView {
     let submitted  = RwSignal::new(false);
     let sub_error  = RwSignal::new(None::<String>);
 
-    let token2 = token.clone();
+    let token_sv = store_value(token.clone());
     let res = Resource::new(
         move || token.clone(),
         |t| fetch_lead_portal(t),
     );
 
-    let token_sv = store_value(token.clone());
     let handle_submit = move |_| {
         if name.get().trim().is_empty() || email.get().trim().is_empty() { return; }
         submitting.set(true);

@@ -97,14 +97,14 @@ pub fn VendorJobLink() -> impl IntoView {
             }
         });
     };
-    let handle_accept  = {
+    let handle_accept  = store_value({
         let h = handle_respond.clone();
-        move |_| h("accept".to_string())
-    };
-    let handle_decline = {
+        move |_: web_sys::MouseEvent| h("accept".to_string())
+    });
+    let handle_decline = store_value({
         let h = handle_respond.clone();
-        move |_| h("decline".to_string())
-    };
+        move |_: web_sys::MouseEvent| h("decline".to_string())
+    });
 
     view! {
         <div class="apply-layout">
@@ -206,13 +206,13 @@ pub fn VendorJobLink() -> impl IntoView {
                                                             class="btn btn-ghost"
                                                             style="border-color:#f87171;color:#f87171;"
                                                             disabled=move || submitting.get()
-                                                            on:click=handle_decline
+                                                            on:click=move |e| handle_decline.get_value()(e)
                                                         >"✗ Decline Job"</button>
                                                         <button
                                                             class="btn btn-primary"
                                                             style="background:linear-gradient(135deg,#22c55e,#16a34a);"
                                                             disabled=move || submitting.get()
-                                                            on:click=handle_accept
+                                                            on:click=move |e| handle_accept.get_value()(e)
                                                         >{move || if submitting.get() { "Submitting…" } else { "✓ Accept Job" }}</button>
                                                     </div>
                                                 </div>

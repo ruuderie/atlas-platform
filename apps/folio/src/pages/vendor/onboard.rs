@@ -65,12 +65,12 @@ pub fn VendorOnboard() -> impl IntoView {
     let submitted     = RwSignal::new(false);
     let error         = RwSignal::new(None::<String>);
 
-    let token2 = token.clone();
+    let token_sv = store_value(token.clone());
     let handle_submit = move |_| {
         submitting.set(true);
         let trades_vec: Vec<String> = trades_sel.get().iter().map(|s| s.to_string()).collect();
         let input = VendorOnboardInput {
-            invite_token:   token2.clone(),
+            invite_token:   token_sv.get_value(),
             business_name:  biz_name.get(),
             contact_name:   contact_name.get(),
             email:          email.get(),
