@@ -88,6 +88,125 @@ fn render_stars(r: f64) -> String {
     "★".repeat(full) + &"☆".repeat(5usize.saturating_sub(full))
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── fmt_nightly ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn fmt_nightly_typical() {
+        assert_eq!(fmt_nightly(8500), "$85/nt");
+    }
+
+    #[test]
+    fn fmt_nightly_round_hundred() {
+        assert_eq!(fmt_nightly(10000), "$100/nt");
+    }
+
+    #[test]
+    fn fmt_nightly_zero() {
+        assert_eq!(fmt_nightly(0), "$0/nt");
+    }
+
+    #[test]
+    fn fmt_nightly_sub_dollar_truncates() {
+        // 99 cents → $0/nt (integer division intentional)
+        assert_eq!(fmt_nightly(99), "$0/nt");
+    }
+
+    #[test]
+    fn fmt_nightly_large_value() {
+        assert_eq!(fmt_nightly(100_000), "$1000/nt");
+    }
+
+    // ── render_stars ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn render_stars_five_full() {
+        assert_eq!(render_stars(5.0), "★★★★★");
+    }
+
+    #[test]
+    fn render_stars_zero() {
+        assert_eq!(render_stars(0.0), "☆☆☆☆☆");
+    }
+
+    #[test]
+    fn render_stars_four() {
+        assert_eq!(render_stars(4.0), "★★★★☆");
+    }
+
+    #[test]
+    fn render_stars_fractional_floors() {
+        // 3.9 should floor to 3 filled stars
+        assert_eq!(render_stars(3.9), "★★★☆☆");
+    }
+
+    #[test]
+    fn render_stars_one() {
+        assert_eq!(render_stars(1.0), "★☆☆☆☆");
+    }
+
+    #[test]
+    fn render_stars_total_len_always_five() {
+        for r in [0.0f64, 1.0, 2.5, 3.9, 5.0] {
+            let s = render_stars(r);
+            // Each ★/☆ is 3 bytes in UTF-8, so total chars = 5
+            assert_eq!(s.chars().count(), 5, "failed for r={r}: got {s:?}");
+        }
+    }
+
+    // ── status_badge_class ───────────────────────────────────────────────────
+
+    #[test]
+    fn status_badge_class_active() {
+        assert_eq!(status_badge_class("active"), "ph-badge ph-badge--paid");
+    }
+
+    #[test]
+    fn status_badge_class_draft() {
+        assert_eq!(status_badge_class("draft"), "ph-badge ph-badge--default");
+    }
+
+    #[test]
+    fn status_badge_class_unlisted() {
+        assert_eq!(status_badge_class("unlisted"), "ph-badge ph-badge--overdue");
+    }
+
+    #[test]
+    fn status_badge_class_blocked() {
+        assert_eq!(status_badge_class("blocked"), "ph-badge ph-badge--overdue");
+    }
+
+    #[test]
+    fn status_badge_class_unknown_falls_back() {
+        // Any unknown status gets the default badge
+        assert_eq!(status_badge_class("some_future_status"), "ph-badge ph-badge--default");
+    }
+
+    // ── listing_type_icon ────────────────────────────────────────────────────
+
+    #[test]
+    fn listing_type_icon_known_types() {
+        assert_eq!(listing_type_icon("cabin"),     "🌲");
+        assert_eq!(listing_type_icon("villa"),     "🏰");
+        assert_eq!(listing_type_icon("apartment"), "🏢");
+        assert_eq!(listing_type_icon("boat"),      "⛵");
+        assert_eq!(listing_type_icon("house"),     "🏡");
+    }
+
+    #[test]
+    fn listing_type_icon_unknown_falls_back() {
+        assert_eq!(listing_type_icon("yurt"),  "🏠");
+        assert_eq!(listing_type_icon(""),      "🏠");
+    }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]

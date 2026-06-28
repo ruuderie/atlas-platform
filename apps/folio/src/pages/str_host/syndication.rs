@@ -132,6 +132,92 @@ fn sync_age_label(last_synced: Option<&str>) -> String {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── sync_age_label ────────────────────────────────────────────────────────
+
+    #[test]
+    fn sync_age_label_none_is_never_synced() {
+        assert_eq!(sync_age_label(None), "Never synced");
+    }
+
+    #[test]
+    fn sync_age_label_iso_timestamp_truncates_to_date() {
+        assert_eq!(sync_age_label(Some("2026-06-27T18:30:00Z")), "Synced 2026-06-27");
+    }
+
+    #[test]
+    fn sync_age_label_date_only_string() {
+        assert_eq!(sync_age_label(Some("2026-01-15")), "Synced 2026-01-15");
+    }
+
+    #[test]
+    fn sync_age_label_short_string_takes_all_chars() {
+        // If backend returns fewer than 10 chars, take() gracefully stops early
+        assert_eq!(sync_age_label(Some("2026")), "Synced 2026");
+    }
+
+    #[test]
+    fn sync_age_label_prefix_format() {
+        let result = sync_age_label(Some("2026-06-27T12:00:00Z"));
+        assert!(result.starts_with("Synced "), "got {result:?}");
+    }
+
+    // ── str_channels registry integrity ───────────────────────────────────────
+
+    #[test]
+    fn str_channels_is_non_empty() {
+        assert!(!str_channels().is_empty());
+    }
+
+    #[test]
+    fn str_channels_no_duplicate_ids() {
+        let channels = str_channels();
+        let mut seen = std::collections::HashSet::new();
+        for ch in &channels {
+            assert!(
+                seen.insert(ch.id),
+                "duplicate channel id found: {:?}",
+                ch.id
+            );
+        }
+    }
+
+    #[test]
+    fn str_channels_atlas_network_always_present() {
+        // atlas_network is the zero-commission channel always enabled by default
+        let channels = str_channels();
+        let atlas = channels.iter().find(|c| c.id == "atlas_network");
+        assert!(atlas.is_some(), "atlas_network channel must always exist");
+        assert_eq!(atlas.unwrap().fee_pct, Some(0.0), "atlas_network must be zero-commission");
+    }
+
+    #[test]
+    fn str_channels_all_have_non_empty_name_and_icon() {
+        for ch in str_channels() {
+            assert!(!ch.name.is_empty(),     "channel {:?} has empty name",     ch.id);
+            assert!(!ch.icon.is_empty(),     "channel {:?} has empty icon",     ch.id);
+            assert!(!ch.category.is_empty(), "channel {:?} has empty category", ch.id);
+        }
+    }
+
+    #[test]
+    fn str_channels_fee_pct_non_negative() {
+        for ch in str_channels() {
+            if let Some(fee) = ch.fee_pct {
+                assert!(fee >= 0.0, "channel {:?} has negative fee {fee}", ch.id);
+                assert!(fee <= 100.0, "channel {:?} has fee > 100% ({fee})", ch.id);
+            }
+        }
+    }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]

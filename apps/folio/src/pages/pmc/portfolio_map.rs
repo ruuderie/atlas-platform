@@ -99,6 +99,97 @@ fn type_icon(property_type: &str) -> &'static str {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── status_color ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn status_color_occupied() {
+        assert_eq!(status_color("occupied"), "#4ade80");
+    }
+
+    #[test]
+    fn status_color_vacant() {
+        assert_eq!(status_color("vacant"), "#fbbf24");
+    }
+
+    #[test]
+    fn status_color_maintenance() {
+        assert_eq!(status_color("maintenance"), "#f87171");
+    }
+
+    #[test]
+    fn status_color_notice() {
+        assert_eq!(status_color("notice"), "#a78bfa");
+    }
+
+    #[test]
+    fn status_color_unknown_falls_back() {
+        assert_eq!(status_color("delinquent"), "#94a3b8");
+        assert_eq!(status_color(""), "#94a3b8");
+    }
+
+    #[test]
+    fn status_color_returns_valid_hex() {
+        for s in &["occupied", "vacant", "maintenance", "notice", "unknown"] {
+            let c = status_color(s);
+            assert!(c.starts_with('#'), "expected hex color, got {c:?} for status {s:?}");
+            assert_eq!(c.len(), 7, "expected 6-char hex color, got {c:?}");
+        }
+    }
+
+    // ── status_label ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn status_label_all_known() {
+        assert_eq!(status_label("occupied"),    "Occupied");
+        assert_eq!(status_label("vacant"),      "Vacant");
+        assert_eq!(status_label("maintenance"), "Maintenance");
+        assert_eq!(status_label("notice"),      "Notice");
+    }
+
+    #[test]
+    fn status_label_unknown_falls_back() {
+        assert_eq!(status_label("delinquent"), "Unknown");
+        assert_eq!(status_label(""),           "Unknown");
+    }
+
+    #[test]
+    fn status_label_is_title_case() {
+        for s in &["occupied", "vacant", "maintenance", "notice"] {
+            let label = status_label(s);
+            let first = label.chars().next().unwrap();
+            assert!(first.is_uppercase(), "label {label:?} should start with uppercase");
+        }
+    }
+
+    // ── type_icon ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn type_icon_commercial() {
+        assert_eq!(type_icon("commercial"), "🏢");
+    }
+
+    #[test]
+    fn type_icon_mixed() {
+        assert_eq!(type_icon("mixed"), "🏙");
+    }
+
+    #[test]
+    fn type_icon_residential_fallback() {
+        // Both explicit "residential" and any unknown type get the residential icon
+        assert_eq!(type_icon("residential"), "🏘");
+        assert_eq!(type_icon("industrial"),  "🏘");
+        assert_eq!(type_icon(""),            "🏘");
+    }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]

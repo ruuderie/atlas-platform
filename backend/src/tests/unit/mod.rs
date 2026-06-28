@@ -17,3 +17,5 @@ pub mod pmc_marketplace_unit_tests;
 pub mod syndication_unit_tests;
 // AppInstance decomposition: stats response shape, slug dispatch, provision logic, DNS instructions
 pub mod app_instance_unit_tests;
+// Folio routing type system — FolioRole home_path, predicates, serde wire format
+pub mod folio_routing_unit_tests;

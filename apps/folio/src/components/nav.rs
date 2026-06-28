@@ -368,6 +368,163 @@ impl std::fmt::Display for FolioRoute {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests — FolioRoute routing invariants
+//
+// Run with: cargo test -p folio --lib components::nav::tests
+// No WASM, no async, no browser required.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── path() starts with / ──────────────────────────────────────────────────
+    // Regression guard: every route must produce an absolute path so that
+    // <a href=route.path()> works correctly in SSR.
+
+    #[test]
+    fn all_sampled_paths_are_absolute() {
+        let routes = [
+            FolioRoute::LandlordDashboard,
+            FolioRoute::LandlordAssets,
+            FolioRoute::LandlordMeridianConfig,
+            FolioRoute::LandlordAccountBilling,
+            FolioRoute::TenantDashboard,
+            FolioRoute::TenantMyLease,
+            FolioRoute::TenantInbox,
+            FolioRoute::TenantHousehold,
+            FolioRoute::VendorDashboard,
+            FolioRoute::PmcDashboard,
+            FolioRoute::PmcPortfolioMap,
+            FolioRoute::OwnerDashboard,
+            FolioRoute::StrHostDashboard,
+            FolioRoute::StrHostListingIndex,
+            FolioRoute::StrHostSyndication,
+            FolioRoute::Settings,
+            FolioRoute::Login,
+        ];
+        for r in routes {
+            let p = r.path();
+            assert!(
+                p.starts_with('/'),
+                "FolioRoute::{r:?}.path() = {p:?} — must start with '/'"
+            );
+        }
+    }
+
+    // ── Namespace dashboard paths ─────────────────────────────────────────────
+
+    #[test]
+    fn namespace_dashboard_paths() {
+        assert_eq!(FolioRoute::LandlordDashboard.path(), "/l");
+        assert_eq!(FolioRoute::TenantDashboard.path(),   "/t");
+        assert_eq!(FolioRoute::VendorDashboard.path(),   "/v");
+        assert_eq!(FolioRoute::PmcDashboard.path(),      "/pmc");
+        assert_eq!(FolioRoute::OwnerDashboard.path(),    "/o");
+        assert_eq!(FolioRoute::StrHostDashboard.path(),  "/s");
+        assert_eq!(FolioRoute::AgentDashboard.path(),    "/a");
+        assert_eq!(FolioRoute::BrokerDashboard.path(),   "/br");
+    }
+
+    // ── Key route paths ───────────────────────────────────────────────────────
+
+    #[test]
+    fn meridian_config_path_is_configure() {
+        // GAP-1 regression: nav footer must go to /l/meridian/configure, not /l/meridian
+        assert_eq!(FolioRoute::LandlordMeridianConfig.path(), "/l/meridian/configure");
+    }
+
+    #[test]
+    fn settings_path() {
+        assert_eq!(FolioRoute::Settings.path(), "/settings");
+    }
+
+    #[test]
+    fn pmc_map_path() {
+        assert_eq!(FolioRoute::PmcPortfolioMap.path(), "/pmc/map");
+    }
+
+    #[test]
+    fn str_listing_index_path() {
+        // GAP-5 regression: nav "Listings" must go to /s/listings (not /s/listings/:id)
+        assert_eq!(FolioRoute::StrHostListingIndex.path(), "/s/listings");
+    }
+
+    #[test]
+    fn str_listing_detail_path_has_param() {
+        assert_eq!(FolioRoute::StrHostListings.path(), "/s/listings/:id");
+    }
+
+    #[test]
+    fn str_syndication_path() {
+        assert_eq!(FolioRoute::StrHostSyndication.path(), "/s/syndication");
+    }
+
+    // ── is_namespace_root ─────────────────────────────────────────────────────
+
+    #[test]
+    fn dashboards_are_namespace_roots() {
+        assert!(FolioRoute::LandlordDashboard.is_namespace_root());
+        assert!(FolioRoute::TenantDashboard.is_namespace_root());
+        assert!(FolioRoute::VendorDashboard.is_namespace_root());
+        assert!(FolioRoute::PmcDashboard.is_namespace_root());
+        assert!(FolioRoute::OwnerDashboard.is_namespace_root());
+        assert!(FolioRoute::StrHostDashboard.is_namespace_root());
+        assert!(FolioRoute::AgentDashboard.is_namespace_root());
+        assert!(FolioRoute::BrokerDashboard.is_namespace_root());
+    }
+
+    #[test]
+    fn non_dashboards_are_not_namespace_roots() {
+        // Regression: adding a new route must not accidentally be marked as root
+        assert!(!FolioRoute::LandlordAssets.is_namespace_root());
+        assert!(!FolioRoute::TenantInbox.is_namespace_root());
+        assert!(!FolioRoute::TenantHousehold.is_namespace_root());
+        assert!(!FolioRoute::PmcPortfolioMap.is_namespace_root());
+        assert!(!FolioRoute::StrHostListingIndex.is_namespace_root());
+        assert!(!FolioRoute::Settings.is_namespace_root());
+        assert!(!FolioRoute::Login.is_namespace_root());
+    }
+
+    // ── No path collisions (sampled) ─────────────────────────────────────────
+
+    #[test]
+    fn sampled_paths_are_unique() {
+        let routes_and_paths = [
+            (FolioRoute::LandlordDashboard,      "/l"),
+            (FolioRoute::TenantDashboard,        "/t"),
+            (FolioRoute::VendorDashboard,        "/v"),
+            (FolioRoute::PmcDashboard,           "/pmc"),
+            (FolioRoute::OwnerDashboard,         "/o"),
+            (FolioRoute::StrHostDashboard,       "/s"),
+            (FolioRoute::Settings,               "/settings"),
+            (FolioRoute::PmcPortfolioMap,        "/pmc/map"),
+            (FolioRoute::StrHostListingIndex,    "/s/listings"),
+            (FolioRoute::LandlordMeridianConfig, "/l/meridian/configure"),
+            (FolioRoute::Login,                  "/login"),
+        ];
+        let paths: Vec<_> = routes_and_paths.iter().map(|(r, _)| r.path()).collect();
+        let unique: std::collections::HashSet<_> = paths.iter().collect();
+        assert_eq!(paths.len(), unique.len(), "path collision detected in sampled routes");
+    }
+
+    // ── Display impl delegates to path() ─────────────────────────────────────
+
+    #[test]
+    fn display_matches_path() {
+        let routes = [
+            FolioRoute::LandlordDashboard,
+            FolioRoute::Settings,
+            FolioRoute::TenantInbox,
+            FolioRoute::StrHostSyndication,
+        ];
+        for r in routes {
+            assert_eq!(format!("{r}"), r.path(), "Display != path() for {r:?}");
+        }
+    }
+}
+
 // ── NavItem — strongly typed ──────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
