@@ -1,9 +1,9 @@
 use axum::{Extension, Json, http::StatusCode};
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::entities::{session, user};
+use crate::entities::{passkey, session, user};
 use crate::services::rbac::RbacService;
 use crate::types::pm::FolioRole;
 
@@ -11,11 +11,15 @@ use crate::types::pm::FolioRole;
 /// Consumed by the Folio Leptos frontend `check_session()` server fn.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FolioMeResponse {
-    pub user_id:      Uuid,
-    pub tenant_id:    Option<Uuid>,
-    pub email:        String,
-    pub display_name: Option<String>,
-    pub folio_role:   FolioRole,
+    pub user_id:            Uuid,
+    pub tenant_id:          Option<Uuid>,
+    pub email:              String,
+    pub display_name:       Option<String>,
+    pub folio_role:         FolioRole,
+    /// True if the user has at least one registered passkey.
+    pub has_passkey:        bool,
+    /// True when all required onboarding steps are complete for this instance.
+    pub onboarding_complete: bool,
 }
 
 /// `GET /api/folio/me`
@@ -100,12 +104,65 @@ pub async fn get_folio_me(
         .to_owned();
     let display_name = if display_name.is_empty() { None } else { Some(display_name) };
 
+    // ── 6. Check passkey registration ────────────────────────────────────────
+    let has_passkey = passkey::Entity::find()
+        .filter(passkey::Column::UserId.eq(user_row.id))
+        .count(&db)
+        .await
+        .unwrap_or(0)
+        > 0;
+
+    // ── 7. Check onboarding completeness (non-fatal) ──────────────────────────
+    // Resolve the app_instance_id for this tenant so we can query onboarding.
+    let app_instance_id: Option<Uuid> = db
+        .query_one(sea_orm::Statement::from_sql_and_values(
+            sea_orm::DbBackend::Postgres,
+            r#"SELECT id FROM app_instance
+               WHERE tenant_id = $1
+                 AND app_type = 'folio'
+               ORDER BY created_at ASC
+               LIMIT 1"#,
+            [tid.into()],
+        ))
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.try_get::<Uuid>("", "id").ok());
+
+    let onboarding_complete = if let Some(ai) = app_instance_id {
+        // Quick check: does every required step for this app_instance have a
+        // completed_at in onboarding_progress?  We use a NOT EXISTS subquery
+        // to avoid pulling the full step list — non-fatal, defaults to false.
+        use sea_orm::{ConnectionTrait, DbBackend, Statement};
+        let row = db
+            .query_one(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                r#"SELECT NOT EXISTS (
+                    SELECT 1
+                    FROM onboarding_progress op
+                    WHERE op.app_instance_id = $1
+                      AND op.is_required = true
+                      AND op.completed_at IS NULL
+                ) AS all_done"#,
+                [ai.into()],
+            ))
+            .await
+            .ok()
+            .flatten();
+        row.and_then(|r| r.try_get::<bool>("", "all_done").ok())
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     Ok(Json(FolioMeResponse {
         user_id: user_row.id,
-        tenant_id,
+        tenant_id: Some(tid),
         email: user_row.email,
         display_name,
         folio_role,
+        has_passkey,
+        onboarding_complete,
     }))
 }
 

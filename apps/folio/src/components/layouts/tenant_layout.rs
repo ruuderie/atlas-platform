@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_router::components::Outlet;
 use crate::components::nav::{SidebarNav, TENANT_NAV};
 use crate::auth::SessionInfo;
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 
 /// Persistent shell for all /t/** tenant routes.
 /// Nav items driven by `TENANT_NAV` in `components/nav.rs`.
@@ -26,7 +27,26 @@ pub fn TenantLayout() -> impl IntoView {
                     }
                 })}
             </Suspense>
-            <main class="folio-main"><Outlet/></main>
+            <main class="folio-main">
+                // Onboarding banner — shown until passkey + wizard complete
+                <Suspense fallback=|| view! { <div/> }>
+                    {move || session.get().map(|r| {
+                        let status = match r {
+                            Ok(info) if info.onboarding_complete && info.has_passkey => {
+                                SetupStatus::Complete
+                            }
+                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(_) => SetupStatus::WizardInProgress {
+                                completed: 0,
+                                total: 7,
+                            },
+                            Err(_) => SetupStatus::Complete,
+                        };
+                        view! { <OnboardingBanner status=status /> }
+                    })}
+                </Suspense>
+                <Outlet/>
+            </main>
         </div>
     }
 }

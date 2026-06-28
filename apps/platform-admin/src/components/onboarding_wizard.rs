@@ -4,22 +4,28 @@ use crate::api::onboarding::{
     get_onboarding_status, skip_step, complete_step, dismiss_wizard,
 };
 
-// ──────────────────────────────────────────────────────────────────────────────
-// STEP STATUS DOT (progress indicator at the top)
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Step indicator dot — left rail ───────────────────────────────────────────
 
 #[component]
 fn StepDot(is_complete: bool, is_current: bool, is_required: bool) -> impl IntoView {
-    let class = if is_current {
-        "w-3 h-3 rounded-full bg-indigo-600 ring-2 ring-indigo-200"
-    } else if is_complete {
-        "w-3 h-3 rounded-full bg-green-500"
+    let (bg, border, inner) = if is_complete {
+        ("#22c55e", "#22c55e", view! { <span style="font-size:12px;color:#fff;">"✓"</span> }.into_any())
+    } else if is_current {
+        ("rgba(99,102,241,.2)", "#6366f1", view! { <div style="width:8px;height:8px;border-radius:50%;background:#818cf8;"></div> }.into_any())
     } else if is_required {
-        "w-3 h-3 rounded-full border-2 border-gray-300 bg-white"
+        ("rgba(255,255,255,.04)", "rgba(255,255,255,.15)", view! { <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);"></div> }.into_any())
     } else {
-        "w-3 h-3 rounded-full border-2 border-gray-200 bg-white opacity-60"
+        ("rgba(255,255,255,.02)", "rgba(255,255,255,.08)", view! { <div style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.1);"></div> }.into_any())
     };
-    view! { <div class=class></div> }
+    view! {
+        <div style=format!(
+            "width:32px;height:32px;border-radius:50%;display:flex;align-items:center;\
+             justify-content:center;flex-shrink:0;background:{};border:2px solid {};",
+            bg, border
+        )>
+            {inner}
+        </div>
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -555,17 +561,12 @@ fn OnboardingComplete(app_instance_id: String, tenant_id: String) -> impl IntoVi
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// MAIN ONBOARDING WIZARD COMPONENT
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Main Onboarding Wizard Component ────────────────────────────────────────
 
 #[component]
 pub fn OnboardingWizard(
     app_instance_id: String,
     tenant_id: String,
-    /// Called after the wizard is dismissed so the parent can refetch
-    /// `onboarding_status` and immediately show the persistent banner
-    /// without requiring a page reload.
     #[prop(optional)]
     on_dismiss: Option<Callback<()>>,
 ) -> impl IntoView {
@@ -585,7 +586,6 @@ pub fn OnboardingWizard(
         let cb = on_dismiss.clone();
         leptos::task::spawn_local(async move {
             let _ = dismiss_wizard(&ai).await;
-            // Notify the parent to refetch so the banner appears immediately
             if let Some(f) = cb {
                 f.run(());
             }
@@ -598,8 +598,13 @@ pub fn OnboardingWizard(
 
     view! {
         <Suspense fallback=move || view! {
-            <div class="fixed inset-0 bg-white z-50 flex items-center justify-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+            // Loading shimmer — dark overlay with spinner
+            <div style="position:fixed;inset:0;background:#0d1117;z-index:50;\
+                        display:flex;align-items:center;justify-content:center;">
+                <div style="width:48px;height:48px;border-radius:50%;\
+                            border:3px solid rgba(99,102,241,.3);\
+                            border-top-color:#6366f1;animation:spin 0.8s linear infinite;">
+                </div>
             </div>
         }>
             {move || {
@@ -610,8 +615,15 @@ pub fn OnboardingWizard(
                 match status.get() {
                     None => view! { <div></div> }.into_any(),
                     Some(Err(e)) => view! {
-                        <div class="fixed inset-0 bg-white z-50 flex items-center justify-center">
-                            <p class="text-red-600">"Failed to load onboarding: " {e}</p>
+                        <div style="position:fixed;inset:0;background:#0d1117;z-index:50;\
+                                    display:flex;align-items:center;justify-content:center;">
+                            <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);\
+                                        border-radius:16px;padding:32px;max-width:480px;text-align:center;">
+                                <div style="font-size:32px;margin-bottom:12px;">"⚠️"</div>
+                                <p style="color:#fca5a5;font-size:15px;">
+                                    "Failed to load setup status: " {e}
+                                </p>
+                            </div>
                         </div>
                     }.into_any(),
                     Some(Ok(s)) => {
@@ -623,6 +635,10 @@ pub fn OnboardingWizard(
                         let total = steps.len();
                         let current = current_step_index.get().min(total.saturating_sub(1));
                         let current_step = steps.get(current).cloned();
+                        let completed_count = steps.iter().filter(|s| s.is_complete).count();
+                        let progress_pct = if total > 1 {
+                            (completed_count as f32 / (total - 1) as f32 * 100.0) as u32
+                        } else { 0 };
 
                         let ai = ai_id.clone();
                         let tid = tenant_id_clone.clone();
@@ -630,7 +646,6 @@ pub fn OnboardingWizard(
                         let go_next = move || {
                             let new_idx = (current_step_index.get() + 1).min(total);
                             current_step_index.set(new_idx);
-                            // Re-fetch status to pick up data changes
                             status.refetch();
                         };
 
@@ -641,62 +656,176 @@ pub fn OnboardingWizard(
                         };
 
                         view! {
-                            <div class="fixed inset-0 bg-gray-50 z-50 overflow-y-auto">
-                                <div class="min-h-screen flex flex-col">
-                                    // ── Header ────────────────────────────
-                                    <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                                        <div class="flex items-center gap-3">
-                                            <span class="text-xl font-bold text-indigo-700">"⚡ Setup Wizard"</span>
-                                            <span class="text-sm text-gray-400">
-                                                "Step " {current + 1} " of " {total}
-                                            </span>
+                            // ── Full-screen dark glass takeover ───────────────────
+                            <div style="position:fixed;inset:0;z-index:50;overflow:hidden;\
+                                        background:linear-gradient(135deg,#070b11 0%,#0d1117 50%,#070b11 100%);\
+                                        display:flex;font-family:'Inter',system-ui,sans-serif;">
+
+                                // ── Left rail — step navigator ────────────────────
+                                <aside style="width:280px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.06);\
+                                              background:rgba(255,255,255,.015);display:flex;flex-direction:column;\
+                                              padding:40px 24px;overflow-y:auto;">
+
+                                    // Wordmark
+                                    <div style="margin-bottom:40px;">
+                                        <div style="font-size:11px;font-weight:700;letter-spacing:.18em;\
+                                                    text-transform:uppercase;color:rgba(165,180,252,.6);">
+                                            "Atlas Platform"
                                         </div>
-                                        // Progress dots
-                                        <div class="hidden sm:flex items-center gap-2">
-                                            {steps.iter().enumerate().map(|(i, step)| {
-                                                view! {
-                                                    <StepDot
-                                                        is_complete=step.is_complete
-                                                        is_current=i == current
-                                                        is_required=step.is_required
-                                                    />
-                                                }
-                                            }).collect_view()}
+                                        <div style="font-size:15px;font-weight:700;color:#e2e8f0;margin-top:4px;">
+                                            "Instance Setup"
                                         </div>
                                     </div>
 
-                                    // ── Body ──────────────────────────────
-                                    <div class="flex-1 flex items-center justify-center p-6">
-                                        <div class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8 space-y-6">
+                                    // Step list
+                                    <nav style="flex:1;">
+                                        {steps.iter().enumerate().map(|(i, step)| {
+                                            let is_done    = step.is_complete;
+                                            let is_curr    = i == current;
+                                            let is_req     = step.is_required;
+                                            let step_title = step.title.clone();
+
+                                            view! {
+                                                <div style=move || format!(
+                                                    "display:flex;align-items:center;gap:12px;\
+                                                     padding:10px 12px;border-radius:10px;\
+                                                     margin-bottom:4px;cursor:default;transition:background .15s;{}",
+                                                    if is_curr { "background:rgba(99,102,241,.12);" } else { "" }
+                                                )>
+                                                    <StepDot
+                                                        is_complete=is_done
+                                                        is_current=is_curr
+                                                        is_required=is_req
+                                                    />
+                                                    <div>
+                                                        <div style=move || format!(
+                                                            "font-size:13px;font-weight:{};{}",
+                                                            if is_curr { "600" } else { "400" },
+                                                            if is_done { "color:#22c55e;" }
+                                                            else if is_curr { "color:#e2e8f0;" }
+                                                            else { "color:#475569;" }
+                                                        )>
+                                                            {step_title.clone()}
+                                                        </div>
+                                                        <div style="font-size:11px;color:#334155;margin-top:1px;">
+                                                            {if is_done { "Complete" } else if is_req { "Required" } else { "Optional" }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }).collect_view()}
+                                    </nav>
+
+                                    // Progress block
+                                    <div style="margin-top:auto;padding-top:24px;\
+                                                border-top:1px solid rgba(255,255,255,.06);">
+                                        <div style="display:flex;justify-content:space-between;\
+                                                    font-size:11px;color:#475569;margin-bottom:8px;">
+                                            <span>"Progress"</span>
+                                            <span>{format!("{}/{} complete", completed_count, total)}</span>
+                                        </div>
+                                        <div style="height:4px;background:rgba(255,255,255,.06);\
+                                                    border-radius:4px;overflow:hidden;">
+                                            <div style=format!(
+                                                "height:100%;border-radius:4px;\
+                                                 background:linear-gradient(90deg,#6366f1,#818cf8);\
+                                                 transition:width .4s ease;width:{}%;",
+                                                progress_pct
+                                            )></div>
+                                        </div>
+                                    </div>
+                                </aside>
+
+                                // ── Main content area ─────────────────────────────
+                                <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+
+                                    // Top bar
+                                    <div style="height:64px;flex-shrink:0;\
+                                                border-bottom:1px solid rgba(255,255,255,.06);\
+                                                display:flex;align-items:center;\
+                                                justify-content:space-between;padding:0 32px;">
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <span style="font-size:13px;font-weight:600;color:#94a3b8;">
+                                                {format!("Step {} of {}", current + 1, total)}
+                                            </span>
+                                            {current_step.as_ref().map(|step| view! {
+                                                <span style="font-size:13px;color:#475569;">" — "</span>
+                                                <span style="font-size:13px;font-weight:600;color:#e2e8f0;">{step.title.clone()}</span>
+                                            })}
+                                        </div>
+                                        <button
+                                            id="ob-dismiss"
+                                            on:click=move |e| dismiss.get_value()(e)
+                                            style="background:none;border:none;color:#475569;\
+                                                   font-size:13px;cursor:pointer;\
+                                                   text-decoration:underline;padding:6px 10px;\
+                                                   transition:color .15s;"
+                                        >
+                                            "I'll finish this later"
+                                        </button>
+                                    </div>
+
+                                    // Step content
+                                    <div style="flex:1;overflow-y:auto;display:flex;\
+                                                align-items:flex-start;justify-content:center;\
+                                                padding:48px 32px;">
+                                        <div style="width:100%;max-width:580px;">
                                             {match &current_step {
                                                 None => view! {
-                                                    <OnboardingComplete app_instance_id=ai.clone() tenant_id=tid.clone() />
+                                                    <OnboardingComplete
+                                                        app_instance_id=ai.clone()
+                                                        tenant_id=tid.clone()
+                                                    />
                                                 }.into_any(),
                                                 Some(step) => {
                                                     let step = step.clone();
 
-                                                    // Step header
-                                                    let header = view! {
-                                                        <div class="space-y-1">
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="text-xs font-semibold uppercase tracking-widest text-indigo-500">
-                                                                    {if step.is_required { "Required" } else { "Optional" }}
-                                                                </span>
-                                                                {step.is_complete.then(|| view! {
-                                                                    <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">"✓ Complete"</span>
-                                                                })}
+                                                    // Step header with glassmorphic badge
+                                                    let header = {
+                                                        let req_label = if step.is_required { "Required" } else { "Optional" };
+                                                        let (badge_bg, badge_color) = if step.is_required {
+                                                            ("rgba(99,102,241,.15)", "#a5b4fc")
+                                                        } else {
+                                                            ("rgba(100,116,139,.12)", "#94a3b8")
+                                                        };
+                                                        view! {
+                                                            <div style="margin-bottom:28px;">
+                                                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                                                                    <span style=format!(
+                                                                        "font-size:11px;font-weight:700;\
+                                                                         text-transform:uppercase;letter-spacing:.1em;\
+                                                                         background:{};color:{};\
+                                                                         padding:3px 10px;border-radius:20px;",
+                                                                        badge_bg, badge_color
+                                                                    )>
+                                                                        {req_label}
+                                                                    </span>
+                                                                    {step.is_complete.then(|| view! {
+                                                                        <span style="font-size:11px;font-weight:700;\
+                                                                                     color:#22c55e;\
+                                                                                     background:rgba(34,197,94,.1);\
+                                                                                     padding:3px 10px;border-radius:20px;">
+                                                                            "✓ Complete"
+                                                                        </span>
+                                                                    })}
+                                                                </div>
+                                                                <h2 style="font-size:26px;font-weight:800;\
+                                                                           color:#f1f5f9;margin:0 0 8px;\
+                                                                           letter-spacing:-.3px;">
+                                                                    {step.title.clone()}
+                                                                </h2>
+                                                                <p style="font-size:14px;color:#64748b;line-height:1.65;margin:0;">
+                                                                    {step.description.clone()}
+                                                                </p>
                                                             </div>
-                                                            <h2 class="text-2xl font-bold text-gray-900">{step.title.clone()}</h2>
-                                                            <p class="text-gray-500">{step.description.clone()}</p>
-                                                        </div>
+                                                        }
                                                     };
 
                                                     let ai_s = ai.clone();
                                                     let tid_s = tid.clone();
-
                                                     let go_next_cb = Callback::new(move |_: ()| go_next());
 
-                                                    // Route to the right step component
+                                                    // Glassmorphic card wrapping the step form
                                                     let step_body = match step.id.as_str() {
                                                         "identity" => view! {
                                                             <IdentityStep
@@ -733,10 +862,15 @@ pub fn OnboardingWizard(
                                                     };
 
                                                     view! {
-                                                        <div class="space-y-6">
+                                                        <div>
                                                             {header}
-                                                            <hr class="border-gray-100" />
-                                                            {step_body}
+                                                            // Glassmorphic form card
+                                                            <div style="background:rgba(255,255,255,.03);\
+                                                                        border:1px solid rgba(255,255,255,.08);\
+                                                                        border-radius:16px;padding:28px;\
+                                                                        backdrop-filter:blur(8px);">
+                                                                {step_body}
+                                                            </div>
                                                         </div>
                                                     }.into_any()
                                                 }
@@ -744,22 +878,29 @@ pub fn OnboardingWizard(
                                         </div>
                                     </div>
 
-                                    // ── Footer navigation ─────────────────
-                                    <div class="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-between">
+                                    // Footer nav
+                                    <div style="height:64px;flex-shrink:0;\
+                                                border-top:1px solid rgba(255,255,255,.06);\
+                                                display:flex;align-items:center;\
+                                                justify-content:space-between;padding:0 32px;">
                                         <button
-                                            class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 disabled:opacity-30"
+                                            style=move || format!(
+                                                "background:rgba(255,255,255,.06);\
+                                                 border:1px solid rgba(255,255,255,.1);\
+                                                 color:#94a3b8;padding:10px 20px;border-radius:8px;\
+                                                 font-size:13px;cursor:pointer;transition:opacity .2s;{}",
+                                                if current_step_index.get() == 0 {
+                                                    "opacity:.3;pointer-events:none;"
+                                                } else { "" }
+                                            )
                                             disabled=move || current_step_index.get() == 0
                                             on:click=go_prev
                                         >
                                             "← Back"
                                         </button>
-                                        <button
-                                            id="ob-dismiss"
-                                            class="text-sm text-gray-400 hover:text-gray-600 underline"
-                                            on:click=move |e| dismiss.get_value()(e)
-                                        >
-                                            "I'll do this later →"
-                                        </button>
+                                        <span style="font-size:11px;color:#1e293b;">
+                                            "Your progress is saved automatically."
+                                        </span>
                                     </div>
                                 </div>
                             </div>

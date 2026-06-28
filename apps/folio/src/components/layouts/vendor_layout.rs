@@ -1,9 +1,14 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
+use crate::auth::SessionInfo;
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 
 /// Persistent shell for all /v/** vendor routes.
 #[component]
 pub fn VendorLayout() -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
+        .expect("Session context missing");
+
     view! {
         <div class="folio-layout folio-layout--vendor">
             <nav class="folio-nav folio-nav--vendor">
@@ -12,15 +17,26 @@ pub fn VendorLayout() -> impl IntoView {
                     <span class="nav-role-badge nav-role-badge--vendor">"Vendor Portal"</span>
                 </div>
                 <ul class="nav-links">
-                    <NavLink href="/v"              label="Dashboard"    icon="⊞"/>
-                    <NavLink href="/v/work-orders"  label="Work Orders"  icon="📝"/>
-                    <NavLink href="/v/invoices"     label="Invoices"     icon="🧾"/>
+                    <NavLink href="/v"             label="Dashboard"   icon="\u{229E}"/>
+                    <NavLink href="/v/work-orders" label="Work Orders" icon="\u{1F4DD}"/>
+                    <NavLink href="/v/invoices"    label="Invoices"    icon="\u{1F9FE}"/>
                 </ul>
                 <div class="nav-footer">
                     <LogoutButton/>
                 </div>
             </nav>
             <main class="folio-main">
+                <Suspense fallback=|| view! { <div/> }>
+                    {move || session.get().map(|r| {
+                        let status = match r {
+                            Ok(info) if info.onboarding_complete && info.has_passkey => SetupStatus::Complete,
+                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(_) => SetupStatus::WizardInProgress { completed: 0, total: 7 },
+                            Err(_) => SetupStatus::Complete,
+                        };
+                        view! { <OnboardingBanner status=status /> }
+                    })}
+                </Suspense>
                 <Outlet/>
             </main>
         </div>

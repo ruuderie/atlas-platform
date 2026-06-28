@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
 use crate::components::nav::{SidebarNav, LANDLORD_NAV};
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 use crate::auth::SessionInfo;
 
 /// Persistent shell for all /l/** landlord routes.
@@ -32,6 +33,23 @@ pub fn LandlordLayout() -> impl IntoView {
                 })}
             </Suspense>
             <main class="folio-main">
+                // Onboarding banner — shown until passkey + wizard complete
+                <Suspense fallback=|| view! { <div/> }>
+                    {move || session.get().map(|r| {
+                        let status = match r {
+                            Ok(info) if info.onboarding_complete && info.has_passkey => {
+                                SetupStatus::Complete
+                            }
+                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(_) => SetupStatus::WizardInProgress {
+                                completed: 0,
+                                total: 7,
+                            },
+                            Err(_) => SetupStatus::Complete, // don't block on auth errors
+                        };
+                        view! { <OnboardingBanner status=status /> }
+                    })}
+                </Suspense>
                 <Outlet/>
             </main>
         </div>

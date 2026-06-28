@@ -1,9 +1,14 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
+use crate::auth::SessionInfo;
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 
 /// Persistent shell for all /pmc/** property management company routes.
 #[component]
 pub fn PmcLayout() -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
+        .expect("Session context missing");
+
     view! {
         <div class="folio-layout folio-layout--pmc">
             <nav class="folio-nav folio-nav--pmc">
@@ -12,14 +17,25 @@ pub fn PmcLayout() -> impl IntoView {
                     <span class="nav-role-badge nav-role-badge--pmc">"PMC Dashboard"</span>
                 </div>
                 <ul class="nav-links">
-                    <NavLink href="/pmc"          label="Overview"    icon="⊞"/>
-                    <NavLink href="/pmc/clients"  label="Client Book" icon="🏢"/>
+                    <NavLink href="/pmc"         label="Overview"    icon="\u{229E}"/>
+                    <NavLink href="/pmc/clients" label="Client Book" icon="\u{1F3E2}"/>
                 </ul>
                 <div class="nav-footer">
                     <LogoutButton/>
                 </div>
             </nav>
             <main class="folio-main">
+                <Suspense fallback=|| view! { <div/> }>
+                    {move || session.get().map(|r| {
+                        let status = match r {
+                            Ok(info) if info.onboarding_complete && info.has_passkey => SetupStatus::Complete,
+                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(_) => SetupStatus::WizardInProgress { completed: 0, total: 7 },
+                            Err(_) => SetupStatus::Complete,
+                        };
+                        view! { <OnboardingBanner status=status /> }
+                    })}
+                </Suspense>
                 <Outlet/>
             </main>
         </div>

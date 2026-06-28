@@ -61,11 +61,17 @@ impl FolioRole {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SessionInfo {
-    pub user_id:      uuid::Uuid,
-    pub tenant_id:    Option<uuid::Uuid>,
-    pub email:        String,
-    pub display_name: Option<String>,
-    pub folio_role:   FolioRole,
+    pub user_id:             uuid::Uuid,
+    pub tenant_id:           Option<uuid::Uuid>,
+    pub email:               String,
+    pub display_name:        Option<String>,
+    pub folio_role:          FolioRole,
+    /// True if the user has at least one registered passkey.
+    #[serde(default)]
+    pub has_passkey:         bool,
+    /// True when all required onboarding steps are complete for their instance.
+    #[serde(default)]
+    pub onboarding_complete: bool,
 }
 
 // ── Server functions ──────────────────────────────────────────────────────────

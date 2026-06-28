@@ -1,11 +1,16 @@
 use leptos::prelude::*;
 use leptos_router::components::Outlet;
+use crate::auth::SessionInfo;
+use crate::components::onboarding_banner::{OnboardingBanner, SetupStatus};
 
 /// Persistent shell for all /o/** owner (beneficial property owner) routes.
 /// All routes behind this shell are read-only — owners cannot create, edit,
 /// or delete any resource.
 #[component]
 pub fn OwnerLayout() -> impl IntoView {
+    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
+        .expect("Session context missing");
+
     view! {
         <div class="folio-layout folio-layout--owner">
             <nav class="folio-nav folio-nav--owner">
@@ -14,14 +19,25 @@ pub fn OwnerLayout() -> impl IntoView {
                     <span class="nav-role-badge nav-role-badge--owner">"Owner Portal"</span>
                 </div>
                 <ul class="nav-links">
-                    <NavLink href="/o"             label="Overview"   icon="⊞"/>
-                    <NavLink href="/o/properties"  label="Properties" icon="🏠"/>
+                    <NavLink href="/o"            label="Overview"   icon="\u{229E}"/>
+                    <NavLink href="/o/properties" label="Properties" icon="\u{1F3E0}"/>
                 </ul>
                 <div class="nav-footer">
                     <LogoutButton/>
                 </div>
             </nav>
             <main class="folio-main">
+                <Suspense fallback=|| view! { <div/> }>
+                    {move || session.get().map(|r| {
+                        let status = match r {
+                            Ok(info) if info.onboarding_complete && info.has_passkey => SetupStatus::Complete,
+                            Ok(info) if !info.has_passkey => SetupStatus::PasskeyOnly,
+                            Ok(_) => SetupStatus::WizardInProgress { completed: 0, total: 7 },
+                            Err(_) => SetupStatus::Complete,
+                        };
+                        view! { <OnboardingBanner status=status /> }
+                    })}
+                </Suspense>
                 <Outlet/>
             </main>
         </div>
