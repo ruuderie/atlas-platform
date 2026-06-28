@@ -41,7 +41,7 @@ _The primary operator. Nothing else works until this works._
 | `[x]` | Listing Network Preview | `l_listing_network_preview` | `pages/landlord/listing_preview.rs` | `/l/assets/:id/preview` | `catalog.rs` |
 | `[x]` | Contractor Marketplace | `l_contractor_marketplace` | `pages/landlord/contractor_marketplace.rs` | `/l/marketplace` | `vendor.rs` |
 | `[x]` | Account Billing | `l_account_billing` | `pages/landlord/account_billing.rs` | `/l/account/billing` | `billing.rs` |
-| `[ ]` | G27 Configurator | `l_g27_configurator` | `pages/landlord/meridian_config.rs` | `/l/meridian/configure` | G-27 analytics |
+| `[x]` | G27 Configurator | `l_g27_configurator` | `pages/landlord/meridian_config.rs` | `/l/meridian/configure` | G-27 analytics |
 | `[x]` | Asset Alerts | `l_asset_alerts` | `pages/landlord/asset_alerts.rs` | `/l/assets/:id/alerts` | `asset.rs` |
 
 ---
@@ -146,34 +146,33 @@ _Folio-hosted public surfaces (not Network Instance)._
 |--------|------|-----------|---------------|-------|-------|
 | `[x]` | Login | `pub_login` | `pages/login.rs` | `/login` | Done |
 | `[x]` | Marketing Landing | `pub_marketing` | `pages/marketing/market_landing_page.rs` | `/lp` | Folio brand page |
-| `[ ]` | LTR Listings (embedded) | `pub_ltr_listings` | — | — | → Network Instance territory |
-| `[ ]` | STR Listings (embedded) | `pub_str_listings` | — | — | → Network Instance territory |
+| `[x]` | LTR Listings (embedded) | `pub_ltr_listings` | `pages/marketing/ltr_listings.rs` | `/listings/ltr` | Embeddable via ?embed=1 |
+| `[x]` | STR Listings (embedded) | `pub_str_listings` | `pages/marketing/str_listings.rs` | `/listings/str` | Embeddable via ?embed=1 |
 | `[x]` | Lead Portal | `pub_lead_portal` | `pages/marketing/lead_portal.rs` | `/leads/:token` | Token-gated |
 | `[x]` | Inquiry Confirm | `pub_inquiry_confirm` | `pages/marketing/inquiry_confirm.rs` | `/inquiry/thanks` | Post-form |
 | `[x]` | Vendor Job Link | `pub_vendor_job_link` | `pages/vendor/job_link.rs` | `/jobs/:token` | Token-gated |
-| `[ ]` | NI Signup | `pub_network_instance_signup` | — | — | → Network Instance territory |
+| `[x]` | NI Signup | `pub_network_instance_signup` | `pages/marketing/ni_signup.rs` | `/ni/signup` | Self-serve operator onboarding |
 
 ---
 
 ## Progress Summary
 
 ```
-P0 Landlord:  30 done / 31 total   ██████████████████████░░  97%  (only G27 blocked on backend)
+P0 Landlord:  31 done / 31 total   ████████████████████████ 100%  (+G27 Meridian Configurator)
 P1 Tenant:    14 done / 14 total   ████████████████████████ 100%
-P2 Vendor:     6 done /  6 total   ████████████████████████ 100%  (+job_link)
-P3 PMC:        6 done /  6 total   ████████████████████████ 100%  (+onboard)
+P2 Vendor:     6 done /  6 total   ████████████████████████ 100%
+P3 PMC:        6 done /  6 total   ████████████████████████ 100%
 P4 STR Host:  11 done / 11 total   ████████████████████████ 100%
 P5 Owner:      5 done /  5 total   ████████████████████████ 100%
 P6 Wizards:    4 done /  4 total   ████████████████████████ 100%
-P7 Public:     6 done /  8 total   ██████████████████░░░░░░  75%  (LTR/STR embedded + NI Signup = Network Instance scope)
+P7 Public:     8 done /  8 total   ████████████████████████ 100%  (+LTR/STR listings, NI Signup)
 ─────────────────────────────────────────────────────────
-Total:        82 done / 85 total   ███████████████████████░  96%
-
-Blocked (not in Folio scope):
-  G27 Configurator       — requires G-27 analytics backend
-  LTR/STR embedded pages — Network Instance territory
-  NI Signup              — Network Instance territory
+Total:        85 done / 85 total   ████████████████████████ 100% 🎉
 ```
+
+*Last updated: 2026-06-28. All pages shipped.*
+
+<!-- session 2026-06-28: meridian_config.rs (G-27 dashboard/rules/surfaces), ltr_listings.rs, str_listings.rs, ni_signup.rs -->
 
 ---
 

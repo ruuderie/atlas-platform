@@ -106,10 +106,14 @@ use crate::pages::str_host::{
 use crate::pages::marketing::renter_application::RenterApplication;
 use crate::pages::marketing::lead_portal::LeadPortal;
 use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
+use crate::pages::marketing::ltr_listings::LtrListings;
+use crate::pages::marketing::str_listings::StrListings;
+use crate::pages::marketing::ni_signup::NiSignup;
 use crate::pages::vendor::onboard::VendorOnboard;
 use crate::pages::vendor::job_link::VendorJobLink;
 use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
 use crate::pages::pmc::onboard::PmcOnboard;
+use crate::pages::landlord::meridian_config::MeridianConfigurator;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -192,6 +196,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/syndication")   view=LandlordSyndication/>
                     <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
+                    <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
                 </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
@@ -266,6 +271,9 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/inquiry/thanks")     view=InquiryConfirm/>
                 <Route path=path!("/jobs/:token")        view=VendorJobLink/>
                 <Route path=path!("/pmc/onboard")        view=PmcOnboard/>
+                <Route path=path!("/listings/ltr")       view=LtrListings/>
+                <Route path=path!("/listings/str")       view=StrListings/>
+                <Route path=path!("/ni/signup")          view=NiSignup/>
                 // ── Agent namespace /a/** ──────────────────────────────────────
                 // Only valid when folio_mode = "brokerage" on the instance.
                 // Backend API guards enforce the folio_mode constraint.

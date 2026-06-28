@@ -4101,3 +4101,117 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .pmc-market-chip input { accent-color:var(--cobalt); }
 .pmc-onboard-platform-info { background:rgba(10,132,255,.07); border:1px solid rgba(10,132,255,.2); border-radius:.75rem; padding:.85rem 1rem; margin:.75rem 0; }
 .pmc-onboard-plan-badge { font-size:.8rem; font-weight:700; color:var(--cobalt); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   G-27 Meridian Configurator
+   ───────────────────────────────────────────────────────────────────────────── */
+.g27-dash { display:flex; flex-direction:column; gap:0; }
+.g27-template-bar { display:flex; align-items:center; gap:.75rem; margin-bottom:1rem; }
+.g27-template-label { font-size:.8rem; font-weight:600; color:var(--on-surface-variant); }
+.g27-template-select { max-width:20rem; }
+.g27-dim-table { display:flex; flex-direction:column; gap:.4rem; }
+.g27-dim-row { display:flex; align-items:center; gap:1rem; padding:.5rem .75rem; background:rgba(255,255,255,.03); border-radius:.5rem; }
+.g27-dim-name { flex:1; font-size:.85rem; }
+.g27-table-header { display:grid; grid-template-columns:4rem 1fr 10rem 6rem; gap:.75rem; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--on-surface-variant); padding:.5rem .75rem; }
+.g27-leader-table { display:flex; flex-direction:column; gap:.3rem; }
+.g27-leader-row { display:grid; grid-template-columns:3rem 1fr 8rem 4rem; align-items:center; gap:.75rem; padding:.5rem .75rem; background:rgba(255,255,255,.03); border-radius:.5rem; font-size:.85rem; }
+.g27-rank-badge { font-weight:800; color:var(--cobalt); font-size:.88rem; }
+.g27-entity-label { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.g27-anom-list { display:flex; flex-direction:column; gap:.5rem; }
+.g27-anom-row { display:flex; align-items:flex-start; gap:.75rem; background:rgba(248,113,113,.06); border:1px solid rgba(248,113,113,.15); border-radius:.65rem; padding:.6rem .85rem; }
+.g27-anom-icon { color:#f87171; font-size:1rem; margin-top:.1rem; flex-shrink:0; }
+.g27-anom-body { flex:1; min-width:0; }
+.g27-anom-entity { font-size:.85rem; font-weight:600; }
+.g27-anom-msg { font-size:.78rem; color:var(--on-surface-variant); margin-top:.15rem; }
+.g27-anom-right { display:flex; flex-direction:column; align-items:flex-end; gap:.3rem; flex-shrink:0; }
+
+/* G-27 Display Rules */
+.g27-rules {}
+.g27-rules-table { display:flex; flex-direction:column; gap:.3rem; }
+.g27-rules-header { grid-template-columns:3rem 1fr 1fr 1fr 3rem 3rem !important; }
+.g27-rule-row { display:grid; grid-template-columns:3rem 1fr 1fr 1fr 3rem 3rem; align-items:center; gap:.75rem; padding:.6rem .75rem; background:rgba(255,255,255,.03); border-radius:.5rem; font-size:.82rem; }
+.g27-rule-priority { font-weight:700; color:var(--cobalt); }
+.g27-rule-trigger { text-transform:capitalize; }
+.g27-rule-cond { font-family:monospace; color:var(--on-surface-variant); font-size:.75rem; }
+.g27-rule-action { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* G-27 Surfaces */
+.g27-surfaces {}
+.g27-surface-list { display:flex; flex-direction:column; gap:.5rem; }
+.g27-surface-row { display:flex; align-items:center; gap:1rem; background:rgba(255,255,255,.04); border-radius:.75rem; padding:.85rem 1rem; }
+.g27-surface-info { flex:1; min-width:0; }
+.g27-surface-label { font-weight:600; font-size:.9rem; }
+.g27-surface-desc { font-size:.78rem; color:var(--on-surface-variant); margin-top:.15rem; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Listings pages (LTR + STR)
+   ───────────────────────────────────────────────────────────────────────────── */
+.listings-standalone { min-height:100vh; background:var(--surface); }
+.listings-embed { background:transparent; }
+.listings-hero { text-align:center; padding:3rem 1.5rem 2rem; background:linear-gradient(135deg,rgba(10,132,255,.12),rgba(34,197,94,.06)); border-bottom:1px solid rgba(255,255,255,.06); }
+.listings-hero-title { font-size:2rem; font-weight:800; }
+.listings-hero-sub { font-size:1rem; color:var(--on-surface-variant); margin-top:.4rem; }
+.listings-filter-bar { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; padding:1rem 1.25rem; background:rgba(255,255,255,.03); border-bottom:1px solid rgba(255,255,255,.06); position:sticky; top:0; z-index:20; backdrop-filter:blur(8px); }
+.listings-filter-group { display:flex; flex-direction:column; }
+.listings-filter-input { min-width:10rem; }
+.listings-search-btn { flex-shrink:0; }
+.listings-result-count { font-size:.82rem; color:var(--on-surface-variant); padding:.75rem 1.25rem .25rem; }
+.listings-loading { text-align:center; padding:3rem; color:var(--on-surface-variant); }
+.listings-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; padding:1rem 1.25rem; }
+.listing-card { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:1rem; overflow:hidden; display:flex; flex-direction:column; transition:box-shadow .15s; position:relative; }
+.listing-card:hover { box-shadow:0 4px 24px rgba(0,0,0,.25); }
+.listing-card--featured { border-color:rgba(251,191,36,.3); box-shadow:0 0 0 1px rgba(251,191,36,.15); }
+.listing-card--unavail { opacity:.6; }
+.listing-card-featured-badge { position:absolute; top:.5rem; left:.5rem; background:rgba(251,191,36,.2); color:#fbbf24; font-size:.7rem; font-weight:700; padding:.2rem .5rem; border-radius:9999px; }
+.listing-card-unavail-overlay { position:absolute; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; font-size:.8rem; color:#f87171; font-weight:600; z-index:2; }
+.listing-card-photo { height:9rem; background:linear-gradient(135deg,rgba(10,132,255,.1),rgba(139,92,246,.08)); display:flex; align-items:center; justify-content:center; position:relative; }
+.listing-card-type-icon { font-size:3.5rem; }
+.listing-card-body { padding:.75rem 1rem; flex:1; display:flex; flex-direction:column; gap:.3rem; }
+.listing-card-address { font-weight:600; font-size:.92rem; }
+.listing-card-city { font-size:.78rem; color:var(--on-surface-variant); }
+.listing-card-meta { display:flex; gap:.35rem; flex-wrap:wrap; }
+.listing-meta-chip { font-size:.72rem; padding:.2rem .45rem; border-radius:9999px; background:rgba(255,255,255,.07); }
+.listing-card-amenities { display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.25rem; }
+.listing-amenity-chip { font-size:.7rem; padding:.15rem .4rem; border-radius:9999px; background:rgba(10,132,255,.1); color:var(--cobalt); }
+.listing-card-footer { padding:.65rem 1rem; border-top:1px solid rgba(255,255,255,.06); display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.listing-card-rent { font-size:1rem; font-weight:800; color:#4ade80; }
+.listing-card-avail { font-size:.75rem; color:var(--on-surface-variant); }
+.listing-card-actions { display:flex; gap:.4rem; }
+.listings-empty { display:flex; flex-direction:column; align-items:center; gap:.75rem; padding:3rem; color:var(--on-surface-variant); text-align:center; }
+.listings-empty-icon { font-size:3rem; }
+.listings-empty-title { font-size:1.1rem; font-weight:700; color:var(--on-surface); }
+.listings-pagination { display:flex; align-items:center; justify-content:center; gap:1rem; padding:1rem; }
+.listings-page-info { font-size:.85rem; color:var(--on-surface-variant); }
+.listings-footer { text-align:center; padding:1.5rem; font-size:.8rem; color:var(--on-surface-variant); border-top:1px solid rgba(255,255,255,.06); }
+.listings-footer-link { color:var(--cobalt); text-decoration:none; }
+/* STR-specific */
+.str-filter-bar { background:rgba(10,132,255,.04); }
+.str-listing-card-photo { height:11rem; background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(10,132,255,.1)); }
+.str-listing-icon { font-size:4rem; }
+.str-listing-tag { position:absolute; top:.5rem; right:.5rem; font-size:.68rem; font-weight:700; padding:.2rem .5rem; border-radius:9999px; background:rgba(139,92,246,.2); color:#a78bfa; }
+.str-listing-name { font-size:1rem !important; }
+.str-listing-beds { font-size:.78rem; color:var(--on-surface-variant); }
+.str-listing-rating { display:flex; align-items:center; gap:.35rem; margin-top:.2rem; }
+.str-stars { color:#fbbf24; font-size:.85rem; }
+.str-rev-count { color:var(--on-surface-variant); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   NI Signup
+   ───────────────────────────────────────────────────────────────────────────── */
+.ni-domain-preview { font-size:.78rem; color:var(--cobalt); margin-top:.35rem; font-weight:600; }
+.ni-usecase-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.ni-usecase-card { display:flex; flex-direction:column; align-items:center; gap:.4rem; padding:1.25rem .75rem; background:rgba(255,255,255,.04); border:1.5px solid rgba(255,255,255,.08); border-radius:.75rem; cursor:pointer; transition:all .15s; text-align:center; }
+.ni-usecase-card:hover { background:rgba(255,255,255,.08); }
+.ni-usecase-card--active { background:rgba(10,132,255,.12); border-color:rgba(10,132,255,.4); }
+.ni-usecase-icon { font-size:2rem; }
+.ni-usecase-label { font-weight:700; font-size:.92rem; }
+.ni-usecase-desc { font-size:.75rem; color:var(--on-surface-variant); }
+.ni-plan-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.65rem; }
+.ni-plan-card { display:flex; flex-direction:column; gap:.35rem; padding:.85rem 1rem; background:rgba(255,255,255,.04); border:1.5px solid rgba(255,255,255,.08); border-radius:.75rem; cursor:pointer; transition:all .15s; }
+.ni-plan-card:hover { background:rgba(255,255,255,.08); }
+.ni-plan-card--active { background:rgba(10,132,255,.12); border-color:rgba(10,132,255,.4); }
+.ni-plan-name { font-weight:700; font-size:.9rem; }
+.ni-plan-price { font-size:1.2rem; font-weight:800; color:#4ade80; }
+.ni-plan-desc { font-size:.72rem; color:var(--on-surface-variant); line-height:1.4; }
+.ni-signup-next { display:flex; flex-direction:column; gap:.5rem; margin:1rem 0; text-align:left; }
+.ni-signup-next-step { display:flex; align-items:center; gap:.65rem; font-size:.85rem; }
