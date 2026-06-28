@@ -34,9 +34,9 @@ use crate::entities::{atlas_ws_message, atlas_ws_room, user};
 pub fn routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/admin/support/threads",             get(list_threads))
-        .route("/api/admin/support/threads/:id",         get(get_thread))
-        .route("/api/admin/support/threads/:id/reply",   post(reply_thread))
-        .route("/api/admin/support/threads/:id/close",   put(close_thread))
+        .route("/api/admin/support/threads/{id}",        get(get_thread))
+        .route("/api/admin/support/threads/{id}/reply",  post(reply_thread))
+        .route("/api/admin/support/threads/{id}/close",  put(close_thread))
 }
 
 // ── Query params ──────────────────────────────────────────────────────────────
