@@ -11,3 +11,4 @@ pub mod verify;
 pub mod not_found;
 pub mod marketing;  // zero-auth SSR landing pages served at /lp/*
 
+pub mod settings;

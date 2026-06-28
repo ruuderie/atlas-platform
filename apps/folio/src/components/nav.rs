@@ -218,7 +218,8 @@ pub enum FolioRoute {
     StrHostDashboard,
     StrHostCalendar,
     StrHostReservations,
-    StrHostListings,
+    StrHostListingIndex,   // /s/listings  (list view — NAV target)
+    StrHostListings,       // /s/listings/:id  (detail — linked from cards)
     StrHostPricing,
     StrHostChannels,
     StrHostMessages,
@@ -316,6 +317,7 @@ impl FolioRoute {
             Self::StrHostDashboard       => "/s",
             Self::StrHostCalendar        => "/s/calendar",
             Self::StrHostReservations    => "/s/reservations",
+            Self::StrHostListingIndex    => "/s/listings",
             Self::StrHostListings        => "/s/listings/:id",
             Self::StrHostPricing         => "/s/pricing",
             Self::StrHostChannels        => "/s/channels",
@@ -450,7 +452,7 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
         },
     ],
     footer_items: &[
-        NavItem::new(FolioRoute::LandlordMeridian,       "Analytics",  NavIcon::BarChart),
+        NavItem::new(FolioRoute::LandlordMeridianConfig, "Analytics",  NavIcon::BarChart),
         NavItem::new(FolioRoute::LandlordAccountBilling, "Account",    NavIcon::ManageAccounts),
         NavItem::new(FolioRoute::Settings,               "Settings",   NavIcon::Settings),
     ],
@@ -568,7 +570,7 @@ static STR_HOST_NAV: NavConfig = NavConfig {
             NavItem::new(FolioRoute::StrHostDashboard,    "Dashboard",    NavIcon::Home),
             NavItem::new(FolioRoute::StrHostCalendar,     "Calendar",     NavIcon::CalendarMonth),
             NavItem::new(FolioRoute::StrHostReservations, "Reservations", NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::StrHostListings,     "Listings",     NavIcon::Apartment),
+            NavItem::new(FolioRoute::StrHostListingIndex,  "Listings",     NavIcon::Apartment),
             NavItem::new(FolioRoute::StrHostPricing,      "Pricing",      NavIcon::Sell),
             NavItem::new(FolioRoute::StrHostChannels,     "Channels",     NavIcon::SyncAlt),
             NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),

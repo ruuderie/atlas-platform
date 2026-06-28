@@ -77,6 +77,7 @@ use crate::pages::pmc::{
     client_detail::PmcClientDetail,
     maintenance_dispatch::PmcMaintenanceDispatch,
     owner_statements::PmcOwnerStatements,
+    portfolio_map::PmcPortfolioMap,
 };
 
 // Owner pages
@@ -93,6 +94,7 @@ use crate::pages::str_host::{
     dashboard::StrHostDashboard,
     calendar::StrCalendar,
     reservations::StrReservationManifest,
+    listing_index::StrListingIndex,
     listing::StrListingDetail,
     pricing::StrPricingRules,
     channels::StrChannelManager,
@@ -114,6 +116,7 @@ use crate::pages::vendor::job_link::VendorJobLink;
 use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
 use crate::pages::pmc::onboard::PmcOnboard;
 use crate::pages::landlord::meridian_config::MeridianConfigurator;
+use crate::pages::settings::Settings;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -241,6 +244,8 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/reviews")          view=StrReviews/>
                     <Route path=path!("/incidents")        view=StrIncidents/>
                     <Route path=path!("/violations/new")   view=StrViolationFiling/>
+                    <Route path=path!("/listings")         view=StrListingIndex/>      // index — nav target
+                    // /s/listings/:id  — detail, linked from cards (no shell nav item)
                 </ParentRoute>
 
                 // ── PMC namespace /pmc/** ──────────────────────────────────────
@@ -252,6 +257,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/clients/:id") view=PmcClientDetail/>
                     <Route path=path!("/maintenance") view=PmcMaintenanceDispatch/>
                     <Route path=path!("/statements")  view=PmcOwnerStatements/>
+                    <Route path=path!("/map")         view=PmcPortfolioMap/>
                 </ParentRoute>
 
                 // ── Owner namespace /o/** ──────────────────────────────────────
@@ -274,6 +280,9 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/listings/ltr")       view=LtrListings/>
                 <Route path=path!("/listings/str")       view=StrListings/>
                 <Route path=path!("/ni/signup")          view=NiSignup/>
+                // ── Shared authenticated routes (all roles) ────────────────────
+                <Route path=path!("/settings")           view=Settings/>
+
                 // ── Agent namespace /a/** ──────────────────────────────────────
                 // Only valid when folio_mode = "brokerage" on the instance.
                 // Backend API guards enforce the folio_mode constraint.
