@@ -105,7 +105,10 @@ pub fn InternalInstancesPage() -> impl IntoView {
             tenant_name:    name.trim().to_lowercase().replace(' ', "-"),
             display_name:   name.trim().to_string(),
             domain:         if domain.trim().is_empty() {
-                                format!("{}.internal.atlasos.io", name.trim().to_lowercase().replace(' ', "-"))
+                                // Use *.dev.atlas.oply.co — covered by the wildcard cert
+                                // already provisioned in the k3s ingress. Custom domains
+                                // require a separate ingress manifest + cert-manager cert.
+                                format!("{}.dev.atlas.oply.co", name.trim().to_lowercase().replace(' ', "-"))
                             } else {
                                 domain.trim().to_string()
                             },
@@ -404,13 +407,16 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                                 </select>
                                                             </div>
                                                             <div class="flex items-center gap-2">
-                                                                <a href=format!("/apps/{}/instance", instance_id)
+                                                                <a href={
+                                                                    let tid = app.tenant_id.clone();
+                                                                    format!("/apps/{}/instance", tid)
+                                                                }
                                                                     class="flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-high/40 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
                                                                 >
                                                                     <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="5" y1="8" x2="11" y2="8"/><line x1="8" y1="5" x2="8" y2="11"/></svg>
                                                                     "Manage"
                                                                 </a>
-                                                                <a href=format!("/network/{}", iid2)
+                                                                <a href=format!("/internal-instances/{}/config", iid2)
                                                                     class="flex items-center gap-1.5 px-3 py-1.5 border border-outline-variant/30 rounded text-[10px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
                                                                 >
                                                                     "Config"

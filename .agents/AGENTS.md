@@ -1043,3 +1043,26 @@ ssh -o StrictHostKeyChecking=no $SERVER 'sudo -u postgres psql -d atlas_dev -c "
 - `atlas-dev` — dev environment (`dev.atlas.oply.co`)
 - `atlas-platform` — UAT / legacy environment
 
+
+---
+
+## Infrastructure & Server Configuration
+
+All server, cluster, and NixOS configuration lives in:
+
+```
+/Users/oply/src/git/orbit_/NixForge/
+```
+
+Key files:
+- `flake.nix` — NixOS system configuration (nginx SNI routing, k3s, PostgreSQL, Woodpecker CI, Grafana/Loki/Prometheus)
+- `darwin-configuration.nix` — local macOS dev machine config
+- `docs/` — architecture decisions, k3s-nginx SNI routing, Woodpecker/Dagger pipeline docs
+- `secrets/` — secret management (do not hardcode)
+
+### Domain routing architecture
+- Host-level nginx uses `ssl_preread` (Layer 4) to route known domains (e.g. `ci.oply.co`) to local services
+- All other traffic is TCP-proxied transparently to the k3s ingress controller
+- Wildcard cert for `*.dev.atlas.oply.co` is provisioned via cert-manager inside k3s
+- New internal instance domains MUST use `{slug}.dev.atlas.oply.co` to be covered by the wildcard cert
+- Custom domains require a new Ingress manifest + cert-manager Certificate resource in k3s

@@ -526,6 +526,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/apps/:id/instance") view=AppInstance />
                         <Route path=path!("/clients") view=crate::pages::clients::index::ClientsPage />
                         <Route path=path!("/internal-instances") view=crate::pages::internal_instances::index::InternalInstancesPage />
+                        <Route path=path!("/internal-instances/:id/config") view=crate::pages::internal_instances::config::InternalInstanceConfig />
                         // /network redirects to /clients for backwards compatibility
                         <Route path=path!("/network") view=|| view! {
                             <crate::components::redirect::Redirect to="/clients" />
