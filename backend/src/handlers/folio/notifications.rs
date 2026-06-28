@@ -68,11 +68,11 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/folio/notifications",                get(list_notifications))
         .route("/api/folio/notifications/unread-count",   get(get_unread_count))
         .route("/api/folio/notifications/read-all",       post(mark_all_read))
-        .route("/api/folio/notifications/:id/read",       post(mark_read))
-        .route("/api/folio/notifications/:id",            delete(dismiss))
+        .route("/api/folio/notifications/{id}/read",      post(mark_read))
+        .route("/api/folio/notifications/{id}",           delete(dismiss))
         // User channel prefs
         .route("/api/folio/notification-prefs",           get(list_prefs))
-        .route("/api/folio/notification-prefs/:channel",  put(upsert_pref).delete(delete_pref))
+        .route("/api/folio/notification-prefs/{channel}", put(upsert_pref).delete(delete_pref))
         // Tenant channel settings (operator/admin)
         .route("/api/folio/notification-channel-settings", get(get_channel_settings).put(upsert_channel_setting))
 }
