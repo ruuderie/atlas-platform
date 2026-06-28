@@ -75,27 +75,79 @@ pub fn InternalInstancesPage() -> impl IntoView {
     let new_purpose = RwSignal::new("demo".to_string());
     let new_app_type = RwSignal::new("folio".to_string());
 
+    let is_creating = RwSignal::new(false);
+    let create_error: RwSignal<Option<String>> = RwSignal::new(None);
+
     let handle_create = move |_| {
-        let name = new_name.get();
+        let name = new_name.get_untracked();
+        let domain = new_domain.get_untracked();
+        let app_type = new_app_type.get_untracked();
+        let purpose = new_purpose.get_untracked();
+
         if name.trim().is_empty() {
-            toast.show_toast("Error", "Instance name is required.", "error");
+            create_error.set(Some("Instance name is required.".into()));
             return;
         }
-        show_new_modal.set(false);
-        new_name.set(String::new());
-        new_domain.set(String::new());
-        // Refresh the instances list so the new entry appears.
-        refresh.update(|n| *n += 1);
-        toast.show_toast(
-            "Instance Queued",
-            "Provisioning has started. This page will update when the instance is ready — it typically takes 1-2 minutes.",
-            "success",
-        );
-        // Stay on this page; the refreshed list will show the new instance with a
-        // 'provisioning' status badge so the user can track progress.
-        let navigate = leptos_router::hooks::use_navigate();
-        navigate("/internal-instances", Default::default());
+
+        is_creating.set(true);
+        create_error.set(None);
+
+        // Map UI alias to backend canonical app_type value.
+        let canonical_app_type = match app_type.as_str() {
+            "folio"    => "property_management",
+            "meridian" => "meridian",
+            _          => "anchor",
+        };
+
+        // Build a minimal provision payload. Internal instances don't need a
+        // real admin user — use a platform sentinel email that the backend accepts.
+        let payload = crate::api::provision::ProvisionTenantPayload {
+            tenant_name:    name.trim().to_lowercase().replace(' ', "-"),
+            display_name:   name.trim().to_string(),
+            domain:         if domain.trim().is_empty() {
+                                format!("{}.internal.atlasos.io", name.trim().to_lowercase().replace(' ', "-"))
+                            } else {
+                                domain.trim().to_string()
+                            },
+            admin_email:    "platform-internal@atlasos.io".to_string(),
+            admin_first_name: "Atlas".to_string(),
+            admin_last_name:  "Platform".to_string(),
+            apps:           Some(vec![canonical_app_type.to_string()]),
+            bypass_dns_verification: Some(true),
+        };
+
+        let toast_ref = toast.clone();
+        leptos::task::spawn_local(async move {
+            match crate::api::provision::provision_tenant(payload).await {
+                Ok(resp) => {
+                    is_creating.set(false);
+                    show_new_modal.set(false);
+                    new_name.set(String::new());
+                    new_domain.set(String::new());
+                    refresh.update(|n| *n += 1);
+
+                    // Set purpose label on the deployment config now that we have the tenant_id.
+                    let tid = resp.tenant_id.to_string();
+                    let p = purpose.clone();
+                    if p != "none" {
+                        let _ = crate::api::admin::set_deployment_purpose(&tid, Some(p.as_str())).await;
+                    }
+
+                    toast_ref.show_toast(
+                        "Instance Created",
+                        &format!("Provisioned successfully. Setup URL: {}", resp.setup_url),
+                        "success",
+                    );
+                }
+                Err(e) => {
+                    is_creating.set(false);
+                    // Surface the real error inside the modal — don't close it.
+                    create_error.set(Some(e));
+                }
+            }
+        });
     };
+
 
     // Derived: all apps filtered to internal_operator mode
     let all_internal = Signal::derive(move || {
@@ -390,13 +442,20 @@ pub fn InternalInstancesPage() -> impl IntoView {
                             <p style="font-size:11px;color:var(--amber);font-weight:600;margin:0 0 2px;">"Platform Team Only"</p>
                             <p class="muted" style="font-size:11px;margin:0;">"Internal instances are provisioned by the HipTen platform team and do not appear in the Clients billing registry."</p>
                         </div>
+                        // ── Inline error banner ──
+                        {move || create_error.get().map(|e| view! {
+                            <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:8px 12px;margin-bottom:12px;">
+                                <p style="font-size:11px;color:#f87171;font-weight:600;margin:0 0 2px;">"Provisioning failed"</p>
+                                <p style="font-size:11px;color:#fca5a5;margin:0;word-break:break-word;">{e}</p>
+                            </div>
+                        })}
                         <div class="form-group">
                             <label class="form-label">"Instance Name *"</label>
                             <input type="text" class="form-input" placeholder="e.g. Atlas Demo — Folio EU" prop:value=new_name on:input=move |ev| new_name.set(event_target_value(&ev)) />
                         </div>
                         <div class="form-group">
                             <label class="form-label">"Domain"</label>
-                            <input type="text" class="form-input" placeholder="e.g. demo-eu.atlasos.io" prop:value=new_domain on:input=move |ev| new_domain.set(event_target_value(&ev)) />
+                            <input type="text" class="form-input" placeholder="e.g. demo-eu.atlasos.io (leave blank to auto-generate)" prop:value=new_domain on:input=move |ev| new_domain.set(event_target_value(&ev)) />
                         </div>
                         <div class="form-row">
                             <div class="form-group">
@@ -419,11 +478,31 @@ pub fn InternalInstancesPage() -> impl IntoView {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-ghost" on:click=move |_| show_new_modal.set(false)>"Cancel"</button>
-                        <button class="btn btn-primary" on:click=handle_create>"Create Instance"</button>
+                        <button class="btn btn-ghost" on:click=move |_| { show_new_modal.set(false); create_error.set(None); }
+                            disabled=move || is_creating.get()
+                        >"Cancel"</button>
+                        <button
+                            class=move || format!("btn btn-primary{}", if is_creating.get() { " opacity-60 cursor-not-allowed" } else { "" })
+                            on:click=handle_create
+                            disabled=move || is_creating.get()
+                        >
+                            {move || if is_creating.get() {
+                                view! {
+                                    <span style="display:flex;align-items:center;gap:6px;">
+                                        <svg style="width:12px;height:12px;animation:spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                                        </svg>
+                                        "Provisioning…"
+                                    </span>
+                                }.into_any()
+                            } else {
+                                view! { <span>"Create Instance"</span> }.into_any()
+                            }}
+                        </button>
                     </div>
                 </div>
             </Show>
+
 
         </div>
     }

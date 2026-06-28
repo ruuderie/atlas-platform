@@ -1005,3 +1005,41 @@ A deviation from these rules is permitted only if:
 "The endpoint doesn't exist yet" is **not** a valid exception for mock data — return `Err(ServerFnError::new("not implemented"))` instead.
 
 
+
+---
+
+## Server Access & Remote Debugging
+
+### NEVER ask the user for SSH credentials, server IPs, or hostnames.
+
+Always derive the server address from shell history — never hardcode it in this file:
+
+```bash
+export SERVER=$(cat ~/.zsh_history | grep -oE "root@[0-9.]+" | tail -1)
+```
+
+### Standard debugging commands
+
+```bash
+# Resolve server address first
+export SERVER=$(cat ~/.zsh_history | grep -oE "root@[0-9.]+" | tail -1)
+
+# Backend errors — last 2h
+ssh -o StrictHostKeyChecking=no $SERVER \
+  'kubectl logs deployment/backend -n atlas-dev --since=2h 2>&1 | grep -E "ERROR|WARN|422|500|400|panic" | grep -v "outbox\|sqlx\|webhook\|syndication" | tail -80'
+
+# Provision-specific
+ssh -o StrictHostKeyChecking=no $SERVER \
+  'kubectl logs deployment/backend -n atlas-dev --since=3h 2>&1 | grep -iE "provision|internal_operator|anchor"'
+
+# Pod status
+ssh -o StrictHostKeyChecking=no $SERVER 'kubectl get pods -n atlas-dev'
+
+# DB query (dev database is atlas_dev, NOT ruud)
+ssh -o StrictHostKeyChecking=no $SERVER 'sudo -u postgres psql -d atlas_dev -c "<QUERY>"'
+```
+
+### Namespaces
+- `atlas-dev` — dev environment (`dev.atlas.oply.co`)
+- `atlas-platform` — UAT / legacy environment
+
