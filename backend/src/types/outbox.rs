@@ -50,6 +50,11 @@ pub enum OutboxJobType {
     // ── G-19 Reservations ────────────────────────────────────────────────────
     /// Release reservation holds that passed their hold expiry timestamp.
     ReleaseExpiredReservationHolds,
+
+    // ── G-07 ext: Notifications ──────────────────────────────────────────────
+    /// Deliver a notification via an external channel (telegram/whatsapp/sms/email).
+    /// Payload: notification_service::NotifyChannelPayload
+    NotifyChannel,
 }
 
 impl fmt::Display for OutboxJobType {
@@ -62,6 +67,7 @@ impl fmt::Display for OutboxJobType {
             Self::CalibrateScorecardContributors   => "calibrate_scorecard_contributors",
             Self::EvaluateScorecardNudge           => "evaluate_scorecard_nudge",
             Self::ReleaseExpiredReservationHolds   => "release_expired_reservation_holds",
+            Self::NotifyChannel                    => "notify_channel",
         })
     }
 }
@@ -77,6 +83,7 @@ impl TryFrom<String> for OutboxJobType {
             "calibrate_scorecard_contributors"   => Ok(Self::CalibrateScorecardContributors),
             "evaluate_scorecard_nudge"           => Ok(Self::EvaluateScorecardNudge),
             "release_expired_reservation_holds"  => Ok(Self::ReleaseExpiredReservationHolds),
+            "notify_channel"                     => Ok(Self::NotifyChannel),
             other                                => Err(format!("unknown OutboxJobType: '{other}'")),
         }
     }

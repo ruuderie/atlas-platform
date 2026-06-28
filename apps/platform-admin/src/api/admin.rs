@@ -322,28 +322,63 @@ pub async fn get_all_transactions() -> Result<Vec<crate::api::models::Transactio
 }
 
 // ============================================================
-// SUPPORT CASES
+// SUPPORT INBOX (platform_support threads via atlas_ws_room)
 // ============================================================
 
-/// Fetch all support cases.
+/// Fetch all platform_support threads (operator inbox).
+/// status: "open" | "closed" | "all"  (default: "open")
+/// Calls `GET /api/admin/support/threads?status=open`
+pub async fn get_support_threads(status: &str) -> Result<Vec<crate::api::models::SupportThreadSummary>, String> {
+    crate::api::client::api_get(&format!("api/admin/support/threads?status={status}")).await
+}
+
+/// Fetch a single support thread with full message history.
+/// Calls `GET /api/admin/support/threads/{id}`
+pub async fn get_support_thread(id: String) -> Result<crate::api::models::SupportThreadDetail, String> {
+    crate::api::client::api_get(&format!("api/admin/support/threads/{id}")).await
+}
+
+/// Send an operator reply into a support thread.
+/// Calls `POST /api/admin/support/threads/{id}/reply`
+pub async fn send_support_reply(id: String, content: String) -> Result<(), String> {
+    #[derive(serde::Serialize)]
+    struct Payload { content: String }
+    crate::api::client::api_post::<_, serde_json::Value>(
+        &format!("api/admin/support/threads/{id}/reply"),
+        &Payload { content },
+    ).await.map(|_| ())
+}
+
+/// Close / resolve a support thread.
+/// Calls `PUT /api/admin/support/threads/{id}/close`
+pub async fn close_support_thread(id: String) -> Result<(), String> {
+    #[derive(serde::Serialize)]
+    struct Empty {}
+    crate::api::client::api_put::<_, serde_json::Value>(
+        &format!("api/admin/support/threads/{id}/close"),
+        &Empty {},
+    ).await.map(|_| ())
+}
+
+/// Legacy CRM case stubs — kept for backward compatibility with older pages.
 /// Calls `GET /api/admin/cases`
+#[allow(dead_code)]
 pub async fn get_admin_cases() -> Result<Vec<crate::api::models::CaseModel>, String> {
     crate::api::client::api_get("api/admin/cases").await
 }
 
-/// Fetch a single support case with notes and activities.
-/// Calls `GET /api/admin/cases/{id}`
+#[allow(dead_code)]
 pub async fn get_admin_case(id: String) -> Result<crate::api::models::CaseModel, String> {
     crate::api::client::api_get(&format!("api/admin/cases/{}", id)).await
 }
 
-/// Update a case status (e.g. "Resolved", "In Progress", "Escalated").
-/// Calls `PUT /api/admin/cases/{id}`
+#[allow(dead_code)]
 pub async fn update_case_status(id: String, status: String) -> Result<crate::api::models::CaseModel, String> {
     #[derive(serde::Serialize)]
     struct Payload { status: String }
     crate::api::client::api_put(&format!("api/admin/cases/{}", id), &Payload { status }).await
 }
+
 
 // ============================================================
 // FEATURE FLAGS

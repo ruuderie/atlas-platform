@@ -67,6 +67,10 @@ pub enum NavIcon {
     // STR / reviews
     Star,            // reviews
     Report,          // incidents / violations
+
+    // Navigation helpers (not sidebar items — used in page chrome)
+    ChevronRight,    // breadcrumb separator
+    ArrowBack,       // back-navigation link
 }
 
 impl NavIcon {
@@ -116,6 +120,9 @@ impl NavIcon {
 
             Self::Star           => "star",
             Self::Report         => "report",
+
+            Self::ChevronRight   => "chevron_right",
+            Self::ArrowBack      => "arrow_back",
         }
     }
 }
@@ -157,13 +164,17 @@ pub enum FolioRoute {
     LandlordReservations,
     LandlordMaintenance,
     LandlordSyndication,
-    LandlordMeridian,
+    // LandlordMeridian removed — nav footer now uses LandlordMeridianConfig directly.
+    // Kept as a comment to avoid future confusion about /l/meridian intent.
     LandlordMeridianConfig,
     LandlordAccountBilling,
     LandlordMap,
     LandlordVault,
     LandlordInspections,
     LandlordViolations,
+    LandlordTenantProfile,    // /l/tenants/:id — landlord view of a counterparty tenant
+    LandlordCommunications,   // /l/communications — multi-party messaging
+    LandlordNotifications,    // /l/notifications  — notification inbox + channel prefs
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -208,7 +219,8 @@ pub enum FolioRoute {
     StrHostDashboard,
     StrHostCalendar,
     StrHostReservations,
-    StrHostListings,
+    StrHostListingIndex,   // /s/listings  (list view — NAV target)
+    StrHostListings,       // /s/listings/:id  (detail — linked from cards)
     StrHostPricing,
     StrHostChannels,
     StrHostMessages,
@@ -257,13 +269,16 @@ impl FolioRoute {
             Self::LandlordReservations   => "/l/reservations",
             Self::LandlordMaintenance    => "/l/maintenance",
             Self::LandlordSyndication    => "/l/syndication",
-            Self::LandlordMeridian       => "/l/meridian",
+            // LandlordMeridian path removed (variant removed — was /l/meridian).
             Self::LandlordMeridianConfig => "/l/meridian/configure",
             Self::LandlordAccountBilling => "/l/account/billing",
             Self::LandlordMap            => "/l/map",
             Self::LandlordVault          => "/l/vault",
             Self::LandlordInspections    => "/l/inspections",
             Self::LandlordViolations     => "/l/violations",
+            Self::LandlordTenantProfile  => "/l/tenants/:id",
+            Self::LandlordCommunications => "/l/communications",
+            Self::LandlordNotifications  => "/l/notifications",
 
             Self::TenantDashboard        => "/t",
             Self::TenantMyLease          => "/t/my-lease",
@@ -303,6 +318,7 @@ impl FolioRoute {
             Self::StrHostDashboard       => "/s",
             Self::StrHostCalendar        => "/s/calendar",
             Self::StrHostReservations    => "/s/reservations",
+            Self::StrHostListingIndex    => "/s/listings",
             Self::StrHostListings        => "/s/listings/:id",
             Self::StrHostPricing         => "/s/pricing",
             Self::StrHostChannels        => "/s/channels",
@@ -352,6 +368,163 @@ impl std::fmt::Display for FolioRoute {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests — FolioRoute routing invariants
+//
+// Run with: cargo test -p folio --lib components::nav::tests
+// No WASM, no async, no browser required.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── path() starts with / ──────────────────────────────────────────────────
+    // Regression guard: every route must produce an absolute path so that
+    // <a href=route.path()> works correctly in SSR.
+
+    #[test]
+    fn all_sampled_paths_are_absolute() {
+        let routes = [
+            FolioRoute::LandlordDashboard,
+            FolioRoute::LandlordAssets,
+            FolioRoute::LandlordMeridianConfig,
+            FolioRoute::LandlordAccountBilling,
+            FolioRoute::TenantDashboard,
+            FolioRoute::TenantMyLease,
+            FolioRoute::TenantInbox,
+            FolioRoute::TenantHousehold,
+            FolioRoute::VendorDashboard,
+            FolioRoute::PmcDashboard,
+            FolioRoute::PmcPortfolioMap,
+            FolioRoute::OwnerDashboard,
+            FolioRoute::StrHostDashboard,
+            FolioRoute::StrHostListingIndex,
+            FolioRoute::StrHostSyndication,
+            FolioRoute::Settings,
+            FolioRoute::Login,
+        ];
+        for r in routes {
+            let p = r.path();
+            assert!(
+                p.starts_with('/'),
+                "FolioRoute::{r:?}.path() = {p:?} — must start with '/'"
+            );
+        }
+    }
+
+    // ── Namespace dashboard paths ─────────────────────────────────────────────
+
+    #[test]
+    fn namespace_dashboard_paths() {
+        assert_eq!(FolioRoute::LandlordDashboard.path(), "/l");
+        assert_eq!(FolioRoute::TenantDashboard.path(),   "/t");
+        assert_eq!(FolioRoute::VendorDashboard.path(),   "/v");
+        assert_eq!(FolioRoute::PmcDashboard.path(),      "/pmc");
+        assert_eq!(FolioRoute::OwnerDashboard.path(),    "/o");
+        assert_eq!(FolioRoute::StrHostDashboard.path(),  "/s");
+        assert_eq!(FolioRoute::AgentDashboard.path(),    "/a");
+        assert_eq!(FolioRoute::BrokerDashboard.path(),   "/br");
+    }
+
+    // ── Key route paths ───────────────────────────────────────────────────────
+
+    #[test]
+    fn meridian_config_path_is_configure() {
+        // GAP-1 regression: nav footer must go to /l/meridian/configure, not /l/meridian
+        assert_eq!(FolioRoute::LandlordMeridianConfig.path(), "/l/meridian/configure");
+    }
+
+    #[test]
+    fn settings_path() {
+        assert_eq!(FolioRoute::Settings.path(), "/settings");
+    }
+
+    #[test]
+    fn pmc_map_path() {
+        assert_eq!(FolioRoute::PmcPortfolioMap.path(), "/pmc/map");
+    }
+
+    #[test]
+    fn str_listing_index_path() {
+        // GAP-5 regression: nav "Listings" must go to /s/listings (not /s/listings/:id)
+        assert_eq!(FolioRoute::StrHostListingIndex.path(), "/s/listings");
+    }
+
+    #[test]
+    fn str_listing_detail_path_has_param() {
+        assert_eq!(FolioRoute::StrHostListings.path(), "/s/listings/:id");
+    }
+
+    #[test]
+    fn str_syndication_path() {
+        assert_eq!(FolioRoute::StrHostSyndication.path(), "/s/syndication");
+    }
+
+    // ── is_namespace_root ─────────────────────────────────────────────────────
+
+    #[test]
+    fn dashboards_are_namespace_roots() {
+        assert!(FolioRoute::LandlordDashboard.is_namespace_root());
+        assert!(FolioRoute::TenantDashboard.is_namespace_root());
+        assert!(FolioRoute::VendorDashboard.is_namespace_root());
+        assert!(FolioRoute::PmcDashboard.is_namespace_root());
+        assert!(FolioRoute::OwnerDashboard.is_namespace_root());
+        assert!(FolioRoute::StrHostDashboard.is_namespace_root());
+        assert!(FolioRoute::AgentDashboard.is_namespace_root());
+        assert!(FolioRoute::BrokerDashboard.is_namespace_root());
+    }
+
+    #[test]
+    fn non_dashboards_are_not_namespace_roots() {
+        // Regression: adding a new route must not accidentally be marked as root
+        assert!(!FolioRoute::LandlordAssets.is_namespace_root());
+        assert!(!FolioRoute::TenantInbox.is_namespace_root());
+        assert!(!FolioRoute::TenantHousehold.is_namespace_root());
+        assert!(!FolioRoute::PmcPortfolioMap.is_namespace_root());
+        assert!(!FolioRoute::StrHostListingIndex.is_namespace_root());
+        assert!(!FolioRoute::Settings.is_namespace_root());
+        assert!(!FolioRoute::Login.is_namespace_root());
+    }
+
+    // ── No path collisions (sampled) ─────────────────────────────────────────
+
+    #[test]
+    fn sampled_paths_are_unique() {
+        let routes_and_paths = [
+            (FolioRoute::LandlordDashboard,      "/l"),
+            (FolioRoute::TenantDashboard,        "/t"),
+            (FolioRoute::VendorDashboard,        "/v"),
+            (FolioRoute::PmcDashboard,           "/pmc"),
+            (FolioRoute::OwnerDashboard,         "/o"),
+            (FolioRoute::StrHostDashboard,       "/s"),
+            (FolioRoute::Settings,               "/settings"),
+            (FolioRoute::PmcPortfolioMap,        "/pmc/map"),
+            (FolioRoute::StrHostListingIndex,    "/s/listings"),
+            (FolioRoute::LandlordMeridianConfig, "/l/meridian/configure"),
+            (FolioRoute::Login,                  "/login"),
+        ];
+        let paths: Vec<_> = routes_and_paths.iter().map(|(r, _)| r.path()).collect();
+        let unique: std::collections::HashSet<_> = paths.iter().collect();
+        assert_eq!(paths.len(), unique.len(), "path collision detected in sampled routes");
+    }
+
+    // ── Display impl delegates to path() ─────────────────────────────────────
+
+    #[test]
+    fn display_matches_path() {
+        let routes = [
+            FolioRoute::LandlordDashboard,
+            FolioRoute::Settings,
+            FolioRoute::TenantInbox,
+            FolioRoute::StrHostSyndication,
+        ];
+        for r in routes {
+            assert_eq!(format!("{r}"), r.path(), "Display != path() for {r:?}");
+        }
+    }
+}
+
 // ── NavItem — strongly typed ──────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -390,7 +563,7 @@ pub struct NavConfig {
 // Derived from: designs/stitch/project_pm/folio/l_assets/code.html
 // and designs/stitch/project_pm/folio/ROUTES.md
 
-static LANDLORD_NAV: NavConfig = NavConfig {
+pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
     role_label: "Landlord",
     groups: &[
         NavGroup {
@@ -401,6 +574,7 @@ static LANDLORD_NAV: NavConfig = NavConfig {
                 NavItem::new(FolioRoute::LandlordAssets,      "Assets",      NavIcon::Apartment),
                 NavItem::new(FolioRoute::LandlordLeases,      "Leases",      NavIcon::Description),
                 NavItem::new(FolioRoute::LandlordLeads,       "Leads",       NavIcon::PersonSearch),
+                NavItem::new(FolioRoute::LandlordMap,         "Map",         NavIcon::Map),
             ],
         },
         NavGroup {
@@ -421,6 +595,13 @@ static LANDLORD_NAV: NavConfig = NavConfig {
             ],
         },
         NavGroup {
+            label: Some("Connect"),
+            items: &[
+                NavItem::new(FolioRoute::LandlordCommunications, "Messages",      NavIcon::Inbox),
+                NavItem::new(FolioRoute::LandlordNotifications,  "Notifications", NavIcon::Campaign),
+            ],
+        },
+        NavGroup {
             label: Some("Compliance"),
             items: &[
                 NavItem::new(FolioRoute::LandlordStrCompliance, "STR Compliance", NavIcon::Gavel),
@@ -429,13 +610,14 @@ static LANDLORD_NAV: NavConfig = NavConfig {
         },
     ],
     footer_items: &[
-        NavItem::new(FolioRoute::LandlordMeridian,       "Analytics",  NavIcon::BarChart),
+        NavItem::new(FolioRoute::LandlordMeridianConfig, "Analytics",  NavIcon::BarChart),
         NavItem::new(FolioRoute::LandlordAccountBilling, "Account",    NavIcon::ManageAccounts),
         NavItem::new(FolioRoute::Settings,               "Settings",   NavIcon::Settings),
     ],
 };
 
-static TENANT_NAV: NavConfig = NavConfig {
+
+pub(crate) static TENANT_NAV: NavConfig = NavConfig {
     role_label: "Tenant",
     groups: &[NavGroup {
         label: None,
@@ -546,9 +728,10 @@ static STR_HOST_NAV: NavConfig = NavConfig {
             NavItem::new(FolioRoute::StrHostDashboard,    "Dashboard",    NavIcon::Home),
             NavItem::new(FolioRoute::StrHostCalendar,     "Calendar",     NavIcon::CalendarMonth),
             NavItem::new(FolioRoute::StrHostReservations, "Reservations", NavIcon::EventAvailable),
-            NavItem::new(FolioRoute::StrHostListings,     "Listings",     NavIcon::Apartment),
+            NavItem::new(FolioRoute::StrHostListingIndex,  "Listings",     NavIcon::Apartment),
             NavItem::new(FolioRoute::StrHostPricing,      "Pricing",      NavIcon::Sell),
             NavItem::new(FolioRoute::StrHostChannels,     "Channels",     NavIcon::SyncAlt),
+            NavItem::new(FolioRoute::StrHostSyndication,  "Syndication",  NavIcon::SyncAlt),
             NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),
         ],
     }],

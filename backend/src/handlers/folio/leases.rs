@@ -4,7 +4,7 @@
 //!
 //! ```ignore
 //! GET  /api/folio/leases
-//!      List all active leases for the tenant.
+//!      List all leases for the tenant.
 //!      -> 200 [LeaseSummary]
 //!
 //! POST /api/folio/leases
@@ -13,8 +13,13 @@
 //!      -> 201 { "id": uuid }
 //!
 //! GET  /api/folio/leases/:id
-//!      Fetch a lease record.
-//!      -> 200 atlas_contract::Model (raw JSON)
+//!      Full lease detail — all entity fields including financial terms.
+//!      -> 200 LeaseDetail
+//!
+//! GET  /api/folio/leases/:id/invoices
+//!      Ledger entries (G-03) for this lease contract.
+//!      billable_entity_type = "atlas_contract", billable_entity_id = lease_id
+//!      -> 200 [LeaseInvoiceSummary]
 //! ```
 
 use axum::{
@@ -24,7 +29,7 @@ use axum::{
     routing::get,
     Router,
 };
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -38,10 +43,12 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/leases", get(list_leases).post(create_lease))
         .route("/api/folio/leases/{id}", get(get_lease))
+        .route("/api/folio/leases/{id}/invoices", get(list_lease_invoices))
 }
 
 // ── Request / response types ──────────────────────────────────────────────────
 
+/// Sparse list row — used by the lease list page.
 #[derive(Debug, Serialize)]
 struct LeaseSummary {
     pub id: Uuid,
@@ -49,8 +56,44 @@ struct LeaseSummary {
     pub counterparty_user_id: Option<Uuid>,
     pub currency: String,
     pub status: String,
+    pub monthly_rent_cents: Option<i64>,
     pub start_date: Option<chrono::NaiveDate>,
     pub end_date: Option<chrono::NaiveDate>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Full detail response — all fields the operator needs on the detail page.
+#[derive(Debug, Serialize)]
+pub struct LeaseDetail {
+    pub id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub counterparty_user_id: Option<Uuid>,
+    pub contract_type: String,
+    /// Monthly (or interval) rent in cents.
+    pub recurring_amount_cents: Option<i64>,
+    pub currency: String,
+    pub billing_interval: String,
+    pub status: String,
+    pub guarantee_type: Option<String>,
+    pub auto_renew: bool,
+    pub start_date: chrono::NaiveDate,
+    pub end_date: Option<chrono::NaiveDate>,
+    pub signed_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub terminated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub termination_reason: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Single ledger entry for this lease, from G-03 `atlas_ledger_entries`.
+#[derive(Debug, Serialize)]
+pub struct LeaseInvoiceSummary {
+    pub id: Uuid,
+    pub gross_amount_cents: i64,
+    pub currency: String,
+    pub status: String,
+    pub payment_rail: Option<String>,
+    pub due_date: Option<chrono::NaiveDate>,
+    pub paid_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -101,6 +144,7 @@ async fn list_leases(
             counterparty_user_id: l.counterparty_user_id,
             currency: l.currency,
             status: l.status,
+            monthly_rent_cents: l.recurring_amount_cents,
             start_date: Some(l.start_date),
             end_date: l.end_date,
             created_at: l.created_at,
@@ -173,16 +217,82 @@ async fn get_lease(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    Ok(axum::response::Json(LeaseSummary {
+    Ok(axum::response::Json(LeaseDetail {
         id: lease.id,
         asset_id: lease.asset_id,
         counterparty_user_id: lease.counterparty_user_id,
+        contract_type: lease.contract_type,
+        recurring_amount_cents: lease.recurring_amount_cents,
         currency: lease.currency,
+        billing_interval: lease.billing_interval,
         status: lease.status,
-        start_date: Some(lease.start_date),
+        guarantee_type: lease.terms_metadata
+            .as_ref()
+            .and_then(|m| m.get("guarantee_type"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        auto_renew: lease.auto_renew,
+        start_date: lease.start_date,
         end_date: lease.end_date,
+        signed_at: lease.signed_at,
+        terminated_at: lease.terminated_at,
+        termination_reason: lease.termination_reason,
         created_at: lease.created_at,
     }))
+}
+
+/// GET /api/folio/leases/:id/invoices
+///
+/// Returns ledger entries from G-03 `atlas_ledger_entries` where
+/// `billable_entity_type = "atlas_contract"` and `billable_entity_id = lease_id`.
+async fn list_lease_invoices(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+    Path(lease_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let tenant_id = resolve_tenant_id(&db, current_user.id).await?;
+
+    // Authorise: confirm the lease belongs to this tenant before exposing invoices.
+    let lease = crate::entities::atlas_contract::Entity::find_by_id(lease_id)
+        .one(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%lease_id, "list_lease_invoices: lease lookup error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if lease.tenant_id != tenant_id {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    let entries = crate::entities::atlas_ledger_entry::Entity::find()
+        .filter(crate::entities::atlas_ledger_entry::Column::TenantId.eq(tenant_id))
+        .filter(crate::entities::atlas_ledger_entry::Column::BillableEntityType.eq("atlas_contract"))
+        .filter(crate::entities::atlas_ledger_entry::Column::BillableEntityId.eq(lease_id))
+        .order_by_desc(crate::entities::atlas_ledger_entry::Column::CreatedAt)
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, %lease_id, "list_lease_invoices error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let invoices: Vec<LeaseInvoiceSummary> = entries
+        .into_iter()
+        .map(|e| LeaseInvoiceSummary {
+            id: e.id,
+            gross_amount_cents: e.gross_amount_cents,
+            currency: e.currency,
+            status: e.status,
+            payment_rail: e.payment_rail,
+            due_date: e.due_date,
+            paid_at: e.paid_at,
+            created_at: e.created_at,
+        })
+        .collect();
+
+    Ok(axum::response::Json(invoices))
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

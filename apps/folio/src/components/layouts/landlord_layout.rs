@@ -25,8 +25,8 @@ pub fn LandlordLayout() -> impl IntoView {
                     view! {
                         <SidebarNav
                             config=&LANDLORD_NAV
-                            user_name=name
-                            initials=initials
+                            user_name=name.unwrap_or_default()
+                            initials=initials.unwrap_or_default()
                         />
                     }
                 })}

@@ -34,19 +34,20 @@ use axum::{
     routing::{get, patch, post},
     Router,
 };
-use sea_orm::DatabaseConnection;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::entities::user;
-use crate::services::pm::appliance::{
-    ApplianceService, CreateApplianceInput, UpdateApplianceLifecycleInput,
-};
+use crate::entities::{atlas_asset, user};
+use crate::services::pm::appliance::
+    {ApplianceService, CreateApplianceInput, UpdateApplianceLifecycleInput};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
+        // Portfolio-wide appliance list
+        .route("/api/folio/appliances", get(list_all_appliances))
         // Unit-scoped routes
         .route(
             "/api/folio/assets/{unit_id}/appliances",
@@ -204,4 +205,32 @@ async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uui
         .ok_or(StatusCode::FORBIDDEN)?;
 
     Ok(profile.tenant_id)
+}
+// ── GET /api/folio/appliances — portfolio-wide list ───────────────────────────
+
+async fn list_all_appliances(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+) -> impl IntoResponse {
+    let tenant_id = match resolve_tenant_id(&db, user.id).await {
+        Ok(id) => id,
+        Err(code) => return Err(code),
+    };
+
+    let rows = atlas_asset::Entity::find()
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .filter(atlas_asset::Column::AssetType.eq("appliance"))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_all_appliances db error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let appliances: Vec<crate::services::pm::appliance::ApplianceDetail> =
+        rows.into_iter()
+            .map(crate::services::pm::appliance::to_detail_pub)
+            .collect();
+
+    Ok(axum::response::Json(appliances))
 }

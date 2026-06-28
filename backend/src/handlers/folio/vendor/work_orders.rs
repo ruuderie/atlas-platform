@@ -228,7 +228,7 @@ async fn complete_work_order(
 
 /// Resolve (tenant_id, service_provider) for the current vendor user.
 /// Returns 403 if no active service_provider record is found.
-async fn resolve_vendor_context(
+pub async fn resolve_vendor_context(
     db:      &DatabaseConnection,
     user_id: Uuid,
 ) -> Result<(Uuid, atlas_service_provider::Model), StatusCode> {

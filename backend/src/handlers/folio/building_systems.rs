@@ -3,6 +3,10 @@
 //! # Routes
 //!
 //! ```ignore
+//! GET  /api/folio/systems
+//!      List all building systems across the landlord's entire portfolio.
+//!      -> 200 [BuildingSystemDetail]
+//!
 //! GET  /api/folio/assets/{property_id}/systems
 //!      List all building systems for a property.
 //!      -> 200 [BuildingSystemDetail]
@@ -39,7 +43,7 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::entities::user;
+use crate::entities::{atlas_asset, user};
 use crate::services::pm::building_system::{
     BuildingSystemService, CreateBuildingSystemInput, UpdateBuildingSystemLifecycleInput,
 };
@@ -48,6 +52,8 @@ use crate::services::pm::building_system::{
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
     Router::new()
+        // Portfolio-wide building system list
+        .route("/api/folio/systems", get(list_all_systems))
         // Property-scoped building system routes
         .route(
             "/api/folio/assets/{property_id}/systems",
@@ -204,4 +210,33 @@ async fn resolve_tenant_id(db: &DatabaseConnection, user_id: Uuid) -> Result<Uui
         .ok_or(StatusCode::FORBIDDEN)?;
 
     Ok(profile.tenant_id)
+}
+
+// ── GET /api/folio/systems — portfolio-wide list ──────────────────────────────
+
+async fn list_all_systems(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(user): Extension<user::Model>,
+) -> impl IntoResponse {
+    let tenant_id = match resolve_tenant_id(&db, user.id).await {
+        Ok(id) => id,
+        Err(code) => return Err(code),
+    };
+
+    let rows = atlas_asset::Entity::find()
+        .filter(atlas_asset::Column::TenantId.eq(tenant_id))
+        .filter(atlas_asset::Column::AssetType.eq("building_system"))
+        .all(&db)
+        .await
+        .map_err(|e| {
+            tracing::error!(%tenant_id, "list_all_systems db error: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let systems: Vec<crate::services::pm::building_system::BuildingSystemDetail> =
+        rows.into_iter()
+            .map(crate::services::pm::building_system::to_detail_pub)
+            .collect();
+
+    Ok(axum::response::Json(systems))
 }

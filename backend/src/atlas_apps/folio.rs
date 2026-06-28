@@ -107,6 +107,7 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::violations::authenticated_routes())
             .merge(crate::handlers::folio::owner::pmc_write_routes())
             .merge(crate::handlers::folio::str_guest::authenticated_routes())
+            .merge(crate::handlers::folio::users::authenticated_routes_raw())
             .layer(middleware::from_fn(require_landlord));
 
         // ── Tenant-only sub-router ────────────────────────────────────────────
@@ -124,7 +125,8 @@ impl AtlasApp for FolioApp {
         // Grouped here for organisational clarity.
         let vendor_router = Router::new()
             .merge(crate::handlers::folio::vendor::work_orders::authenticated_routes_raw())
-            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw());
+            .merge(crate::handlers::folio::vendor::invoices::authenticated_routes_raw())
+            .merge(crate::handlers::folio::vendor::profile::authenticated_routes_raw());
 
         // ── PMC sub-router (PropertyManager role + PMC mode) ─────────────────
         // Each handler extracts `PropertyManagerOnly` which verifies:
@@ -147,7 +149,9 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::marketplace::vendors::authenticated_routes_raw())
             .merge(crate::handlers::folio::marketplace::endorse::authenticated_routes_raw())
             .merge(crate::handlers::folio::marketplace::listing::authenticated_routes_raw())
-            .merge(crate::handlers::folio::reporting::authenticated_routes());
+            .merge(crate::handlers::folio::reporting::authenticated_routes())
+            .merge(crate::handlers::folio::comms::authenticated_routes_raw())
+            .merge(crate::handlers::folio::notifications::authenticated_routes_raw());
 
         // ── Owner-only sub-router ─────────────────────────────────────────────
         // Beneficial property owners — read-only visibility into their portfolio.

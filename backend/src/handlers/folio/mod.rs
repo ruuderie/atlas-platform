@@ -20,6 +20,7 @@ pub mod opportunities;    // Phase 6 — Sales pipeline & deal management (G15)
 pub mod commission_plans; // Phase 6 — Commission plan application & splits (G25)
 pub mod leads;            // Phase 6 — PM-tier lead lifecycle: qualify, convert, disqualify (G31)
 pub mod me;               // GET /api/folio/me — multi-role identity & FolioRole resolution
+pub mod users;            // GET /api/folio/users/:id — counterparty user identity lookup
 pub mod vendor;           // G-32 — Vendor-role routes: work orders + invoices
 pub mod pm;               // G-33 — PMC routes: clients, client detail, analytics, app config
 pub mod marketplace;      // G-34 — Vendor marketplace: discovery, endorsements, listing mgmt
@@ -30,3 +31,5 @@ pub mod violations;       // G-13 — Compliance violation filing + cure status 
 pub mod reporting;        // Cross-table — Tenant reports + landlord/vendor analytics
 pub mod owner;            // G-22 — Beneficial owner read-only portal + PMC link management
 pub mod str_guest;        // G-22 — STR guest/vehicle registration + special requests per booking
+pub mod comms;            // G-07 — Unified communications: rooms, messages, platform_support
+pub mod notifications;    // G-07 ext — Notification inbox, channel prefs, tenant channel settings

@@ -14,7 +14,19 @@ use crate::pages::landlord::{
     dashboard::LandlordDashboard,
     portfolio::Portfolio,
     assets::Assets,
+    asset_detail::AssetDetail,
     leases::Leases,
+    lease_detail::LeaseDetail,
+    tenant_profile::TenantProfile,
+    maintenance_queue::MaintenanceQueue,
+    ledger::Ledger,
+    violations::Violations,
+    inspections::Inspections,
+    building_systems::BuildingSystems,
+    unit_appliances::UnitAppliances,
+    communications::Communications,
+    map_portfolio::MapPortfolio,
+    notifications::NotificationsPage,
     leads::Leads,
     campaigns::Campaigns,
     billing::Billing,
@@ -22,6 +34,13 @@ use crate::pages::landlord::{
     catalog::Catalog,
     vendors::Vendors,
     reservations::LandlordReservations,
+    contractor_marketplace::ContractorMarketplace,
+    digital_vault::LandlordDigitalVault,
+    syndication::LandlordSyndication,
+    wholesaling::LandlordWholesaling,
+    listing_preview::ListingNetworkPreview,
+    account_billing::LandlordAccountBilling,
+    asset_alerts::AssetAlerts,
 };
 
 // Tenant pages
@@ -31,6 +50,15 @@ use crate::pages::tenant::{
     payments::TenantPayments,
     maintenance::MaintenanceRequests,
     reservations::TenantReservations,
+    inbox::TenantInbox,
+    household::TenantHousehold,
+    documents::TenantDocuments,
+    payment_history::TenantPaymentHistory,
+    violations::TenantViolations,
+    profile::TenantProfile as TenantProfilePage,
+    maintenance_detail::TenantMaintenanceDetail,
+    application_status::TenantApplicationStatus,
+    reports::TenantReports,
 };
 
 // Vendor pages
@@ -38,16 +66,58 @@ use crate::pages::vendor::{
     dashboard::VendorDashboard,
     work_orders::WorkOrders,
     invoices::VendorInvoices,
+    network_profile::VendorNetworkProfile,
+    schedule::VendorSchedule,
 };
 
 // PMC pages
 use crate::pages::pmc::{
     dashboard::PmcDashboard,
     client_book::ClientBook,
+    client_detail::PmcClientDetail,
+    maintenance_dispatch::PmcMaintenanceDispatch,
+    owner_statements::PmcOwnerStatements,
+    portfolio_map::PmcPortfolioMap,
 };
 
 // Owner pages
-use crate::pages::owner::dashboard::OwnerDashboard;
+use crate::pages::owner::{
+    dashboard::OwnerDashboard,
+    property::OwnerPropertyDetail,
+    statements::OwnerStatements,
+    distributions::OwnerDistributions,
+    maintenance::OwnerMaintenanceApproval,
+};
+
+// STR Host pages
+use crate::pages::str_host::{
+    dashboard::StrHostDashboard,
+    calendar::StrCalendar,
+    reservations::StrReservationManifest,
+    listing_index::StrListingIndex,
+    listing::StrListingDetail,
+    pricing::StrPricingRules,
+    channels::StrChannelManager,
+    syndication::StrSyndication,
+    messages::StrGuestMessaging,
+    reviews::StrReviews,
+    incidents::StrIncidents,
+    violation_file::StrViolationFiling,
+};
+
+// Wizard pages (public + token-gated)
+use crate::pages::marketing::renter_application::RenterApplication;
+use crate::pages::marketing::lead_portal::LeadPortal;
+use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
+use crate::pages::marketing::ltr_listings::LtrListings;
+use crate::pages::marketing::str_listings::StrListings;
+use crate::pages::marketing::ni_signup::NiSignup;
+use crate::pages::vendor::onboard::VendorOnboard;
+use crate::pages::vendor::job_link::VendorJobLink;
+use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
+use crate::pages::pmc::onboard::PmcOnboard;
+use crate::pages::landlord::meridian_config::MeridianConfigurator;
+use crate::pages::settings::Settings;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -100,26 +170,56 @@ pub fn App() -> impl IntoView {
                 // LandlordShell: checks role, redirects if wrong, then renders
                 // LandlordLayout which contains <Outlet/> for child routes.
                 <ParentRoute path=path!("/l") view=LandlordShell>
-                    <Route path=path!("")             view=LandlordDashboard/>
-                    <Route path=path!("/portfolio")   view=Portfolio/>
-                    <Route path=path!("/assets")      view=Assets/>
-                    <Route path=path!("/leases")      view=Leases/>
-                    <Route path=path!("/leads")       view=Leads/>
-                    <Route path=path!("/campaigns")   view=Campaigns/>
-                    <Route path=path!("/billing")     view=Billing/>
-                    <Route path=path!("/str")         view=StrCompliance/>
-                    <Route path=path!("/catalog")     view=Catalog/>
-                    <Route path=path!("/vendors")     view=Vendors/>
-                    <Route path=path!("/reservations") view=LandlordReservations/>
+                    <Route path=path!("")               view=LandlordDashboard/>
+                    <Route path=path!("/portfolio")     view=Portfolio/>
+                    <Route path=path!("/assets")        view=Assets/>
+                    <Route path=path!("/assets/:id")    view=AssetDetail/>
+                    <Route path=path!("/assets/:id/preview") view=ListingNetworkPreview/>
+                    <Route path=path!("/assets/:id/alerts")  view=AssetAlerts/>
+                    <Route path=path!("/leases")        view=Leases/>
+                    <Route path=path!("/leases/:id")    view=LeaseDetail/>
+                    <Route path=path!("/tenants/:id")   view=TenantProfile/>
+                    <Route path=path!("/maintenance")   view=MaintenanceQueue/>
+                    <Route path=path!("/ledger")        view=Ledger/>
+                    <Route path=path!("/violations")    view=Violations/>
+                    <Route path=path!("/inspections")   view=Inspections/>
+                    <Route path=path!("/systems")       view=BuildingSystems/>
+                    <Route path=path!("/appliances")    view=UnitAppliances/>
+                    <Route path=path!("/communications")view=Communications/>
+                    <Route path=path!("/map")           view=MapPortfolio/>
+                    <Route path=path!("/notifications") view=NotificationsPage/>
+                    <Route path=path!("/leads")         view=Leads/>
+                    <Route path=path!("/campaigns")     view=Campaigns/>
+                    <Route path=path!("/billing")       view=Billing/>
+                    <Route path=path!("/str")           view=StrCompliance/>
+                    <Route path=path!("/catalog")       view=Catalog/>
+                    <Route path=path!("/vendors")       view=Vendors/>
+                    <Route path=path!("/reservations")  view=LandlordReservations/>
+                    <Route path=path!("/marketplace")   view=ContractorMarketplace/>
+                    <Route path=path!("/vault")         view=LandlordDigitalVault/>
+                    <Route path=path!("/syndication")   view=LandlordSyndication/>
+                    <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
+                    <Route path=path!("/account/billing")view=LandlordAccountBilling/>
+                    <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
                 </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────
                 <ParentRoute path=path!("/t") view=TenantShell>
-                    <Route path=path!("")              view=TenantDashboard/>
-                    <Route path=path!("/my-lease")     view=MyLease/>
-                    <Route path=path!("/payments")     view=TenantPayments/>
-                    <Route path=path!("/maintenance")  view=MaintenanceRequests/>
-                    <Route path=path!("/reservations") view=TenantReservations/>
+                    <Route path=path!("")                    view=TenantDashboard/>
+                    <Route path=path!("/my-lease")           view=MyLease/>
+                    <Route path=path!("/payments")           view=TenantPayments/>
+                    <Route path=path!("/payments/history")   view=TenantPaymentHistory/>
+                    <Route path=path!("/maintenance")          view=MaintenanceRequests/>
+                    <Route path=path!("/maintenance/new")      view=TenantMaintenanceTriage/>
+                    <Route path=path!("/maintenance/:id")      view=TenantMaintenanceDetail/>
+                    <Route path=path!("/reservations")         view=TenantReservations/>
+                    <Route path=path!("/inbox")                view=TenantInbox/>
+                    <Route path=path!("/household")            view=TenantHousehold/>
+                    <Route path=path!("/docs")                 view=TenantDocuments/>
+                    <Route path=path!("/violations")           view=TenantViolations/>
+                    <Route path=path!("/profile")              view=TenantProfilePage/>
+                    <Route path=path!("/application")          view=TenantApplicationStatus/>
+                    <Route path=path!("/reports")              view=TenantReports/>
                 </ParentRoute>
 
                 // ── Vendor namespace /v/** ─────────────────────────────────────
@@ -127,22 +227,68 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("")              view=VendorDashboard/>
                     <Route path=path!("/work-orders")  view=WorkOrders/>
                     <Route path=path!("/invoices")     view=VendorInvoices/>
+                    <Route path=path!("/schedule")     view=VendorSchedule/>
+                    <Route path=path!("/profile")      view=VendorNetworkProfile/>
+                    <Route path=path!("/onboard")      view=VendorOnboard/>
+                </ParentRoute>
+
+                // ── STR Host namespace /s/** ───────────────────────────────────
+                // Active when the landlord has STR assets or mode = str_host.
+                <ParentRoute path=path!("/s") view=LandlordShell>
+                    <Route path=path!("")                  view=StrHostDashboard/>
+                    <Route path=path!("/calendar")         view=StrCalendar/>
+                    <Route path=path!("/reservations")     view=StrReservationManifest/>
+                    <Route path=path!("/listings/:id")     view=StrListingDetail/>
+                    <Route path=path!("/pricing")          view=StrPricingRules/>
+                    <Route path=path!("/channels")         view=StrChannelManager/>
+                    <Route path=path!("/messages")         view=StrGuestMessaging/>
+                    <Route path=path!("/reviews")          view=StrReviews/>
+                    <Route path=path!("/incidents")        view=StrIncidents/>
+                    <Route path=path!("/violations/new")   view=StrViolationFiling/>
+                    <Route path=path!("/listings")         view=StrListingIndex/>      // index — nav target
+                    <Route path=path!("/syndication")      view=StrSyndication/>       // per-listing channel distribution
+                    // /s/listings/:id  — detail, linked from cards (no shell nav item)
                 </ParentRoute>
 
                 // ── PMC namespace /pmc/** ──────────────────────────────────────
                 // Only accessible when folio_mode = "pmc" on the instance.
                 // PmcShell checks role = PropertyManager; backend guards check folio_mode.
                 <ParentRoute path=path!("/pmc") view=PmcShell>
-                    <Route path=path!("")          view=PmcDashboard/>
-                    <Route path=path!("/clients")  view=ClientBook/>
+                    <Route path=path!("")             view=PmcDashboard/>
+                    <Route path=path!("/clients")     view=ClientBook/>
+                    <Route path=path!("/clients/:id") view=PmcClientDetail/>
+                    <Route path=path!("/maintenance") view=PmcMaintenanceDispatch/>
+                    <Route path=path!("/statements")  view=PmcOwnerStatements/>
+                    <Route path=path!("/map")         view=PmcPortfolioMap/>
                 </ParentRoute>
 
                 // ── Owner namespace /o/** ──────────────────────────────────────
                 // Read-only portal for beneficial property owners.
                 // Owner cannot create, edit, or delete any resource.
                 <ParentRoute path=path!("/o") view=OwnerShell>
-                    <Route path=path!("")           view=OwnerDashboard/>
+                    <Route path=path!("")                   view=OwnerDashboard/>
+                    <Route path=path!("/properties/:id")    view=OwnerPropertyDetail/>
+                    <Route path=path!("/statements")        view=OwnerStatements/>
+                    <Route path=path!("/distributions")     view=OwnerDistributions/>
+                    <Route path=path!("/maintenance")       view=OwnerMaintenanceApproval/>
                 </ParentRoute>
+
+                // ── Public wizards (no auth required) ─────────────────────────
+                <Route path=path!("/apply/:property_id") view=RenterApplication/>
+                <Route path=path!("/leads/:token")       view=LeadPortal/>
+                <Route path=path!("/inquiry/thanks")     view=InquiryConfirm/>
+                <Route path=path!("/jobs/:token")        view=VendorJobLink/>
+                // /pmc/onboard — admin-initiated wizard, not reachable from PMC sidebar nav.
+                // Invoked via email link sent by an Atlas platform administrator.
+                // See docs/folio/page_queue.md § P3 for rationale.
+                <Route path=path!("/pmc/onboard")        view=PmcOnboard/>
+
+                <Route path=path!("/listings/ltr")       view=LtrListings/>
+                <Route path=path!("/listings/str")       view=StrListings/>
+                <Route path=path!("/ni/signup")          view=NiSignup/>
+                // ── Shared authenticated routes (all roles) ────────────────────
+                <Route path=path!("/settings")           view=Settings/>
+
                 // ── Agent namespace /a/** ──────────────────────────────────────
                 // Only valid when folio_mode = "brokerage" on the instance.
                 // Backend API guards enforce the folio_mode constraint.

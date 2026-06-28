@@ -886,3 +886,51 @@ pub struct AdminAbTestWithVariantsModel {
     pub variants: Vec<AbVariantModel>,
 }
 
+// ==== PLATFORM SUPPORT INBOX ====
+
+/// Summary of one platform_support thread (from atlas_ws_room).
+/// Returned by `GET /api/admin/support/threads`.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct SupportThreadSummary {
+    pub id:              String,
+    pub tenant_id:       String,
+    pub entity_id:       String,   // submitting user's ID
+    pub is_active:       bool,
+    pub created_at:      String,
+    pub last_message:    Option<String>,
+    pub last_at:         Option<String>,
+    pub message_count:   u64,
+    pub submitter_name:  Option<String>,
+    pub submitter_email: Option<String>,
+}
+
+/// A single message in a support thread.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct SupportMessageRow {
+    pub id:             String,
+    pub sender_user_id: Option<String>,
+    pub sender_name:    Option<String>,
+    pub message_type:   String,   // "text" | "system" | "operator_reply"
+    pub content:        String,
+    pub created_at:     String,
+    pub is_operator:    bool,
+}
+
+/// Full detail for one support thread, including message history.
+/// Returned by `GET /api/admin/support/threads/{id}`.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct SupportThreadDetail {
+    // Flattened fields from ThreadSummary
+    pub id:              String,
+    pub tenant_id:       String,
+    pub entity_id:       String,
+    pub is_active:       bool,
+    pub created_at:      String,
+    pub last_message:    Option<String>,
+    pub last_at:         Option<String>,
+    pub message_count:   u64,
+    pub submitter_name:  Option<String>,
+    pub submitter_email: Option<String>,
+    // Thread messages
+    pub messages:        Vec<SupportMessageRow>,
+}
