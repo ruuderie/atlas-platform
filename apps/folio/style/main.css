@@ -533,7 +533,8 @@ body { background: var(--folio-bg); color: var(--folio-text); }
   font-size: 1rem; font-weight: 700; color: #fff; flex-shrink: 0;
 }
 .vendor-card-identity { flex: 1; min-width: 0; }
-.vendor-card-name     { font-size: .95rem; font-weight: 700; color: var(--folio-text); truncate; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vendor-card-name     { font-size: .95rem; font-weight: 700; color: var(--folio-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .vendor-card-pills    { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .3rem; }
 
 /* Pills */
@@ -3101,7 +3102,8 @@ body { background: var(--folio-bg); color: var(--folio-text); }
 .inbox-thread-avatar--support { background: linear-gradient(135deg, #0A84FF22, #5E5CE622); border: 1px solid rgba(10,132,255,0.3); }
 .inbox-thread-avatar--default { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); }
 .inbox-thread-meta  { flex: 1; min-width: 0; }
-.inbox-thread-name  { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); truncate; }
+.inbox-thread-name  { font-size: 0.78rem; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .inbox-thread-preview { font-size: 0.68rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-thread-time  { font-size: 0.64rem; color: var(--text-secondary); flex-shrink: 0; }
 .inbox-empty { padding: 2rem; text-align: center; font-size: 0.78rem; color: var(--text-secondary); }
