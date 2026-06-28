@@ -181,7 +181,7 @@ steps:
       repo: ghcr.io/ruuderie/platform-admin
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/platform-admin/Dockerfile
@@ -210,7 +210,7 @@ steps:
       repo: ghcr.io/ruuderie/platform-admin
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/platform-admin/Dockerfile
@@ -239,7 +239,7 @@ steps:
       repo: ghcr.io/ruuderie/atlas-backend
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile
@@ -264,7 +264,7 @@ steps:
       repo: ghcr.io/ruuderie/atlas-backend
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile
@@ -289,7 +289,7 @@ steps:
       repo: ghcr.io/ruuderie/atlas-ingress-sidecar
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile.sidecar
@@ -317,7 +317,7 @@ steps:
       repo: ghcr.io/ruuderie/atlas-ingress-sidecar
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: backend
       dockerfile: backend/Dockerfile.sidecar
@@ -345,7 +345,7 @@ steps:
       repo: ghcr.io/ruuderie/network-instance
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/network-instance/Dockerfile
@@ -374,7 +374,7 @@ steps:
       repo: ghcr.io/ruuderie/network-instance
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/network-instance/Dockerfile
@@ -403,7 +403,7 @@ steps:
       repo: ghcr.io/ruuderie/anchor-app
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/anchor/Dockerfile
@@ -428,7 +428,7 @@ steps:
       repo: ghcr.io/ruuderie/anchor-app
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/anchor/Dockerfile
@@ -453,7 +453,7 @@ steps:
       repo: ghcr.io/ruuderie/folio
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/folio/Dockerfile
@@ -481,7 +481,7 @@ steps:
       repo: ghcr.io/ruuderie/folio
       tags:
         - latest
-        - ${CI_COMMIT_SHA:0:8}
+        - "${CI_COMMIT_SHA:0:8}"
       registry: ghcr.io
       context: .
       dockerfile: apps/folio/Dockerfile
