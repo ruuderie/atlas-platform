@@ -141,13 +141,21 @@ pub async fn provision_tenant(
     validate_domain(&payload.domain)
         .map_err(|e| bad_request(e))?;
 
-    // Determine which apps to provision (default: anchor)
+    // Determine which apps to provision. Defaults to ["anchor"] when omitted.
+    // Any non-empty subset of valid app IDs is accepted; callers provisioning
+    // Folio-only or Network-only tenants should pass apps: ["folio"] explicitly.
     let apps: Vec<String> = payload.apps
         .clone()
         .unwrap_or_else(|| vec!["anchor".to_string()]);
 
-    if !apps.contains(&"anchor".to_string()) {
-        return Err(bad_request("At least one app must be 'anchor'"));
+    let valid_apps = ["anchor", "folio", "network"];
+    if apps.is_empty() {
+        return Err(bad_request("apps must not be empty"));
+    }
+    for app in &apps {
+        if !valid_apps.contains(&app.as_str()) {
+            return Err(bad_request(format!("unknown app '{}'; valid values: anchor, folio, network", app)));
+        }
     }
 
     // ── 2. Pre-flight uniqueness checks (outside transaction for clear errors) ──

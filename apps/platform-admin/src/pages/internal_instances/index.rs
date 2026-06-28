@@ -84,7 +84,17 @@ pub fn InternalInstancesPage() -> impl IntoView {
         show_new_modal.set(false);
         new_name.set(String::new());
         new_domain.set(String::new());
-        toast.show_toast("Success", "Internal instance creation queued. Provisioning will begin shortly.", "success");
+        // Refresh the instances list so the new entry appears.
+        refresh.update(|n| *n += 1);
+        toast.show_toast(
+            "Instance Queued",
+            "Provisioning has started. This page will update when the instance is ready — it typically takes 1-2 minutes.",
+            "success",
+        );
+        // Stay on this page; the refreshed list will show the new instance with a
+        // 'provisioning' status badge so the user can track progress.
+        let navigate = leptos_router::hooks::use_navigate();
+        navigate("/internal-instances", Default::default());
     };
 
     // Derived: all apps filtered to internal_operator mode
