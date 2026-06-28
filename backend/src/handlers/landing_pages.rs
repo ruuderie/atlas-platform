@@ -3,7 +3,7 @@
 //! Routes (all under `/api/admin/landing-pages`):
 //!
 //! ## Pages
-//! ```
+//! ```text
 //! GET    /api/admin/landing-pages?app_id=folio       list_pages
 //! POST   /api/admin/landing-pages                    create_page
 //! GET    /api/admin/landing-pages/{page_id}           get_page
@@ -13,7 +13,7 @@
 //! ```
 //!
 //! ## Variants (A/B)
-//! ```
+//! ```text
 //! GET    /api/admin/landing-pages/{page_id}/variants                   list_variants
 //! POST   /api/admin/landing-pages/{page_id}/variants                   create_variant
 //! PUT    /api/admin/landing-pages/{page_id}/variants/{variant_id}      update_variant
@@ -22,14 +22,14 @@
 //! ```
 //!
 //! ## UTM Presets
-//! ```
+//! ```text
 //! GET    /api/admin/utm-presets?app_id=folio          list_utm_presets
 //! POST   /api/admin/utm-presets                        create_utm_preset
 //! DELETE /api/admin/utm-presets/{preset_id}            delete_utm_preset
 //! ```
 //!
 //! ## Tracking Pixels
-//! ```
+//! ```text
 //! GET    /api/admin/landing-pages/{page_id}/pixels                        get_pixels
 //! PUT    /api/admin/landing-pages/{page_id}/pixels/{pixel_type}           set_pixel
 //! ```
