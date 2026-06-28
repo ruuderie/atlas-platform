@@ -366,13 +366,20 @@ pub async fn provision_tenant(
     cors_registry.add_host(&payload.domain);
 
     // 5e. Trigger ingress and TLS automation via K8s Sidecar
-    if let Err(e) = ingress_provisioner.provision_domain(&payload.tenant_name, &payload.domain).await {
+    // Use the first app in the provisioned list as the primary route target.
+    let primary_app_slug = apps.first().map(String::as_str).unwrap_or("property_management");
+    if let Err(e) = ingress_provisioner.provision_domain(
+        &payload.tenant_name,
+        &payload.domain,
+        primary_app_slug,
+    ).await {
         tracing::error!(
-            event = "provision.ingress.failed",
+            event       = "provision.ingress.failed",
             tenant_slug = %payload.tenant_name,
-            domain = %payload.domain,
-            error = %e,
-            message = "Ingress provisioning failed, but tenant database setup succeeded."
+            domain      = %payload.domain,
+            app_slug    = %primary_app_slug,
+            error       = %e,
+            message     = "Ingress provisioning failed, but tenant database setup succeeded."
         );
     }
 
