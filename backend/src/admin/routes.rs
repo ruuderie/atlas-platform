@@ -188,5 +188,8 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
                 .merge(crate::admin::campaigns::routes_raw())
                 // G-07 ext — Platform support inbox: cross-tenant platform_support room management
                 .merge(crate::admin::support_inbox::routes_raw())
+                // Platform-admin Landing Page Builder (app-scoped acquisition pages)
+                // Routes: /api/admin/landing-pages/* + /api/admin/utm-presets/*
+                .merge(crate::handlers::landing_pages::landing_page_routes_raw())
         })
 }

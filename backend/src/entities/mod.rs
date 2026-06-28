@@ -42,8 +42,12 @@ pub mod app_instance;
 pub mod app_instance_module;
 pub mod app_domain;
 pub mod app_page;
+pub mod app_page_variant;    // Landing Page Builder: A/B test variants
+pub mod app_utm_preset;      // Landing Page Builder: reusable UTM parameter sets
+pub mod atlas_lp_event;      // Landing Page Builder: funnel analytics events
 pub mod app_menu;
 pub mod global_search_index;
+
 
 // BILLING & MONETIZATION
 pub mod billing_plan;

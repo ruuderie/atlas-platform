@@ -21,8 +21,10 @@ pub mod seeds;
 pub mod syndication;
 pub mod provision;
 pub mod pages;
+pub mod landing_pages; // Platform-admin Landing Page Builder API client
 pub mod menus;
 pub mod version;
+
 pub mod products;
 pub mod billing;
 pub mod verification;

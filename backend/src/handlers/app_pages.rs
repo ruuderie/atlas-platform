@@ -188,6 +188,9 @@ pub async fn create_page(
     let new_page = app_page::ActiveModel {
         id: Set(Uuid::new_v4()),
         tenant_id: Set(tenant_id),
+        // Legacy tenant-scoped route — default app_id to "folio" (all tenant pages are Folio pages).
+        // New platform-admin pages use the /api/admin/landing-pages route which sets app_id explicitly.
+        app_id: Set("folio".to_string()),
         slug: Set(payload.slug),
         title: Set(payload.title),
         description: Set(payload.description),

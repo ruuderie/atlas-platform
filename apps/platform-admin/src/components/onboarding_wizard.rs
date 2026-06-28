@@ -1,8 +1,10 @@
 use leptos::prelude::*;
+use uuid::Uuid;
 use crate::api::onboarding::{
     OnboardingStatusResponse, OnboardingStepStatus,
     get_onboarding_status, skip_step, complete_step, dismiss_wizard,
 };
+use crate::api::admin::{create_invite, CreateInviteInput};
 
 // ── Step indicator dot — left rail ───────────────────────────────────────────
 
@@ -362,6 +364,285 @@ fn FirstPageStep(
         </div>
     }
 }
+
+// ── InviteTeamStep — live invite form wired to POST /api/admin/users/invite ──
+
+/// A row in the invite list — one email address + role + optional name.
+#[derive(Clone, Debug, PartialEq)]
+struct InviteRow {
+    email: String,
+    display_name: String,
+    app_role: String,
+    personal_message: String,
+}
+
+impl Default for InviteRow {
+    fn default() -> Self {
+        Self {
+            email: String::new(),
+            display_name: String::new(),
+            app_role: "viewer".to_string(),
+            personal_message: String::new(),
+        }
+    }
+}
+
+/// Roles surfaced in the invite dropdown.
+/// These are Folio-side roles; the platform passes them through as `app_role`.
+const FOLIO_ROLES: &[(&str, &str)] = &[
+    ("owner",    "Owner"),
+    ("manager",  "Manager"),
+    ("landlord", "Landlord"),
+    ("vendor",   "Vendor"),
+    ("viewer",   "View only"),
+];
+
+#[component]
+fn InviteTeamStep(
+    app_instance_id: String,
+    tenant_id: String,
+    on_complete: Callback<()>,
+    on_skip: Option<Callback<()>>,
+) -> impl IntoView {
+    // List of invite rows — start with a single blank row
+    let rows: RwSignal<Vec<InviteRow>> = RwSignal::new(vec![InviteRow::default()]);
+    let submitting   = RwSignal::new(false);
+    let error_msg    = RwSignal::new(String::new());
+    let sent_count   = RwSignal::new(0usize);
+
+    let ai  = StoredValue::new(app_instance_id.clone());
+    let tid = StoredValue::new(tenant_id.clone());
+
+    let add_row = move |_: web_sys::MouseEvent| {
+        rows.update(|v| v.push(InviteRow::default()));
+    };
+
+    let remove_row = move |idx: usize| {
+        rows.update(|v| { if v.len() > 1 { v.remove(idx); } });
+    };
+
+    let submit = move |_: web_sys::MouseEvent| {
+        let current_rows = rows.get();
+        let valid: Vec<_> = current_rows.into_iter()
+            .filter(|r| !r.email.trim().is_empty())
+            .collect();
+        if valid.is_empty() {
+            error_msg.set("Add at least one email address.".to_string());
+            return;
+        }
+        let ai_val  = ai.get_value();
+        let tid_val = tid.get_value();
+        submitting.set(true);
+        error_msg.set(String::new());
+
+        let on_complete_cb = on_complete.clone();
+        leptos::task::spawn_local(async move {
+            let instance_id = Uuid::parse_str(&ai_val).ok();
+            let mut errors = vec![];
+            let mut ok = 0usize;
+
+            for row in valid {
+                let input = CreateInviteInput {
+                    email: row.email.trim().to_string(),
+                    display_name: if row.display_name.is_empty() { None } else { Some(row.display_name.clone()) },
+                    // Platform role defaults to "member" — app_role carries the Folio persona.
+                    role: "member".to_string(),
+                    app_role: Some(row.app_role.clone()),
+                    tenant: tid_val.clone(),
+                    app_instance_id: instance_id,
+                    target_app_url: None,
+                    personal_message: if row.personal_message.is_empty() { None } else { Some(row.personal_message.clone()) },
+                    expires_days: Some(7),
+                };
+                match create_invite(input).await {
+                    Ok(_)  => ok += 1,
+                    Err(e) => errors.push(format!("{}: {}", row.email, e)),
+                }
+            }
+
+            sent_count.set(ok);
+            submitting.set(false);
+
+            if errors.is_empty() && ok > 0 {
+                let _ = complete_step(&ai_val, "invite_team").await;
+                on_complete_cb.run(());
+            } else if !errors.is_empty() {
+                error_msg.set(errors.join("\n"));
+            }
+        });
+    };
+
+    view! {
+        <div>
+            // Invite rows
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+                {move || rows.get().into_iter().enumerate().map(|(idx, row)| {
+                    let row_clone = row.clone();
+                    view! {
+                        <div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;\
+                                                  text-transform:uppercase;letter-spacing:.08em;\
+                                                  color:#64748b;display:block;margin-bottom:4px;"
+                                    >
+                                        {if idx == 0 { "Email address *" } else { "Email address" }}
+                                    </label>
+                                    <input
+                                        type="email"
+                                        placeholder="team@example.com"
+                                        prop:value=row_clone.email.clone()
+                                        style="width:100%;background:rgba(255,255,255,.06);\
+                                               border:1px solid rgba(255,255,255,.1);\
+                                               border-radius:8px;padding:9px 12px;\
+                                               font-size:13px;color:#e2e8f0;outline:none;\
+                                               font-family:inherit;"
+                                        on:input=move |e| {
+                                            let val = event_target_value(&e);
+                                            rows.update(|v| { if let Some(r) = v.get_mut(idx) { r.email = val; } });
+                                        }
+                                    />
+                                </div>
+                                <div>
+                                    <label style="font-size:10px;font-weight:700;\
+                                                  text-transform:uppercase;letter-spacing:.08em;\
+                                                  color:#64748b;display:block;margin-bottom:4px;"
+                                    >
+                                        "Role"
+                                    </label>
+                                    <select
+                                        style="width:100%;background:rgba(255,255,255,.06);\
+                                               border:1px solid rgba(255,255,255,.1);\
+                                               border-radius:8px;padding:9px 12px;\
+                                               font-size:13px;color:#e2e8f0;outline:none;\
+                                               font-family:inherit;cursor:pointer;"
+                                        on:change=move |e| {
+                                            let val = event_target_value(&e);
+                                            rows.update(|v| { if let Some(r) = v.get_mut(idx) { r.app_role = val; } });
+                                        }
+                                    >
+                                        {FOLIO_ROLES.iter().map(|(value, label)| {
+                                            let selected = row.app_role == *value;
+                                            view! {
+                                                <option value=*value prop:selected=selected>{*label}</option>
+                                            }
+                                        }).collect_view()}
+                                    </select>
+                                </div>
+                                <button
+                                    style="background:none;border:1px solid rgba(239,68,68,.3);\
+                                           color:rgba(239,68,68,.6);border-radius:8px;\
+                                           width:36px;height:36px;cursor:pointer;font-size:16px;\
+                                           display:flex;align-items:center;justify-content:center;"
+                                    on:click=move |_| remove_row(idx)
+                                >
+                                    "×"
+                                </button>
+                            </div>
+                            // Optional name + personal note
+                            <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:6px;">
+                                <input
+                                    type="text"
+                                    placeholder="Name (optional)"
+                                    prop:value=row.display_name.clone()
+                                    style="background:rgba(255,255,255,.04);\
+                                           border:1px solid rgba(255,255,255,.07);\
+                                           border-radius:6px;padding:7px 10px;\
+                                           font-size:12px;color:#94a3b8;outline:none;font-family:inherit;"
+                                    on:input=move |e| {
+                                        let val = event_target_value(&e);
+                                        rows.update(|v| { if let Some(r) = v.get_mut(idx) { r.display_name = val; } });
+                                    }
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Personal note (shown in invite email)"
+                                    prop:value=row.personal_message.clone()
+                                    style="background:rgba(255,255,255,.04);\
+                                           border:1px solid rgba(255,255,255,.07);\
+                                           border-radius:6px;padding:7px 10px;\
+                                           font-size:12px;color:#94a3b8;outline:none;font-family:inherit;"
+                                    on:input=move |e| {
+                                        let val = event_target_value(&e);
+                                        rows.update(|v| { if let Some(r) = v.get_mut(idx) { r.personal_message = val; } });
+                                    }
+                                />
+                            </div>
+                        </div>
+                    }
+                }).collect_view()}
+            </div>
+
+            // Add another row
+            <button
+                style="background:none;border:1px dashed rgba(99,102,241,.4);\
+                       color:#6366f1;border-radius:8px;padding:8px 14px;\
+                       font-size:12px;font-weight:600;cursor:pointer;\
+                       display:flex;align-items:center;gap:6px;\
+                       width:100%;justify-content:center;margin-bottom:20px;"
+                on:click=add_row
+            >
+                "+  Add another person"
+            </button>
+
+            // Error display
+            {move || {
+                let msg = error_msg.get();
+                (!msg.is_empty()).then(|| view! {
+                    <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);\
+                                border-radius:8px;padding:10px 14px;font-size:12px;\
+                                color:#fca5a5;white-space:pre-wrap;margin-bottom:12px;"
+                    >
+                        {msg}
+                    </div>
+                })
+            }}
+
+            // Success flash
+            {move || {
+                let n = sent_count.get();
+                (n > 0).then(|| view! {
+                    <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);\
+                                border-radius:8px;padding:10px 14px;font-size:12px;\
+                                color:#86efac;margin-bottom:12px;"
+                    >
+                        {format!("✓ {} invite{} sent.", n, if n == 1 { "" } else { "s" })}
+                    </div>
+                })
+            }}
+
+            // Action row
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+                {on_skip.clone().map(|skip_cb| view! {
+                    <button
+                        id="ob-invite-skip"
+                        style="background:none;border:none;color:#475569;\
+                               font-size:13px;cursor:pointer;text-decoration:underline;padding:6px 0;"
+                        on:click=move |_| skip_cb.run(())
+                    >
+                        "Skip for now"
+                    </button>
+                })}
+                <button
+                    id="ob-invite-send"
+                    style=move || format!(
+                        "background:{};border:none;color:#fff;\
+                         font-size:13px;font-weight:700;border-radius:10px;\
+                         padding:11px 28px;cursor:pointer;\
+                         font-family:inherit;transition:all .15s;margin-left:auto;",
+                        if submitting.get() { "#3730a3" } else { "#6366f1" }
+                    )
+                    disabled=move || submitting.get()
+                    on:click=submit
+                >
+                    {move || if submitting.get() { "Sending…" } else { "Send invites →" }}
+                </button>
+            </div>
+        </div>
+    }
+}
+
+// ── GenericCustomStep ──────────────────────────────────────────────────────────
 
 #[component]
 fn GenericCustomStep(
@@ -846,6 +1127,19 @@ pub fn OnboardingWizard(
                                                                 on_complete=go_next_cb.clone()
                                                             />
                                                         }.into_any(),
+                                                        "invite_team" => {
+                                                            let skip_cb = (!step.is_required).then(|| {
+                                                                Callback::new(move |_: ()| go_next())
+                                                            });
+                                                            view! {
+                                                                <InviteTeamStep
+                                                                    app_instance_id=ai_s.clone()
+                                                                    tenant_id=tid_s.clone()
+                                                                    on_complete=go_next_cb.clone()
+                                                                    on_skip=skip_cb
+                                                                />
+                                                            }.into_any()
+                                                        },
                                                         _ => {
                                                             let skip_cb = (!step.is_required).then(|| {
                                                                 Callback::new(move |_: ()| go_next())

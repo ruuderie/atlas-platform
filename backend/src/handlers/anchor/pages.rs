@@ -104,6 +104,7 @@ pub async fn create_page(
     let new_page = app_page::ActiveModel {
         id: Set(Uuid::new_v4()),
         tenant_id: Set(site_config.tenant_id),
+        app_id: Set("anchor".to_string()), // Anchor CMS handler — always scoped to the Anchor app
         slug: Set(clean_slug),
         title: Set(payload.title),
         description: Set(String::new()),

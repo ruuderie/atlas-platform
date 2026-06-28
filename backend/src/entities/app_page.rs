@@ -11,6 +11,9 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub tenant_id: Uuid,
+    /// Platform product this page belongs to ("folio", "ruuderie", "network").
+    /// Used by the platform-admin Landing Page Builder to scope pages by app.
+    pub app_id: String,
     pub slug: String,
     pub title: String,
     #[sea_orm(column_type = "Text")]

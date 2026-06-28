@@ -41,6 +41,7 @@ use crate::entities::{
     platform_product,
     product_page::{template, variant},
     atlas_lead,
+    app_page,
 };
 use crate::types::gtm::PlanTier;
 
@@ -272,6 +273,58 @@ async fn get_product_master(
     Extension(db): Extension<DatabaseConnection>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
+    // ── Builder-first: check app_pages for a published master page ────────────
+    // Convention: the master page has slug = "master" OR slug = the app_id itself.
+    // We check both to be flexible.
+    let builder_page = app_page::Entity::find()
+        .filter(app_page::Column::AppId.eq(&slug))
+        .filter(app_page::Column::IsPublished.eq(true))
+        .filter(
+            sea_orm::Condition::any()
+                .add(app_page::Column::Slug.eq("master"))
+                .add(app_page::Column::Slug.eq(&slug))
+        )
+        .one(&db)
+        .await
+        .ok()
+        .flatten();
+
+    if let Some(pg) = builder_page {
+        let hreflang = load_hreflang(&db, pg.id, &slug).await;
+        let base = base_url();
+        let canonical = format!("{base}/products/{slug}");
+        let page = ProductPageResponse {
+            product_id:            pg.id,
+            product_slug:          slug.clone(),
+            product_name:          pg.title.clone(),
+            variant_slug:          None,
+            locale:                "en".to_string(),
+            city:                  None,
+            country_code:          None,
+            hero:                  pg.hero_payload.clone().unwrap_or_default(),
+            blocks:                pg.blocks_payload.clone().unwrap_or_default(),
+            meta_title:            pg.title.clone(),
+            meta_description:      pg.description.clone(),
+            og_image_url:          None,
+            canonical_url:         canonical,
+            structured_data:       serde_json::Value::Null,
+            hreflang,
+            cta_label:             "Get Started".to_string(),
+            cta_action:            format!("/signup"),
+            launch_mode:           "active".to_string(),
+            pre_order_enabled:     false,
+            pre_order_price_cents: None,
+            pre_order_currency:    "usd".to_string(),
+            pre_order_available:   None,
+            waitlist_count:        0,
+            lead_count:            0,
+        };
+        let mut resp = (StatusCode::OK, Json(page)).into_response();
+        *resp.headers_mut() = cdn_headers();
+        return resp;
+    }
+
+    // ── Fallback: product_page_templates + product_page_variants ──────────────
     let (product, tmpl) = match load_product_and_template(&db, &slug).await {
         Ok(r) => r,
         Err(e) => return e,
@@ -321,6 +374,62 @@ async fn get_product_variant(
     Extension(db): Extension<DatabaseConnection>,
     Path((slug, variant_slug)): Path<(String, String)>,
 ) -> impl IntoResponse {
+    // ── Builder-first: check app_pages for a published variant page ───────────
+    let builder_variant = app_page::Entity::find()
+        .filter(app_page::Column::AppId.eq(&slug))
+        .filter(app_page::Column::Slug.eq(&variant_slug))
+        .filter(app_page::Column::IsPublished.eq(true))
+        .one(&db)
+        .await
+        .ok()
+        .flatten();
+
+    if let Some(pg) = builder_variant {
+        // For variants we look up the parent product for hreflang + product context
+        let hreflang = if let Ok(Some(product)) = platform_product::Entity::find()
+            .filter(platform_product::Column::Slug.eq(&slug))
+            .one(&db)
+            .await
+        {
+            load_hreflang(&db, product.id, &slug).await
+        } else {
+            vec![]
+        };
+
+        let base = base_url();
+        let canonical = format!("{base}/products/{slug}/{variant_slug}");
+        let page = ProductPageResponse {
+            product_id:            pg.id,
+            product_slug:          slug.clone(),
+            product_name:          pg.title.clone(),
+            variant_slug:          Some(variant_slug.clone()),
+            locale:                "en".to_string(),
+            city:                  None,
+            country_code:          None,
+            hero:                  pg.hero_payload.clone().unwrap_or_default(),
+            blocks:                pg.blocks_payload.clone().unwrap_or_default(),
+            meta_title:            pg.title.clone(),
+            meta_description:      pg.description.clone(),
+            og_image_url:          None,
+            canonical_url:         canonical,
+            structured_data:       serde_json::Value::Null,
+            hreflang,
+            cta_label:             "Get Started".to_string(),
+            cta_action:            "/signup".to_string(),
+            launch_mode:           "active".to_string(),
+            pre_order_enabled:     false,
+            pre_order_price_cents: None,
+            pre_order_currency:    "usd".to_string(),
+            pre_order_available:   None,
+            waitlist_count:        0,
+            lead_count:            0,
+        };
+        let mut resp = (StatusCode::OK, Json(page)).into_response();
+        *resp.headers_mut() = cdn_headers();
+        return resp;
+    }
+
+    // ── Fallback: product_page_templates + product_page_variants ──────────────
     let (product, tmpl) = match load_product_and_template(&db, &slug).await {
         Ok(r) => r,
         Err(e) => return e,

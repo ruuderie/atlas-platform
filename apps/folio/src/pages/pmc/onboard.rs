@@ -31,9 +31,52 @@ pub struct PmcOnboardInput {
     pub consented:       bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PmcOnboardResponse {
+    account_id:     String,
+    magic_link_url: String,
+}
+
 #[server(SubmitPmcOnboard, "/api")]
-pub async fn submit_pmc_onboard(input: PmcOnboardInput) -> Result<String, server_fn::error::ServerFnError> {
-    Ok("pmc_stub_id".to_string())
+pub async fn submit_pmc_onboard(input: PmcOnboardInput) -> Result<PmcOnboardResponse, server_fn::error::ServerFnError> {
+    use uuid::Uuid;
+
+    // The token in the URL is the invite UUID
+    let invite_id = Uuid::parse_str(&input.invite_token)
+        .map_err(|_| server_fn::error::ServerFnError::new("Invalid invite token format"))?;
+
+    #[derive(serde::Serialize)]
+    struct OnboardBody {
+        invite_id:       Uuid,
+        company_name:    String,
+        company_type:    String,
+        website:         Option<String>,
+        primary_name:    String,
+        primary_email:   String,
+        primary_phone:   String,
+        billing_email:   Option<String>,
+        portfolio_types: Vec<String>,
+        unit_count:      String,
+        markets:         Vec<String>,
+    }
+
+    let body = OnboardBody {
+        invite_id,
+        company_name:    input.company_name,
+        company_type:    input.company_type,
+        website:         input.website,
+        primary_name:    input.primary_name,
+        primary_email:   input.primary_email,
+        primary_phone:   input.primary_phone,
+        billing_email:   input.billing_email,
+        portfolio_types: input.portfolio_types,
+        unit_count:      input.unit_count,
+        markets:         input.markets,
+    };
+
+    crate::atlas_client::post::<OnboardBody, PmcOnboardResponse>("/api/folio/pm/onboard", &body)
+        .await
+        .map_err(|e| server_fn::error::ServerFnError::new(format!("Onboard failed: {e}")))
 }
 
 // ── Option data ───────────────────────────────────────────────────────────────
@@ -75,6 +118,7 @@ pub fn PmcOnboard() -> impl IntoView {
     let submitting   = RwSignal::new(false);
     let submitted    = RwSignal::new(false);
     let error        = RwSignal::new(None::<String>);
+    let redirect_url = RwSignal::new(String::new());
 
     let token_sv = StoredValue::new(token.clone());
     let handle_submit = move |_| {
@@ -96,7 +140,11 @@ pub fn PmcOnboard() -> impl IntoView {
         };
         leptos::task::spawn_local(async move {
             match submit_pmc_onboard(input).await {
-                Ok(_)  => { submitted.set(true); submitting.set(false); }
+                Ok(resp) => {
+                    redirect_url.set(resp.magic_link_url);
+                    submitted.set(true);
+                    submitting.set(false);
+                }
                 Err(e) => { error.set(Some(e.to_string())); submitting.set(false); }
             }
         });
@@ -124,7 +172,12 @@ pub fn PmcOnboard() -> impl IntoView {
                             "You'll receive a confirmation email with login instructions."
                         </div>
                         <div class="wiz-success-actions">
-                            <a href="/login" class="btn btn-primary">"Go to Login"</a>
+                            <a
+                                href=move || redirect_url.get()
+                                class="btn btn-primary"
+                            >
+                                "Set up your account →"
+                            </a>
                         </div>
                     </div>
                 }.into_any()

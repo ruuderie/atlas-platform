@@ -421,10 +421,18 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Go-to-Market"</span>
-                    // Landing Pages = all product/market management (content, SEO, variants, pixels, domains).
+                    // Products = platform product registry (launch mode, content, markets, SEO, pixels).
                     <a href="/products" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/products") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="12" rx="1.5"/><path d="M1 7h14"/><circle cx="5" cy="10" r="1.2" fill="currentColor"/><circle cx="9" cy="10" r="1.2" fill="currentColor"/></svg>
+                        "Products"
+                    </a>
+                    // Landing Pages = app-neutral GTM acquisition page builder.
+                    <a href="/landing-pages" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/landing-pages") { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="1.5"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="6" y1="6" x2="6" y2="14"/></svg>
                         "Landing Pages"
@@ -549,6 +557,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/products/:id") view=ProductDetail />
                         <Route path=path!("/campaigns") view=crate::pages::marketing::campaigns::CampaignsPage />
                         <Route path=path!("/campaigns/:id") view=crate::pages::marketing::campaigns::CampaignDetail />
+                        <Route path=path!("/landing-pages") view=crate::pages::marketing::landing_pages::LandingPagesPage />
                         <Route path=path!("/admins") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant::TenantLedger />

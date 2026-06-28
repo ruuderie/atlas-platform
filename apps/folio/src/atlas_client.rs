@@ -18,6 +18,18 @@ pub async fn fetch<T: DeserializeOwned>(path: &str) -> Result<T, String> {
     res.json::<T>().await.map_err(|e| e.to_string())
 }
 
+/// Unauthenticated POST — for public token-gated endpoints (PMC onboard, etc.)
+pub async fn post<B: Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Result<T, String> {
+    let url = format!("{}{}", get_atlas_api_url(), path);
+    let res = CLIENT.post(&url).json(body).send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        let status = res.status();
+        let msg = res.text().await.unwrap_or_default();
+        return Err(format!("API {status}: {msg}"));
+    }
+    res.json::<T>().await.map_err(|e| e.to_string())
+}
+
 /// Authenticated GET — forwards session cookie and optional tenant-id header.
 pub async fn authenticated_get<T: DeserializeOwned>(
     path: &str,

@@ -300,6 +300,10 @@ pub mod m20260918_deployment_config_account_link;  // Client Mgmt: platform_acco
 pub mod m20260919_g19_campaigns_parent_id;
 pub mod m20260920_atlas_notifications;     // G-07 ext: atlas_notification inbox + atlas_user_notification_pref
 pub mod m20260921_platform_invite_enhancements; // Onboarding: enhanced invite (display_name, folio_role, app_instance_id, target_app_url, message)
+pub mod m20260922_app_pages_app_id;        // Landing Page Builder: app_id column on app_pages for platform-admin GTM builder
+pub mod m20260923_app_page_variants;       // Landing Page Builder: A/B test variants table (app_page_variants)
+pub mod m20260924_app_utm_presets;         // Landing Page Builder: reusable UTM parameter sets (app_utm_presets)
+pub mod m20260925_atlas_lp_events;         // Landing Page Builder: funnel analytics events table
 
 pub struct Migrator;
 
@@ -559,6 +563,11 @@ impl MigratorTrait for Migrator {
             // atlas_user_notification_pref: per-user, per-tenant, per-channel opt-in (telegram/whatsapp/sms/email).
             Box::new(m20260920_atlas_notifications::Migration),
             Box::new(m20260921_platform_invite_enhancements::Migration),
+            // Landing Page Builder: platform-admin GTM page management system
+            Box::new(m20260922_app_pages_app_id::Migration),
+            Box::new(m20260923_app_page_variants::Migration),
+            Box::new(m20260924_app_utm_presets::Migration),
+            Box::new(m20260925_atlas_lp_events::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

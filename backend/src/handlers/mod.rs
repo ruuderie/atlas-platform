@@ -17,7 +17,9 @@ pub mod categories;
 pub mod tenant;
 pub mod app_instance;
 pub mod app_pages;
+pub mod landing_pages; // Platform-admin Landing Page Builder (app-scoped, no tenant)
 pub mod app_menus;
+
 pub mod templates;
 pub mod listings;
 pub mod profiles;
