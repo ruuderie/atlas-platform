@@ -181,6 +181,7 @@ pub fn VendorSchedule() -> impl IntoView {
 
 // ── Server Functions ──────────────────────────────────────────────────────────
 
+#[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
     headers
         .get(axum::http::header::AUTHORIZATION)

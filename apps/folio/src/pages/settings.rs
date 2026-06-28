@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/settings.rs
 //
 // Settings — /settings
@@ -223,7 +224,7 @@ fn ProfileTab() -> impl IntoView {
                                         view! {
                                             <option value={tz_val.clone()}
                                                 selected=move || profile.get().timezone == *tz
-                                            >{tz_val}</option>
+                                            >{ tz_val.clone() }</option>
                                         }
                                     }).collect::<Vec<_>>()}
                                 </select>

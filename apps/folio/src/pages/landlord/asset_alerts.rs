@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/asset_alerts.rs
 //
 // Asset Alerts — /l/assets/:id/alerts
@@ -45,7 +46,7 @@ fn all_alert_types() -> Vec<AlertType> {
 #[component]
 pub fn AssetAlerts() -> impl IntoView {
     let params   = use_params_map();
-    let asset_id = params.get().get("id").cloned().unwrap_or_default();
+    let asset_id = params.get().get(0).unwrap_or_default();
     let aid_disp = if asset_id.len() > 8 { format!("…{}", &asset_id[asset_id.len()-8..]) } else { asset_id.clone() };
 
     // Alert enabled state (in production persisted to notification preferences)

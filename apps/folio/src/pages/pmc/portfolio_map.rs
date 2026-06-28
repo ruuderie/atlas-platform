@@ -279,10 +279,12 @@ pub fn PmcPortfolioMap() -> impl IntoView {
                                     <div class="owner-section">
                                         <div class="owner-section-title">"Properties"
                                             <span class="text-xs text-on-surface-variant" style="font-weight:400;margin-left:.5rem;">
-                                                {move || {
+                                                {
+                                                    let props_for_count = summary.properties.clone();
+                                                    move || {
                                                     let city_q = search_city.get().to_lowercase();
                                                     let status_q = filter_status.get();
-                                                    let count = summary.properties.iter().filter(|p| {
+                                                    let count = props_for_count.iter().filter(|p| {
                                                         (city_q.is_empty() || p.city.to_lowercase().contains(&city_q)) &&
                                                         (status_q == "all" || p.status == status_q)
                                                     }).count();

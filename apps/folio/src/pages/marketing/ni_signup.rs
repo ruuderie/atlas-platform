@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/marketing/ni_signup.rs
 //
 // Network Instance Signup — /ni/signup

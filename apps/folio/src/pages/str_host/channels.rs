@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/str_host/channels.rs
 //
 // STR Channel Manager — /s/channels

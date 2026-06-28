@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/syndication.rs
 //
 // Syndication — /l/syndication

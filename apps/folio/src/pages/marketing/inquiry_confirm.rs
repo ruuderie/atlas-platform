@@ -14,10 +14,10 @@ use leptos_router::hooks::use_query_map;
 #[component]
 pub fn InquiryConfirm() -> impl IntoView {
     let query     = use_query_map();
-    let lead_ref  = query.get().get("ref").cloned();
-    let name      = query.get().get("name").cloned();
-    let property  = query.get().get("property").cloned();
-    let action    = query.get().get("action").cloned().unwrap_or_else(|| "contact".to_string());
+    let lead_ref  = query.get().get(0);
+    let name      = query.get().get(0);
+    let property  = query.get().get(0);
+    let action    = query.get().get(0).unwrap_or_else(|| "contact".to_string());
 
     let (title, subtitle, icon) = if action == "schedule" {
         (

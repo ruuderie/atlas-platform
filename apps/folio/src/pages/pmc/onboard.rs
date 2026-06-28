@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/pmc/onboard.rs
 //
 // PMC Onboarding Wizard — /pmc/onboard
@@ -58,7 +59,7 @@ const US_MARKETS: &[&str] = &[
 #[component]
 pub fn PmcOnboard() -> impl IntoView {
     let query        = use_query_map();
-    let token        = query.get().get("token").cloned().unwrap_or_default();
+    let token        = query.get().get(0).unwrap_or_default();
 
     let step         = RwSignal::new(1u8);
     let company_name = RwSignal::new(String::new());

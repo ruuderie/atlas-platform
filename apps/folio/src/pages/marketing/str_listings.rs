@@ -91,9 +91,9 @@ pub fn StrListings() -> impl IntoView {
     let q = query.get();
     let is_embed  = q.get("embed").map(|v| v == "1").unwrap_or(false);
 
-    let city          = RwSignal::new(q.get("city").cloned().unwrap_or_default());
-    let check_in      = RwSignal::new(q.get("check_in").cloned().unwrap_or_default());
-    let check_out     = RwSignal::new(q.get("check_out").cloned().unwrap_or_default());
+    let city          = RwSignal::new(q.get(0).unwrap_or_default());
+    let check_in      = RwSignal::new(q.get(0).unwrap_or_default());
+    let check_out     = RwSignal::new(q.get(0).unwrap_or_default());
     let guests        = RwSignal::new(2u32);
     let listing_type  = RwSignal::new("".to_string());
     let page          = RwSignal::new(1i64);

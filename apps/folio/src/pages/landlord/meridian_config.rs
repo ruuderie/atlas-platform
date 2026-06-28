@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/meridian_config.rs
 //
 // G-27 Meridian Configurator — /l/meridian/configure

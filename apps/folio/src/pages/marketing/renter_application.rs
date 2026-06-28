@@ -1,3 +1,4 @@
+use wasm_bindgen::JsCast;
 // apps/folio/src/pages/marketing/renter_application.rs
 //
 // Renter Application — /apply/:property_id
@@ -40,7 +41,7 @@ pub async fn submit_renter_application(
 #[component]
 pub fn RenterApplication() -> impl IntoView {
     let params      = use_params_map();
-    let property_id = params.get().get("property_id").cloned().unwrap_or_default();
+    let property_id = params.get().get(0).unwrap_or_default();
 
     let step          = RwSignal::new(1u8);
     let first_name    = RwSignal::new(String::new());

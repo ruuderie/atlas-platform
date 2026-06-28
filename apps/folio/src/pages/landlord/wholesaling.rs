@@ -59,7 +59,7 @@ pub async fn calc_mao(arv: i64, repair: i64, fee: i64) -> Result<MaoResult, serv
         "wholesale_fee_cents": fee,
         "multiplier": 0.7
     });
-    crate::atlas_client::authenticated_post::<MaoResult, serde_json::Value>(
+    crate::atlas_client::authenticated_post::<serde_json::Value, MaoResult>(
         "/api/folio/wholesale/mao", &token, None, &body,
     ).await.map_err(|e| server_fn::error::ServerFnError::new(e.to_string()))
 }

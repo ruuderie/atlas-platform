@@ -68,7 +68,7 @@ fn fmt_budget(cents: i64) -> String {
 #[component]
 pub fn VendorJobLink() -> impl IntoView {
     let params  = use_params_map();
-    let token   = params.get().get("token").cloned().unwrap_or_default();
+    let token   = params.get().get(0).unwrap_or_default();
 
     let decision   = RwSignal::new(None::<String>);
     let note       = RwSignal::new(String::new());

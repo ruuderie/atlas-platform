@@ -116,7 +116,7 @@ fn status_chip_class(status: &str) -> &'static str {
 pub fn OwnerPropertyDetail() -> impl IntoView {
     let params   = use_params_map();
     let asset_id = params.get().get("id")
-        .and_then(|s| Uuid::parse_str(s).ok());
+        .and_then(|s| Uuid::parse_str(&s).ok());
 
     let props_res = Resource::new(|| (), |_| fetch_owner_properties());
     let leases_res= Resource::new(|| (), |_| fetch_owner_leases());

@@ -416,6 +416,7 @@ fn ViolSkeleton(rows: usize) -> impl IntoView {
 
 // ── Server function ───────────────────────────────────────────────────────────
 
+#[cfg(feature = "ssr")]
 fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
     headers
         .get(axum::http::header::AUTHORIZATION)

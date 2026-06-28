@@ -87,7 +87,7 @@ pub fn PmcOwnerStatements() -> impl IntoView {
                             generating.set(false);
                         }
                     >
-                        {move || if generating.get() { "Generating…" } else {
+                        {move || if generating.get() { "Generating…".to_string() } else {
                             format!("Generate Statements ({})", selected.get().len())
                         }}
                     </button>

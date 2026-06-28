@@ -89,7 +89,7 @@ fn case_type_icon(ct: &str) -> &'static str {
 #[component]
 pub fn TenantMaintenanceDetail() -> impl IntoView {
     let params = use_params_map();
-    let id_str = params.get().get("id").cloned().unwrap_or_default();
+    let id_str = params.get().get(0).unwrap_or_default();
     let case_id = Uuid::parse_str(&id_str).ok();
 
     let cases_res = Resource::new(
