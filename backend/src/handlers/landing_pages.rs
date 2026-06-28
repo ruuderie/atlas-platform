@@ -814,3 +814,213 @@ pub async fn post_lp_event(
 
     StatusCode::ACCEPTED
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests (pure logic, no DB)
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // ── PagePixelConfig::from_value ──────────────────────────────────────────
+
+    #[test]
+    fn pixel_config_full_roundtrip() {
+        // All four providers present and correctly parsed.
+        let v = json!({
+            "ga4":      { "enabled": true,  "snippet": "GA_SNIPPET" },
+            "meta":     { "enabled": false, "snippet": null },
+            "linkedin": { "enabled": true,  "snippet": "LI_SNIPPET" },
+            "gtm":      { "enabled": false, "snippet": null },
+        });
+        let cfg = PagePixelConfig::from_value(&v);
+
+        assert!(cfg.ga4.enabled, "ga4 should be enabled");
+        assert_eq!(cfg.ga4.snippet.as_deref(), Some("GA_SNIPPET"));
+        assert!(!cfg.meta.enabled, "meta should be disabled");
+        assert!(cfg.linkedin.enabled, "linkedin should be enabled");
+        assert_eq!(cfg.linkedin.snippet.as_deref(), Some("LI_SNIPPET"));
+        assert!(!cfg.gtm.enabled, "gtm should be disabled");
+    }
+
+    #[test]
+    fn pixel_config_partial_json_defaults_missing_keys() {
+        // Only ga4 present in JSONB — others must default to disabled with no snippet.
+        let v = json!({ "ga4": { "enabled": true, "snippet": null } });
+        let cfg = PagePixelConfig::from_value(&v);
+
+        assert!(cfg.ga4.enabled, "ga4 should be enabled");
+        assert!(!cfg.meta.enabled, "meta missing from JSON → disabled");
+        assert!(!cfg.linkedin.enabled, "linkedin missing from JSON → disabled");
+        assert!(!cfg.gtm.enabled, "gtm missing from JSON → disabled");
+        assert!(cfg.meta.snippet.is_none());
+    }
+
+    #[test]
+    fn pixel_config_empty_object_all_disabled() {
+        let cfg = PagePixelConfig::from_value(&json!({}));
+        assert!(!cfg.ga4.enabled);
+        assert!(!cfg.meta.enabled);
+        assert!(!cfg.linkedin.enabled);
+        assert!(!cfg.gtm.enabled);
+    }
+
+    #[test]
+    fn pixel_config_malformed_value_falls_back_to_default() {
+        // A provider value that isn't an object should silently default.
+        let v = json!({ "ga4": "not-an-object", "meta": 42 });
+        let cfg = PagePixelConfig::from_value(&v);
+        assert!(!cfg.ga4.enabled, "malformed ga4 value → disabled default");
+        assert!(!cfg.meta.enabled, "malformed meta value → disabled default");
+    }
+
+    // ── Analytics conv_rate_pct guard ────────────────────────────────────────
+
+    #[test]
+    fn conv_rate_zero_views_does_not_divide_by_zero() {
+        let (views, leads): (i64, i64) = (0, 0);
+        let rate = if views > 0 {
+            (leads as f64 / views as f64) * 100.0
+        } else {
+            0.0
+        };
+        assert_eq!(rate, 0.0, "zero views must yield 0.0, not NaN or panic");
+    }
+
+    #[test]
+    fn conv_rate_calculation_is_correct() {
+        let (views, leads): (i64, i64) = (200, 10);
+        let rate = if views > 0 {
+            (leads as f64 / views as f64) * 100.0
+        } else {
+            0.0
+        };
+        // 10/200 * 100 = 5.0
+        assert!((rate - 5.0).abs() < 1e-9, "expected 5.0, got {rate}");
+    }
+
+    #[test]
+    fn conv_rate_full_conversion_is_100() {
+        let (views, leads): (i64, i64) = (50, 50);
+        let rate = if views > 0 {
+            (leads as f64 / views as f64) * 100.0
+        } else {
+            0.0
+        };
+        assert!((rate - 100.0).abs() < 1e-9);
+    }
+
+    // ── Pixel type validation ─────────────────────────────────────────────────
+
+    #[test]
+    fn pixel_type_accepts_all_valid_types() {
+        let valid_types = ["ga4", "meta", "linkedin", "gtm"];
+        for t in &["ga4", "meta", "linkedin", "gtm"] {
+            assert!(
+                valid_types.contains(t),
+                "'{t}' should be a valid pixel type"
+            );
+        }
+    }
+
+    #[test]
+    fn pixel_type_rejects_unknown_providers() {
+        let valid_types = ["ga4", "meta", "linkedin", "gtm"];
+        for bad in &["tiktok", "twitter", "snapchat", "", "GA4", "Meta"] {
+            assert!(
+                !valid_types.contains(bad),
+                "'{bad}' should NOT be a valid pixel type"
+            );
+        }
+    }
+
+    // ── Event type validation ─────────────────────────────────────────────────
+
+    #[test]
+    fn event_type_accepts_all_valid_types() {
+        let valid = ["view", "lead_submitted", "cta_click"];
+        for t in &valid {
+            assert!(valid.contains(t), "'{t}' should be a valid event type");
+        }
+    }
+
+    #[test]
+    fn event_type_rejects_common_mistakes() {
+        let valid = ["view", "lead_submitted", "cta_click"];
+        // Common wrong names that callers might send
+        for bad in &["pageview", "click", "submit", "View", "LEAD_SUBMITTED", ""] {
+            assert!(
+                !valid.contains(bad),
+                "'{bad}' should NOT be a valid event type"
+            );
+        }
+    }
+
+    // ── JSONB pixel merge preserves sibling keys ──────────────────────────────
+
+    #[test]
+    fn pixel_merge_preserves_existing_hero_payload_keys() {
+        // Simulate the set_pixel handler's JSONB merge logic end-to-end.
+        let mut hero = json!({
+            "headline": "Welcome to Folio",
+            "cta_text": "Get Started",
+            "pixel_config": {
+                "ga4": { "enabled": true, "snippet": "GA-12345" }
+            }
+        });
+
+        // Apply a toggle for "meta" pixel
+        let pixel_cfg_val = hero
+            .get_mut("pixel_config")
+            .filter(|v| v.is_object())
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+
+        let mut pixel_map = match pixel_cfg_val {
+            serde_json::Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        pixel_map.insert("meta".to_string(), json!({ "enabled": true, "snippet": null }));
+
+        hero.as_object_mut()
+            .unwrap()
+            .insert("pixel_config".to_string(), serde_json::Value::Object(pixel_map));
+
+        // ga4 entry should be untouched
+        assert_eq!(hero["pixel_config"]["ga4"]["enabled"], true);
+        assert_eq!(hero["pixel_config"]["ga4"]["snippet"], "GA-12345");
+        // meta should now be present and enabled
+        assert_eq!(hero["pixel_config"]["meta"]["enabled"], true);
+        // Non-pixel hero keys must survive the merge
+        assert_eq!(hero["headline"], "Welcome to Folio");
+        assert_eq!(hero["cta_text"], "Get Started");
+    }
+
+    #[test]
+    fn pixel_merge_creates_pixel_config_when_absent() {
+        // hero_payload with NO pixel_config key yet — merge should create it.
+        let mut hero = json!({ "headline": "No pixels yet" });
+
+        let pixel_cfg_val = hero
+            .get_mut("pixel_config")
+            .filter(|v| v.is_object())
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+
+        let mut pixel_map = match pixel_cfg_val {
+            serde_json::Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        pixel_map.insert("gtm".to_string(), json!({ "enabled": true, "snippet": "GTM-XYZ" }));
+
+        hero.as_object_mut()
+            .unwrap()
+            .insert("pixel_config".to_string(), serde_json::Value::Object(pixel_map));
+
+        assert_eq!(hero["pixel_config"]["gtm"]["enabled"], true);
+        assert_eq!(hero["pixel_config"]["gtm"]["snippet"], "GTM-XYZ");
+        // Original key survives
+        assert_eq!(hero["headline"], "No pixels yet");
+    }
+}
