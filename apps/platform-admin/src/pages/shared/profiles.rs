@@ -5,7 +5,7 @@ use shared_ui::components::ui::table::{Table as DataTable, TableHeader as DataTa
 use leptos_router::hooks::use_params_map;
 use shared_ui::components::ui::label::Label;
 use crate::api::provision::{provision_admin, ProvisionAdminPayload};
-use crate::api::admin::create_invite;
+use crate::api::admin::{create_invite, CreateInviteInput};
 
 #[component]
 pub fn ProfilesPanel() -> impl IntoView {
@@ -55,7 +55,17 @@ pub fn ProfilesPanel() -> impl IntoView {
         }
         let t = toast.clone();
         leptos::task::spawn_local(async move {
-            match create_invite(email.clone(), "admin".to_string(), String::new()).await {
+            match create_invite(CreateInviteInput {
+                email: email.clone(),
+                display_name: None,
+                role: "Admin".to_string(),
+                app_role: None,
+                tenant: String::new(),
+                app_instance_id: None,
+                target_app_url: None,
+                personal_message: None,
+                expires_days: Some(7),
+            }).await {
                 Ok(_) => t.show_toast("Invite Sent", &format!("Invite sent to {}.", email), "success"),
                 Err(e) => t.show_toast("Error", &format!("Invite failed: {e}"), "error"),
             }

@@ -10,7 +10,7 @@ use shared_ui::components::ui::table::{
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
 use crate::api::billing::{issue_credit, generate_invoice, change_plan};
-use crate::api::admin::create_invite;
+use crate::api::admin::{create_invite, CreateInviteInput};
 
 #[component]
 pub fn TenantLedger() -> impl IntoView {
@@ -136,7 +136,17 @@ pub fn TenantLedger() -> impl IntoView {
         if name.is_empty() || email.is_empty() { return; }
         let t_toast = toast.clone();
         leptos::task::spawn_local(async move {
-            match create_invite(email.clone(), role.clone(), tid).await {
+            match create_invite(CreateInviteInput {
+                email: email.clone(),
+                display_name: Some(name.clone()),
+                role: "Admin".to_string(),
+                app_role: Some(role.clone()),
+                tenant: tid.clone(),
+                app_instance_id: None,
+                target_app_url: None,
+                personal_message: None,
+                expires_days: Some(7),
+            }).await {
                 Ok(_) => t_toast.show_toast("Invite Sent", &format!("Team invitation dispatched to {} ({}).", email, role), "success"),
                 Err(e) => t_toast.show_toast("Error", &format!("Failed to send invite: {}", e), "error"),
             }

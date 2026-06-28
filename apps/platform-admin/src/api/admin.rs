@@ -510,21 +510,36 @@ pub async fn rerun_ai_task(id: String) -> Result<(), String> {
 pub struct InviteModel {
     pub id: Uuid,
     pub email: String,
+    pub display_name: Option<String>,
     pub role: String,
+    /// Role within the target app instance — interpreted by that app, not the platform
+    pub app_role: Option<String>,
     pub tenant: String,
+    pub app_instance_id: Option<Uuid>,
     pub invited_by: String,
     pub sent: String,
     pub expires: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CreateInviteInput {
+    pub email: String,
+    pub display_name: Option<String>,
+    pub role: String,
+    pub app_role: Option<String>,
+    pub tenant: String,
+    pub app_instance_id: Option<Uuid>,
+    pub target_app_url: Option<String>,
+    pub personal_message: Option<String>,
+    pub expires_days: Option<i64>,
 }
 
 pub async fn get_invites() -> Result<Vec<InviteModel>, String> {
     crate::api::client::api_get("api/admin/users/invites").await
 }
 
-pub async fn create_invite(email: String, role: String, tenant: String) -> Result<InviteModel, String> {
-    #[derive(Serialize)]
-    struct Payload { email: String, role: String, tenant: String }
-    crate::api::client::api_post("api/admin/users/invite", &Payload { email, role, tenant }).await
+pub async fn create_invite(input: CreateInviteInput) -> Result<InviteModel, String> {
+    crate::api::client::api_post("api/admin/users/invite", &input).await
 }
 
 pub async fn revoke_invite(id: Uuid) -> Result<(), String> {

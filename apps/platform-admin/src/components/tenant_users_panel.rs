@@ -10,7 +10,7 @@
 use leptos::prelude::*;
 use uuid::Uuid;
 use crate::api::admin::{
-    get_users, toggle_admin, get_invites, create_invite, revoke_invite,
+    get_users, toggle_admin, get_invites, create_invite, revoke_invite, CreateInviteInput,
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -50,7 +50,17 @@ pub fn TenantUsersPanel(
         if email.is_empty() { return; }
         invite_saving.set(true);
         leptos::task::spawn_local(async move {
-            match create_invite(email, role, tenant).await {
+            match create_invite(CreateInviteInput {
+                email,
+                display_name: None,
+                role: "Admin".to_string(),
+                app_role: Some(role),
+                tenant,
+                app_instance_id: Some(tenant_id),
+                target_app_url: None,
+                personal_message: None,
+                expires_days: Some(7),
+            }).await {
                 Ok(_) => {
                     t.show_toast("Invited", "Invitation sent successfully.", "success");
                     show_invite_modal.set(false);

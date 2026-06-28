@@ -12,3 +12,5 @@ pub mod not_found;
 pub mod marketing;  // zero-auth SSR landing pages served at /lp/*
 
 pub mod settings;
+pub mod auth;         // passkey_setup + future auth flows
+pub mod onboarding;   // first-run wizard

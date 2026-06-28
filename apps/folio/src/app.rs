@@ -118,6 +118,8 @@ use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
 use crate::pages::pmc::onboard::PmcOnboard;
 use crate::pages::landlord::meridian_config::MeridianConfigurator;
 use crate::pages::settings::Settings;
+use crate::pages::auth::passkey_setup::PasskeySetup;
+use crate::pages::onboarding::wizard::OnboardingWizard;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -153,8 +155,11 @@ pub fn App() -> impl IntoView {
         <Router>
             <Routes fallback=|| view! { <NotFound/> }>
                 // ── Public ────────────────────────────────────────────────────
-                <Route path=path!("/login")  view=Login/>
-                <Route path=path!("/verify") view=Verify/>
+                <Route path=path!("/login")              view=Login/>
+                <Route path=path!("/verify")             view=Verify/>
+                // Auth + first-run — no layout chrome
+                <Route path=path!("/auth/passkey-setup") view=PasskeySetup/>
+                <Route path=path!("/onboarding")         view=OnboardingWizard/>
 
                 // ── Marketing landing pages (zero-auth SSR) ───────────────────
                 // /lp              → product master page (folio.app)

@@ -2,7 +2,7 @@ use leptos::prelude::*;
 use uuid::Uuid;
 use crate::api::admin::{
     get_users, toggle_admin, UserModel, impersonate_user,
-    get_invites, create_invite, revoke_invite, resend_invite, InviteModel,
+    get_invites, create_invite, revoke_invite, resend_invite, InviteModel, CreateInviteInput,
     get_audit_logs, get_tenant_stats,
 };
 use crate::app::GlobalToast;
@@ -23,11 +23,24 @@ pub fn PlatformAdmins() -> impl IntoView {
     let status_filter = RwSignal::new("All Statuses".to_string());
 
     // Modals
-    let show_invite_modal = RwSignal::new(false);
-    let show_manage_modal = RwSignal::new(None::<UserModel>);
-    let invite_email = RwSignal::new(String::new());
-    let invite_role = RwSignal::new("Admin".to_string());
-    let invite_tenant = RwSignal::new(String::new());
+    let show_invite_modal  = RwSignal::new(false);
+    let invite_step        = RwSignal::new(1u8);      // 1 = Who, 2 = Access
+    let show_manage_modal  = RwSignal::new(None::<UserModel>);
+
+    // Invite form — Step 1: Who
+    let invite_display_name   = RwSignal::new(String::new());
+    let invite_email          = RwSignal::new(String::new());
+    let invite_personal_msg   = RwSignal::new(String::new());
+
+    // Invite form — Step 2: Access
+    let invite_platform_role  = RwSignal::new("Admin".to_string());
+    let invite_app_role       = RwSignal::new(String::new());
+    let invite_tenant         = RwSignal::new(String::new());
+    let invite_app_instance   = RwSignal::new(String::new()); // Uuid as string
+    let invite_target_url     = RwSignal::new(String::new());
+    let invite_expires_days   = RwSignal::new(7i64);
+    let invite_sending        = RwSignal::new(false);
+    let invite_sent_to        = RwSignal::new(None::<String>); // email of last sent
 
     // Live invitations resource
     let invites_refetch = RwSignal::new(0);
@@ -98,26 +111,52 @@ pub fn PlatformAdmins() -> impl IntoView {
             toast.show_toast("Error", "Email is required.", "error");
             return;
         }
+        invite_sending.set(true);
+        let display_name   = invite_display_name.get();
+        let personal_msg   = invite_personal_msg.get();
+        let platform_role  = invite_platform_role.get();
+        let app_role       = invite_app_role.get();
+        let tenant         = invite_tenant.get();
+        let app_instance   = invite_app_instance.get();
+        let target_url     = invite_target_url.get();
+        let expires_days   = invite_expires_days.get();
+        let t_toast        = toast.clone();
 
-        let role = invite_role.get();
-        let tenant = invite_tenant.get();
-        let t_toast = toast.clone();
+        let input = CreateInviteInput {
+            email:           email.clone(),
+            display_name:    if display_name.trim().is_empty() { None } else { Some(display_name.trim().to_string()) },
+            role:            platform_role,
+            app_role:        if app_role.trim().is_empty() { None } else { Some(app_role.trim().to_string()) },
+            tenant,
+            app_instance_id: uuid::Uuid::parse_str(&app_instance).ok(),
+            target_app_url:  if target_url.trim().is_empty() { None } else { Some(target_url.trim().to_string()) },
+            personal_message:if personal_msg.trim().is_empty() { None } else { Some(personal_msg.trim().to_string()) },
+            expires_days:    Some(expires_days),
+        };
 
         leptos::task::spawn_local(async move {
-            match create_invite(email.clone(), role, tenant).await {
+            match create_invite(input).await {
                 Ok(_) => {
-                    t_toast.show_toast("Success", &format!("Invitation sent to {}", email), "success");
+                    t_toast.show_toast("Invitation sent", &format!("Magic link dispatched to {}", email), "success");
+                    invite_sent_to.set(Some(email.clone()));
                     invites_refetch.update(|v| *v += 1);
+                    // reset form
+                    invite_display_name.set(String::new());
+                    invite_email.set(String::new());
+                    invite_personal_msg.set(String::new());
+                    invite_app_role.set(String::new());
+                    invite_app_instance.set(String::new());
+                    invite_target_url.set(String::new());
+                    invite_step.set(1);
                 }
                 Err(e) => {
                     t_toast.show_toast("Error", &format!("Failed to send invitation: {}", e), "error");
                 }
             }
+            invite_sending.set(false);
         });
-
-        invite_email.set(String::new());
-        show_invite_modal.set(false);
     };
+
 
     // Revoke Invite helper
     let handle_revoke_invite = move |id: Uuid, email: String| {
@@ -498,39 +537,167 @@ pub fn PlatformAdmins() -> impl IntoView {
             </Show>
         </div>
 
-        // Modal: Invite User
+        // ── Modal: Invite User (2-step) ───────────────────────────────────────
         <Show when=move || show_invite_modal.get()>
-            <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                <div class="bg-[#111520] w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                    <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_invite_modal.set(false)>"✕"</button>
-                    <h3 class="text-xl font-semibold mb-2">"Invite Platform User"</h3>
-                    <div class="space-y-4 mt-4">
-                        <div class="n-form-row">
-                            <label class="n-form-label">"Email Address"</label>
-                            <input 
-                                type="email" 
-                                class="n-form-input"
-                                placeholder="e.g. user@organization.com"
-                                prop:value=invite_email
-                                on:input=move |ev| invite_email.set(event_target_value(&ev))
-                            />
+            <div class="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+                <div class="bg-[#0f1117] w-full max-w-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
+
+                    // ── Close button ─────────────────────────────────────────
+                    <button
+                        class="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        on:click=move |_| {
+                            show_invite_modal.set(false);
+                            invite_step.set(1);
+                            invite_sent_to.set(None);
+                        }
+                    >"✕"</button>
+
+                    // ── Header ────────────────────────────────────────────────
+                    <div class="px-8 pt-8 pb-4 border-b border-white/5">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span style="font-size:22px;">"✉️"</span>
+                            <h3 class="text-lg font-bold text-white">
+                                {move || if invite_sent_to.get().is_some() { "Invitation Sent!" } else { "Invite a User" }}
+                            </h3>
                         </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+                        // Step indicator (hidden on success screen)
+                        <Show when=move || invite_sent_to.get().is_none()>
+                            <div class="flex items-center gap-2 mt-3">
+                                {(1u8..=2).map(|n| {
+                                    let is_active   = move || invite_step.get() == n;
+                                    let is_complete = move || invite_step.get() > n;
+                                    view! {
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all"
+                                                style=move || if is_complete() {
+                                                    "background:#22c55e;color:#fff;"
+                                                } else if is_active() {
+                                                    "background:#6366f1;color:#fff;"
+                                                } else {
+                                                    "background:#1e2433;color:#64748b;border:1px solid #2d3548;"
+                                                }
+                                            >
+                                                {move || if is_complete() { "✓".to_string() } else { n.to_string() }}
+                                            </div>
+                                            <span
+                                                class="text-xs font-medium"
+                                                style=move || if is_active() { "color:#a5b4fc;" } else { "color:#64748b;" }
+                                            >
+                                                {if n == 1 { "Who" } else { "Access" }}
+                                            </span>
+                                            {(n < 2).then(|| view! {
+                                                <div class="w-12 h-px bg-white/10 mx-1"></div>
+                                            })}
+                                        </div>
+                                    }
+                                }).collect_view()}
+                            </div>
+                        </Show>
+                    </div>
+
+                    // ── Step 1: Who ───────────────────────────────────────────
+                    <Show when=move || invite_step.get() == 1 && invite_sent_to.get().is_none()>
+                        <div class="px-8 py-6 space-y-5">
                             <div class="n-form-row">
-                                <label class="n-form-label">"Privilege Level (Role)"</label>
-                                <select 
-                                    class="n-form-select"
-                                    on:change=move |ev| invite_role.set(event_target_value(&ev))
-                                >
-                                    <option value="Admin">"Admin"</option>
-                                    <option value="Super-Admin">"Super-Admin"</option>
-                                    <option value="Editor">"Editor"</option>
-                                    <option value="Viewer">"Viewer"</option>
-                                </select>
+                                <label class="n-form-label">"Full Name"</label>
+                                <input
+                                    type="text"
+                                    id="invite-display-name"
+                                    class="n-form-input"
+                                    placeholder="e.g. Sarah Chen"
+                                    prop:value=invite_display_name
+                                    on:input=move |ev| invite_display_name.set(event_target_value(&ev))
+                                />
+                                <p class="text-xs text-slate-500 mt-1">"Pre-fills their profile. They can update it after signing in."</p>
                             </div>
                             <div class="n-form-row">
-                                <label class="n-form-label">"Tenant Scope"</label>
+                                <label class="n-form-label">"Email Address " <span style="color:#f87171;">"*"</span></label>
+                                <input
+                                    type="email"
+                                    id="invite-email"
+                                    class="n-form-input"
+                                    placeholder="e.g. sarah@company.com"
+                                    prop:value=invite_email
+                                    on:input=move |ev| invite_email.set(event_target_value(&ev))
+                                />
+                            </div>
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Personal Note " <span class="text-slate-500 font-normal">"(optional)"</span></label>
+                                <textarea
+                                    id="invite-personal-msg"
+                                    class="n-form-input"
+                                    rows="3"
+                                    placeholder="Add a short message that will appear in the invitation email…"
+                                    style="resize:vertical;"
+                                    prop:value=invite_personal_msg
+                                    on:input=move |ev| invite_personal_msg.set(event_target_value(&ev))
+                                ></textarea>
+                            </div>
+                        </div>
+                        <div class="px-8 pb-6 flex justify-end">
+                            <button
+                                class="btn btn-primary"
+                                on:click=move |_| {
+                                    if invite_email.get().trim().is_empty() {
+                                        toast.show_toast("Error", "Email is required to continue.", "error");
+                                        return;
+                                    }
+                                    invite_step.set(2);
+                                }
+                            >"Next: Access →"</button>
+                        </div>
+                    </Show>
+
+                    // ── Step 2: Access ────────────────────────────────────────
+                    <Show when=move || invite_step.get() == 2 && invite_sent_to.get().is_none()>
+                        <div class="px-8 py-6 space-y-5">
+                            // Quick identity recap
+                            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                                    {move || invite_display_name.get().chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or("?".to_string())}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-white">{move || {
+                                        let n = invite_display_name.get();
+                                        if n.trim().is_empty() { invite_email.get() } else { n }
+                                    }}</p>
+                                    <p class="text-xs text-slate-400">{move || invite_email.get()}</p>
+                                </div>
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"Platform Privilege"</label>
+                                    <select
+                                        id="invite-platform-role"
+                                        class="n-form-select"
+                                        on:change=move |ev| invite_platform_role.set(event_target_value(&ev))
+                                    >
+                                        <option value="Admin">"Admin"</option>
+                                        <option value="Super-Admin">"Super-Admin"</option>
+                                        <option value="Editor">"Editor"</option>
+                                        <option value="Viewer">"Viewer"</option>
+                                    </select>
+                                </div>
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"App Role " <span class="text-slate-500 font-normal">"(optional)"</span></label>
+                                    <input
+                                        type="text"
+                                        id="invite-app-role"
+                                        class="n-form-input"
+                                        placeholder="e.g. landlord, tenant, pmc…"
+                                        prop:value=invite_app_role
+                                        on:input=move |ev| invite_app_role.set(event_target_value(&ev))
+                                    />
+                                    <p class="text-xs text-slate-500 mt-1">"Interpreted by the target app."</p>
+                                </div>
+                            </div>
+
+                            <div class="n-form-row">
+                                <label class="n-form-label">"Tenant"</label>
                                 <select
+                                    id="invite-tenant"
                                     class="n-form-select"
                                     on:change=move |ev| invite_tenant.set(event_target_value(&ev))
                                 >
@@ -542,15 +709,95 @@ pub fn PlatformAdmins() -> impl IntoView {
                                     }).collect_view()}
                                 </select>
                             </div>
+
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"Link Destination " <span class="text-slate-500 font-normal">"(URL)"</span></label>
+                                    <input
+                                        type="url"
+                                        id="invite-target-url"
+                                        class="n-form-input"
+                                        placeholder="https://folio.yourclient.com"
+                                        prop:value=invite_target_url
+                                        on:input=move |ev| invite_target_url.set(event_target_value(&ev))
+                                    />
+                                    <p class="text-xs text-slate-500 mt-1">"Leave blank to use the default app URL."</p>
+                                </div>
+                                <div class="n-form-row">
+                                    <label class="n-form-label">"Link Expires"</label>
+                                    <select
+                                        id="invite-expires"
+                                        class="n-form-select"
+                                        on:change=move |ev| {
+                                            let v: i64 = event_target_value(&ev).parse().unwrap_or(7);
+                                            invite_expires_days.set(v);
+                                        }
+                                    >
+                                        <option value="1">"24 hours"</option>
+                                        <option value="7" selected>"7 days"</option>
+                                        <option value="14">"14 days"</option>
+                                        <option value="30">"30 days"</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
-                            <button on:click=move |_| show_invite_modal.set(false) class="btn btn-ghost">"Cancel"</button>
-                            <button on:click=submit_invite_user class="btn btn-primary">"Send Invitation"</button>
+                        <div class="px-8 pb-6 flex items-center justify-between">
+                            <button
+                                class="btn btn-ghost flex items-center gap-1"
+                                on:click=move |_| invite_step.set(1)
+                            >"← Back"</button>
+                            <button
+                                class="btn btn-primary flex items-center gap-2"
+                                disabled=move || invite_sending.get()
+                                on:click=submit_invite_user
+                            >
+                                {move || if invite_sending.get() {
+                                    view! { <span>"Sending…"</span> }.into_any()
+                                } else {
+                                    view! { <span>"Send Magic Link ✉️"</span> }.into_any()
+                                }}
+                            </button>
                         </div>
-                    </div>
+                    </Show>
+
+                    // ── Success screen ────────────────────────────────────────
+                    <Show when=move || invite_sent_to.get().is_some()>
+                        <div class="px-8 py-10 text-center">
+                            <div class="text-5xl mb-4">"🎉"</div>
+                            <h4 class="text-lg font-bold text-white mb-2">"Invitation sent!"</h4>
+                            <p class="text-sm text-slate-400 mb-1">
+                                "A magic link has been dispatched to"
+                            </p>
+                            <p class="text-sm font-semibold text-indigo-400 mb-6">
+                                {move || invite_sent_to.get().unwrap_or_default()}
+                            </p>
+                            <p class="text-xs text-slate-500 mb-6">
+                                "The link will prompt them to set up a passkey (Touch ID / Face ID) to secure their account."
+                            </p>
+                            <div class="flex justify-center gap-3">
+                                <button
+                                    class="btn btn-ghost"
+                                    on:click=move |_| {
+                                        invite_sent_to.set(None);
+                                        invite_step.set(1);
+                                    }
+                                >"Invite Another →"</button>
+                                <button
+                                    class="btn btn-primary"
+                                    on:click=move |_| {
+                                        show_invite_modal.set(false);
+                                        invite_sent_to.set(None);
+                                        invite_step.set(1);
+                                    }
+                                >"Done"</button>
+                            </div>
+                        </div>
+                    </Show>
+
                 </div>
             </div>
         </Show>
+
 
         // Modal: Manage User Dialog
         <Show when=move || show_manage_modal.get().is_some()>
