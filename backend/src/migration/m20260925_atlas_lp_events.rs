@@ -14,35 +14,35 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(AtlasLpEvent::Table)
+                    .table(AtlasLpEvents::Table)
                     .if_not_exists()
-                    .col(ColumnDef::new(AtlasLpEvent::Id).uuid().not_null().primary_key())
-                    .col(ColumnDef::new(AtlasLpEvent::AppPageId).uuid().not_null())
+                    .col(ColumnDef::new(AtlasLpEvents::Id).uuid().not_null().primary_key())
+                    .col(ColumnDef::new(AtlasLpEvents::AppPageId).uuid().not_null())
                     .col(
-                        ColumnDef::new(AtlasLpEvent::EventType)
+                        ColumnDef::new(AtlasLpEvents::EventType)
                             .string()
                             .not_null()
                             .default("view"),
                     )
-                    .col(ColumnDef::new(AtlasLpEvent::SessionId).string().not_null())
-                    .col(ColumnDef::new(AtlasLpEvent::UtmSource).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::UtmMedium).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::UtmCampaign).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::UtmContent).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::UtmTerm).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::Viewport).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::Referrer).string().null())
-                    .col(ColumnDef::new(AtlasLpEvent::CountryCode).string_len(2).null())
+                    .col(ColumnDef::new(AtlasLpEvents::SessionId).string().not_null())
+                    .col(ColumnDef::new(AtlasLpEvents::UtmSource).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::UtmMedium).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::UtmCampaign).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::UtmContent).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::UtmTerm).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::Viewport).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::Referrer).string().null())
+                    .col(ColumnDef::new(AtlasLpEvents::CountryCode).string_len(2).null())
                     .col(
-                        ColumnDef::new(AtlasLpEvent::CreatedAt)
+                        ColumnDef::new(AtlasLpEvents::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null()
                             .default(Expr::current_timestamp()),
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .from(AtlasLpEvent::Table, AtlasLpEvent::AppPageId)
-                            .to(AppPage::Table, AppPage::Id)
+                            .from(AtlasLpEvents::Table, AtlasLpEvents::AppPageId)
+                            .to(AppPages::Table, AppPages::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
@@ -54,10 +54,10 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_lp_events_page_type_ts")
-                    .table(AtlasLpEvent::Table)
-                    .col(AtlasLpEvent::AppPageId)
-                    .col(AtlasLpEvent::EventType)
-                    .col(AtlasLpEvent::CreatedAt)
+                    .table(AtlasLpEvents::Table)
+                    .col(AtlasLpEvents::AppPageId)
+                    .col(AtlasLpEvents::EventType)
+                    .col(AtlasLpEvents::CreatedAt)
                     .to_owned(),
             )
             .await?;
@@ -67,8 +67,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_lp_events_utm_source")
-                    .table(AtlasLpEvent::Table)
-                    .col(AtlasLpEvent::UtmSource)
+                    .table(AtlasLpEvents::Table)
+                    .col(AtlasLpEvents::UtmSource)
                     .to_owned(),
             )
             .await
@@ -76,13 +76,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(AtlasLpEvent::Table).to_owned())
+            .drop_table(Table::drop().table(AtlasLpEvents::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum AtlasLpEvent {
+enum AtlasLpEvents {
     Table,
     Id,
     AppPageId,
@@ -100,7 +100,7 @@ enum AtlasLpEvent {
 }
 
 #[derive(DeriveIden)]
-enum AppPage {
+enum AppPages {
     Table,
     Id,
 }

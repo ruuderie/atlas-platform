@@ -312,7 +312,9 @@ fn is_public_route(path: &str) -> bool {
         // Adding these routes to handle both prefixed and non-prefixed versions
         "/api/login",
         "/api/register",
-        "/api/validate-session"
+        "/api/validate-session",
+        // Public fire-and-forget event ingest (no auth, rate-limited at infra level)
+        "/api/pub/lp-events",
     ];
     
     let is_public = public_routes.iter().any(|route| path.starts_with(route));

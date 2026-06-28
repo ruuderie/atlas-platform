@@ -33,3 +33,6 @@ pub mod lead_account_tests;
 
 // Pure unit tests (no DB, no I/O) — fast feedback on service logic
 pub mod unit;
+
+// Landing Page Builder — integration tests (DB + HTTP)
+pub mod landing_page_builder_tests;
