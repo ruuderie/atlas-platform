@@ -74,7 +74,7 @@ fn session_token(headers: &axum::http::HeaderMap) -> Result<String, server_fn::e
 #[component]
 pub fn PmcClientDetail() -> impl IntoView {
     let params     = use_params_map();
-    let account_id = params.get().get(0).unwrap_or_default();
+    let account_id = params.get().get("id").unwrap_or_default();
     let aid2       = account_id.clone();
     let aid3       = account_id.clone();
 

@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/str_host/channels.rs
 //
 // STR Channel Manager — /s/channels
@@ -120,7 +119,7 @@ pub fn StrChannelManager() -> impl IntoView {
                                         prop:checked=move || enabled.get().contains(ch_id)
                                         disabled=is_atlas
                                         on:change=move |ev: web_sys::Event| {
-                                            let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                             if let Some(el) = el {
                                                 enabled.update(|s| {
                                                     if el.checked() { s.insert(ch_id); }

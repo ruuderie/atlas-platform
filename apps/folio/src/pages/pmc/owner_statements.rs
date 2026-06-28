@@ -116,6 +116,7 @@ pub fn PmcOwnerStatements() -> impl IntoView {
                         match res {
                             Ok(clients) if !clients.is_empty() => {
                                 let c2 = clients.clone();
+                                let clients_for_list = clients.clone();
                                 let all_selected = move || selected.get().len() == c2.len();
                                 view! {
                                     <div class="pmc-stmt-toolbar">
@@ -131,7 +132,7 @@ pub fn PmcOwnerStatements() -> impl IntoView {
                                     </div>
                                     <div class="pmc-stmt-list">
                                         <For
-                                            each=move || clients.clone()
+                                            each=move || clients_for_list.clone()
                                             key=|c| c.account_id
                                             children=move |client| {
                                                 let cid   = client.account_id;

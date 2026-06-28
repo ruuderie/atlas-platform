@@ -92,9 +92,9 @@ fn listing_type_icon(t: &str) -> &'static str {
 pub fn LtrListings() -> impl IntoView {
     let query = use_query_map();
     let q = query.get();
-    let init_city = q.get(0).unwrap_or_default();
-    let init_beds = q.get(0).unwrap_or_default();
-    let init_rent = q.get(0).unwrap_or_default();
+    let init_city = q.get("city").unwrap_or_default();
+    let init_beds = q.get("beds").unwrap_or_default();
+    let init_rent = q.get("max_rent").unwrap_or_default();
     let is_embed  = q.get("embed").map(|v| v == "1").unwrap_or(false);
 
     let city     = RwSignal::new(init_city);

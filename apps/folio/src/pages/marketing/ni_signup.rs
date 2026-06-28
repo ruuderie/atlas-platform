@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/marketing/ni_signup.rs
 //
 // Network Instance Signup — /ni/signup
@@ -202,7 +201,7 @@ pub fn NiSignup() -> impl IntoView {
                                         <input type="checkbox" style="display:none;"
                                             prop:checked=move || use_case_ltr.get()
                                             on:change=move |ev: web_sys::Event| {
-                                                let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                                let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                                 if let Some(el) = el { use_case_ltr.set(el.checked()); }
                                             }
                                         />
@@ -214,7 +213,7 @@ pub fn NiSignup() -> impl IntoView {
                                         <input type="checkbox" style="display:none;"
                                             prop:checked=move || use_case_str.get()
                                             on:change=move |ev: web_sys::Event| {
-                                                let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                                let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                                 if let Some(el) = el { use_case_str.set(el.checked()); }
                                             }
                                         />

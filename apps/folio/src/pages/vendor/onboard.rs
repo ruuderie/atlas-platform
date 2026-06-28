@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/vendor/onboard.rs
 //
 // Vendor Onboarding — /v/onboard
@@ -51,7 +50,7 @@ const TRADES: &[(&str, &str)] = &[
 #[component]
 pub fn VendorOnboard() -> impl IntoView {
     let query = use_query_map();
-    let token = query.get().get(0).unwrap_or_default();
+    let token = query.get().get("token").unwrap_or_default();
 
     let step          = RwSignal::new(1u8);
     let biz_name      = RwSignal::new(String::new());
@@ -213,7 +212,7 @@ pub fn VendorOnboard() -> impl IntoView {
                                 <input type="checkbox"
                                     prop:checked=move || insured.get()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                         if let Some(el) = el { insured.set(el.checked()); }
                                     }
                                 />

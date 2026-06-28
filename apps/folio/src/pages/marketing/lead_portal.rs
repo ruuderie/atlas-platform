@@ -67,7 +67,7 @@ fn fmt_rent(cents: i64) -> String {
 #[component]
 pub fn LeadPortal() -> impl IntoView {
     let params  = use_params_map();
-    let token   = params.get().get(0).unwrap_or_default();
+    let token   = params.get().get("token").unwrap_or_default();
 
     let name    = RwSignal::new(String::new());
     let email   = RwSignal::new(String::new());

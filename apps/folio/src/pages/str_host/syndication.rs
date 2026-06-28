@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/str_host/syndication.rs
 //
 // STR Host — Syndication — /s/syndication
@@ -397,7 +396,7 @@ pub fn StrSyndication() -> impl IntoView {
                                         prop:checked=move || is_on()
                                         prop:disabled=move || cid == "atlas_network"
                                         on:change=move |ev: web_sys::Event| {
-                                            let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                             if let Some(el) = el {
                                                 let checked = el.checked();
                                                 enabled.update(|s| {

@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/asset_alerts.rs
 //
 // Asset Alerts — /l/assets/:id/alerts
@@ -46,7 +45,7 @@ fn all_alert_types() -> Vec<AlertType> {
 #[component]
 pub fn AssetAlerts() -> impl IntoView {
     let params   = use_params_map();
-    let asset_id = params.get().get(0).unwrap_or_default();
+    let asset_id = params.get().get("id").unwrap_or_default();
     let aid_disp = if asset_id.len() > 8 { format!("…{}", &asset_id[asset_id.len()-8..]) } else { asset_id.clone() };
 
     // Alert enabled state (in production persisted to notification preferences)
@@ -132,7 +131,7 @@ pub fn AssetAlerts() -> impl IntoView {
                                                     class="syndic-toggle-input"
                                                     prop:checked=move || enabled.get().contains(at_id)
                                                     on:change=move |ev: web_sys::Event| {
-                                                        let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                                         if let Some(el) = el {
                                                             enabled.update(|s| {
                                                                 if el.checked() { s.insert(at_id); }

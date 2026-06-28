@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/contractor_marketplace.rs
 //
 // Contractor Marketplace — /l/marketplace
@@ -137,8 +136,7 @@ pub fn ContractorMarketplace() -> impl IntoView {
                 </div>
                 <label class="mkt-emerg-toggle">
                     <input type="checkbox" on:change=move |ev: web_sys::Event| {
-                        let el = ev.target()
-                            .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                         if let Some(el) = el { new_emerg.set(el.checked()); }
                     }/>
                     "🚨 Emergency Available Only"
@@ -252,7 +250,7 @@ pub fn ContractorMarketplace() -> impl IntoView {
                                 <label class="form-label flex items-center gap-2">
                                     <input type="checkbox" class="form-checkbox"
                                         on:change=move |ev: web_sys::Event| {
-                                            let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                            let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                             if let Some(el) = el { new_emerg.set(el.checked()); }
                                         }
                                     />

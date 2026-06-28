@@ -100,7 +100,7 @@ fn unit_icon(unit_type: &str) -> &'static str {
 #[component]
 pub fn ListingNetworkPreview() -> impl IntoView {
     let params   = use_params_map();
-    let asset_id = params.get().get(0).unwrap_or_default();
+    let asset_id = params.get().get("id").unwrap_or_default();
 
     let aid2 = asset_id.clone();
     let listing_res = Resource::new(

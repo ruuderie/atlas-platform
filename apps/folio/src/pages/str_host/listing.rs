@@ -55,7 +55,7 @@ fn fmt_price(cents: i64, currency: &str) -> String {
 #[component]
 pub fn StrListingDetail() -> impl IntoView {
     let params   = use_params_map();
-    let asset_id = params.get().get(0).unwrap_or_default();
+    let asset_id = params.get().get("id").unwrap_or_default();
 
     // Editable fields (local state — save wires to backend in Phase 7)
     let headline    = RwSignal::new(String::new());

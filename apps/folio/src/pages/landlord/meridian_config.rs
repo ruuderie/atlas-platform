@@ -1,4 +1,3 @@
-use wasm_bindgen::JsCast;
 // apps/folio/src/pages/landlord/meridian_config.rs
 //
 // G-27 Meridian Configurator — /l/meridian/configure
@@ -619,7 +618,7 @@ fn G27SurfacesTab() -> impl IntoView {
                                 <input type="checkbox" class="syndic-toggle-input"
                                     prop:checked=move || is_on()
                                     on:change=move |ev: web_sys::Event| {
-                                        let el = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+                                        let el = event_target::<web_sys::HtmlInputElement>(&ev).ok();
                                         if let Some(el) = el {
                                             let checked = el.checked();
                                             cfg.update(|c| match key {
