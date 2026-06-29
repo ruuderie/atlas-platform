@@ -14,7 +14,7 @@ use url::Url;
 use validator::Validate;
 
 use std::sync::Arc;
-use crate::entities::{tenant, account, app_instance, app_domain, user, user_account};
+use crate::entities::{tenant, account, app_instance, app_domain, user, user_account, atlas_app_deployment_config};
 use crate::handlers::passkeys::WebauthnState;
 use crate::middleware::DynamicCorsRegistry;
 use crate::models::provision::{ProvisionTenantPayload, ProvisionTenantResponse, validate_domain};
@@ -262,6 +262,24 @@ pub async fn provision_tenant(
             updated_at: Set(now),
         };
         new_instance.insert(&txn).await.map_err(|e| internal(e))?;
+
+        // INSERT atlas_app_deployment_config — wires the app_instance to the public
+        // config table so that admin API calls (get/update_public_config) can find it
+        // immediately after provisioning without relying on lazy-seed paths.
+        let deployment_slug = format!("{}-{}", app_type, &instance_id.to_string()[..8]);
+        let new_config = atlas_app_deployment_config::ActiveModel {
+            id:              sea_orm::ActiveValue::Set(instance_id), // same UUID as app_instance
+            tenant_id:       sea_orm::ActiveValue::Set(tenant_id),
+            app_slug:        sea_orm::ActiveValue::Set(app_type.clone()),
+            public_slug:     sea_orm::ActiveValue::Set(Some(deployment_slug)),
+            custom_domain:   sea_orm::ActiveValue::Set(None),
+            instance_status: sea_orm::ActiveValue::Set(atlas_app_deployment_config::AppInstanceStatus::Active),
+            folio_mode:      sea_orm::ActiveValue::Set(atlas_app_deployment_config::FolioMode::Standard),
+            config:          sea_orm::ActiveValue::Set(serde_json::json!({ "billing_tier": "starter" })),
+            ..Default::default()
+        };
+        new_config.insert(&txn).await.map_err(|e| internal(e))?;
+        tracing::info!(event = "provision.deployment_config.created", tenant_id = %tenant_id, app_type = %app_type, instance_id = %instance_id);
         if first_instance_id.is_none() {
             first_instance_id = Some(instance_id);
         }

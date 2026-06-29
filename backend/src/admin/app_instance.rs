@@ -204,14 +204,29 @@ pub async fn get_public_config(
             };
 
             // ON CONFLICT DO NOTHING — if two requests race, the second is a no-op.
-            let _ = atlas_app_deployment_config::Entity::insert(seed)
+            // The unique constraint is (tenant_id, app_slug) — both columns must be
+            // listed in the conflict target, otherwise PostgreSQL rejects the INSERT
+            // with "no unique or exclusion constraint matching the ON CONFLICT spec".
+            if let Err(e) = atlas_app_deployment_config::Entity::insert(seed)
                 .on_conflict(
-                    sea_orm::sea_query::OnConflict::column(atlas_app_deployment_config::Column::TenantId)
-                        .do_nothing()
-                        .to_owned(),
+                    sea_orm::sea_query::OnConflict::columns([
+                        atlas_app_deployment_config::Column::TenantId,
+                        atlas_app_deployment_config::Column::AppSlug,
+                    ])
+                    .do_nothing()
+                    .to_owned(),
                 )
                 .exec(&db)
-                .await;
+                .await
+            {
+                // DbErr::RecordNotInserted is the expected "did nothing" result from
+                // on_conflict().do_nothing() when a conflict is detected — not an error.
+                use sea_orm::DbErr;
+                if !matches!(e, DbErr::RecordNotInserted) {
+                    tracing::error!("get_public_config: seed INSERT failed for tenant {tenant_id}: {e:#}");
+                    return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+                }
+            }
 
             // Re-fetch after seeding.
             match atlas_app_deployment_config::Entity::find()
@@ -220,9 +235,13 @@ pub async fn get_public_config(
                 .await
             {
                 Ok(Some(c)) => c,
-                _ => {
-                    tracing::error!("get_public_config: failed to seed config for tenant {tenant_id}");
+                Ok(None) => {
+                    tracing::error!("get_public_config: seed produced no row for tenant {tenant_id} (conflict on existing row?)");
                     return (StatusCode::INTERNAL_SERVER_ERROR, "failed to initialize instance config").into_response();
+                }
+                Err(e) => {
+                    tracing::error!("get_public_config: re-fetch after seed failed for tenant {tenant_id}: {e:#}");
+                    return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
                 }
             }
         }
