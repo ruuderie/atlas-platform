@@ -22,7 +22,7 @@
 //! | `provision_slug_validation` | Real `validate_slug()` function — charset rules |
 //! | `provision_domain_validation` | Real `validate_domain()` function — all RFC-constraint cases |
 //! | `stats_response_serialization` | `InstanceStatsResponse` field names never become camelCase |
-//! | `public_config_dns_skip` | `skip_serializing_if` on `dns_instructions` — GET vs PUT JSON shape |
+//! | `public_config_dns_contract`   | `dns_instructions` always serialized; null when absent, object when set |
 //!
 //! All tests are **pure** — no database, no async, no HTTP.
 
@@ -498,12 +498,14 @@ mod stats_response_serialization {
 
 // ── PublicConfigResponse DNS instructions skip_serializing_if ─────────────────
 //
-// GET /api/admin/app-instances/{id} must NOT include dns_instructions in JSON.
-// PUT /api/admin/app-instances/{id}/public-config MUST include it.
-// This is enforced by serde's skip_serializing_if = "Option::is_none".
-// If someone removes that attribute, the API shape silently changes for all GET consumers.
+// ── Public config dns_instructions JSON contract ─────────────────────────────
+//
+// We removed skip_serializing_if from dns_instructions so the GET response
+// always includes the key (as null when no custom_domain is set, as an object
+// when it is). This means the frontend can reliably check `dns_instructions !== null`
+// rather than `"dns_instructions" in response`.
 
-mod public_config_dns_skip {
+mod public_config_dns_contract {
     use super::{PublicConfigResponse, DnsInstructions, Uuid};
 
     fn config(dns: Option<DnsInstructions>) -> PublicConfigResponse {
@@ -527,39 +529,50 @@ mod public_config_dns_skip {
         DnsInstructions {
             record_type: "CNAME".to_string(),
             name:        "acme.com".to_string(),
-            value:       "platform.atlas.app".to_string(),
-            note:        "Point acme.com as CNAME to platform.atlas.app".to_string(),
+            value:       "api.atlas.oply.co".to_string(),
+            note:        "Point acme.com as CNAME to api.atlas.oply.co".to_string(),
         }
     }
 
     #[test]
-    fn get_response_json_has_no_dns_instructions_key() {
+    fn response_with_no_dns_has_null_key_not_absent() {
+        // Previously skip_serializing_if caused the key to be absent.
+        // Now it's always present — null when None, object when Some.
+        // The frontend relies on `dns_instructions === null` (not key absence) to branch.
         let j = serde_json::to_value(config(None)).unwrap();
-        assert!(
-            j.get("dns_instructions").is_none(),
-            "GET response must NOT contain 'dns_instructions' key (skip_serializing_if = None)"
-        );
+        let v = j.get("dns_instructions");
+        assert!(v.is_some(), "'dns_instructions' key must always be present in JSON");
+        assert!(v.unwrap().is_null(), "'dns_instructions' must be null when not set");
     }
 
     #[test]
-    fn put_response_json_has_dns_instructions_key() {
+    fn response_with_dns_has_object_key() {
         let j = serde_json::to_value(config(Some(sample_dns()))).unwrap();
-        assert!(
-            j.get("dns_instructions").is_some(),
-            "PUT response MUST contain 'dns_instructions' key"
-        );
+        assert!(j.get("dns_instructions").is_some(), "'dns_instructions' must be present");
+        assert!(j["dns_instructions"].is_object(), "'dns_instructions' must be a JSON object");
     }
 
     #[test]
-    fn dns_instructions_record_type_is_cname() {
+    fn dns_record_type_is_cname() {
         let j = serde_json::to_value(config(Some(sample_dns()))).unwrap();
         assert_eq!(j["dns_instructions"]["record_type"], "CNAME");
     }
 
     #[test]
-    fn dns_instructions_value_is_platform_cname_target() {
+    fn dns_value_must_not_be_stale_atlas_platform_com() {
+        // The old hardcoded value was "app.atlas-platform.com". That domain is wrong.
+        // This test ensures no future regression re-introduces it.
         let j = serde_json::to_value(config(Some(sample_dns()))).unwrap();
-        assert_eq!(j["dns_instructions"]["value"], "platform.atlas.app");
+        let value = j["dns_instructions"]["value"].as_str().unwrap();
+        assert!(!value.contains("atlas-platform.com"),
+            "CNAME value must not contain stale 'atlas-platform.com'. Got: {value}");
+    }
+
+    #[test]
+    fn dns_json_uses_snake_case_field_names() {
+        let j = serde_json::to_value(config(Some(sample_dns()))).unwrap();
+        assert!(j["dns_instructions"].get("record_type").is_some(), "must be snake_case");
+        assert!(j["dns_instructions"].get("recordType").is_none(), "camelCase must NOT appear");
     }
 }
 

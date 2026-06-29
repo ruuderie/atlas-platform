@@ -36,3 +36,6 @@ pub mod unit;
 
 // Landing Page Builder — integration tests (DB + HTTP)
 pub mod landing_page_builder_tests;
+
+// Domain provisioning — critical path tests (sidecar logic + API integration)
+pub mod domain_provisioning_tests;

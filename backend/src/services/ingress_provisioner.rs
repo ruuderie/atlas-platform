@@ -88,6 +88,18 @@ impl IngressProvisioner {
     }
 }
 
+/// Test-only constructor — points the provisioner at an arbitrary URL (e.g. a wiremock server).
+/// Only compiled in `#[cfg(test)]` so it has no effect on production builds.
+#[cfg(test)]
+impl IngressProvisioner {
+    pub(crate) fn with_sidecar_url(url: &str) -> Self {
+        Self {
+            client:      reqwest::Client::new(),
+            sidecar_url: url.to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
