@@ -547,6 +547,27 @@ steps:
       branch: [dev, uat]
       path: [ "backend/src/bin/ingress_sidecar.rs", "backend/Dockerfile.sidecar", ".woodpecker.yml" ]
 
+  # ── ONE-SHOT RBAC BOOTSTRAP (remove after first successful deploy) ──────────
+  # woodpecker-deployer lacks the permissions it needs to apply ingress-sidecar-role
+  # (see k8s/base/woodpecker-rbac.yaml for explanation). This step uses the K3s
+  # cluster-admin kubeconfig mounted from the host to grant those permissions.
+  # TODO: remove this step once CI-763 equivalent passes cleanly.
+  bootstrap_rbac:
+    image: bitnami/kubectl:latest
+    volumes:
+      - /etc/rancher/k3s/k3s.yaml:/tmp/k3s-admin.yaml:ro
+    commands:
+      - |
+        set -euo pipefail
+        export KUBECONFIG=/tmp/k3s-admin.yaml
+        echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-dev..."
+        kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-dev
+        echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-uat..."
+        kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-uat
+        echo "✓ RBAC bootstrap complete — this step can be removed once confirmed working."
+    when:
+      branch: [dev, uat]
+
   # ── Unified CD Deployment ───────────────────────────────────────────────────
   deploy_platform_k8s:
     image: bitnami/kubectl:latest
