@@ -559,7 +559,15 @@ steps:
     commands:
       - |
         set -euo pipefail
-        export KUBECONFIG=/tmp/k3s-admin.yaml
+        # The K3s admin kubeconfig uses 127.0.0.1:6443 which is the host's loopback.
+        # Inside a container, 127.0.0.1 is the container's own loopback — not the host.
+        # Detect the host IP via the container's default gateway and rewrite the kubeconfig.
+        HOST_IP=$(ip route | awk '/default/ { print $3; exit }')
+        echo "==> Host gateway IP: $HOST_IP"
+        sed "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
+        export KUBECONFIG=/tmp/k3s-admin-fixed.yaml
+        # Verify connectivity before proceeding
+        kubectl cluster-info
         echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-dev..."
         kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-dev
         echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-uat..."
