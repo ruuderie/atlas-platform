@@ -31,7 +31,7 @@
 //! ```
 
 use axum::{
-    extract::{Extension, Json, Path},
+    extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post, put},
@@ -155,7 +155,7 @@ fn platform_cname_target() -> String {
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 pub async fn get_public_config(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
     use crate::entities::app_instance;
@@ -274,7 +274,7 @@ pub async fn get_public_config(
 
 
 pub async fn update_public_config(
-    Extension(db):                  Extension<DatabaseConnection>,
+    State(db):                      State<DatabaseConnection>,
     Extension(ingress_provisioner): Extension<Arc<IngressProvisioner>>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<UpdatePublicConfigBody>,
@@ -410,7 +410,7 @@ pub async fn update_public_config(
 /// Updates folio_mode and/or config-JSON keys (billing_tier, portal flags)
 /// in a single atomic DB write.
 pub async fn update_operational_config(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<UpdateOperationalConfigBody>,
 ) -> impl IntoResponse {
@@ -516,7 +516,7 @@ pub async fn update_operational_config(
 }
 
 pub async fn suspend_instance(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<SuspendBody>,
 ) -> impl IntoResponse {
@@ -524,14 +524,14 @@ pub async fn suspend_instance(
 }
 
 pub async fn resume_instance(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
     set_instance_status(&db, instance_id, "active", "resumed by platform admin").await
 }
 
 pub async fn archive_instance(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<ArchiveBody>,
 ) -> impl IntoResponse {
@@ -617,7 +617,7 @@ pub struct InstanceStatsResponse {
 /// Returns per-instance activity counts scoped to the instance's `tenant_id`.
 /// All counts are live DB queries — no hardcoded values.
 pub async fn get_instance_stats(
-    Extension(db): Extension<DatabaseConnection>,
+    State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
     use crate::entities::{

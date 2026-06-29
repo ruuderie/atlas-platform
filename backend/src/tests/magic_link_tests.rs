@@ -378,9 +378,12 @@ async fn test_magic_link_token_tenant_isolation() {
 ///
 /// # How it works
 /// `temp_env::with_var` acquires a process-global `Mutex` before touching the
-/// environment, which makes the mutation safe across concurrent test threads.  The
-/// async test body is driven to completion inside the closure via
-/// `Handle::current().block_on(…)` so the env override spans the entire test.
+/// environment, making the mutation safe across concurrent test threads.
+///
+/// `tokio::task::block_in_place` yields the current tokio thread to a blocking
+/// context, which allows `Handle::block_on` to drive the async future to completion
+/// without triggering the "cannot start a runtime from within a runtime" panic that
+/// a plain `block_on` call inside `#[tokio::test]` would cause.
 async fn with_smtp_blanked<F, Fut>(f: F)
 where
     F: FnOnce() -> Fut,
@@ -389,7 +392,7 @@ where
     let handle = tokio::runtime::Handle::current();
     let future = f();
     temp_env::with_var("SMTP_SERVER", Some(""), || {
-        handle.block_on(future);
+        tokio::task::block_in_place(|| handle.block_on(future));
     });
 }
 
