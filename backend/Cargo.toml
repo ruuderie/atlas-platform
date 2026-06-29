@@ -88,5 +88,7 @@ sea-orm = { version = "1.0.1", features = ["sqlx-sqlite"] }
 wiremock = "0.6.5"
 # G-27 Phase 5: SDK unit tests import from the crate directly
 atlas-compute-sdk = { path = "crates/atlas-compute-sdk" }
+# Safe env-var mutation in tests — uses an internal Mutex so no unsafe is required
+temp-env = "0.3"
 
 

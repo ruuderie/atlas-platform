@@ -202,10 +202,7 @@ async fn test_magic_link_flow() {
 /// The SmtpGuard sets SMTP_SERVER="" for the test duration, forcing the mock path.
 #[tokio::test]
 async fn test_magic_link_request_idempotency() {
-    // Force mock SMTP: prevents real emails and removes timing sensitivity
-    // from the fire-and-forget background task.
-    let _smtp_guard = SmtpGuard::new();
-
+    with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
     let tenant = test_utils::create_test_tenant(&db).await;
 
@@ -292,6 +289,7 @@ async fn test_magic_link_request_idempotency() {
          the INSERT INTO magic_link_token statement.",
         user_id, count_after_second
     );
+    }).await;
 }
 
 /// T3 REGRESSION: A magic-link token issued in the context of Tenant A must be
@@ -300,9 +298,7 @@ async fn test_magic_link_request_idempotency() {
 /// The composite test_magic_link_flow also covers this, but as step 4 of 4.
 #[tokio::test]
 async fn test_magic_link_token_tenant_isolation() {
-    // SMTP guard: same reasoning as test_magic_link_request_idempotency.
-    let _smtp_guard = SmtpGuard::new();
-
+    with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
     let tenant_a = test_utils::create_test_tenant(&db).await;
     let tenant_b = test_utils::create_test_tenant(&db).await;
@@ -362,69 +358,44 @@ async fn test_magic_link_token_tenant_isolation() {
          check the tenant_id validation in verify_magic_link (auth_frontend.rs).",
         res.status()
     );
+    }).await;
 }
 
 // ── Test Helpers ──────────────────────────────────────────────────────────────
 
-/// Drop guard that forces `SMTP_SERVER=""` for the lifetime of a test,
-/// preventing real email dispatch regardless of the developer's local shell.
+/// Runs an async test body with `SMTP_SERVER` forced to `""` for the duration.
 ///
-/// # The problem
-/// `send_email_handler` resolves the SMTP host from `std::env::var("SMTP_SERVER")`.
-/// Developers often have a real SMTP server configured in their shell environment
-/// (e.g. via `.env` loaded by direnv, cargo-dotenv, or a shell rc file). When a
-/// test calls `/api/auth/magic-link/request`, the fire-and-forget tokio::task
-/// spawned by the handler connects to the real SMTP server and delivers an actual
-/// magic-link email to the test address.
+/// # Why this is needed
+/// `send_email_handler` resolves the SMTP host from `std::env::var("SMTP_SERVER")`
+/// at runtime. Developers often have a real SMTP server configured in their shell
+/// (e.g. via `.env` loaded by direnv). When a test calls the magic-link endpoint the
+/// fire-and-forget tokio task connects to the real SMTP server and delivers an actual
+/// email, causing two confusing signals:
 ///
-/// This causes two types of developer confusion:
-///
-///   1. **False-success signal**: The developer receives a real "Sign in to Atlas
-///      Platform" email in their inbox. The email implies the operation succeeded.
-///      Meanwhile the terminal shows `FAILED`. The contradiction is baffling.
-///
-///   2. **Intermittent timing failures**: The background task races with the DB
-///      count assertion. Real SMTP adds latency that can cause the task to still be
-///      running (and potentially modifying state) when the assertion fires.
+///   1. **False-success**: the developer receives a real email implying success while
+///      the terminal shows `FAILED` — baffling.
+///   2. **Intermittent timing failures**: real-SMTP latency races with DB assertions.
 ///
 /// # How it works
-/// On construction, saves the current value of `SMTP_SERVER` and sets it to `""`.
-/// `send_email_handler` treats `host == "" || host == "localhost"` as the mock path
-/// and returns immediately without connecting to SMTP. On drop, the original value
-/// is restored so the guard doesn't bleed into other tests.
-///
-/// # Note on set_var safety
-/// `std::env::set_var` is unsound in multi-threaded contexts if called concurrently
-/// with `set_var` in another thread. Only the two idempotency/isolation tests use
-/// this guard, and both write `""`. The practical risk is negligible for a test
-/// suite, but future maintainers should switch to an injectable SMTP adapter if
-/// broader coverage is needed.
-struct SmtpGuard {
-    previous: Option<String>,
-}
-
-impl SmtpGuard {
-    fn new() -> Self {
-        let previous = std::env::var("SMTP_SERVER").ok();
-        #[allow(unused_unsafe)]
-        unsafe { std::env::set_var("SMTP_SERVER", ""); }
-        Self { previous }
-    }
-}
-
-impl Drop for SmtpGuard {
-    fn drop(&mut self) {
-        #[allow(unused_unsafe)]
-        match &self.previous {
-            Some(val) => unsafe { std::env::set_var("SMTP_SERVER", val); },
-            None      => unsafe { std::env::remove_var("SMTP_SERVER"); },
-        }
-    }
+/// `temp_env::with_var` acquires a process-global `Mutex` before touching the
+/// environment, which makes the mutation safe across concurrent test threads.  The
+/// async test body is driven to completion inside the closure via
+/// `Handle::current().block_on(…)` so the env override spans the entire test.
+async fn with_smtp_blanked<F, Fut>(f: F)
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = ()>,
+{
+    let handle = tokio::runtime::Handle::current();
+    let future = f();
+    temp_env::with_var("SMTP_SERVER", Some(""), || {
+        handle.block_on(future);
+    });
 }
 
 #[tokio::test]
 async fn test_magic_link_outbox_processing() {
-    let _smtp_guard = SmtpGuard::new();
+    with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
     let tenant = test_utils::create_test_tenant(&db).await;
 
@@ -476,4 +447,5 @@ async fn test_magic_link_outbox_processing() {
         .unwrap();
 
     assert!(!processed_jobs.is_empty(), "The outbox job must be marked as 'completed'");
+    }).await;
 }

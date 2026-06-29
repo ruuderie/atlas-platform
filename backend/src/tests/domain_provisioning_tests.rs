@@ -458,31 +458,29 @@ mod cname_target_contract {
 
     #[test]
     fn falls_back_to_prod_when_env_unset() {
-        // SAFETY: single-threaded test; no other threads read this var concurrently.
-        unsafe { std::env::remove_var("ATLAS_CNAME_TARGET"); }
-        let dns = build_dns("app.example.com");
-        assert_eq!(dns.value, "api.atlas.oply.co",
-            "Default CNAME must point to prod, not stale atlas-platform.com");
-        assert!(!dns.value.contains("atlas-platform.com"),
-            "Stale hardcoded value must not appear in default");
+        temp_env::with_var_unset("ATLAS_CNAME_TARGET", || {
+            let dns = build_dns("app.example.com");
+            assert_eq!(dns.value, "api.atlas.oply.co",
+                "Default CNAME must point to prod, not stale atlas-platform.com");
+            assert!(!dns.value.contains("atlas-platform.com"),
+                "Stale hardcoded value must not appear in default");
+        });
     }
 
     #[test]
     fn reads_dev_cname_from_env_var() {
-        // SAFETY: single-threaded test.
-        unsafe { std::env::set_var("ATLAS_CNAME_TARGET", "api.dev.atlas.oply.co"); }
-        let dns = build_dns("app.example.com");
-        assert_eq!(dns.value, "api.dev.atlas.oply.co");
-        unsafe { std::env::remove_var("ATLAS_CNAME_TARGET"); }
+        temp_env::with_var("ATLAS_CNAME_TARGET", Some("api.dev.atlas.oply.co"), || {
+            let dns = build_dns("app.example.com");
+            assert_eq!(dns.value, "api.dev.atlas.oply.co");
+        });
     }
 
     #[test]
     fn reads_uat_cname_from_env_var() {
-        // SAFETY: single-threaded test.
-        unsafe { std::env::set_var("ATLAS_CNAME_TARGET", "api.uat.atlas.oply.co"); }
-        let dns = build_dns("app.example.com");
-        assert_eq!(dns.value, "api.uat.atlas.oply.co");
-        unsafe { std::env::remove_var("ATLAS_CNAME_TARGET"); }
+        temp_env::with_var("ATLAS_CNAME_TARGET", Some("api.uat.atlas.oply.co"), || {
+            let dns = build_dns("app.example.com");
+            assert_eq!(dns.value, "api.uat.atlas.oply.co");
+        });
     }
 
     #[test]
@@ -499,12 +497,11 @@ mod cname_target_contract {
 
     #[test]
     fn note_contains_both_domain_and_cname_target() {
-        // SAFETY: single-threaded test.
-        unsafe { std::env::set_var("ATLAS_CNAME_TARGET", "api.uat.atlas.oply.co"); }
-        let dns = build_dns("staging.example.com");
-        assert!(dns.note.contains("staging.example.com"), "note must mention the custom domain");
-        assert!(dns.note.contains("api.uat.atlas.oply.co"), "note must mention the CNAME target");
-        unsafe { std::env::remove_var("ATLAS_CNAME_TARGET"); }
+        temp_env::with_var("ATLAS_CNAME_TARGET", Some("api.uat.atlas.oply.co"), || {
+            let dns = build_dns("staging.example.com");
+            assert!(dns.note.contains("staging.example.com"), "note must mention the custom domain");
+            assert!(dns.note.contains("api.uat.atlas.oply.co"), "note must mention the CNAME target");
+        });
     }
 
     #[test]
