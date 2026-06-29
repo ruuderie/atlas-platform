@@ -200,7 +200,7 @@ async fn test_magic_link_flow() {
 ///   - Terminal shows `test_magic_link_request_idempotency ... FAILED` → says failure
 ///   - The disconnect is baffling: "the email arrived, so why did it fail?"
 /// The SmtpGuard sets SMTP_SERVER="" for the test duration, forcing the mock path.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_magic_link_request_idempotency() {
     with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
@@ -296,7 +296,7 @@ async fn test_magic_link_request_idempotency() {
 /// rejected when presented alongside Tenant B's ID during verification.
 /// Extracted as a standalone test so CI failure messages pinpoint T3 precisely.
 /// The composite test_magic_link_flow also covers this, but as step 4 of 4.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_magic_link_token_tenant_isolation() {
     with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
@@ -384,6 +384,14 @@ async fn test_magic_link_token_tenant_isolation() {
 /// context, which allows `Handle::block_on` to drive the async future to completion
 /// without triggering the "cannot start a runtime from within a runtime" panic that
 /// a plain `block_on` call inside `#[tokio::test]` would cause.
+///
+/// # Runtime flavor requirement
+/// `tokio::task::block_in_place` **requires the multi-thread runtime** — it panics
+/// with "can call blocking only when running on the multi-threaded runtime" on a
+/// `current_thread` executor. Tests that call this helper MUST use:
+/// ```ignore
+/// #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+/// ```
 async fn with_smtp_blanked<F, Fut>(f: F)
 where
     F: FnOnce() -> Fut,
@@ -396,7 +404,7 @@ where
     });
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_magic_link_outbox_processing() {
     with_smtp_blanked(|| async {
     let (app, db) = setup_test_app().await;
