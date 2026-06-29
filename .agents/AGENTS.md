@@ -709,6 +709,7 @@ The most important Clippy lints for this codebase:
 | `clippy::arithmetic_side_effects` | Catches unchecked integer overflow in financial code |
 | `clippy::clone_on_ref_ptr` | Prevents accidental Arc clone explosions |
 | `clippy::large_futures` | Catches futures that will overflow the async stack |
+| `clippy::unsafe_code` | Enforces Rule 31 — unsafe is presumed banned |
 
 ---
 
@@ -861,6 +862,53 @@ assert!(AssetStatus::try_from("bad".to_string()).is_err());
 - Shared-ui components → inline in the component file (logic only — no DOM rendering in unit tests)
 
 **Test naming:** `snake_case` describing what it asserts, not what it calls. `fn lease_expired_status_is_terminal()` not `fn test_lease_status()`.
+
+---
+
+## 31. No `unsafe` Code — Strong Justification Required
+
+`unsafe` is **presumed banned**. In 99% of cases there is a safe alternative; find it first.
+
+The bar for an `unsafe` block is **high** — all four of the following must be true before writing one:
+
+1. **The safe API cannot express this** — a specific Rust or library limitation prevents the safe equivalent (document the exact limitation, not just "it's faster").
+2. **The soundness invariant is provable** — the SAFETY comment must state the concrete invariant that makes the code sound, not just "this should be fine".
+3. **The scope is minimal** — the `unsafe` block is as small as possible; surrounding code is safe.
+4. **An alternative was evaluated and rejected** — name the safe alternative and explain why it was ruled out.
+
+```rust
+// ❌ BANNED — no justification, no invariant, no alternative considered
+unsafe { std::env::set_var("KEY", "val"); }
+
+// ❌ BANNED — vague SAFETY comment
+// SAFETY: this is fine in practice
+unsafe { ptr.write(value); }
+
+// ✅ REQUIRED — all four criteria met
+// SAFETY: We hold the process-global env mutex (via `temp_env`) for the
+// duration of this call, guaranteeing no concurrent set_var from another
+// thread. Alternative: `temp_env::with_var` (safe wrapper) — used
+// everywhere else; this path requires the raw call because [specific reason].
+unsafe { std::env::set_var("KEY", "val"); }
+```
+
+### Common safe alternatives (reach for these first)
+
+| Instead of | Use |
+|---|---|
+| `unsafe { std::env::set_var(...) }` in tests | `temp_env::with_var(...)` (dev-dep in `backend/Cargo.toml`) |
+| `unsafe { ptr.as_ref().unwrap_unchecked() }` | `.expect("invariant: ...")` or restructure to prove non-null via types |
+| `unsafe { std::mem::transmute(...) }` | `bytemuck::cast` / `pod_read_unaligned` / rethink the type boundary |
+| `unsafe { slice::from_raw_parts(...) }` | `&[T]` slice from a typed allocation; use `Vec` or `Box<[T]>` |
+| `unsafe impl Send for Foo` | Restructure `Foo` to use `Arc<Mutex<...>>` or `Send`-safe primitives |
+
+### In tests specifically
+
+`unsafe` in `#[cfg(test)]` is **also banned** for env-var mutation. The `temp-env` crate is already a dev-dependency for exactly this purpose. Do not add new `unsafe { std::env::set_var/remove_var }` calls to any test — use `temp_env::with_var` / `with_var_unset` for sync tests and `with_smtp_blanked`-style helpers for async tests.
+
+### Enforcement
+
+`clippy::unsafe_code` is in the project's Clippy deny-list (Rule 25). Any new `unsafe` block will produce a warning that is treated as a build error unless suppressed with `#[allow(unsafe_code)]`. Such a suppression requires the four-criteria comment above and **must be reviewed before merge**.
 
 ---
 
