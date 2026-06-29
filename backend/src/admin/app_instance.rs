@@ -45,6 +45,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::entities::atlas_app_deployment_config;
+use crate::services::ingress_provisioner::IngressProvisioner;
+use std::sync::Arc;
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -92,8 +94,7 @@ pub struct PublicConfigResponse {
     pub tenant_portal_enabled: bool,
     /// Whether vendor self-service portal is active
     pub vendor_portal_enabled: bool,
-    /// Only present on PUT response
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Present when instance has a custom_domain set — always included in GET + PUT responses.
     pub dns_instructions: Option<DnsInstructions>,
 }
 
@@ -142,9 +143,13 @@ pub struct UpdateOperationalConfigBody {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn platform_cname_target() -> &'static str {
-    // In production this would come from env/config
-    "app.atlas-platform.com"
+fn platform_cname_target() -> String {
+    // Configurable per-environment via ATLAS_CNAME_TARGET in the k8s ConfigMap.
+    // Dev:  api.dev.atlas.oply.co
+    // UAT:  api.uat.atlas.oply.co
+    // Prod: api.atlas.oply.co
+    std::env::var("ATLAS_CNAME_TARGET")
+        .unwrap_or_else(|_| "api.atlas.oply.co".to_string())
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -269,7 +274,8 @@ pub async fn get_public_config(
 
 
 pub async fn update_public_config(
-    Extension(db): Extension<DatabaseConnection>,
+    Extension(db):                  Extension<DatabaseConnection>,
+    Extension(ingress_provisioner): Extension<Arc<IngressProvisioner>>,
     Path(instance_id): Path<Uuid>,
     Json(body): Json<UpdatePublicConfigBody>,
 ) -> impl IntoResponse {
@@ -346,9 +352,9 @@ pub async fn update_public_config(
                 instance_id:  updated.id,
                 tenant_id:    updated.tenant_id,
                 tenant_name,
-                app_slug:     updated.app_slug,
+                app_slug:     updated.app_slug.clone(),
                 public_slug:  updated.public_slug,
-                custom_domain: updated.custom_domain,
+                custom_domain: updated.custom_domain.clone(),
                 instance_status: updated.instance_status.to_string(),
                 folio_mode: updated.folio_mode.to_string(),
                 billing_tier,
@@ -356,8 +362,35 @@ pub async fn update_public_config(
                 vendor_portal_enabled: vendor_portal,
                 dns_instructions,
             };
+
+            // Trigger ingress + TLS provisioning for the new domain.
+            // Non-fatal: if the sidecar is unavailable the domain is still saved and
+            // the admin can re-trigger by saving again once the sidecar is healthy.
+            if let Some(ref domain) = body.custom_domain {
+                let tenant_slug = inst.tenant_id.to_string();
+                let app_slug   = updated.app_slug.clone();
+                let dom        = domain.clone();
+                let ip         = ingress_provisioner.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = ip.provision_domain(&tenant_slug, &dom, &app_slug).await {
+                        tracing::error!(
+                            event       = "update_config.ingress.failed",
+                            domain      = %dom,
+                            tenant_slug = %tenant_slug,
+                            error       = %e,
+                        );
+                    } else {
+                        tracing::info!(
+                            event  = "update_config.ingress.ok",
+                            domain = %dom,
+                        );
+                    }
+                });
+            }
+
             (StatusCode::OK, Json(resp)).into_response()
         }
+
         Err(e) if e.to_string().contains("unique") || e.to_string().contains("duplicate") => {
             (
                 StatusCode::CONFLICT,

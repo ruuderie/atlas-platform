@@ -230,7 +230,7 @@ fn OverviewTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                 <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
                     <div>
                         <span class="text-[9px] uppercase tracking-wider text-on-surface-variant/50 block mb-1">"Tenant ID"</span>
-                        <code class="text-[10px] font-mono text-on-surface-variant break-all">{app.tenant_id.clone()}</code>
+        <code class="text-[10px] font-mono text-on-surface-variant break-all">{app.tenant_id.clone()}</code>
                     </div>
                     <div>
                         <span class="text-[9px] uppercase tracking-wider text-on-surface-variant/50 block mb-1">"Instance ID"</span>
@@ -254,57 +254,200 @@ fn OverviewTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
 
 #[component]
 fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
-    let is_wildcard = app.domain.ends_with(".dev.atlas.oply.co");
-    let ssl_status = if is_wildcard {
-        "Covered by wildcard cert (*.dev.atlas.oply.co)"
-    } else {
-        "Custom domain — cert-manager Certificate resource required in k3s"
+    let toast       = use_context::<crate::app::GlobalToast>().expect("toast context");
+    let instance_id = app.instance_id.clone();
+    let iid         = store_value(instance_id.clone());
+
+    // Load live public config (has custom_domain + dns_instructions)
+    let config_res = LocalResource::new(move || {
+        let id = iid.get_value();
+        async move {
+            let uuid = uuid::Uuid::parse_str(&id).ok()?;
+            crate::api::admin::get_public_config(uuid).await.ok()
+        }
+    });
+
+    let saving        = RwSignal::new(false);
+    let domain_input  = RwSignal::new(String::new());
+    let saved_config  = RwSignal::<Option<crate::api::admin::PublicConfigResponse>>::new(None);
+
+    // Sync input from loaded config once
+    let synced = RwSignal::new(false);
+
+    let on_save = {
+        let iid2  = store_value(instance_id.clone());
+        let toast = toast.clone();
+        move |_| {
+            let id = uuid::Uuid::parse_str(&iid2.get_value()).ok();
+            let Some(id) = id else { return; };
+            let domain = domain_input.get().trim().to_lowercase().to_string();
+            if domain.is_empty() {
+                toast.show_toast("Validation", "Domain cannot be empty.", "error");
+                return;
+            }
+            saving.set(true);
+            let toast = toast.clone();
+            leptos::task::spawn_local(async move {
+                match crate::api::admin::update_public_config(id, None, Some(domain)).await {
+                    Ok(cfg) => {
+                        saved_config.set(Some(cfg));
+                        toast.show_toast("Domain saved", "Ingress provisioning started. DNS instructions shown below.", "success");
+                    }
+                    Err(e) => toast.show_toast("Error", &e, "error"),
+                }
+                saving.set(false);
+            });
+        }
     };
-    let ssl_cls = if is_wildcard { "text-emerald-400" } else { "text-amber-400" };
 
     view! {
-        <div class="section" style="max-width:640px;">
-            <div class="section-hdr"><span class="section-title">"Domain & SSL"</span></div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:16px;">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs text-on-surface-variant/60">"Live Domain"</span>
-                    <div class="flex items-center gap-2">
-                        <code class="text-xs font-mono text-primary">{app.domain.clone()}</code>
-                        <a href=format!("https://{}", app.domain)
-                           target="_blank"
-                           class="text-[10px] text-on-surface-variant/50 hover:text-primary">"↗ Open"</a>
+        <Suspense fallback=move || view! {
+            <div class="text-xs text-on-surface-variant/60 animate-pulse p-4">"Loading domain config…"</div>
+        }>
+            {move || {
+                let cfg = saved_config.get().or_else(|| config_res.get().flatten());
+
+                if !synced.get() {
+                    if let Some(ref c) = cfg {
+                        domain_input.set(c.custom_domain.clone().unwrap_or_default());
+                        synced.set(true);
+                    }
+                }
+
+                let current_domain = cfg.as_ref().and_then(|c| c.custom_domain.clone())
+                    .unwrap_or_else(|| app.domain.clone());
+                let dns  = cfg.as_ref().and_then(|c| c.dns_instructions.clone());
+                let is_w = current_domain.ends_with(".dev.atlas.oply.co")
+                    || current_domain.ends_with(".uat.atlas.oply.co")
+                    || current_domain.ends_with(".atlas.oply.co");
+
+                view! {
+                    <div style="display:flex;flex-direction:column;gap:16px;max-width:640px;">
+
+                        // ── Current domain + SSL status ──────────────────────────
+                        <div class="section">
+                            <div class="section-hdr"><span class="section-title">"Domain & SSL"</span></div>
+                            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-on-surface-variant/60">"Live Domain"</span>
+                                    <div class="flex items-center gap-2">
+                                        <code class="text-xs font-mono text-primary">{current_domain.clone()}</code>
+                                        <a href=format!("https://{}", current_domain) target="_blank"
+                                           class="text-[10px] text-on-surface-variant/50 hover:text-primary">"↗ Open"</a>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-on-surface-variant/60">"SSL"</span>
+                                    {if is_w {
+                                        view! { <span class="text-xs font-semibold text-emerald-400">"Wildcard cert active"</span> }.into_any()
+                                    } else {
+                                        view! { <span class="text-xs font-semibold text-amber-400">"HTTP-01 auto (cert-manager)"</span> }.into_any()
+                                    }}
+                                </div>
+                            </div>
+                        </div>
+
+                        // ── Assign domain form ───────────────────────────────────
+                        <div class="section">
+                            <div class="section-hdr">
+                                <span class="section-title">"Assign Domain"</span>
+                            </div>
+                            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+                                <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+                                    "Enter a platform subdomain ("
+                                    <code class="text-xs">"folio.atlas.oply.co"</code>
+                                    ") or a custom client domain ("
+                                    <code class="text-xs">"app.clientco.com"</code>
+                                    "). An Ingress is provisioned automatically. For custom domains, TLS is issued via Let's Encrypt HTTP-01."
+                                </p>
+                                <div style="display:flex;gap:8px;align-items:center;">
+                                    <input
+                                        type="text"
+                                        class="input input-sm flex-1 font-mono"
+                                        placeholder="e.g. app.clientco.com"
+                                        prop:value=move || domain_input.get()
+                                        on:input=move |e| { domain_input.set(event_target_value(&e)); }
+                                        disabled=move || saving.get()
+                                    />
+                                    <button
+                                        class="btn btn-primary btn-sm"
+                                        disabled=move || saving.get()
+                                        on:click=on_save.clone()
+                                    >
+                                        {move || if saving.get() { "Saving…" } else { "Save & Provision" }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        // ── DNS instructions (custom domain only) ────────────────
+                        {match dns {
+                            Some(d) => view! {
+                                <div class="section" style="border-left:3px solid var(--cobalt);">
+                                    <div class="section-hdr">
+                                        <span class="section-title">"DNS Configuration Required"</span>
+                                        <span class="text-[10px] text-on-surface-variant/50">"Add this record at your client's DNS registrar"</span>
+                                    </div>
+                                    <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+                                        <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+                                            "TLS is provisioned automatically once the record propagates (~60 s for HTTP-01). \
+                                             No further action is needed after adding the DNS record."
+                                        </p>
+                                        <div style="background:rgba(0,0,0,0.25);border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.07);">
+                                            <table style="width:100%;border-collapse:collapse;">
+                                                <thead>
+                                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                                                        <th style="text-align:left;padding:6px 12px;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:700;">"Type"</th>
+                                                        <th style="text-align:left;padding:6px 12px;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:700;">"Name (Host)"</th>
+                                                        <th style="text-align:left;padding:6px 12px;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:700;">"Value (Target)"</th>
+                                                        <th style="text-align:left;padding:6px 12px;font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);font-weight:700;">"TTL"</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td style="padding:10px 12px;">
+                                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cobalt/10 border border-cobalt/20" style="color:var(--cobalt);">
+                                                                {d.record_type.clone()}
+                                                            </span>
+                                                        </td>
+                                                        <td style="padding:10px 12px;">
+                                                            <code class="text-xs font-mono text-on-surface">{d.name.clone()}</code>
+                                                        </td>
+                                                        <td style="padding:10px 12px;">
+                                                            <code class="text-xs font-mono text-primary">{d.value.clone()}</code>
+                                                        </td>
+                                                        <td style="padding:10px 12px;">
+                                                            <span class="text-xs text-on-surface-variant/50">"Auto"</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div style="padding:10px 12px;background:rgba(99,179,237,0.06);border-radius:6px;border:1px solid rgba(99,179,237,0.15);">
+                                            <p class="text-[11px] text-on-surface-variant/80 leading-relaxed">
+                                                "ⓘ  "
+                                                <strong>"Cloudflare users:"</strong>
+                                                " set Proxy Status to DNS-only (grey cloud). cert-manager handles TLS — do not proxy this record."
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            }.into_any(),
+                            None if is_w => view! {
+                                <div style="padding:10px 14px;border-left:3px solid rgba(52,211,153,0.5);border-radius:0 6px 6px 0;background:rgba(52,211,153,0.04);">
+                                    <p style="font-size:11px;color:#34d399;font-weight:600;margin:0 0 2px;">"Wildcard domain — no DNS action needed"</p>
+                                    <p class="muted" style="font-size:11px;margin:0;">"This subdomain is covered by the platform wildcard certificate. SSL is already active."</p>
+                                </div>
+                            }.into_any(),
+                            None => view! { <></> }.into_any(),
+                        }}
                     </div>
-                </div>
-                <div class="flex justify-between items-start">
-                    <span class="text-xs text-on-surface-variant/60">"SSL Status"</span>
-                    <span class=format!("text-xs font-semibold text-right {}", ssl_cls)>{ssl_status}</span>
-                </div>
-                {if !is_wildcard {
-                    view! {
-                        <div class="card" style="padding:10px 14px;border-left:3px solid var(--amber);">
-                            <p style="font-size:11px;color:var(--amber);font-weight:600;margin:0 0 4px;">"Action required"</p>
-                            <p class="muted" style="font-size:11px;margin:0;">
-                                "Add a k3s Ingress manifest with host "
-                                <code style="font-size:10px;">{app.domain.clone()}</code>
-                                " pointing to the correct service, and a cert-manager Certificate resource. "
-                                "See NixForge/docs/ for the ingress pattern."
-                            </p>
-                        </div>
-                    }.into_any()
-                } else {
-                    view! {
-                        <div class="card" style="padding:10px 14px;border-left:3px solid rgba(52,211,153,0.5);">
-                            <p style="font-size:11px;color:#34d399;font-weight:600;margin:0 0 2px;">"Wildcard domain — no action needed"</p>
-                            <p class="muted" style="font-size:11px;margin:0;">
-                                "SSL is provisioned automatically via the k3s ingress wildcard rule."
-                            </p>
-                        </div>
-                    }.into_any()
-                }}
-            </div>
-        </div>
+                }
+            }}
+        </Suspense>
     }
 }
+
 
 // ── Users & Roles ─────────────────────────────────────────────────────────────
 

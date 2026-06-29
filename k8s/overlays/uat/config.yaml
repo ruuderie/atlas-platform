@@ -18,6 +18,7 @@ data:
   API_URL: "https://api.uat.atlas.oply.co"
   ATLAS_API_URL: "http://backend.atlas-uat.svc.cluster.local:8000"
   INGRESS_SIDECAR_URL: "http://ingress-sidecar.atlas-uat.svc.cluster.local:8085"
+  ATLAS_CNAME_TARGET: "api.uat.atlas.oply.co"
   # PUBLIC_API_BASE_URL is injected into window.__ENV__ in the SSR shell so
   # client-side JS (passkey registration, etc.) knows the public backend URL.
   PUBLIC_API_BASE_URL: "https://api.uat.atlas.oply.co"
