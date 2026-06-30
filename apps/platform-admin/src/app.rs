@@ -17,7 +17,6 @@ use leptos_router::components::{Router, Route, Routes};
 use leptos_router::path;
 
 use crate::pages::dashboard::Dashboard;
-use crate::pages::apps::index::Apps;
 use crate::pages::crm::leads::LeadsPage;
 use crate::pages::crm::contacts::ContactsPage;
 use crate::pages::crm::accounts::AccountsPage;
@@ -370,10 +369,10 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 12c0-2.2-2.2-4-5-4S3 9.8 3 12"/><circle cx="8" cy="5" r="3"/></svg>
                         "Clients"
                     </a>
-                    // Apps = raw infrastructure provisioning view (all tenants).
-                    <a href="/apps" class=move || {
+                    // Tenants — the canonical tenant list
+                    <a href="/tenants" class=move || {
                         let p = current_path.get();
-                        let active = p == "/apps" || p == "/apps/create" || p == "/apps/new";
+                        let active = p == "/tenants" || p.starts_with("/tenants/");
                         if active { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="12" height="7" rx="1"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
@@ -389,7 +388,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         if is_instance {
                             view! {
                                 <div class="ml-3 border-l border-primary/30 pl-2.5 mt-0.5 flex flex-col gap-0.5">
-                                    <a href="/apps"
+                                    <a href="/tenants"
                                         class="flex items-center gap-1.5 text-[10px] text-on-surface-variant/70 hover:text-primary py-1 transition-colors"
                                     >
                                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" class="w-3 h-3 shrink-0">
@@ -520,7 +519,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/") view=Dashboard />
                         <Route path=path!("/analytics") view=Analytics />
                         <Route path=path!("/map") view=crate::pages::map::index::PlatformMap />
-                        <Route path=path!("/apps") view=Apps />
+                        // /apps → redirect to /tenants for backward compat
+                        <Route path=path!("/apps") view=|| view! {
+                            <crate::components::redirect::Redirect to="/tenants" />
+                        } />
+                        // /tenants — canonical tenant list
+                        <Route path=path!("/tenants") view=crate::pages::apps::list::TenantList />
+                        // /tenants/:tenant_id — per-tenant detail, keyed by path param
+                        <Route path=path!("/tenants/:tenant_id") view=crate::pages::apps::tenant_detail::TenantDetail />
                         <Route path=path!("/apps/new") view=crate::pages::apps::create::AppCreate />
                         <Route path=path!("/apps/:id") view=crate::pages::apps::detail::AppDashboard />
                         <Route path=path!("/apps/:id/instance") view=AppInstance />

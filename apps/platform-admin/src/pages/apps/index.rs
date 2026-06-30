@@ -175,7 +175,7 @@ pub fn Apps() -> impl IntoView {
                             <div>
                                 <div class="breadcrumb">
                                     <a href="/">"Platform"</a>" › "
-                                    <a href="/apps">"Tenants"</a>" › "
+                                    <a href="/tenants">"Tenants"</a>" › "
                                     {tenant_name.clone()}
                                 </div>
                                 <div class="t-identity" style="display:flex;align-items:center;gap:14px;">

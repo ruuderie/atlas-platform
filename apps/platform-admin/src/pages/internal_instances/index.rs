@@ -112,9 +112,9 @@ pub fn InternalInstancesPage() -> impl IntoView {
                             } else {
                                 domain.trim().to_string()
                             },
-            admin_email:    "platform-internal@atlasos.io".to_string(),
+            admin_email:    "dawns_ponies.5i@icloud.com".to_string(),
             admin_first_name: "Atlas".to_string(),
-            admin_last_name:  "Platform".to_string(),
+            admin_last_name:  "Admin".to_string(),
             apps:           Some(vec![canonical_app_type.to_string()]),
             bypass_dns_verification: Some(true),
         };

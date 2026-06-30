@@ -150,7 +150,7 @@ pub fn Dashboard() -> impl IntoView {
                             {move || format!("{} instances", apps_res.get().unwrap_or_default().len())}
                         </span>
                     </div>
-                    <a href="/apps" class="section-action" style="text-decoration:none">"View All Tenants →"</a>
+                    <a href="/tenants" class="section-action" style="text-decoration:none">"View All Tenants →"</a>
                 </div>
                 <Suspense fallback=move || view! { <div class="p-4 muted">"Loading fleet..."</div> }>
                 {move || {
@@ -185,8 +185,13 @@ pub fn Dashboard() -> impl IntoView {
                                     let bar_color = if health_pct == 100 { "var(--green)" }
                                         else if health_pct >= 50 { "var(--amber)" }
                                         else { "var(--red)" };
+                                    // Link to tenant list filtered by this app type
+                                    let href = format!("/tenants?type={}", slug);
                                     view! {
-                                        <div style="background:var(--surface-container,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:10px;padding:16px 18px;">
+                                        <a
+                                            href=href
+                                            style="display:block;text-decoration:none;background:var(--surface-container,rgba(255,255,255,0.04));border:1px solid var(--border,rgba(255,255,255,0.07));border-radius:10px;padding:16px 18px;cursor:pointer;transition:border-color 0.15s,background 0.15s;"
+                                        >
                                             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                                                 <span style="font-size:22px">{emoji}</span>
                                                 <span style="font-size:13px;font-weight:600;color:var(--text-primary)">{label}</span>
@@ -203,8 +208,8 @@ pub fn Dashboard() -> impl IntoView {
                                             <div style="height:4px;background:var(--border,rgba(255,255,255,0.07));border-radius:2px;overflow:hidden;">
                                                 <div style=format!("height:100%;width:{}%;background:{};border-radius:2px;transition:width 0.4s;", health_pct, bar_color)></div>
                                             </div>
-                                            <div style="margin-top:6px;font-size:10px;color:var(--text-muted);font-family:monospace">{format!("{}% healthy", health_pct)}</div>
-                                        </div>
+                                            <div style="margin-top:6px;font-size:10px;color:var(--text-muted);font-family:monospace">{format!("{}% healthy · click to view", health_pct)}</div>
+                                        </a>
                                     }
                                 }).collect_view()}
                             </div>
@@ -227,7 +232,7 @@ pub fn Dashboard() -> impl IntoView {
                             "Tenant Registry"
                             <span class="section-count">{move || format!("{} tenants", tenants_res.get().unwrap_or_default().len())}</span>
                         </div>
-                        <a href="/apps" class="section-action" style="text-decoration:none">"View All →"</a>
+                        <a href="/tenants" class="section-action" style="text-decoration:none">"View All →"</a>
                     </div>
                     <Suspense fallback=move || view! { <div class="p-8 text-center muted">"Loading tenants..."</div> }>
                     <table>
@@ -264,11 +269,9 @@ pub fn Dashboard() -> impl IntoView {
                                     else if score >= 2 { "var(--amber)" }
                                     else { "var(--red)" };
 
-                                let href = if let Some(ref inst_id) = t.anchor_instance_id {
-                                    format!("/apps/{}/instance", inst_id)
-                                } else {
-                                    format!("/apps?tenant={}", t.tenant_id)
-                                };
+                                // Always route to /tenants/:tenant_id — path-param driven, never dropdown-driven.
+                                // Previously fell back to /apps?tenant=X which was silently ignored.
+                                let href = format!("/tenants/{}", t.tenant_id);
                                 view! {
                                     <tr style="cursor:pointer;" on:click={
                                         let href = href.clone();
@@ -309,7 +312,7 @@ pub fn Dashboard() -> impl IntoView {
                                 </svg>
                                 "Tenant Onboarding Funnel"
                             </div>
-                            <a href="/apps" class="section-action" style="text-decoration:none">"Manage →"</a>
+                            <a href="/tenants" class="section-action" style="text-decoration:none">"Manage →"</a>
                         </div>
                         <Suspense fallback=move || view! { <div class="p-4 muted">"Loading..."</div> }>
                         {move || {
