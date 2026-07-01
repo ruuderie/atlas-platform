@@ -547,11 +547,15 @@ steps:
       branch: [dev, uat]
       path: [ "backend/src/bin/ingress_sidecar.rs", "backend/Dockerfile.sidecar", ".woodpecker.yml" ]
 
-  # ── ONE-SHOT RBAC BOOTSTRAP (remove after first successful deploy) ──────────
-  # woodpecker-deployer lacks the permissions it needs to apply ingress-sidecar-role
-  # (see k8s/base/woodpecker-rbac.yaml for explanation). This step uses the K3s
-  # cluster-admin kubeconfig mounted from the host to grant those permissions.
-  # TODO: remove this step once CI-763 equivalent passes cleanly.
+  # ── ONE-SHOT RBAC BOOTSTRAP ──────────────────────────────────────────────────
+  # WHY: woodpecker-deployer doesn't have cluster-admin rights, so it can't create
+  # the ClusterRole/Binding defined in k8s/base/woodpecker-rbac.yaml itself.
+  # This step uses the K3s host kubeconfig (mounted read-only) to do it once.
+  #
+  # SAFE TO REMOVE when BOTH of the following are true in the same pipeline run:
+  #   1. This step shows "✓ RBAC bootstrap complete" in its logs.
+  #   2. deploy_platform_k8s completes without a Forbidden/RBAC error.
+  # Once that happens, just tell me "remove bootstrap_rbac" and I'll delete the step.
   bootstrap_rbac:
     image: bitnami/kubectl:latest
     volumes:
@@ -561,8 +565,12 @@ steps:
         set -euo pipefail
         # The K3s admin kubeconfig uses 127.0.0.1:6443 which is the host's loopback.
         # Inside a container, 127.0.0.1 is the container's own loopback — not the host.
-        # Detect the host IP via the container's default gateway and rewrite the kubeconfig.
-        HOST_IP=$(ip route | awk '/default/ { print $3; exit }')
+        # Parse /proc/net/route to get the default gateway without needing iproute2.
+        # The Gateway column is hex, little-endian (e.g. 0101A8C0 → 192.168.1.1).
+        HEX_GW=$(awk 'NR>1 && $2=="00000000" { print $3; exit }' /proc/net/route)
+        HOST_IP=$(printf '%d.%d.%d.%d' \
+          "0x${HEX_GW:6:2}" "0x${HEX_GW:4:2}" \
+          "0x${HEX_GW:2:2}" "0x${HEX_GW:0:2}")
         echo "==> Host gateway IP: $HOST_IP"
         sed "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
         export KUBECONFIG=/tmp/k3s-admin-fixed.yaml
