@@ -54,6 +54,11 @@ futures = "0.3"
 gloo-net = "0.6.0"
 aws-sdk-s3 = { version = "1.129.0", optional = true }
 aws-config = { version = "1.8.15", optional = true }
+# ── Transitive-dependency version pin ─────────────────────────────────────────
+# time ≥0.3.52 broke cookie-0.18.1 (Parsable::parse now takes 2 args).
+# cookie is pulled in by axum-extra's cookie feature. Pin until axum-extra
+# ships a cookie release that supports time 0.3.52+.
+time = "=0.3.51"
 
 
 [features]
