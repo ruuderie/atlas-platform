@@ -76,6 +76,14 @@ clap = { version = "4.5", features = ["derive"] }
 # Decimal type for firmographic fields (annual_revenue) — already a transitive
 # dep via sea-orm; declared directly so entity files can use rust_decimal::Decimal.
 rust_decimal = "1.37"
+# ── Transitive-dependency version pin ─────────────────────────────────────────
+# time 0.3.52 introduced a breaking API change in `Parsable::parse()` (second
+# `defaults: Option<Parsed>` argument). `cookie 0.18.1`, pulled in transitively
+# by `axum-extra` (cookie feature), was built against the old 1-argument
+# signature and fails to compile against time ≥ 0.3.52.
+# Pin to the last compatible release until axum-extra ships a cookie version
+# that supports time 0.3.52+.
+time = "=0.3.51"
 
 
 
