@@ -567,10 +567,21 @@ steps:
         # Inside a container, 127.0.0.1 is the container's own loopback — not the host.
         # Parse /proc/net/route to get the default gateway without needing iproute2.
         # The Gateway column is hex, little-endian (e.g. 0101A8C0 → 192.168.1.1).
-        HEX_GW=$(awk 'NR>1 && $2=="00000000" { print $3; exit }' /proc/net/route)
-        HOST_IP=$(printf '%d.%d.%d.%d' \
-          "0x${HEX_GW:6:2}" "0x${HEX_GW:4:2}" \
-          "0x${HEX_GW:2:2}" "0x${HEX_GW:0:2}")
+        # Inline hex2dec avoids bash-only ${var:offset:len} syntax — works in dash/sh.
+        HOST_IP=$(awk '
+          function h2d(s,   i,v,c,m) {
+            m="0123456789abcdef"; v=0; s=tolower(s)
+            for(i=1;i<=length(s);i++){c=substr(s,i,1);v=v*16+index(m,c)-1}
+            return v
+          }
+          NR>1 && $2=="00000000" {
+            h=$3
+            printf "%d.%d.%d.%d\n",
+              h2d(substr(h,7,2)), h2d(substr(h,5,2)),
+              h2d(substr(h,3,2)), h2d(substr(h,1,2))
+            exit
+          }
+        ' /proc/net/route)
         echo "==> Host gateway IP: $HOST_IP"
         sed "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
         export KUBECONFIG=/tmp/k3s-admin-fixed.yaml
