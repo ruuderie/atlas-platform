@@ -201,6 +201,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
         }
     });
 
+    // Reset the consecutive-401 counter on every SPA navigation.
+    // This prevents a stale 401 from one page from falsely contributing to the
+    // logout threshold on a completely different page.
+    Effect::new(move |_| {
+        let _path = location.pathname.get(); // re-run on route change
+        crate::api::client::reset_consecutive_401s();
+    });
+
     // Derive active nav state from the current path
     let current_path = Signal::derive(move || location.pathname.get());
 
@@ -251,7 +259,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         </div>
                     </div>
                     <div class="topbar-right">
-                        // Site selector
+                        // Site selector — only relevant on /network-instance routes.
+                        <Show when=move || current_path.get().starts_with("/network-instance")>
                         <select
                             class="bg-[#1C2236] border border-outline-variant/30 text-on-surface text-xs rounded px-2.5 py-1 focus:ring-1 focus:ring-primary focus:border-primary text-on-surface max-w-[140px] select-none"
                             on:change=move |ev| {
@@ -278,6 +287,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                 })}
                             </Suspense>
                         </select>
+                        </Show>
                         // Notification → Audit Ledger
                         <a href="/logs" class="icon-btn" title="Audit Logs">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">

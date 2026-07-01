@@ -38,10 +38,24 @@ pub fn with_credentials(builder: RequestBuilder) -> RequestBuilder {
     }
 }
 
-/// Counts consecutive 401 responses. A single transient 401 (e.g. a race during
-/// navigation before the session cookie propagates) is surfaced as an error but
-/// does NOT redirect. Two consecutive 401s mean the session is genuinely gone.
+/// Counts consecutive 401 responses across API calls.
+///
+/// Threshold is intentionally set to 3 (not 2) to avoid false-positive logouts
+/// when a page mounts multiple concurrent fetches and all simultaneously receive
+/// a 401 (e.g. during a brief session cookie propagation gap). Three consecutive
+/// 401s — even accounting for concurrent requests — reliably indicates the
+/// session is genuinely expired.
+///
+/// The counter is reset to 0 on every SPA navigation via `reset_consecutive_401s()`
+/// (called from `AuthenticatedLayout`), and also on any non-401 response.
 static CONSECUTIVE_401S: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Reset the consecutive-401 counter. Call this on every SPA route change so
+/// that a stale 401 from a previous page does not falsely contribute to the
+/// logout threshold on the next page.
+pub fn reset_consecutive_401s() {
+    CONSECUTIVE_401S.store(0, Ordering::SeqCst);
+}
 
 pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) -> Result<T, String> {
     let req = with_credentials(req);
@@ -49,8 +63,10 @@ pub async fn api_request<T: serde::de::DeserializeOwned>(req: RequestBuilder) ->
 
     if res.status() == StatusCode::UNAUTHORIZED {
         let count = CONSECUTIVE_401S.fetch_add(1, Ordering::SeqCst) + 1;
-        if count >= 2 {
-            // Two back-to-back 401s: the session is definitively gone.
+        if count >= 3 {
+            // Three consecutive 401s: the session is definitively gone.
+            // Threshold of 3 (not 2) prevents false-positive logouts from
+            // concurrent page-load fetches racing through simultaneous 401s.
             mark_session_expired();
         }
         return Err("Unauthorized — session may have expired.".into());
