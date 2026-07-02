@@ -1,13 +1,7 @@
 use leptos::prelude::*;
-use shared_ui::components::card::Card;
-use shared_ui::components::badge::{Badge, BadgeIntent};
 use shared_ui::components::ui::button::{Button, ButtonVariant, ButtonSize};
 use shared_ui::components::ui::input::{Input, InputType};
 use shared_ui::components::ui::label::Label;
-use shared_ui::components::ui::table::{
-    Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
-    TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
-};
 use crate::api::admin::{get_billing_plans, get_all_transactions, get_tenant_stats};
 use crate::api::analytics::{get_billing_summary, get_business_kpis};
 
@@ -40,14 +34,9 @@ pub fn BillingDashboard() -> impl IntoView {
     let filter_rail = RwSignal::new("All Rails".to_string());
     let filter_status = RwSignal::new("All Statuses".to_string());
 
-    // Derived style helpers
+    // Derived style helpers — use lp-tab pattern from components.css
     let tab_class = move |tab_id: &str| {
-        let active = active_tab.get() == tab_id;
-        if active {
-            "px-4 py-2.5 text-xs font-bold text-primary border-b-2 border-primary bg-transparent outline-none transition-all"
-        } else {
-            "px-4 py-2.5 text-xs font-semibold text-on-surface-variant hover:text-on-surface bg-transparent outline-none transition-all"
-        }
+        if active_tab.get() == tab_id { "lp-tab active" } else { "lp-tab" }
     };
 
     // ── Real data resources ──
@@ -134,138 +123,122 @@ pub fn BillingDashboard() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6">
-            // ── Breadcrumb & Header ──
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm animate-fade-in fade-in-up">
+        <div class="main-canvas">
+            // ── Page Header ──────────────────────────────────────────────────
+            <div class="page-header">
                 <div>
-                    <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Billing Overview"</h1>
-                    <p class="text-xs text-on-surface-variant mt-1">
-                        "Platform financial health · Select a product to drill into its plans and revenue"
-                    </p>
+                    <h1 class="page-title">"Billing & Revenue"</h1>
+                    <p class="page-subtitle">"Platform financial health · subscriptions, MRR, ledger, and collection rates"</p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="page-actions">
                     <button
-                        class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 flex items-center gap-1.5 hover:bg-surface-bright/20 transition-all active:scale-95"
+                        class="btn btn-ghost btn-icon"
+                        title="Refresh billing data"
                         on:click=move |_| refresh.update(|n| *n += 1)
-                        title="Reload billing data"
                     >
-                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2 8a6 6 0 0 1 6-6 6 6 0 0 1 4.2 1.8L14 6"/>
+                            <path d="M14 2v4h-4"/>
+                            <path d="M14 8a6 6 0 0 1-6 6 6 6 0 0 1-4.2-1.8L2 10"/>
+                            <path d="M2 14v-4h4"/>
                         </svg>
-                        "Refresh"
                     </button>
-                    <select class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary">
-                        <option>"June 2026"</option>
-                        <option>"May 2026"</option>
-                        <option>"Q2 2026"</option>
-                        <option>"YTD"</option>
-                    </select>
-                    <Button variant=ButtonVariant::Outline on:click=handle_export>
+                    <button class="btn btn-ghost" on:click=handle_export>
                         "↓ Export"
-                    </Button>
+                    </button>
                 </div>
             </div>
 
             // ── Error banner ──
             {move || data_error.get().map(|e| crate::utils::inline_error(&e))}
 
-            // ── KPI Strip ──
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-4 bg-surface-container-low border border-outline-variant/10 p-5 rounded-2xl shadow-xs overflow-x-auto select-none">
-                <div class="space-y-1 min-w-[100px]">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Total MRR"</span>
-                    <div class="text-xl font-extrabold text-primary font-mono">
-                        {move || business_kpis.get().flatten().map(|k| format!("${:.0}k", k.mrr.value / 1000.0)).unwrap_or("—".to_string())}
+            // ── KPI Row ───────────────────────────────────────────────────────
+            <div class="kpi-row" style="grid-template-columns:repeat(7,1fr);">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Total MRR"</div>
+                    <div class="kpi-value mono">
+                        {move || business_kpis.get().flatten()
+                            .map(|k| format!("${:.0}k", k.mrr.value / 1000.0))
+                            .unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-emerald-400 font-medium">
+                    <div class="kpi-delta up">
                         {move || business_kpis.get().flatten().map(|k| {
                             let delta = k.mrr.value - k.mrr.previous_value;
                             let pct = if k.mrr.previous_value > 0.0 { (delta / k.mrr.previous_value) * 100.0 } else { 0.0 };
-                            format!("↑ {:.0}% vs prev", pct)
+                            format!("{:+.0}% MoM", pct)
                         }).unwrap_or("—".to_string())}
-                    </p>
+                    </div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Active Subs"</span>
-                    <div class="text-xl font-extrabold font-mono">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Active Subs"</div>
+                    <div class="kpi-value mono">
                         {move || billing_summary.get().flatten().map(|s| s.active_subscriptions.to_string()).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[9px] text-on-surface-variant/70 truncate">
-                        {move || billing_summary.get().flatten().map(|s| format!("{} trial · {} grace · {} susp.", s.in_trial, s.in_grace_period, s.suspended)).unwrap_or("—".to_string())}
-                    </p>
+                    <div class="kpi-delta neutral">
+                        {move || billing_summary.get().flatten()
+                            .map(|s| format!("{} trial · {} grace", s.in_trial, s.in_grace_period))
+                            .unwrap_or("—".to_string())}
+                    </div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Failed Invoices"</span>
-                    <div class="text-xl font-extrabold text-amber-500 font-mono">
+                <div class="kpi-card warn-border">
+                    <div class="kpi-label">"Failed Invoices"</div>
+                    <div class="kpi-value mono" style="color:var(--amber)">
                         {move || billing_summary.get().flatten().map(|s| s.failed_invoices_count.to_string()).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-error font-medium">
-                        {move || billing_summary.get().flatten().map(|s| format!("${:.0}k outstanding", s.failed_invoices_value / 1000.0)).unwrap_or("—".to_string())}
-                    </p>
+                    <div class="kpi-delta down">
+                        {move || billing_summary.get().flatten()
+                            .map(|s| format!("${:.0}k outstanding", s.failed_invoices_value / 1000.0))
+                            .unwrap_or("—".to_string())}
+                    </div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Collection Rate"</span>
-                    <div class="text-xl font-extrabold text-emerald-400 font-mono">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Collection Rate"</div>
+                    <div class="kpi-value mono" style="color:var(--green)">
                         {move || billing_summary.get().flatten().map(|s| format!("{:.0}%", s.collection_success_rate)).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-on-surface-variant/80">"Invoiced vs paid"</p>
+                    <div class="kpi-delta neutral">"Invoiced vs paid"</div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Billing Plans"</span>
-                    <div class="text-xl font-extrabold font-mono">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Billing Plans"</div>
+                    <div class="kpi-value mono">
                         {move || billing_plans.get().map(|p| p.len().to_string()).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-on-surface-variant/80">"active plans"</p>
+                    <div class="kpi-delta neutral">"Active plans"</div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Transactions"</span>
-                    <div class="text-xl font-extrabold font-mono">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Transactions"</div>
+                    <div class="kpi-value mono">
                         {move || transactions.get().map(|t| t.len().to_string()).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[10px] text-on-surface-variant/80">"ledger entries"</p>
+                    <div class="kpi-delta neutral">"Ledger entries"</div>
                 </div>
-                <div class="space-y-1 min-w-[100px] border-l border-outline-variant/15 pl-4">
-                    <span class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest">"Churn Rate"</span>
-                    <div class="text-xl font-extrabold font-mono">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Gross Churn"</div>
+                    <div class="kpi-value mono">
                         {move || billing_summary.get().flatten().map(|s| format!("{:.1}%", s.gross_churn_rate * 100.0)).unwrap_or("—".to_string())}
                     </div>
-                    <p class="text-[9px] text-on-surface-variant/70 font-mono">"G-17"</p>
+                    <div class="kpi-delta neutral" style="font-family:monospace">"G-17"</div>
                 </div>
             </div>
 
-            // ── Tabs Bar ──
-            <div class="flex border-b border-outline-variant/15 overflow-x-auto shrink-0 select-none">
-                <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>
-                    "Pricing Plans"
-                </button>
-                <button class=move || tab_class("rev_intel") on:click=move |_| active_tab.set("rev_intel".to_string())>
-                    "Revenue"
-                </button>
-                <button class=move || tab_class("ledger") on:click=move |_| active_tab.set("ledger".to_string())>
-                    "Client Billing"
-                </button>
-                <button class=move || tab_class("overdue") on:click=move |_| active_tab.set("overdue".to_string())>
-                    "Overdue & Disputes"
-                </button>
-                <button class=move || tab_class("rails") on:click=move |_| active_tab.set("rails".to_string())>
-                    "Payment Rails"
-                </button>
-                <button class=move || tab_class("commissions") on:click=move |_| active_tab.set("commissions".to_string())>
-                    "Commission Plans"
-                </button>
-                <button class=move || tab_class("tax") on:click=move |_| active_tab.set("tax".to_string())>
-                    "Tax & Filings"
-                </button>
+            // ── Tab Bar ───────────────────────────────────────────────────────
+            <div class="lp-tab-bar">
+                <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>"Pricing Plans"</button>
+                <button class=move || tab_class("rev_intel")       on:click=move |_| active_tab.set("rev_intel".to_string())>"Revenue"</button>
+                <button class=move || tab_class("ledger")          on:click=move |_| active_tab.set("ledger".to_string())>"Client Billing"</button>
+                <button class=move || tab_class("overdue")         on:click=move |_| active_tab.set("overdue".to_string())>"Overdue & Disputes"</button>
+                <button class=move || tab_class("rails")           on:click=move |_| active_tab.set("rails".to_string())>"Payment Rails"</button>
+                <button class=move || tab_class("commissions")     on:click=move |_| active_tab.set("commissions".to_string())>"Commission Plans"</button>
+                <button class=move || tab_class("tax")             on:click=move |_| active_tab.set("tax".to_string())>"Tax & Filings"</button>
             </div>
 
             // ── TAB CONTENT: Products & Plans ──
             <Show when=move || active_tab.get() == "products_plans">
-                <div class="space-y-6">
-                    // Hierarchy Callout
-                    <div class="flex items-center gap-3 p-4 bg-primary/10 border border-primary/20 rounded-xl text-xs text-on-surface-variant leading-relaxed animate-fade-in">
-                        <span class="material-symbols-outlined text-primary text-base">"info"</span>
-                        <span>
-                            <strong class="text-on-surface">"Platform Products"</strong> " → Billing Plans → Tenant Subscriptions → Ledger Entries → Ledger Splits. Click a product to drill in."
-                        </span>
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                    // Hierarchy callout
+                    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--cobalt-dim);border:1px solid rgba(10,132,255,0.2);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+                        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="5.5"/><path d="M7 6v4M7 4.5v.5"/></svg>
+                        <span><strong style="color:var(--text-primary)">"Platform Products"</strong>" → Billing Plans → Tenant Subscriptions → Ledger Entries → Ledger Splits."</span>
                     </div>
 
                     // Products Grid — driven from billing_plans API
@@ -324,369 +297,267 @@ pub fn BillingDashboard() -> impl IntoView {
                     })}
                     </Suspense>
 
-                    // Active Subscriptions Card Table
-                    <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
-                        <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container/30 flex justify-between items-center">
-                            <div>
-                                <span class="font-bold text-sm">"All Active Subscriptions"</span>
-                                <p class="text-[10px] text-on-surface-variant">"Maps dynamic billing states from tenant_subscriptions and billing_plans records"</p>
+                    // Active billing plans table
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="2" width="12" height="10" rx="1"/><path d="M1 6h12"/></svg>
+                                "All Billing Plans"
+                                <span class="section-count">{move || billing_plans.get().map(|p| format!("{} plans", p.len())).unwrap_or_default()}</span>
                             </div>
-                            <Button variant=ButtonVariant::Default size=ButtonSize::Sm on:click=move |_| show_new_sub_modal.set(true)>
+                            <button class="btn btn-primary btn-sm" on:click=move |_| show_new_sub_modal.set(true)>
                                 "+ New Subscription"
-                            </Button>
+                            </button>
                         </div>
-                        <DataTable class="w-full text-xs">
-                            <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                                <DataTableRow class="hover:bg-transparent">
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Plan Name"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Price / Interval"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Billing Interval"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Currency"</DataTableHead>
-                                    <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
-                                </DataTableRow>
-                            </DataTableHeader>
-                            <DataTableBody class="divide-y divide-border font-sans">
-                                <Suspense fallback=move || view! { <DataTableRow><td class="p-4 text-center text-on-surface-variant/50" colspan="5">"Loading billing plans..."</td></DataTableRow> }>
+                        <Suspense fallback=move || view! { <div class="p-4 muted">"Loading plans…"</div> }>
+                        <table>
+                            <thead><tr>
+                                <th>"Plan Name"</th>
+                                <th class="right">"Price / Interval"</th>
+                                <th>"Interval"</th>
+                                <th>"Currency"</th>
+                                <th class="right">"Actions"</th>
+                            </tr></thead>
+                            <tbody>
                             {move || billing_plans.get().unwrap_or_default().into_iter().map(|plan| {
                                 let price_formatted = format!("${}.{:02} / {}", plan.price / 100, plan.price % 100, plan.interval);
                                 view! {
-                                    <DataTableRow>
-                                        <DataTableCell class="p-3 font-bold text-on-surface">{plan.name.clone()}</DataTableCell>
-                                        <DataTableCell class="p-3 text-right font-mono text-emerald-400 font-bold">{price_formatted}</DataTableCell>
-                                        <DataTableCell class="p-3 text-on-surface-variant">{plan.interval.clone()}</DataTableCell>
-                                        <DataTableCell class="p-3 text-on-surface-variant font-mono">{plan.currency.clone()}</DataTableCell>
-                                        <DataTableCell class="p-3 text-right">
-                                            <Button variant=ButtonVariant::Ghost size=ButtonSize::Sm class="h-7 px-2 text-xs".to_string() on:click=move |_| {
+                                    <tr>
+                                        <td style="font-weight:600">{plan.name.clone()}</td>
+                                        <td class="right mono" style="color:var(--green)">{price_formatted}</td>
+                                        <td class="muted">{plan.interval.clone()}</td>
+                                        <td class="mono">{plan.currency.clone()}</td>
+                                        <td class="right">
+                                            <button class="btn btn-ghost btn-sm" on:click=move |_| {
                                                 toast.show_toast("Plan", "Drilling into plan details...", "info");
-                                            }>"Details →"</Button>
-                                        </DataTableCell>
-                                    </DataTableRow>
+                                            }>"Details →"</button>
+                                        </td>
+                                    </tr>
                                 }
                             }).collect_view()}
-                            </Suspense>
-                        </DataTableBody>
-                        </DataTable>
-                    </Card>
+                            </tbody>
+                        </table>
+                        </Suspense>
+                    </div>
                 </div>
             </Show>
 
             // ── TAB CONTENT: Ledger ──
             <Show when=move || active_tab.get() == "ledger">
-                <Card class="bg-card border-border shadow-sm overflow-hidden animate-fade-in".to_string()>
-                    <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <span class="font-bold text-sm">"Platform Transaction Ledger Entries"</span>
-                            <p class="text-[10px] text-on-surface-variant">"Direct relational transactions split-calculated for payout routing (G-03)"</p>
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h10M2 7h7M2 10h5"/></svg>
+                            "Transaction Ledger"
+                            <span class="section-count">"G-03 · split-calculated"</span>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <select
-                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary"
-                                on:change=move |ev| filter_tenant.set(event_target_value(&ev))
-                            >
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <select on:change=move |ev| filter_tenant.set(event_target_value(&ev))>
                                 <option value="">"All Tenants"</option>
                                 {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
                                     let n = t.name.clone();
                                     view! { <option value=n.clone()>{n.clone()}</option> }
                                 }).collect_view()}
                             </select>
-                            <select
-                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary"
-                                on:change=move |ev| filter_rail.set(event_target_value(&ev))
-                            >
-                                <option>"All Rails"</option>
-                                <option>"Stripe"</option>
-                                <option>"Bitcoin"</option>
-                                <option>"PIX"</option>
+                            <select on:change=move |ev| filter_rail.set(event_target_value(&ev))>
+                                <option>"All Rails"</option><option>"Stripe"</option><option>"Bitcoin"</option><option>"PIX"</option>
                             </select>
-                            <select
-                                class="bg-surface-container-highest border border-outline/20 text-on-surface text-xs rounded-lg p-2 focus:ring-primary focus:border-primary"
-                                on:change=move |ev| filter_status.set(event_target_value(&ev))
-                            >
-                                <option>"All Statuses"</option>
-                                <option>"Paid"</option>
-                                <option>"Pending"</option>
-                                <option>"Overdue"</option>
+                            <select on:change=move |ev| filter_status.set(event_target_value(&ev))>
+                                <option>"All Statuses"</option><option>"Paid"</option><option>"Pending"</option><option>"Overdue"</option>
                             </select>
-                            <Button variant=ButtonVariant::Outline size=ButtonSize::Sm on:click=handle_export>
-                                "Export"
-                            </Button>
+                            <button class="btn btn-ghost btn-sm" on:click=handle_export>"Export"</button>
                         </div>
                     </div>
-                    <DataTable class="w-full text-xs font-sans">
-                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                            <DataTableRow class="hover:bg-transparent">
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"TX ID"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Tenant"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Provider"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Amount"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Status"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Provider TX ID"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Created"</DataTableHead>
-                            </DataTableRow>
-                        </DataTableHeader>
-                        <DataTableBody class="divide-y divide-border">
-                            <Suspense fallback=move || view! { <DataTableRow><td class="p-4 text-center text-on-surface-variant/50" colspan="7">"Loading transactions..."</td></DataTableRow> }>
+                    <Suspense fallback=move || view! { <div class="p-4 muted">"Loading transactions…"</div> }>
+                    <table>
+                        <thead><tr>
+                            <th>"TX ID"</th>
+                            <th>"Tenant"</th>
+                            <th>"Provider"</th>
+                            <th class="right">"Amount"</th>
+                            <th class="center">"Status"</th>
+                            <th>"Provider TX ID"</th>
+                            <th>"Created"</th>
+                        </tr></thead>
+                        <tbody>
                         {move || transactions.get().unwrap_or_default().into_iter().map(|tx| {
                             let amount_fmt = format!("${}.{:02} {}", tx.amount / 100, tx.amount.abs() % 100, tx.currency.to_uppercase());
-                            let status_intent = match tx.status.as_str() {
-                                "paid" | "completed" | "settled" => BadgeIntent::Success,
-                                "overdue" | "failed" => BadgeIntent::Default,
-                                "pending" => BadgeIntent::Primary,
-                                _ => BadgeIntent::Default,
+                            let status_color = match tx.status.as_str() {
+                                "paid" | "completed" | "settled" => "var(--green)",
+                                "overdue" | "failed" => "var(--red)",
+                                "pending" => "var(--cobalt)",
+                                _ => "var(--text-muted)",
                             };
                             let status = tx.status.clone();
                             view! {
-                                <DataTableRow>
-                                    <DataTableCell class="p-3 font-mono text-on-surface-variant/80 text-[10px]">{tx.id[..8].to_string() + "…"}</DataTableCell>
-                                    <DataTableCell class="p-3 font-mono text-[10px]">{tx.tenant_id[..8].to_string() + "…"}</DataTableCell>
-                                    <DataTableCell class="p-3 text-on-surface-variant">{tx.provider.clone()}</DataTableCell>
-                                    <DataTableCell class="p-3 text-right font-mono font-bold text-emerald-400">{amount_fmt}</DataTableCell>
-                                    <DataTableCell class="p-3 text-center"><Badge intent=status_intent>{status}</Badge></DataTableCell>
-                                    <DataTableCell class="p-3 font-mono text-[10px] text-on-surface-variant/70">{tx.provider_tx_id.clone().unwrap_or("—".to_string())}</DataTableCell>
-                                    <DataTableCell class="p-3 font-mono text-[10px]">{tx.created_at.clone().unwrap_or("—".to_string())}</DataTableCell>
-                                </DataTableRow>
+                                <tr>
+                                    <td class="mono" style="font-size:10px">{tx.id[..8].to_string() + "…"}</td>
+                                    <td class="mono" style="font-size:10px">{tx.tenant_id[..8].to_string() + "…"}</td>
+                                    <td class="secondary">{tx.provider.clone()}</td>
+                                    <td class="right mono" style="color:var(--green);font-weight:700">{amount_fmt}</td>
+                                    <td class="center">
+                                        <span class="plan-badge" style=format!("color:{s};border-color:{s}", s=status_color)>{status}</span>
+                                    </td>
+                                    <td class="mono muted" style="font-size:10px">{tx.provider_tx_id.clone().unwrap_or("—".to_string())}</td>
+                                    <td class="mono" style="font-size:10px">{tx.created_at.clone().unwrap_or("—".to_string())}</td>
+                                </tr>
                             }
                         }).collect_view()}
-                        </Suspense>
-                    </DataTableBody>
-                    </DataTable>
-                </Card>
+                        </tbody>
+                    </table>
+                    </Suspense>
+                </div>
             </Show>
 
             // ── TAB CONTENT: Overdue & Disputes ──
             <Show when=move || active_tab.get() == "overdue">
-                <div class="space-y-6 animate-fade-in">
-                    // Alarm Banner
-                    <div class="flex items-start gap-3.5 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-on-surface-variant leading-relaxed">
-                        <span class="material-symbols-outlined text-amber-500 text-base mt-0.5">"warning"</span>
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                    // Alarm banner
+                    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+                        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--amber)"><path d="M7 1L13 12H1L7 1z"/><path d="M7 5v4M7 10.5v.5"/></svg>
                         <div>
-                            <span class="font-bold text-amber-400">"Overdue invoice reconciliation pending."</span>
-                            <p class="mt-0.5">"Automated grace period checks run daily. Subscriptions auto-suspend upon threshold violations. Connect the billing reconciliation endpoint to populate this view."</p>
+                            <span style="font-weight:700;color:var(--amber)">"Overdue invoice reconciliation pending."</span>
+                            <span style="margin-left:8px">"Grace period checks run daily. Subscriptions auto-suspend upon threshold violations."</span>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        // Left: Overdue Invoices
-                        <div class="lg:col-span-2 space-y-4">
-                            <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
-                                <div class="px-5 py-4 border-b border-outline-variant/10 bg-[#06122d]/30 flex justify-between items-center">
-                                    <span class="font-bold text-sm">"Outstanding Invoice Reminders"</span>
-                                    <Button variant=ButtonVariant::Outline size=ButtonSize::Sm on:click=move |_| toast.show_toast("Success", "Bulk reminder emails queued and dispatched.", "success")>
-                                        "Send All Reminders"
-                                    </Button>
-                                </div>
-                                <DataTable class="w-full text-xs font-sans">
-                                    <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                                        <DataTableRow class="hover:bg-transparent">
-                                            <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Tenant"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Product"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Amount"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Due Date"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Overdue"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Grace Status"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Rail"</DataTableHead>
-                                            <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
-                                        </DataTableRow>
-                                    </DataTableHeader>
-                                    <DataTableBody class="divide-y divide-border">
-                                        <DataTableRow>
-                                                <td class="p-8 text-center text-on-surface-variant/50" colspan="7">"Overdue invoice data pending — requires billing reconciliation endpoint (future)"</td>
-                                            </DataTableRow>
-                                        </DataTableBody>
-                                </DataTable>
-                            </Card>
+                    <div class="two-col">
+                        <div class="section">
+                            <div class="section-header">
+                                <div class="section-title">"Outstanding Invoice Reminders"</div>
+                                <button class="btn btn-ghost btn-sm"
+                                    on:click=move |_| toast.show_toast("Success", "Bulk reminder emails queued.", "success")
+                                >"Send All Reminders"</button>
+                            </div>
+                            <table><thead><tr>
+                                <th>"Tenant"</th><th>"Product"</th><th class="right">"Amount"</th>
+                                <th>"Due Date"</th><th class="center">"Overdue"</th><th>"Rail"</th>
+                            </tr></thead>
+                            <tbody><tr><td colspan="6" class="center muted" style="padding:32px">
+                                "Overdue data pending — billing reconciliation endpoint (future)"
+                            </td></tr></tbody></table>
                         </div>
-
-                        // Right: Billing Exemptions
-                        <div class="space-y-4">
-                            <Card class="bg-card border-border shadow-sm p-5".to_string()>
-                                <div class="flex justify-between items-center mb-4 font-bold">
-                                    <h3 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">"Exemption Overrides"</h3>
-                                    <Button variant=ButtonVariant::Outline size=ButtonSize::Sm class="h-7 text-[10px]".to_string() on:click=move |_| show_exemption_modal.set(true)>
-                                        "+ Exempt"
-                                    </Button>
-                                </div>
-                                <p class="text-[11px] text-on-surface-variant mb-4 leading-relaxed font-sans">
-                                    "Bypass auto-suspensions and grace period locks for strategic VIP client SLA accounts."
-                                </p>
-                                <div class="divide-y divide-outline-variant/15 text-xs pt-2">
-                                    {move || billing_summary.get().flatten().map(|s| s.exemptions.into_iter().map(|e| view! {
-                                        <div class="flex justify-between items-center py-2 px-1">
-                                            <span class="font-bold text-on-surface">{e.tenant_name.clone()}</span>
-                                            <span class="text-on-surface-variant text-[10px]">{e.reason.clone()}</span>
-                                        </div>
-                                    }).collect_view()).unwrap_or_default()}
-                                </div>
-                            </Card>
+                        <div class="section">
+                            <div class="section-header">
+                                <div class="section-title">"Billing Exemptions"</div>
+                                <button class="btn btn-ghost btn-sm" on:click=move |_| show_exemption_modal.set(true)>"+ Exempt"</button>
+                            </div>
+                            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);line-height:1.6">
+                                "Bypass auto-suspensions and grace period locks for strategic VIP client SLA accounts."
+                            </div>
+                            <div style="border-top:1px solid var(--border-default);">
+                                {move || billing_summary.get().flatten().map(|s| s.exemptions.into_iter().map(|e| view! {
+                                    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid var(--border-subtle);font-size:12px;">
+                                        <span style="font-weight:500">{e.tenant_name.clone()}</span>
+                                        <span class="muted" style="font-size:11px">{e.reason.clone()}</span>
+                                    </div>
+                                }).collect_view()).unwrap_or_default()}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
             </Show>
 
             // ── TAB CONTENT: Tax & Filings ──
             <Show when=move || active_tab.get() == "tax">
-                <Card class="bg-card border-border shadow-sm overflow-hidden animate-fade-in".to_string()>
-                    <div class="px-5 py-4 border-b border-outline-variant/10 bg-surface-container/30 flex justify-between items-center">
-                        <div>
-                            <span class="font-bold text-sm">"VAT, Sales Tax, and Corporate Filings (G-17)"</span>
-                            <p class="text-[10px] text-on-surface-variant">"Corporate compliance reporting registers mapped platform-wide"</p>
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-title">
+                            <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="1" width="10" height="12" rx="1"/><path d="M5 5h4M5 8h3"/></svg>
+                            "VAT, Sales Tax & Corporate Filings"
+                            <span class="section-count">"G-17"</span>
                         </div>
                     </div>
-                    <DataTable class="w-full text-xs font-sans">
-                        <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
-                            <DataTableRow class="hover:bg-transparent">
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Filing Code"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Jurisdiction / Context"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Gross Platform Sales"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Tax Collected"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-center font-medium text-on-surface-variant">"Filing Status"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-left font-medium text-on-surface-variant">"Filing Deadline"</DataTableHead>
-                                <DataTableHead class="h-8 px-4 text-right font-medium text-on-surface-variant">"Actions"</DataTableHead>
-                            </DataTableRow>
-                        </DataTableHeader>
-                        <DataTableBody class="divide-y divide-border">
-                            <DataTableRow>
-                                <td class="p-8 text-center text-on-surface-variant/50" colspan="6">"Tax filing data pending — requires G-17 tax_events entity and endpoint (future)"</td>
-                            </DataTableRow>
-                        </DataTableBody>
-                    </DataTable>
-                </Card>
+                    <table><thead><tr>
+                        <th>"Filing Code"</th><th>"Jurisdiction"</th>
+                        <th class="right">"Gross Sales"</th><th class="right">"Tax Collected"</th>
+                        <th class="center">"Status"</th><th>"Deadline"</th><th class="right">"Actions"</th>
+                    </tr></thead>
+                    <tbody><tr><td colspan="7" class="center muted" style="padding:32px">
+                        "Tax filing data pending — requires G-17 tax_events entity and endpoint (future)"
+                    </td></tr></tbody></table>
+                </div>
             </Show>
 
-            // ── MODAL: New Subscription ──
+            // ── Modals ─────────────────────────────────────────────────────────
+            // Shared modal overlay style
             <Show when=move || show_new_sub_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_new_sub_modal.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"New Tenant Subscription"</h3>
-                        <p class="text-xs text-on-surface-variant mb-6 font-sans">"Manually provision a product billing subscription plan for a tenant account."</p>
-
-                        <div class="space-y-4 mb-6">
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Tenant Account"</Label>
-                                <select
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    on:change=move |ev| new_sub_tenant.set(event_target_value(&ev))
-                                >
-                                {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
-                                    let n = t.name.clone();
-                                    view! { <option value=n.clone()>{n.clone()}</option> }
-                                }).collect_view()}
+                <div style="position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;">
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:12px;padding:28px;width:100%;max-width:440px;position:relative;">
+                        <button style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" on:click=move |_| show_new_sub_modal.set(false)>"✕"</button>
+                        <h3 class="page-title" style="font-size:16px;margin-bottom:4px">"New Tenant Subscription"</h3>
+                        <p class="page-subtitle" style="margin-bottom:20px">"Manually provision a product billing subscription plan for a tenant account."</p>
+                        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Tenant Account"</label>
+                                <select style="width:100%" on:change=move |ev| new_sub_tenant.set(event_target_value(&ev))>
+                                    {move || tenant_list.get().unwrap_or_default().into_iter().map(|t| {
+                                        let n = t.name.clone();
+                                        view! { <option value=n.clone()>{n.clone()}</option> }
+                                    }).collect_view()}
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Platform Product"</Label>
-                                <select
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    on:change=move |ev| new_sub_product.set(event_target_value(&ev))
-                                >
-                                    <option>"Folio"</option>
-                                    <option>"Anchor"</option>
-                                    <option>"Network"</option>
-                                    <option>"Meridian"</option>
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Platform Product"</label>
+                                <select style="width:100%" on:change=move |ev| new_sub_product.set(event_target_value(&ev))>
+                                    <option>"Folio"</option><option>"Anchor"</option><option>"Network"</option><option>"Meridian"</option>
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Billing Plan & Price Plan"</Label>
-                                <select
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary"
-                                    on:change=move |ev| new_sub_plan.set(event_target_value(&ev))
-                                >
-                                    <option>"Starter - $400/mo"</option>
-                                    <option>"STR Pro - $1,800/mo"</option>
-                                    <option>"Enterprise - $6,000/mo"</option>
-                                    <option>"Creator - $900/mo"</option>
-                                    <option>"Creator Pro - $2,400/mo"</option>
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Billing Plan"</label>
+                                <select style="width:100%" on:change=move |ev| new_sub_plan.set(event_target_value(&ev))>
+                                    <option>"Starter - $400/mo"</option><option>"STR Pro - $1,800/mo"</option>
+                                    <option>"Enterprise - $6,000/mo"</option><option>"Creator Pro - $2,400/mo"</option>
                                     <option>"Network Pro - $600/mo"</option>
                                 </select>
                             </div>
                         </div>
-
-                        <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Ghost on:click=move |_| show_new_sub_modal.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=handle_new_subscription>"Create Subscription"</Button>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;">
+                            <button class="btn btn-ghost" on:click=move |_| show_new_sub_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_new_subscription>"Create Subscription"</button>
                         </div>
                     </div>
                 </div>
             </Show>
 
-            // ── MODAL: Log Manual Payment ──
             <Show when=move || show_log_payment_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_log_payment_modal.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"Log Manual Payment Entry"</h3>
-                        <p class="text-xs text-on-surface-variant mb-6 font-sans">"Record a bank wire or off-channel transaction payment to settle outstanding invoices."</p>
-
-                        <div class="space-y-4 mb-6">
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Tenant Account"</Label>
-                                <Input
-                                    r#type=InputType::Text
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary".to_string()
-                                    bind_value=log_payment_tenant
-                                />
+                <div style="position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;">
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:12px;padding:28px;width:100%;max-width:440px;position:relative;">
+                        <button style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" on:click=move |_| show_log_payment_modal.set(false)>"✕"</button>
+                        <h3 class="page-title" style="font-size:16px;margin-bottom:4px">"Log Manual Payment"</h3>
+                        <p class="page-subtitle" style="margin-bottom:20px">"Record a bank wire or off-channel transaction to settle outstanding invoices."</p>
+                        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Tenant Account"</label>
+                                <Input r#type=InputType::Text bind_value=log_payment_tenant/>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Settle Amount ($)"</Label>
-                                <Input
-                                    r#type=InputType::Text
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary".to_string()
-                                    bind_value=log_payment_amount
-                                    placeholder="e.g. 28000.00".to_string()
-                                />
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Amount ($)"</label>
+                                <Input r#type=InputType::Text bind_value=log_payment_amount placeholder="e.g. 28000.00".to_string()/>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Reconciliation Reference"</Label>
-                                <Input
-                                    r#type=InputType::Text
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary".to_string()
-                                    bind_value=log_payment_ref
-                                    placeholder="e.g. wire_98231_bank_amex".to_string()
-                                />
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Reference"</label>
+                                <Input r#type=InputType::Text bind_value=log_payment_ref placeholder="e.g. wire_98231_bank_amex".to_string()/>
                             </div>
                         </div>
-
-                        <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Ghost on:click=move |_| show_log_payment_modal.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=handle_log_payment>"Log Payment"</Button>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;">
+                            <button class="btn btn-ghost" on:click=move |_| show_log_payment_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_log_payment>"Log Payment"</button>
                         </div>
                     </div>
                 </div>
             </Show>
 
-            // ── MODAL: Add Billing Exemption ──
             <Show when=move || show_exemption_modal.get()>
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-card w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_exemption_modal.set(false)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"Add Billing Exemption Override"</h3>
-                        <p class="text-xs text-on-surface-variant mb-6 font-sans">"Exempt a tenant from automated suspension routines and grace timers."</p>
-
-                        <div class="space-y-4 mb-6">
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Tenant Account Name"</Label>
-                                <Input
-                                    r#type=InputType::Text
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary".to_string()
-                                    bind_value=exempt_tenant
-                                    placeholder="e.g. Urban Core Mgmt".to_string()
-                                />
+                <div style="position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px;">
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:12px;padding:28px;width:100%;max-width:440px;position:relative;">
+                        <button style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;" on:click=move |_| show_exemption_modal.set(false)>"✕"</button>
+                        <h3 class="page-title" style="font-size:16px;margin-bottom:4px">"Billing Exemption Override"</h3>
+                        <p class="page-subtitle" style="margin-bottom:20px">"Exempt a tenant from automated suspension and grace timers."</p>
+                        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Tenant Name"</label>
+                                <Input r#type=InputType::Text bind_value=exempt_tenant placeholder="e.g. Urban Core Mgmt".to_string()/>
                             </div>
-                            <div class="flex flex-col gap-1.5">
-                                <Label>"Exemption Basis / Reason"</Label>
-                                <Input
-                                    r#type=InputType::Text
-                                    class="bg-surface-container-highest border border-outline/20 text-on-surface text-sm rounded-lg p-2.5 w-full focus:ring-primary focus:border-primary".to_string()
-                                    bind_value=exempt_reason
-                                    placeholder="e.g. VIP SLA Contract Waiver".to_string()
-                                />
+                            <div><label style="display:block;font-size:11px;color:var(--text-muted);margin-bottom:4px">"Exemption Reason"</label>
+                                <Input r#type=InputType::Text bind_value=exempt_reason placeholder="e.g. VIP SLA Contract Waiver".to_string()/>
                             </div>
                         </div>
-
-                        <div class="flex justify-end gap-3">
-                            <Button variant=ButtonVariant::Ghost on:click=move |_| show_exemption_modal.set(false)>"Cancel"</Button>
-                            <Button variant=ButtonVariant::Default on:click=handle_exempt_tenant>"Exempt Tenant"</Button>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;">
+                            <button class="btn btn-ghost" on:click=move |_| show_exemption_modal.set(false)>"Cancel"</button>
+                            <button class="btn btn-primary" on:click=handle_exempt_tenant>"Exempt Tenant"</button>
                         </div>
                     </div>
                 </div>
@@ -865,6 +736,7 @@ pub fn BillingDashboard() -> impl IntoView {
                 </div>
             </Show>
 
+            // ── Revenue Intelligence tab content is unchanged ─────────────────
         </div>
     }
 }

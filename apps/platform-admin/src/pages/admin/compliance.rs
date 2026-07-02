@@ -143,12 +143,13 @@ pub fn Compliance() -> impl IntoView {
     });
 
     view! {
+        <div class="main-canvas">
         <div class="page-header">
             <div>
                 <h1 class="page-title">"Contracts & Compliance"</h1>
                 <p class="page-subtitle">"Track municipal registrations, regulatory listings, and active contracts"</p>
             </div>
-            <div style="display:flex;gap:8px;">
+            <div class="page-actions">
                 <button 
                     on:click=move |_| toast.show_toast("Info", "Running PostGIS integrity check...", "info")
                     class="btn btn-ghost btn-sm"
@@ -673,5 +674,6 @@ pub fn Compliance() -> impl IntoView {
                 </div>
             </div>
         </Show>
+        </div>
     }
 }

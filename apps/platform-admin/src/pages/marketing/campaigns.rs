@@ -112,28 +112,22 @@ pub fn CampaignsPage() -> impl IntoView {
     };
 
     view! {
-        <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
+        <div class="main-canvas">
 
-            // ── Page Header ──────────────────────────────────────────────────
-            <div class="flex items-start justify-between">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">
-                        "Campaigns"
-                    </h1>
-                    <p class="text-sm text-on-surface-variant mt-1 max-w-xl">
+                    <h1 class="page-title">"Campaigns"</h1>
+                    <p class="page-subtitle">
                         "Manage outreach campaigns. Each campaign connects to a landing page via its UTM slug — "
                         "giving you full funnel visibility from postcard to client."
                     </p>
                 </div>
-                <button
-                    class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold text-on-primary-container flex items-center gap-2"
-                    on:click=move |_| show_new_modal.set(true)
-                >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
-                    </svg>
-                    "New Campaign"
-                </button>
+                <div class="page-actions">
+                    <button class="btn btn-primary" on:click=move |_| show_new_modal.set(true)>
+                        "+ New Campaign"
+                    </button>
+                </div>
             </div>
 
             // ── Funnel Explainer Banner ──────────────────────────────────────

@@ -226,7 +226,7 @@ pub fn ClientsPage() -> impl IntoView {
     let modal_account_id = RwSignal::new(Option::<String>::None);
 
     view! {
-        <div class="p-8 max-w-screen-2xl mx-auto space-y-6">
+        <div class="main-canvas">
 
         // ── Link Account Modal (rendered outside main scroll) ───────────
         {move || modal_tenant_id.get().map(|tid| {
@@ -244,42 +244,32 @@ pub fn ClientsPage() -> impl IntoView {
             }
         })}
 
-            // ── Page Header ──────────────────────────────────────────────────
-            <div class="flex items-start justify-between flex-wrap gap-4">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Clients"</h1>
-                    <p class="text-sm text-on-surface-variant mt-1 max-w-xl">
+                    <h1 class="page-title">"Clients"</h1>
+                    <p class="page-subtitle">
                         "Active subscriber tenants and their deployments. "
-                        "Each client gets a dedicated Folio (or other app) instance. "
-                        "Internal deployments are managed under "
-                        <a href="/internal-instances" class="text-primary hover:underline">"Internal Instances"</a>
-                        "."
+                        "Each client gets a dedicated app instance. "
+                        <a href="/internal-instances" style="color:var(--cobalt)">"Internal Instances"</a>
+                        " managed separately."
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button
-                        class="btn-ghost px-3 py-2 rounded-lg text-xs font-semibold border border-outline-variant/30 flex items-center gap-1.5 hover:bg-surface-bright/20 transition-all active:scale-95"
-                        on:click=move |_| refresh.update(|n| *n += 1)
-                    >
-                        <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-                            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5M13.5 2.5v3h-3"/>
+                <div class="page-actions">
+                    <button class="btn btn-ghost btn-icon" title="Refresh" on:click=move |_| refresh.update(|n| *n += 1)>
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M2 8a6 6 0 0 1 6-6 6 6 0 0 1 4.2 1.8L14 6"/><path d="M14 2v4h-4"/>
                         </svg>
-                        "Refresh"
                     </button>
-                    <a href="/network/new"
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2"
-                    >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>
-                        "Provision Client"
-                    </a>
+                    <a href="/network/new" class="btn btn-primary">"+ Provision Client"</a>
                 </div>
             </div>
 
             // ── Error Banner ───────────────────────────────────────────────────
             {move || clients_error.get().map(|e| crate::utils::inline_error(&e))}
 
-            // ── KPI Row ──────────────────────────────────────────────────────
-            <Suspense fallback=|| view! { <div class="h-20 animate-pulse bg-surface-container-low rounded-xl" /> }>
+            // ── KPI Row ──
+            <Suspense fallback=|| view! { <div style="height:72px;border-radius:8px;background:var(--bg-elevated);" /> }>
                 {move || {
                     let tenants = tenants_res.get().unwrap_or_default();
                     let apps    = apps_res.get().unwrap_or_default();
@@ -288,23 +278,23 @@ pub fn ClientsPage() -> impl IntoView {
                     let total_mrr: i64 = tenants.iter().filter_map(|t| t.mrr_cents).sum();
 
                     view! {
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            {[
-                                ("Total Clients", tenants.len().to_string(), "text-on-surface"),
-                                ("Live Instances", active.to_string(), "text-emerald-400"),
-                                ("Provisioning", provisioning.to_string(), "text-blue-400"),
-                                ("Monthly Revenue", fmt_mrr(total_mrr), "text-primary"),
-                            ].iter().map(|(label, val, color)| {
-                                let val = val.clone();
-                                let color = color.to_string();
-                                let label = label.to_string();
-                                view! {
-                                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl px-5 py-4">
-                                        <div class=format!("text-xl font-extrabold font-mono {}", color)>{val}</div>
-                                        <div class="text-[9px] uppercase tracking-wider text-on-surface-variant/60 mt-1">{label}</div>
-                                    </div>
-                                }
-                            }).collect_view()}
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-label">"Total Clients"</div>
+                                <div class="kpi-value mono">{tenants.len().to_string()}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">"Live Instances"</div>
+                                <div class="kpi-value mono" style="color:var(--green)">{active.to_string()}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">"Provisioning"</div>
+                                <div class="kpi-value mono" style="color:var(--cobalt)">{provisioning.to_string()}</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-label">"Monthly Revenue"</div>
+                                <div class="kpi-value mono" style="color:var(--cobalt)">{fmt_mrr(total_mrr)}</div>
+                            </div>
                         </div>
                     }
                 }}

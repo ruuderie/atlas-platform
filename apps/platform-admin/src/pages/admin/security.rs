@@ -44,36 +44,35 @@ pub fn SecurityPasskeys() -> impl IntoView {
     });
 
     view! {
-        <div class="space-y-8 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
-            // Header
-            <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-3xl font-light tracking-tight text-on-surface mb-2 font-['Inter']">
-                        "Passkey Registry"
-                    </h1>
-                    <p class="text-on-surface-variant text-sm tracking-wide">
-                        "All WebAuthn passkeys registered across the platform. Revoke any credential instantly."
-                    </p>
+                    <h1 class="page-title">"Passkey Registry"</h1>
+                    <p class="page-subtitle">"All WebAuthn passkeys registered across the platform. Revoke any credential instantly."</p>
                 </div>
-                <button
-                    on:click=move |_| refetch.update(|v| *v += 1)
-                    class="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline/20 text-sm font-medium hover:bg-surface-bright/10 transition-all"
-                >
-                    <span class="material-symbols-outlined text-sm">"refresh"</span>
-                    "Refresh"
-                </button>
-            </header>
+                <div class="page-actions">
+                    <button
+                        on:click=move |_| refetch.update(|v| *v += 1)
+                        class="btn btn-ghost btn-icon"
+                        title="Refresh"
+                    >
+                        <span class="material-symbols-outlined" style="font-size:16px">"refresh"</span>
+                    </button>
+                </div>
+            </div>
 
-            // KPI strip
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="p-5 rounded-2xl bg-surface-container border border-outline-variant/10 shadow-sm flex flex-col gap-1">
-                    <span class="text-3xl font-bold text-primary">
+            // ── KPI Row ──
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Total Passkeys"</div>
+                    <div class="kpi-value mono">
                         {move || passkeys_res.get().map(|p| p.len()).unwrap_or(0).to_string()}
-                    </span>
-                    <span class="text-sm text-on-surface-variant">"Total Passkeys"</span>
+                    </div>
                 </div>
-                <div class="p-5 rounded-2xl bg-surface-container border border-outline-variant/10 shadow-sm flex flex-col gap-1">
-                    <span class="text-3xl font-bold text-success">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Unique Users"</div>
+                    <div class="kpi-value mono">
                         {move || {
                             passkeys_res.get().map(|pks| {
                                 let mut users = std::collections::HashSet::new();
@@ -81,18 +80,29 @@ pub fn SecurityPasskeys() -> impl IntoView {
                                 users.len()
                             }).unwrap_or(0).to_string()
                         }}
-                    </span>
-                    <span class="text-sm text-on-surface-variant">"Users with Passkeys"</span>
+                    </div>
                 </div>
-                <div class="p-5 rounded-2xl bg-surface-container border border-outline-variant/10 shadow-sm flex flex-col gap-1">
-                    <span class="text-3xl font-bold text-on-surface">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Users with Passkeys"</div>
+                    <div class="kpi-value mono" style="color:var(--green)">
+                        {move || {
+                            passkeys_res.get().map(|pks| {
+                                let mut users = std::collections::HashSet::new();
+                                for pk in &pks { users.insert(pk.user_id); }
+                                users.len()
+                            }).unwrap_or(0).to_string()
+                        }}
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">"Total Auth Events"</div>
+                    <div class="kpi-value mono">
                         {move || {
                             passkeys_res.get().map(|pks| {
                                 pks.iter().map(|pk| pk.sign_count).sum::<i32>()
                             }).unwrap_or(0).to_string()
                         }}
-                    </span>
-                    <span class="text-sm text-on-surface-variant">"Total Auth Events"</span>
+                    </div>
                 </div>
             </div>
 

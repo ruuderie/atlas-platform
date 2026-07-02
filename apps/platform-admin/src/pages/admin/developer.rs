@@ -130,20 +130,19 @@ pub fn DeveloperConsole() -> impl IntoView {
 
 
     view! {
-        <div class="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
-            <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-3xl font-light tracking-tight text-on-surface mb-2 font-['Inter']">"Developer Console"</h1>
-                    <p class="text-on-surface-variant text-sm tracking-wide">"Manage API Keys and Webhooks for the selected network."</p>
+                    <h1 class="page-title">"Developer Console"</h1>
+                    <p class="page-subtitle">"Manage API Keys and Webhooks for the selected network."</p>
                 </div>
-                <div>
+                <div class="page-actions">
                     <Show when=move || active_network.get().is_none()>
-                        <div class="px-4 py-2 bg-error/10 text-error rounded-lg text-sm font-medium border border-error/20">
-                            "Please select a Network in the top navigation to continue."
-                        </div>
+                        <span style="color:var(--error);font-size:12px;font-weight:600;">"⚠ Select a network in the nav to continue"</span>
                     </Show>
                 </div>
-            </header>
+            </div>
 
             <Show when=move || active_network.get().is_some()>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">

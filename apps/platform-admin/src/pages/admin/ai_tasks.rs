@@ -207,50 +207,45 @@ pub fn AiTasks() -> impl IntoView {
     });
 
     view! {
-        <div class="space-y-6 animate-in slide-in-from-bottom-4 duration-500 ease-out fade-in">
-            // Header
-            <header class="flex justify-between items-center bg-surface-container border border-outline-variant/10 p-6 rounded-2xl shadow-sm">
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
                 <div>
-                    <h1 class="text-3xl font-light tracking-tight text-on-surface mb-2 font-headline">"AI Task Monitor"</h1>
-                    <p class="text-on-surface-variant text-sm tracking-wide">"Background processor metrics, completions, and prompt logs · G-08"</p>
+                    <h1 class="page-title">"AI Task Monitor"</h1>
+                    <p class="page-subtitle">"Background processor metrics, completions, and prompt logs · G-08"</p>
                 </div>
-                <div class="flex gap-3">
+                <div class="page-actions">
                     <button 
                         on:click=toggle_pause
-                        class=move || if queue_paused.get() { "px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 active:scale-95 transition-all shadow-md" } else { "px-4 py-2 text-sm font-semibold rounded-lg bg-[#05183c] border border-outline-variant/30 text-[#91aaeb] hover:bg-[#05183c]/60 active:scale-95 transition-all shadow-sm" }
+                        class=move || if queue_paused.get() { "btn btn-primary" } else { "btn btn-ghost" }
                     >
                         {move || if queue_paused.get() { "Resume Queue" } else { "Pause Queue" }}
                     </button>
-                    <button 
-                        on:click=retry_all_failed
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-bold text-on-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-                    >
-                        "Retry Failed Tasks"
-                    </button>
+                    <button on:click=retry_all_failed class="btn btn-primary">"Retry Failed"</button>
                 </div>
-            </header>
+            </div>
 
-            // KPI Grid
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Active / Queued Tasks"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">"4"</span>
-                    <span class="text-xs text-success">"3.5% load increase"</span>
+            // ── KPI Row ──
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-label">"Active / Queued Tasks"</div>
+                    <div class="kpi-value mono">"4"</div>
+                    <div class="kpi-delta up">"3.5% load increase"</div>
                 </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Success Rate (24h)"</span>
-                    <span class="text-3xl font-bold font-mono text-success">"99.24%"</span>
-                    <span class="text-xs text-success">"↑ 0.12% vs yesterday"</span>
+                <div class="kpi-card">
+                    <div class="kpi-label">"Success Rate (24h)"</div>
+                    <div class="kpi-value mono" style="color:var(--green)">"99.24%"</div>
+                    <div class="kpi-delta up">"↑ 0.12% vs yesterday"</div>
                 </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Avg Runtime"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">"1.42s"</span>
-                    <span class="text-xs text-success">"↓ 0.08s faster"</span>
+                <div class="kpi-card">
+                    <div class="kpi-label">"Avg Runtime"</div>
+                    <div class="kpi-value mono">"1.42s"</div>
+                    <div class="kpi-delta up">"↓ 0.08s faster"</div>
                 </div>
-                <div class="bg-surface-container border border-outline-variant/10 p-4 rounded-xl flex flex-col gap-2">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Daily Token Usage"</span>
-                    <span class="text-3xl font-bold font-mono text-on-surface">"1,248k"</span>
-                    <span class="text-xs text-error">"↑ 14% vs avg"</span>
+                <div class="kpi-card">
+                    <div class="kpi-label">"Daily Token Usage"</div>
+                    <div class="kpi-value mono">"1,248k"</div>
+                    <div class="kpi-delta down">"↑ 14% vs avg"</div>
                 </div>
             </div>
 

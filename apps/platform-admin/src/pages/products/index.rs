@@ -10,12 +10,26 @@ pub fn PlatformProducts() -> impl IntoView {
     });
 
     view! {
-        <Suspense fallback=|| view! {
-            <div class="p-12 flex flex-col items-center justify-center gap-3 text-on-surface-variant/60">
-                <span class="material-symbols-outlined text-4xl animate-spin opacity-40">"sync"</span>
-                <p class="text-sm">"Loading platform products…"</p>
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">"Landing Pages"</h1>
+                    <p class="page-subtitle">"Manage product landing pages, markets, localization, and tracking."</p>
+                </div>
+                <div class="page-actions">
+                    <a href="/products/new" class="btn btn-primary" id="btn-new-product">
+                        "+ New Landing Page"
+                    </a>
+                </div>
             </div>
-        }>
+
+            <Suspense fallback=|| view! {
+                <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px;color:var(--text-muted);">
+                    <span class="material-symbols-outlined" style="font-size:32px;animation:spin 1s linear infinite;opacity:0.4">"sync"</span>
+                    <p style="font-size:13px">"Loading platform products…"</p>
+                </div>
+            }>
             {move || {
                 let products = products_res.get().unwrap_or_default();
                 let total_products = products.len();
@@ -26,24 +40,7 @@ pub fn PlatformProducts() -> impl IntoView {
                 let total_leads: i32 = products.iter().map(|p| p.waitlist_count + p.pre_order_sold).sum();
 
                 view! {
-                    <div class="w-full space-y-6">
-
-                        // ── Page Header ──
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div>
-                                <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Landing Pages"</h1>
-                                <p class="text-sm text-on-surface-variant mt-1">"Manage product landing pages, markets, localization, and tracking."</p>
-                            </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <a
-                                    href="/products/new"
-                                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
-                                    id="btn-new-product"
-                                >
-                                    "+ New Landing Page"
-                                </a>
-                            </div>
-                        </div>
+                    <div style="display:flex;flex-direction:column;gap:14px;">
 
                         // ── Explainer banner ──
                         <div class="bg-surface-container-low border border-outline-variant/15 rounded-xl px-5 py-4 text-xs text-on-surface-variant/80 space-y-1">
@@ -62,23 +59,21 @@ pub fn PlatformProducts() -> impl IntoView {
                             </p>
                         </div>
 
-                        // ── KPIs ──
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Total Products"</span>
-                                <span class="text-3xl font-black text-on-surface font-mono">{total_products}</span>
-                            </div>
-                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Live Pages"</span>
-                                <span class="text-3xl font-black text-emerald-400 font-mono">{live_pages}</span>
-                            </div>
-                            <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-5 shadow-sm flex flex-col gap-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Leads (30 d)"</span>
-                                <span class="text-3xl font-black text-on-surface font-mono">{total_leads}</span>
-                            </div>
+                    // ── KPI Row ──
+                    <div class="kpi-row">
+                        <div class="kpi-card">
+                            <div class="kpi-label">"Total Products"</div>
+                            <div class="kpi-value mono">{total_products}</div>
                         </div>
-
-                        // ── Products Grid ──
+                        <div class="kpi-card">
+                            <div class="kpi-label">"Live Pages"</div>
+                            <div class="kpi-value mono" style="color:var(--green)">{live_pages}</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">"Leads (30d)"</div>
+                            <div class="kpi-value mono">{total_leads}</div>
+                        </div>
+                    </div>                        // ── Products Grid ──
                         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                             <For
                                 each=move || products_res.get().unwrap_or_default()
@@ -197,6 +192,7 @@ pub fn PlatformProducts() -> impl IntoView {
                     </div>
                 }
             }}
-        </Suspense>
+            </Suspense>
+        </div>
     }
 }

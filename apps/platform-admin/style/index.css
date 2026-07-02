@@ -36,6 +36,9 @@
   --amber-dim:          rgba(245,166,35,0.12);
   --red:                #E5484D;
   --red-dim:            rgba(229,72,77,0.14);
+  /* --error is an alias for --red; use either name for destructive/danger contexts */
+  --error:              #E5484D;
+  --error-dim:          rgba(229,72,77,0.14);
   --violet:             #7C3AED;
   --violet-dim:         rgba(124,58,237,0.10);
   --orange:             #F7931A;
@@ -644,7 +647,7 @@ path {
   border-radius: 6px;
   overflow: hidden;
 }
-.section-header, .card-hdr {
+.section-header, .section-hdr, .card-hdr {
   display: flex;
   align-items: center;
   justify-content: space-between;

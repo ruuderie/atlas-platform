@@ -1,7 +1,5 @@
 use leptos::prelude::*;
 use std::collections::HashMap;
-use shared_ui::components::card::Card;
-use shared_ui::components::ui::button::{Button, ButtonVariant};
 use crate::components::dynamic_form::{DynamicForm, DynamicField, DynamicFieldType, DynamicSelectOption};
 use crate::api::crm::create_lead;
 use crate::api::models::CreateLead;
@@ -82,24 +80,24 @@ pub fn CrmCreate() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-3xl mx-auto space-y-6 pt-8">
-            <header class="mb-8">
-                <a href="/crm" class="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block">"← Back"</a>
-                <h2 class="text-3xl font-bold tracking-tight">"New Lead"</h2>
-                <p class="text-muted-foreground mt-2">"Ingest a new prospect or lead directly into the CRM tracking database."</p>
-                <div class="mt-4 px-3 py-1 bg-primary/10 text-primary text-xs font-mono rounded inline-block">"Server-Driven UI Enabled"</div>
-            </header>
-            
-            <Card class="p-8 bg-card border border-border shadow-sm".to_string()>
-                <DynamicForm layout=layout on_submit=handle_submit class="space-y-6".to_string()>
-                    <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-border">
-                        <a href="/crm">
-                            <Button variant=ButtonVariant::Outline>"Cancel"</Button>
-                        </a>
-                        <Button variant=ButtonVariant::Default>"Save Lead"</Button>
+        <div class="main-canvas">
+            // ── Page Header ──
+            <div class="page-header">
+                <div>
+                    <a href="/crm" style="font-size:12px;color:var(--text-muted);display:inline-block;margin-bottom:4px;">"← Back to CRM"</a>
+                    <h1 class="page-title">"New Lead"</h1>
+                    <p class="page-subtitle">"Ingest a new prospect or lead directly into the CRM tracking database."</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <DynamicForm layout=layout on_submit=handle_submit class="".to_string()>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border-subtle);">
+                        <a href="/crm"><button class="btn btn-ghost">"Cancel"</button></a>
+                        <button class="btn btn-primary" type="submit">"Save Lead"</button>
                     </div>
                 </DynamicForm>
-            </Card>
+            </div>
         </div>
     }
 }
