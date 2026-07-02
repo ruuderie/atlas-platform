@@ -48,9 +48,11 @@ pub fn AiTasks() -> impl IntoView {
     });
 
     let tasks_data = RwSignal::new(Vec::<AiTaskItem>::new());
+    let tasks_loading = RwSignal::new(true);
     Effect::new(move |_| {
         if let Some(list) = tasks_res.get() {
             tasks_data.set(list);
+            tasks_loading.set(false);
         }
     });
 
@@ -328,16 +330,89 @@ pub fn AiTasks() -> impl IntoView {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-outline-variant/10 text-on-surface">
-                            <For 
-                                each=move || filtered_tasks.get()
-                                key=|t| t.id.clone() 
-                                children=move |t| {
+                            {move || {
+                                // ── Loading skeleton ──────────────────────────
+                                if tasks_loading.get() {
+                                    return (0..5u8).map(|_| view! {
+                                        <tr class="animate-pulse">
+                                            <td class="px-6 py-4 col-hide-mobile">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-24"></div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-20"></div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-32"></div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="h-5 bg-surface-container-highest/40 rounded-full w-16"></div>
+                                            </td>
+                                            <td class="px-6 py-4 col-hide-mobile">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-10"></div>
+                                            </td>
+                                            <td class="px-6 py-4 col-hide-mobile">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-12"></div>
+                                            </td>
+                                            <td class="px-6 py-4 col-hide-mobile">
+                                                <div class="h-3 bg-surface-container-highest/40 rounded w-20"></div>
+                                            </td>
+                                            <td class="px-6 py-4"></td>
+                                        </tr>
+                                    }).collect_view().into_any();
+                                }
+
+                                let tasks = filtered_tasks.get();
+
+                                // ── Empty state ───────────────────────────────
+                                if tasks.is_empty() {
+                                    let is_filtered = active_filter.get() != "all" || !search_query.get().is_empty();
+                                    return view! {
+                                        <tr>
+                                            <td colspan="8" class="px-6 py-16 text-center">
+                                                <span class="material-symbols-outlined block text-4xl text-on-surface-variant/20 mb-3">
+                                                    {if is_filtered { "filter_list_off" } else { "memory" }}
+                                                </span>
+                                                <p class="text-sm font-semibold text-on-surface-variant/50 mb-1">
+                                                    {if is_filtered {
+                                                        "No tasks match the current filter"
+                                                    } else {
+                                                        "No AI tasks yet"
+                                                    }}
+                                                </p>
+                                                <p class="text-xs text-on-surface-variant/35 max-w-xs mx-auto">
+                                                    {if is_filtered {
+                                                        "Try clearing the search or selecting a different status filter."
+                                                    } else {
+                                                        "The AI background processor runs tasks like enrichment, scoring, and content generation. Tasks appear here automatically when triggered by platform events."
+                                                    }}
+                                                </p>
+                                                {if is_filtered {
+                                                    view! {
+                                                        <button
+                                                            class="mt-4 px-3 py-1.5 text-xs font-semibold bg-surface-container border border-outline-variant/30 hover:border-primary/40 rounded-lg transition-all text-on-surface-variant"
+                                                            on:click=move |_| {
+                                                                active_filter.set("all".to_string());
+                                                                search_query.set(String::new());
+                                                            }
+                                                        >
+                                                            "Clear filters"
+                                                        </button>
+                                                    }.into_any()
+                                                } else {
+                                                    view! { <></> }.into_any()
+                                                }}
+                                            </td>
+                                        </tr>
+                                    }.into_any();
+                                }
+
+                                // ── Data rows ─────────────────────────────────
+                                tasks.into_iter().map(|t| {
                                     let tid = t.id.clone();
                                     let tid_click = t.id.clone();
                                     let is_selected = Signal::derive(move || selected_task_id.get() == Some(tid.clone()));
-                                    
                                     view! {
-                                        <tr 
+                                        <tr
                                             on:click=move |_| select_task(tid_click.clone())
                                             class=move || if is_selected.get() { "hover:bg-surface-bright/5 cursor-pointer bg-primary-container/10 border-l-2 border-primary" } else { "hover:bg-surface-bright/5 cursor-pointer" }
                                         >
@@ -353,7 +428,7 @@ pub fn AiTasks() -> impl IntoView {
                                             <td class="px-6 py-4 font-mono text-xs text-on-surface-variant col-hide-mobile">{move || t.tokens.get()}</td>
                                             <td class="px-6 py-4 text-xs text-on-surface-variant col-hide-mobile">{move || t.completed.get()}</td>
                                             <td class="px-6 py-4 text-right">
-                                                <button 
+                                                <button
                                                     on:click=move |e| { e.stop_propagation(); select_task(t.id.clone()); }
                                                     class="px-2.5 py-1 text-xs bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 rounded transition-all"
                                                 >
@@ -362,8 +437,8 @@ pub fn AiTasks() -> impl IntoView {
                                             </td>
                                         </tr>
                                     }
-                                }
-                            />
+                                }).collect_view().into_any()
+                            }}
                         </tbody>
                     </table>
                 </div>

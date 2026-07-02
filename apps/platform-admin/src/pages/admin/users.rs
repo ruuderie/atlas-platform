@@ -786,19 +786,40 @@ pub fn PlatformAdmins() -> impl IntoView {
 
                     // ── Success screen ────────────────────────────────────────
                     <Show when=move || invite_sent_to.get().is_some()>
-                        <div class="px-8 py-10 text-center">
-                            <div class="text-5xl mb-4">"🎉"</div>
-                            <h4 class="text-lg font-bold text-white mb-2">"Invitation sent!"</h4>
-                            <p class="text-sm text-slate-400 mb-1">
-                                "A magic link has been dispatched to"
-                            </p>
-                            <p class="text-sm font-semibold text-indigo-400 mb-6">
-                                {move || invite_sent_to.get().unwrap_or_default()}
-                            </p>
-                            <p class="text-xs text-slate-500 mb-6">
-                                "The link will prompt them to set up a passkey (Touch ID / Face ID) to secure their account."
-                            </p>
-                            <div class="flex justify-center gap-3">
+                        <div class="px-8 py-10 flex flex-col items-center text-center gap-4">
+                            // Icon circle
+                            <div class="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-1">
+                                <span class="material-symbols-outlined text-3xl text-emerald-400">"mark_email_read"</span>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold text-on-surface mb-1">"Invitation sent!"</h4>
+                                <p class="text-xs text-on-surface-variant/60 mb-1">"A magic link has been dispatched to"</p>
+                                <p class="text-sm font-semibold text-primary font-mono">
+                                    {move || invite_sent_to.get().unwrap_or_default()}
+                                </p>
+                            </div>
+
+                            // What happens next
+                            <div class="w-full bg-surface-container/60 border border-outline-variant/20 rounded-xl p-4 text-left mt-1">
+                                <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3">"What happens next"</p>
+                                <div class="space-y-2.5">
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="w-4 h-4 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[9px] font-bold text-primary shrink-0 mt-0.5">"1"</span>
+                                        <p class="text-xs text-on-surface-variant/80">"The invitee receives an email with a secure magic link (expires in 7 days)."</p>
+                                    </div>
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="w-4 h-4 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[9px] font-bold text-primary shrink-0 mt-0.5">"2"</span>
+                                        <p class="text-xs text-on-surface-variant/80">"Clicking the link prompts them to set up a passkey (Touch ID / Face ID) for their account."</p>
+                                    </div>
+                                    <div class="flex items-start gap-2.5">
+                                        <span class="w-4 h-4 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-[9px] font-bold text-primary shrink-0 mt-0.5">"3"</span>
+                                        <p class="text-xs text-on-surface-variant/80">"Once registered, they appear in the Users table with their assigned role and scope."</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            // Actions
+                            <div class="flex gap-3 mt-1 w-full justify-center">
                                 <button
                                     class="btn btn-ghost"
                                     on:click=move |_| {

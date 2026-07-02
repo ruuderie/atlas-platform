@@ -137,6 +137,177 @@ pub fn Dashboard() -> impl IntoView {
                 </div>
             </div>
 
+            // ── Platform Hierarchy: Client → Tenant → App Instances ──────────
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="7" cy="2.5" r="1.5"/>
+                            <line x1="7" y1="4" x2="7" y2="6"/>
+                            <circle cx="3" cy="8" r="1.5"/>
+                            <circle cx="11" cy="8" r="1.5"/>
+                            <line x1="7" y1="6" x2="3" y2="6.5"/>
+                            <line x1="7" y1="6" x2="11" y2="6.5"/>
+                            <circle cx="1.5" cy="12" r="1"/>
+                            <circle cx="4.5" cy="12" r="1"/>
+                            <circle cx="9.5" cy="12" r="1"/>
+                            <circle cx="12.5" cy="12" r="1"/>
+                            <line x1="3" y1="9.5" x2="1.5" y2="11"/>
+                            <line x1="3" y1="9.5" x2="4.5" y2="11"/>
+                            <line x1="11" y1="9.5" x2="9.5" y2="11"/>
+                            <line x1="11" y1="9.5" x2="12.5" y2="11"/>
+                        </svg>
+                        "Platform Hierarchy"
+                        <span class="section-count">
+                            {move || format!("Tenant → App Instances · {} tenants", tenants_res.get().unwrap_or_default().len())}
+                        </span>
+                    </div>
+                    <a href="/tenants" class="section-action" style="text-decoration:none">"View All Tenants →"</a>
+                </div>
+                <Suspense fallback=move || view! {
+                    <div class="p-6 flex flex-col gap-2">
+                        {(0..3u8).map(|_| view! {
+                            <div class="animate-pulse flex items-center gap-3 py-2">
+                                <div class="w-7 h-7 rounded-full bg-surface-container-highest/30 shrink-0"></div>
+                                <div class="flex-1 space-y-1.5">
+                                    <div class="h-3 bg-surface-container-highest/30 rounded w-32"></div>
+                                    <div class="h-2.5 bg-surface-container-highest/20 rounded w-48"></div>
+                                </div>
+                            </div>
+                        }).collect_view()}
+                    </div>
+                }>
+                {move || {
+                    let tenants = tenants_res.get().unwrap_or_default();
+                    let apps    = apps_res.get().unwrap_or_default();
+
+                    if tenants.is_empty() {
+                        return view! {
+                            <div class="flex flex-col items-center justify-center py-12 gap-3">
+                                <span class="material-symbols-outlined text-3xl text-on-surface-variant/20">"account_tree"</span>
+                                <p class="text-xs text-on-surface-variant/50">"No tenants provisioned yet. Create one to see the hierarchy."</p>
+                                <a href="/tenants" class="px-3 py-1.5 text-[10px] font-semibold bg-surface-container border border-outline-variant/30 hover:border-primary/40 rounded-lg transition-all text-on-surface-variant" style="text-decoration:none">
+                                    "Manage Tenants"
+                                </a>
+                            </div>
+                        }.into_any();
+                    }
+
+                    let display_tenants = if tenants.len() > 5 { &tenants[..5] } else { &tenants[..] };
+                    let overflow = if tenants.len() > 5 { Some(tenants.len() - 5) } else { None };
+
+                    view! {
+                        <div class="divide-y divide-outline-variant/10">
+                            {display_tenants.iter().map(|t| {
+                                // Avatar initials
+                                let initials = t.name.chars().next().unwrap_or('T').to_uppercase().to_string();
+                                // Status color
+                                let (dot_cls, dot_title) = match t.site_status.as_deref().unwrap_or("active") {
+                                    "active"       => ("bg-emerald-400", "Active"),
+                                    "suspended"    => ("bg-red-400",     "Suspended"),
+                                    "provisioning" => ("bg-amber-400",   "Provisioning"),
+                                    _              => ("bg-on-surface-variant/30", "Unknown"),
+                                };
+                                // Instances for this tenant
+                                let tenant_apps: Vec<&crate::api::models::PlatformAppSummary> = apps.iter()
+                                    .filter(|a| a.tenant_id == t.tenant_id)
+                                    .collect();
+                                let tenant_id = t.tenant_id.clone();
+                                let tenant_name = t.name.clone();
+                                let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
+
+                                view! {
+                                    <div class="flex items-center gap-3 px-4 py-3 hover:bg-surface-bright/5 transition-colors">
+                                        // Avatar
+                                        <div class="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                                            {initials}
+                                        </div>
+
+                                        // Tenant info
+                                        <div class="min-w-[140px]">
+                                            <a
+                                                href=format!("/tenants/{}", tenant_id)
+                                                class="text-xs font-semibold text-on-surface hover:text-primary transition-colors"
+                                                style="text-decoration:none"
+                                            >
+                                                {tenant_name}
+                                            </a>
+                                            <div class="flex items-center gap-1.5 mt-0.5">
+                                                <span class=format!("w-1.5 h-1.5 rounded-full shrink-0 {}", dot_cls)
+                                                      title=dot_title></span>
+                                                <span class="text-[10px] text-on-surface-variant/50">{plan}</span>
+                                            </div>
+                                        </div>
+
+                                        // Arrow connector
+                                        <span class="text-on-surface-variant/20 text-xs shrink-0">"›"</span>
+
+                                        // App instance pills
+                                        <div class="flex flex-wrap gap-1.5 flex-1">
+                                            {if tenant_apps.is_empty() {
+                                                view! {
+                                                    <span class="text-[10px] text-on-surface-variant/30 italic">"No instances provisioned"</span>
+                                                }.into_any()
+                                            } else {
+                                                tenant_apps.iter().map(|app| {
+                                                    let type_label = match app.app_type.as_str() {
+                                                        "folio"            => "Folio",
+                                                        "anchor"           => "Anchor",
+                                                        "network_instance" | "network" => "Network",
+                                                        other              => other,
+                                                    };
+                                                    let (pill_bg, pill_text) = match app.site_status.to_lowercase().as_str() {
+                                                        "active"       => ("bg-emerald-500/10 border-emerald-500/20", "text-emerald-400"),
+                                                        "suspended"    => ("bg-red-500/10 border-red-500/20",         "text-red-400"),
+                                                        "provisioning" => ("bg-amber-500/10 border-amber-500/20",     "text-amber-400"),
+                                                        _              => ("bg-surface-container border-outline-variant/20", "text-on-surface-variant/60"),
+                                                    };
+                                                    let display_domain = app.custom_domain.clone()
+                                                        .or_else(|| if app.domain.is_empty() { None } else { Some(app.domain.clone()) })
+                                                        .unwrap_or_else(|| "—".to_string());
+                                                    let instance_href = format!("/apps/{}/instance", app.instance_id);
+                                                    view! {
+                                                        <a
+                                                            href=instance_href
+                                                            class=format!("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border {} {} transition-colors hover:opacity-80", pill_bg, pill_text)
+                                                            style="text-decoration:none"
+                                                            title=display_domain
+                                                        >
+                                                            {type_label}
+                                                        </a>
+                                                    }
+                                                }).collect_view().into_any()
+                                            }}
+                                        </div>
+
+                                        // Quick link
+                                        <a
+                                            href=format!("/tenants/{}", t.tenant_id.clone())
+                                            class="shrink-0 text-on-surface-variant/30 hover:text-primary transition-colors"
+                                            style="text-decoration:none"
+                                            title="View tenant"
+                                        >
+                                            <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <path d="M5 3h6v6M3 11l8-8"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                }
+                            }).collect_view()}
+
+                            {overflow.map(|n| view! {
+                                <div class="px-4 py-2.5 text-center">
+                                    <a href="/tenants" class="text-[10px] font-semibold text-primary hover:underline" style="text-decoration:none">
+                                        {format!("+ {} more tenants →", n)}
+                                    </a>
+                                </div>
+                            })}
+                        </div>
+                    }.into_any()
+                }}
+                </Suspense>
+            </div>
+
             // ── App Instance Health by Type ───────────────────────────────────
             <div class="section">
                 <div class="section-header">
