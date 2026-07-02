@@ -160,7 +160,7 @@ pub fn NetworkCreate() -> impl IntoView {
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Network Instance Name"</label>
                                 <input 
                                     type="text" 
-                                    class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-[#91aaeb]/30"
+                                    class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                     placeholder="e.g. London Luxury Stays"
                                     prop:value=name
                                     on:input=move |ev| name.set(event_target_value(&ev))
@@ -172,7 +172,7 @@ pub fn NetworkCreate() -> impl IntoView {
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"URL Slug Path"</label>
                                     <input 
                                         type="text" 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-[#91aaeb]/30"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                         placeholder="e.g. london-luxury"
                                         prop:value=slug
                                         on:input=move |ev| slug.set(event_target_value(&ev))
@@ -183,7 +183,7 @@ pub fn NetworkCreate() -> impl IntoView {
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Custom Domain (Optional)"</label>
                                     <input 
                                         type="text" 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-[#91aaeb]/30"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all placeholder:text-on-surface-variant/30"
                                         placeholder="e.g. directory.londonluxury.com"
                                         prop:value=domain
                                         on:input=move |ev| domain.set(event_target_value(&ev))
@@ -292,7 +292,7 @@ pub fn NetworkCreate() -> impl IntoView {
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Primary Currency"</label>
                                     <select 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| currency.set(event_target_value(&ev))
                                     >
                                         <option value="USD" selected=move || currency.get() == "USD">"USD ($)"</option>
@@ -311,7 +311,7 @@ pub fn NetworkCreate() -> impl IntoView {
                             <div class="space-y-1.5">
                                 <label class="text-xs font-bold text-on-surface-variant uppercase tracking-wider">"Layout Template"</label>
                                 <select 
-                                    class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-sm rounded-lg px-3 py-2.5 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                     on:change=move |ev| template.set(event_target_value(&ev))
                                 >
                                     <option value="standard" selected=move || template.get() == "standard">"Standard Directory (Grid + Listings Sidebar)"</option>

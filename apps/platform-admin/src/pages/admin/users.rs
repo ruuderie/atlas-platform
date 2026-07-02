@@ -564,7 +564,7 @@ pub fn PlatformAdmins() -> impl IntoView {
         // ── Modal: Invite User (2-step) ───────────────────────────────────────
         <Show when=move || show_invite_modal.get()>
             <div class="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-                <div class="bg-[#0f1117] w-full max-w-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
+                <div class="bg-surface w-full max-w-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
 
                     // ── Close button ─────────────────────────────────────────
                     <button
@@ -853,7 +853,7 @@ pub fn PlatformAdmins() -> impl IntoView {
              let is_real = user.id != Uuid::nil();
              view! {
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-[#111520] w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                    <div class="bg-surface w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_manage_modal.set(None)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Manage User Accounts"</h3>
                         <p class="text-xs text-secondary mt-1">{user.username} " · " {user.email}</p>

@@ -250,7 +250,7 @@ pub fn SupportQueue() -> impl IntoView {
                                     }
                                     class=move || format!("px-2.5 py-1 text-[10px] font-bold border rounded-lg whitespace-nowrap transition-all {}",
                                         if active() { "bg-primary-container border-primary text-primary" }
-                                        else { "bg-[#05183c]/20 border-outline-variant/20 text-on-surface-variant hover:text-on-surface" }
+                                        else { "bg-surface-container/20 border-outline-variant/20 text-on-surface-variant hover:text-on-surface" }
                                     )
                                 >{label}</button>
                             }
@@ -391,7 +391,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                     <div class="flex items-center gap-2 flex-shrink-0">
                                                         <button
                                                             on:click=move |_| show_impersonate_modal.set(true)
-                                                            class="px-3 py-1.5 text-xs font-semibold bg-[#05183c] border border-outline-variant/30 text-[#91aaeb] hover:bg-[#05183c]/60 rounded-lg flex items-center gap-1.5"
+                                                            class="px-3 py-1.5 text-xs font-semibold bg-surface-container border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container/60 rounded-lg flex items-center gap-1.5"
                                                         >
                                                             <span class="material-symbols-outlined text-sm">"key"</span>
                                                             "Impersonate"
@@ -499,7 +499,7 @@ pub fn SupportQueue() -> impl IntoView {
                                                         <textarea
                                                             rows="2"
                                                             placeholder="Type a reply to the user… (appears as Platform Support)"
-                                                            class="w-full bg-[#06122d] border border-outline-variant/30 text-on-surface text-sm rounded-lg p-3 focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/40 resize-none outline-none"
+                                                            class="w-full bg-surface-container-low border border-outline-variant/30 text-on-surface text-sm rounded-lg p-3 focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/40 resize-none outline-none"
                                                             prop:value=reply_text
                                                             on:input=move |ev| reply_text.set(event_target_value(&ev))
                                                         ></textarea>

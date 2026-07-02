@@ -473,7 +473,7 @@ pub fn Integrations() -> impl IntoView {
         // Create Key Dialog Modal
         <Show when=move || show_key_modal.get()>
             <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                <div class="bg-[#111520] w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                <div class="bg-surface w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
                     <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_key_modal.set(false)>"✕"</button>
                     <h3 class="text-xl font-semibold mb-2">"Generate Client API Credential"</h3>
                     
@@ -481,8 +481,8 @@ pub fn Integrations() -> impl IntoView {
                         let key = generated_secret_key.get().unwrap_or_default();
                         view! {
                             <div class="mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-4">
-                                <p class="text-xs text-[#8B92A8]">"SAVE THIS SECRET KEY. IT WILL NOT BE SHOWN AGAIN."</p>
-                                <div class="flex items-center gap-2 bg-[#05070B] p-3 rounded-lg border border-white/5 font-mono text-sm text-emerald-400 justify-between">
+                                <p class="text-xs text-on-surface-variant">"SAVE THIS SECRET KEY. IT WILL NOT BE SHOWN AGAIN."</p>
+                                <div class="flex items-center gap-2 bg-surface-dim p-3 rounded-lg border border-white/5 font-mono text-sm text-emerald-400 justify-between">
                                     <span class="truncate pr-4">{key.clone()}</span>
                                     <button 
                                         on:click=move |_| {
@@ -550,12 +550,12 @@ pub fn Integrations() -> impl IntoView {
              let target_clone = target.clone();
              view! {
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-[#111520] w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
+                    <div class="bg-surface w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_revoke_modal.set(None)>"✕"</button>
                         <h3 class="text-xl font-semibold mb-2">"Revoke Credential"</h3>
                         <div class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2">
                             <p class="text-xs text-red-400">"Are you sure you want to revoke this credential?"</p>
-                            <p class="text-xs text-[#8B92A8]">"All active API applications running under Client ID " <code class="bg-[#05070B] px-1 py-0.5 rounded font-mono text-[11px]">{target.clone()}</code> " will fail immediately."</p>
+                            <p class="text-xs text-on-surface-variant">"All active API applications running under Client ID " <code class="bg-surface-dim px-1 py-0.5 rounded font-mono text-[11px]">{target.clone()}</code> " will fail immediately."</p>
                         </div>
                         <div class="flex justify-end gap-3 pt-6 border-t border-white/5 mt-4">
                             <button on:click=move |_| show_revoke_modal.set(None) class="btn btn-ghost">"Cancel"</button>

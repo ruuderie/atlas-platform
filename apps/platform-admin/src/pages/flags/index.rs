@@ -1118,7 +1118,7 @@ pub fn FeatureFlags() -> impl IntoView {
             // ── Create New Flag Modal ──
             <Show when=move || show_new_flag_modal.get()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div class="bg-[#111520] w-full max-w-md p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
+                    <div class="bg-surface w-full max-w-md p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_new_flag_modal.set(false)>"✕"</button>
                         <h3 class="text-base font-bold mb-2">"New Feature Flag"</h3>
                         <p class="text-xs text-on-surface-variant mb-6">"Define a new global feature key and registry rollout rules."</p>
@@ -1183,11 +1183,11 @@ pub fn FeatureFlags() -> impl IntoView {
             // ── Edit Rollout Percentage Modal ──
             <Show when=move || show_rollout_modal.get().is_some()>
                 <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div class="bg-[#111520] w-full max-w-sm p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
+                    <div class="bg-surface w-full max-w-sm p-6 rounded-lg border border-white/10 shadow-2xl relative text-on-surface">
                         <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_rollout_modal.set(None)>"✕"</button>
                         <h3 class="text-base font-bold mb-2">"Edit Rollout % · " {move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</h3>
                         <p class="text-xs text-on-surface-variant mb-6">
-                            "Modify global rollout for key: " <code class="bg-[#0A0C16] px-1 py-0.5 rounded font-mono">{move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</code>
+                            "Modify global rollout for key: " <code class="bg-surface-dim px-1 py-0.5 rounded font-mono">{move || show_rollout_modal.get().map(|(key, _, _)| key).unwrap_or_default()}</code>
                         </p>
 
                         <div class="space-y-4 mb-6">

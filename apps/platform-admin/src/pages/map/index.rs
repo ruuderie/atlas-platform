@@ -222,9 +222,9 @@ pub fn PlatformMap() -> impl IntoView {
             </div>
 
             // ── Primary Split Map View Container ──
-            <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] h-[650px] border border-outline-variant/20 rounded-2xl overflow-hidden bg-[#06122d]">
+            <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] h-[650px] border border-outline-variant/20 rounded-2xl overflow-hidden bg-surface-container-low">
                 // 1. Sidebar Panel
-                <div class="flex flex-col border-r border-outline-variant/10 bg-[#05183c]/20 overflow-hidden">
+                <div class="flex flex-col border-r border-outline-variant/10 bg-surface-container/20 overflow-hidden">
                     <div class="p-4 border-b border-outline-variant/10 flex-shrink-0 flex items-center justify-between">
                         <div>
                             <div class="text-sm font-bold text-on-surface">"Platform Map"</div>
@@ -236,11 +236,11 @@ pub fn PlatformMap() -> impl IntoView {
                     </div>
 
                     // Filters Row
-                    <div class="p-4 border-b border-outline-variant/10 bg-[#06122d]/40 flex flex-col gap-3 flex-shrink-0">
+                    <div class="p-4 border-b border-outline-variant/10 bg-surface-container-low/40 flex flex-col gap-3 flex-shrink-0">
                         <div class="space-y-1">
                             <label class="text-[9.5px] font-bold uppercase tracking-wider text-on-surface-variant/80">"Plan Tier"</label>
                             <select
-                                class="bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+                                class="bg-surface-container-high border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
                                 on:change=move |ev| plan_filter.set(event_target_value(&ev))
                             >
                                 <option value="all">"All Plan Tiers"</option>
@@ -252,7 +252,7 @@ pub fn PlatformMap() -> impl IntoView {
                         <div class="space-y-1">
                             <label class="text-[9.5px] font-bold uppercase tracking-wider text-on-surface-variant/80">"System Health"</label>
                             <select
-                                class="bg-[#031d4b] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
+                                class="bg-surface-container-high border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer"
                                 on:change=move |ev| health_filter.set(event_target_value(&ev))
                             >
                                 <option value="all">"All Health States"</option>
@@ -274,14 +274,14 @@ pub fn PlatformMap() -> impl IntoView {
                                 let is_active = move || active_id.get().as_ref() == Some(&id_clone_for_active);
                                 
                                 let health_color = match t.health.as_str() {
-                                    "good" => "text-[#c6fff3]",
+                                    "good" => "text-teal-200",
                                     "warning" => "text-amber-400",
                                     _ => "text-[#ee7d77]",
                                 };
 
                                 let plan_badge_class = match t.plan.as_str() {
-                                    "enterprise" => "bg-[#7C3AED]/10 text-[#a78bfa] border-[#7C3AED]/20",
-                                    "growth" => "bg-[#c6fff3]/10 text-[#c6fff3] border-[#c6fff3]/20",
+                                    "enterprise" => "bg-violet/10 text-violet-400 border-violet/20",
+                                    "growth" => "bg-teal-200/10 text-teal-200 border-teal-200/20",
                                     _ => "bg-surface-container-high/40 text-on-surface-variant border-outline-variant/30",
                                 };
 
@@ -290,9 +290,9 @@ pub fn PlatformMap() -> impl IntoView {
                                         class=move || format!(
                                             "border rounded-xl p-3.5 cursor-pointer transition-all duration-150 {}",
                                             if is_active() {
-                                                "bg-[#05183c] border-[#7bd0ff] ring-1 ring-[#7bd0ff] shadow-sm shadow-[#7bd0ff]/5"
+                                                "bg-surface-container border-surface-tint ring-1 ring-surface-tint shadow-sm shadow-surface-tint/5"
                                             } else {
-                                                "bg-[#05183c]/30 hover:bg-[#05183c]/60 border-outline-variant/10"
+                                                "bg-surface-container/30 hover:bg-surface-container/60 border-outline-variant/10"
                                             }
                                         )
                                         on:click=move |_| active_id.set(Some(id_clone.clone()))
@@ -318,25 +318,25 @@ pub fn PlatformMap() -> impl IntoView {
                 </div>
 
                 // 2. Map Canvas Div
-                <div class="relative w-full h-full bg-[#060e20]">
+                <div class="relative w-full h-full bg-surface">
                     <div id="map" class="w-full h-full z-10"></div>
 
                     // Overlay Map Legend
                     <div class="absolute bottom-6 right-6 bg-surface-container-high/90 backdrop-blur-md border border-outline-variant/30 rounded-xl p-4 shadow-2xl z-20 flex flex-col gap-2.5">
                         <div class="flex items-center gap-2.5 text-xs font-semibold text-on-surface-variant">
-                            <div class="w-3.5 h-3.5 rounded bg-[#7C3AED]"></div>
+                            <div class="w-3.5 h-3.5 rounded bg-violet"></div>
                             <span>"Enterprise Tier"</span>
                         </div>
                         <div class="flex items-center gap-2.5 text-xs font-semibold text-on-surface-variant">
                             <div class="w-3.5 h-3.5 rounded bg-[#069669]"></div>
                             <span>"Growth Tier"</span>
                         </div>
-                        <div class="flex items-center gap-2.5 text-xs font-semibold text-[#91aaeb]">
-                            <div class="w-3.5 h-3.5 rounded bg-[#1C2236] border border-outline-variant/30"></div>
+                        <div class="flex items-center gap-2.5 text-xs font-semibold text-on-surface-variant">
+                            <div class="w-3.5 h-3.5 rounded bg-surface-container border border-outline-variant/30"></div>
                             <span>"Starter Tier"</span>
                         </div>
                         <div class="flex items-center gap-2.5 text-xs font-semibold text-on-surface-variant">
-                            <div class="w-3.5 h-3.5 rounded bg-[#E5484D]"></div>
+                            <div class="w-3.5 h-3.5 rounded bg-error"></div>
                             <span>"Critical Outage"</span>
                         </div>
                     </div>

@@ -3,9 +3,9 @@ use leptos::prelude::*;
 #[component]
 pub fn MarketingLanding() -> impl IntoView {
     view! {
-        <div class="min-h-screen bg-[#0A0C16] text-[#E8EAF0] font-sans antialiased overflow-y-auto">
+        <div class="min-h-screen bg-surface-dim text-on-surface font-sans antialiased overflow-y-auto">
             // ── Public Navigation ──
-            <nav class="flex items-center justify-between px-10 h-14 border-b border-white/5 bg-[#0A0C16]/90 backdrop-blur-md sticky top-0 z-50">
+            <nav class="flex items-center justify-between px-10 h-14 border-b border-white/5 bg-surface-dim/90 backdrop-blur-md sticky top-0 z-50">
                 <a href="/marketing" class="flex items-center gap-2.5 text-decoration-none">
                     <div class="w-6 h-6 bg-primary rounded-md flex items-center justify-center font-black text-xs text-white">"A"</div>
                     <span class="text-sm font-bold tracking-tight text-on-surface">"Atlas Platform"</span>
@@ -146,7 +146,7 @@ pub fn MarketingLanding() -> impl IntoView {
             </section>
 
             // ── Footer ──
-            <footer class="flex justify-between items-center px-10 py-6 border-t border-outline-variant/20 text-[10px] text-on-surface-variant/60 bg-[#0A0C16]">
+            <footer class="flex justify-between items-center px-10 py-6 border-t border-outline-variant/20 text-[10px] text-on-surface-variant/60 bg-surface-dim">
                 <span>"© 2026 Atlas Platform · All rights reserved"</span>
                 <div class="flex gap-4">
                     <a href="#" class="hover:text-primary transition-colors">"Privacy"</a>

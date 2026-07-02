@@ -284,7 +284,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Network Name"</label>
                                     <input 
                                         type="text" 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         prop:value=name
                                         on:input=move |ev| name.set(event_target_value(&ev))
                                     />
@@ -293,7 +293,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Subdomain Routing Slug"</label>
                                     <input 
                                         type="text" 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         prop:value=slug
                                         on:input=move |ev| slug.set(event_target_value(&ev))
                                     />
@@ -376,7 +376,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <div class="space-y-1.5 pt-2">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Primary Currency"</label>
                                     <select 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| currency.set(event_target_value(&ev))
                                     >
                                         <option value="USD" selected=move || currency.get() == "USD">"USD ($)"</option>
@@ -409,7 +409,7 @@ pub fn NetworkDetail() -> impl IntoView {
                             <div class="flex gap-2 max-w-md">
                                 <input 
                                     type="text" 
-                                    class="flex-1 bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                    class="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                     placeholder="e.g. rent.mynetwork.com"
                                     prop:value=new_domain
                                     on:input=move |ev| new_domain.set(event_target_value(&ev))
@@ -462,7 +462,7 @@ pub fn NetworkDetail() -> impl IntoView {
                             </div>
                             </Suspense>
 
-                            <div class="bg-[#05183c]/50 border border-outline-variant/20 p-4 rounded-lg text-xs leading-relaxed space-y-1">
+                            <div class="bg-surface-container/50 border border-outline-variant/20 p-4 rounded-lg text-xs leading-relaxed space-y-1">
                                 <p class="font-bold text-on-surface">"DNS Configuration Instructions"</p>
                                 <p class="text-on-surface-variant">
                                     "To map a custom domain to this network instance, configure a CNAME record with your DNS provider pointing to: " 
@@ -523,7 +523,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                     <div class="space-y-1.5">
                                         <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Branding Theme Style"</label>
                                         <select 
-                                            class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                            class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                             on:change=move |ev| theme_mode.set(event_target_value(&ev))
                                         >
                                             <option value="dark-slate" selected=move || theme_mode.get() == "dark-slate">"Dark Slate (Institutional)"</option>
@@ -542,7 +542,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                             />
                                             <input 
                                                 type="text" 
-                                                class="flex-1 bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 outline-none font-mono"
+                                                class="flex-1 bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 outline-none font-mono"
                                                 prop:value=primary_color
                                                 on:input=move |ev| primary_color.set(event_target_value(&ev))
                                             />
@@ -556,7 +556,7 @@ pub fn NetworkDetail() -> impl IntoView {
                                 <div class="space-y-1.5">
                                     <label class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">"Primary Display Font"</label>
                                     <select 
-                                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
+                                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all"
                                         on:change=move |ev| selected_font.set(event_target_value(&ev))
                                     >
                                         <option value="inter" selected=move || selected_font.get() == "inter">"Inter (Modern & Clean)"</option>

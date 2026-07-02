@@ -395,7 +395,7 @@ pub fn TenantLedger() -> impl IntoView {
 
                     // Seat Breakdown Table
                     <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
-                        <div class="px-5 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 font-bold text-xs text-primary">"Billing Impacts by Roster Role"</div>
+                        <div class="px-5 py-3 border-b border-outline-variant/10 bg-surface-container-low/30 font-bold text-xs text-primary">"Billing Impacts by Roster Role"</div>
                         <DataTable class="w-full text-xs">
                             <DataTableHeader class="bg-surface-container-highest border-b border-outline-variant/30">
                                 <DataTableRow class="hover:bg-transparent">
@@ -442,7 +442,7 @@ pub fn TenantLedger() -> impl IntoView {
 
                     // User Roster Table
                     <Card class="bg-card border-border shadow-sm overflow-hidden".to_string()>
-                        <div class="px-5 py-3 border-b border-outline-variant/10 bg-[#06122d]/30 font-bold text-xs text-primary">"User Roster"</div>
+                        <div class="px-5 py-3 border-b border-outline-variant/10 bg-surface-container-low/30 font-bold text-xs text-primary">"User Roster"</div>
                         <Suspense fallback=move || view! { <div class="p-4 text-center text-xs text-on-surface-variant">"Loading roster..."</div> }>
                         {move || roster_res.get().map(|users| {
                             if users.is_empty() {
@@ -588,7 +588,7 @@ pub fn TenantLedger() -> impl IntoView {
                             let txs = ledger_res.get().unwrap_or_default();
                             if txs.is_empty() {
                                 view! {
-                                    <div class="p-8 text-center text-xs text-on-surface-variant/70 bg-[#06122d]/10">
+                                    <div class="p-8 text-center text-xs text-on-surface-variant/70 bg-surface-container-low/10">
                                         "No transaction ledger instances mapped in database. Showing mock seed transactions."
                                     </div>
                                 }.into_any()

@@ -393,7 +393,7 @@ pub fn CrmDetail() -> impl IntoView {
                                                         <button class="c-tab active">"Note"</button>
                                                     </div>
                                                     <textarea
-                                                        class="w-full bg-[#1C2236] border border-outline-variant/30 rounded p-2 text-sm text-text-primary"
+                                                        class="w-full bg-surface-container border border-outline-variant/30 rounded p-2 text-sm text-text-primary"
                                                         placeholder="Log activity on this record..."
                                                         prop:value=move || note_content.get()
                                                         on:input=move |e| note_content.set(event_target_value(&e))
@@ -610,7 +610,7 @@ pub fn CrmDetail() -> impl IntoView {
             // ── Email Compose Modal ───────────────────────────────────────────
             <Show when=move || show_email_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-[#111520] border border-outline-variant/40 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-lg shadow-2xl">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-base font-bold text-on-surface">"Compose Email"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold"
@@ -656,7 +656,7 @@ pub fn CrmDetail() -> impl IntoView {
             // ── Log Call Modal ────────────────────────────────────────────────
             <Show when=move || show_call_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-[#111520] border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-base font-bold text-on-surface">"📞 Log Call"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold"

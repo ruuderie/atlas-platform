@@ -513,14 +513,14 @@ pub fn AppDashboard() -> impl IntoView {
                     }}
 
                     <div class="pane" class:active=move || active_tab.get() == "seed_data">
-                        <div class="bg-[#111520] border border-outline-variant/30 rounded-xl p-6 shadow-sm">
+                        <div class="bg-surface border border-outline-variant/30 rounded-xl p-6 shadow-sm">
                             <SeedPicker app_instance_id=site_id_stored.get_value() />
                         </div>
                     </div>
 
                     <div class="pane" class:active=move || active_tab.get() == "domains">
                         <div class="space-y-6">
-                            <div class="flex justify-between items-center bg-[#111520] p-6 rounded-xl border border-outline-variant/30 shadow-sm">
+                            <div class="flex justify-between items-center bg-surface p-6 rounded-xl border border-outline-variant/30 shadow-sm">
                                 <div>
                                     <h3 class="text-lg font-medium">"Custom Hostnames"</h3>
                                     <p class="text-sm text-muted-foreground">"Manage DNS routing for this application instance. Tenant traffic routes here natively."</p>
@@ -530,10 +530,10 @@ pub fn AppDashboard() -> impl IntoView {
                                 </Button>
                             </div>
                             
-                            <div class="bg-[#111520] border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
+                            <div class="bg-surface border border-outline-variant/30 rounded-xl shadow-sm overflow-hidden">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
-                                        <tr class="bg-[#0A0C16] border-b border-outline-variant/20 text-xs tracking-wider uppercase text-muted-foreground">
+                                        <tr class="bg-surface-dim border-b border-outline-variant/20 text-xs tracking-wider uppercase text-muted-foreground">
                                             <th class="px-6 py-4 font-medium">"Domain Name"</th>
                                             <th class="px-6 py-4 font-medium">"Edge SSL Status"</th>
                                             <th class="px-6 py-4 font-medium text-right">"Actions"</th>

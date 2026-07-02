@@ -286,7 +286,7 @@ pub fn AiTasks() -> impl IntoView {
                             view! {
                                 <button 
                                     on:click=move |_| active_filter.set(click_cls.clone())
-                                    class=move || if active_filter.get() == active_cls { "px-3 py-1.5 text-xs font-semibold rounded bg-[#05183c] text-[#7bd0ff] border border-[#7bd0ff]/20 shrink-0" } else { "px-3 py-1.5 text-xs font-semibold rounded text-[#91aaeb] hover:bg-[#05183c]/30 hover:text-[#dee5ff] transition-all shrink-0 bg-transparent border border-transparent" }
+                                    class=move || if active_filter.get() == active_cls { "px-3 py-1.5 text-xs font-semibold rounded bg-surface-container text-surface-tint border border-surface-tint/20 shrink-0" } else { "px-3 py-1.5 text-xs font-semibold rounded text-on-surface-variant hover:bg-surface-container/30 hover:text-on-surface transition-all shrink-0 bg-transparent border border-transparent" }
                                 >
                                     {lbl.clone()}
                                 </button>
@@ -302,11 +302,11 @@ pub fn AiTasks() -> impl IntoView {
                     }
                 </div>
                 <div class="relative shrink-0 w-64">
-                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#91aaeb]/60 text-sm">"search"</span>
+                    <span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant/60 text-sm">"search"</span>
                     <input 
                         type="text" 
                         placeholder="Search key, entity..." 
-                        class="w-full bg-[#05183c] border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-8 pr-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-[#91aaeb]/40"
+                        class="w-full bg-surface-container border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-8 pr-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary transition-all placeholder:text-on-surface-variant/40"
                         on:input=move |ev| search_query.set(event_target_value(&ev))
                         prop:value=search_query
                     />
@@ -317,7 +317,7 @@ pub fn AiTasks() -> impl IntoView {
             <div class="bg-surface border border-outline-variant/10 rounded-xl overflow-hidden">
                 <div class="overflow-x-auto w-full">
                     <table class="w-full text-left text-sm whitespace-nowrap">
-                        <thead class="bg-surface-container-highest/60 text-[#91aaeb] text-xs font-medium uppercase tracking-wider">
+                        <thead class="bg-surface-container-highest/60 text-on-surface-variant text-xs font-medium uppercase tracking-wider">
                             <tr>
                                 <th class="px-6 py-4 col-hide-mobile">"Task ID"</th>
                                 <th class="px-6 py-4">"Type"</th>
@@ -452,7 +452,7 @@ pub fn AiTasks() -> impl IntoView {
             ></div>
             <div 
                 class=move || if selected_task_id.get().is_some() { "detail-panel open" } else { "detail-panel" }
-                style="position: fixed; top: 0; right: -560px; width: 560px; height: 100vh; background: #111520; border-left: 1px solid rgba(255,255,255,0.08); z-index: 400; display: flex; flex-direction: column; transition: right 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94); overflow: hidden;"
+                style="position: fixed; top: 0; right: -560px; width: 560px; height: 100vh; background: var(--bg-surface); border-left: 1px solid rgba(255,255,255,0.08); z-index: 400; display: flex; flex-direction: column; transition: right 0.24s cubic-bezier(0.25, 0.46, 0.45, 0.94); overflow: hidden;"
             >
                 {move || selected_item.get().map(|item| {
                     let item_val = StoredValue::new(item);
@@ -530,7 +530,7 @@ pub fn AiTasks() -> impl IntoView {
                                         }
                                     />
                                     <Show when=move || streaming_active.get()>
-                                        <div class="inline-block w-1.5 h-3 bg-[#39FF14] animate-pulse"></div>
+                                        <div class="inline-block w-1.5 h-3 bg-emerald-400 animate-pulse"></div>
                                     </Show>
                                 </div>
                                 <div style="font-size:11px; color:#525A72; display:flex; justify-content:space-between">
@@ -543,29 +543,29 @@ pub fn AiTasks() -> impl IntoView {
 
                             <Show when=move || detail_tab.get() == "details">
                                 <div class="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
-                                    <div class="col-span-2 text-[10px] font-bold text-[#8B92A8] uppercase tracking-widest border-b border-white/5 pb-2">"Execution Metadata"</div>
+                                    <div class="col-span-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2">"Execution Metadata"</div>
                                     
                                     <div class="space-y-1">
-                                        <span class="text-xs text-[#8B92A8]">"Model Context"</span>
-                                        <p class="font-medium text-[#E8EAF0]">{item_val.with_value(|v| v.model.clone())}</p>
+                                        <span class="text-xs text-on-surface-variant">"Model Context"</span>
+                                        <p class="font-medium text-on-surface">{item_val.with_value(|v| v.model.clone())}</p>
                                     </div>
                                     <div class="space-y-1">
-                                        <span class="text-xs text-[#8B92A8]">"Runtime Latency"</span>
-                                        <p class="font-mono text-xs text-[#E8EAF0]">{move || item_val.with_value(|v| v.runtime.get())}</p>
+                                        <span class="text-xs text-on-surface-variant">"Runtime Latency"</span>
+                                        <p class="font-mono text-xs text-on-surface">{move || item_val.with_value(|v| v.runtime.get())}</p>
                                     </div>
                                     <div class="space-y-1">
-                                        <span class="text-xs text-[#8B92A8]">"Context Tokens"</span>
-                                        <p class="font-mono text-xs text-[#E8EAF0]">{move || item_val.with_value(|v| v.tokens.get())}</p>
+                                        <span class="text-xs text-on-surface-variant">"Context Tokens"</span>
+                                        <p class="font-mono text-xs text-on-surface">{move || item_val.with_value(|v| v.tokens.get())}</p>
                                     </div>
                                     <div class="space-y-1">
-                                        <span class="text-xs text-[#8B92A8]">"Trigger Source"</span>
-                                        <p class="font-medium text-[#E8EAF0]">"OutboxWorker queue"</p>
+                                        <span class="text-xs text-on-surface-variant">"Trigger Source"</span>
+                                        <p class="font-medium text-on-surface">"OutboxWorker queue"</p>
                                     </div>
                                     
-                                    <div class="col-span-2 text-[10px] font-bold text-[#8B92A8] uppercase tracking-widest border-b border-white/5 pb-2 mt-4">"Parameters"</div>
+                                    <div class="col-span-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2 mt-4">"Parameters"</div>
                                     <div class="col-span-2">
-                                        <span class="text-xs text-[#8B92A8] block mb-2">"JSON Payload"</span>
-                                        <pre style="font-family:monospace; font-size:11px; background:#1C2236; padding:12px; border-radius:6px; color:#8B92A8; overflow-x:auto;">
+                                        <span class="text-xs text-on-surface-variant block mb-2">"JSON Payload"</span>
+                                        <pre style="font-family:monospace; font-size:11px; background:var(--bg-elevated); padding:12px; border-radius:6px; color:var(--text-secondary); overflow-x:auto;">
                                             {item_val.with_value(|v| serde_json::to_string_pretty(&v.params).unwrap_or_default())}
                                         </pre>
                                     </div>

@@ -692,7 +692,7 @@ pub fn Settings() -> impl IntoView {
             // MFA Status Modal
             <Show when=move || show_mfa_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-[#111520] border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-base font-bold text-on-surface">"MFA Status"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold" on:click=move |_| set_show_mfa_modal.set(false)>"✕"</button>
@@ -708,7 +708,7 @@ pub fn Settings() -> impl IntoView {
             // Create API Key Modal
             <Show when=move || show_new_key_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-[#111520] border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-base font-bold text-on-surface">"Create API Key"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold" on:click=move |_| set_show_new_key_modal.set(false)>"✕"</button>
@@ -784,7 +784,7 @@ pub fn Settings() -> impl IntoView {
             // Add Webhook Modal
             <Show when=move || show_add_webhook_modal.get()>
                 <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1000]">
-                    <div class="bg-[#111520] border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
+                    <div class="bg-surface border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="text-base font-bold text-on-surface">"Add Webhook"</h3>
                             <button class="text-on-surface-variant hover:text-on-surface font-bold" on:click=move |_| set_show_add_webhook_modal.set(false)>"✕"</button>

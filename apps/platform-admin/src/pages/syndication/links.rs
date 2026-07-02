@@ -36,17 +36,9 @@ pub fn SyndicationLinks() -> impl IntoView {
             <div class="page-header">
                 <div>
                     <div class="page-title">"Syndication Links"</div>
-                    <div class="page-subtitle">"Manage cross-network listing links and feed connections"</div>
+                    <div class="page-subtitle">"All live source → network syndication relationships. Mandatory links cannot be revoked here."</div>
                 </div>
-                <div>
-                    <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Active Syndication Links"</h1>
-                    <p class="text-sm text-on-surface-variant mt-1">
-                        "All live source-instance → network-instance syndication relationships. Mandatory links cannot be revoked here."
-                    </p>
-                </div>
-                <a href="/syndication/offers" class="text-xs text-primary hover:underline font-semibold">
-                    "← Back to Offer Catalog"
-                </a>
+                <a href="/syndication/offers" class="btn btn-ghost btn-sm">"← Offer Catalog"</a>
             </div>
 
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden shadow-sm">

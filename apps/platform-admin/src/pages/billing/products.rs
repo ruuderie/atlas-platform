@@ -377,7 +377,7 @@ pub fn BillingProducts() -> impl IntoView {
                             <input
                                 type="text"
                                 placeholder="Search products..."
-                                class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-[#91aaeb]/60"
+                                class="w-full bg-[var(--bg-elevated)] border border-outline-variant/30 text-on-surface text-xs rounded-lg pl-9 pr-3 py-2.5 outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/60"
                                 on:input=move |ev| search_query.set(event_target_value(&ev))
                             />
                         </div>
@@ -399,10 +399,10 @@ pub fn BillingProducts() -> impl IntoView {
                             children=move |p| {
                                 let pid = p.id;
                                 let status_badge_class = match p.status.to_lowercase().as_str() {
-                                    "active" | "live" => "bg-[#c6fff3]/10 text-[#c6fff3] border-[#c6fff3]/20",
+                                    "active" | "live" => "bg-teal-200/10 text-teal-200 border-teal-200/20",
                                     "beta" => "bg-primary/10 text-primary border-primary/20",
                                     "pre-launch" | "waitlist" => "bg-amber-400/10 text-amber-400 border-amber-400/20",
-                                    "ai" => "bg-[#7C3AED]/10 text-[#a78bfa] border-[#7C3AED]/20",
+                                    "ai" => "bg-violet/10 text-violet-400 border-violet/20",
                                     _ => "bg-surface-container-high/40 text-on-surface-variant border-outline-variant/30",
                                 };
 
@@ -414,10 +414,10 @@ pub fn BillingProducts() -> impl IntoView {
                                 };
 
                                 let icon_badge_class = match icon_txt {
-                                    "PM" => "bg-[#0a84ff]/15 text-[#7bd0ff] border border-[#0a84ff]/30",
+                                    "PM" => "bg-primary/15 text-surface-tint border border-primary/30",
                                     "STR" => "bg-amber-400/15 text-amber-400 border border-amber-400/30",
-                                    "COM" => "bg-[#7c3aed]/15 text-[#a78bfa] border border-[#7c3aed]/30",
-                                    _ => "bg-[#069669]/15 text-[#c6fff3] border border-[#069669]/30",
+                                    "COM" => "bg-violet/15 text-violet-400 border border-violet/30",
+                                    _ => "bg-[#069669]/15 text-teal-200 border border-[#069669]/30",
                                 };
 
                                 view! {
@@ -450,10 +450,10 @@ pub fn BillingProducts() -> impl IntoView {
                         {move || {
                             let p = selected_product.get().unwrap();
                             let status_badge_class = match p.status.to_lowercase().as_str() {
-                                "active" | "live" => "bg-[#c6fff3]/10 text-[#c6fff3] border-[#c6fff3]/20",
+                                "active" | "live" => "bg-teal-200/10 text-teal-200 border-teal-200/20",
                                 "beta" => "bg-primary/10 text-primary border-primary/20",
                                 "pre-launch" | "waitlist" => "bg-amber-400/10 text-amber-400 border-amber-400/20",
-                                "ai" => "bg-[#7C3AED]/10 text-[#a78bfa] border-[#7C3AED]/20",
+                                "ai" => "bg-violet/10 text-violet-400 border-violet/20",
                                 _ => "bg-surface-container-high/40 text-on-surface-variant border-outline-variant/30",
                             };
 
@@ -467,13 +467,13 @@ pub fn BillingProducts() -> impl IntoView {
                                             <span class=format!("px-2 py-0.5 rounded text-[8px] font-bold border uppercase tracking-wider {}", status_badge_class)>
                                                 {p.status.clone()}
                                             </span>
-                                            <span class="px-2 py-0.5 text-[9px] font-bold bg-[#0a84ff]/10 text-[#7bd0ff] border border-[#0a84ff]/20 rounded-md uppercase tracking-wider">"PM Engine"</span>
+                                            <span class="px-2 py-0.5 text-[9px] font-bold bg-primary/10 text-surface-tint border border-primary/20 rounded-md uppercase tracking-wider">"PM Engine"</span>
                                             <span class="text-xs text-on-surface-variant ml-2">{p.waitlist_count} " waitlists · 7 locales · 28 variants"</span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
                                         <button class="px-3.5 py-2 border border-outline-variant/20 text-on-surface-variant/40 rounded-lg text-xs font-semibold cursor-not-allowed" title="Export endpoint pending — not yet available" disabled>"Export Waitlist"</button>
-                                        <button class="px-3.5 py-2 bg-[#0a84ff] text-white hover:opacity-90 rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| show_publish_modal.set(true)>"Publish Marketing →"</button>
+                                        <button class="px-3.5 py-2 bg-primary text-white hover:opacity-90 rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| show_publish_modal.set(true)>"Publish Marketing →"</button>
                                     </div>
                                 </div>
 
@@ -567,14 +567,14 @@ pub fn BillingProducts() -> impl IntoView {
                                                         <tr class="hover:bg-surface-container-high/40">
                                                             <td class="py-3 px-4 font-mono text-[11px]">{format!("pm.{}", p.apex_domain.clone().unwrap_or_default())}</td>
                                                             <td class="py-3 px-4 text-on-surface-variant">"Platform Subdomain"</td>
-                                                            <td class="py-3 px-4 text-[#c6fff3] font-semibold">"● Active"</td>
-                                                            <td class="py-3 px-4 text-[#c6fff3]">"✓ Verified"</td>
+                                                            <td class="py-3 px-4 text-teal-200 font-semibold">"● Active"</td>
+                                                            <td class="py-3 px-4 text-teal-200">"✓ Verified"</td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
                                                             <td class="py-3 px-4 font-mono text-[11px]">{format!("{}/pm", p.apex_domain.clone().unwrap_or_default())}</td>
                                                             <td class="py-3 px-4 text-on-surface-variant">"Path Alias"</td>
-                                                            <td class="py-3 px-4 text-[#c6fff3] font-semibold">"● Active"</td>
-                                                            <td class="py-3 px-4 text-[#c6fff3]">"✓ Verified"</td>
+                                                            <td class="py-3 px-4 text-teal-200 font-semibold">"● Active"</td>
+                                                            <td class="py-3 px-4 text-teal-200">"✓ Verified"</td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
                                                             <td class="py-3 px-4 font-mono text-[11px]">"propertymanagement.atlas.app"</td>
@@ -612,7 +612,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-bold">"Homepage"</td>
                                                             <td class="py-3 px-4 text-on-surface-variant">"hero_full"</td>
                                                             <td class="py-3 px-4 font-mono">"7"</td>
-                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
+                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
                                                                 <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
@@ -621,7 +621,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-bold">"Property Listings"</td>
                                                             <td class="py-3 px-4 text-on-surface-variant">"grid_filter"</td>
                                                             <td class="py-3 px-4 font-mono">"7"</td>
-                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
+                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
                                                                 <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
@@ -630,7 +630,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             <td class="py-3 px-4 font-bold">"Lead Capture"</td>
                                                             <td class="py-3 px-4 text-on-surface-variant">"form_hero"</td>
                                                             <td class="py-3 px-4 font-mono">"7"</td>
-                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#c6fff3]/10 text-[#c6fff3] border border-[#c6fff3]/20 uppercase">"Published"</span></td>
+                                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-teal-200/10 text-teal-200 border border-teal-200/20 uppercase">"Published"</span></td>
                                                             <td class="py-3 px-4 text-right">
                                                                 <button class="px-2 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface-variant/40 rounded text-[10px] font-bold uppercase cursor-not-allowed" title="CMS editor integration pending" disabled>"Edit"</button>
                                                             </td>
@@ -664,7 +664,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                             key=|v| v.id
                                                             children=move |v| {
                                                                 let status_color = if v.is_published {
-                                                                    "text-[#c6fff3] font-semibold".to_string()
+                                                                    "text-teal-200 font-semibold".to_string()
                                                                 } else if v.localization_status == LocalizationStatus::Pending {
                                                                     "text-amber-400 font-semibold".to_string()
                                                                 } else {
@@ -725,14 +725,14 @@ pub fn BillingProducts() -> impl IntoView {
                                                     <h3 class="text-sm font-bold text-on-surface">"AI Translation & Localization Registry"</h3>
                                                     <p class="text-[10px] text-on-surface-variant">"Auto-localize all marketing page templates using advanced LLM pipelines."</p>
                                                 </div>
-                                                <button class="px-4 py-2 bg-[#7C3AED] hover:opacity-90 text-white rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| toast.show_toast("Warning", "Enqueuing AI localization...", "warn")>"Run Translation Engine"</button>
+                                                <button class="px-4 py-2 bg-violet hover:opacity-90 text-white rounded-lg text-xs font-bold uppercase tracking-wider" on:click=move |_| toast.show_toast("Warning", "Enqueuing AI localization...", "warn")>"Run Translation Engine"</button>
                                             </div>
 
                                             // Active localization worker status
-                                            <div class="bg-[#7C3AED]/10 border border-[#7C3AED]/30 rounded-xl p-4 flex items-center gap-4 mb-6">
-                                                <div class="w-3.5 h-3.5 rounded-full bg-[#7C3AED] animate-pulse flex-shrink-0"></div>
+                                            <div class="bg-violet/10 border border-violet/30 rounded-xl p-4 flex items-center gap-4 mb-6">
+                                                <div class="w-3.5 h-3.5 rounded-full bg-violet animate-pulse flex-shrink-0"></div>
                                                 <div class="flex-1 min-w-0">
-                                                    <div class="text-xs font-bold text-[#a78bfa]">"localize_product_page · ACTIVE"</div>
+                                                    <div class="text-xs font-bold text-violet-400">"localize_product_page · ACTIVE"</div>
                                                     <div class="text-[10px] text-on-surface-variant/80 mt-0.5">{p.name.clone()} " · fr-FR · Gemini 1.5 Pro · 1m 02s elapsed"</div>
                                                 </div>
                                                 <button class="px-3 py-1 bg-surface-container-high border border-outline-variant/20 text-on-surface hover:bg-surface-bright/20 rounded text-[10.5px] font-bold uppercase" on:click=move |_| toast.show_toast("Success", "Active localization job aborted.", "success")>"Abort"</button>
@@ -762,14 +762,14 @@ pub fn BillingProducts() -> impl IntoView {
                                                         <tr class="hover:bg-surface-container-high/40">
                                                             <td class="py-2.5 px-3 font-mono">"localize_product_page"</td>
                                                             <td class="py-2.5 px-3 font-bold">"pt-BR"</td>
-                                                            <td class="py-2.5 px-3 text-[#c6fff3] font-semibold">"✓ Complete"</td>
+                                                            <td class="py-2.5 px-3 text-teal-200 font-semibold">"✓ Complete"</td>
                                                             <td class="py-2.5 px-3 font-mono text-[10.5px]">"44s"</td>
                                                             <td class="py-2.5 px-3 text-on-surface-variant">"Jun 08 · 14:22"</td>
                                                         </tr>
                                                         <tr class="hover:bg-surface-container-high/40">
                                                             <td class="py-2.5 px-3 font-mono">"localize_product_page"</td>
                                                             <td class="py-2.5 px-3 font-bold">"es-MX"</td>
-                                                            <td class="py-2.5 px-3 text-[#c6fff3] font-semibold">"✓ Complete"</td>
+                                                            <td class="py-2.5 px-3 text-teal-200 font-semibold">"✓ Complete"</td>
                                                             <td class="py-2.5 px-3 font-mono text-[10.5px]">"38s"</td>
                                                             <td class="py-2.5 px-3 text-on-surface-variant">"Jun 07 · 11:10"</td>
                                                         </tr>
@@ -819,8 +819,8 @@ pub fn BillingProducts() -> impl IntoView {
                                             {move || {
                                                 if let Some(Some(status)) = product_deploy_status.get() {
                                                     view! {
-                                                        <div class="mb-6 p-4 bg-[#0a84ff]/10 border border-[#0a84ff]/30 rounded-xl">
-                                                            <div class="text-xs font-bold text-[#7bd0ff]">"Deploy Status: " {status.status.clone()}</div>
+                                                        <div class="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-xl">
+                                                            <div class="text-xs font-bold text-surface-tint">"Deploy Status: " {status.status.clone()}</div>
                                                             <div class="text-[10px] text-on-surface-variant/80 mt-1">"Message: " {status.message.clone().unwrap_or_else(|| "No additional status information.".to_string())}</div>
                                                         </div>
                                                     }.into_any()
@@ -834,7 +834,7 @@ pub fn BillingProducts() -> impl IntoView {
                                                 
                                                 // Step 1
                                                 <div class="relative flex items-start gap-4">
-                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-[#c6fff3]/20 border border-[#c6fff3] flex items-center justify-center text-[#c6fff3] text-[9px] font-bold">
+                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-teal-200/20 border border-teal-200 flex items-center justify-center text-teal-200 text-[9px] font-bold">
                                                         "✓"
                                                     </div>
                                                     <div>
@@ -845,7 +845,7 @@ pub fn BillingProducts() -> impl IntoView {
 
                                                 // Step 2
                                                 <div class="relative flex items-start gap-4">
-                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-[#c6fff3]/20 border border-[#c6fff3] flex items-center justify-center text-[#c6fff3] text-[9px] font-bold">
+                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-teal-200/20 border border-teal-200 flex items-center justify-center text-teal-200 text-[9px] font-bold">
                                                         "✓"
                                                     </div>
                                                     <div>
@@ -856,11 +856,11 @@ pub fn BillingProducts() -> impl IntoView {
 
                                                 // Step 3
                                                 <div class="relative flex items-start gap-4">
-                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-[#7C3AED]/20 border border-[#7C3AED] flex items-center justify-center text-[#a78bfa] text-[9px] font-bold animate-pulse">
+                                                    <div class="absolute -left-6 w-4.5 h-4.5 rounded-full bg-violet/20 border border-violet flex items-center justify-center text-violet-400 text-[9px] font-bold animate-pulse">
                                                         "↻"
                                                     </div>
                                                     <div>
-                                                        <div class="text-xs font-bold text-[#a78bfa]">"3. AI Translation Localization Pipeline"</div>
+                                                        <div class="text-xs font-bold text-violet-400">"3. AI Translation Localization Pipeline"</div>
                                                         <p class="text-[10px] text-on-surface-variant/80 mt-0.5">"Translating Homepage meta titles and labels to French."</p>
                                                     </div>
                                                 </div>
