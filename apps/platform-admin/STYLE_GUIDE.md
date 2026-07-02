@@ -183,14 +183,34 @@ Status badge color mapping:
 
 ---
 
-## 7. Shared UI Migration Policy
+## 7. Shared UI & Theming Architecture
 
-`shared_ui` components (`Card`, `Button`, `DataTable`, etc.) use hardcoded Tailwind utility classes and **do not automatically inherit design tokens** from `platform-admin`.
+`shared-ui` is the shared Leptos component library used across `platform-admin`, `anchor`, and `network-instance`.
 
-**Policy:**
-- **New pages/components**: Always use raw HTML + design system classes (no `shared_ui` imports).
-- **Existing pages using shared_ui**: Replace on next meaningful edit of that file.
-- **Long-term goal**: `shared_ui` components should consume CSS vars from the parent app context so they auto-adapt to whichever app is hosting them (platform-admin, folio, anchor, etc.).
+### How it works (the two-layer model)
+
+Layer 1 — this app's `style/index.css` defines CSS vars (`--cobalt`, `--bg-elevated`, etc.)
+Layer 2 — the "shared-ui token bridge" block maps these to `--color-primary`, `--color-card`, etc.
+Layer 3 — `tailwind.config.js` maps Tailwind tokens (`bg-primary`, `bg-card`) to those `--color-*` vars
+Layer 4 — `shared-ui` components use Tailwind tokens, which resolve through the chain automatically
+
+**Result**: Changing `--cobalt` in step 1 propagates through all shared-ui components with zero code changes.
+
+### Authoritative documentation
+
+- **`apps/shared-ui/THEMING.md`** — complete architecture guide, rules for new components, how to add a new consuming app
+- **`apps/shared-ui/COMPONENTS.md`** — component registry with theming status (migrated vs needs work) and migration priority
+
+### Rules for this app (platform-admin)
+
+- **New pages**: Use raw HTML + design system classes. Never import `shared_ui::components::card::Card` for layout.
+- **New interactive widgets** (inputs, toggles, etc.): You may use `shared_ui::components::ui::*` — they now inherit the theme.
+- **Existing pages** with `Card`/`Button` layout imports: Migrate to raw HTML on next meaningful edit.
+- **New shared-ui components**: Follow `THEMING.md`. Use Tailwind semantic tokens only. Never hardcode hex.
+
+### ThemeProvider
+
+`ThemeProvider` handles per-tenant runtime color overrides. Used in the app root to set `--color-primary` for a tenant brand color. Not needed for static theming.
 
 ---
 

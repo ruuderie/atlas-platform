@@ -59,6 +59,41 @@
   --conf-low:           #CC6600;
 }
 
+/* ── shared-ui Token Bridge ──────────────────────────────────────────────── */
+/*                                                                            */
+/*  Maps Tailwind's semantic token names (bg-primary, bg-card, etc.) used    */
+/*  inside shared-ui components to this app's CSS design tokens.              */
+/*  Tailwind.config.js references these --color-* vars instead of hex so     */
+/*  updating the palette above automatically flows through all components.    */
+/*                                                                            */
+/*  See: apps/shared-ui/THEMING.md for the full theming architecture guide.  */
+/*                                                                            */
+:root {
+  --color-primary:              var(--cobalt);
+  --color-primary-foreground:   #ffffff;
+  --color-card:                 var(--bg-elevated);
+  --color-card-foreground:      var(--text-primary);
+  --color-background:           var(--bg-base);
+  --color-foreground:           var(--text-primary);
+  --color-popover:              var(--bg-elevated);
+  --color-popover-foreground:   var(--text-primary);
+  --color-muted:                var(--bg-surface);
+  --color-muted-foreground:     var(--text-muted);
+  --color-accent:               var(--bg-surface-alt);
+  --color-accent-foreground:    var(--text-primary);
+  --color-secondary:            var(--bg-surface);
+  --color-secondary-foreground: var(--text-secondary);
+  --color-destructive:          var(--error);
+  --color-destructive-foreground: #ffffff;
+  --color-success:              var(--green);
+  --color-success-foreground:   #ffffff;
+  --color-warning:              var(--amber);
+  --color-warning-foreground:   #000000;
+  --color-border:               var(--border-default);
+  --color-input:                var(--border-default);
+  --color-ring:                 var(--cobalt);
+}
+
 /* ── Intelligence Layer: Base styles ── */
 * {
   box-sizing: border-box;
