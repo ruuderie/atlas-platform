@@ -1,7 +1,7 @@
 # CI/CD Security Hardening: Woodpecker → Kubernetes RBAC
 
 This document covers the full security architecture for the Woodpecker CI pipeline's interaction
-with the K3s cluster. It reflects the **current live state** as of 2026-05-09.
+with the K3s cluster. It reflects the **current live state** as of 2026-07-02.
 
 ---
 
@@ -52,7 +52,15 @@ rules:
     verbs: ["get", "list", "create", "update", "patch"]
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
-    verbs: ["get", "list", "create", "update", "patch"]
+    # watch+delete required so the deployer can apply ingress-sidecar-role which
+    # grants those same verbs (Kubernetes RBAC escalation prevention).
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "create", "update", "patch", "escalate", "bind"]
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get"]
@@ -123,7 +131,7 @@ These resources are applied **once by a cluster admin** and are never touched by
 | Resource | Why admin-only |
 |---|---|
 | `Namespace` (`atlas-uat`, `atlas-dev`) | SA lacks permission to patch namespaces |
-| `woodpecker-rbac.yaml` | CI managing its own RBAC is a security anti-pattern. Applied manually once via `kubectl apply -f k8s/base/woodpecker-rbac.yaml -n <ns>` |
+| `woodpecker-rbac.yaml` | ✅ **Bootstrapped via `bootstrap_rbac` CI step (2026-07-02).** The step uses the host K3s admin kubeconfig (mounted read-only) with the server IP rewritten from `127.0.0.1` to the container gateway IP. TLS verification is skipped for this step only (SAN mismatch — K3s cert doesn't cover the bridge IP). The step is safe to remove once both `bootstrap_rbac` and `deploy_platform_k8s` have passed in the same pipeline run. |
 | `ghcr-login-secret` | Registry credentials — rotated out-of-band |
 | `cloudflare-api-token-secret` | Cloudflare API token in `cert-manager` namespace — must have `Zone:DNS:Edit` + `Zone:Zone:Read` permissions |
 
@@ -144,6 +152,61 @@ Its `ingress-sidecar-sa` ServiceAccount is bound to a Role that only allows `get
 
 > **Why standalone?** Embedding it as a sidecar in the backend pod caused every backend rollout to fail with `ImagePullBackOff` if the sidecar image hadn't been built yet. Standalone deployments have independent lifecycles.
 
+---
+
+## Automated Domain Provisioning (Enabled by RBAC Bootstrap)
+
+With the `woodpecker-deployer` RBAC bootstrapped into both `atlas-dev` and `atlas-uat`, the
+full automated domain provisioning loop is now operational. This is the feature the RBAC was
+blocking: **platform-admin can create and configure tenant instances with live domains and
+auto-issued TLS certificates, entirely from the UI.**
+
+### What platform-admin can now do
+
+From the **Internal Instances** page (`/internal-instances`), a platform operator can:
+
+1. **Create a new instance** — enters a name, optional custom domain, app type (Folio / Anchor /
+   Meridian), and purpose label. If no domain is provided, one is auto-generated as
+   `{name}.dev.atlas.oply.co` (covered by the platform wildcard cert — no DNS action needed).
+
+2. **Assign or change a domain** on an existing instance — from the instance's Config tab,
+   entering either a platform subdomain or a custom client domain and clicking "Save & Provision".
+
+3. **Get exact DNS instructions** — for custom client domains, the UI immediately renders the
+   exact CNAME/A record the client must add, with a Cloudflare-specific note to set DNS-only
+   (grey cloud) mode so cert-manager's HTTP-01 challenge can complete.
+
+### Two SSL paths
+
+| Domain type | Example | TLS handling | Operator action |
+|---|---|---|---|
+| Platform wildcard | `demo.dev.atlas.oply.co` | `*.dev.atlas.oply.co` wildcard cert — already active | None — works immediately |
+| Custom client domain | `app.clientco.com` | cert-manager HTTP-01 via Let's Encrypt | Client adds CNAME/A record; cert auto-issues within ~60 s |
+
+### Provisioning flow (end to end)
+
+```
+platform-admin UI
+  → POST /api/admin/instances/:id/domain  (backend REST)
+  → ingress-sidecar POST /api/ingress/provision
+  → kubectl creates Ingress + cert-manager Certificate in namespace
+  → K3s Traefik picks up Ingress (watches the API server)
+  → Let's Encrypt issues cert (HTTP-01 challenge via Traefik)
+  → HTTPS live at the domain
+```
+
+The `woodpecker-deployer` RBAC grants the ingress-sidecar's ServiceAccount permission to
+`create/patch/delete` Ingress objects and `delete` cert-manager Certificates (for deprovision
+cleanup). Without the `bootstrap_rbac` step having applied `k8s/base/woodpecker-rbac.yaml`
+to both namespaces, every attempt to provision a domain would have returned `403 Forbidden`.
+
+### What is NOT automated (operator handles once per cluster)
+
+| Item | Why manual |
+|---|---|
+| Cloudflare wildcard DNS (`*.dev.atlas.oply.co → cluster IP`) | Set once at registrar; doesn't change |
+| `cloudflare-api-token-secret` in `cert-manager` namespace | Security — rotated out-of-band |
+| Namespace creation | SA lacks namespace CRUD permission (intentional) |
 
 ---
 
@@ -253,6 +316,8 @@ services.woodpecker-agents.agents."dagger-runner" = {
 | Isolated namespaces per environment | ✅ Done | UAT (`atlas-uat`) and DEV (`atlas-dev`) are fully isolated |
 | Ingress-sidecar as standalone Deployment | ✅ Done | Backend rollouts no longer blocked by sidecar image availability |
 | TLS via DNS-01 (Cloudflare) | ✅ Done | Certs issue correctly behind Cloudflare's HTTPS redirect |
+| `bootstrap_rbac` CI step | ✅ Done (2026-07-02) | `woodpecker-deployer` RBAC applied to `atlas-dev` + `atlas-uat`; enables automated domain provisioning from platform-admin |
+| Automated domain provisioning from platform-admin UI | ✅ Enabled (2026-07-02) | Platform operators can create tenant instances and assign domains with auto-TLS from the browser; no kubectl access required |
 | Version chip in platform-admin sidebar | ✅ Done (pending build) | Shows running SHA + environment badge without SSH |
 | Full K8s backend for agent | ⏳ Future | Security + parallelism |
 
