@@ -167,3 +167,75 @@ A: Dark mode is handled entirely by the `:root` CSS vars in the consuming app. `
 
 **Q: My new component needs a color that's not in the token table above.**
 A: First check if the color logically maps to an existing semantic token. If not, add a new CSS var to the bridge (e.g. `--color-success`) and add it to the Tailwind config in all consuming apps. Document it in this file.
+
+---
+
+## Responsive Design System (platform-admin)
+
+`platform-admin` is desktop-first but must work on tablets (on-site visits)
+and phones (quick checks). All responsive rules live in a single block at the
+**bottom of `apps/platform-admin/style/index.css`**.
+
+### Breakpoints
+
+| Name | Range | Sidebar behavior | Key changes |
+|---|---|---|---|
+| Desktop | ≥ 1024px | 220px, labels visible | Full layout |
+| Tablet | 768–1023px | 48px icon rail, labels hidden | KPI: 3-col, topbar: icon only |
+| Mobile | < 768px | Off-canvas drawer, hamburger toggle | KPI: 2-col, tables scroll, modals fullscreen |
+
+### Shell Architecture
+
+The layout grid is defined in `.shell` CSS (not inline Rust style). The sidebar
+goes through three states:
+
+```
+Desktop: grid-template-columns: 220px 1fr   (sidebar always visible)
+Tablet:  grid-template-columns: 48px  1fr   (icon rail)
+Mobile:  grid-template-columns: 1fr         (sidebar off-canvas via position:fixed)
+```
+
+The `data-intel="true"` attribute on `.shell` signals the intel-sidebar variant
+(dashboard). The hamburger button is in the DOM always; CSS `display:none`
+hides it on desktop.
+
+### Adding a New Page — Responsive Checklist
+
+1. **Always wrap with `main-canvas`** — provides correct padding at all breakpoints
+2. **Use `page-header` / `page-title` / `page-actions`** — they stack automatically on mobile
+3. **Use `kpi-row`** — reflows to 3-col (tablet) and 2-col (mobile) automatically
+4. **Tables**: Wrap in `.card` or `.section` — CSS makes them horizontally scrollable
+   on mobile. Mark low-priority columns with `col-hide-mobile` or `col-hide-tablet`.
+5. **Modals**: Use `.modal-overlay` + inner div — CSS makes them full-screen on mobile
+6. **Drawers/panels**: Use `.panel-backdrop` — CSS converts to bottom-sheet on mobile
+
+### Column De-prioritization
+
+```html
+<!-- Header -->
+<th class="... col-hide-mobile">"Last Login"</th>
+<!-- Data cell -->
+<td class="... col-hide-mobile">{value}</td>
+```
+
+| Class | Hidden at | Use for |
+|---|---|---|
+| `col-hide-mobile` | < 768px | Tertiary metadata (MFA, timestamps, IDs) |
+| `col-hide-tablet` | < 1024px | Secondary data not needed on small screens |
+
+### Icon Rail (Tablet)
+
+On tablet, nav-item labels are hidden via `font-size: 0`. The SVG icon
+remains. Ensure every nav item has a meaningful SVG — no text-only items.
+The `nav-section-label` is hidden; section grouping is visual-only on tablet.
+
+### Mobile Sidebar Drawer
+
+The `sidebar_open: RwSignal<bool>` in `app.rs` drives `.shell.sidebar-open`.
+The sidebar `on:click` auto-closes the drawer after navigation. The overlay
+backdrop closes it on tap-outside.
+
+**Q: How do I test responsive behavior locally?**
+A: Chrome DevTools → Toggle device toolbar → Select iPhone 14 (390px) or
+iPad (768px). For accurate rendering use the emulated viewport, not just
+window resize (some touch events differ).

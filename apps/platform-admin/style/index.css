@@ -203,7 +203,14 @@ path {
 /* ── Layout Shell ─────────────────────────────────────────────────────────── */
 .shell {
   display: grid;
+  /* Default (desktop): topbar spans full width, sidebar + main below */
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: 48px 1fr;
   height: 100vh;
+}
+/* Intel-sidebar variant (dashboard only) is set via data-intel attr */
+.shell[data-intel="true"] {
+  grid-template-columns: 220px 1fr 280px;
 }
 
 /* ── Topbar ───────────────────────────────────────────────────────────────── */
@@ -2746,3 +2753,281 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   flex: 1;
   overflow-y: auto;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN SYSTEM
+   ─────────────────────────────────────────────────────────────────────────
+   Three breakpoints:
+     ≥ 1024px  Desktop  — sidebar always visible (220px), full labels
+     768–1023  Tablet   — sidebar collapses to 48px icon rail, labels hidden
+     < 768px   Mobile   — sidebar off-canvas drawer, hamburger toggle in topbar
+
+   Pattern for de-prioritising table columns on small screens:
+     Add class col-hide-mobile or col-hide-tablet to <td>/<th> elements.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hamburger button (hidden on desktop) ─────────────────────────────────── */
+.hamburger-btn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.hamburger-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.hamburger-btn svg { width: 18px; height: 18px; }
+
+/* ── Column de-prioritization helpers ─────────────────────────────────────── */
+.col-hide-tablet,
+.col-hide-mobile {
+  /* visible by default on desktop */
+}
+
+/* ── Table horizontal scroll wrapper ─────────────────────────────────────── */
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Sidebar overlay backdrop (mobile drawer) ─────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 299;
+  backdrop-filter: blur(2px);
+}
+.shell.sidebar-open .sidebar-overlay { display: block; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TABLET  768px – 1023px
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+
+  /* Shell: shrink sidebar column to icon rail */
+  .shell {
+    grid-template-columns: 48px 1fr;
+  }
+  .shell[data-intel="true"] {
+    grid-template-columns: 48px 1fr;
+  }
+
+  /* Topbar: hide wordmark text, show hamburger */
+  .topbar-logo .wordmark { display: none; }
+  .topbar-logo .badge, .topbar-logo .admin-badge { display: none; }
+  .topbar-logo { width: 48px; justify-content: center; }
+  .topbar-logo .mark { margin: 0; }
+  .hamburger-btn { display: flex; }
+  .topbar-center { display: none; }
+
+  /* Sidebar icon rail */
+  .sidebar {
+    width: 48px;
+    overflow: hidden;
+  }
+  .nav-item {
+    padding: 8px 0;
+    justify-content: center;
+    gap: 0;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+  }
+  /* Show a bottom border instead of left border for active state on icon rail */
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--cobalt);
+    background: var(--bg-elevated);
+  }
+  /* Hide all text labels next to icons */
+  .nav-item > span,
+  .nav-item > .nav-badge,
+  .nav-item > .nav-dot {
+    display: none;
+  }
+  /* Text nodes directly in nav-item — hide by reducing font-size to 0 */
+  .nav-item { font-size: 0; }
+  .nav-item svg { opacity: 0.7; width: 16px; height: 16px; }
+  .nav-item.active svg { opacity: 1; }
+
+  .nav-section-label { display: none; }
+  .sidebar-footer { padding: 8px 0; }
+  .sidebar-footer .nav-item { padding: 8px 0; }
+
+  /* Main canvas: tighter padding */
+  .main-canvas { padding: 16px 20px; gap: 16px; }
+
+  /* KPI row: 3 columns on tablet */
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+
+  /* Page header: allow wrapping */
+  .page-header, .page-hdr {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* Hide lower-priority table columns */
+  .col-hide-tablet { display: none; }
+
+  /* Intel sidebar: hide on tablet (dashboard only shows main) */
+  .intel-sidebar { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOBILE  < 768px
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+
+  /* Shell: full-width, no sidebar column */
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .shell[data-intel="true"] {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar: off-canvas drawer, slides in from left */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    /* Restore full label styles inside the drawer */
+  }
+  .shell.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-overlay { display: none; }
+  .shell.sidebar-open .sidebar-overlay { display: block; }
+
+  /* Restore nav-item full appearance inside the drawer */
+  .sidebar .nav-item {
+    padding: 8px 16px;
+    justify-content: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    border-left: 2px solid transparent;
+    border-bottom: none;
+  }
+  .sidebar .nav-item.active {
+    border-left-color: var(--cobalt);
+    border-bottom-color: transparent;
+  }
+  .sidebar .nav-section-label { display: block; }
+  .sidebar .nav-item > span { display: inline; }
+  .sidebar .nav-item > .nav-badge { display: inline-flex; }
+  .sidebar .nav-item > .nav-dot { display: block; }
+
+  /* Topbar: show wordmark in mobile drawer mode */
+  .topbar-logo { width: auto; justify-content: flex-start; }
+  .topbar-logo .wordmark { display: block; }
+
+  /* main-content-layout now spans full grid column 1 */
+  .main-content-layout {
+    grid-column: 1;
+  }
+
+  /* Main canvas: tight mobile padding */
+  .main-canvas { padding: 12px 14px; gap: 14px; }
+
+  /* KPI row: 2 columns on mobile */
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .kpi-value { font-size: 22px; }
+
+  /* Page header: always stacks on mobile */
+  .page-header, .page-hdr {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .page-actions, .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .page-title { font-size: 18px; }
+
+  /* Tab bars: allow horizontal scroll, hide scrollbar visually */
+  .tab-bar {
+    padding: 0 14px;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  /* Tables: always horizontal scroll on mobile, don't break layout */
+  table {
+    table-layout: auto;
+    min-width: 540px;
+  }
+  /* Wrap all tables that need scroll */
+  .main-canvas table,
+  .card table,
+  .section table {
+    min-width: 540px;
+  }
+  .card,
+  .section {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide low-priority table columns on mobile */
+  .col-hide-mobile { display: none; }
+
+  /* Modals: full screen on mobile */
+  .modal-overlay .modal,
+  .modal-overlay > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Panel/drawer: bottom sheet on mobile */
+  .panel-backdrop .panel,
+  .panel-backdrop > div[class*="panel"] {
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 85vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    overflow-y: auto;
+  }
+
+  /* Health ribbon: wraps and shrinks on mobile */
+  .health-ribbon { gap: 12px; padding: 8px 10px; }
+  .ribbon-sep { display: none; }
+
+  /* Filter bars: wrap */
+  .crm-filter-bar { flex-wrap: wrap; gap: 8px; }
+  .crm-search { min-width: 100%; }
+
+  /* Buttons in actions: smaller on mobile */
+  .btn { padding: 6px 12px; font-size: 11px; }
+  .btn-sm { padding: 4px 8px; font-size: 10px; }
+
+  /* Topbar center/search: hide on mobile to save space */
+  .topbar-center { display: none; }
+  .topbar-right .topbar-divider { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PRINT / ULTRA-WIDE — no changes needed for MVP
+   ══════════════════════════════════════════════════════════════════════════ */

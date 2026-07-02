@@ -317,13 +317,13 @@ pub fn AiTasks() -> impl IntoView {
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-surface-container-highest/60 text-[#91aaeb] text-xs font-medium uppercase tracking-wider">
                             <tr>
-                                <th class="px-6 py-4">"Task ID"</th>
+                                <th class="px-6 py-4 col-hide-mobile">"Task ID"</th>
                                 <th class="px-6 py-4">"Type"</th>
                                 <th class="px-6 py-4">"Target Entity"</th>
                                 <th class="px-6 py-4">"Status"</th>
-                                <th class="px-6 py-4">"Runtime"</th>
-                                <th class="px-6 py-4">"Tokens Used"</th>
-                                <th class="px-6 py-4">"Completed"</th>
+                                <th class="px-6 py-4 col-hide-mobile">"Runtime"</th>
+                                <th class="px-6 py-4 col-hide-mobile">"Tokens Used"</th>
+                                <th class="px-6 py-4 col-hide-mobile">"Completed"</th>
                                 <th class="px-6 py-4"></th>
                             </tr>
                         </thead>
@@ -341,7 +341,7 @@ pub fn AiTasks() -> impl IntoView {
                                             on:click=move |_| select_task(tid_click.clone())
                                             class=move || if is_selected.get() { "hover:bg-surface-bright/5 cursor-pointer bg-primary-container/10 border-l-2 border-primary" } else { "hover:bg-surface-bright/5 cursor-pointer" }
                                         >
-                                            <td class="px-6 py-4 font-mono text-xs">{t.id.clone()}</td>
+                                            <td class="px-6 py-4 font-mono text-xs col-hide-mobile">{t.id.clone()}</td>
                                             <td class="px-6 py-4 font-semibold text-primary">{t.task_type.clone()}</td>
                                             <td class="px-6 py-4 max-w-xs truncate">{t.entity.clone()}</td>
                                             <td class="px-6 py-4">
@@ -349,9 +349,9 @@ pub fn AiTasks() -> impl IntoView {
                                                     {move || t.status.get()}
                                                 </span>
                                             </td>
-                                            <td class="px-6 py-4 font-mono text-xs text-on-surface-variant">{move || t.runtime.get()}</td>
-                                            <td class="px-6 py-4 font-mono text-xs text-on-surface-variant">{move || t.tokens.get()}</td>
-                                            <td class="px-6 py-4 text-xs text-on-surface-variant">{move || t.completed.get()}</td>
+                                            <td class="px-6 py-4 font-mono text-xs text-on-surface-variant col-hide-mobile">{move || t.runtime.get()}</td>
+                                            <td class="px-6 py-4 font-mono text-xs text-on-surface-variant col-hide-mobile">{move || t.tokens.get()}</td>
+                                            <td class="px-6 py-4 text-xs text-on-surface-variant col-hide-mobile">{move || t.completed.get()}</td>
                                             <td class="px-6 py-4 text-right">
                                                 <button 
                                                     on:click=move |e| { e.stop_propagation(); select_task(t.id.clone()); }

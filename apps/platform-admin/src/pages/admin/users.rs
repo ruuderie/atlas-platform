@@ -319,7 +319,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                                 <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Scope"</th>
                                 <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Status"</th>
                                 <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Last Login"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"MFA"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 col-hide-mobile">"MFA"</th>
                                 <th class="px-4 py-2.5 w-20">""</th>
                             </tr>
                         </thead>
@@ -383,8 +383,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                                                         <span class="text-on-surface-variant">{status_label}</span>
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50">"—"</td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50">"—"</td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50 col-hide-mobile">"—"</td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50 col-hide-mobile">"—"</td>
                                                 <td class="px-4 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         class="px-2.5 py-1 text-[10px] font-semibold bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 hover:border-primary/30 rounded-lg transition-all text-on-surface-variant"

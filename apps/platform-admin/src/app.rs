@@ -227,12 +227,12 @@ pub fn AuthenticatedLayout() -> impl IntoView {
         p == "/" || p == "/dashboard"
     });
 
-    let shell_style = move || {
-        if show_intel_sidebar.get() {
-            "display: grid; grid-template-columns: 220px 1fr 280px; grid-template-rows: 48px 1fr; height: 100vh;"
-        } else {
-            "display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 48px 1fr; height: 100vh;"
-        }
+    // Mobile sidebar drawer state
+    let sidebar_open = RwSignal::new(false);
+
+    // shell class: adds sidebar-open when drawer is active on mobile
+    let shell_class = move || {
+        if sidebar_open.get() { "shell sidebar-open" } else { "shell" }
     };
 
     view! {
@@ -241,10 +241,25 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 <div>"Checking session..."</div>
             </div>
         }>
-            <div class="shell" style=shell_style>
+            // data-intel signals the CSS to add the intel-sidebar column
+            <div class=shell_class data-intel=move || if show_intel_sidebar.get() { "true" } else { "false" }>
+                // Sidebar overlay (tap to close on mobile)
+                <div class="sidebar-overlay" on:click=move |_| sidebar_open.set(false)></div>
                 // ── Top Nav Bar ──
                 <header class="topbar">
                     <div class="topbar-logo">
+                        // Hamburger button — CSS shows it only on tablet/mobile
+                        <button
+                            class="hamburger-btn"
+                            on:click=move |_| sidebar_open.update(|v| *v = !*v)
+                            aria-label="Toggle navigation"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <line x1="3" y1="12" x2="21" y2="12"/>
+                                <line x1="3" y1="18" x2="21" y2="18"/>
+                            </svg>
+                        </button>
                         <div class="mark">"A"</div>
                         <span class="wordmark">"Atlas Platform"</span>
                         <span class="badge">"Super-Admin"</span>
@@ -332,7 +347,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 </header>
 
                 // ── Side Nav Bar ──
-                <aside class="sidebar">
+                <aside class="sidebar" on:click=move |_| sidebar_open.set(false)>
                     <span class="nav-label nav-section-label">"Overview"</span>
                     <a href="/" class=move || side_active_class("/")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="0.5"/><rect x="2" y="9" width="5" height="5" rx="0.5"/><rect x="9" y="2" width="5" height="5" rx="0.5"/><rect x="9" y="9" width="5" height="5" rx="0.5"/></svg>

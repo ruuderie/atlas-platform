@@ -198,7 +198,7 @@ Layer 4 — `shared-ui` components use Tailwind tokens, which resolve through th
 
 ### Authoritative documentation
 
-- **`apps/shared-ui/THEMING.md`** — complete architecture guide, rules for new components, how to add a new consuming app
+- **`apps/shared-ui/THEMING.md`** — complete architecture guide, rules for new components, how to add a new consuming app. Includes responsive breakpoint documentation.
 - **`apps/shared-ui/COMPONENTS.md`** — component registry with theming status (migrated vs needs work) and migration priority
 
 ### Rules for this app (platform-admin)
@@ -207,6 +207,7 @@ Layer 4 — `shared-ui` components use Tailwind tokens, which resolve through th
 - **New interactive widgets** (inputs, toggles, etc.): You may use `shared_ui::components::ui::*` — they now inherit the theme.
 - **Existing pages** with `Card`/`Button` layout imports: Migrate to raw HTML on next meaningful edit.
 - **New shared-ui components**: Follow `THEMING.md`. Use Tailwind semantic tokens only. Never hardcode hex.
+- **Responsive**: Always wrap new pages with `main-canvas`. Use `page-header`, `kpi-row`, `.card`, `.modal-overlay`, `.panel-backdrop` — these all respond automatically. For tables, wrap in `.card` or `.section` and add `col-hide-mobile` / `col-hide-tablet` to non-essential columns. See the "Responsive Design System" section in `THEMING.md`.
 
 ### ThemeProvider
 
