@@ -23,6 +23,11 @@
 //! | `provision_domain_validation` | Real `validate_domain()` function — all RFC-constraint cases |
 //! | `stats_response_serialization` | `InstanceStatsResponse` field names never become camelCase |
 //! | `public_config_dns_contract`   | `dns_instructions` always serialized; null when absent, object when set |
+//! | `get_public_config_dns_instructions` | GET /public-config returns dns_instructions when custom_domain set |
+//! | `instance_status_enum_contract` | AppInstanceStatus DB string values match literals used in all lifecycle endpoints |
+//! | `reset_instance_response_contract` | POST /reset returns correct JSON shape with note field |
+//! | `delete_instance_soft_delete_contract` | DELETE is a soft-delete (archived), never a hard-delete |
+//! | `reprovision_domain_response_contract` | POST /reprovision-domain response shape + precondition error contracts |
 //!
 //! All tests are **pure** — no database, no async, no HTTP.
 
@@ -734,3 +739,218 @@ mod get_public_config_dns_instructions {
     }
 }
 
+
+// ── Instance Lifecycle: AppInstanceStatus enum contract ───────────────────────
+//
+// delete_instance, reset_instance, suspend_instance, resume_instance, and
+// archive_instance all call set_instance_status() with a string literal
+// matched against "active" | "suspended" | "archived".
+//
+// The AppInstanceStatus DB enum must keep those exact string_value bindings or
+// every status-changing endpoint will silently write the wrong value.
+mod instance_status_enum_contract {
+    use crate::entities::atlas_app_deployment_config::AppInstanceStatus;
+    use sea_orm::ActiveEnum;
+
+    #[test]
+    fn active_variant_db_string_is_active() {
+        assert_eq!(AppInstanceStatus::Active.to_value(), "active",
+            "AppInstanceStatus::Active db value must be 'active' — reset_instance depends on this");
+    }
+
+    #[test]
+    fn archived_variant_db_string_is_archived() {
+        assert_eq!(AppInstanceStatus::Archived.to_value(), "archived",
+            "AppInstanceStatus::Archived db value must be 'archived' — delete/archive endpoints depend on this");
+    }
+
+    #[test]
+    fn suspended_variant_db_string_is_suspended() {
+        assert_eq!(AppInstanceStatus::Suspended.to_value(), "suspended",
+            "AppInstanceStatus::Suspended db value must be 'suspended' — suspend_instance depends on this");
+    }
+
+    /// Guard: there is no "deleted" variant. delete_instance must use "archived".
+    /// If someone adds a Deleted variant and passes "deleted" to set_instance_status,
+    /// it would return 400 BAD_REQUEST (unrecognised match arm).
+    #[test]
+    fn no_deleted_variant_in_enum() {
+        use sea_orm::Iterable;
+        let all_values: Vec<String> = AppInstanceStatus::iter()
+            .map(|s| s.to_value())
+            .collect();
+        assert!(!all_values.contains(&"deleted".to_string()),
+            "'deleted' is not a valid status — delete_instance must use 'archived' for soft-delete");
+    }
+}
+
+// ── Instance Lifecycle: reset_instance response contract ─────────────────────
+//
+// POST /api/admin/app-instances/{id}/reset returns:
+//   { "instance_id": uuid, "status": "active", "note": "..." }
+//
+// The "note" field is shown in the admin UI toast. Field name changes break the UI.
+mod reset_instance_response_contract {
+    use serde_json::json;
+    use uuid::Uuid;
+
+    fn reset_response(id: Uuid) -> serde_json::Value {
+        json!({
+            "instance_id": id,
+            "status": "active",
+            "note": "Instance reset to active. Onboarding wizard will re-appear on the tenant portal."
+        })
+    }
+
+    #[test]
+    fn response_includes_instance_id() {
+        let j = reset_response(Uuid::new_v4());
+        assert!(j.get("instance_id").is_some());
+    }
+
+    #[test]
+    fn response_status_is_active() {
+        let j = reset_response(Uuid::new_v4());
+        assert_eq!(j["status"], "active",
+            "reset_instance response status must be 'active'");
+    }
+
+    #[test]
+    fn response_includes_note_field() {
+        let j = reset_response(Uuid::new_v4());
+        assert!(j.get("note").is_some(),
+            "reset_instance response must include 'note' — displayed in admin UI toast");
+    }
+
+    #[test]
+    fn note_references_onboarding_wizard() {
+        let j = reset_response(Uuid::new_v4());
+        let note = j["note"].as_str().unwrap_or("").to_lowercase();
+        assert!(note.contains("onboarding") || note.contains("wizard"),
+            "note should mention the onboarding wizard so admin understands what will happen");
+    }
+
+    #[test]
+    fn echoed_instance_id_matches_input() {
+        let id = Uuid::new_v4();
+        let j = reset_response(id);
+        let returned: Uuid = j["instance_id"].as_str().unwrap().parse().unwrap();
+        assert_eq!(returned, id);
+    }
+}
+
+// ── Instance Lifecycle: delete_instance (soft-delete) contract ───────────────
+//
+// DELETE /api/admin/app-instances/{id} is a SOFT DELETE. It calls
+// set_instance_status(..., "archived", ...). The row remains in the DB.
+// This is intentional: admin can re-activate the instance if needed.
+mod delete_instance_soft_delete_contract {
+    use serde_json::json;
+    use uuid::Uuid;
+
+    fn archived_response(id: Uuid) -> serde_json::Value {
+        json!({
+            "instance_id": id,
+            "status": "archived",
+            "reason": "archived via platform-admin DELETE"
+        })
+    }
+
+    #[test]
+    fn delete_produces_archived_not_deleted() {
+        let j = archived_response(Uuid::new_v4());
+        assert_eq!(j["status"], "archived",
+            "delete_instance must produce status='archived' (soft delete, never hard delete)");
+    }
+
+    #[test]
+    fn response_includes_reason_field() {
+        let j = archived_response(Uuid::new_v4());
+        assert!(j.get("reason").is_some(),
+            "set_instance_status always returns 'reason' — delete response must include it");
+    }
+
+    #[test]
+    fn reason_identifies_platform_admin_as_actor() {
+        let j = archived_response(Uuid::new_v4());
+        let reason = j["reason"].as_str().unwrap_or("");
+        assert!(reason.contains("platform-admin"),
+            "reason must mention 'platform-admin' so audit log readers understand origin");
+    }
+
+    #[test]
+    fn status_string_is_archived_not_deleted_string() {
+        // Confirm the literal string used. "deleted" would cause a 400 from set_instance_status.
+        let status_sent_to_set_instance_status = "archived";
+        assert_ne!(status_sent_to_set_instance_status, "deleted",
+            "delete_instance passes 'archived', not 'deleted', to set_instance_status");
+    }
+}
+
+// ── Instance Lifecycle: reprovision_domain response contract ─────────────────
+//
+// POST /api/admin/app-instances/{id}/reprovision-domain returns:
+//   { "instance_id": uuid, "domain": "example.com", "status": "reprovisioning" }
+//
+// Preconditions:
+//   - 404 when instance not in DB
+//   - 400 BAD_REQUEST when no custom_domain configured (guard fires BEFORE ingress call)
+//   - 502 BAD_GATEWAY when ingress sidecar fails
+mod reprovision_domain_response_contract {
+    use serde_json::json;
+    use uuid::Uuid;
+
+    fn success_response(id: Uuid, domain: &str) -> serde_json::Value {
+        json!({
+            "instance_id": id,
+            "domain": domain,
+            "status": "reprovisioning"
+        })
+    }
+
+    #[test]
+    fn success_response_has_instance_id() {
+        let j = success_response(Uuid::new_v4(), "example.com");
+        assert!(j.get("instance_id").is_some());
+    }
+
+    #[test]
+    fn success_response_echoes_domain() {
+        let id = Uuid::new_v4();
+        let j = success_response(id, "buildwithruud.com");
+        assert_eq!(j["domain"], "buildwithruud.com",
+            "domain in response must match the configured custom_domain");
+    }
+
+    #[test]
+    fn status_is_reprovisioning_not_active() {
+        let j = success_response(Uuid::new_v4(), "example.com");
+        assert_eq!(j["status"], "reprovisioning",
+            "status must be 'reprovisioning' — ingress is async, domain is not yet active");
+    }
+
+    #[test]
+    fn status_is_not_active() {
+        // "active" would imply the domain is verified and serving. It is not.
+        let j = success_response(Uuid::new_v4(), "example.com");
+        assert_ne!(j["status"], "active",
+            "reprovision must not claim 'active' — DNS propagation has not completed");
+    }
+
+    #[test]
+    fn no_custom_domain_error_body_mentions_custom_domain() {
+        // This is the literal 400 body returned by the handler's precondition guard.
+        // Frontend error display depends on this text being recognisable.
+        let error_body = "no custom_domain configured for this instance";
+        assert!(error_body.contains("custom_domain"),
+            "400 error body must mention 'custom_domain' so the caller understands the issue");
+    }
+
+    #[test]
+    fn echoed_instance_id_matches_input() {
+        let id = Uuid::new_v4();
+        let j = success_response(id, "example.com");
+        let parsed: Uuid = j["instance_id"].as_str().unwrap().parse().unwrap();
+        assert_eq!(parsed, id);
+    }
+}

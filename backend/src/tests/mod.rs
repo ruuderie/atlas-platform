@@ -39,3 +39,6 @@ pub mod landing_page_builder_tests;
 
 // Domain provisioning — critical path tests (sidecar logic + API integration)
 pub mod domain_provisioning_tests;
+
+// Instance lifecycle — reset, soft-delete, and reprovision-domain endpoint tests
+pub mod instance_lifecycle_tests;
