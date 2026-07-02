@@ -583,7 +583,16 @@ steps:
           }
         ' /proc/net/route)
         echo "==> Host gateway IP: $HOST_IP"
-        sed "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
+        # Rewrite server URL AND replace certificate-authority-data with
+        # insecure-skip-tls-verify: true.
+        # Why: the K3s TLS cert SANs cover 127.0.0.1 and the public IP, but NOT
+        # the container bridge gateway (10.89.x.x). Regenerating K3s certs would
+        # require a server restart. insecure-skip-tls-verify is safe here because
+        # this is a one-shot internal bootstrap step — not a production auth path.
+        sed \
+          -e "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" \
+          -e "s|certificate-authority-data:.*|insecure-skip-tls-verify: true|g" \
+          /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
         export KUBECONFIG=/tmp/k3s-admin-fixed.yaml
         # Verify connectivity before proceeding
         kubectl cluster-info
