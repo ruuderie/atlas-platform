@@ -785,30 +785,32 @@ pub async fn reprovision_domain(
     State(db): State<DatabaseConnection>,
     Path(instance_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let config = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
-        .find_also_related(crate::entities::tenant::Entity)
+    // Step 1: fetch the deployment config row.
+    let cfg = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
         .one(&db)
         .await
     {
-        Ok(Some(pair)) => pair,
+        Ok(Some(c)) => c,
         Ok(None) => return (StatusCode::NOT_FOUND, "instance not found").into_response(),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
-
-    let (cfg, tenant_opt) = config;
 
     let domain = match cfg.custom_domain.as_deref().filter(|d| !d.is_empty()) {
         Some(d) => d.to_string(),
         None => return (StatusCode::BAD_REQUEST, "no custom_domain configured for this instance").into_response(),
     };
 
-    let tenant_slug = tenant_opt
-        .as_ref()
-        .map(|t| t.name.as_str())
-        .unwrap_or("unknown");
+    // Step 2: look up the tenant slug for a readable ingress label.
+    let tenant_slug = crate::entities::tenant::Entity::find_by_id(cfg.tenant_id)
+        .one(&db)
+        .await
+        .ok()
+        .flatten()
+        .map(|t| t.name)
+        .unwrap_or_else(|| cfg.tenant_id.to_string());
 
     let provisioner = IngressProvisioner::new();
-    match provisioner.provision_domain(tenant_slug, &domain, &cfg.app_slug).await {
+    match provisioner.provision_domain(&tenant_slug, &domain, &cfg.app_slug).await {
         Ok(_) => {
             tracing::info!(
                 instance_id = %instance_id,
