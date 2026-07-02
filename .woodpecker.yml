@@ -547,62 +547,6 @@ steps:
       branch: [dev, uat]
       path: [ "backend/src/bin/ingress_sidecar.rs", "backend/Dockerfile.sidecar", ".woodpecker.yml" ]
 
-  # ── ONE-SHOT RBAC BOOTSTRAP ──────────────────────────────────────────────────
-  # WHY: woodpecker-deployer doesn't have cluster-admin rights, so it can't create
-  # the ClusterRole/Binding defined in k8s/base/woodpecker-rbac.yaml itself.
-  # This step uses the K3s host kubeconfig (mounted read-only) to do it once.
-  #
-  # SAFE TO REMOVE when BOTH of the following are true in the same pipeline run:
-  #   1. This step shows "✓ RBAC bootstrap complete" in its logs.
-  #   2. deploy_platform_k8s completes without a Forbidden/RBAC error.
-  # Once that happens, just tell me "remove bootstrap_rbac" and I'll delete the step.
-  bootstrap_rbac:
-    image: bitnami/kubectl:latest
-    volumes:
-      - /etc/rancher/k3s/k3s.yaml:/tmp/k3s-admin.yaml:ro
-    commands:
-      - |
-        set -euo pipefail
-        # The K3s admin kubeconfig uses 127.0.0.1:6443 which is the host's loopback.
-        # Inside a container, 127.0.0.1 is the container's own loopback — not the host.
-        # Parse /proc/net/route to get the default gateway without needing iproute2.
-        # The Gateway column is hex, little-endian (e.g. 0101A8C0 → 192.168.1.1).
-        # Inline hex2dec avoids bash-only ${var:offset:len} syntax — works in dash/sh.
-        HOST_IP=$(awk '
-          function h2d(s,   i,v,c,m) {
-            m="0123456789abcdef"; v=0; s=tolower(s)
-            for(i=1;i<=length(s);i++){c=substr(s,i,1);v=v*16+index(m,c)-1}
-            return v
-          }
-          NR>1 && $2=="00000000" {
-            h=$3
-            printf "%d.%d.%d.%d\n",
-              h2d(substr(h,7,2)), h2d(substr(h,5,2)),
-              h2d(substr(h,3,2)), h2d(substr(h,1,2))
-            exit
-          }
-        ' /proc/net/route)
-        echo "==> Host gateway IP: $HOST_IP"
-        # Rewrite server URL AND replace certificate-authority-data with
-        # insecure-skip-tls-verify: true.
-        # Why: the K3s TLS cert SANs cover 127.0.0.1 and the public IP, but NOT
-        # the container bridge gateway (10.89.x.x). Regenerating K3s certs would
-        # require a server restart. insecure-skip-tls-verify is safe here because
-        # this is a one-shot internal bootstrap step — not a production auth path.
-        sed \
-          -e "s|https://127.0.0.1:6443|https://$HOST_IP:6443|g" \
-          -e "s|certificate-authority-data:.*|insecure-skip-tls-verify: true|g" \
-          /tmp/k3s-admin.yaml > /tmp/k3s-admin-fixed.yaml
-        export KUBECONFIG=/tmp/k3s-admin-fixed.yaml
-        # Verify connectivity before proceeding
-        kubectl cluster-info
-        echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-dev..."
-        kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-dev
-        echo "==> Bootstrapping woodpecker-deployer RBAC in atlas-uat..."
-        kubectl apply -f k8s/base/woodpecker-rbac.yaml -n atlas-uat
-        echo "✓ RBAC bootstrap complete — this step can be removed once confirmed working."
-    when:
-      branch: [dev, uat]
 
   # ── Unified CD Deployment ───────────────────────────────────────────────────
   deploy_platform_k8s:
