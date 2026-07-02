@@ -64,20 +64,20 @@ pub fn NetworkCreate() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6 max-w-3xl mx-auto">
-            // ── Breadcrumb ──
-            <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
-                <a href="/" class="hover:text-primary transition-colors">"Dashboard"</a>
-                <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                <a href="/network" class="hover:text-primary transition-colors">"Network Instances"</a>
-                <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
-                <span class="text-primary/70">"New Network Instance"</span>
-            </nav>
-
+        <div class="main-canvas">
             // ── Page Header ──
-            <div class="bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
-                <h1 class="text-xl font-extrabold tracking-tight text-on-surface">"Provision New Network Instance"</h1>
-                <p class="text-xs text-on-surface-variant mt-1">"Spin up a new public-facing listing catalog directory and directory server"</p>
+            <div class="page-header">
+                <div>
+                    <nav style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-muted);margin-bottom:4px;">
+                        <a href="/" style="color:inherit;text-decoration:none;hover:color:var(--cobalt)">"Dashboard"</a>
+                        <span>"›"</span>
+                        <a href="/network" style="color:inherit;text-decoration:none">"Network Instances"</a>
+                        <span>"›"</span>
+                        <span style="color:var(--cobalt)">"New Instance"</span>
+                    </nav>
+                    <h1 class="page-title">"Provision New Network Instance"</h1>
+                    <p class="page-subtitle">"Spin up a new public-facing listing catalog directory and directory server"</p>
+                </div>
             </div>
 
             // ── Steps Progress Indicator ──

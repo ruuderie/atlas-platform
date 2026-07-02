@@ -252,7 +252,7 @@ pub fn ProductDetail() -> impl IntoView {
     let not_found = move || matches!(product_res.get(), Some(None));
 
     view! {
-        <div class="w-full space-y-6">
+        <div class="main-canvas">
 
             // ── Loading / Not Found states ──
             <Show when=loading>

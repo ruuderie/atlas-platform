@@ -205,10 +205,10 @@ pub fn Settings() -> impl IntoView {
     view! {
         <div class="main-area" style="padding: 0; gap: 0; display: flex; flex-direction: column; height: 100%;">
             // ── Page Header ──
-            <div class="page-hdr">
+            <div class="page-header">
                 <div>
                     <div class="page-title">"Profile & Preferences"</div>
-                    <div class="page-sub">"Your account · Security · Notifications · API Keys"</div>
+                    <div class="page-subtitle">"Your account · Security · Notifications · API Keys"</div>
                 </div>
                 <button class="btn btn-ghost btn-sm" on:click=move |_| {
                     toast.show_toast("Auth", "Logging out...", "info");
