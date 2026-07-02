@@ -137,7 +137,8 @@ pub fn AppCreate() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-3xl mx-auto space-y-6 pt-8 pb-16">
+        <div class="main-canvas">
+        <div class="max-w-3xl mx-auto space-y-6 pb-16">
             {move || if let Some(url) = setup_url.get() {
                 // ── Success state ──
                 view! {
@@ -516,6 +517,7 @@ pub fn AppCreate() -> impl IntoView {
                     </div>
                 }.into_any()
             }}
+        </div>
         </div>
     }
 }

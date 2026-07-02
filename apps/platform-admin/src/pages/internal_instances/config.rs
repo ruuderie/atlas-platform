@@ -111,7 +111,7 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                 <div class="page-header">
                                     <div>
                                         <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:4px;">
-                                            <a href="/internal-instances" style="color:var(--text-muted);text-decoration:none;">"Internal Instances"</a>
+                                            <a href="/internal-instances" style="color:var(--text-muted);text-decoration:none;">"App Instances"</a>
                                             <span>"›"</span>
                                             <span style="color:var(--on-surface);">{move || app.get_value().name.clone()}</span>
                                         </div>
@@ -465,9 +465,9 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                                                         leptos::task::spawn_local(async move {
                                                             let url = crate::api::client::api_url(
                                                                 &format!("api/admin/app-instances/{}/reprovision-domain", iid));
-                                                            let res = crate::api::client::create_client()
-                                                                .post(&url)
-                                                                .send().await;
+                                                            let res = crate::api::client::with_credentials(
+                                                                crate::api::client::create_client().post(&url)
+                                                            ).send().await;
                                                             is_reprovisioning.set(false);
                                                             match res {
                                                                 Ok(r) if r.status().is_success() =>
@@ -622,7 +622,9 @@ fn DeploymentTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                                     leptos::task::spawn_local(async move {
                                         let url = crate::api::client::api_url(
                                             &format!("api/admin/app-instances/{}/resume", iid2));
-                                        let res = crate::api::client::create_client().post(&url).send().await;
+                                        let res = crate::api::client::with_credentials(
+                                            crate::api::client::create_client().post(&url)
+                                        ).send().await;
                                         is_busy.set(false);
                                         match res {
                                             Ok(r) if r.status().is_success() =>

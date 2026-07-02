@@ -130,17 +130,17 @@ pub fn SyndicationOffers() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6">
+        <div class="main-canvas">
             // ── Page Header ──────────────────────────────────────────────────
-            <div class="flex items-start justify-between">
+            <div class="page-header">
                 <div>
-                    <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">
-                        "Syndication Offers"
-                    </h1>
-                    <p class="text-sm text-on-surface-variant mt-1">
+                    <div class="page-title">
+                        "Offer Catalog"
+                    </div>
+                    <div class="page-subtitle">
                         "Platform-wide catalog of available syndication connections. "
                         "Operators activate these from their Folio instance settings."
-                    </p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <a

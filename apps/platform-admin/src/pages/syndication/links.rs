@@ -32,8 +32,12 @@ pub fn SyndicationLinks() -> impl IntoView {
     };
 
     view! {
-        <div class="space-y-6">
-            <div class="flex items-start justify-between">
+        <div class="main-canvas">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">"Syndication Links"</div>
+                    <div class="page-subtitle">"Manage cross-network listing links and feed connections"</div>
+                </div>
                 <div>
                     <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">"Active Syndication Links"</h1>
                     <p class="text-sm text-on-surface-variant mt-1">

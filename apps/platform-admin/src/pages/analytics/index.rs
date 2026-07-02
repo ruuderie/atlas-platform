@@ -41,16 +41,16 @@ pub fn Analytics() -> impl IntoView {
     });
 
     view! {
-        <div class="space-y-6">
+        <div class="main-canvas">
             // ── Page Header ──
-            <div class="flex justify-between items-center border-b border-outline-variant/20 pb-4">
+            <div class="page-header">
                 <div>
-                    <h1 class="text-3xl font-extrabold tracking-tight text-on-surface">"Analytics"</h1>
-                    <p class="text-xs text-on-surface-variant mt-1">
+                    <div class="page-title">"Analytics"</div>
+                    <div class="page-subtitle">
                         "Platform-wide metrics and attribution analysis"
-                    </p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="page-actions">
                     <select 
                         class="bg-surface-container-high border border-outline-variant/30 text-on-surface text-xs rounded-lg p-2 outline-none cursor-pointer focus:border-primary"
                         on:change=move |ev| selected_range.set(event_target_value(&ev))

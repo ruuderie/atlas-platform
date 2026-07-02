@@ -309,28 +309,29 @@ pub fn PlatformAdmins() -> impl IntoView {
                         </select>
                     </div>
 
-                    <table>
+                    <table class="w-full text-sm">
                         <thead>
-                            <tr>
-                                <th>""</th>
-                                <th>"Name"</th>
-                                <th>"Email"</th>
-                                <th>"Role"</th>
-                                <th>"Tenant Scope"</th>
-                                <th>"Status"</th>
-                                <th>"Last Login"</th>
-                                <th>"MFA"</th>
-                                <th>"Actions"</th>
+                            <tr class="border-b border-outline-variant/20">
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 w-10">""</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Name"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Email"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Role"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Scope"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Status"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Last Login"</th>
+                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"MFA"</th>
+                                <th class="px-4 py-2.5 w-20">""</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="divide-y divide-outline-variant/10">
                             // Real DB users only
                             {move || {
                                 let users = users_res.get().unwrap_or_default();
                                 if users.is_empty() {
                                     view! {
                                         <tr>
-                                            <td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted);font-size:12px;">
+                                            <td colspan="9" class="px-4 py-12 text-center text-xs text-on-surface-variant/50">
+                                                <span class="material-symbols-outlined block text-3xl mb-2 opacity-30">"group"</span>
                                                 "No users found. Invite someone to get started."
                                             </td>
                                         </tr>
@@ -348,22 +349,45 @@ pub fn PlatformAdmins() -> impl IntoView {
                                                 a.to_uppercase().to_string()
                                             }
                                         };
-                                        let role_str = if u.is_admin { "Super-Admin" } else { "Admin" };
-                                        let role_color = if u.is_admin { "color:var(--cobalt);border-color:var(--cobalt)" } else { "color:var(--violet);border-color:var(--violet)" };
+                                        let is_super = u.is_admin;
+                                        let role_str = if is_super { "Super-Admin" } else { "Admin" };
+                                        let (role_bg, role_text) = if is_super {
+                                            ("bg-primary/10 border-primary/30", "text-primary")
+                                        } else {
+                                            ("bg-violet-500/10 border-violet-500/30", "text-violet-400")
+                                        };
                                         let scope_str = if u.is_admin { "Platform-wide" } else { "Tenant" };
+                                        let (status_bg, status_dot, status_label) = if u.is_active {
+                                            ("bg-emerald-500/10 border-emerald-500/20", "bg-emerald-400", "Active")
+                                        } else {
+                                            ("bg-outline-variant/10 border-outline-variant/20", "bg-on-surface-variant/30", "Inactive")
+                                        };
                                         view! {
-                                            <tr>
-                                                <td><div class="user-avatar" style="background:var(--bg-elevated);color:var(--text-secondary)">{initials}</div></td>
-                                                <td style="font-weight:500">{u.username.clone()}</td>
-                                                <td class="muted">{u.email.clone()}</td>
-                                                <td><span class="pill" style=role_color>{role_str}</span></td>
-                                                <td class="muted">{scope_str}</td>
-                                                <td class=if u.is_active { "green" } else { "muted" }>{if u.is_active { "Active" } else { "Inactive" }}</td>
-                                                <td class="muted">"—"</td>
-                                                <td class="muted">"—"</td>
-                                                <td>
+                                            <tr class="hover:bg-surface-bright/5 transition-colors group">
+                                                <td class="px-4 py-3">
+                                                    <div class="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                                                        {initials}
+                                                    </div>
+                                                </td>
+                                                <td class="px-4 py-3 font-semibold text-on-surface text-xs">{u.username.clone()}</td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/70 font-mono">{u.email.clone()}</td>
+                                                <td class="px-4 py-3">
+                                                    <span class=format!("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border {} {}", role_bg, role_text)>
+                                                        {role_str}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/70">{scope_str}</td>
+                                                <td class="px-4 py-3">
+                                                    <span class=format!("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border {}", status_bg)>
+                                                        <span class=format!("w-1.5 h-1.5 rounded-full {}", status_dot)></span>
+                                                        <span class="text-on-surface-variant">{status_label}</span>
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50">"—"</td>
+                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50">"—"</td>
+                                                <td class="px-4 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
-                                                        class="btn btn-ghost btn-sm"
+                                                        class="px-2.5 py-1 text-[10px] font-semibold bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 hover:border-primary/30 rounded-lg transition-all text-on-surface-variant"
                                                         on:click=move |e| {
                                                             e.stop_propagation();
                                                             show_manage_modal.set(Some(u_clone.clone()));

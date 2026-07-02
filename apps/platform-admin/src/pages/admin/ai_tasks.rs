@@ -229,23 +229,46 @@ pub fn AiTasks() -> impl IntoView {
             <div class="kpi-row">
                 <div class="kpi-card">
                     <div class="kpi-label">"Active / Queued Tasks"</div>
-                    <div class="kpi-value mono">"4"</div>
-                    <div class="kpi-delta up">"3.5% load increase"</div>
+                    <div class="kpi-value mono">
+                        {move || {
+                            let count = tasks_data.get().iter()
+                                .filter(|t| t.status.get() == "Running" || t.status.get() == "Queued")
+                                .count();
+                            count.to_string()
+                        }}
+                    </div>
+                    <div class="kpi-delta">"Live from queue"</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">"Success Rate (24h)"</div>
-                    <div class="kpi-value mono" style="color:var(--green)">"99.24%"</div>
-                    <div class="kpi-delta up">"↑ 0.12% vs yesterday"</div>
+                    <div class="kpi-label">"Completed (session)"</div>
+                    <div class="kpi-value mono" style="color:var(--green)">
+                        {move || {
+                            tasks_data.get().iter()
+                                .filter(|t| t.status.get() == "Success")
+                                .count()
+                                .to_string()
+                        }}
+                    </div>
+                    <div class="kpi-delta up">"Tasks completed"</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">"Avg Runtime"</div>
-                    <div class="kpi-value mono">"1.42s"</div>
-                    <div class="kpi-delta up">"↓ 0.08s faster"</div>
+                    <div class="kpi-label">"Failed (session)"</div>
+                    <div class="kpi-value mono" style="color:var(--red)">
+                        {move || {
+                            tasks_data.get().iter()
+                                .filter(|t| t.status.get() == "Failed")
+                                .count()
+                                .to_string()
+                        }}
+                    </div>
+                    <div class="kpi-delta">"Tasks with errors"</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">"Daily Token Usage"</div>
-                    <div class="kpi-value mono">"1,248k"</div>
-                    <div class="kpi-delta down">"↑ 14% vs avg"</div>
+                    <div class="kpi-label">"Total Tasks"</div>
+                    <div class="kpi-value mono">
+                        {move || tasks_data.get().len().to_string()}
+                    </div>
+                    <div class="kpi-delta">"Loaded this session"</div>
                 </div>
             </div>
 

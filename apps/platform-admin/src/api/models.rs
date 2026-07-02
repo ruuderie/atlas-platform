@@ -707,6 +707,9 @@ pub struct PlatformAppSummary {
     pub platform_account_id: Option<String>,
     /// For InternalOperator instances: "demo" | "test" | "staging" | "managed_service".
     pub purpose:             Option<String>,
+    /// Live custom_domain from atlas_app_deployment_config. Takes precedence over `domain` for display.
+    #[serde(default)]
+    pub custom_domain:       Option<String>,
 }
 
 // ==== BILLING ====

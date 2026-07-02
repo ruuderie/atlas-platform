@@ -377,7 +377,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         if p.starts_with("/clients") { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 12c0-2.2-2.2-4-5-4S3 9.8 3 12"/><circle cx="8" cy="5" r="3"/></svg>
-                        "Clients"
+                        // Clients = paying accounts that have one or more Tenants
+                        "Client Accounts"
                     </a>
                     // Tenants — the canonical tenant list
                     <a href="/tenants" class=move || {
@@ -458,10 +459,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
                         "Syndication"
                     </a>
-                    <a href="/syndication/offers" class=move || side_active_class("/syndication")>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M10 5l3 3-3 3M8 2v12"/></svg>
-                        "Offer Catalog"
-                    </a>
+                    // Offer Catalog is a tab inside Syndication — no separate nav item needed
                     <a href="/verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
@@ -473,7 +471,8 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         if p.starts_with("/internal-instances") { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1.5"/><line x1="5" y1="7" x2="11" y2="7"/><line x1="5" y1="10" x2="9" y2="10"/><line x1="1" y1="7" x2="3" y2="7"/></svg>
-                        "Internal Instances"
+                        // App Instances: all tenant-facing deployed app instances (folio, anchor, network)
+                        "App Instances"
                     </a>
                     <a href="/flags" class=move || side_active_class("/flags")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l-2 3.5L11 9H3"/></svg>

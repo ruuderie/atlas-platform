@@ -101,6 +101,9 @@ pub struct PlatformAppModel {
     /// Operational purpose from config JSONB ("demo"|"test"|"staging"|"managed_service").
     /// None for Standard mode client deployments.
     pub purpose:              Option<String>,
+    /// The live custom_domain from atlas_app_deployment_config.
+    /// None = no custom domain assigned. When set, takes precedence over `domain` for display.
+    pub custom_domain:        Option<String>,
 }
 
 
@@ -185,6 +188,10 @@ pub async fn get_platform_apps(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
+            let custom_domain = deployment
+                .as_ref()
+                .and_then(|d| d.custom_domain.clone());
+
             result.push(PlatformAppModel {
                 tenant_id:           tenant_model.id.to_string(),
                 instance_id:         instance.id.to_string(),
@@ -196,6 +203,7 @@ pub async fn get_platform_apps(
                 description:         tenant_model.description.clone(),
                 platform_account_id,
                 purpose,
+                custom_domain,
             });
         }
     }

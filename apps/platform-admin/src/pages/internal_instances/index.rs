@@ -180,7 +180,7 @@ pub fn InternalInstancesPage() -> impl IntoView {
             // ── Page Header ──
             <div class="page-header">
                 <div>
-                    <div class="page-title">"Internal Instances"</div>
+                    <div class="page-title">"App Instances"</div>
                     <div class="page-subtitle">
                         "Platform-team managed deployments — demo, staging, test, and managed-service arrangements. "
                         "External client deployments are in "
@@ -370,7 +370,9 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                                         </div>
                                                         <div class="px-4 pt-4 pb-3">
                                                             <h3 class="text-sm font-bold text-on-surface">{app.name.clone()}</h3>
-                                                            <p class="text-[10px] font-mono text-on-surface-variant/60 mt-0.5 truncate">{app.domain.clone()}</p>
+                                                            <p class="text-[10px] font-mono text-on-surface-variant/60 mt-0.5 truncate">
+                                                                {app.custom_domain.clone().unwrap_or_else(|| app.domain.clone())}
+                                                            </p>
                                                             {if !app.description.is_empty() {
                                                                 view! {
                                                                     <p class="text-xs text-on-surface-variant/70 mt-2 leading-relaxed line-clamp-2">
