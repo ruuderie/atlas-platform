@@ -90,7 +90,7 @@ pub fn InternalInstanceConfig() -> impl IntoView {
     });
 
     view! {
-        <div class="main-area">
+        <div class="main-canvas">
             <Suspense fallback=move || view! {
                 <div class="flex items-center justify-center h-64">
                     <div class="text-on-surface-variant text-sm animate-pulse">"Loading instance…"</div>
@@ -145,12 +145,13 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                 </div>
 
                                 <div style="display:flex;gap:2px;padding:0 0 16px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:20px;">
-                                    {["overview", "domain", "users", "deployment"].map(|tab| {
+                                    {["overview", "domain", "users", "deployment", "danger"].map(|tab| {
                                         let label = match tab {
                                             "overview"   => "Overview",
                                             "domain"     => "Domain & SSL",
                                             "users"      => "Users & Roles",
                                             "deployment" => "Deployment",
+                                            "danger"     => "⚠ Danger Zone",
                                             _            => tab,
                                         };
                                         view! {
@@ -159,7 +160,13 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                                 class=move || format!(
                                                     "px-4 py-2 text-xs font-semibold rounded transition-all {}",
                                                     if active_tab.get() == tab {
-                                                        "bg-primary/15 text-primary"
+                                                        if tab == "danger" {
+                                                            "bg-error/15 text-error"
+                                                        } else {
+                                                            "bg-primary/15 text-primary"
+                                                        }
+                                                    } else if tab == "danger" {
+                                                        "text-error/60 hover:bg-error/10"
                                                     } else {
                                                         "text-on-surface-variant hover:bg-surface-container-high/40"
                                                     }
@@ -174,6 +181,7 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                     "domain"     => view! { <DomainTab    app=app.get_value() /> }.into_any(),
                                     "users"      => view! { <UsersTab     tenant_id=app.get_value().tenant_id.clone() /> }.into_any(),
                                     "deployment" => view! { <DeploymentTab app=app.get_value() /> }.into_any(),
+                                    "danger"     => view! { <DangerZoneTab instance_id=app.get_value().instance_id.clone() instance_name=app.get_value().name.clone() /> }.into_any(),
                                     _            => view! { <></> }.into_any(),
                                 }}
                             }.into_any()
@@ -432,6 +440,50 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                                         </div>
                                     </div>
                                 </div>
+                                // ── Re-Provision button ────────────────────────────────────
+                                <div class="section" style="border-left:3px solid var(--cobalt);">
+                                    <div class="section-hdr">
+                                        <span class="section-title">"Re-Provision Ingress"</span>
+                                    </div>
+                                    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+                                        <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+                                            "If the CNAME is set correctly but the site shows an NGINX error, the instance may have been created before the ingress-sidecar was deployed. \
+                                             Clicking Re-Provision will re-fire the ingress + TLS provisioning event."
+                                        </p>
+                                        {
+                                            let reprov_domain = app.clone();
+                                            let toast_ref = use_context::<crate::app::GlobalToast>().expect("toast");
+                                            let is_reprovisioning = RwSignal::new(false);
+                                            view! {
+                                                <button
+                                                    class="btn btn-primary btn-sm self-start"
+                                                    disabled=move || is_reprovisioning.get()
+                                                    on:click=move |_| {
+                                                        is_reprovisioning.set(true);
+                                                        let iid = reprov_domain.instance_id.clone();
+                                                        let tr = toast_ref.clone();
+                                                        leptos::task::spawn_local(async move {
+                                                            let url = crate::api::client::api_url(
+                                                                &format!("api/admin/app-instances/{}/reprovision-domain", iid));
+                                                            let res = crate::api::client::create_client()
+                                                                .post(&url)
+                                                                .send().await;
+                                                            is_reprovisioning.set(false);
+                                                            match res {
+                                                                Ok(r) if r.status().is_success() =>
+                                                                    tr.show_toast("Reprovisioning", "Ingress re-provisioning triggered. Allow 60–120 s for cert-manager to issue the certificate.", "success"),
+                                                                Ok(r) => tr.show_toast("Error", &format!("HTTP {} — check backend logs", r.status()), "error"),
+                                                                Err(e) => tr.show_toast("Error", &e.to_string(), "error"),
+                                                            }
+                                                        });
+                                                    }
+                                                >
+                                                    {move || if is_reprovisioning.get() { "Reprovisioning…" } else { "Re-Provision Ingress & TLS" }}
+                                                </button>
+                                            }
+                                        }
+                                    </div>
+                                </div>
                             }.into_any(),
                             None if is_w => view! {
                                 <div style="padding:10px 14px;border-left:3px solid rgba(52,211,153,0.5);border-radius:0 6px 6px 0;background:rgba(52,211,153,0.04);">
@@ -613,6 +665,132 @@ fn DeploymentTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                             >{move || if is_busy.get() { "Suspending…" } else { "Suspend Instance" }}</button>
                         }.into_any()
                     }}
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// ── Danger Zone ───────────────────────────────────────────────────────────────
+
+#[component]
+fn DangerZoneTab(instance_id: String, instance_name: String) -> impl IntoView {
+    let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
+
+    let iid = store_value(instance_id);
+    let iname = store_value(instance_name);
+
+    let confirm_archive = RwSignal::new(String::new());
+    let confirm_reset   = RwSignal::new(String::new());
+    let is_archiving    = RwSignal::new(false);
+    let is_resetting    = RwSignal::new(false);
+
+    let expected = Signal::derive(move || iname.get_value());
+
+    view! {
+        <div class="space-y-4" style="max-width:640px;">
+            <div style="padding:12px 16px;border-left:3px solid var(--amber);border-radius:0 8px 8px 0;background:rgba(245,158,11,0.06);">
+                <p style="font-size:12px;font-weight:700;color:var(--amber);margin:0 0 2px;">
+                    "Destructive Actions — Proceed with Caution"
+                </p>
+                <p class="text-[11px] text-on-surface-variant/70 leading-relaxed" style="margin:0;">
+                    "Archive removes the instance from active monitoring (data preserved). \
+                    Reset re-queues the onboarding wizard without deleting configuration."
+                </p>
+            </div>
+
+            // ── Reset ──────────────────────────────────────────────────────────
+            <div class="section">
+                <div class="section-hdr"><span class="section-title">"Reset Instance"</span></div>
+                <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+                    <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+                        "Sets status back to " <code class="text-xs">"provisioning"</code>
+                        " and re-displays the onboarding wizard. Config data is not deleted."
+                    </p>
+                    <p class="text-[11px] text-on-surface-variant/60">
+                        "Type the instance name to confirm: "
+                        <strong class="text-on-surface font-mono">{move || expected.get()}</strong>
+                    </p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" class="input input-sm flex-1"
+                            placeholder="Type instance name to confirm"
+                            prop:value=move || confirm_reset.get()
+                            on:input=move |e| { confirm_reset.set(event_target_value(&e)); }
+                        />
+                        <button
+                            class="btn btn-sm"
+                            style="border-color:rgba(245,158,11,0.3);color:var(--amber);"
+                            disabled=move || is_resetting.get() || confirm_reset.get() != expected.get()
+                            on:click=move |_| {
+                                is_resetting.set(true);
+                                let iid2 = iid.get_value();
+                                let tr = toast.clone();
+                                leptos::task::spawn_local(async move {
+                                    let url = crate::api::client::api_url(
+                                        &format!("api/admin/app-instances/{}/reset", iid2));
+                                    let res = crate::api::client::create_client()
+                                        .post(&url).send().await;
+                                    is_resetting.set(false);
+                                    match res {
+                                        Ok(r) if r.status().is_success() =>
+                                            tr.show_toast("Reset", "Instance reset to provisioning state.", "success"),
+                                        Ok(r) => tr.show_toast("Error", &format!("HTTP {}", r.status()), "error"),
+                                        Err(e) => tr.show_toast("Error", &e.to_string(), "error"),
+                                    }
+                                });
+                            }
+                        >
+                            {move || if is_resetting.get() { "Resetting…" } else { "Reset Instance" }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            // ── Archive ────────────────────────────────────────────────────────
+            <div class="section" style="border-left:3px solid var(--error);">
+                <div class="section-hdr"><span class="section-title">"Archive Instance"</span></div>
+                <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+                    <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+                        "Sets " <code class="text-xs">"instance_status = 'archived'"</code>
+                        ". No longer appears in active listings. Data is retained. \
+                        Ingress/DNS not auto-removed."
+                    </p>
+                    <p class="text-[11px] text-on-surface-variant/60">
+                        "Type the instance name to confirm: "
+                        <strong class="text-on-surface font-mono">{move || expected.get()}</strong>
+                    </p>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" class="input input-sm flex-1"
+                            placeholder="Type instance name to confirm"
+                            prop:value=move || confirm_archive.get()
+                            on:input=move |e| { confirm_archive.set(event_target_value(&e)); }
+                        />
+                        <button
+                            class="btn btn-sm"
+                            style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--error);"
+                            disabled=move || is_archiving.get() || confirm_archive.get() != expected.get()
+                            on:click=move |_| {
+                                is_archiving.set(true);
+                                let iid2 = iid.get_value();
+                                let tr = toast.clone();
+                                leptos::task::spawn_local(async move {
+                                    let url = crate::api::client::api_url(
+                                        &format!("api/admin/app-instances/{}", iid2));
+                                    let res = crate::api::client::create_client()
+                                        .delete(&url).send().await;
+                                    is_archiving.set(false);
+                                    match res {
+                                        Ok(r) if r.status().is_success() =>
+                                            tr.show_toast("Archived", "Instance archived successfully.", "success"),
+                                        Ok(r) => tr.show_toast("Error", &format!("HTTP {}", r.status()), "error"),
+                                        Err(e) => tr.show_toast("Error", &e.to_string(), "error"),
+                                    }
+                                });
+                            }
+                        >
+                            {move || if is_archiving.get() { "Archiving…" } else { "Archive Instance" }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

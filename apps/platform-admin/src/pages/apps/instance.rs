@@ -1,21 +1,25 @@
 //! App Instance — Thin Dispatcher
 //!
 //! This file is the entry-point for `/apps/:id/instance`. It:
-//!   1. Reads the `{id}` path param
-//!   2. Calls `get_public_config` to resolve the canonical `app_slug`
-//!   3. Dispatches to a type-specific sub-component:
+//!   1. Reads the `{id}` path param (may be deployment_config_id OR tenant_id)
+//!   2. Resolves the canonical deployment_config_id via the dirs context
+//!   3. Calls `get_public_config` with the resolved ID to get the `app_slug`
+//!   4. Dispatches to a type-specific sub-component:
 //!      - `"property_management"` → `FolioInstance`
 //!      - `"anchor"`             → `AnchorInstance`
 //!      - `"network_instance"`   → `NetworkInstance`
 //!      - anything else          → generic fallback
 //!
-//! All business logic, tab rendering, and platform-activity stats live in
-//! the sub-components under `instance/`.
+//! The URL :id param is always treated as ambiguous: we first try matching it
+//! as an instance_id (deployment_config_id), then fall back to matching it as
+//! a tenant_id. This handles both correctly-generated links and manually typed
+//! or bookmarked URLs that may use the tenant UUID.
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::admin::get_public_config;
+use crate::api::models::PlatformAppModel;
 
 // Sub-components — each handles a specific app type's UI.
 // Rust looks for these in `pages/apps/instance/` relative to this file.
@@ -32,24 +36,48 @@ use network_instance::NetworkInstance;
 #[component]
 pub fn AppInstance() -> impl IntoView {
     let params = use_params_map();
-    let instance_id_str = move || {
-        params.with(|p| p.get("id").unwrap_or_default())
-    };
+    let url_id = move || params.with(|p| p.get("id").unwrap_or_default());
 
-    // Fetch the canonical public config once — this gives us app_slug, tenant_id,
-    // folio_mode, billing_tier, and portal flags.
+    // The URL :id may be either a deployment_config_id (normal listing links)
+    // or a tenant_id (bookmarked / manually typed URLs). Resolve both by
+    // looking up the dirs context first — O(n) over a tiny list, always in memory.
+    let dirs = use_context::<LocalResource<Vec<PlatformAppModel>>>()
+        .expect("dirs context must be provided by AuthenticatedLayout");
+
+    // Derive the canonical deployment_config_id from the URL id.
+    // Priority: match by instance_id first, then match by tenant_id.
+    let resolved_config_id = Signal::derive(move || {
+        let id = url_id();
+        dirs.get().and_then(|apps| {
+            // 1. Direct match: url_id IS the deployment_config_id
+            apps.iter()
+                .find(|a| a.instance_id == id)
+                .map(|a| a.instance_id.clone())
+                // 2. Fallback: url_id is the tenant_id — find the first instance
+                .or_else(|| {
+                    apps.iter()
+                        .find(|a| a.tenant_id == id)
+                        .map(|a| a.instance_id.clone())
+                })
+        })
+    });
+
+    // Fetch public config using the resolved deployment_config_id.
     let instance_config = LocalResource::new(move || {
-        let id_str = instance_id_str();
+        let maybe_id = resolved_config_id.get();
         async move {
-            match uuid::Uuid::parse_str(&id_str) {
-                Ok(id) => get_public_config(id).await.ok(),
-                Err(_) => None,
+            match maybe_id {
+                Some(id_str) => match uuid::Uuid::parse_str(&id_str) {
+                    Ok(id) => get_public_config(id).await.ok(),
+                    Err(_) => None,
+                },
+                None => None,
             }
         }
     });
 
     view! {
-        <div class="w-full p-6">
+        <div class="main-canvas">
             <Suspense fallback=move || view! {
                 <div class="flex items-center justify-center h-64">
                     <div class="text-on-surface-variant text-sm animate-pulse">"Loading instance…"</div>
@@ -59,10 +87,10 @@ pub fn AppInstance() -> impl IntoView {
                     let cfg_opt = instance_config.get().flatten();
                     match cfg_opt {
                         None => view! {
-                            <div class="flex items-center justify-center h-64">
-                                <div class="text-error text-sm">
-                                    "Instance not found or still loading."
-                                </div>
+                            <div class="flex flex-col items-center justify-center h-64 gap-4">
+                                <span class="material-symbols-outlined text-4xl text-on-surface-variant/40">"deployed_code"</span>
+                                <p class="text-on-surface-variant text-sm">"Instance not found. It may still be loading or the URL may be invalid."</p>
+                                <a href="/apps" class="btn btn-ghost btn-sm">"← Back to Tenants"</a>
                             </div>
                         }.into_any(),
                         Some(cfg) => {

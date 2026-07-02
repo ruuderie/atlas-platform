@@ -191,7 +191,7 @@ pub fn PlatformAdmins() -> impl IntoView {
     };
 
     view! {
-        <div class="main-area">
+        <div class="main-canvas">
         // Page Header
         <div class="page-header">
             <div>
@@ -841,6 +841,6 @@ pub fn PlatformAdmins() -> impl IntoView {
                 </div>
             }}
         </Show>
-        </div> // end main-area
+        </div> // end main-canvas
     }
 }

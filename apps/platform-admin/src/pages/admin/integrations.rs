@@ -127,6 +127,7 @@ pub fn Integrations() -> impl IntoView {
     });
 
     view! {
+        <div class="main-canvas">
         // Page Header
         <div class="page-header">
             <div>
@@ -564,6 +565,7 @@ pub fn Integrations() -> impl IntoView {
                 </div>
             }}
         </Show>
+        </div> // end main-canvas
     }
 }
 

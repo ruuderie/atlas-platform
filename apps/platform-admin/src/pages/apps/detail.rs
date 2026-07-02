@@ -201,7 +201,7 @@ pub fn AppDashboard() -> impl IntoView {
                 </div> 
             }
         >
-            <div class="main-area" style="height: 100%;">
+            <div class="main-canvas">
                 // ── Tenant Hero ──
                 <div class="tenant-hero">
                     <div>

@@ -34,7 +34,7 @@ use axum::{
     extract::{Extension, Json, Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use sea_orm::{
@@ -57,9 +57,15 @@ pub fn routes_raw() -> Router<DatabaseConnection> {
             "/api/admin/app-instances/{id}/public-config",
             get(get_public_config).put(update_public_config),
         )
-        .route("/api/admin/app-instances/{id}/suspend", post(suspend_instance))
-        .route("/api/admin/app-instances/{id}/resume",  post(resume_instance))
-        .route("/api/admin/app-instances/{id}/archive", post(archive_instance))
+        .route("/api/admin/app-instances/{id}/suspend",           post(suspend_instance))
+        .route("/api/admin/app-instances/{id}/resume",            post(resume_instance))
+        .route("/api/admin/app-instances/{id}/archive",           post(archive_instance))
+        // DELETE /api/admin/app-instances/{id} — alias for archive (soft-delete)
+        .route("/api/admin/app-instances/{id}",                   delete(delete_instance))
+        // POST /api/admin/app-instances/{id}/reset — re-queue onboarding wizard
+        .route("/api/admin/app-instances/{id}/reset",             post(reset_instance))
+        // POST /api/admin/app-instances/{id}/reprovision-domain — re-fire ingress provisioning
+        .route("/api/admin/app-instances/{id}/reprovision-domain", post(reprovision_domain))
         .route(
             "/api/admin/app-instances/{id}/operational-config",
             axum::routing::patch(update_operational_config),
@@ -716,3 +722,108 @@ pub async fn get_instance_stats(
     (StatusCode::OK, Json(stats)).into_response()
 }
 
+
+// ── DELETE /api/admin/app-instances/{id} ─────────────────────────────────────
+// Alias for archive — soft-deletes the instance (sets status = 'archived').
+// Data is retained; Ingress/DNS are NOT removed automatically.
+
+pub async fn delete_instance(
+    State(db): State<DatabaseConnection>,
+    Path(instance_id): Path<Uuid>,
+) -> impl IntoResponse {
+    set_instance_status(&db, instance_id, "archived", "archived via platform-admin DELETE").await
+}
+
+// ── POST /api/admin/app-instances/{id}/reset ─────────────────────────────────
+// Resets instance_status to 'active' and clears the onboarding wizard's
+// dismissed_at timestamp so the wizard re-appears on the tenant portal.
+// Configuration data is not deleted.
+
+pub async fn reset_instance(
+    State(db): State<DatabaseConnection>,
+    Path(instance_id): Path<Uuid>,
+) -> impl IntoResponse {
+    use crate::entities::onboarding_progress;
+
+    // 1. Set instance status back to active
+    let status_result = set_instance_status(&db, instance_id, "active", "reset by platform admin").await;
+    let status_code = status_result.status();
+    if !status_code.is_success() {
+        return status_result;
+    }
+
+    // 2. Clear the onboarding dismissed_at flag so the wizard re-appears.
+    //    Best-effort: log failure but don't block the response.
+    let onboarding_clear = onboarding_progress::Entity::find()
+        .filter(
+            onboarding_progress::Column::AppInstanceId.eq(instance_id)
+        )
+        .all(&db)
+        .await;
+
+    if let Ok(rows) = onboarding_clear {
+        for row in rows {
+            let mut am: onboarding_progress::ActiveModel = row.into();
+            am.dismissed_at = Set(None);
+            let _ = am.update(&db).await;
+        }
+    }
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "instance_id": instance_id,
+        "status": "active",
+        "note": "Instance reset to active. Onboarding wizard will re-appear on the tenant portal."
+    }))).into_response()
+}
+
+// ── POST /api/admin/app-instances/{id}/reprovision-domain ────────────────────
+// Re-fires the ingress provisioning event for the instance's custom_domain.
+// Useful when the instance was created before ingress-sidecar was deployed,
+// or when DNS propagation caused the initial provisioning to fail.
+
+pub async fn reprovision_domain(
+    State(db): State<DatabaseConnection>,
+    Path(instance_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let config = match atlas_app_deployment_config::Entity::find_by_id(instance_id)
+        .find_also_related(crate::entities::tenant::Entity)
+        .one(&db)
+        .await
+    {
+        Ok(Some(pair)) => pair,
+        Ok(None) => return (StatusCode::NOT_FOUND, "instance not found").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let (cfg, tenant_opt) = config;
+
+    let domain = match cfg.custom_domain.as_deref().filter(|d| !d.is_empty()) {
+        Some(d) => d.to_string(),
+        None => return (StatusCode::BAD_REQUEST, "no custom_domain configured for this instance").into_response(),
+    };
+
+    let tenant_slug = tenant_opt
+        .as_ref()
+        .map(|t| t.name.as_str())
+        .unwrap_or("unknown");
+
+    let provisioner = IngressProvisioner::new();
+    match provisioner.provision_domain(tenant_slug, &domain, &cfg.app_slug).await {
+        Ok(_) => {
+            tracing::info!(
+                instance_id = %instance_id,
+                domain = %domain,
+                "reprovision-domain triggered successfully"
+            );
+            (StatusCode::OK, Json(serde_json::json!({
+                "instance_id": instance_id,
+                "domain": domain,
+                "status": "reprovisioning"
+            }))).into_response()
+        }
+        Err(e) => {
+            tracing::error!(instance_id = %instance_id, domain = %domain, error = %e, "reprovision-domain failed");
+            (StatusCode::BAD_GATEWAY, format!("ingress sidecar error: {e}")).into_response()
+        }
+    }
+}
