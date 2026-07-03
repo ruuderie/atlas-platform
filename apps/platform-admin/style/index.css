@@ -2902,6 +2902,44 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
 
   /* Intel sidebar: hide on tablet (dashboard only shows main) */
   .intel-sidebar { display: none; }
+
+  /* Sidebar drawer at tablet: overlay (fixed), same as mobile — prevents sidebar
+     from displacing main content when the hamburger is toggled. Without this the
+     sidebar expands inside the 48px grid track and takes over the page. */
+  .shell.sidebar-open .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    height: 100vh;
+    z-index: 300;
+    overflow-y: auto;
+    /* Reset icon-rail styles so full nav appears inside the tablet drawer */
+    padding: 8px 0 16px;
+  }
+  .shell.sidebar-open .sidebar-overlay { display: block; }
+
+  /* Restore full nav-item appearance inside the open tablet drawer */
+  .shell.sidebar-open .sidebar .nav-item {
+    padding: 7px 16px;
+    justify-content: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    border-left: 2px solid transparent;
+    border-bottom: none;
+  }
+  .shell.sidebar-open .sidebar .nav-item.active {
+    color: var(--cobalt);
+    border-left-color: var(--cobalt);
+    border-bottom-color: transparent;
+    background: var(--bg-elevated);
+  }
+  .shell.sidebar-open .sidebar .nav-item > span { display: inline; }
+  .shell.sidebar-open .sidebar .nav-item > .nav-badge { display: inline-flex; }
+  .shell.sidebar-open .sidebar .nav-item > .nav-dot { display: block; }
+  .shell.sidebar-open .sidebar .nav-item { font-size: 12.5px; }
+  .shell.sidebar-open .sidebar .nav-section-label { display: block; }
+  .shell.sidebar-open .sidebar .nav-item svg { width: 14px; height: 14px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

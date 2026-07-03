@@ -70,7 +70,7 @@ pub fn MarketingLanding() -> impl IntoView {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     // Product 1
                     <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-6 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[280px]">
-                        <div class="absolute top-0 left-0 right-0 h-1 bg-indigo-500"></div>
+                        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--cobalt)"></div>
                         <div class="space-y-4">
                             <span class="text-2xl">"🏢"</span>
                             <h3 class="text-lg font-bold">"Folio"</h3>

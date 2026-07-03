@@ -366,8 +366,8 @@ pub fn Scorecards() -> impl IntoView {
                                         }
                                     };
                                     view! {
-                                        {conf_row("Very High", "217", "bg-indigo-600", "18%")}
-                                        {conf_row("High", "385", "bg-indigo-400", "32%")}
+                                        {conf_row("Very High", "217", "bg-cobalt", "18%")}
+                                        {conf_row("High", "385", "bg-cobalt-light", "32%")}
                                         {conf_row("Medium", "313", "bg-amber-500", "26%")}
                                         {conf_row("Low", "168", "bg-orange-500", "14%")}
                                         {conf_row("Insufficient", "121", "bg-gray-500", "10%")}

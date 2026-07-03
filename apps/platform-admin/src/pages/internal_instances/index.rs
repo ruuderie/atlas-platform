@@ -11,22 +11,22 @@
 use leptos::prelude::*;
 use crate::api::admin::get_all_platform_apps;
 
-fn status_class(s: &str) -> &'static str {
+fn status_style(s: &str) -> &'static str {
     match s {
-        "active"       => "text-emerald-400",
-        "provisioning" => "text-blue-400",
-        "beta"         => "text-amber-400",
-        "suspended"    => "text-red-400",
-        _              => "text-on-surface-variant/50",
+        "active"       => "color:var(--green)",
+        "provisioning" => "color:var(--cobalt)",
+        "beta"         => "color:var(--amber)",
+        "suspended"    => "color:var(--error)",
+        _              => "color:var(--text-muted)",
     }
 }
 
-fn app_badge(t: &str) -> &'static str {
+fn app_badge_style(t: &str) -> &'static str {
     match t {
-        "property_management" | "folio" => "bg-blue-500/10 border-blue-500/20 text-blue-400",
-        "anchor"   => "bg-purple-500/10 border-purple-500/20 text-purple-400",
-        "meridian" => "bg-amber-500/10 border-amber-500/20 text-amber-400",
-        _          => "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant/70",
+        "property_management" | "folio" => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+        "anchor"   => "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
+        "meridian" => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        _          => "color:var(--text-muted);border-color:var(--border-default)",
     }
 }
 
@@ -39,14 +39,13 @@ fn app_label(t: &str) -> &'static str {
     }
 }
 
-/// Returns (display label, CSS classes) for an instance purpose tag.
 fn purpose_badge(p: &str) -> (&'static str, &'static str) {
     match p {
-        "demo"            => ("Demo",            "bg-blue-500/10 border-blue-500/20 text-blue-400"),
-        "test"            => ("Test",            "bg-amber-500/10 border-amber-500/20 text-amber-400"),
-        "staging"         => ("Staging",         "bg-purple-500/10 border-purple-500/20 text-purple-400"),
-        "managed_service" => ("Managed Service", "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"),
-        _                 => ("Internal",        "bg-outline-variant/20 border-outline-variant/30 text-on-surface-variant/70"),
+        "demo"            => ("Demo",            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"),
+        "test"            => ("Test",            "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)"),
+        "staging"         => ("Staging",         "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"),
+        "managed_service" => ("Managed Service", "color:var(--green);border-color:var(--green);background:var(--green-dim)"),
+        _                 => ("Internal",        "color:var(--text-muted);border-color:var(--border-default)"),
     }
 }
 
@@ -338,29 +337,29 @@ pub fn InternalInstancesPage() -> impl IntoView {
                                         <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                                             {apps.into_iter().map(|app| {
                                                 let status_str = app.site_status.clone();
-                                                let sc = status_class(&status_str).to_string();
-                                                let badge = app_badge(&app.app_type).to_string();
+                                                let sc = status_style(&status_str).to_string();
+                                                let badge_sty = app_badge_style(&app.app_type).to_string();
                                                 let label = app_label(&app.app_type).to_string();
                                                 let instance_id = app.instance_id.clone();
                                                 let iid2 = instance_id.clone();
                                                 let purpose_label = app.purpose.clone();
 
                                                 view! {
-                                                    <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl overflow-hidden hover:border-outline-variant/50 transition-all">
-                                                        <div class="px-4 py-3 border-b border-outline-variant/15 bg-surface-container-high/20 flex items-center justify-between">
-                                                            <div class="flex items-center gap-2">
-                                                                <span class=format!("px-2 py-0.5 rounded text-[9px] font-bold uppercase border {}", badge)>
+                                                    <div class="section" style="border-radius:8px;">
+                                                        <div class="section-header" style="padding:12px; border-bottom:1px solid var(--border-color); background:var(--surface-container-high); display:flex; justify-content:space-between; align-items:center;">
+                                                            <div class="section-title" style="gap:6px; display:flex; align-items:center;">
+                                                                <span class="plan-badge" style=badge_sty.clone()>
                                                                     {label}
                                                                 </span>
-                                                                <span class=format!("text-[10px] font-semibold {}", sc)>
+                                                                <span style=format!("font-size:10px;font-weight:600;{}", sc)>
                                                                     {format!("● {}", status_str)}
                                                                 </span>
                                                                 {
                                                                     let pl_badge = purpose_label.clone();
                                                                     pl_badge.as_deref().map(|p| {
-                                                                        let (badge_label, cls) = purpose_badge(p);
+                                                                        let (badge_label, psty) = purpose_badge(p);
                                                                         view! {
-                                                                            <span class=format!("px-2 py-0.5 rounded text-[9px] font-semibold border {}", cls)>
+                                                                            <span class="plan-badge" style=psty>
                                                                                 {badge_label}
                                                                             </span>
                                                                         }

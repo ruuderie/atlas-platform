@@ -35,7 +35,7 @@ async fn get_tenant_users(tenant_id: &str) -> Result<Vec<AdminUserSummary>, Stri
 
 fn purpose_badge_cls(p: &str) -> &'static str {
     match p {
-        "demo"            => "bg-blue-500/10 border-blue-500/20 text-blue-400",
+        "demo"            => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
         "test"            => "bg-amber-500/10 border-amber-500/20 text-amber-400",
         "staging"         => "bg-purple-500/10 border-purple-500/20 text-purple-400",
         "managed_service" => "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
@@ -64,10 +64,10 @@ fn app_type_label(t: &str) -> &'static str {
 
 fn status_cls(s: &str) -> &'static str {
     match s {
-        "active"       => "text-emerald-400",
-        "provisioning" => "text-blue-400",
-        "beta"         => "text-amber-400",
-        "suspended"    => "text-red-400",
+        "active"       => "color:var(--green)",
+        "provisioning" => "color:var(--cobalt)",
+        "beta"         => "color:var(--amber)",
+        "suspended"    => "color:var(--error)",
         _              => "text-on-surface-variant/50",
     }
 }
@@ -549,7 +549,7 @@ fn UsersTab(tenant_id: String) -> impl IntoView {
                                                 _ => u.email.clone(),
                                             };
                                             let role = u.role.clone().unwrap_or_else(|| "User".into());
-                                            let active_cls = if u.is_active { "text-emerald-400" } else { "text-on-surface-variant/40" };
+                                            let active_cls = if u.is_active { "color:var(--green)" } else { "text-on-surface-variant/40" };
                                             let status_label = if u.is_active { "Active" } else { "Inactive" };
                                             view! {
                                                 <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">

@@ -59,13 +59,13 @@ pub fn NetworkInstance(
             <div class="bg-surface-container-low border border-outline-variant/20 rounded-2xl p-6 shadow-sm">
                 <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                     <div class="flex items-start gap-5">
-                        <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-2xl shrink-0">
+                        <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0">
                             "🔗"
                         </div>
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h1 class="text-xl font-bold text-on-surface">"Network Directory"</h1>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                <span class="plan-badge" style="color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)">
                                     "Network"
                                 </span>
                                 {move || if is_suspended.get() {
@@ -242,8 +242,8 @@ pub fn NetworkInstance(
 
             // ── TAB: Listings ──
             <Show when=move || active_tab.get() == "t-listings">
-                <div class="bg-blue-500/10 border border-blue-500/20 p-5 rounded-xl text-xs text-on-surface-variant leading-relaxed mb-4">
-                    <span class="text-blue-400 font-bold">"Network listings are managed here. "</span>
+                <div class="section" style="padding:12px 16px;font-size:11px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px">
+                    <span style="color:var(--cobalt);font-weight:600">"Network listings are managed here. "</span>
                     "Listings can be sourced locally or syndicated from Folio instances. "
                     "Moderation queue is reviewed by network admins."
                 </div>

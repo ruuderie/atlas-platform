@@ -678,7 +678,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                         <div class="px-8 py-6 space-y-5">
                             // Quick identity recap
                             <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-                                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white">
                                     {move || invite_display_name.get().chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or("?".to_string())}
                                 </div>
                                 <div>

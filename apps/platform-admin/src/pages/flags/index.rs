@@ -63,14 +63,15 @@ pub struct TenantOption {
 impl TenantOption {
     /// Derive a stable color pair from the tenant name's first character.
     fn color_from_name(name: &str) -> (String, String) {
-        let palettes = [
-            ("bg-blue-500/10 border-blue-500/30",    "text-blue-400"),
-            ("bg-amber-500/10 border-amber-500/30",  "text-amber-400"),
-            ("bg-emerald-500/10 border-emerald-500/30", "text-emerald-400"),
-            ("bg-violet-500/10 border-violet-500/30", "text-violet-400"),
-            ("bg-rose-500/10 border-rose-500/30",    "text-rose-400"),
-            ("bg-cyan-500/10 border-cyan-500/30",    "text-cyan-400"),
-            ("bg-slate-500/10 border-slate-500/30",  "text-slate-400"),
+        // bg_style, text_color — both CSS var references, no Tailwind color classes
+        let palettes: &[(&str, &str)] = &[
+            ("var(--cobalt-dim)",  "var(--cobalt)"),
+            ("var(--amber-dim)",   "var(--amber)"),
+            ("var(--green-dim)",   "var(--green)"),
+            ("var(--violet-dim)",  "var(--violet)"),
+            ("var(--red-dim)",     "var(--red)"),
+            ("var(--teal-dim)",    "var(--teal)"),
+            ("var(--bg-elevated)", "var(--text-secondary)"),
         ];
         let idx = name.chars().next().map(|c| c as usize).unwrap_or(0) % palettes.len();
         (palettes[idx].0.to_string(), palettes[idx].1.to_string())
@@ -924,7 +925,7 @@ pub fn FeatureFlags() -> impl IntoView {
                                                                     }
                                                                     class="tenant-opt"
                                                                 >
-                                                                    <div class=format!("w-7 h-7 rounded flex items-center justify-center font-bold text-xs border {}", t.bg_class)>
+                                                                    <div style=format!("width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;border:1px solid var(--border-default);background:{};color:{}", t.bg_class, t.text_class)>
                                                                         {t.icon_char.to_string()}
                                                                     </div>
                                                                     <div>
@@ -945,7 +946,7 @@ pub fn FeatureFlags() -> impl IntoView {
                             {let st = selected_tenant.get().unwrap();
                              view! {
                                 <div class="selected-tenant-chip">
-                                    <div class=format!("w-6 h-6 rounded flex items-center justify-center font-bold border text-[10px] {}", st.bg_class)>
+                                    <div style=format!("width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;border:1px solid var(--border-default);background:{};color:{}", st.bg_class, st.text_class)>
                                         {st.icon_char.to_string()}
                                     </div>
                                     <div style="flex:1;">

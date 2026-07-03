@@ -86,7 +86,7 @@ pub fn PlatformProducts() -> impl IntoView {
                                         "folio"   => ("bg-violet-500/10", "border-violet-500/30", "bg-violet-400"),
                                         "network" => ("bg-sky-500/10",    "border-sky-500/30",    "bg-sky-400"),
                                         "meridian"=> ("bg-amber-500/10",  "border-amber-500/30",  "bg-amber-400"),
-                                        _         => ("bg-indigo-500/10", "border-indigo-500/30", "bg-indigo-400"),
+                                        _         => ("var(--cobalt-dim)", "var(--border-default)", "var(--cobalt)"),
                                     };
 
                                     let is_live = {

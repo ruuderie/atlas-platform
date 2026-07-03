@@ -35,7 +35,7 @@ fn campaign_type_label(t: &str) -> &'static str {
 fn type_color_class(t: &str) -> &'static str {
     match t {
         "direct_mail"  => "bg-amber-500/15 border-amber-500/30 text-amber-300",
-        "cold_email"   => "bg-blue-500/15 border-blue-500/30 text-blue-300",
+        "cold_email"   => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
         "ppc"          => "bg-purple-500/15 border-purple-500/30 text-purple-300",
         "social"       => "bg-pink-500/15 border-pink-500/30 text-pink-300",
         "event_based"  => "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
@@ -139,7 +139,7 @@ pub fn CampaignsPage() -> impl IntoView {
                 </div>
                 <svg class="w-4 h-4 text-outline-variant/50 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor"><path d="M4 8h8M9 5l3 3-3 3"/></svg>
                 <div class="flex items-center gap-2 shrink-0">
-                    <span class="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-[10px]">"2"</span>
+                    <span class="plan-badge" style="color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)">"2"</span>
                     <span class="font-semibold text-on-surface">"Landing Page"</span>
                     <span>"Linked by utm_campaign slug"</span>
                 </div>
@@ -594,7 +594,7 @@ fn OverviewTab(campaign_id: uuid::Uuid) -> impl IntoView {
                     <div class="flex items-center gap-0 overflow-x-auto">
                         {[
                             ("Mailed / Sent", "Members enrolled in this campaign", "bg-amber-500/20 border-amber-500/30 text-amber-300", "text-amber-400"),
-                            ("Visited LP", "Clicked through to landing page", "bg-blue-500/20 border-blue-500/30 text-blue-300", "text-blue-400"),
+                            ("Visited LP", "Clicked through to landing page", "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)", "color:var(--cobalt)"),
                             ("Filled Form", "Submitted lead capture form", "bg-purple-500/20 border-purple-500/30 text-purple-300", "text-purple-400"),
                             ("Converted", "Became paying subscribers", "bg-emerald-500/20 border-emerald-500/30 text-emerald-300", "text-emerald-400"),
                         ].iter().enumerate().map(|(i, (stage, desc, bg, text))| {

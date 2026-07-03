@@ -61,8 +61,8 @@
   gap: 1rem;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
-  background-color: #031d4b;
-  border: 1px solid rgba(43, 70, 128, 0.2);
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-default);
 }
 
 .file-icon {

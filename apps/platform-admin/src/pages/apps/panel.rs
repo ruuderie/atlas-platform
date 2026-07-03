@@ -13,7 +13,7 @@ pub fn PlaceholderPanel(panel_id: String) -> impl IntoView {
         <div class="p-6 flex flex-col items-center justify-center min-h-[300px] bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
             <span class="material-symbols-outlined text-4xl text-slate-400 mb-3">"construction"</span>
             <h2 class="text-xl font-semibold mb-1 dark:text-white">"Module Under Construction"</h2>
-            <p class="text-slate-500 text-sm">"The module '" <span class="font-mono text-indigo-500">{panel_id}</span> "' is not yet implemented."</p>
+            <p style="color:var(--text-muted);font-size:12px">"The module '" <span style="font-family:monospace;color:var(--cobalt)">{panel_id}</span> "' is not yet implemented."</p>
         </div>
     }
 }

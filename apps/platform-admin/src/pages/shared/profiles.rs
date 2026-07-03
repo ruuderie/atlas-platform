@@ -165,7 +165,7 @@ pub fn ProfilesPanel() -> impl IntoView {
                                             <DataTableRow>
                                                 <DataTableCell class="font-medium">
                                                     <div class="flex items-center gap-2">
-                                                        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs">
+                                                        <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs">
                                                             {display.chars().next().unwrap_or('U').to_ascii_uppercase()}
                                                         </div>
                                                         <span>{display}</span>

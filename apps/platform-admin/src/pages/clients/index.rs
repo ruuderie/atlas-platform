@@ -20,14 +20,16 @@ use crate::api::models::{TenantStatModel, PlatformAppSummary, AccountSummary};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 fn status_pill(s: &str) -> &'static str {
+    // Returns inline style string for a .plan-badge span
     match s {
-        "active"      => "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400",
-        "provisioning"=> "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-blue-500/10 border border-blue-500/20 text-blue-400",
-        "beta"        => "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-amber-500/10 border border-amber-500/20 text-amber-400",
-        "suspended"   => "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-red-500/10 border border-red-500/20 text-red-400",
-        "cancelled"   => "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-outline-variant/20 border border-outline-variant/30 text-on-surface-variant/50",
-        _             => "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-outline-variant/20 border border-outline-variant/30 text-on-surface-variant/60",
+        "active"      => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        "provisioning"=> "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+        "beta"        => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        "suspended"   => "color:var(--error);border-color:var(--error);background:var(--red-dim)",
+        "cancelled"   => "color:var(--text-muted);border-color:var(--border-default)",
+        _             => "color:var(--text-muted);border-color:var(--border-default)",
     }
 }
 
@@ -433,7 +435,7 @@ pub fn ClientsPage() -> impl IntoView {
                                                         </td>
                                                         // Status
                                                         <td class="py-3.5 px-5">
-                                                            <span class=status_pill(&instance_status)>
+                                                            <span class="plan-badge" style=status_pill(&instance_status)>
                                                                 {instance_status.clone()}
                                                             </span>
                                                         </td>

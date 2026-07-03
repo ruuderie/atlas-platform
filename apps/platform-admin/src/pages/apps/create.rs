@@ -491,10 +491,10 @@ pub fn AppCreate() -> impl IntoView {
                                         </div>
                                     </div>
 
-                                    <div class="bg-indigo-500/5 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3">
-                                        <span class="material-symbols-outlined text-indigo-500 shrink-0">"info"</span>
+                                    <div class="section flex items-start gap-3">
+                                        <span class="material-symbols-outlined" style="color:var(--cobalt);flex-shrink:0">"info"</span>
                                         <div class="text-xs text-muted-foreground">
-                                            <strong class="text-indigo-500 font-semibold">"Shared Infrastructure: "</strong>
+                                            <strong style="color:var(--cobalt);font-weight:600">"Shared Infrastructure: "</strong>
                                             "Tenant, account, app instances, domain, CMS scaffolding, and WebAuthn registry entry are created atomically. CORS and routing update live without a pod restart."
                                         </div>
                                     </div>
