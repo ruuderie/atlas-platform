@@ -491,6 +491,11 @@ path {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  padding: 20px 24px;    /* consistent spacing — same as .main-canvas */
+}
+/* Some entity pages need main-area with no padding (they manage their own) */
+.main-area.no-pad {
+  padding: 0;
 }
 
 /* ── Entity page layout (Leads / Contacts / Accounts / Pipeline) ─────────── */

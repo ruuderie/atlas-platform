@@ -847,43 +847,40 @@ pub fn PlatformAdmins() -> impl IntoView {
         </Show>
 
 
-        // Modal: Manage User Dialog
+        // Modal: Manage User
         <Show when=move || show_manage_modal.get().is_some()>
             {let user = show_manage_modal.get().unwrap();
-             let u_id = user.id.clone();
-             let _u_email = user.email.clone();
+             let u_id  = user.id.clone();
              let is_admin = user.is_admin;
-             let is_real = user.id != Uuid::nil();
              view! {
-                <div class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-surface w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-2xl relative text-on-surface">
-                        <button class="absolute top-4 right-4 text-slate-400 hover:text-white" on:click=move |_| show_manage_modal.set(None)>"✕"</button>
-                        <h3 class="text-xl font-semibold mb-2">"Manage User Accounts"</h3>
-                        <p class="text-xs text-secondary mt-1">{user.username} " · " {user.email}</p>
-                        
-                        <div class="space-y-3 mt-4">
-                            <Show when=move || is_real>
-                                <button 
-                                    on:click=move |_| handle_toggle_admin(u_id.clone())
-                                    class="btn btn-ghost w-full justify-center"
-                                >
-                                    {if is_admin { "Revoke Super-Admin privilege" } else { "Grant Super-Admin privilege" }}
-                                </button>
-                                <button 
-                                    on:click=move |_| handle_impersonate(u_id.clone())
-                                    class="btn btn-primary w-full justify-center"
-                                >
-                                    "Impersonate User Session"
-                                </button>
-                            </Show>
-                            <Show when=move || !is_real>
-                                <div class="p-3 bg-white/5 border border-white/10 rounded-xl text-center">
-                                    <p class="text-xs text-secondary">"Impersonation and privilege overrides are disabled for mock users."</p>
-                                </div>
-                            </Show>
-                            <div class="flex justify-end gap-3 pt-4 border-t border-white/5">
-                                <button on:click=move |_| show_manage_modal.set(None) class="btn btn-ghost">"Close"</button>
-                            </div>
+                <div style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px">
+                    <div style="background:var(--bg-surface);width:100%;max-width:400px;padding:24px;border-radius:12px;border:1px solid var(--border-default);box-shadow:0 24px 64px rgba(0,0,0,0.6);position:relative;color:var(--text-primary)">
+                        <button
+                            style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1"
+                            on:click=move |_| show_manage_modal.set(None)
+                        >"✕"</button>
+                        <div style="margin-bottom:16px">
+                            <div style="font-size:14px;font-weight:700;margin-bottom:4px">"Manage User"</div>
+                            <div style="font-size:11px;color:var(--text-muted)">{user.username} " · " {user.email}</div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:8px">
+                            <button
+                                on:click=move |_| handle_toggle_admin(u_id.clone())
+                                class="btn btn-ghost"
+                                style="width:100%;justify-content:center"
+                            >
+                                {if is_admin { "Revoke Super-Admin privilege" } else { "Grant Super-Admin privilege" }}
+                            </button>
+                            <button
+                                on:click=move |_| handle_impersonate(u_id.clone())
+                                class="btn btn-primary"
+                                style="width:100%;justify-content:center"
+                            >
+                                "Impersonate User Session"
+                            </button>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;padding-top:16px;margin-top:16px;border-top:1px solid var(--border-default)">
+                            <button on:click=move |_| show_manage_modal.set(None) class="btn btn-ghost">"Close"</button>
                         </div>
                     </div>
                 </div>

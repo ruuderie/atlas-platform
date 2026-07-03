@@ -8,6 +8,9 @@
 //
 module.exports = {
   darkMode: "class",
+  corePlugins: {
+    preflight: false,  // disable Tailwind base reset — causes `border: 0 solid #e5e7eb` on all elements
+  },
   content: [
     "./src/**/*.rs",
     "../shared-ui/src/**/*.rs",

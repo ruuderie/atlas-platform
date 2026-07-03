@@ -507,9 +507,9 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                     </a>
 
                     <span class="nav-label nav-section-label">"Admin"</span>
-                    <a href="/admins" data-label="Team" class=move || side_active_class("/admins")>
+                    <a href="/team" data-label="Team" class=move || side_active_class("/team")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5" r="2"/><circle cx="10.5" cy="5" r="2"/><path d="M1 13c0-2.5 2-4.5 4.5-4.5"/><path d="M15 13c0-2.5-2-4.5-4.5-4.5"/><path d="M5 13c0-3 1.5-5 3-5s3 2 3 5"/></svg>
-                        "User Access & Auth"
+                        "Team"
                     </a>
                     <a href="/admin/integrations" data-label="Integrations" class=move || side_active_class("/admin/integrations")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1M8 13v1M2 8h1M13 8h1M3.5 3.5l.7.7M11.8 11.8l.7.7M3.5 12.5l.7-.7M11.8 4.2l.7-.7"/></svg>
@@ -589,7 +589,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/campaigns") view=crate::pages::marketing::campaigns::CampaignsPage />
                         <Route path=path!("/campaigns/:id") view=crate::pages::marketing::campaigns::CampaignDetail />
                         <Route path=path!("/landing-pages") view=crate::pages::marketing::landing_pages::LandingPagesPage />
-                        <Route path=path!("/admins") view=PlatformAdmins />
+                        <Route path=path!("/team") view=PlatformAdmins />
                         <Route path=path!("/billing") view=crate::pages::billing::dashboard::BillingDashboard />
                         <Route path=path!("/billing/tenant/:id") view=crate::pages::billing::tenant::TenantLedger />
                         // /billing/products is retired — redirect to the canonical /products page.
