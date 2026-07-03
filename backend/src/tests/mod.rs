@@ -42,3 +42,7 @@ pub mod domain_provisioning_tests;
 
 // Instance lifecycle — reset, soft-delete, and reprovision-domain endpoint tests
 pub mod instance_lifecycle_tests;
+
+// Waitlist endpoint — DB-backed integration tests (happy path, dedup, metadata, variants)
+pub mod waitlist_integration_tests;
+
