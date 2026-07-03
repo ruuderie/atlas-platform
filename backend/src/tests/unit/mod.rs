@@ -19,3 +19,6 @@ pub mod syndication_unit_tests;
 pub mod app_instance_unit_tests;
 // Folio routing type system — FolioRole home_path, predicates, serde wire format
 pub mod folio_routing_unit_tests;
+// Waitlist handler — WaitlistBody serde contract (role, portfolio_size_label, optional fields)
+pub mod waitlist_unit_tests;
+
