@@ -137,8 +137,10 @@ pub fn Dashboard() -> impl IntoView {
                 </div>
             </div>
 
-            // ── Platform Hierarchy: Client → Tenant → App Instances ──────────
-            <div class="section">
+            // ── Row 1: Platform Hierarchy (left) + App Instance Fleet (right) ────
+            <div class="two-col" style="align-items:stretch">
+            // Platform Hierarchy
+            <div class="section" style="min-height:240px;display:flex;flex-direction:column">
                 <div class="section-header">
                     <div class="section-title">
                         <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -165,11 +167,11 @@ pub fn Dashboard() -> impl IntoView {
                     <a href="/tenants" class="section-action" style="text-decoration:none">"View All Tenants →"</a>
                 </div>
                 <Suspense fallback=move || view! {
-                    <div class="p-6 flex flex-col gap-2">
+                    <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
                         {(0..3u8).map(|_| view! {
-                            <div class="animate-pulse flex items-center gap-3 py-2">
-                                <div class="w-7 h-7 rounded-full bg-surface-container-highest/30 shrink-0"></div>
-                                <div class="flex-1 space-y-1.5">
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;opacity:0.4">
+                                <div style="width:28px;height:28px;border-radius:50%;background:var(--border-default);opacity:0.3;flex-shrink:0"></div>
+                                <div style="flex:1;display:flex;flex-direction:column;gap:5px">
                                     <div class="h-3 bg-surface-container-highest/30 rounded w-32"></div>
                                     <div class="h-2.5 bg-surface-container-highest/20 rounded w-48"></div>
                                 </div>
@@ -183,10 +185,10 @@ pub fn Dashboard() -> impl IntoView {
 
                     if tenants.is_empty() {
                         return view! {
-                            <div class="flex flex-col items-center justify-center py-12 gap-3">
-                                <span class="material-symbols-outlined text-3xl text-on-surface-variant/20">"account_tree"</span>
-                                <p class="text-xs text-on-surface-variant/50">"No tenants provisioned yet. Create one to see the hierarchy."</p>
-                                <a href="/tenants" class="px-3 py-1.5 text-[10px] font-semibold bg-surface-container border border-outline-variant/30 hover:border-primary/40 rounded-lg transition-all text-on-surface-variant" style="text-decoration:none">
+                            <div class="empty-state" style="padding:40px 16px">
+                                <span class="material-symbols-outlined" style="font-size:28px;color:var(--text-muted);opacity:0.25">"account_tree"</span>
+                                <p style="font-size:11px;color:var(--text-muted)">"No tenants provisioned yet. Create one to see the hierarchy."</p>
+                                <a href="/tenants" class="btn btn-sm" style="text-decoration:none;margin-top:4px">
                                     "Manage Tenants"
                                 </a>
                             </div>
@@ -197,7 +199,7 @@ pub fn Dashboard() -> impl IntoView {
                     let overflow = if tenants.len() > 5 { Some(tenants.len() - 5) } else { None };
 
                     view! {
-                        <div class="divide-y divide-outline-variant/10">
+                        <div style="flex:1">
                             {display_tenants.iter().map(|t| {
                                 // Avatar initials
                                 let initials = t.name.chars().next().unwrap_or('T').to_uppercase().to_string();
@@ -217,9 +219,9 @@ pub fn Dashboard() -> impl IntoView {
                                 let plan = t.plan.clone().unwrap_or_else(|| "—".to_string());
 
                                 view! {
-                                    <div class="flex items-center gap-3 px-4 py-3 hover:bg-surface-bright/5 transition-colors">
+                                    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border-default);transition:background 0.1s" onmouseover="this.style.background='var(--bg-elevated)'" onmouseout="this.style.background=''">
                                         // Avatar
-                                        <div class="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                                        <div style="width:28px;height:28px;border-radius:50%;background:var(--cobalt-dim);border:1px solid var(--cobalt);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--cobalt);flex-shrink:0">
                                             {initials}
                                         </div>
 
@@ -227,26 +229,25 @@ pub fn Dashboard() -> impl IntoView {
                                         <div class="min-w-[140px]">
                                             <a
                                                 href=format!("/tenants/{}", tenant_id)
-                                                class="text-xs font-semibold text-on-surface hover:text-primary transition-colors"
-                                                style="text-decoration:none"
+                                                style="font-size:12px;font-weight:600;color:var(--text-primary);text-decoration:none;transition:color 0.1s"
                                             >
                                                 {tenant_name}
                                             </a>
-                                            <div class="flex items-center gap-1.5 mt-0.5">
-                                                <span class=format!("w-1.5 h-1.5 rounded-full shrink-0 {}", dot_cls)
+                                            <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+                                                <span style=format!("width:6px;height:6px;border-radius:50%;flex-shrink:0;display:inline-block;background:{}", if dot_cls.contains("emerald") { "var(--green)" } else if dot_cls.contains("red") { "var(--red)" } else if dot_cls.contains("amber") { "var(--amber)" } else { "var(--text-muted)" })
                                                       title=dot_title></span>
-                                                <span class="text-[10px] text-on-surface-variant/50">{plan}</span>
+                                                <span style="font-size:10px;color:var(--text-muted)">{plan}</span>
                                             </div>
                                         </div>
 
                                         // Arrow connector
-                                        <span class="text-on-surface-variant/20 text-xs shrink-0">"›"</span>
+                                        <span style="color:var(--text-muted);opacity:0.35;font-size:12px;flex-shrink:0">"›"</span>
 
                                         // App instance pills
-                                        <div class="flex flex-wrap gap-1.5 flex-1">
+                                        <div style="display:flex;flex-wrap:wrap;gap:5px;flex:1">
                                             {if tenant_apps.is_empty() {
                                                 view! {
-                                                    <span class="text-[10px] text-on-surface-variant/30 italic">"No instances provisioned"</span>
+                                                    <span style="font-size:10px;color:var(--text-muted);opacity:0.5;font-style:italic">"No instances provisioned"</span>
                                                 }.into_any()
                                             } else {
                                                 tenant_apps.iter().map(|app| {
@@ -269,8 +270,7 @@ pub fn Dashboard() -> impl IntoView {
                                                     view! {
                                                         <a
                                                             href=instance_href
-                                                            class=format!("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border {} {} transition-colors hover:opacity-80", pill_bg, pill_text)
-                                                            style="text-decoration:none"
+                                                            style=format!("display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;border:1px solid;transition:opacity 0.1s;text-decoration:none;{}", if pill_bg.contains("emerald") { "color:var(--green);border-color:var(--green);background:rgba(0,200,100,0.08)" } else if pill_bg.contains("red") { "color:var(--red);border-color:var(--red);background:rgba(220,50,50,0.08)" } else if pill_bg.contains("amber") { "color:var(--amber);border-color:var(--amber);background:rgba(250,150,0,0.08)" } else { "color:var(--text-muted);border-color:var(--border-default);background:var(--bg-elevated)" })
                                                             title=display_domain
                                                         >
                                                             {type_label}
@@ -283,8 +283,7 @@ pub fn Dashboard() -> impl IntoView {
                                         // Quick link
                                         <a
                                             href=format!("/tenants/{}", t.tenant_id.clone())
-                                            class="shrink-0 text-on-surface-variant/30 hover:text-primary transition-colors"
-                                            style="text-decoration:none"
+                                            style="flex-shrink:0;color:var(--text-muted);opacity:0.4;transition:all 0.1s;text-decoration:none"
                                             title="View tenant"
                                         >
                                             <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -297,7 +296,7 @@ pub fn Dashboard() -> impl IntoView {
 
                             {overflow.map(|n| view! {
                                 <div class="px-4 py-2.5 text-center">
-                                    <a href="/tenants" class="text-[10px] font-semibold text-primary hover:underline" style="text-decoration:none">
+                                    <a href="/tenants" class="section-action" style="text-decoration:none;font-size:10px">
                                         {format!("+ {} more tenants →", n)}
                                     </a>
                                 </div>
@@ -308,8 +307,8 @@ pub fn Dashboard() -> impl IntoView {
                 </Suspense>
             </div>
 
-            // ── App Instance Health by Type ───────────────────────────────────
-            <div class="section">
+            // App Instance Fleet
+            <div class="section" style="min-height:240px;display:flex;flex-direction:column">
                 <div class="section-header">
                     <div class="section-title">
                         <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -346,8 +345,8 @@ pub fn Dashboard() -> impl IntoView {
                     type_list.sort_by(|a, b| b.1.cmp(&a.1)); // most live first
 
                     view! {
-                        <div style="overflow-x:auto;">
-                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px 0 8px;min-width:600px;">
+                        <div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:12px 16px;">
                                 {type_list.into_iter().map(|(slug, live, suspended)| {
                                     let emoji = app_type_emoji(&slug);
                                     let label = app_type_label(&slug);
@@ -389,8 +388,9 @@ pub fn Dashboard() -> impl IntoView {
                 }}
                 </Suspense>
             </div>
+            </div>// end row-1 two-col
 
-            // ── Tenant Registry Table + Onboarding Funnel ────────────────────
+            // ── Row 2: Tenant Registry (left) + Onboarding Funnel (right) ────────
             <div class="two-col">
                 // Tenant Registry
                 <div class="section">
