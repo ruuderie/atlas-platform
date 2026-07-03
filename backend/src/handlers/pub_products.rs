@@ -121,6 +121,12 @@ pub struct WaitlistBody {
     pub phone:        Option<String>,
     pub company:      Option<String>,
 
+    // Role segmentation (analytics + invite-mode hint — NOT a provisioning directive)
+    /// Self-reported role: "Landlord" | "Property Manager" | "STR Host" | "Tenant" | "Vendor" | "Investor"
+    pub role:                Option<String>,
+    /// Self-reported portfolio size label: "1\u20135" | "6\u201320" | "21\u2013100" | "100+" | "n/a"
+    pub portfolio_size_label: Option<String>,
+
     // UTM attribution (populated by JS utm_passthrough snippet)
     pub utm_source:   Option<String>,
     pub utm_medium:   Option<String>,
@@ -140,7 +146,7 @@ pub struct WaitlistBody {
     // Plan selection (for Trial mode — step 3 of modal)
     /// `None` means the visitor did not select a plan during signup.
     pub plan:         Option<PlanTier>,  // Starter | Professional | Portfolio
-    pub unit_count:   Option<i32>,       // self-reported portfolio size
+    pub unit_count:   Option<i32>,       // self-reported portfolio size as integer
 }
 
 #[derive(Debug, Deserialize)]
@@ -664,6 +670,8 @@ async fn join_waitlist_inner(
             phone_verified: Set(false),
             // Attribution + landing context stored in lead_metadata JSONB
             lead_metadata: Set(Some(json!({
+                "role":          body.role,
+                "portfolio_size": body.portfolio_size_label,
                 "variant_slug":  variant_slug,
                 "utm_source":    body.utm_source,
                 "utm_medium":    body.utm_medium,
@@ -697,12 +705,24 @@ async fn join_waitlist_inner(
         tracing::debug!(email = %body.email, "duplicate waitlist signup — skipping lead insert");
     }
 
+    // Return 201 with position (waitlist_count reflects all leads for this product)
+    let position = platform_product::Entity::find()
+        .filter(platform_product::Column::Slug.eq(product_slug))
+        .one(db)
+        .await
+        .ok()
+        .flatten()
+        .map(|p| p.waitlist_count)
+        .unwrap_or(0);
+
     (
         StatusCode::CREATED,
         Json(json!({
             "message": "You're on the list! We'll be in touch.",
             "product": product_slug,
-            "market": variant_slug,
+            "market":  variant_slug,
+            "position": position,
+            "status":  "waiting",
         })),
     )
         .into_response()

@@ -168,8 +168,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/lp")               view=MarketLandingPage/>
                 <Route path=path!("/lp/:variant_slug") view=MarketLandingPage/>
 
-                // ── Role dispatch: / → namespace ──────────────────────────────
-                <Route path=path!("/") view=RoleRedirect/>
+                // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
+                <Route path=path!("/") view=HomeDispatch/>
 
                 // ── Landlord namespace /l/** ───────────────────────────────────
                 // LandlordShell: checks role, redirects if wrong, then renders
@@ -382,10 +382,17 @@ fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sy
     }
 }
 
-// ── RoleRedirect — dispatches / to the correct namespace ─────────────────────
+// ── HomeDispatch — dispatches / based on session state ──────────────────────
+//
+// Authenticated  → role portal (same as old RoleRedirect)
+// Unauthenticated → MarketLandingPage (marketing homepage)
+//
+// Login is reached via the nav "Sign in" link on the marketing page,
+// not by an automatic redirect. This ensures first-time visitors see
+// the product before being asked to authenticate.
 
 #[component]
-fn RoleRedirect() -> impl IntoView {
+fn HomeDispatch() -> impl IntoView {
     let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
         .expect("Session context missing");
 
@@ -393,7 +400,7 @@ fn RoleRedirect() -> impl IntoView {
         <Suspense fallback=|| view! { <FullPageLoader/> }>
             {move || session.get().map(|r| match r {
                 Ok(info) => view! { <Redirect path=info.folio_role.home_path()/> }.into_any(),
-                Err(_)   => view! { <Redirect path="/login"/> }.into_any(),
+                Err(_)   => view! { <MarketLandingPage/> }.into_any(),
             })}
         </Suspense>
     }
