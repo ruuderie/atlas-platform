@@ -402,7 +402,7 @@ path {
 }
 .nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .nav-item.active {
-  color: var(--text-primary);
+  color: var(--cobalt);
   background: var(--bg-elevated);
   border-left-color: var(--cobalt);
   font-weight: 500;
@@ -2952,6 +2952,7 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
     border-bottom: none;
   }
   .sidebar .nav-item.active {
+    color: var(--cobalt);
     border-left-color: var(--cobalt);
     border-bottom-color: transparent;
   }

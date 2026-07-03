@@ -128,12 +128,12 @@ pub fn Dashboard() -> impl IntoView {
                 <div class="kpi-card">
                     <div class="kpi-label">"Active Listings"</div>
                     <div class="kpi-value mono">{move || { let v = active_listings.get(); if v > 0.0 { format!("{:.0}", v) } else { "—".to_string() } }}</div>
-                    <div class="kpi-delta up">"Across all tenants"</div>
+                    <div class="kpi-delta neutral">"Across all tenants"</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">"Platform Users"</div>
                     <div class="kpi-value mono">{move || { let v = total_users.get(); if v > 0.0 { format!("{:.0}", v) } else { "—".to_string() } }}</div>
-                    <div class="kpi-delta up">"Registered"</div>
+                    <div class="kpi-delta neutral">"Registered"</div>
                 </div>
             </div>
 
@@ -450,12 +450,12 @@ pub fn Dashboard() -> impl IntoView {
                                     }>
                                         <td>
                                             <div class="tenant-name">{t.name.clone()}</div>
-                                            <div class="tenant-domain" style="font-size:10px;color:var(--text-muted);font-family:monospace">
+                                            <div class="mono muted" style="font-size:10px">
                                                 {t.joined_at.as_ref().and_then(|d| d.get(..7)).unwrap_or("—").to_string()}
                                             </div>
                                         </td>
                                         <td><span class="plan-badge">{plan}</span></td>
-                                        <td class="right" style="font-family:monospace;font-size:12px">{mrr_str}</td>
+                                        <td class="right mono" style="font-variant-numeric:tabular-nums;font-family:'SFMono-Regular','Consolas',monospace;font-size:12px">{mrr_str}</td>
                                         <td class="center">
                                             <span style=format!("font-size:11px;font-weight:700;color:{}", score_color)>
                                                 {format!("{}/4", score)}
@@ -547,7 +547,7 @@ pub fn Dashboard() -> impl IntoView {
                                     </div>
                                     {if inactive_count > 0 {
                                         view! {
-                                            <div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:11px;color:var(--red);">
+                                            <div style="margin-top:8px;padding:6px 10px;background:var(--red-dim);border-left:3px solid var(--red);border-radius:0 4px 4px 0;font-size:11px;color:var(--red);">
                                                 <strong>{inactive_count.to_string()}</strong>" tenant(s) need activation attention. "
                                                 <a href="/apps" style="color:var(--red);text-decoration:underline;">"Review →"</a>
                                             </div>
