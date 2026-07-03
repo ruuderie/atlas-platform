@@ -195,7 +195,7 @@ pub fn PlatformAdmins() -> impl IntoView {
         // Page Header
         <div class="page-header">
             <div>
-                <div class="page-title">"Users & Access Control"</div>
+                <div class="page-title">"Team"</div>
                 <div class="page-subtitle">"Platform users · Roles · Invitations · Audit log"</div>
             </div>
             <div class="page-actions">
@@ -266,19 +266,20 @@ pub fn PlatformAdmins() -> impl IntoView {
         </div>
 
         // Body Content
-        <div class="body">
+        <div>
             // ── Tab: All Users ──
             <Show when=move || active_tab.get() == "users">
-                <div class="card">
-                    <div class="filter-bar">
-                        <input 
-                            class="f-input" 
+                <div class="section">
+                    <div class="section-header" style="flex-wrap:wrap;gap:8px">
+                        <input
+                            class="form-input"
+                            style="flex:1;min-width:180px;max-width:280px" 
                             placeholder="Search name or email…"
                             prop:value=search_query
                             on:input=move |ev| search_query.set(event_target_value(&ev))
                         />
-                        <select 
-                            class="f-select"
+                        <select
+                            class="form-select"
                             on:change=move |ev| role_filter.set(event_target_value(&ev))
                         >
                             <option value="All Roles">"All Roles"</option>
@@ -287,8 +288,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                             <option value="Editor">"Editor"</option>
                             <option value="Viewer">"Viewer"</option>
                         </select>
-                        <select 
-                            class="f-select"
+                        <select
+                            class="form-select"
                             on:change=move |ev| tenant_filter.set(event_target_value(&ev))
                         >
                             <option value="All Tenants">"All Tenants"</option>
@@ -298,8 +299,8 @@ pub fn PlatformAdmins() -> impl IntoView {
                                 view! { <option value=n.clone()>{n.clone()}</option> }
                             }).collect_view()}
                         </select>
-                        <select 
-                            class="f-select"
+                        <select
+                            class="form-select"
                             on:change=move |ev| status_filter.set(event_target_value(&ev))
                         >
                             <option value="All Statuses">"All Statuses"</option>
@@ -309,29 +310,30 @@ pub fn PlatformAdmins() -> impl IntoView {
                         </select>
                     </div>
 
-                    <table class="w-full text-sm">
+                    <div class="table-wrap">
+                    <table>
                         <thead>
-                            <tr class="border-b border-outline-variant/20">
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 w-10">""</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Name"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Email"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Role"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Scope"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Status"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60">"Last Login"</th>
-                                <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 col-hide-mobile">"MFA"</th>
-                                <th class="px-4 py-2.5 w-20">""</th>
+                            <tr>
+                                <th style="width:36px"></th>
+                                <th>"Name"</th>
+                                <th>"Email"</th>
+                                <th>"Role"</th>
+                                <th>"Scope"</th>
+                                <th>"Status"</th>
+                                <th>"Last Login"</th>
+                                <th class="col-hide-mobile">"MFA"</th>
+                                <th style="width:80px"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-outline-variant/10">
+                        <tbody>
                             // Real DB users only
                             {move || {
                                 let users = users_res.get().unwrap_or_default();
                                 if users.is_empty() {
                                     view! {
                                         <tr>
-                                            <td colspan="9" class="px-4 py-12 text-center text-xs text-on-surface-variant/50">
-                                                <span class="material-symbols-outlined block text-3xl mb-2 opacity-30">"group"</span>
+                                            <td colspan="9" class="empty-state">
+                                                <span class="material-symbols-outlined" style="font-size:28px;opacity:0.25;display:block;margin-bottom:6px">"group"</span>
                                                 "No users found. Invite someone to get started."
                                             </td>
                                         </tr>
@@ -351,43 +353,43 @@ pub fn PlatformAdmins() -> impl IntoView {
                                         };
                                         let is_super = u.is_admin;
                                         let role_str = if is_super { "Super-Admin" } else { "Admin" };
-                                        let (role_bg, role_text) = if is_super {
-                                            ("bg-primary/10 border-primary/30", "text-primary")
+                                        let role_sty = if is_super {
+                                            "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)"
                                         } else {
-                                            ("bg-violet-500/10 border-violet-500/30", "text-violet-400")
+                                            "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)"
                                         };
                                         let scope_str = if u.is_admin { "Platform-wide" } else { "Tenant" };
-                                        let (status_bg, status_dot, status_label) = if u.is_active {
-                                            ("bg-emerald-500/10 border-emerald-500/20", "bg-emerald-400", "Active")
+                                        let (status_sty, status_dot_sty, status_label) = if u.is_active {
+                                            ("color:var(--green)", "background:var(--green)", "Active")
                                         } else {
-                                            ("bg-outline-variant/10 border-outline-variant/20", "bg-on-surface-variant/30", "Inactive")
+                                            ("color:var(--text-muted)", "background:var(--text-muted)", "Inactive")
                                         };
                                         view! {
-                                            <tr class="hover:bg-surface-bright/5 transition-colors group">
-                                                <td class="px-4 py-3">
-                                                    <div class="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                                            <tr>
+                                                <td>
+                                                    <div style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border-default);background:var(--cobalt-dim);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--cobalt);flex-shrink:0">
                                                         {initials}
                                                     </div>
                                                 </td>
-                                                <td class="px-4 py-3 font-semibold text-on-surface text-xs">{u.username.clone()}</td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/70 font-mono">{u.email.clone()}</td>
-                                                <td class="px-4 py-3">
-                                                    <span class=format!("inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border {} {}", role_bg, role_text)>
+                                                <td style="font-weight:600">{u.username.clone()}</td>
+                                                <td class="mono muted">{u.email.clone()}</td>
+                                                <td>
+                                                    <span class="plan-badge" style=role_sty>
                                                         {role_str}
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/70">{scope_str}</td>
-                                                <td class="px-4 py-3">
-                                                    <span class=format!("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border {}", status_bg)>
-                                                        <span class=format!("w-1.5 h-1.5 rounded-full {}", status_dot)></span>
-                                                        <span class="text-on-surface-variant">{status_label}</span>
+                                                <td class="muted">{scope_str}</td>
+                                                <td>
+                                                    <span style=format!("display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;{}", status_sty)>
+                                                        <span style=format!("width:6px;height:6px;border-radius:50%;{}", status_dot_sty)></span>
+                                                        {status_label}
                                                     </span>
                                                 </td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50 col-hide-mobile">"—"</td>
-                                                <td class="px-4 py-3 text-xs text-on-surface-variant/50 col-hide-mobile">"—"</td>
-                                                <td class="px-4 py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <td class="muted col-hide-mobile">"—"</td>
+                                                <td class="col-hide-mobile muted">"—"</td>
+                                                <td class="right">
                                                     <button
-                                                        class="px-2.5 py-1 text-[10px] font-semibold bg-surface-container border border-outline-variant/30 hover:bg-surface-container-high/40 hover:border-primary/30 rounded-lg transition-all text-on-surface-variant"
+                                                        class="btn btn-sm"
                                                         on:click=move |e| {
                                                             e.stop_propagation();
                                                             show_manage_modal.set(Some(u_clone.clone()));
@@ -403,6 +405,7 @@ pub fn PlatformAdmins() -> impl IntoView {
                             }}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </Show>
 

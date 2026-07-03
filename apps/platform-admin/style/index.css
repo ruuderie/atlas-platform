@@ -364,13 +364,14 @@ path {
 /* ── Left Sidebar Nav ─────────────────────────────────────────────────────── */
 .sidebar {
   grid-area: sidebar;
-  width: 220px;           /* explicit width — do not rely on grid column alone */
+  width: 220px;
+  max-width: 220px;       /* hard cap — prevents escape from 220px grid track */
   min-width: 0;
   background: var(--bg-surface);
   border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;     /* prevent sidebar content from overflowing into main */
+  overflow-x: hidden;     /* clip any child wider than 220px */
   overflow-y: auto;
   padding: 8px 0 16px;
   box-sizing: border-box;
