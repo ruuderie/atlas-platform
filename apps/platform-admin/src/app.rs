@@ -304,7 +304,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         </select>
                         </Show>
                         // Notification → Audit Ledger
-                        <a href="/logs" class="icon-btn" title="Audit Logs">
+                        <a href="/logs" data-label="Audit Logs" class="icon-btn" title="Audit Logs">
                             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <path d="M8 2a4 4 0 0 0-4 4v2.5L2.5 10h11L12 8.5V6a4 4 0 0 0-4-4z"/><circle cx="8" cy="13" r="1.2"/>
                             </svg>
@@ -331,7 +331,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                     <p class="font-medium text-on-surface">{move || user.get().map(|u| format!("{} {}", u.first_name, u.last_name)).unwrap_or_else(|| "Admin User".to_string())}</p>
                                     <p class="text-on-surface-variant text-xs truncate">{move || user.get().map(|u| u.email.clone()).unwrap_or_else(|| "admin@foundry.local".to_string())}</p>
                                 </div>
-                                <a href="/settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
+                                <a href="/settings" data-label="Settings" class="block w-full text-left px-4 py-2.5 text-sm text-on-surface hover:bg-[#111520] transition-colors" on:click=move |_| set_show_profile_menu.set(false)>"Account Settings"</a>
                                 <button class="block w-full text-left px-4 py-2.5 text-sm text-error hover:bg-error-container/20 transition-colors" on:click=move |e| { 
                                     e.stop_propagation(); 
                                     set_show_profile_menu.set(false); 
@@ -349,29 +349,29 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                 // ── Side Nav Bar ──
                 <aside class="sidebar" on:click=move |_| sidebar_open.set(false)>
                     <span class="nav-label nav-section-label">"Overview"</span>
-                    <a href="/" class=move || side_active_class("/")>
+                    <a href="/" data-label="Command Center" class=move || side_active_class("/")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="0.5"/><rect x="2" y="9" width="5" height="5" rx="0.5"/><rect x="9" y="2" width="5" height="5" rx="0.5"/><rect x="9" y="9" width="5" height="5" rx="0.5"/></svg>
                         "Command Center"
                     </a>
-                    <a href="/analytics" class=move || side_active_class("/analytics")>
+                    <a href="/analytics" data-label="Analytics" class=move || side_active_class("/analytics")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,12 5,7 8,9 11,4 14,6"/></svg>
                         "Analytics"
                     </a>
-                    <a href="/map" class=move || side_active_class("/map")>
+                    <a href="/map" data-label="Platform Map" class=move || side_active_class("/map")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="1.5,3 5,1.5 11,3.5 14.5,2 14.5,13 11,14.5 5,12.5 1.5,14"/><line x1="5" y1="1.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="14.5"/></svg>
                         "Platform Map"
                     </a>
 
                     <span class="nav-label nav-section-label">"CRM"</span>
-                    <a href="/leads" class=move || side_active_class("/lead")>
+                    <a href="/leads" data-label="Leads" class=move || side_active_class("/lead")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.8 2.2-5 5-5h0a5 5 0 0 1 5 5"/></svg>
                         "Leads"
                     </a>
-                    <a href="/accounts" class=move || side_active_class("/account")>
+                    <a href="/accounts" data-label="Accounts" class=move || side_active_class("/account")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1"/><path d="M6 13V9h4v4"/></svg>
                         "Accounts"
                     </a>
-                    <a href="/contacts" class=move || side_active_class("/contact")>
+                    <a href="/contacts" data-label="Contacts" class=move || side_active_class("/contact")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="6" r="3"/><path d="M2 13c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
                         "Contacts"
                     </a>
@@ -436,18 +436,18 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             view! { <></> }.into_any()
                         }
                     }}
-                    <a href="/billing" class=move || side_active_class("/billing")>
+                    <a href="/billing" data-label="Billing" class=move || side_active_class("/billing")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="12" height="8" rx="1"/><line x1="2" y1="9" x2="14" y2="9"/></svg>
                         "Billing"
                     </a>
-                    <a href="/billing/scorecards" class=move || side_active_class("/billing/scorecards")>
+                    <a href="/billing/scorecards" data-label="Scorecards" class=move || side_active_class("/billing/scorecards")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3h3l-2.5 2 1 3L8 8.5 5 10l1-3L3.5 5h3z"/></svg>
                         "Scorecards"
                     </a>
 
                     <span class="nav-label nav-section-label">"Go-to-Market"</span>
                     // Products = platform product registry (launch mode, content, markets, SEO, pixels).
-                    <a href="/products" class=move || {
+                    <a href="/products" data-label="Products" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/products") { "nav-item active" } else { "nav-item" }
                     }>
@@ -455,7 +455,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         "Products"
                     </a>
                     // Landing Pages = app-neutral GTM acquisition page builder.
-                    <a href="/landing-pages" class=move || {
+                    <a href="/landing-pages" data-label="Landing Pages" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/landing-pages") { "nav-item active" } else { "nav-item" }
                     }>
@@ -463,25 +463,25 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         "Landing Pages"
                     </a>
                     // Campaigns = outreach execution hub. Connects to landing pages via UTM slug.
-                    <a href="/campaigns" class=move || {
+                    <a href="/campaigns" data-label="Campaigns" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/campaigns") { "nav-item active" } else { "nav-item" }
                     }>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v5c0 2.5-2.5 4.5-6 5-3.5-.5-6-2.5-6-5V5z"/><path d="M8 8l2 1.5-2 1"/></svg>
                         "Campaigns"
                     </a>
-                    <a href="/network/syndication" class=move || side_active_class("/network/syndication")>
+                    <a href="/network/syndication" data-label="Syndication" class=move || side_active_class("/network/syndication")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 4.5l-2-2m2 2l-2 2m2-2H2.5v4m-1 3.5l2 2m-2-2l2-2m-2 2h11v-4"/></svg>
                         "Syndication"
                     </a>
                     // Offer Catalog is a tab inside Syndication — no separate nav item needed
-                    <a href="/verification" class=move || side_active_class("/verification")>
+                    <a href="/verification" data-label="Verification" class=move || side_active_class("/verification")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Verification"
                     </a>
 
                     <span class="nav-label nav-section-label">"Operations"</span>
-                    <a href="/internal-instances" class=move || {
+                    <a href="/internal-instances" data-label="App Instances" class=move || {
                         let p = current_path.get();
                         if p.starts_with("/internal-instances") { "nav-item active" } else { "nav-item" }
                     }>
@@ -489,11 +489,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         // App Instances: all tenant-facing deployed app instances (folio, anchor, network)
                         "App Instances"
                     </a>
-                    <a href="/flags" class=move || side_active_class("/flags")>
+                    <a href="/flags" data-label="Feature Flags" class=move || side_active_class("/flags")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2v12M3 2h8l-2 3.5L11 9H3"/></svg>
                         "Feature Flags"
                     </a>
-                    <a href="/support" class=move || side_active_class("/support")>
+                    <a href="/support" data-label="Support" class=move || side_active_class("/support")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6a2 2 0 1 1 2.5 2C8 9 8 9.5 8 10"/><circle cx="8" cy="12" r="0.5" fill="currentColor"/></svg>
                         "Support Queue"
                     </a>
@@ -501,21 +501,21 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="10" height="12" rx="1.5"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="9" y2="11"/></svg>
                         "Audit Logs"
                     </a>
-                    <a href="/admin/aitasks" class=move || side_active_class("/admin/aitasks")>
+                    <a href="/admin/aitasks" data-label="AI Monitor" class=move || side_active_class("/admin/aitasks")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,12 5,7 8,9 11,4 14,6"/></svg>
                         "AI Task Monitor"
                     </a>
 
                     <span class="nav-label nav-section-label">"Admin"</span>
-                    <a href="/admins" class=move || side_active_class("/admins")>
+                    <a href="/admins" data-label="Team" class=move || side_active_class("/admins")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.5" cy="5" r="2"/><circle cx="10.5" cy="5" r="2"/><path d="M1 13c0-2.5 2-4.5 4.5-4.5"/><path d="M15 13c0-2.5-2-4.5-4.5-4.5"/><path d="M5 13c0-3 1.5-5 3-5s3 2 3 5"/></svg>
                         "User Access & Auth"
                     </a>
-                    <a href="/admin/integrations" class=move || side_active_class("/admin/integrations")>
+                    <a href="/admin/integrations" data-label="Integrations" class=move || side_active_class("/admin/integrations")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v1M8 13v1M2 8h1M13 8h1M3.5 3.5l.7.7M11.8 11.8l.7.7M3.5 12.5l.7-.7M11.8 4.2l.7-.7"/></svg>
                         "Integrations & Webhooks"
                     </a>
-                    <a href="/admin/compliance" class=move || side_active_class("/admin/compliance")>
+                    <a href="/admin/compliance" data-label="Compliance" class=move || side_active_class("/admin/compliance")>
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l5 2v4c0 3-2 5.5-5 6.5C5 13.5 3 11 3 8V4l5-2z"/></svg>
                         "Contracts & Compliance"
                     </a>

@@ -200,11 +200,19 @@ path {
               radial-gradient(circle at bottom left, rgba(0, 76, 105, 0.2), transparent 40%);
 }
 
+/* ── Sidebar width token ─ single source of truth ────────────────────────── */
+:root {
+  --sidebar-w: 220px;   /* desktop default; overridden per breakpoint below */
+  --rail-w:     52px;   /* icon-rail width at tablet */
+}
+@media (min-width: 1440px) {
+  :root { --sidebar-w: 240px; }  /* wider on large displays */
+}
+
 /* ── Layout Shell ─────────────────────────────────────────────────────────── */
 .shell {
   display: grid;
-  /* Default (desktop): topbar spans full width, sidebar + main below */
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
   grid-template-rows: 48px 1fr;
   grid-template-areas:
     "topbar topbar"
@@ -214,7 +222,7 @@ path {
 }
 /* Intel-sidebar variant (dashboard only) is set via data-intel attr */
 .shell[data-intel="true"] {
-  grid-template-columns: 220px 1fr 280px;
+  grid-template-columns: var(--sidebar-w) 1fr 280px;
   grid-template-areas:
     "topbar topbar topbar"
     "sidebar main intel";
@@ -364,17 +372,21 @@ path {
 /* ── Left Sidebar Nav ─────────────────────────────────────────────────────── */
 .sidebar {
   grid-area: sidebar;
-  width: 220px;
-  max-width: 220px;       /* hard cap — prevents escape from 220px grid track */
+  width: var(--sidebar-w);
+  max-width: var(--sidebar-w);  /* hard cap — prevents escape from grid track */
   min-width: 0;
   background: var(--bg-surface);
   border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;     /* clip any child wider than 220px */
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 8px 0 16px;
   box-sizing: border-box;
+  /* Smooth width transition for any programmatic collapse */
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-section-label {
@@ -2828,18 +2840,20 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
 
 /* ══════════════════════════════════════════════════════════════════════════
    TABLET  768px – 1023px
+   Icon rail (52px collapsed) + slide-in overlay drawer
    ══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) {
 
-  /* Shell: shrink sidebar column to icon rail */
+  /* Shell: rail column replaces full sidebar */
+  :root { --sidebar-w: var(--rail-w); }
   .shell {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: var(--rail-w) 1fr;
     grid-template-areas:
       "topbar topbar"
       "sidebar main";
   }
   .shell[data-intel="true"] {
-    grid-template-columns: 48px 1fr;
+    grid-template-columns: var(--rail-w) 1fr;
     grid-template-areas:
       "topbar topbar"
       "sidebar main";
@@ -2848,79 +2862,83 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   /* Topbar: hide wordmark text, show hamburger */
   .topbar-logo .wordmark { display: none; }
   .topbar-logo .badge, .topbar-logo .admin-badge { display: none; }
-  .topbar-logo { width: 48px; justify-content: center; }
+  .topbar-logo { width: var(--rail-w); justify-content: center; }
   .topbar-logo .mark { margin: 0; }
   .hamburger-btn { display: flex; }
   .topbar-center { display: none; }
 
-  /* Sidebar icon rail */
+  /* Sidebar icon rail — base state */
   .sidebar {
-    width: 48px;
+    width: var(--rail-w);
+    max-width: var(--rail-w);
+    /* Slide off-canvas: start hidden, slide in when .sidebar-open */
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 300;
+    transform: translateX(calc(-1 * var(--rail-w)));
+    overflow-y: auto;
     overflow-x: hidden;
   }
+
+  /* Rail items: centred icons, no labels */
   .nav-item {
-    padding: 8px 0;
+    padding: 10px 0;
     justify-content: center;
     gap: 0;
-    border-left: none;
-    border-bottom: 2px solid transparent;
+    font-size: 0;              /* hides text nodes */
+    border-left: 2px solid transparent;
+    border-bottom: none;
+    position: relative;
   }
-  /* Show a bottom border instead of left border for active state on icon rail */
   .nav-item.active {
-    border-left-color: transparent;
-    border-bottom-color: var(--cobalt);
+    color: var(--cobalt);
+    border-left-color: var(--cobalt);
     background: var(--bg-elevated);
   }
-  /* Hide all text labels next to icons */
   .nav-item > span,
   .nav-item > .nav-badge,
-  .nav-item > .nav-dot {
-    display: none;
-  }
-  /* Text nodes directly in nav-item — hide by reducing font-size to 0 */
-  .nav-item { font-size: 0; }
+  .nav-item > .nav-dot { display: none; }
   .nav-item svg { opacity: 0.7; width: 16px; height: 16px; }
   .nav-item.active svg { opacity: 1; }
-
   .nav-section-label { display: none; }
   .sidebar-footer { padding: 8px 0; }
   .sidebar-footer .nav-item { padding: 8px 0; }
 
-  /* Main canvas: tighter padding */
-  .main-canvas { padding: 16px 20px; gap: 16px; }
-
-  /* KPI row: 3 columns on tablet */
-  .kpi-row { grid-template-columns: repeat(3, 1fr); }
-
-  /* Page header: allow wrapping */
-  .page-header, .page-hdr {
-    flex-wrap: wrap;
-    gap: 10px;
+  /* Tooltip label on hover (anchored to rail item) */
+  .nav-item[data-label]:hover::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(var(--rail-w) + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-default);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    pointer-events: none;
+    z-index: 400;
   }
 
-  /* Hide lower-priority table columns */
-  .col-hide-tablet { display: none; }
+  /* Show rail immediately (slides in from the left over content) */
+  .sidebar { transform: translateX(0); }
 
-  /* Intel sidebar: hide on tablet (dashboard only shows main) */
-  .intel-sidebar { display: none; }
-
-  /* Sidebar drawer at tablet: overlay (fixed), same as mobile — prevents sidebar
-     from displacing main content when the hamburger is toggled. Without this the
-     sidebar expands inside the 48px grid track and takes over the page. */
+  /* ── Drawer open state ── */
   .shell.sidebar-open .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 220px;
-    height: 100vh;
-    z-index: 300;
-    overflow-y: auto;
-    /* Reset icon-rail styles so full nav appears inside the tablet drawer */
+    max-width: 220px;
+    transform: translateX(0);
     padding: 8px 0 16px;
   }
   .shell.sidebar-open .sidebar-overlay { display: block; }
 
-  /* Restore full nav-item appearance inside the open tablet drawer */
+  /* Restore full nav-item appearance inside the open drawer */
   .shell.sidebar-open .sidebar .nav-item {
     padding: 7px 16px;
     justify-content: flex-start;
@@ -2932,7 +2950,6 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   .shell.sidebar-open .sidebar .nav-item.active {
     color: var(--cobalt);
     border-left-color: var(--cobalt);
-    border-bottom-color: transparent;
     background: var(--bg-elevated);
   }
   .shell.sidebar-open .sidebar .nav-item > span { display: inline; }
@@ -2941,14 +2958,24 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   .shell.sidebar-open .sidebar .nav-item { font-size: 12.5px; }
   .shell.sidebar-open .sidebar .nav-section-label { display: block; }
   .shell.sidebar-open .sidebar .nav-item svg { width: 14px; height: 14px; }
+  /* Hide tooltip when drawer is fully open */
+  .shell.sidebar-open .sidebar .nav-item[data-label]:hover::after { display: none; }
+
+  /* Layout adjustments */
+  .main-canvas { padding: 16px 20px; gap: 16px; }
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
+  .page-header, .page-hdr { flex-wrap: wrap; gap: 10px; }
+  .col-hide-tablet { display: none; }
+  .intel-sidebar { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
    MOBILE  < 768px
+   Full off-canvas drawer — slides in from left on toggle
    ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
 
-  /* Shell: full-width, no sidebar column */
+  /* Shell: no sidebar column at all */
   .shell {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -2962,18 +2989,23 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
       "main";
   }
 
-  /* Sidebar: off-canvas drawer, slides in from left */
+  /* Topbar: show wordmark, show hamburger */
+  .hamburger-btn { display: flex; }
+  .topbar-center { display: none; }
+
+  /* Sidebar: off-canvas, slides in from left */
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    width: 220px;
+    width: min(280px, 80vw);   /* never wider than 80% of viewport */
+    max-width: min(280px, 80vw);
     height: 100vh;
     z-index: 300;
     transform: translateX(-100%);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
-    /* Restore full label styles inside the drawer */
+    overflow-x: hidden;
+    /* transition inherited from base .sidebar rule */
   }
   .shell.sidebar-open .sidebar {
     transform: translateX(0);
@@ -2981,9 +3013,9 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   .sidebar-overlay { display: none; }
   .shell.sidebar-open .sidebar-overlay { display: block; }
 
-  /* Restore nav-item full appearance inside the drawer */
+  /* Full nav inside mobile drawer */
   .sidebar .nav-item {
-    padding: 8px 16px;
+    padding: 9px 16px;
     justify-content: flex-start;
     gap: 10px;
     font-size: 12.5px;
@@ -2993,27 +3025,31 @@ textarea.rev-notes::placeholder{color:var(--text-muted);}
   .sidebar .nav-item.active {
     color: var(--cobalt);
     border-left-color: var(--cobalt);
-    border-bottom-color: transparent;
+    background: var(--bg-elevated);
   }
-  .sidebar .nav-section-label { display: block; }
+  .sidebar .nav-section-label { display: block; font-size: 9px; padding: 10px 16px 4px; }
   .sidebar .nav-item > span { display: inline; }
   .sidebar .nav-item > .nav-badge { display: inline-flex; }
   .sidebar .nav-item > .nav-dot { display: block; }
+  .sidebar .nav-item svg { width: 14px; height: 14px; opacity: 0.8; }
+  .sidebar .nav-item.active svg { opacity: 1; }
 
-  /* Topbar: show wordmark in mobile drawer mode */
-  .topbar-logo { width: auto; justify-content: flex-start; }
+  /* Topbar adjustments */
   .topbar-logo .wordmark { display: block; }
+  .topbar-logo .badge, .topbar-logo .admin-badge { display: none; }
+  .topbar-logo { width: auto; justify-content: flex-start; }
+
+  /* Layout */
+  .main-canvas { padding: 12px 16px; gap: 12px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .page-header, .page-hdr { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .col-hide-tablet, .col-hide-mobile { display: none; }
+  .intel-sidebar { display: none; }
+
 
   /* main-content-layout now spans full grid column 1 */
-  .main-content-layout {
-    grid-column: 1;
-  }
+  .main-content-layout { grid-column: 1; }
 
-  /* Main canvas: tight mobile padding */
-  .main-canvas { padding: 12px 14px; gap: 14px; }
-
-  /* KPI row: 2 columns on mobile */
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .kpi-value { font-size: 22px; }
 
   /* Page header: always stacks on mobile */
