@@ -1149,6 +1149,19 @@ thead th.sortable:hover::after { opacity: 1; }
   color: var(--text-secondary);
 }
 .btn-ghost:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.btn-danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn-danger:hover { opacity: 0.85; }
+/* Outline-only danger variant — use .btn.btn-ghost with style="color:var(--error)" for low-emphasis danger */
+.btn-warn {
+  background: var(--amber-dim);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.btn-warn:hover { background: var(--amber); color: #fff; }
 .btn-icon { padding: 5px 8px; }
 .btn-sm { padding: 4px 9px; font-size: 11px; }
 
