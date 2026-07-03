@@ -1114,3 +1114,53 @@ Key files:
 - Wildcard cert for `*.dev.atlas.oply.co` is provisioned via cert-manager inside k3s
 - New internal instance domains MUST use `{slug}.dev.atlas.oply.co` to be covered by the wildcard cert
 - Custom domains require a new Ingress manifest + cert-manager Certificate resource in k3s
+
+---
+
+## 32. CI/CD Test Database — Integration Tests Are Never "Blocked on DB"
+
+The Woodpecker CI pipeline (`/.woodpecker.yml`) spins up a **Postgres 15 service container** on every push to `dev` or `uat`. There is no manual DB setup step required for integration tests.
+
+```yaml
+# From .woodpecker.yml — always present
+services:
+  database:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: oplydbtest
+
+steps:
+  test_workspace:
+    environment:
+      TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
+    commands:
+      - cd backend && cargo test --workspace -j $(nproc)
+```
+
+### What this means for agents
+
+- **Do not treat integration tests as "future work" or "blocked."** The test harness is always available in CI. Write integration tests alongside the feature in the same PR.
+- The `setup_test_app()` function in `backend/src/tests/api_tests.rs` already handles the three connection URLs — local (`:5432`), Docker Compose (`:5433`), and Woodpecker (`database:5432`) — in priority order. It will connect correctly in all environments.
+- **Unit tests** (pure logic, no DB) go in `backend/src/tests/unit/` and run fast locally with no setup.
+- **Integration tests** (DB + HTTP) go in `backend/src/tests/` and run in CI automatically.
+- Both types belong in the same PR as the feature. Separating them into "later" PRs means they never get written.
+
+### Test file registration
+
+- Unit tests: register in `backend/src/tests/unit/mod.rs`
+- Integration tests: register in `backend/src/tests/mod.rs`
+
+### Running tests locally
+
+```bash
+# Unit tests only (no DB needed)
+cd backend && cargo test unit
+
+# Specific integration test file
+cd backend && cargo test waitlist_integration_tests
+
+# Full suite (requires local Postgres at localhost:5432 or :5433)
+cd backend && cargo test --workspace
+```
