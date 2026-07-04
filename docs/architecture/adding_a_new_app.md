@@ -8,15 +8,16 @@ This document is the definitive checklist for integrating a new frontend applica
 
 ## Overview of the Moving Parts
 
-Every application in the platform is registered in **five places**:
+Every application in the platform is registered in **six places**:
 
 1. `apps/<your-app>/Dockerfile` — how to build the image
 2. `k8s/base/<your-app>.yaml` — the Kubernetes Deployment + Service manifest
 3. `k8s/base/kustomization.yaml` — registers the manifest with Kustomize
 4. `k8s/overlays/uat/ingress.yaml` + `k8s/overlays/prod/ingress.yaml` — routes a domain to the service
 5. `.woodpecker.yml` — builds, pushes, and deploys the image in CI
+6. `platform/registry.json` — registers the application for the Platform Product Dashboard
 
-If any of these are missing, the deployment will silently fail or the app will be unreachable.
+If any of these are missing, the deployment will silently fail or the app will be unreachable/unlisted.
 
 ---
 
@@ -281,6 +282,26 @@ And finally, add `&& [ ! -f .<your-app>_built ]` to the skip condition at the to
 
 ---
 
+## Step 7: Phase 2 Platform Product Registration
+
+Update `platform/registry.json` to allow your application to be discovered by the Platform Product Dashboard and side-nav integrations. 
+
+Add your entry to the `apps` array:
+
+```json
+{
+  "name": "<your-app>",
+  "display_name": "My New App",
+  "route": "/<path>",
+  "enabled": true,
+  "roles": ["admin", "user"]
+}
+```
+
+This triggers the platform UI to include your app in global navigation and health monitoring automatically.
+
+---
+
 ## How the Pipeline Deploys Images (Architecture Note)
 
 The pipeline uses a **`kubectl set image` strategy** — not manifest substitution. This is intentional and important:
@@ -306,7 +327,7 @@ This means a `.woodpecker.yml`-only change (e.g., updating pipeline logic) will 
 | 5 | Push first image manually to GHCR | (one-time bootstrap) |
 | 6a | Add `publish_<app>_dev` + `publish_<app>_uat` steps | `.woodpecker.yml` |
 | 6b | Add `update_service` call in deploy step | `.woodpecker.yml` |
-| 7 | Verify `hash-files = true` in `Cargo.toml` and all three env layers are set | `Cargo.toml`, `Dockerfile`, `k8s/base/<app>.yaml` |
+| 7 | Register in product registry | `platform/registry.json` |
 
 ---
 
@@ -315,3 +336,133 @@ This means a `.woodpecker.yml`-only change (e.g., updating pipeline logic) will 
 - [`deployment_environments.md`](./deployment_environments.md) — UAT vs. prod environment config, secrets management, Kustomize overlays
 - [`architecture.md`](./architecture.md) — overall platform architecture
 - [`apps_walkthrough.md`](./apps_walkthrough.md) — existing app descriptions and conventions
+- [`platform_registry_schema.md`](./platform_registry_schema.md) — schema validation for the product registry
+
+---
+
+# Phase 2 — Platform Product Registration
+
+> [!IMPORTANT]
+> This phase is **required for every product app that has a marketing homepage**. Phase 1 gets the pod running; Phase 2 makes the homepage visible. Missing Phase 2 was the root cause of the folio 404 in July 2026.
+
+For a detailed explanation of the content resolution algorithm and all DB tables involved, see [`product_page_system.md`](./product_page_system.md).
+
+## Step 8: Seed `platform_products`
+
+Create an idempotent migration. The `launch_mode` must **never** be `"draft"` for a live product.
+
+```rust
+manager.get_connection().execute_unprepared(
+    "INSERT INTO platform_products (
+         id, name, slug, app_slug, status, launch_mode,
+         pre_order_enabled, pre_order_currency, pre_order_sold, waitlist_count,
+         apex_domain_verified, created_at, updated_at
+     )
+     VALUES (
+         gen_random_uuid(), 'MyApp', 'myapp', 'property_management',
+         'active', 'waitlist',
+         false, 'usd', 0, 0, false, NOW(), NOW()
+     )
+     ON CONFLICT (slug) DO NOTHING;"
+).await?;
+```
+
+**`launch_mode` → homepage behavior:**
+
+| Value | Homepage shows |
+|---|---|
+| `"draft"` | ❌ `<NotFound/>` — dev only |
+| `"waitlist"` | ✅ waitlist form |
+| `"active"` | ✅ get-started CTA |
+| `"beta"` / `"invite_only"` | ✅ invite flow |
+
+## Step 9: Seed `product_page_templates`
+
+This row is the content fallback until the GTM Landing Page Builder publishes a page for this product.
+
+```rust
+manager.get_connection().execute_unprepared(
+    "INSERT INTO product_page_templates (
+         id, product_id, hero_payload, blocks_payload,
+         meta_title, meta_description, cta_label, cta_action,
+         created_at, updated_at
+     )
+     SELECT gen_random_uuid(), p.id,
+            '{}'::jsonb, '{}'::jsonb,
+            'MyApp — Tagline', 'Meta description.',
+            'Join the Waitlist', 'waitlist',
+            NOW(), NOW()
+     FROM platform_products p
+     WHERE p.slug = 'myapp'
+       AND NOT EXISTS (
+           SELECT 1 FROM product_page_templates t WHERE t.product_id = p.id
+       );"
+).await?;
+```
+
+> `hero_payload` and `blocks_payload` can be `{}` when the Leptos frontend has hardcoded UI. The fields exist for CMS-driven content when the GTM builder is used.
+
+**Reference implementation:** `backend/src/migration/m20260926_folio_product_seed.rs`
+
+## Step 10: Provision Domain via Ingress Sidecar
+
+The ingress sidecar creates a k8s Ingress object mapping domain → service. Call it programmatically (not YAML):
+
+```bash
+curl -X POST http://ingress-sidecar:9100/api/ingress/provision \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tenant_slug": "myapp1",
+    "domain":      "myapp1.atlas.oply.co",
+    "app_slug":    "property_management"
+  }'
+```
+
+**App slug → k8s service:**
+
+| `app_slug` | k8s Service |
+|---|---|
+| `"property_management"` / `"folio"` | `folio` |
+| `"anchor"` | `anchor-app` |
+| `"network_instance"` | `network-instance` |
+
+TLS is automatic: `*.atlas.oply.co` uses the shared wildcard cert. Custom domains get cert-manager HTTP-01.
+
+## Step 11: Verify
+
+```bash
+# API returns 200 with correct launch_mode
+curl -s https://api.atlas.oply.co/api/pub/products/myapp | jq '.launch_mode'
+
+# Homepage returns 200
+curl -sk -o /dev/null -w "%{http_code}" https://myapp1.atlas.oply.co/
+
+# No <NotFound/> rendered in HTML
+curl -sk https://myapp1.atlas.oply.co/ | grep -c "not-found"
+# should output: 0
+```
+
+---
+
+## Full Checklist
+
+### Phase 1 — Infrastructure
+
+| Step | What | Where |
+|---|---|---|
+| 1 | `Dockerfile` with `BUILD_PROFILE` + `LEPTOS_HASH_FILES` | `apps/<app>/Dockerfile` |
+| 2 | K8s manifest (real image SHA, Leptos env block, `ATLAS_API_URL`) | `k8s/base/<app>.yaml` |
+| 3 | Register in Kustomize | `k8s/base/kustomization.yaml` |
+| 4 | Ingress rules (UAT + prod) | `k8s/overlays/*/ingress.yaml` |
+| 5 | Push first image manually to GHCR | One-time bootstrap |
+| 6a | `publish_<app>_dev` + `publish_<app>_uat` steps | `.woodpecker.yml` |
+| 6b | `update_service` call in deploy step | `.woodpecker.yml` |
+
+### Phase 2 — Platform Product Registration
+
+| Step | What | Where |
+|---|---|---|
+| 8 | Seed `platform_products` (`launch_mode ≠ "draft"`) | Migration `m2026xxxx_<slug>_product_seed.rs` |
+| 9 | Seed `product_page_templates` (idempotent) | Same migration |
+| 10 | Provision domain via ingress sidecar | Platform admin or `curl` |
+| 11 | Verify API 200 + homepage 200 + no `not-found` | `curl` checks |
