@@ -4350,7 +4350,19 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   transition: color .15s;
 }
 .mktg-nav-links a:hover { color: var(--mk-text); }
+/* broker page back-link — visually separated from primary nav items */
+.mktg-nav-broker-link {
+  color: var(--mk-muted) !important;
+  font-size: .8rem !important;
+  opacity: .65;
+  margin-left: .5rem;
+  border-left: 1px solid var(--mk-border);
+  padding-left: 1rem;
+  transition: opacity .15s;
+}
+.mktg-nav-broker-link:hover { opacity: 1; color: var(--mk-text) !important; }
 .mktg-nav-actions { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
+
 .mktg-btn-ghost {
   padding: .45rem 1rem; border-radius: 8px;
   border: 1px solid var(--mk-border); color: var(--mk-muted);
@@ -4608,6 +4620,8 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .mktg-feature-icon { font-size: 1.5rem; color: var(--mk-accent); margin-bottom: .75rem; display: block; }
 .mktg-feature-title { font-size: .95rem; font-weight: 700; color: #fff; margin-bottom: .5rem; }
 .mktg-feature-desc { font-size: .83rem; color: var(--mk-muted); line-height: 1.6; }
+/* mktg-features: section modifier — slightly lighter bg to break up the page rhythm */
+.mktg-features { background: rgba(255,255,255,.015); }
 
 /* ── STR section ───────────────────────────────────────────────────────────── */
 .mktg-str-section { background: #070d18; }
