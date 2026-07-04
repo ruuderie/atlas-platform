@@ -1,4 +1,5 @@
-//! POST /api/folio/onboarding/submit
+//! POST /api/folio/onboarding/submit  — atomic first-run wizard save
+//! GET  /api/folio/onboarding/draft   — resume state (saved values + completed steps)
 //!
 //! Accepts the Folio first-run wizard payload and atomically:
 //!   1. Updates the authenticated user's display name (if provided)
@@ -16,6 +17,7 @@
 //!       Listed in FolioApp::authenticated_router → shared_router.
 
 use axum::{Extension, Json, Router, http::StatusCode};
+use axum::routing::get;
 use axum::routing::post;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection,
@@ -62,10 +64,30 @@ pub struct OnboardingSubmitResponse {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+// ── Draft response ───────────────────────────────────────────────────────────
+
+/// Response body for `GET /api/folio/onboarding/draft`.
+/// Returns whatever the wizard has already saved so the frontend can resume.
+#[derive(Debug, Serialize)]
+pub struct OnboardingDraftResponse {
+    /// User's saved first name (from the Profile step), if set.
+    pub first_name: Option<String>,
+    /// User's saved last name (from the Profile step), if set.
+    pub last_name: Option<String>,
+    /// Saved jurisdiction code (e.g. "US", "BR"), if the Jurisdiction step was completed.
+    pub jurisdiction_code: Option<String>,
+    /// Step IDs that have a `completed_at` timestamp.
+    /// Possible values: "profile", "jurisdiction", "first_property".
+    pub completed_steps: Vec<String>,
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/onboarding/submit", post(submit_onboarding))
+        .route("/api/folio/onboarding/submit",  post(submit_onboarding))
         .route("/api/folio/onboarding/dismiss", post(dismiss_onboarding))
+        .route("/api/folio/onboarding/draft",   get(get_onboarding_draft))
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -181,6 +203,70 @@ pub async fn submit_onboarding(
         portfolio_id,
         asset_id,
         applied,
+    }))
+}
+
+// ── Draft handler ────────────────────────────────────────────────────────────
+
+/// `GET /api/folio/onboarding/draft`
+///
+/// Returns the wizard's current saved state so the frontend can:
+///   1. Pre-populate form fields with previously entered values.
+///   2. Resume at the correct step (first one without a `completed_at`).
+///
+/// Auth: Folio session middleware (Extension<user::Model>).
+pub async fn get_onboarding_draft(
+    Extension(db): Extension<DatabaseConnection>,
+    Extension(current_user): Extension<user::Model>,
+) -> Result<Json<OnboardingDraftResponse>, StatusCode> {
+    let user_id = current_user.id;
+    let tenant_id = resolve_tenant_id(&db, user_id).await?;
+    let app_instance_id = resolve_app_instance_id(&db, tenant_id).await;
+
+    // ── 1. User's saved name ─────────────────────────────────────────────────
+    let first_name = if current_user.first_name.trim().is_empty() {
+        None
+    } else {
+        Some(current_user.first_name.clone())
+    };
+    let last_name = if current_user.last_name.trim().is_empty() {
+        None
+    } else {
+        Some(current_user.last_name.clone())
+    };
+
+    // ── 2. Saved jurisdiction code ────────────────────────────────────────────
+    let jurisdiction_code = tenant_setting::Entity::find()
+        .filter(tenant_setting::Column::TenantId.eq(tenant_id))
+        .filter(tenant_setting::Column::Key.eq("folio_jurisdiction_code"))
+        .one(&db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .map(|s| s.value);
+
+    // ── 3. Completed step IDs ────────────────────────────────────────────────
+    let completed_steps = if let Some(ai) = app_instance_id {
+        use crate::entities::onboarding_progress;
+        let rows = onboarding_progress::Entity::find()
+            .filter(onboarding_progress::Column::AppInstanceId.eq(ai))
+            .filter(onboarding_progress::Column::StepId.ne("wizard_dismissed"))
+            .all(&db)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        rows.into_iter()
+            .filter(|r| r.completed_at.is_some())
+            .map(|r| r.step_id)
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    Ok(Json(OnboardingDraftResponse {
+        first_name,
+        last_name,
+        jurisdiction_code,
+        completed_steps,
     }))
 }
 

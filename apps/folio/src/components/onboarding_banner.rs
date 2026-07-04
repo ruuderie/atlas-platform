@@ -31,7 +31,7 @@ pub enum SetupStatus {
 /// Slim top-of-page setup banner.
 ///
 /// # Usage
-/// ```rust
+/// ```rust,ignore
 /// <OnboardingBanner status=SetupStatus::WizardInProgress { completed: 2, total: 7 } />
 /// ```
 #[component]

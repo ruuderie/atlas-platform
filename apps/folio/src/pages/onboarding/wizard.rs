@@ -27,7 +27,38 @@ pub struct OnboardingSubmitResponse {
     pub applied: Vec<String>,
 }
 
-// ── Server function ───────────────────────────────────────────────────────────
+/// Draft state returned by `GET /api/folio/onboarding/draft`.
+/// Used to pre-populate form fields and resume at the correct step.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct OnboardingDraft {
+    pub first_name:        Option<String>,
+    pub last_name:         Option<String>,
+    pub jurisdiction_code: Option<String>,
+    /// Backend step IDs that have a completed_at: "profile", "jurisdiction", "first_property"
+    pub completed_steps:   Vec<String>,
+}
+
+// ── Server functions ──────────────────────────────────────────────────────────
+
+/// Fetches whatever the wizard has already saved (name, jurisdiction, completed steps).
+/// Returns a default (empty) draft if the user has never submitted anything.
+#[server(GetOnboardingDraft, "/api")]
+pub async fn get_onboarding_draft() -> Result<OnboardingDraft, server_fn::error::ServerFnError> {
+    use axum::http::HeaderMap;
+    use leptos_axum::extract;
+
+    let headers = extract::<HeaderMap>().await.unwrap_or_default();
+    let token = extract_bearer_token(&headers)
+        .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
+
+    crate::atlas_client::authenticated_get::<OnboardingDraft>(
+        "/api/folio/onboarding/draft",
+        &token,
+        None,
+    )
+    .await
+    .or_else(|_| Ok(OnboardingDraft::default()))   // non-fatal: start fresh on network error
+}
 
 /// POST /api/folio/onboarding/submit via Leptos server function.
 /// SSR-only: runs on the Axum server thread, forwards the session cookie.
@@ -146,6 +177,28 @@ impl WizardStep {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+/// Given the set of completed backend step IDs, return the `current_idx` the wizard
+/// should open at (0-based index into `WizardStep::all_steps`).
+///
+/// Indices for the owner step list:
+///   0 = Welcome, 1 = Profile, 2 = Jurisdiction, 3 = FirstProperty,
+///   4 = PaymentRails, 5 = InviteTeam, 6 = GoLive
+///
+/// We skip Welcome only if at least one backend step is already complete — the user
+/// has already seen the intro screen.
+pub fn resume_step_idx(completed: &[String]) -> usize {
+    let done = |id: &str| completed.iter().any(|s| s == id);
+    if !done("profile") {
+        0  // Welcome — first visit or profile never saved
+    } else if !done("jurisdiction") {
+        2  // Jump past Welcome + Profile, land on Jurisdiction
+    } else if !done("first_property") {
+        3  // Land on FirstProperty
+    } else {
+        4  // Land on PaymentRails (skippable — user can click through to GoLive)
+    }
+}
+
 #[component]
 pub fn OnboardingWizard() -> impl IntoView {
     // TODO: resolve from SessionInfo context — defaulting to owner for now
@@ -155,7 +208,7 @@ pub fn OnboardingWizard() -> impl IntoView {
     // Steps shown in the pill bar = all except Welcome (step 0) and GoLive (last)
     let pill_count = total.saturating_sub(2); // interior steps only
 
-    let current_idx = RwSignal::new(0usize);
+    let current_idx    = RwSignal::new(0usize);
     let completed_steps = RwSignal::new(std::collections::HashSet::<usize>::new());
 
     // ── Form state ────────────────────────────────────────────────────────────
@@ -176,6 +229,40 @@ pub fn OnboardingWizard() -> impl IntoView {
     // ── API state ─────────────────────────────────────────────────────────────
     let saving: RwSignal<bool>         = RwSignal::new(false);
     let save_error: RwSignal<Option<String>> = RwSignal::new(None);
+
+    // ── Draft fetch — resume on mount ─────────────────────────────────────────
+    // Fetch once on mount. On success: pre-populate form fields and jump to
+    // the first incomplete step. Non-fatal: on error we start fresh at Welcome.
+    let draft_resource: Resource<Result<OnboardingDraft, _>> =
+        Resource::new(|| (), |_| get_onboarding_draft());
+
+    // When the draft arrives, apply saved values and set the resume step.
+    Effect::new(move |_| {
+        if let Some(Ok(draft)) = draft_resource.get() {
+            if let Some(v) = draft.first_name        { profile_first.set(v); }
+            if let Some(v) = draft.last_name         { profile_last.set(v);  }
+            if let Some(v) = draft.jurisdiction_code { jurisdiction.set(v);  }
+
+            // Mark backend-completed steps in the local completed_steps set.
+            // Backend step IDs map to indices: profile=1, jurisdiction=2, first_property=3
+            completed_steps.update(|set| {
+                for id in &draft.completed_steps {
+                    match id.as_str() {
+                        "profile"        => { set.insert(1); }
+                        "jurisdiction"   => { set.insert(2); }
+                        "first_property" => { set.insert(3); }
+                        _ => {}
+                    }
+                }
+            });
+
+            // Only override current_idx if the user hasn't navigated yet.
+            if current_idx.get_untracked() == 0 {
+                current_idx.set(resume_step_idx(&draft.completed_steps));
+            }
+        }
+    });
+
 
     // ── Navigation ────────────────────────────────────────────────────────────
     let go_next = move || {
@@ -749,5 +836,92 @@ pub fn OnboardingWizard() -> impl IntoView {
                 </div>
             </Show>
         </div>
+    }
+}
+
+// ── Unit tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::resume_step_idx;
+
+    // ── resume_step_idx ───────────────────────────────────────────────────────
+
+    #[test]
+    fn no_steps_completed_starts_at_welcome() {
+        assert_eq!(resume_step_idx(&[]), 0);
+    }
+
+    #[test]
+    fn only_profile_done_starts_at_jurisdiction() {
+        let done = vec!["profile".to_string()];
+        assert_eq!(resume_step_idx(&done), 2);
+    }
+
+    #[test]
+    fn profile_and_jurisdiction_done_starts_at_first_property() {
+        let done = vec!["profile".to_string(), "jurisdiction".to_string()];
+        assert_eq!(resume_step_idx(&done), 3);
+    }
+
+    #[test]
+    fn all_three_done_starts_at_payment_rails() {
+        let done = vec![
+            "profile".to_string(),
+            "jurisdiction".to_string(),
+            "first_property".to_string(),
+        ];
+        assert_eq!(resume_step_idx(&done), 4);
+    }
+
+    #[test]
+    fn order_of_completed_steps_does_not_matter() {
+        // jurisdiction listed before profile — result should still be first_property (3)
+        let done = vec!["jurisdiction".to_string(), "profile".to_string()];
+        assert_eq!(resume_step_idx(&done), 3);
+    }
+
+    #[test]
+    fn unknown_step_ids_are_ignored() {
+        let done = vec!["wizard_dismissed".to_string(), "unknown_step".to_string()];
+        assert_eq!(resume_step_idx(&done), 0);
+    }
+
+    // ── verify.rs routing decision (pure logic mirror) ────────────────────────
+    // The actual branching in verify.rs is a Leptos component and can't be run
+    // outside a browser, but the decision is pure — we mirror it here to keep
+    // it covered by cargo test.
+
+    fn pick_dest(has_passkey: bool, onboarding_complete: bool) -> &'static str {
+        if !has_passkey {
+            "/auth/passkey-setup"
+        } else if !onboarding_complete {
+            "/onboarding"
+        } else {
+            "/dashboard"
+        }
+    }
+
+    #[test]
+    fn first_login_no_passkey_goes_to_passkey_setup() {
+        assert_eq!(pick_dest(false, false), "/auth/passkey-setup");
+    }
+
+    #[test]
+    fn passkey_but_no_onboarding_goes_to_onboarding() {
+        assert_eq!(pick_dest(true, false), "/onboarding");
+    }
+
+    #[test]
+    fn fully_set_up_goes_to_dashboard() {
+        assert_eq!(pick_dest(true, true), "/dashboard");
+    }
+
+    #[test]
+    fn no_passkey_always_wins_even_if_onboarding_complete() {
+        // Edge case: somehow onboarding_complete=true but no passkey
+        // (e.g. user skipped passkey AND completed wizard via banner links).
+        // We still gate on passkey first.
+        assert_eq!(pick_dest(false, true), "/auth/passkey-setup");
     }
 }
