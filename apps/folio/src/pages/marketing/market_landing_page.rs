@@ -155,7 +155,7 @@ pub fn MarketLandingPage() -> impl IntoView {
 fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
     let title       = data.meta_title.clone().unwrap_or_else(|| "Folio — Modern Landlord OS".to_string());
     let description = data.meta_description.clone()
-        .unwrap_or_else(|| "The only property management platform built for independent landlords. LTR + STR + payments + compliance — one login.".to_string());
+        .unwrap_or_else(|| "The only property management platform built for independent landlords. Collect rent, manage leases, handle maintenance, and run vacation rentals — one login.".to_string());
     let og_image  = data.og_image_url.clone().unwrap_or_default();
     let canonical = data.canonical_url.clone().unwrap_or_default();
     let jsonld    = data.structured_data.as_ref()
@@ -199,6 +199,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
             <MktgStats/>
             <MktgPersonas/>
             <MktgFeatures/>
+            <MktgTenantPortal/>
             <MktgStr/>
             <MktgInternational/>
             <MktgPayments/>
@@ -223,7 +224,8 @@ fn MktgNav() -> impl IntoView {
                 </a>
                 <div class="mktg-nav-links">
                     <a href="#features">"Features"</a>
-                    <a href="#str">"STR"</a>
+                    <a href="#tenant-portal">"Tenant Portal"</a>
+                    <a href="#str">"Vacation Rentals"</a>
                     <a href="#pricing">"Pricing"</a>
                     <a href="#international">"International"</a>
                 </div>
@@ -323,7 +325,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
         }
     };
 
-    let role_pills = ["🏠 Landlord", "💼 Property Manager", "🏨 STR Host", "🏡 Tenant", "🔧 Vendor", "📊 Investor"];
+    let role_pills = ["🏠 Landlord", "💼 Property Manager", "🏨 Vacation Rental Host", "🏡 Tenant", "🔧 Vendor", "📊 Investor"];
     let size_pills = ["1–5 units", "6–20 units", "21–100 units", "100+ units", "Not applicable"];
 
     view! {
@@ -332,7 +334,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"verified"</span>
-                    " Modern Landlord OS — US · Canada · Brazil"
+                    " Built by a landlord · US · Canada · Brazil"
                 </div>
                 <h1 class="mktg-hero-h1">
                     "Your entire portfolio."
@@ -340,7 +342,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                 </h1>
                 <p class="mktg-hero-sub">
                     "Stop juggling five apps. Folio connects rent collection, leases, maintenance, \
-                     STR calendars and local compliance into a single platform built for how you \
+                     vacation rental calendars and local compliance into a single platform built for how you \
                      actually work."
                 </p>
 
@@ -507,6 +509,11 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                 {move || (step.get() == 0).then(|| view! {
                     <div class="mktg-proof-strip">
                         <span class="mktg-proof-item">
+                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"verified"</span>
+                            "Built by a landlord"
+                        </span>
+                        <span class="mktg-proof-sep"></span>
+                        <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
                             "No setup fee"
                         </span>
@@ -518,12 +525,12 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                         <span class="mktg-proof-sep"></span>
                         <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "LTR + STR in one platform"
+                            "Long-term + vacation rentals"
                         </span>
                         <span class="mktg-proof-sep"></span>
                         <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "US · Canada · Brazil & beyond"
+                            "US · Canada · Brazil"
                         </span>
                     </div>
                 })}
@@ -539,10 +546,10 @@ fn MktgStats() -> impl IntoView {
     view! {
         <section class="mktg-stats">
             {[
-                ("34+", "PM generics deployed"),
-                ("7",   "role portals"),
-                ("24+", "API handler files"),
-                ("3",   "countries at launch"),
+                ("5 min", "Average setup time"),
+                ("1 login", "For your whole portfolio"),
+                ("3",      "Countries at launch"),
+                ("$0",     "Setup fee · no contracts"),
             ].iter().map(|(val, label)| view! {
                 <div class="mktg-stat">
                     <span class="mktg-stat-val">{*val}</span>
@@ -570,11 +577,11 @@ fn MktgPersonas() -> impl IntoView {
             "Branded tenant portal",
             "Commission split tracking",
         ]),
-        ("🏨", "STR Host", "gold", "Airbnb + direct", vec![
-            "Unified calendar",
+        ("🏨", "Vacation Rental Host", "gold", "Airbnb + direct", vec![
+            "Unified booking calendar",
             "Channel sync",
             "Guest messaging",
-            "STR licensing & compliance",
+            "Vacation rental licensing & compliance",
         ]),
         ("🏡", "Tenant", "green", "Renter portal", vec![
             "Pay rent online",
@@ -629,21 +636,21 @@ fn MktgPersonas() -> impl IntoView {
 #[component]
 fn MktgFeatures() -> impl IntoView {
     let cells = vec![
-        ("payments", "Unified rent collection", "ACH, card, and international rails. Auto-split between ledger categories. No stripe dashboard required."),
-        ("description", "Lease lifecycle", "Draft, negotiate, e-sign, renew, and archive. Templates handle state-specific disclosures automatically."),
-        ("build", "Maintenance dispatch", "Tenants submit, landlords approve, vendors receive and invoice — all tracked in one thread."),
-        ("calendar_month", "STR calendar sync", "Airbnb, VRBO, Booking.com and direct booking in one drag-and-drop calendar. No double-bookings."),
-        ("verified_user", "Compliance engine", "STR licensing, fair housing checks, and local regulatory registration — tracked and renewed automatically."),
-        ("analytics", "Portfolio analytics", "Live metrics across all units: occupancy, NOI, vacancy days, maintenance cost per unit."),
-        ("campaign", "Vacancy campaigns", "Post to listing networks, track lead pipeline, run applications, and convert to lease — one workflow."),
-        ("groups", "Vendor marketplace", "Find and hire vetted contractors. Rate them. They rate you. Work orders and invoices stay in the platform."),
-        ("language", "Multi-market", "US (all states) · Canada (ON/BC/QC) · Brazil (LGPD-compliant) · more markets on the roadmap."),
+        ("payments", "Rent collection", "Bank transfer, card, and international payment methods. Automatically records every payment. No separate accounting tool needed."),
+        ("description", "Lease management", "Create, send, e-sign, renew, and store leases. Templates cover the required disclosures for your state or country."),
+        ("build", "Maintenance tracking", "Tenants report issues, you approve the work, contractors receive the job and send invoices — all in one place."),
+        ("calendar_month", "Vacation rental calendar", "Airbnb, VRBO, Booking.com and your own direct bookings in one calendar. No double-bookings, ever."),
+        ("verified_user", "Compliance reminders", "Vacation rental permits, fair housing requirements, and local registration renewals — tracked automatically so nothing slips."),
+        ("analytics", "Portfolio dashboard", "See your income, vacancies, and maintenance costs across every property at a glance."),
+        ("campaign", "Vacancy marketing", "List your vacancy, collect applications, screen tenants, and convert to a signed lease — one workflow."),
+        ("groups", "Contractor marketplace", "Find vetted contractors, send them work orders, receive invoices, and leave reviews — all inside Folio."),
+        ("language", "Multi-country", "United States · Canada · Brazil — with more countries on the way."),
     ];
 
     view! {
         <section id="features" class="mktg-section mktg-features">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Platform generics"</p>
+                <p class="mktg-section-eyebrow">"What's included"</p>
                 <h2 class="mktg-section-h2">"Everything you need. Nothing you don't."</h2>
                 <div class="mktg-feature-grid">
                     {cells.into_iter().map(|(icon, title, desc)| view! {
@@ -659,21 +666,26 @@ fn MktgFeatures() -> impl IntoView {
     }
 }
 
-// ── STR unlock ───────────────────────────────────────────────────────────────
+// ── Tenant portal highlight ───────────────────────────────────────────────────
 
 #[component]
-fn MktgStr() -> impl IntoView {
+fn MktgTenantPortal() -> impl IntoView {
     view! {
-        <section id="str" class="mktg-section mktg-str-section">
+        <section id="tenant-portal" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Short-term rentals"</p>
-                <h2 class="mktg-section-h2 mktg-h2-light">"Your STR, fully unlocked."</h2>
-                <p class="mktg-section-sub mktg-sub-light">"Most landlord software treats STR as an afterthought. Folio treats it as a first-class product."</p>
+                <p class="mktg-section-eyebrow">"Built for tenants too"</p>
+                <h2 class="mktg-section-h2">"Your tenants get their own portal — included, always free."</h2>
+                <p class="mktg-section-sub">
+                    "When your tenant logs in, they see their own dashboard — not yours. \
+                     They can pay rent, report a problem, sign their lease, and track move-in \
+                     documents without calling you. Less back-and-forth for you. Better experience for them."
+                </p>
                 <div class="mktg-str-grid">
                     {[
-                        ("calendar_month", "Unified calendar", "All channels in one drag-and-drop view. Block dates, set minimums, sync instantly."),
-                        ("verified_user",  "Compliance first", "STR license tracking, renewal reminders, and local regulatory filings — built in."),
-                        ("payments",       "Direct booking",   "Collect deposits, damage holds, and nightly rates without third-party fee stacks."),
+                        ("payments",      "Pay rent online",           "Bank transfer, card, or local payment method. Rent hits your account automatically."),
+                        ("build",         "Maintenance requests",      "Tenants describe the issue, upload a photo, and you get notified instantly. No more texts."),
+                        ("description",   "Lease & documents",         "Tenants can read, sign, and download their lease anytime. No printing. No scanning."),
+                        ("notifications", "Move-in checklist",         "Guide tenants through move-in day: what to submit, what to expect, how to reach you."),
                     ].iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
                             <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
@@ -681,6 +693,53 @@ fn MktgStr() -> impl IntoView {
                             <p class="mktg-str-desc">{*desc}</p>
                         </div>
                     }).collect_view()}
+                </div>
+            </div>
+        </section>
+    }
+}
+
+// ── Vacation rental section ───────────────────────────────────────────────────
+
+#[component]
+fn MktgStr() -> impl IntoView {
+    view! {
+        <section id="str" class="mktg-section mktg-str-section">
+            <div class="mktg-section-inner">
+                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Vacation rentals"</p>
+                <h2 class="mktg-section-h2 mktg-h2-light">"Your vacation rental, fully under control."</h2>
+                <p class="mktg-section-sub mktg-sub-light">
+                    "Most landlord software treats vacation rentals as an afterthought. \
+                     Folio treats them as a first-class product — one calendar, one inbox, one platform."
+                </p>
+                <div class="mktg-str-grid">
+                    {[
+                        ("calendar_month", "Unified booking calendar",
+                         "Airbnb, VRBO, Booking.com and your own direct bookings in one drag-and-drop calendar. Block dates, set minimums, sync instantly."),
+                        ("verified_user",  "Permits & compliance",
+                         "Vacation rental permit tracking, renewal reminders, and local registration filings — so you never get caught operating without a license."),
+                        ("payments",       "Collect directly from guests",
+                         "Take deposits, damage holds, and nightly rates from guests without paying a middleman's fee stack."),
+                    ].iter().map(|(icon, title, desc)| view! {
+                        <div class="mktg-str-card">
+                            <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
+                            <h3 class="mktg-str-title">{*title}</h3>
+                            <p class="mktg-str-desc">{*desc}</p>
+                        </div>
+                    }).collect_view()}
+                    // Cohost Network — coming soon
+                    <div class="mktg-str-card mktg-str-card--coming-soon">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <span class="material-symbols-outlined mktg-str-icon" style="margin-bottom:0">"handshake"</span>
+                            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:2px 8px;border-radius:4px;background:rgba(255,107,53,0.15);color:#ff6b35;">"Coming soon"</span>
+                        </div>
+                        <h3 class="mktg-str-title">"Cohost Network"</h3>
+                        <p class="mktg-str-desc">
+                            "Co-host your vacation rental through Folio's partner network. \
+                             Trusted local co-hosts handle check-ins, cleaning, and guest communication \
+                             while you stay in full control of your property and your money."
+                        </p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -734,7 +793,7 @@ fn MktgPayments() -> impl IntoView {
     view! {
         <section class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"G-03 Atlas Payments"</p>
+                <p class="mktg-section-eyebrow">"Rent collection"</p>
                 <h2 class="mktg-section-h2">"Rent collected. Split. Reported."</h2>
                 <p class="mktg-section-sub">"The unified ledger handles every rail — ACH, card, PIX — and automatically splits payments between principal, fees, and reserves."</p>
                 <div class="mktg-rail-grid">
@@ -761,35 +820,52 @@ fn MktgPricing() -> impl IntoView {
                 <p class="mktg-section-eyebrow">"Pricing"</p>
                 <h2 class="mktg-section-h2">"Simple. Transparent. No surprises."</h2>
                 <div class="mktg-pricing-grid">
-                    // Free
+
+                    // Starter — free forever
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Starter"</span>
                         <div class="mktg-pricing-price">"$0"</div>
-                        <div class="mktg-pricing-sub">"Up to 3 units, forever free"</div>
+                        <div class="mktg-pricing-sub">"Up to 3 units, free forever"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"1 landlord portal"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Landlord dashboard"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Lease management"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Maintenance requests"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Tenant portal"</li>
                         </ul>
                         <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost">"Join waitlist"</a>
                     </div>
-                    // Pro
-                    <div class="mktg-pricing-card mktg-pricing-featured">
+
+                    // Landlord OS — entry
+                    <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Landlord OS"</span>
                         <div class="mktg-pricing-price">"$29"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Per portfolio, unlimited units"</div>
+                        <div class="mktg-pricing-sub">"Up to 4 units"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"STR calendar & channels"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"ACH rent collection"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacancy campaigns"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vendor marketplace"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Rent collection (ACH + card)"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Vacancy marketing"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Contractor marketplace"</li>
+                        </ul>
+                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost">"Join waitlist"</a>
+                    </div>
+
+                    // Portfolio — main product
+                    <div class="mktg-pricing-card mktg-pricing-featured">
+                        <span class="mktg-pricing-tier">"Portfolio"</span>
+                        <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"Unlimited units"</div>
+                        <ul class="mktg-pricing-features">
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Landlord OS"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental calendar &amp; channels"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental compliance &amp; permits"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Portfolio analytics"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Multi-country (US, Canada, Brazil)"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Priority support"</li>
                         </ul>
                         <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent">"Join waitlist"</a>
                     </div>
-                    // Enterprise
+
+                    // Enterprise / PMC
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Enterprise / PMC"</span>
                         <div class="mktg-pricing-price">"Custom"</div>
