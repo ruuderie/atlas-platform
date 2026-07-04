@@ -842,7 +842,7 @@ fn MktgPricing() -> impl IntoView {
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Landlord OS"</span>
                         <div class="mktg-pricing-price">"$29"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 4 units"</div>
+                        <div class="mktg-pricing-sub">"Up to 2 units"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Rent collection (ACH + card)"</li>
