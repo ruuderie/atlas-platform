@@ -37,9 +37,11 @@ rules:
     verbs: ["get", "list", "create", "update", "patch"]
   # cert-manager.io — deployer must hold these to apply ingress-sidecar-role
   # which grants them to the sidecar ServiceAccount for cert cleanup on deprovision.
+  # create/update/patch are required for `kubectl apply -k` to upsert the
+  # wildcard-cert.yaml Certificate on every deployment run.
   - apiGroups: ["cert-manager.io"]
     resources: ["certificates"]
-    verbs: ["get", "list", "watch", "delete"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources: ["roles", "rolebindings"]
     # 'escalate' allows applying Role objects whose rules exceed the deployer's own
