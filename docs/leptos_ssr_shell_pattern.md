@@ -264,9 +264,21 @@ kubectl exec -n atlas-dev deployment/your-app -- find /app/site/pkg -type f | so
 | `you are using leptos_meta without a </head> tag` | Missing `shell()` function | Add `shell()` and wire into `leptos_routes` |
 | 502, pod crash, `No such file or directory` for `.js` | `hash-files=true` in Cargo.toml but `LEPTOS_HASH_FILES` missing from k8s manifest | Add to `env:` in `k8s/base/<app>.yaml` |
 | Page loads visually, buttons do nothing | Cloudflare serving stale unhashed WASM bundle | Ensure all three hash-files layers are set; hard-purge Cloudflare cache |
+| **Page renders with zero styling (raw HTML, no colors/layout)** | `<Stylesheet>` tag missing from `shell()`. Leptos does NOT auto-inject the CSS link even though the `.css` file is compiled and served at `/pkg/<output-name>.css`. WASM and JS are wired via `<HydrationScripts>` but CSS is always explicit. | Add `<Stylesheet id="<app>" href="/pkg/<output-name>.css"/>` inside `shell()` after `<MetaTags/>` |
 | `Invalid static segment: {slug}` | Axum route using Leptos path! syntax | Use `{slug}` in Axum routes, `:slug` in Leptos `path!()` |
 | `you are reading a resource in hydrate mode outside a <Suspense/>` | `Resource::new` read outside Suspense | Switch to `LocalResource` or wrap in `<Suspense>` |
 | Clicking a tab/button causes a **full page reload** (not a client-side state change) | `#[cfg]`-gated function called inside a reactive closure, producing different output on SSR vs WASM passes — Leptos detects the mismatch and forces a reload | See § "cfg-gated values in reactive closures" below |
+
+> **CSS checklist for a new SSR app shell:**
+> ```rust
+> use leptos_meta::{MetaTags, Stylesheet, Link};
+> // ...
+> <MetaTags/>
+> <Stylesheet id="myapp" href="/pkg/myapp-v1.css"/>
+> <Link rel="preconnect" href="https://fonts.googleapis.com"/>
+> <Link rel="stylesheet" href="https://fonts.googleapis.com/..."/>
+> ```
+> The `id` must be unique per stylesheet (used for deduplication). The `href` must match `output-name` in `Cargo.toml`.
 
 ---
 
