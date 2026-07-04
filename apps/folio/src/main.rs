@@ -97,7 +97,7 @@ pub fn shell(
     options: LeptosOptions,
     public_api_base_url: String,
 ) -> impl IntoView {
-    use leptos_meta::MetaTags;
+    use leptos_meta::{MetaTags, Stylesheet, Link};
 
     let env_script = format!(
         "window.__ENV__ = {{ API_BASE_URL: '{}' }};",
@@ -121,6 +121,15 @@ pub fn shell(
                 {reload}
                 <HydrationScripts options />
                 <MetaTags/>
+                // ── Stylesheets ─────────────────────────────────────────────────
+                // Leptos does NOT auto-inject the CSS link — it must be explicit.
+                // The href must match output-name in Cargo.toml + the pkg/ serve path.
+                <Stylesheet id="folio" href="/pkg/folio-v1.css"/>
+                // Google Fonts + Material Symbols
+                <Link rel="preconnect" href="https://fonts.googleapis.com"/>
+                <Link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+                <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"/>
+                <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"/>
             </head>
             <body>
                 <App/>
