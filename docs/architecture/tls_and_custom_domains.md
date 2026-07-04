@@ -55,7 +55,7 @@ Platform-admin shows the exact DNS record to give the client.
 
    | Type | Name (Host) | Value (Target) | TTL |
    |---|---|---|---|
-   | `A` | `pm.acmerealty.com` | `69.164.248.38` | Auto |
+   | `A` | `pm.acmerealty.com` | `<CLUSTER_IP>` | Auto |
    
    Or a CNAME if the client prefers:
    | `CNAME` | `pm` | `cluster.atlas.oply.co` | Auto |

@@ -39,7 +39,7 @@ app.clientco.co.uk
 
   | Type | Host | Value | TTL |
   |---|---|---|---|
-  | `A` | `pm.acmerealty.com` | `69.164.248.38` | Auto |
+  | `A` | `pm.acmerealty.com` | `<CLUSTER_IP>` | Auto |
 
 - Send this record to the client. Once they add it, **cert-manager auto-issues TLS within ~60 seconds**
 - Tell Cloudflare clients: set Proxy Status to **grey cloud (DNS only)** — Cloudflare proxying breaks cert issuance
@@ -75,13 +75,13 @@ echo | openssl s_client -connect yourdomain.com:443 -servername yourdomain.com 2
 
 The `wildcard-tls-prod` Secret may not be ready. Check on the server:
 ```bash
-ssh root@69.164.248.38 "kubectl get certificate wildcard-tls-prod -n atlas-dev"
+ssh root@<server> "kubectl get certificate wildcard-tls-prod -n atlas-dev"
 ```
 
 If `READY = False`, cert-manager is still issuing. Wait 2-3 minutes and check again.
 If it's been stuck >5 minutes, delete and recreate (cert-manager will retry):
 ```bash
-ssh root@69.164.248.38 "
+ssh root@<server> "
   kubectl delete certificate wildcard-tls-prod -n atlas-dev
   kubectl apply -f - <<'EOF'
 apiVersion: cert-manager.io/v1
@@ -102,7 +102,7 @@ EOF"
 
 The `letsencrypt-http` ClusterIssuer may be missing. Check:
 ```bash
-ssh root@69.164.248.38 "kubectl get clusterissuer letsencrypt-http"
+ssh root@<server> "kubectl get clusterissuer letsencrypt-http"
 ```
 If not found: `kubectl apply -f k8s/cluster-setup/cluster-issuers.yaml`
 
@@ -133,7 +133,7 @@ sidecar provisioning call. Use it when:
 
 ## Cluster State Reference
 
-One server (`69.164.248.38`) running K3s with three namespaces:
+One server running K3s with three namespaces:
 
 | Namespace | Environment | Wildcard cert |
 |---|---|---|
@@ -155,7 +155,7 @@ All ClusterIssuers are ready:
 
 ```bash
 # Connect to server
-ssh root@69.164.248.38
+ssh root@<server>
 
 # Check all TLS certs and their status
 kubectl get certificate -A

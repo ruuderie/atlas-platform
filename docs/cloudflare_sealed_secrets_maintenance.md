@@ -19,7 +19,7 @@ If you ever need to rotate your Cloudflare API Token or R2 Access Keys, follow t
 ### 1. Fetch the Public Certificate from the Server
 You need the public key to encrypt new secrets. Make sure you can SSH into the manager node, and run this locally:
 ```bash
-ssh -o StrictHostKeyChecking=no root@69.164.248.38 'kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o jsonpath="{.items[0].data.tls\.crt}" | base64 -d' > pub-cert.pem
+ssh -o StrictHostKeyChecking=no root@<server> 'kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o jsonpath="{.items[0].data.tls\.crt}" | base64 -d' > pub-cert.pem
 ```
 
 ### 2. Create a Temporary Plain Text Secret File
