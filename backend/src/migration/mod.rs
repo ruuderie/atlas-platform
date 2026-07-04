@@ -304,7 +304,9 @@ pub mod m20260922_app_pages_app_id;        // Landing Page Builder: app_id colum
 pub mod m20260923_app_page_variants;       // Landing Page Builder: A/B test variants table (app_page_variants)
 pub mod m20260924_app_utm_presets;         // Landing Page Builder: reusable UTM parameter sets (app_utm_presets)
 pub mod m20260925_atlas_lp_events;         // Landing Page Builder: funnel analytics events table
-pub mod m20260926_folio_product_seed;      // Folio Launch Engine: set launch_mode=waitlist + seed master page template
+pub mod m20260926_folio_product_seed;           // Folio Launch Engine: set launch_mode=waitlist + seed master page template
+pub mod m20260927_folio_broker_product_seed;    // Folio Broker Edition: register folio-broker product + page template
+pub mod m20260928_cohost_marketplace_product_seed; // Cohost Network: register folio-cohost-market product + page template
 
 pub struct Migrator;
 
@@ -572,6 +574,15 @@ impl MigratorTrait for Migrator {
             // Folio Launch Engine: activate waitlist mode + insert master product_page_template row
             // so GET /api/pub/products/folio returns 200 and the marketing homepage renders.
             Box::new(m20260926_folio_product_seed::Migration),
+            // Folio Broker Launch Engine: register folio-broker product so /brokers page and
+            // platform-admin "🤝 Broker Page" selector have a backing product record.
+            // Idempotent — ON CONFLICT (slug) DO NOTHING + WHERE NOT EXISTS guard.
+            Box::new(m20260927_folio_broker_product_seed::Migration),
+            // Folio Broker Edition: register folio-broker in platform_products + page template
+            Box::new(m20260927_folio_broker_product_seed::Migration),
+            // Cohost Network: register folio-cohost-market in platform_products + page template
+            // Enables platform-admin tracking + UTM attribution for /cohost-market.
+            Box::new(m20260928_cohost_marketplace_product_seed::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {
