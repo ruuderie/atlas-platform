@@ -8,10 +8,10 @@ resources:
   # namespace.yaml applied once by admin — not managed by CI
   - ingress.yaml
   - config.yaml
-  # wildcard-tls-prod: covers *.atlas.oply.co for all ingress-sidecar provisioned apps.
-  # cert-manager issues this via DNS-01 (letsencrypt-cloudflare). Once issued, every
-  # *.atlas.oply.co Ingress the sidecar creates gets TLS automatically with zero action.
-  - wildcard-cert.yaml
+  # wildcard-cert.yaml is intentionally excluded from CI apply.
+  # The Certificate is provisioned once and cert-manager auto-renews it.
+  # To re-provision: kubectl apply -f k8s/overlays/dev/wildcard-cert.yaml
+  #                  (requires admin credentials with cert-manager.io RBAC)
 
 patches:
   - path: platform-admin-patch.yaml
