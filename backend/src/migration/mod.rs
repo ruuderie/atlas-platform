@@ -304,6 +304,7 @@ pub mod m20260922_app_pages_app_id;        // Landing Page Builder: app_id colum
 pub mod m20260923_app_page_variants;       // Landing Page Builder: A/B test variants table (app_page_variants)
 pub mod m20260924_app_utm_presets;         // Landing Page Builder: reusable UTM parameter sets (app_utm_presets)
 pub mod m20260925_atlas_lp_events;         // Landing Page Builder: funnel analytics events table
+pub mod m20260926_folio_product_seed;      // Folio Launch Engine: set launch_mode=waitlist + seed master page template
 
 pub struct Migrator;
 
@@ -568,6 +569,9 @@ impl MigratorTrait for Migrator {
             Box::new(m20260923_app_page_variants::Migration),
             Box::new(m20260924_app_utm_presets::Migration),
             Box::new(m20260925_atlas_lp_events::Migration),
+            // Folio Launch Engine: activate waitlist mode + insert master product_page_template row
+            // so GET /api/pub/products/folio returns 200 and the marketing homepage renders.
+            Box::new(m20260926_folio_product_seed::Migration),
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

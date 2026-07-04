@@ -72,6 +72,8 @@ pub struct LandingPageData {
     pub variant_slug:       Option<String>,
     pub launch_mode:        LaunchMode,
     pub product_name:       String,
+    /// Tagline / subtitle (not always returned by backend master endpoint)
+    #[serde(default)]
     pub tagline:            Option<String>,
     pub meta_title:         Option<String>,
     pub meta_description:   Option<String>,
@@ -80,14 +82,23 @@ pub struct LandingPageData {
     pub structured_data:    Option<serde_json::Value>,
     pub cta_label:          String,
     pub cta_action:         String,
+    #[serde(rename = "hero")]
     pub hero_payload:       serde_json::Value,
+    #[serde(rename = "blocks")]
     pub blocks_payload:     serde_json::Value,
+    #[serde(default)]
     pub hreflang:           Vec<HreflangEntry>,
+    #[serde(default)]
     pub pixels:             Vec<PixelSnippet>,
     pub city:               Option<String>,
+    /// Region label (returned by variant endpoint, absent on master)
+    #[serde(default)]
     pub region:             Option<String>,
+    #[serde(default = "default_locale")]
     pub locale:             String,
 }
+
+fn default_locale() -> String { "en-US".to_string() }
 
 // ── Server function ───────────────────────────────────────────────────────────
 
