@@ -113,6 +113,7 @@ use crate::pages::marketing::inquiry_confirm::InquiryConfirm;
 use crate::pages::marketing::ltr_listings::LtrListings;
 use crate::pages::marketing::str_listings::StrListings;
 use crate::pages::marketing::ni_signup::NiSignup;
+use crate::pages::marketing::cohost_marketplace::CohostMarketplace;
 use crate::pages::vendor::onboard::VendorOnboard;
 use crate::pages::vendor::job_link::VendorJobLink;
 use crate::pages::tenant::maintenance_triage::TenantMaintenanceTriage;
@@ -294,6 +295,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/listings/ltr")       view=LtrListings/>
                 <Route path=path!("/listings/str")       view=StrListings/>
                 <Route path=path!("/ni/signup")          view=NiSignup/>
+                // Cohost Network marketplace — public discovery page
+                <Route path=path!("/cohost-market")      view=CohostMarketplace/>
                 // ── Shared authenticated routes (all roles) ────────────────────
                 <Route path=path!("/settings")           view=Settings/>
 

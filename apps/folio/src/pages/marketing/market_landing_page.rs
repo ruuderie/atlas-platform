@@ -727,11 +727,11 @@ fn MktgStr() -> impl IntoView {
                             <p class="mktg-str-desc">{*desc}</p>
                         </div>
                     }).collect_view()}
-                    // Cohost Network — coming soon
-                    <div class="mktg-str-card mktg-str-card--coming-soon">
+                    // Cohost Network — live page
+                    <a href="/cohost-market" class="mktg-str-card mktg-str-card--cohost" style="display:block;text-decoration:none;cursor:pointer;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                             <span class="material-symbols-outlined mktg-str-icon" style="margin-bottom:0">"handshake"</span>
-                            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:2px 8px;border-radius:4px;background:rgba(255,107,53,0.15);color:#ff6b35;">"Coming soon"</span>
+                            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:2px 8px;border-radius:4px;background:rgba(6,214,160,0.15);color:#06d6a0;">"New"</span>
                         </div>
                         <h3 class="mktg-str-title">"Cohost Network"</h3>
                         <p class="mktg-str-desc">
@@ -739,7 +739,10 @@ fn MktgStr() -> impl IntoView {
                              Trusted local co-hosts handle check-ins, cleaning, and guest communication \
                              while you stay in full control of your property and your money."
                         </p>
-                    </div>
+                        <div style="margin-top:10px;font-size:11px;font-weight:700;color:#ff6b35;">
+                            "Browse co-hosts →"
+                        </div>
+                    </a>
                 </div>
             </div>
         </section>

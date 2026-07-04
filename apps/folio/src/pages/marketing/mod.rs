@@ -1,5 +1,6 @@
 pub mod market_landing_page;
 pub mod broker_landing_page;
+pub mod cohost_marketplace;
 pub mod renter_application;
 pub mod lead_portal;
 pub mod inquiry_confirm;
