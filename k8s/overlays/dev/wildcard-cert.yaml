@@ -1,0 +1,25 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-tls-prod
+  namespace: atlas-dev
+  labels:
+    app.atlas.io/managed-by: kustomize
+  annotations:
+    # This cert covers ALL *.atlas.oply.co subdomains used by the ingress-sidecar.
+    # The sidecar references secretName: wildcard-tls-prod for any domain ending in
+    # .atlas.oply.co (see ingress_sidecar.rs tls_config). This Certificate must exist
+    # before any tenant Ingress referencing it is created, otherwise nginx serves the
+    # fake self-signed fallback cert.
+    #
+    # Requires: ClusterIssuer letsencrypt-cloudflare configured with a Cloudflare
+    # API token that has Zone:DNS:Edit for atlas.oply.co (DNS-01 is mandatory for
+    # wildcard certs — HTTP-01 cannot issue *.atlas.oply.co).
+spec:
+  secretName: wildcard-tls-prod
+  dnsNames:
+    - "*.atlas.oply.co"
+    - "atlas.oply.co"
+  issuerRef:
+    name: letsencrypt-cloudflare
+    kind: ClusterIssuer

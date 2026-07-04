@@ -1,0 +1,22 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-tls-prod
+  namespace: atlas-prod
+  labels:
+    app.atlas.io/managed-by: kustomize
+  annotations:
+    # Same wildcard as dev but in the atlas-prod namespace, using letsencrypt-prod
+    # (rate-limited, real certs). The sidecar in the prod cluster references
+    # secretName: wildcard-tls-prod for *.atlas.oply.co domains.
+    #
+    # Requires: ClusterIssuer letsencrypt-prod configured with a Cloudflare API
+    # token that has Zone:DNS:Edit for atlas.oply.co.
+spec:
+  secretName: wildcard-tls-prod
+  dnsNames:
+    - "*.atlas.oply.co"
+    - "atlas.oply.co"
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer

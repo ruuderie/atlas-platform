@@ -8,6 +8,10 @@ resources:
   # namespace.yaml applied once by admin — not managed by CI
   - ingress.yaml
   - config.yaml
+  # wildcard-tls-prod: covers *.atlas.oply.co for all ingress-sidecar provisioned apps.
+  # cert-manager issues this via DNS-01 (letsencrypt-cloudflare). Once issued, every
+  # *.atlas.oply.co Ingress the sidecar creates gets TLS automatically with zero action.
+  - wildcard-cert.yaml
 
 patches:
   - path: platform-admin-patch.yaml

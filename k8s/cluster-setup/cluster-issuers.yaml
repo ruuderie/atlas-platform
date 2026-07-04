@@ -1,0 +1,54 @@
+# ── ClusterIssuer: letsencrypt-cloudflare (DNS-01 via Cloudflare API) ──────────
+#
+# Used for:
+#   - Wildcard certs (*.atlas.oply.co, *.dev.atlas.oply.co) — MUST use DNS-01
+#   - Any domain where HTTP-01 challenge isn't reachable
+#
+# Requires:
+#   kubectl create secret generic cloudflare-api-token \
+#     --from-literal=api-token=<YOUR_CF_TOKEN> \
+#     --namespace cert-manager
+#
+# The Cloudflare token needs Zone:DNS:Edit for atlas.oply.co.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-cloudflare
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ruud@oply.co
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account-key
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+---
+# ── ClusterIssuer: letsencrypt-http (HTTP-01 via Nginx) ─────────────────────────
+#
+# Used for:
+#   - Custom tenant domains (e.g. folio.myclient.com)
+#   - Any non-wildcard domain where the customer has pointed DNS at the cluster
+#
+# The ingress-sidecar uses this name (ingress_sidecar.rs line 113) for all domains
+# that are not *.atlas.oply.co / *.dev.atlas.oply.co / *.uat.atlas.oply.co.
+# cert-manager auto-issues within ~60s of Ingress creation.
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-http
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ruud@oply.co
+    privateKeySecretRef:
+      name: letsencrypt-http-account-key
+    solvers:
+    - http01:
+        ingress:
+          class: nginx

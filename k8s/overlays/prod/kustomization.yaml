@@ -8,6 +8,10 @@ resources:
   - ingress.yaml
   - config.yaml
   - sealed-secret.yaml
+  # wildcard-tls-prod: covers *.atlas.oply.co for all ingress-sidecar provisioned apps.
+  # cert-manager issues via DNS-01 (letsencrypt-prod). Once issued, every
+  # *.atlas.oply.co Ingress the sidecar creates gets TLS automatically.
+  - wildcard-cert.yaml
 
 patches:
   - path: platform-admin-patch.yaml

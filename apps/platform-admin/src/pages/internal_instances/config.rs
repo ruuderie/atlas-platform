@@ -486,9 +486,47 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                                 </div>
                             }.into_any(),
                             None if is_w => view! {
-                                <div style="padding:10px 14px;border-left:3px solid rgba(52,211,153,0.5);border-radius:0 6px 6px 0;background:rgba(52,211,153,0.04);">
-                                    <p style="font-size:11px;color:#34d399;font-weight:600;margin:0 0 2px;">"Wildcard domain — no DNS action needed"</p>
-                                    <p class="muted" style="font-size:11px;margin:0;">"This subdomain is covered by the platform wildcard certificate. SSL is already active."</p>
+                                <div style="display:flex;flex-direction:column;gap:10px;">
+                                    <div style="padding:10px 14px;border-left:3px solid rgba(52,211,153,0.5);border-radius:0 6px 6px 0;background:rgba(52,211,153,0.04);">
+                                        <p style="font-size:11px;color:#34d399;font-weight:600;margin:0 0 2px;">"Wildcard domain — no DNS action needed"</p>
+                                        <p class="muted" style="font-size:11px;margin:0;">"This subdomain is covered by the platform wildcard certificate (" <code>"wildcard-tls-prod"</code> "). SSL is active once cert-manager has issued the wildcard cert for this cluster."</p>
+                                    </div>
+                                    // Show reprovision button even for wildcard domains — needed when
+                                    // the wildcard-tls-prod Secret doesn't exist yet (e.g. first deploy
+                                    // before CI applied the Certificate resource).
+                                    {
+                                        let reprov_domain_w = app.clone();
+                                        let toast_ref_w = use_context::<crate::app::GlobalToast>().expect("toast");
+                                        let is_reprovisioning_w = RwSignal::new(false);
+                                        view! {
+                                            <button
+                                                class="btn btn-sm self-start"
+                                                style="border:1px solid rgba(52,211,153,0.3);color:#34d399;background:rgba(52,211,153,0.06);"
+                                                disabled=move || is_reprovisioning_w.get()
+                                                on:click=move |_| {
+                                                    is_reprovisioning_w.set(true);
+                                                    let iid = reprov_domain_w.instance_id.clone();
+                                                    let tr = toast_ref_w.clone();
+                                                    leptos::task::spawn_local(async move {
+                                                        let url = crate::api::client::api_url(
+                                                            &format!("api/admin/app-instances/{}/reprovision-domain", iid));
+                                                        let res = crate::api::client::with_credentials(
+                                                            crate::api::client::create_client().post(&url)
+                                                        ).send().await;
+                                                        is_reprovisioning_w.set(false);
+                                                        match res {
+                                                            Ok(r) if r.status().is_success() =>
+                                                                tr.show_toast("Re-Provisioned", "Ingress re-applied. If wildcard-tls-prod is already issued, TLS will be active within seconds.", "success"),
+                                                            Ok(r) => tr.show_toast("Error", &format!("HTTP {} — check backend logs", r.status()), "error"),
+                                                            Err(e) => tr.show_toast("Error", &e.to_string(), "error"),
+                                                        }
+                                                    });
+                                                }
+                                            >
+                                                {move || if is_reprovisioning_w.get() { "Reprovisioning…" } else { "Re-Provision Ingress" }}
+                                            </button>
+                                        }
+                                    }
                                 </div>
                             }.into_any(),
                             None => view! { <></> }.into_any(),
