@@ -91,3 +91,4 @@ docs/reports/sales/pdf/
 docs/reports/**/*.md
 docs/reports/**/*.pdf
 .agents/
+.atlas-ops.local

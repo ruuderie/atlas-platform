@@ -161,13 +161,29 @@ All ClusterIssuers are ready:
 
 ### Server access
 
+Sensitive connection details (server IP, DB password) are stored in
+**`.atlas-ops.local`** — a gitignored file in the repo root. Copy it from a
+teammate or 1Password when setting up a new machine.
+
 ```bash
-# Production / dev server
-ssh root@69.164.248.38
+# Load local ops secrets
+source atlas-platform/.atlas-ops.local
+
+# Connect to the server
+ssh root@$ATLAS_SERVER_IP
 ```
 
 SSH auth uses 1Password agent (key: "Base SSH"). Ensure 1Password is unlocked
 before connecting — BatchMode SSH (no interactive prompt) will fail otherwise.
+
+For convenience, add an alias to `~/.ssh/config`:
+```
+Host atlas-dev-server
+  Hostname <see .atlas-ops.local: ATLAS_SERVER_IP>
+  User root
+  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+```
+Then just: `ssh atlas-dev-server`
 
 ### Connect to the database
 
