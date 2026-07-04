@@ -578,11 +578,10 @@ impl MigratorTrait for Migrator {
             // platform-admin "🤝 Broker Page" selector have a backing product record.
             // Idempotent — ON CONFLICT (slug) DO NOTHING + WHERE NOT EXISTS guard.
             Box::new(m20260927_folio_broker_product_seed::Migration),
-            // Folio Broker Edition: register folio-broker in platform_products + page template
-            Box::new(m20260927_folio_broker_product_seed::Migration),
             // Cohost Network: register folio-cohost-market in platform_products + page template
             // Enables platform-admin tracking + UTM attribution for /cohost-market.
             Box::new(m20260928_cohost_marketplace_product_seed::Migration),
+
         ];
 
         for app in crate::atlas_apps::get_active_apps() {

@@ -151,6 +151,71 @@ All ClusterIssuers are ready:
 
 ---
 
+## Database Operations — Direct psql
+
+> [!IMPORTANT]
+> Prefer migrations for any persistent schema/seed change. Direct psql is for
+> emergency patches, one-off verification, or seeding records that are blocked
+> by a migration issue. Every direct SQL change should be followed by a matching
+> migration so UAT and future prod deployments stay in sync.
+
+### Server access
+
+```bash
+# Production / dev server
+ssh root@69.164.248.38
+```
+
+SSH auth uses 1Password agent (key: "Base SSH"). Ensure 1Password is unlocked
+before connecting — BatchMode SSH (no interactive prompt) will fail otherwise.
+
+### Connect to the database
+
+```bash
+# Interactive psql session
+sudo -u postgres psql -d atlas_dev
+
+# One-shot query
+sudo -u postgres psql -d atlas_dev -c "SELECT slug, launch_mode FROM platform_products;"
+
+# Run a .sql file
+sudo -u postgres psql -d atlas_dev -f /tmp/patch.sql
+```
+
+| Environment | DB name | In-cluster URL |
+|---|---|---|
+| `atlas-dev` (current live) | `atlas_dev` | `postgres://ruud:<pwd>@10.42.0.1:5432/atlas_dev` |
+| `atlas-uat` | `atlas_uat` | `postgres://ruud:<pwd>@10.42.0.1:5432/atlas_uat` |
+
+The in-cluster `DATABASE_URL` (including password) is available in any running
+backend pod:
+
+```bash
+kubectl exec -n atlas-dev deploy/backend -- env | grep DATABASE_URL
+```
+
+### Common ops
+
+```bash
+# Verify a product record exists and is active
+sudo -u postgres psql -d atlas_dev -c \
+  "SELECT slug, launch_mode, status FROM platform_products;"
+
+# Check landing page templates
+sudo -u postgres psql -d atlas_dev -c \
+  "SELECT pp.slug, ppt.meta_title FROM platform_products pp \
+   LEFT JOIN product_page_templates ppt ON ppt.product_id = pp.id;"
+
+# Check migration history
+sudo -u postgres psql -d atlas_dev -c \
+  "SELECT version FROM seaql_migrations ORDER BY version DESC LIMIT 10;"
+
+# Restart backend pod to pick up DB changes immediately
+kubectl rollout restart deployment backend -n atlas-dev
+```
+
+---
+
 ## Quick Reference — SSH Commands
 
 ```bash
