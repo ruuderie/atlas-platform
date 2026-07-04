@@ -18,7 +18,6 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
-use serde::{Deserialize, Serialize};
 
 use crate::pages::not_found::NotFound;
 
