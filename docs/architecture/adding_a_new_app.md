@@ -406,7 +406,15 @@ manager.get_connection().execute_unprepared(
 
 ## Step 10: Provision Domain via Ingress Sidecar
 
-The ingress sidecar creates a k8s Ingress object mapping domain → service. Call it programmatically (not YAML):
+> [!IMPORTANT]
+> For a complete reference on all domain types, custom client domains, one-time
+> cluster TLS bootstrap, and troubleshooting, see
+> [`tls_and_custom_domains.md`](./tls_and_custom_domains.md).
+
+The ingress sidecar creates a K8s Ingress mapping domain → service, and cert-manager
+auto-issues TLS. This is triggered from platform-admin UI or via the API directly.
+
+### Platform subdomain (e.g. `myapp1.atlas.oply.co`)
 
 ```bash
 curl -X POST http://ingress-sidecar:9100/api/ingress/provision \
@@ -418,6 +426,28 @@ curl -X POST http://ingress-sidecar:9100/api/ingress/provision \
   }'
 ```
 
+TLS uses the shared `wildcard-tls-prod` Secret (issued once via cert-manager DNS-01).
+Requires the one-time cluster bootstrap — see `tls_and_custom_domains.md`.
+
+### Custom client domain (e.g. `pm.clientco.com`)
+
+```bash
+curl -X POST http://ingress-sidecar:9100/api/ingress/provision \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "tenant_slug": "myapp1",
+    "domain":      "pm.clientco.com",
+    "app_slug":    "property_management"
+  }'
+```
+
+TLS is issued automatically via HTTP-01 (cert-manager + `letsencrypt-http` ClusterIssuer)
+within ~60s of DNS propagation. The client must point their DNS at the cluster IP.
+Platform-admin shows the exact DNS record to give them.
+
+**Any domain works** — `pm.clientco.com`, `tracker.mybusiness.io`, `app.example.co.uk`, etc.
+The sidecar routes all non-`*.atlas.oply.co` domains through HTTP-01 automatically.
+
 **App slug → k8s service:**
 
 | `app_slug` | k8s Service |
@@ -425,8 +455,6 @@ curl -X POST http://ingress-sidecar:9100/api/ingress/provision \
 | `"property_management"` / `"folio"` | `folio` |
 | `"anchor"` | `anchor-app` |
 | `"network_instance"` | `network-instance` |
-
-TLS is automatic: `*.atlas.oply.co` uses the shared wildcard cert. Custom domains get cert-manager HTTP-01.
 
 ## Step 11: Verify
 
@@ -440,6 +468,11 @@ curl -sk -o /dev/null -w "%{http_code}" https://myapp1.atlas.oply.co/
 # No <NotFound/> rendered in HTML
 curl -sk https://myapp1.atlas.oply.co/ | grep -c "not-found"
 # should output: 0
+
+# TLS is a real cert (not Nginx fake cert)
+echo | openssl s_client -connect myapp1.atlas.oply.co:443 -servername myapp1.atlas.oply.co 2>/dev/null \
+  | openssl x509 -noout -issuer
+# should show: issuer=C = US, O = Let's Encrypt, ...
 ```
 
 ---
