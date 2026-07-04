@@ -4394,7 +4394,8 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   display: flex; align-items: center;
   padding: 7rem 2rem 5rem;
   background: var(--mk-bg);
-  overflow: hidden;
+  /* overflow must be visible so the Step 1 details card can grow below the fold */
+  overflow: visible;
 }
 .mktg-hero-grid-overlay {
   position: absolute; inset: 0; pointer-events: none;
@@ -4438,9 +4439,12 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 }
 
 /* ── Waitlist form ─────────────────────────────────────────────────────────── */
-.mktg-wl-wrap { max-width: 580px; margin: 0 auto; }
+/* scroll-margin-top ensures the fixed nav (64px) doesn't overlap the target when anchor-linking */
+#waitlist-wrap, .mktg-wl-wrap { max-width: 580px; margin: 0 auto; scroll-margin-top: 80px; }
 .mktg-wl-step { transition: opacity .2s; }
 .mktg-wl-step.hidden { display: none; }
+/* Step 1: give the details card room to breathe below — prevents card from being cut off */
+.mktg-wl-details { padding-bottom: 2rem; }
 .mktg-wl-row { display: flex; gap: .5rem; flex-wrap: wrap; }
 .mktg-wl-email {
   flex: 1; min-width: 220px; padding: .8rem 1.1rem;

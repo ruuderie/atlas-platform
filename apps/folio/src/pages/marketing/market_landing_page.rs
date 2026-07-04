@@ -267,6 +267,16 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
         }
         err_msg.set(String::new());
         step.set(1);
+        // Scroll the waitlist card into view so the user sees the details form
+        #[cfg(feature = "hydrate")]
+        {
+            let _ = js_sys::eval(
+                "(function(){\
+                    var el = document.getElementById('waitlist-wrap');\
+                    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});\
+                })()"
+            );
+        }
     };
 
     let wl_url = waitlist_url.clone();
