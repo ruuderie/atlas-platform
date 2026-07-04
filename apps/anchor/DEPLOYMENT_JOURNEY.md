@@ -52,7 +52,7 @@ We managed our Kubernetes configuration dynamically via Kustomize Overlays. For 
 Because our NixOS server is pristine, we avoided injecting Git SSH credentials by using `rsync` from our local development machine to beam the source code directly to the server—explicitly discarding the gigabytes of heavy Rust build folders:
 
 ```bash
-rsync -avz --exclude 'target' --exclude 'node_modules' --exclude '.git' . ruud@69.164.248.38:~/anchor/
+rsync -avz --exclude 'target' --exclude 'node_modules' --exclude '.git' . ruud@<server>:~/anchor/
 ```
 
 ### Injecting Kubernetes Secrets dynamically
