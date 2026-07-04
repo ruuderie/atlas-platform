@@ -42,6 +42,7 @@ use crate::entities::{
     product_page::{template, variant},
     atlas_lead,
     app_page,
+    outbox_job,
 };
 use crate::types::gtm::PlanTier;
 
@@ -656,11 +657,13 @@ async fn join_waitlist_inner(
         let display_name = body.name.clone()
             .or_else(|| body.company.clone())
             .unwrap_or_else(|| body.email.clone());
+        // Capture sentinel_tenant_id before product is moved into the ActiveModel
+        let sentinel_tenant_id = product.sentinel_tenant_id.unwrap_or_else(Uuid::nil);
 
         let new_lead = atlas_lead::ActiveModel {
             id:          Set(Uuid::new_v4()),
-            tenant_id:   Set(product.sentinel_tenant_id.unwrap_or_else(Uuid::nil)),
-            name:        Set(display_name),
+            tenant_id:   Set(sentinel_tenant_id),
+            name:        Set(display_name.clone()),
             email:       Set(Some(body.email.clone())),
             phone:       Set(body.phone.clone()),
             company:     Set(body.company.clone()),
@@ -700,6 +703,27 @@ async fn join_waitlist_inner(
             let mut prod_active: platform_product::ActiveModel = product.into();
             prod_active.waitlist_count = Set(prod_active.waitlist_count.unwrap() + 1);
             let _ = prod_active.update(db).await;
+
+            // Enqueue confirmation email via outbox (fire-and-forget — non-fatal)
+            let confirmation_job = outbox_job::ActiveModel {
+                id:        Set(Uuid::new_v4()),
+                tenant_id: Set(sentinel_tenant_id),
+                job_type:  Set(crate::types::outbox::OutboxJobType::SendWaitlistConfirmation.to_string()),
+                payload:   Set(json!({
+                    "to_email":     body.email,
+                    "name":         display_name,
+                    "product_slug": product_slug,
+                    "variant_slug": variant_slug,
+                })),
+                status:    Set(crate::types::outbox::OutboxJobStatus::Pending.to_string()),
+                run_at:    Set(Utc::now()),
+                attempts:  Set(0),
+                created_at: Set(Utc::now()),
+                ..Default::default()
+            };
+            if let Err(e) = confirmation_job.insert(db).await {
+                tracing::warn!(email = %body.email, error = %e, "outbox job insert failed — email will not be sent");
+            }
         }
     } else {
         tracing::debug!(email = %body.email, "duplicate waitlist signup — skipping lead insert");

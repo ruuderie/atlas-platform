@@ -97,6 +97,121 @@ impl OutboxWorker {
                     }
                 }
 
+                // ── Waitlist confirmation ─────────────────────────────────────────────
+                // Sent to every new lead immediately after atlas_lead is inserted.
+                // Payload: { to_email, name, product_slug, variant_slug? }
+                crate::types::outbox::OutboxJobType::SendWaitlistConfirmation => {
+                    let to_email = job.payload.get("to_email").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let name     = job.payload.get("name").and_then(|v| v.as_str()).unwrap_or("there").to_string();
+                    let product  = job.payload.get("product_slug").and_then(|v| v.as_str()).unwrap_or("folio").to_string();
+
+                    if to_email.is_empty() {
+                        return Err(sea_orm::DbErr::Custom("send_waitlist_confirmation: missing to_email in payload".to_string()));
+                    }
+
+                    let first_name = name.split_whitespace().next().unwrap_or(&name).to_string();
+
+                    let body_html = format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>You're on the Folio waitlist</title>
+</head>
+<body style="margin:0;padding:0;background:#0d0f14;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#e2e8f0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0d0f14;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#141720;border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;max-width:560px;width:100%;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#1a1f2e 0%,#141720 100%);padding:32px 40px 24px;border-bottom:1px solid rgba(255,255,255,.07);">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td>
+                  <span style="display:inline-block;background:#ff6b35;color:#fff;font-size:18px;font-weight:800;
+                               width:36px;height:36px;line-height:36px;text-align:center;border-radius:9px;
+                               margin-right:10px;vertical-align:middle;">F</span>
+                  <span style="font-size:20px;font-weight:700;color:#fff;vertical-align:middle;">Folio</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px 32px;">
+            <h1 style="margin:0 0 8px;font-size:24px;font-weight:700;color:#fff;">
+              You're on the list, {first_name}! 🎉
+            </h1>
+            <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#94a3b8;">
+              Thanks for signing up for early access to Folio — the modern landlord OS built for independent
+              property owners who manage LTR, STR, and everything in between.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0"
+                   style="background:rgba(255,107,53,.08);border:1px solid rgba(255,107,53,.25);
+                          border-radius:12px;padding:0;margin-bottom:24px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#ff6b35;text-transform:uppercase;letter-spacing:.06em;">
+                    What happens next
+                  </p>
+                  <ul style="margin:8px 0 0;padding-left:18px;font-size:14px;line-height:1.8;color:#cbd5e1;">
+                    <li>We review every application personally</li>
+                    <li>Approved users receive a private invite link</li>
+                    <li>You'll be one of the first to experience the full platform</li>
+                  </ul>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#64748b;">
+              We're being selective about early access to make sure every user gets a great experience from day one.
+              We'll email you the moment your spot is confirmed.
+            </p>
+            <p style="margin:0;font-size:15px;color:#94a3b8;">
+              — The Folio team
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 40px;border-top:1px solid rgba(255,255,255,.06);">
+            <p style="margin:0;font-size:12px;color:#475569;text-align:center;">
+              You're receiving this because you signed up for the Folio waitlist.<br/>
+              If this was a mistake, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"#, first_name = first_name);
+
+                    let email_payload = crate::handlers::communications::SendEmailPayload {
+                        tenant_id:   job.tenant_id,
+                        to_email,
+                        subject:     format!("You're on the Folio waitlist, {}!", first_name),
+                        body_html,
+                        attachments: vec![],
+                    };
+
+                    match crate::handlers::communications::send_email_handler(
+                        axum::extract::State(db.clone()),
+                        axum::extract::Json(email_payload),
+                    ).await {
+                        Ok(_) => {
+                            tracing::info!(product = %product, "waitlist confirmation email sent");
+                            Ok(())
+                        }
+                        Err((status, msg)) => Err(format!("waitlist confirmation email failed ({:?}): {}", status, msg)),
+                    }
+                }
+
                 // G-27: Recompute dimension aggregates, composite score, confidence level,
                 // and dimension_vector for all scorecards that have new verified entries
                 // since the last run. Runs every 5 minutes (interval_seconds = 300).

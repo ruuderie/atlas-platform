@@ -26,6 +26,10 @@ pub enum OutboxJobType {
     /// Send a magic-link authentication email via the email handler.
     SendMagicLinkEmail,
 
+    /// Send a waitlist confirmation email to a new lead who just signed up.
+    /// Payload: `{ to_email, name, product_slug, position, variant_slug? }`
+    SendWaitlistConfirmation,
+
     // ── G-27 Scorecard compute ───────────────────────────────────────────────
     /// Recompute dimension aggregates + composite score for one scorecard or
     /// perform a tenant-wide sweep. Runs every 5 minutes.
@@ -61,6 +65,7 @@ impl fmt::Display for OutboxJobType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::SendMagicLinkEmail               => "send_magic_link_email",
+            Self::SendWaitlistConfirmation          => "send_waitlist_confirmation",
             Self::RecomputeScorecardAggregates     => "recompute_scorecard_aggregates",
             Self::RefreshScorecardTimeSeries       => "refresh_scorecard_time_series",
             Self::RefreshScorecardPortfolio        => "refresh_scorecard_portfolio",
@@ -77,6 +82,7 @@ impl TryFrom<String> for OutboxJobType {
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
             "send_magic_link_email"              => Ok(Self::SendMagicLinkEmail),
+            "send_waitlist_confirmation"         => Ok(Self::SendWaitlistConfirmation),
             "recompute_scorecard_aggregates"     => Ok(Self::RecomputeScorecardAggregates),
             "refresh_scorecard_time_series"      => Ok(Self::RefreshScorecardTimeSeries),
             "refresh_scorecard_portfolio"        => Ok(Self::RefreshScorecardPortfolio),

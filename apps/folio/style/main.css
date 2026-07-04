@@ -4358,6 +4358,16 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   transition: border-color .15s, color .15s;
 }
 .mktg-btn-ghost:hover { border-color: rgba(255,255,255,.2); color: var(--mk-text); }
+/* Sign-in nav button — slightly more visible than ghost for approved users */
+.mktg-btn-signin {
+  padding: .45rem 1rem; border-radius: 8px; display: inline-flex; align-items: center; gap: .35rem;
+  border: 1px solid rgba(255,255,255,.18); color: var(--mk-text);
+  background: rgba(255,255,255,.06);
+  text-decoration: none; font-size: .85rem; font-weight: 600;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.mktg-btn-signin:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); color: #fff; }
+
 .mktg-btn-accent {
   padding: .5rem 1.2rem; border-radius: 8px;
   background: var(--mk-accent); color: #fff;
@@ -4442,6 +4452,17 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .mktg-wl-err { color: #f87171; font-size: .83rem; margin-top: .4rem; text-align: left; }
 .mktg-wl-count-line { margin-top: .9rem; font-size: .82rem; color: var(--mk-muted); }
 .mktg-wl-count { color: var(--mk-green); font-weight: 700; }
+/* Sign-in hint — shown below waitlist email step for users who already have access */
+.mktg-wl-signin-hint {
+  margin-top: .55rem; font-size: .82rem; color: var(--mk-muted); text-align: center;
+}
+.mktg-wl-signin-link {
+  color: var(--mk-text); font-weight: 600; text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,.25);
+  transition: color .15s, border-color .15s;
+}
+.mktg-wl-signin-link:hover { color: #fff; border-color: rgba(255,255,255,.6); }
+
 .mktg-wl-card {
   background: rgba(255,255,255,.04); border: 1px solid var(--mk-border);
   border-radius: 16px; padding: 1.75rem;

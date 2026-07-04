@@ -228,7 +228,10 @@ fn MktgNav() -> impl IntoView {
                     <a href="#international">"International"</a>
                 </div>
                 <div class="mktg-nav-actions">
-                    <a href="/login" class="mktg-btn-ghost">"Sign in"</a>
+                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
+                        <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
+                        " Sign in"
+                    </a>
                     <a href="#waitlist-wrap" class="mktg-btn-accent">"Join waitlist"</a>
                 </div>
             </div>
@@ -363,6 +366,10 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                             <p class="mktg-wl-count-line">
                                 <span class="mktg-wl-count">{move || position.get()}</span>
                                 " people already on the list · No spam, ever"
+                            </p>
+                            <p class="mktg-wl-signin-hint">
+                                "Already have access? "
+                                <a href="/login" class="mktg-wl-signin-link" id="hero-signin-link">"Sign in →"</a>
                             </p>
                         </div>
                     })}
