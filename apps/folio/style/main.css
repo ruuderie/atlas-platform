@@ -4738,6 +4738,67 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   .mktg-section { padding: 4rem 1.25rem; }
   .mktg-success-card { flex-direction: column; text-align: center; }
   .mktg-success-div { display: none; }
+  .mktg-hero-h1 { font-size: clamp(2rem, 9vw, 3.5rem); }
+  .mktg-pricing-card { padding: 1.5rem 1.25rem; }
+}
+
+/* ── Hamburger button ────────────────────────────────────────────────────────── */
+.mktg-nav-hamburger {
+  display: none;
+  align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: var(--mk-text);
+  padding: .35rem;
+  border-radius: 6px;
+  transition: background .15s;
+  margin-left: .5rem;
+}
+.mktg-nav-hamburger:hover { background: rgba(255,255,255,.07); }
+.mktg-nav-hamburger .material-symbols-outlined { font-size: 1.5rem; }
+
+/* ── Mobile nav drawer ───────────────────────────────────────────────────────── */
+.mktg-mobile-nav {
+  display: none;
+  position: fixed;
+  top: 64px; left: 0; right: 0; bottom: 0;
+  background: rgba(7, 13, 24, .97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 2rem 1.5rem 3rem;
+  z-index: 98;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--mk-border);
+}
+.mktg-mobile-nav--open { display: flex; }
+.mktg-mobile-nav a {
+  color: var(--mk-text);
+  font-size: 1.1rem; font-weight: 500;
+  text-decoration: none;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  display: block;
+  transition: color .15s;
+}
+.mktg-mobile-nav a:hover { color: var(--mk-accent); }
+.mktg-mobile-nav-broker {
+  color: var(--mk-muted) !important;
+  font-size: .95rem !important;
+}
+.mktg-mobile-nav-cta {
+  margin-top: 1.5rem !important;
+  text-align: center !important;
+  padding: .85rem 1.5rem !important;
+  border-radius: 8px !important;
+  border-bottom: none !important;
+  font-size: 1rem !important;
+}
+
+@media (max-width: 900px) {
+  .mktg-nav-hamburger { display: flex; }
+  /* Hide the "Sign in" text label on small screens to save space */
+  .mktg-btn-signin span + * { display: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

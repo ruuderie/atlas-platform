@@ -215,6 +215,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
 
 #[component]
 fn MktgNav() -> impl IntoView {
+    let menu_open = RwSignal::new(false);
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -222,10 +223,12 @@ fn MktgNav() -> impl IntoView {
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
                 </a>
+                // ── Desktop links ──────────────────────────────────────────
                 <div class="mktg-nav-links">
                     <a href="#features">"Features"</a>
                     <a href="#tenant-portal">"Tenant Portal"</a>
                     <a href="#str">"Vacation Rentals"</a>
+                    <a href="/cohost-market">"Cohost Network"</a>
                     <a href="#pricing">"Pricing"</a>
                     <a href="/brokers" class="mktg-nav-broker-link">"For Brokers →"</a>
                 </div>
@@ -235,9 +238,33 @@ fn MktgNav() -> impl IntoView {
                         " Sign in"
                     </a>
                     <a href="#waitlist-wrap" class="mktg-btn-accent">"Join waitlist"</a>
+                    // ── Hamburger (mobile only) ────────────────────────────
+                    <button
+                        class="mktg-nav-hamburger"
+                        aria-label="Toggle navigation menu"
+                        on:click=move |_| menu_open.update(|o| *o = !*o)
+                    >
+                        <span class="material-symbols-outlined">
+                            {move || if menu_open.get() { "close" } else { "menu" }}
+                        </span>
+                    </button>
                 </div>
             </div>
         </nav>
+        // ── Mobile nav drawer ─────────────────────────────────────────────
+        <div class=move || if menu_open.get() {
+            "mktg-mobile-nav mktg-mobile-nav--open"
+        } else {
+            "mktg-mobile-nav"
+        }>
+            <a href="#features"    on:click=move |_| menu_open.set(false)>"Features"</a>
+            <a href="#tenant-portal" on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
+            <a href="#str"         on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
+            <a href="/cohost-market" on:click=move |_| menu_open.set(false)>"Cohost Network"</a>
+            <a href="#pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
+            <a href="/brokers"     on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"For Brokers →"</a>
+            <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Join waitlist"</a>
+        </div>
     }
 }
 

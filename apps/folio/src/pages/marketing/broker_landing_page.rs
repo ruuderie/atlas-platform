@@ -87,6 +87,7 @@ fn BrokerDefault() -> impl IntoView {
 
 #[component]
 fn BrokerNav() -> impl IntoView {
+    let menu_open = RwSignal::new(false);
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -94,6 +95,7 @@ fn BrokerNav() -> impl IntoView {
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
                 </a>
+                // ── Desktop links ──────────────────────────────────────────
                 <div class="mktg-nav-links">
                     <a href="#broker-features">"Features"</a>
                     <a href="#broker-portals">"Portals"</a>
@@ -107,9 +109,32 @@ fn BrokerNav() -> impl IntoView {
                         " Sign in"
                     </a>
                     <a href="/#waitlist-wrap" class="mktg-btn-accent">"Get early access"</a>
+                    // ── Hamburger (mobile only) ────────────────────────────
+                    <button
+                        class="mktg-nav-hamburger"
+                        aria-label="Toggle navigation menu"
+                        on:click=move |_| menu_open.update(|o| *o = !*o)
+                    >
+                        <span class="material-symbols-outlined">
+                            {move || if menu_open.get() { "close" } else { "menu" }}
+                        </span>
+                    </button>
                 </div>
             </div>
         </nav>
+        // ── Mobile nav drawer ─────────────────────────────────────────────
+        <div class=move || if menu_open.get() {
+            "mktg-mobile-nav mktg-mobile-nav--open"
+        } else {
+            "mktg-mobile-nav"
+        }>
+            <a href="#broker-features" on:click=move |_| menu_open.set(false)>"Features"</a>
+            <a href="#broker-portals"  on:click=move |_| menu_open.set(false)>"Portals"</a>
+            <a href="#broker-agents"   on:click=move |_| menu_open.set(false)>"Agent Accounts"</a>
+            <a href="#broker-pricing"  on:click=move |_| menu_open.set(false)>"Pricing"</a>
+            <a href="/"                on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"← Landlord page"</a>
+            <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Get early access"</a>
+        </div>
     }
 }
 
