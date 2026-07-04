@@ -8,6 +8,7 @@ use crate::pages::not_found::NotFound;
 use crate::pages::login::Login;
 use crate::pages::verify::Verify;
 use crate::pages::marketing::market_landing_page::MarketLandingPage;
+use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
 
 // Landlord pages
 use crate::pages::landlord::{
@@ -167,6 +168,8 @@ pub fn App() -> impl IntoView {
                 // Placed before role dispatch so CDN requests match without auth.
                 <Route path=path!("/lp")               view=MarketLandingPage/>
                 <Route path=path!("/lp/:variant_slug") view=MarketLandingPage/>
+                // /brokers → independent broker/PMC landing page (app_id = "folio-broker")
+                <Route path=path!("/brokers")           view=BrokerLandingPage/>
 
                 // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
                 <Route path=path!("/") view=HomeDispatch/>

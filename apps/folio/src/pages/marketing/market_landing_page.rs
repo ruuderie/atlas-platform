@@ -227,7 +227,7 @@ fn MktgNav() -> impl IntoView {
                     <a href="#tenant-portal">"Tenant Portal"</a>
                     <a href="#str">"Vacation Rentals"</a>
                     <a href="#pricing">"Pricing"</a>
-                    <a href="#international">"International"</a>
+                    <a href="/brokers" class="mktg-nav-broker-link">"For Brokers →"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
@@ -333,8 +333,8 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
             <div class="mktg-hero-grid-overlay"></div>
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
-                    <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"verified"</span>
-                    " Built by a landlord · US · Canada · Brazil"
+                    <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
+                    " Beta Access Open · Built by a landlord · US · Canada · Brazil"
                 </div>
                 <h1 class="mktg-hero-h1">
                     "Your entire portfolio."
@@ -342,8 +342,8 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                 </h1>
                 <p class="mktg-hero-sub">
                     "Stop juggling five apps. Folio connects rent collection, leases, maintenance, \
-                     vacation rental calendars and local compliance into a single platform built for how you \
-                     actually work."
+                     vacation rental calendars and local compliance into one platform — \
+                     built by a landlord who was tired of the same mess you are."
                 </p>
 
                 // Waitlist form — 3-step reactive form
@@ -369,7 +369,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                                 <button class="mktg-btn-accent mktg-btn-lg"
                                     on:click=move |_| validate_and_next()
                                 >
-                                    "Join the waitlist →"
+                                    "Get early access →"
                                 </button>
                             </div>
                             {move || (!err_msg.get().is_empty()).then(|| view! {
@@ -377,7 +377,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                             })}
                             <p class="mktg-wl-count-line">
                                 <span class="mktg-wl-count">{move || position.get()}</span>
-                                " people already on the list · No spam, ever"
+                                " landlords already in line for beta access"
                             </p>
                             <p class="mktg-wl-signin-hint">
                                 "Already have access? "
@@ -390,7 +390,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                     {move || (step.get() == 1).then(|| view! {
                         <div class="mktg-wl-step mktg-wl-details">
                             <div class="mktg-wl-card">
-                                <p class="mktg-wl-card-head">"Tell us about yourself — takes 30 seconds"</p>
+                            <p class="mktg-wl-card-head">"One more thing — takes 30 seconds"</p>
 
                                 // Role pills
                                 <div class="mktg-wl-field">
@@ -483,8 +483,8 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                             <div class="mktg-success-icon">
                                 <span class="material-symbols-outlined" style="font-size:36px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
                             </div>
-                            <h3 class="mktg-success-h3">"You're on the list!"</h3>
-                            <p class="mktg-success-sub">"Check your inbox for a confirmation. We'll email you the moment early access opens."</p>
+                            <h3 class="mktg-success-h3">"You're in! Beta access reserved."</h3>
+                            <p class="mktg-success-sub">"Check your inbox for a confirmation. You'll be among the first landlords to access Folio and the Cohost Network when we open the doors."</p>
                             <div class="mktg-success-card">
                                 <div>
                                     <div class="mktg-success-label">"Your position"</div>
@@ -509,6 +509,11 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                 {move || (step.get() == 0).then(|| view! {
                     <div class="mktg-proof-strip">
                         <span class="mktg-proof-item">
+                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"science"</span>
+                            "Beta — be one of the first"
+                        </span>
+                        <span class="mktg-proof-sep"></span>
+                        <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"verified"</span>
                             "Built by a landlord"
                         </span>
@@ -516,11 +521,6 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                         <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
                             "No setup fee"
-                        </span>
-                        <span class="mktg-proof-sep"></span>
-                        <span class="mktg-proof-item">
-                            <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
-                            "No contracts"
                         </span>
                         <span class="mktg-proof-sep"></span>
                         <span class="mktg-proof-item">
@@ -853,7 +853,7 @@ fn MktgPricing() -> impl IntoView {
                     <div class="mktg-pricing-card mktg-pricing-featured">
                         <span class="mktg-pricing-tier">"Portfolio"</span>
                         <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Unlimited units"</div>
+                        <div class="mktg-pricing-sub">"Full platform access"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Landlord OS"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental calendar &amp; channels"</li>
@@ -892,9 +892,15 @@ fn MktgCta() -> impl IntoView {
     view! {
         <section class="mktg-cta-section">
             <div class="mktg-section-inner mktg-cta-inner">
-                <h2 class="mktg-cta-h2">"Ready to simplify your portfolio?"</h2>
-                <p class="mktg-cta-sub">"Join the waitlist. Be among the first landlords to get access."</p>
-                <a href="#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg">"Join the waitlist →"</a>
+                <p class="mktg-section-eyebrow" style="color:#ff6b35;">"Limited beta spots available"</p>
+                <h2 class="mktg-cta-h2">"Be one of the first landlords inside."</h2>
+                <p class="mktg-cta-sub">
+                    "Join the waitlist now and get exclusive early access to Folio \
+                     and the Cohost Network before we open to the public. \
+                     Beta members help shape the product and lock in founder pricing."
+                </p>
+                <a href="#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg">"Reserve my beta spot →"</a>
+                <p style="margin-top:16px;font-size:12px;color:#9ca3af;">"No credit card. No contracts. Cancel anytime."</p>
             </div>
         </section>
     }
