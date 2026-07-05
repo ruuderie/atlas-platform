@@ -647,7 +647,7 @@ fn MktgPersonas() -> impl IntoView {
             "Equity dashboard",
             "Property statements",
             "Distribution history",
-            "Maintenance approvals",
+            "Tax & depreciation summary",
         ]),
     ];
 
@@ -1098,6 +1098,8 @@ fn MktgAppPreview() -> impl IntoView {
                             on:click=move |_| active_tab.set(3)>"🔧 Maintenance"</button>
                     <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
                             on:click=move |_| active_tab.set(4)>"💳 Payments"</button>
+                    <button class=move || if active_tab.get()==5 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(5)>"📊 Owner / Investor"</button>
                 </div>
 
                 {move || (active_tab.get() == 0).then(|| view! {
@@ -1303,6 +1305,44 @@ fn MktgAppPreview() -> impl IntoView {
                             <div class="ap-export-row">
                                 <button class="ap-export-btn">"⬇ Export Schedule E (IRS)"</button>
                                 <button class="ap-export-btn">"⬇ Export CSV"</button>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 5).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Read-only investor portal — equity, distributions, statements, and tax summary in one view"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"investors.folio.co/oak-portfolio"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-section-title">"Equity dashboard"</div>
+                            <div class="ap-kpi-row">
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$2.4M"</div><div class="ap-kpi-label">"Portfolio value"</div><div class="ap-kpi-delta ap-delta--up">"↑ $180K YTD"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$940K"</div><div class="ap-kpi-label">"Total equity"</div><div class="ap-kpi-delta ap-delta--up">"39% avg LTV"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$21,670"</div><div class="ap-kpi-label">"Net income · Jul"</div><div class="ap-kpi-delta ap-delta--up">"↑ 6.1% MoM"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"7.8%"</div><div class="ap-kpi-label">"Cash-on-cash return"</div><div class="ap-kpi-delta ap-delta--up">"vs 6.2% last yr"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Distribution history"</div>
+                            <div class="ap-payment-list">
+                                <div class="ap-pay-row"><span>"Jul 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $8,240"</span></div>
+                                <div class="ap-pay-row"><span>"Jun 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $7,980"</span></div>
+                                <div class="ap-pay-row"><span>"May 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $8,100"</span></div>
+                                <div class="ap-pay-row"><span>"Apr 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $7,750"</span></div>
+                            </div>
+                            <div class="ap-section-title" style="margin-top:.85rem;">"Property statements & tax"</div>
+                            <div class="ap-payment-list">
+                                <div class="ap-pay-row"><span>"July 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"YTD Income & Expense"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"Depreciation schedule (MACRS)"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"Schedule E package · 2025"</span><span class="ap-pay-status ap-pay--paid">"Filed"</span><span>"⬇ ZIP"</span></div>
+                            </div>
+                            <div style="margin-top:.75rem;padding:.55rem .7rem;background:rgba(130,80,255,.06);border:1px solid rgba(130,80,255,.18);border-radius:9px;font-size:.73rem;color:var(--mk-muted);">
+                                "🔒 Read-only access. Owners see their numbers — they can't touch rent rolls, leases, or tenant data."
                             </div>
                         </div>
                     </div>

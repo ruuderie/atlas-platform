@@ -594,7 +594,7 @@ fn PmAppPreview() -> impl IntoView {
 
                 {move || (active_tab.get() == 2).then(|| view! {
                     <div class="vp-panel">
-                        <p class="vp-caption">"Maintenance across all portfolios — dispatch, track, approve invoices at scale"</p>
+                        <p class="vp-caption">"Maintenance across all portfolios — you approve invoices so owners never have to"</p>
                         <div class="vp-chrome">
                             <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
                             <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
@@ -605,7 +605,7 @@ fn PmAppPreview() -> impl IntoView {
                             <div class="ap-filter-bar">
                                 <span class="ap-filter-chip ap-chip--active">"All (8)"</span>
                                 <span class="ap-filter-chip">"Open (3)"</span>
-                                <span class="ap-filter-chip">"Pending (2)"</span>
+                                <span class="ap-filter-chip">"Pending approval (2)"</span>
                                 <span class="ap-filter-chip">"Closed (3)"</span>
                             </div>
                             <div class="ap-wo-list">
@@ -630,6 +630,27 @@ fn PmAppPreview() -> impl IntoView {
                                             <button class="ap-btn-reject">"Review"</button>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="ap-wo-card ap-wo--review">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-4415"</span><span class="ap-wo-date">"Jun 29, 2026"</span></div>
+                                    <div class="ap-wo-title">"Roof repair · Johnson Portfolio · Building B"</div>
+                                    <div class="ap-wo-meta">"Completed · Within PM approval threshold ($2,500)"</div>
+                                    <div class="ap-wo-invoice-row">
+                                        <span>"Invoice: $2,100 · TopLine Roofing"</span>
+                                        <div class="ap-wo-actions">
+                                            <button class="ap-btn-approve">"✓ Approve"</button>
+                                            <button class="ap-btn-reject">"Dispute"</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            // Owner shield callout
+                            <div style="margin-top:.85rem;padding:.65rem .75rem;background:rgba(6,214,160,.06);border:1px solid rgba(6,214,160,.18);border-radius:9px;">
+                                <div style="font-size:.72rem;font-weight:800;color:#06D6A0;margin-bottom:.3rem;">"🛡 PM Approval Authority"</div>
+                                <div style="font-size:.73rem;color:var(--mk-muted);line-height:1.5;">
+                                    "You set an approval threshold per client (e.g. $2,500). "
+                                    "Invoices below it you approve directly — owners are never pinged for a $400 plumbing bill. "
+                                    "Above-threshold jobs automatically notify the owner for sign-off before payment is released."
                                 </div>
                             </div>
                         </div>
