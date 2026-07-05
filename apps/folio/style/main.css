@@ -4327,9 +4327,9 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   border-bottom-color: rgba(255,255,255,.1);
 }
 .mktg-nav-inner {
-  max-width: 1200px; margin: 0 auto;
-  padding: .9rem 2rem;
-  display: flex; align-items: center; gap: 2rem;
+  max-width: 1400px; margin: 0 auto;
+  padding: .75rem 2rem;
+  display: flex; align-items: center; gap: 1.25rem;
 }
 .mktg-nav-logo {
   display: flex; align-items: center; gap: .5rem;
@@ -4343,21 +4343,23 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   font-size: .9rem; font-weight: 900; color: #fff;
 }
 .mktg-nav-links {
-  display: flex; gap: 1.75rem; margin-left: .5rem;
+  display: flex; gap: 1rem; margin-left: .5rem;
 }
 .mktg-nav-links a {
-  color: var(--mk-muted); text-decoration: none; font-size: .88rem;
+  color: var(--mk-muted); text-decoration: none; font-size: .83rem;
+  white-space: nowrap;
   transition: color .15s;
 }
 .mktg-nav-links a:hover { color: var(--mk-text); }
 /* broker page back-link — visually separated from primary nav items */
 .mktg-nav-broker-link {
   color: var(--mk-muted) !important;
-  font-size: .8rem !important;
+  font-size: .83rem !important;
   opacity: .65;
   margin-left: .5rem;
   border-left: 1px solid var(--mk-border);
   padding-left: 1rem;
+  white-space: nowrap;
   transition: opacity .15s;
 }
 .mktg-nav-broker-link:hover { opacity: 1; color: var(--mk-text) !important; }
@@ -4658,7 +4660,7 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 
 /* ── Pricing ───────────────────────────────────────────────────────────────── */
 .mktg-pricing-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 960px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; max-width: 1280px;
 }
 .mktg-pricing-card {
   background: var(--mk-surface); border: 1px solid var(--mk-border);
@@ -4741,6 +4743,12 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
+/* Tablet: 4-col pricing → 2×2; nav padding tightened */
+@media (max-width: 1100px) {
+  .mktg-nav-inner { padding: .65rem 1.25rem; gap: .9rem; }
+  .mktg-nav-links { gap: .7rem; }
+  .mktg-pricing-grid { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+}
 @media (max-width: 900px) {
   .mktg-nav-links { display: none; }
   .mktg-feature-grid { grid-template-columns: 1fr 1fr; }
