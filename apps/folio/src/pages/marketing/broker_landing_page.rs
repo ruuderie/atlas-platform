@@ -1,4 +1,4 @@
-//! BrokerLandingPage — marketing page targeting property managers & brokerages.
+//! BrokerLandingPage — marketing page targeting licensed brokers & real estate agents.
 //!
 //! Served at: `/brokers`
 //!
@@ -58,8 +58,8 @@ pub fn BrokerLandingPage() -> impl IntoView {
 
 #[component]
 fn BrokerDefault() -> impl IntoView {
-    let title       = "Folio for Brokers & Property Managers — Run Your Whole Brokerage";
-    let description = "Multi-client portfolio management, owner portals, commission tracking, and agent accounts — built for property managers and licensed brokers.";
+    let title       = "Folio for Brokers & Real Estate Agents — Run Your Whole Brokerage";
+    let description = "Listing management, buyer & seller CRM, commission tracking, and agent accounts — built for licensed brokers and real estate teams.";
 
     view! {
         <Title text=title/>
@@ -156,16 +156,16 @@ fn BrokerHero() -> impl IntoView {
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
-                    " Beta Access Open · Built for property managers & brokerages"
+                    " Beta Access Open · Built for licensed brokers & real estate teams"
                 </div>
                 <h1 class="mktg-hero-h1">
                     "Run your whole brokerage"
                     <span class="mktg-h1-accent">" from one place."</span>
                 </h1>
                 <p class="mktg-hero-sub">
-                    "Folio gives property managers and licensed brokers a single platform to manage \
-                     multiple client portfolios, track commissions, give owners a branded portal, \
-                     and keep agents organised — without duct-taping three different tools together."
+                    "Folio gives licensed brokers and their agents a single platform to manage \
+                     listings, track every buyer and seller in the pipeline, close more deals, \
+                     and keep commissions straight — without juggling spreadsheets and three different tools."
                 </p>
 
                 <div class="mktg-proof-strip" style="margin-top:32px">
@@ -208,15 +208,14 @@ fn BrokerHero() -> impl IntoView {
 #[component]
 fn BrokerFeatures() -> impl IntoView {
     let features = vec![
-        ("groups",       "Multi-client portfolio",      "Manage properties for multiple owners under one login. Every client's portfolio is separate, private, and clearly labelled."),
-        ("receipt_long", "Owner statements",            "Generate monthly owner statements with income, expenses, and net distributions. Export as PDF or send directly from the platform."),
-        ("payments",     "Commission tracking",         "Define commission splits per property or per owner. Folio tracks every payment and tells you exactly what you're owed."),
-        ("person",       "Agent accounts",              "Add agents to your brokerage. They see only their assigned properties. You see everything. One platform, clear boundaries."),
-        ("gavel",        "Compliance & licensing",      "Track your brokerage license renewals, agent certifications, and fair housing training deadlines — all in one place."),
-        ("analytics",    "Brokerage analytics",         "Revenue by client, vacancy rate across your book, and maintenance cost trends — dashboards built for your business, not your clients'."),
-        ("build",        "Maintenance dispatch",        "Tenants submit, you approve or assign to an agent, vendors receive the job. Work orders are tracked end to end."),
-        ("home_work",    "Vacation rental support",     "Manage vacation rentals alongside long-term leases. Unified calendar, direct booking, and compliance — all inside Folio."),
-        ("language",     "US · Canada · Brazil",        "Operate across borders. Folio handles local payment rails, compliance rules, and currency — so you don't have to."),
+        ("home_work",    "Listing management",           "Manage all your active, pending, and closed listings in one place. Track price changes, days on market, and showing history per property."),
+        ("group",        "Buyer & seller CRM",           "Every buyer and seller has a profile with their timeline, preferences, offers, and communication history. Never lose track of a deal."),
+        ("payments",     "Commission tracking",          "Define commission splits per deal or per agent. Folio calculates what you're owed at close and keeps a running ledger."),
+        ("person",       "Agent accounts",               "Add agents under your brokerage license. They see only their own deals and clients. You see everything. Full visibility, clear access control."),
+        ("gavel",        "License & compliance",         "Track your brokerage license renewal, agent certifications, E&O insurance, and fair housing deadlines — all in one place."),
+        ("analytics",    "Brokerage analytics",          "GCI by agent, conversion rates, average days to close, and deal volume trends — dashboards built for running a team, not filing taxes."),
+        ("calendar_month", "Showing & appointment scheduler", "Coordinate showings across your team. Buyers, sellers, and agents see the same calendar with no double bookings."),
+        ("language",     "US · Canada · Brazil",          "Operate across borders. Folio handles local compliance, licensing rules, and currency so you don't have to."),
     ];
 
     view! {
@@ -245,23 +244,23 @@ fn BrokerPortals() -> impl IntoView {
     view! {
         <section id="broker-portals" class="mktg-section mktg-str-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Owner & tenant portals"</p>
-                <h2 class="mktg-section-h2 mktg-h2-light">"Your clients see exactly what you want them to see."</h2>
+                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Client & agent portals"</p>
+                <h2 class="mktg-section-h2 mktg-h2-light">"Your clients and agents always know where every deal stands."</h2>
                 <p class="mktg-section-sub mktg-sub-light">
-                    "Every owner gets a branded read-only portal showing their properties, income, \
-                     maintenance history, and statements. Every tenant gets a payment and maintenance \
-                     portal. You control what's visible — they never see another client's data."
+                    "Buyers track their offer status. Sellers see showing feedback and market comparisons. \
+                     Agents get a deal board scoped to their pipeline. You see the whole brokerage. \
+                     Every party has exactly the visibility they need — nothing more."
                 </p>
                 <div class="mktg-str-grid">
                     {[
-                        ("home_work", "Owner portal",
-                         "Each property owner logs in to a branded dashboard showing their portfolio income, active leases, open maintenance items, and monthly statements. No shared data. No confusion."),
-                        ("person",    "Tenant portal",
-                         "Tenants pay rent, submit maintenance requests, sign leases, and track move-in documents — without calling you. Works for all your clients' tenants, one system."),
-                        ("receipt",   "Statement delivery",
-                         "Generate and send monthly owner statements with one click. PDF export, direct email from the platform, or downloadable by the owner from their portal."),
+                        ("home_work", "Buyer portal",
+                         "Buyers log in to see the properties you've shared with them, offer status, and next steps in their transaction. No email chains for every update."),
+                        ("storefront", "Seller dashboard",
+                         "Sellers see their listing performance, showing requests, feedback, and offers received — without calling you every day."),
+                        ("receipt",   "Transaction timeline",
+                         "Every deal has a shared timeline: listing, offer, inspection, close. Both client and agent see where they are and what's next."),
                         ("lock",      "Data separation",
-                         "Each client's portfolio is completely private. A property owner can only see their own properties. Agents can only see their assigned accounts."),
+                         "Each client sees only their deal. Agents see only their pipeline. You see the full brokerage. Access is scoped, not shared."),
                     ].iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
                             <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
@@ -285,18 +284,19 @@ fn BrokerAgents() -> impl IntoView {
                 <p class="mktg-section-eyebrow">"Built for teams"</p>
                 <h2 class="mktg-section-h2">"Agents work in the same platform. Not on a separate spreadsheet."</h2>
                 <p class="mktg-section-sub">
-                    "Folio's brokerage mode lets you create agent accounts under your brokerage login. \
-                     Each agent sees only their assigned properties. You see the whole book. \
-                     Work orders, maintenance, and leases flow through one system."
+                    "Folio's brokerage mode lets you add agents under your license. \
+                     Each agent works their own deal pipeline scoped to their clients. \
+                     You see every deal across every agent — commissions, pipeline stage, \
+                     and closing velocity — from a single broker view."
                 </p>
                 <div class="mktg-str-grid">
                     {[
                         ("person_add", "Agent accounts",
-                         "Invite agents to your brokerage. They get their own login scoped to their assigned properties."),
-                        ("assignment", "Property assignment",
-                         "Assign any property to any agent. Reassign instantly when your team changes."),
+                         "Invite agents under your license. Each gets their own login scoped to their clients and active deals."),
+                        ("assignment", "Deal assignment",
+                         "Assign buyers, sellers, and listings to agents. Reassign instantly when a deal changes hands or your team shifts."),
                         ("supervisor_account", "Broker oversight",
-                         "As the broker you have full visibility across all agents, all clients, and all properties at all times."),
+                         "Full visibility across every agent, every deal, and every commission in flight — at all times."),
                     ].iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-str-card">
                             <span class="material-symbols-outlined mktg-str-icon">{*icon}</span>
@@ -328,10 +328,10 @@ fn BrokerPricing() -> impl IntoView {
                         <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
                         <div class="mktg-pricing-sub">"1 agent seat"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Full listing management"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Client CRM"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Rent collection & leases"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Tenant portal"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Active listing management"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Buyer & seller CRM"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Commission tracking"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Transaction timelines"</li>
                         </ul>
                         <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-solo">"Join waitlist"</a>
                     </div>
