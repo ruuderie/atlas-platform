@@ -15,6 +15,7 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use crate::components::lang::{LanguageSwitcher, get_current_lang};
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,16 @@ fn VendorNav() -> impl IntoView {
                     <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
+                    {
+                        let lang_res = Resource::new(|| (), |_| get_current_lang());
+                        view! {
+                            <Suspense fallback=|| ()>
+                                {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
+                                    <LanguageSwitcher current_lang=code/>
+                                })}
+                            </Suspense>
+                        }
+                    }
                     <a href="/login" class="mktg-btn-signin" id="vendor-nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
@@ -107,24 +118,25 @@ fn VendorHero() -> impl IntoView {
 
     // Trade categories — what we need to build the vendor network
     let trades: &[(&str, &str)] = &[
-        ("cleaning",     "🧹 Cleaning"),
-        ("handyman",     "🔧 Handyman"),
-        ("plumbing",     "🚿 Plumbing"),
-        ("electrical",   "⚡ Electrical"),
-        ("hvac",         "❄️ HVAC"),
-        ("painting",     "🖌️ Painting"),
-        ("landscaping",  "🌿 Landscaping"),
-        ("roofing",      "🏠 Roofing"),
-        ("flooring",     "🪵 Flooring"),
-        ("pest-control", "🐛 Pest Control"),
-        ("appliance",    "🛠️ Appliances"),
-        ("locksmith",    "🔐 Locksmith"),
-        ("inspection",   "🔍 Inspection"),
-        ("moving",       "📦 Moving"),
-        ("pool-spa",     "🏊 Pool & Spa"),
-        ("security",     "📷 Security"),
-        ("solar",        "☀️ Solar"),
-        ("general",      "🏗️ General Contractor"),
+        ("cleaning",      "🧹 Cleaning"),
+        ("handyman",      "🔧 Handyman"),
+        ("plumbing",      "🚿 Plumbing"),
+        ("electrical",    "⚡ Electrical"),
+        ("hvac",          "❄️ HVAC"),
+        ("painting",      "🖌️ Painting"),
+        ("landscaping",   "🌿 Landscaping"),
+        ("roofing",       "🏠 Roofing"),
+        ("flooring",      "🪵 Flooring"),
+        ("pest-control",  "🐛 Pest Control"),
+        ("appliance",     "🛠️ Appliances"),
+        ("locksmith",     "🔐 Locksmith"),
+        ("inspection",    "🔍 Inspection"),
+        ("movers",        "📦 Movers"),
+        ("junk-removal",  "🗑️ Junk Removal"),
+        ("pool-spa",      "🏊 Pool & Spa"),
+        ("security",      "📷 Security"),
+        ("solar",         "☀️ Solar"),
+        ("general",       "🏗️ General Contractor"),
     ];
 
     let submit = move |_| {
@@ -318,24 +330,25 @@ fn VendorHero() -> impl IntoView {
 #[component]
 fn VendorTrades() -> impl IntoView {
     let categories = vec![
-        ("cleaning",     "🧹", "Cleaning & Turnover",  "Move-out cleans, vacation rental turnovers, recurring housekeeping"),
-        ("handyman",     "🔧", "Handyman",             "Minor repairs, furniture assembly, caulking, drywall patches"),
-        ("plumbing",     "🚿", "Plumbing",             "Leaks, fixture replacements, drain clearing, water heater service"),
-        ("electrical",   "⚡", "Electrical",           "Outlet repairs, panel work, lighting installs, code compliance"),
-        ("hvac",         "❄️", "HVAC",                 "AC service, furnace repair, filter programs, duct cleaning"),
-        ("painting",     "🖌️", "Painting",             "Interior & exterior, unit turns, touch-ups, power washing"),
-        ("landscaping",  "🌿", "Landscaping",          "Lawn care, tree trimming, irrigation, seasonal cleanups"),
-        ("roofing",      "🏠", "Roofing",              "Inspections, leak repairs, gutter cleaning, full replacements"),
-        ("flooring",     "🪵", "Flooring",             "Hardwood, tile, LVP install and repair, carpet replacement"),
-        ("pest-control", "🐛", "Pest Control",         "Extermination, prevention programs, termite inspections"),
-        ("appliance",    "🛠️", "Appliance Repair",     "Washers, dryers, refrigerators, dishwashers, stoves"),
-        ("locksmith",    "🔐", "Locksmith",            "Rekeying, lock installs, smart lock setup, access control"),
-        ("inspection",   "🔍", "Inspection",           "Move-in/out inspections, general home inspections, code checks"),
-        ("moving",       "📦", "Moving & Junk Removal","Tenant move-outs, junk hauling, estate cleanouts"),
-        ("pool-spa",     "🏊", "Pool & Spa",           "Cleaning, chemical balance, equipment repair, opening/closing"),
-        ("security",     "📷", "Security",             "Camera installs, alarm systems, smart home setup"),
-        ("solar",        "☀️", "Solar",                "Panel installs, maintenance, battery storage, inspections"),
-        ("general",      "🏗️", "General Contractor",  "Renovations, additions, unit upgrades, larger project management"),
+        ("cleaning",      "🧹", "Cleaning & Turnover",  "Move-out cleans, vacation rental turnovers, recurring housekeeping"),
+        ("handyman",      "🔧", "Handyman",             "Minor repairs, furniture assembly, caulking, drywall patches"),
+        ("plumbing",      "🚿", "Plumbing",             "Leaks, fixture replacements, drain clearing, water heater service"),
+        ("electrical",    "⚡", "Electrical",           "Outlet repairs, panel work, lighting installs, code compliance"),
+        ("hvac",          "❄️", "HVAC",                 "AC service, furnace repair, filter programs, duct cleaning"),
+        ("painting",      "🖌️", "Painting",             "Interior & exterior, unit turns, touch-ups, power washing"),
+        ("landscaping",   "🌿", "Landscaping",          "Lawn care, tree trimming, irrigation, seasonal cleanups"),
+        ("roofing",       "🏠", "Roofing",              "Inspections, leak repairs, gutter cleaning, full replacements"),
+        ("flooring",      "🪵", "Flooring",             "Hardwood, tile, LVP install and repair, carpet replacement"),
+        ("pest-control",  "🐛", "Pest Control",         "Extermination, prevention programs, termite inspections"),
+        ("appliance",     "🛠️", "Appliance Repair",     "Washers, dryers, refrigerators, dishwashers, stoves"),
+        ("locksmith",     "🔐", "Locksmith",            "Rekeying, lock installs, smart lock setup, access control"),
+        ("inspection",    "🔍", "Inspection",           "Move-in/out inspections, general home inspections, code checks"),
+        ("movers",        "📦", "Movers",               "Residential & commercial moves, furniture, appliance relocation"),
+        ("junk-removal",  "🗑️", "Junk Removal",         "Tenant cleanouts, bulk hauling, estate clearances, debris removal"),
+        ("pool-spa",      "🏊", "Pool & Spa",           "Cleaning, chemical balance, equipment repair, opening/closing"),
+        ("security",      "📷", "Security",             "Camera installs, alarm systems, smart home setup"),
+        ("solar",         "☀️", "Solar",                "Panel installs, maintenance, battery storage, inspections"),
+        ("general",       "🏗️", "General Contractor",  "Renovations, additions, unit upgrades, larger project management"),
     ];
 
     view! {
@@ -344,7 +357,7 @@ fn VendorTrades() -> impl IntoView {
                 <p class="mktg-section-eyebrow">"Building the network"</p>
                 <h2 class="mktg-section-h2">"Every trade. One marketplace."</h2>
                 <p class="mktg-section-sub">
-                    "We're signing up vendors across all 18 categories before launch. \
+                    "We're signing up vendors across all 19 categories before launch. \
                      Early vendors get priority placement and the Founding Vendor rate — free for life."
                 </p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-top:2.5rem;">

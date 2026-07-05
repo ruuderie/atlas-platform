@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::geo::{VisitorGeo, get_visitor_geo};
 use crate::pages::not_found::NotFound;
+use crate::components::lang::{LanguageSwitcher, get_current_lang};
 
 // ── Page data types ───────────────────────────────────────────────────────────
 
@@ -237,6 +238,17 @@ fn MktgNav() -> impl IntoView {
                     <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
+                    // ── Language switcher ──────────────────────────────────
+                    {
+                        let lang_res = Resource::new(|| (), |_| get_current_lang());
+                        view! {
+                            <Suspense fallback=|| ()>
+                                {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
+                                    <LanguageSwitcher current_lang=code/>
+                                })}
+                            </Suspense>
+                        }
+                    }
                     <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
