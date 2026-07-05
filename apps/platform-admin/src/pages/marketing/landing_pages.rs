@@ -30,10 +30,12 @@ use crate::api::landing_pages::{
 // ── App selector ─────────────────────────────────────────────────────────────
 
 const APPS: &[(&str, &str, &str)] = &[
-    ("folio",        "🏢 Folio",          "#4F63EB"),
-    ("folio-broker", "🤝 Broker Page",    "#F59E0B"),
-    ("network",      "🔗 Network",        "#06967F"),
-    ("anchor",       "⚓ Anchor",         "#9C27B0"),
+    ("folio",        "🏢 Folio",              "#4F63EB"),
+    ("folio-broker", "🤝 Broker Page",        "#F59E0B"),
+    ("folio-pm",     "🏗️ Property Manager",   "#06D6A0"),
+    ("folio-vendor", "🔧 Vendor Page",         "#FF6B35"),
+    ("network",      "🔗 Network",            "#06967F"),
+    ("anchor",       "⚓ Anchor",             "#9C27B0"),
 ];
 
 // ── Main page component ──────────────────────────────────────────────────────

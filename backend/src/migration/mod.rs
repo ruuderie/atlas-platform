@@ -307,6 +307,8 @@ pub mod m20260925_atlas_lp_events;         // Landing Page Builder: funnel analy
 pub mod m20260926_folio_product_seed;           // Folio Launch Engine: set launch_mode=waitlist + seed master page template
 pub mod m20260927_folio_broker_product_seed;    // Folio Broker Edition: register folio-broker product + page template
 pub mod m20260928_cohost_marketplace_product_seed; // Cohost Network: register folio-cohost-market product + page template
+pub mod m20260929_folio_pm_product_seed;        // Folio PM Edition: register folio-pm product + page template
+pub mod m20260930_folio_vendor_product_seed;    // Folio Vendor Marketplace: register folio-vendor product + page template
 
 pub struct Migrator;
 
@@ -581,6 +583,8 @@ impl MigratorTrait for Migrator {
             // Cohost Network: register folio-cohost-market in platform_products + page template
             // Enables platform-admin tracking + UTM attribution for /cohost-market.
             Box::new(m20260928_cohost_marketplace_product_seed::Migration),
+            Box::new(m20260929_folio_pm_product_seed::Migration),
+            Box::new(m20260930_folio_vendor_product_seed::Migration),
 
         ];
 
