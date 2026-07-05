@@ -205,7 +205,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
             <MktgPayments/>
             <MktgPricing/>
             <MktgCta/>
-        <BetaCalloutStrip/>
+            <BetaCalloutStrip/>
             <MktgFooter/>
             <MktgScripts/>
         </div>
@@ -608,9 +608,9 @@ fn MktgPersonas() -> impl IntoView {
         ]),
         ("💼", "Property Manager", "teal", "Any size", vec![
             "Multi-client portfolio",
-            "Owner statement exports",
+            "Owner statements & reports",
             "Branded tenant portal",
-            "Commission split tracking",
+            "Owner disbursement & fees",
         ]),
         ("🏨", "Vacation Rental Host", "gold", "Airbnb + direct", vec![
             "Unified booking calendar",
