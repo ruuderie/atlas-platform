@@ -18,11 +18,9 @@ patches:
   - path: backend-patch.yaml
 
 # Only services with NO path filter (always-build) are safe to pin here.
-# backend and anchor-app always build on every push.
-# folio, platform-admin, network-instance are path-filtered — managed
-# via kubectl set image in the deploy script (marker system).
+# backend always builds on every push.
+# anchor-app, folio, platform-admin, network-instance are path-filtered —
+# managed via kubectl set image in the deploy script (marker system).
 images:
   - name: ghcr.io/ruuderie/atlas-backend
-    newTag: "REPLACE_WITH_IMAGE_TAG"
-  - name: ghcr.io/ruuderie/anchor-app
     newTag: "REPLACE_WITH_IMAGE_TAG"
