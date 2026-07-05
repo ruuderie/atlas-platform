@@ -101,7 +101,9 @@ fn BrokerNav() -> impl IntoView {
                     <a href="#broker-portals">"Portals"</a>
                     <a href="#broker-agents">"Agent Accounts"</a>
                     <a href="#broker-pricing">"Pricing"</a>
-                    <a href="/" class="mktg-nav-broker-link">"← Landlord page"</a>
+                    <a href="/" class="mktg-nav-broker-link">"For Landlords"</a>
+                    <a href="/property-managers">"For PMs"</a>
+                    <a href="/vendors">"For Vendors"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <a href="/login" class="mktg-btn-signin" id="broker-nav-signin-btn">
@@ -132,7 +134,9 @@ fn BrokerNav() -> impl IntoView {
             <a href="#broker-portals"  on:click=move |_| menu_open.set(false)>"Portals"</a>
             <a href="#broker-agents"   on:click=move |_| menu_open.set(false)>"Agent Accounts"</a>
             <a href="#broker-pricing"  on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"← Landlord page"</a>
+            <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
+            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
+            <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
             <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Get early access"</a>
         </div>
     }
@@ -310,38 +314,67 @@ fn BrokerPricing() -> impl IntoView {
         <section id="broker-pricing" class="mktg-section">
             <div class="mktg-section-inner">
                 <p class="mktg-section-eyebrow">"Pricing"</p>
-                <h2 class="mktg-section-h2">"Priced for your business, not per unit."</h2>
+                <h2 class="mktg-section-h2">"Priced for your team, not per listing."</h2>
+                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Every seat includes the full platform. Pick the plan that fits your team size — upgrade as you grow."</p>
                 <div class="mktg-pricing-grid">
 
-                    // Portfolio tier
+                    // ── Solo — independent broker/agent ───────────────────
                     <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Portfolio"</span>
+                        <span class="mktg-pricing-tier">"Solo"</span>
                         <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Full platform access · solo operator"</div>
+                        <div class="mktg-pricing-sub">"1 agent seat"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Single-operator portfolio"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Full listing management"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Client CRM"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Rent collection & leases"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Tenant portal"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental calendar"</li>
                         </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-portfolio">"Join waitlist"</a>
+                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-solo">"Join waitlist"</a>
                     </div>
 
-                    // Enterprise / PMC — featured
+                    // ── Team — boutique firm (FEATURED) ───────────────────
                     <div class="mktg-pricing-card mktg-pricing-featured">
-                        <span class="mktg-pricing-tier">"Enterprise / PMC"</span>
-                        <div class="mktg-pricing-price">"Custom"</div>
-                        <div class="mktg-pricing-sub">"Property managers & brokerages"</div>
+                        <span class="mktg-pricing-tier">"Team"</span>
+                        <div class="mktg-pricing-price">"$249"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"Up to 5 agent seats"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Portfolio"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Multi-client portfolio"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Branded owner portals"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Agent accounts"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Solo"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Agent account management"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Agent profiles & bios"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Commission tracking"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Brokerage analytics"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Team analytics dashboard"</li>
                         </ul>
-                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent" id="broker-pricing-enterprise">"Get early access"</a>
+                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent" id="broker-pricing-team">"Get early access"</a>
+                    </div>
+
+                    // ── Firm — mid-size brokerage ──────────────────────────
+                    <div class="mktg-pricing-card">
+                        <span class="mktg-pricing-tier">"Firm"</span>
+                        <div class="mktg-pricing-price">"$499"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"Up to 25 agent seats"</div>
+                        <ul class="mktg-pricing-features">
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Team"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Branded listing portal"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Client management hub"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Brokerage analytics"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Priority support"</li>
+                        </ul>
+                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-firm">"Get early access"</a>
+                    </div>
+
+                    // ── Enterprise — large brokerage ───────────────────────
+                    <div class="mktg-pricing-card">
+                        <span class="mktg-pricing-tier">"Enterprise"</span>
+                        <div class="mktg-pricing-price">"Custom"</div>
+                        <div class="mktg-pricing-sub">"25+ seats · white-label · SLA"</div>
+                        <ul class="mktg-pricing-features">
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Firm"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"White-label branding"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"API access & SSO"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Uptime SLA"</li>
+                        </ul>
+                        <a href="/#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="broker-pricing-enterprise">"Contact us"</a>
                     </div>
 
                 </div>
@@ -349,6 +382,7 @@ fn BrokerPricing() -> impl IntoView {
         </section>
     }
 }
+
 
 // ── Bottom CTA ────────────────────────────────────────────────────────────────
 

@@ -108,6 +108,46 @@ pub fn shell(
     let is_deployed = !env.is_empty() && env != "local";
     let reload = (!is_deployed).then(|| view! { <AutoReload options=options.clone() /> });
 
+    // ── Inline critical CSS: branded loading screen ─────────────────────────────
+    // Shown immediately with the HTML before any external asset loads.
+    // Dismissed by a tiny inline script once /pkg/folio-v1.css fires its load event.
+    // This eliminates the unstyled flash on slow CDN / cold cache loads.
+    let loading_style = r#"
+        #folio-loader{
+            position:fixed;inset:0;z-index:9999;
+            background:#070d18;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            gap:1.25rem;
+            transition:opacity .35s ease,visibility .35s ease;
+        }
+        #folio-loader.fl-done{opacity:0;visibility:hidden;pointer-events:none;}
+        .fl-logo{
+            font-size:2.25rem;font-weight:800;letter-spacing:-.04em;
+            background:linear-gradient(135deg,#06d6a0,#3b82f6);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;
+        }
+        .fl-bar{width:120px;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;}
+        .fl-fill{
+            height:100%;width:40%;border-radius:2px;
+            background:linear-gradient(90deg,#06d6a0,#3b82f6);
+            animation:fl-slide 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes fl-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+    "#;
+    // Dismiss script: waits for the CSS <link> to fire onload, then fades the loader.
+    // Falls back to a 3s timeout so it never blocks the page.
+    let dismiss_script = r#"
+        (function(){
+            var el=document.getElementById('folio-loader');
+            if(!el)return;
+            var done=function(){el.classList.add('fl-done');};
+            var lnk=document.querySelector('link[href*="folio-v1"]');
+            if(lnk){lnk.addEventListener('load',done);lnk.addEventListener('error',done);}
+            setTimeout(done,3000);
+        })();
+    "#;
+
     view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -116,6 +156,10 @@ pub fn shell(
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="robots" content="noindex, nofollow"/>
                 <title>"Folio – Property Management"</title>
+                // ── Branded loading screen (inline, no external deps) ────────────
+                <style inner_html=loading_style></style>
+                // ── CSS preload — tells browser to fetch at highest priority ─────
+                <link rel="preload" as_="style" href="/pkg/folio-v1.css"/>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
                 {reload}
@@ -132,6 +176,13 @@ pub fn shell(
                 <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"/>
             </head>
             <body>
+                // ── Loading screen markup ─────────────────────────────────────
+                <div id="folio-loader" aria-hidden="true">
+                    <div class="fl-logo">"Folio"</div>
+                    <div class="fl-bar"><div class="fl-fill"></div></div>
+                </div>
+                // ── Dismiss script ────────────────────────────────────────────
+                <script inner_html=dismiss_script></script>
                 <App/>
             </body>
         </html>

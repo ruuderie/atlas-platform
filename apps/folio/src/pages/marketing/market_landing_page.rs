@@ -230,7 +230,9 @@ fn MktgNav() -> impl IntoView {
                     <a href="#str">"Vacation Rentals"</a>
                     <a href="/cohost-market">"Cohost Network"</a>
                     <a href="#pricing">"Pricing"</a>
-                    <a href="/brokers" class="mktg-nav-broker-link">"For Brokers →"</a>
+                    <a href="/brokers" class="mktg-nav-broker-link">"For Brokers"</a>
+                    <a href="/property-managers">"For PMs"</a>
+                    <a href="/vendors">"For Vendors"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
@@ -262,7 +264,9 @@ fn MktgNav() -> impl IntoView {
             <a href="#str"         on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
             <a href="/cohost-market" on:click=move |_| menu_open.set(false)>"Cohost Network"</a>
             <a href="#pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/brokers"     on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"For Brokers →"</a>
+            <a href="/brokers"     on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"For Brokers"</a>
+            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
+            <a href="/vendors"    on:click=move |_| menu_open.set(false)>"For Vendors"</a>
             <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Join waitlist"</a>
         </div>
     }
@@ -849,65 +853,77 @@ fn MktgPricing() -> impl IntoView {
             <div class="mktg-section-inner">
                 <p class="mktg-section-eyebrow">"Pricing"</p>
                 <h2 class="mktg-section-h2">"Simple. Transparent. No surprises."</h2>
+                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Start free. Pay as you grow. Every plan includes the tenant portal and maintenance hub — no hidden add-ons."</p>
                 <div class="mktg-pricing-grid">
 
-                    // Starter — free forever
+                    // ── Free — try the product ─────────────────────────────
                     <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Starter"</span>
+                        <span class="mktg-pricing-tier">"Free"</span>
                         <div class="mktg-pricing-price">"$0"</div>
-                        <div class="mktg-pricing-sub">"Up to 3 units, free forever"</div>
+                        <div class="mktg-pricing-sub">"Up to 2 units · free forever"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Landlord dashboard"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Lease management"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Maintenance requests"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Tenant portal"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Maintenance requests"</li>
                         </ul>
-                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost">"Join waitlist"</a>
+                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pricing-free-cta">"Join waitlist"</a>
                     </div>
 
-                    // Landlord OS — entry
+                    // ── Grow — small landlord scaling up ───────────────────
                     <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Landlord OS"</span>
+                        <span class="mktg-pricing-tier">"Grow"</span>
                         <div class="mktg-pricing-price">"$29"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 2 units"</div>
+                        <div class="mktg-pricing-sub">"Up to 10 units"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Free"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Rent collection (ACH + card)"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Vacancy marketing"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Contractor marketplace"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Basic analytics"</li>
                         </ul>
-                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost">"Join waitlist"</a>
+                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pricing-grow-cta">"Join waitlist"</a>
                     </div>
 
-                    // Portfolio — main product
+                    // ── Pro — active investor (FEATURED) ───────────────────
                     <div class="mktg-pricing-card mktg-pricing-featured">
-                        <span class="mktg-pricing-tier">"Portfolio"</span>
-                        <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Full platform access"</div>
+                        <span class="mktg-pricing-tier">"Pro"</span>
+                        <div class="mktg-pricing-price">"$79"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"Up to 30 units"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Landlord OS"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental calendar &amp; channels"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental compliance &amp; permits"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Grow"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Vacation rental calendar & channels"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"STR compliance & permits"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Portfolio analytics"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Multi-country (US, Canada, Brazil)"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Priority support"</li>
                         </ul>
-                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent">"Join waitlist"</a>
+                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-accent" id="pricing-pro-cta">"Join waitlist"</a>
                     </div>
 
-                    // Enterprise / PMC
+                    // ── Investor — full-time investor ──────────────────────
                     <div class="mktg-pricing-card">
-                        <span class="mktg-pricing-tier">"Enterprise / PMC"</span>
-                        <div class="mktg-pricing-price">"Custom"</div>
-                        <div class="mktg-pricing-sub">"Property managers & brokerages"</div>
+                        <span class="mktg-pricing-tier">"Investor"</span>
+                        <div class="mktg-pricing-price">"$149"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"Unlimited units"</div>
                         <ul class="mktg-pricing-features">
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Everything in Landlord OS"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Multi-client portfolio"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Owner portals & statements"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Brokerage mode (agents + brokers)"</li>
-                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Pro"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Cohost Network access"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Co-host revenue share tracking"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Dedicated onboarding"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"API access"</li>
                         </ul>
-                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost">"Contact us"</a>
+                        <a href="#waitlist-wrap" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pricing-investor-cta">"Join waitlist"</a>
+                    </div>
+                </div>
+
+                // ── Property Manager callout ────────────────────────────────
+                <div class="mktg-pricing-pm-callout">
+                    <span class="material-symbols-outlined" style="font-size:20px;color:#06d6a0">"business_center"</span>
+                    <div>
+                        <strong>"Managing properties for clients?"</strong>
+                        " Property managers and PMCs get a dedicated plan with owner portals, trust accounting, and multi-portfolio billing. "
+                        <a href="/property-managers">"See Property Manager pricing →"</a>
                     </div>
                 </div>
             </div>

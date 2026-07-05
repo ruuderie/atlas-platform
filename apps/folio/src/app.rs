@@ -9,6 +9,8 @@ use crate::pages::login::Login;
 use crate::pages::verify::Verify;
 use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
+use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
+use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
 
 // Landlord pages
 use crate::pages::landlord::{
@@ -170,7 +172,11 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/lp")               view=MarketLandingPage/>
                 <Route path=path!("/lp/:variant_slug") view=MarketLandingPage/>
                 // /brokers → independent broker/PMC landing page (app_id = "folio-broker")
-                <Route path=path!("/brokers")           view=BrokerLandingPage/>
+                <Route path=path!("/brokers")              view=BrokerLandingPage/>
+                // /property-managers → property manager / PMC landing page (app_id = "folio-pm")
+                <Route path=path!("/property-managers")    view=PropertyManagerLandingPage/>
+                // /vendors → vendor portal landing page (app_id = "folio-vendor")
+                <Route path=path!("/vendors")              view=VendorLandingPage/>
 
                 // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
                 <Route path=path!("/") view=HomeDispatch/>
