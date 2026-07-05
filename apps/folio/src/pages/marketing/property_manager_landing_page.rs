@@ -55,6 +55,7 @@ fn PmNav() -> impl IntoView {
                     <a href="#pm-pricing">"Pricing"</a>
                     <a href="/brokers" class="mktg-nav-broker-link">"For Brokers →"</a>
                     <a href="/vendors">"For Vendors"</a>
+                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <a href="/login" class="mktg-btn-signin" id="pm-nav-signin-btn">
@@ -85,7 +86,8 @@ fn PmNav() -> impl IntoView {
             <a href="/"              on:click=move |_| menu_open.set(false)>"For Landlords"</a>
             <a href="/brokers"       on:click=move |_| menu_open.set(false)>"For Brokers"</a>
             <a href="/vendors"       on:click=move |_| menu_open.set(false)>"For Vendors"</a>
-            <a href="#pm-waitlist"   on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Get early access"</a>
+            <a href="#pm-waitlist"   on:click=move |_| menu_open.set(false)             <a href="/founding"       on:click=move |_| menu_open.set(false)>"Founding Member"</a>
+            class="mktg-btn-accent mktg-mobile-nav-cta">"Get early access"</a>
         </div>
     }
 }

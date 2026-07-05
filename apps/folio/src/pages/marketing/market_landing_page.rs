@@ -233,6 +233,7 @@ fn MktgNav() -> impl IntoView {
                     <a href="/brokers" class="mktg-nav-broker-link">"For Brokers"</a>
                     <a href="/property-managers">"For PMs"</a>
                     <a href="/vendors">"For Vendors"</a>
+                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
@@ -267,7 +268,8 @@ fn MktgNav() -> impl IntoView {
             <a href="/brokers"     on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"For Brokers"</a>
             <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
             <a href="/vendors"    on:click=move |_| menu_open.set(false)>"For Vendors"</a>
-            <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Join waitlist"</a>
+            <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false)             <a href="/founding"       on:click=move |_| menu_open.set(false)>"Founding Member"</a>
+            class="mktg-btn-accent mktg-mobile-nav-cta">"Join waitlist"</a>
         </div>
     }
 }

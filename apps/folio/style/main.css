@@ -4954,3 +4954,142 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   .login-mobile-logo { display: flex; }
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOUNDING MEMBER PAGE  —  /founding
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Hero variant ────────────────────────────────────────────────────────── */
+.founding-hero {
+  background: linear-gradient(160deg,#0a1628 0%,#0d1a38 50%,#0a1220 100%);
+  position: relative;
+}
+
+/* ── Role jump links ─────────────────────────────────────────────────────── */
+.founding-jump-links {
+  display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+  margin-top: 2rem;
+}
+.founding-jump-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .65rem 1.25rem; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: #e5e7eb; font-size: .9rem; font-weight: 500;
+  text-decoration: none;
+  transition: border-color .2s, background .2s, transform .15s;
+}
+.founding-jump-btn:hover {
+  border-color: rgba(6,214,160,.4);
+  background: rgba(6,214,160,.08);
+  transform: translateY(-2px);
+}
+
+/* ── Role sections ───────────────────────────────────────────────────────── */
+.founding-role-section { padding: 5rem 2rem; }
+.founding-role-alt { background: rgba(255,255,255,.015); border-top: 1px solid rgba(255,255,255,.07); border-bottom: 1px solid rgba(255,255,255,.07); }
+
+.founding-role-header {
+  display: flex; align-items: flex-start; gap: 1.5rem;
+  margin-bottom: .5rem; flex-wrap: wrap;
+}
+.founding-role-icon { font-size: 2.5rem; margin-top: .25rem; flex-shrink: 0; }
+
+/* ── Tier grid ───────────────────────────────────────────────────────────── */
+.founding-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.75rem;
+}
+
+/* ── Tier card ───────────────────────────────────────────────────────────── */
+.founding-tier-card {
+  position: relative;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  padding: 1.75rem;
+  display: flex; flex-direction: column;
+  transition: border-color .2s, transform .2s;
+}
+.founding-tier-card:hover { border-color: rgba(255,255,255,.15); transform: translateY(-3px); }
+.founding-tier-featured {
+  border-color: rgba(255,107,53,.35) !important;
+  background: rgba(255,107,53,.06) !important;
+  box-shadow: 0 0 40px rgba(255,107,53,.08);
+}
+
+/* ── Popular badge ───────────────────────────────────────────────────────── */
+.founding-popular-badge {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: #ff6b35; color: #fff;
+  font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  padding: .25rem .75rem; border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── Tier name ───────────────────────────────────────────────────────────── */
+.founding-tier-name {
+  font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: #6b7280; margin-bottom: .75rem;
+}
+
+/* ── Spot bar ────────────────────────────────────────────────────────────── */
+.founding-spot-bar-wrap { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1.25rem; }
+.founding-spot-bar-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
+.founding-spot-bar-fill { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.founding-spot-label { font-size: .78rem; color: #6b7280; }
+
+/* ── Price display ───────────────────────────────────────────────────────── */
+.founding-price {
+  display: flex; align-items: baseline; gap: .4rem;
+  font-size: 2.5rem; font-weight: 900; color: #f9fafb;
+  line-height: 1; margin-bottom: .5rem;
+}
+.founding-price-once { font-size: .85rem; font-weight: 400; color: #6b7280; }
+.founding-saves { font-size: .82rem; color: #6b7280; margin-bottom: 1rem; line-height: 1.4; }
+
+/* ── Features inside founding card ──────────────────────────────────────── */
+.founding-features { margin: 1rem 0 auto; }
+.founding-features .mktg-pf { font-size: .87rem; }
+
+/* ── Checkout widget ─────────────────────────────────────────────────────── */
+.founding-checkout-wrap { margin-top: 1.5rem; }
+.founding-claim-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; margin-top: .75rem;
+  padding: .8rem 1.25rem;
+  border-radius: 10px; border: none; cursor: pointer;
+  font-size: .92rem; font-weight: 700;
+  background: rgba(255,255,255,.08); color: #f9fafb;
+  transition: background .2s, transform .15s;
+}
+.founding-claim-btn:hover { background: rgba(255,255,255,.14); transform: translateY(-1px); }
+.founding-claim-btn--featured { background: linear-gradient(135deg,#ff6b35,#f59e0b); color: #fff; }
+.founding-claim-btn--featured:hover { opacity: .92; }
+
+/* ── Guarantee strip ─────────────────────────────────────────────────────── */
+.founding-guarantee-strip {
+  display: flex; align-items: flex-start; gap: 1.25rem;
+  padding: 1.5rem 2rem; border-radius: 14px;
+  background: rgba(6,214,160,.05);
+  border: 1px solid rgba(6,214,160,.15);
+  max-width: 720px; margin: 0 auto;
+}
+
+/* ── FAQ ─────────────────────────────────────────────────────────────────── */
+.founding-faq-list { margin-top: 2rem; display: flex; flex-direction: column; gap: 0; }
+.founding-faq-item { border-bottom: 1px solid rgba(255,255,255,.07); padding: 1.25rem 0; }
+.founding-faq-item:last-child { border-bottom: none; }
+.founding-faq-item h3 { font-size: 1rem; font-weight: 600; margin-bottom: .5rem; color: #f9fafb; }
+.founding-faq-item p  { color: #9ca3af; font-size: .9rem; line-height: 1.65; margin: 0; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .founding-role-header { flex-direction: column; gap: 1rem; }
+  .founding-role-icon   { font-size: 2rem; }
+  .founding-tiers-grid  { grid-template-columns: 1fr; }
+  .founding-jump-links  { gap: .65rem; }
+  .founding-jump-btn    { padding: .55rem 1rem; font-size: .82rem; }
+  .founding-guarantee-strip { flex-direction: column; padding: 1.25rem; }
+}

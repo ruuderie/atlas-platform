@@ -11,6 +11,7 @@ use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
 use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
 use crate::pages::marketing::vendor_landing_page::VendorLandingPage;
+use crate::pages::marketing::founding_member_page::FoundingMemberPage;
 
 // Landlord pages
 use crate::pages::landlord::{
@@ -177,6 +178,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/property-managers")    view=PropertyManagerLandingPage/>
                 // /vendors → vendor portal landing page (app_id = "folio-vendor")
                 <Route path=path!("/vendors")              view=VendorLandingPage/>
+                // /founding → Lifetime / founding member offer page (fundraising)
+                <Route path=path!("/founding")             view=FoundingMemberPage/>
 
                 // ── Home dispatch: / → marketing page (unauth) or role portal (auth) ──
                 <Route path=path!("/") view=HomeDispatch/>
