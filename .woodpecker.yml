@@ -419,6 +419,10 @@ steps:
       - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
         branch: dev
       - branch: dev
+        path:
+          - 'apps/anchor/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_anchor_uat:
     image: woodpeckerci/plugin-docker-buildx
@@ -444,6 +448,10 @@ steps:
       - evaluate: 'CI_PIPELINE_EVENT == "manual" && FORCE_BUILD_ALL == "true"'
         branch: uat
       - branch: uat
+        path:
+          - 'apps/anchor/**'
+          - 'apps/shared-ui/**'
+          - '.woodpecker.yml'
 
   publish_folio_dev:
     image: woodpeckerci/plugin-docker-buildx
@@ -518,6 +526,7 @@ steps:
     commands: [ "touch .anchor_built" ]
     when:
       branch: [dev, uat]
+      path: [ "apps/anchor/**", "apps/shared-ui/**", ".woodpecker.yml" ]
 
   mark_network_built:
     image: alpine
