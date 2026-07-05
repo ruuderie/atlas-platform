@@ -491,13 +491,12 @@ fn PmFooter() -> impl IntoView {
     }
 }
 
-// ── App Preview — PM dashboard mockup ────────────────────────────────────────
-/// Five-tab walkthrough of the Folio PM experience.
+
+// ── App Preview — PM dashboard (CSS-only radio tabs) ─────────────────────────
+/// Five-tab walkthrough of the Folio PM experience using pure CSS radio tabs.
 /// Tabs: Portfolio · Owner Portal · Maintenance · Trust Accounting · Reports
 #[component]
 fn PmAppPreview() -> impl IntoView {
-    let active_tab = RwSignal::new(0u8);
-
     view! {
         <section class="mktg-section ap-section" id="pm-app-preview"
             style="background:rgba(6,214,160,.015);border-top:1px solid rgba(6,214,160,.08);">
@@ -508,218 +507,166 @@ fn PmAppPreview() -> impl IntoView {
                     <p class="mktg-sub">"Owner portals, trust accounting, maintenance dispatch, and billing — all wired together."</p>
                 </div>
 
-                <div class="vp-tab-row">
-                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(0)>"📊 Portfolio"</button>
-                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(1)>"🏠 Owner Portal"</button>
-                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(2)>"🔧 Maintenance"</button>
-                    <button class=move || if active_tab.get()==3 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(3)>"🏦 Trust Accounting"</button>
-                    <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(4)>"📈 Reports"</button>
+                <div class="asp-outer">
+                    <p class="asp-caption">"↓ Click any tab to explore"</p>
+
+                    <input type="radio" name="pm" id="pm-t1" class="asp-radio" checked/>
+                    <input type="radio" name="pm" id="pm-t2" class="asp-radio"/>
+                    <input type="radio" name="pm" id="pm-t3" class="asp-radio"/>
+                    <input type="radio" name="pm" id="pm-t4" class="asp-radio"/>
+                    <input type="radio" name="pm" id="pm-t5" class="asp-radio"/>
+
+                    <div class="asp-tabs">
+                        <label for="pm-t1" class="asp-tab-label">"📊 Portfolio"</label>
+                        <label for="pm-t2" class="asp-tab-label">"🏠 Owner Portal"</label>
+                        <label for="pm-t3" class="asp-tab-label">"🔧 Maintenance"</label>
+                        <label for="pm-t4" class="asp-tab-label">"🏦 Trust Accounting"</label>
+                        <label for="pm-t5" class="asp-tab-label">"📈 Reports"</label>
+                    </div>
+
+                    <div class="asp-window">
+                        <div class="asp-chrome-bar">
+                            <span class="asp-dot asp-dot-red"></span>
+                            <span class="asp-dot asp-dot-yellow"></span>
+                            <span class="asp-dot asp-dot-green"></span>
+                            <span class="asp-url">"pm.folio.co/portfolio"</span>
+                        </div>
+                        <div class="asp-shell">
+                            <aside class="asp-sidebar" style="--folio-accent:#0d9488;--folio-accent2:#2dd4bf;">
+                                <div class="asp-sidebar-logo" style="color:#2dd4bf;">
+                                    "Folio PM"
+                                    <span>"Property Manager"</span>
+                                </div>
+                                <a class="asp-nav-item asp-nav-item--active" style="background:rgba(13,148,136,.14);color:#2dd4bf;"><span class="asp-nav-icon">"📊"</span>"Portfolio"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🏠"</span>"Owner Portals"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"👤"</span>"Tenants"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📋"</span>"Leases"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🔧"</span>"Maintenance"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🏦"</span>"Trust Accounts"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"💳"</span>"Billing"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📈"</span>"Reports"</a>
+                            </aside>
+
+                            <main class="asp-main">
+
+                                // TAB 1: Portfolio overview
+                                <div class="asp-panel" data-tab="1">
+                                    <div class="asp-page-title">"Portfolio Overview"</div>
+                                    <div class="asp-page-sub">"147 units · 23 owners · 96.3% occupancy"</div>
+                                    <div class="asp-stat-grid">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Units managed"</div><div class="asp-stat-value">"147"</div><div class="asp-stat-delta asp-delta-up">"↑ 12 this qtr"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Owners / clients"</div><div class="asp-stat-value">"23"</div><div class="asp-stat-delta asp-delta-up">"3 new"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Rent collected · Jul"</div><div class="asp-stat-value" style="color:#2dd4bf;">"$182K"</div><div class="asp-stat-delta asp-delta-up">"98.6%"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Mgmt fees earned"</div><div class="asp-stat-value" style="color:#2dd4bf;">"$9,120"</div></div>
+                                    </div>
+                                    <div class="asp-section-hdr">"Client portfolios"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Owner"</th><th>"Units"</th><th>"Location"</th><th>"Collection"</th><th>"Mgmt fee"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"David & Wendy Chen"</td><td>"34"</td><td>"Miami, FL"</td><td><span class="asp-status asp-status--green">"100%"</span></td><td>"$1,710/mo"</td></tr>
+                                            <tr><td>"Reginald Johnson LLC"</td><td>"18"</td><td>"Atlanta, GA"</td><td><span class="asp-status asp-status--warn">"1 late"</span></td><td>"$900/mo"</td></tr>
+                                            <tr><td>"Sofia Patel Investments"</td><td>"20"</td><td>"Miami Beach"</td><td><span class="asp-status asp-status--green">"All current"</span></td><td>"$1,200/mo"</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                // TAB 2: Owner Portal
+                                <div class="asp-panel" data-tab="2">
+                                    <div class="asp-page-title">"Owner Portal — David & Wendy Chen"</div>
+                                    <div class="asp-page-sub">"White-labeled at owners.premierpm.co · Auto-statements on the 1st"</div>
+                                    <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"July net income"</div><div class="asp-stat-value" style="color:#2dd4bf;">"$12,350"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Units occupied"</div><div class="asp-stat-value">"34 / 34"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Collection rate"</div><div class="asp-stat-value">"100%"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Open work orders"</div><div class="asp-stat-value">"1"</div></div>
+                                    </div>
+                                    <div class="asp-section-hdr">"Owner statements"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"July 2026 Statement"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"June 2026 Statement"</td><td><span class="asp-status asp-status--green">"Delivered"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"May 2026 Statement"</td><td><span class="asp-status asp-status--green">"Delivered"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-callout">"<strong>✉ Auto-delivery</strong> — Monthly statements go out automatically on the 1st. Owners get their numbers, you skip the calls."</div>
+                                </div>
+
+                                // TAB 3: Maintenance
+                                <div class="asp-panel" data-tab="3">
+                                    <div class="asp-page-title">"Maintenance"</div>
+                                    <div class="asp-page-sub">"You approve invoices so owners are never interrupted"</div>
+                                    <div class="asp-card">
+                                        <div class="asp-card-row">
+                                            <div>
+                                                <div style="display:flex;gap:.35rem;margin-bottom:.3rem;">
+                                                    <span class="asp-status asp-status--warn">"Open"</span>
+                                                    <span class="asp-status asp-status--red">"Emergency"</span>
+                                                    <span class="asp-muted" style="font-size:.68rem;">"#WO-4421 · Jul 4"</span>
+                                                </div>
+                                                <div class="asp-card-title">"Water heater failure · Chen Portfolio · Unit 8"</div>
+                                                <div class="asp-card-sub">"HeatWave Plumbing dispatched · ETA: Today"</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="asp-card">
+                                        <div class="asp-card-row">
+                                            <div style="flex:1;">
+                                                <div style="display:flex;gap:.35rem;margin-bottom:.3rem;">
+                                                    <span class="asp-status asp-status--blue">"Invoice Review"</span>
+                                                    <span class="asp-muted" style="font-size:.68rem;">"#WO-4418 · Within $2,500 threshold"</span>
+                                                </div>
+                                                <div class="asp-card-title">"AC servicing · Patel Portfolio · 5 units"</div>
+                                                <div class="asp-card-sub">"Invoice: $1,250 · CoolAir Services"</div>
+                                            </div>
+                                            <div style="display:flex;gap:.35rem;">
+                                                <button class="asp-btn asp-btn-approve">"✓ Approve all"</button>
+                                                <button class="asp-btn asp-btn-neutral">"Review"</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="asp-callout">"<strong>🛡 PM Approval Authority</strong> — Set a threshold per client (e.g. $2,500). Below it, you approve directly. Above it, the owner gets an email to sign off."</div>
+                                </div>
+
+                                // TAB 4: Trust Accounting
+                                <div class="asp-panel" data-tab="4">
+                                    <div class="asp-page-title">"Trust Accounting"</div>
+                                    <div class="asp-page-sub">"Separate client ledgers · Automated disbursements · Full audit trail"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Client"</th><th>"Trust balance"</th><th>"Status"</th><th>"Action"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"Chen Portfolio"</td><td class="asp-credit">"$18,420"</td><td><span class="asp-status asp-status--green">"Reconciled"</span></td><td><button class="asp-btn asp-btn-approve">"Disburse $12,350"</button></td></tr>
+                                            <tr><td>"Johnson LLC"</td><td class="asp-credit">"$9,840"</td><td><span class="asp-status asp-status--green">"Reconciled"</span></td><td><button class="asp-btn asp-btn-approve">"Disburse $8,100"</button></td></tr>
+                                            <tr><td>"Patel Investments"</td><td class="asp-credit">"$14,290"</td><td><span class="asp-status asp-status--warn">"1 pending expense"</span></td><td><button class="asp-btn asp-btn-export">"Hold"</button></td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-callout">"<strong>🔒 Zero commingling</strong> — Each client's funds are held in a separate ledger. You cannot accidentally mix portfolios."</div>
+                                </div>
+
+                                // TAB 5: Reports
+                                <div class="asp-panel" data-tab="5">
+                                    <div class="asp-page-title">"Reports & Analytics"</div>
+                                    <div class="asp-page-sub">"Portfolio-wide KPIs and owner-ready exports"</div>
+                                    <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Collection rate · Jul"</div><div class="asp-stat-value" style="color:#2dd4bf;">"98.6%"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Revenue per door"</div><div class="asp-stat-value">"$1,240"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Occupancy"</div><div class="asp-stat-value">"96.3%"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Mgmt fees · Jul"</div><div class="asp-stat-value" style="color:#2dd4bf;">"$9,120"</div></div>
+                                    </div>
+                                    <div class="asp-section-hdr">"Available reports"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"Monthly owner statements (23 owners)"</td><td><span class="asp-status asp-status--green">"Auto-send on 1st"</span></td><td><button class="asp-btn asp-btn-export">"⬇ Bulk"</button></td></tr>
+                                            <tr><td>"Maintenance cost summary"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"Vacancy & turnover report"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"Tax prep package (all portfolios)"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ ZIP"</button></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            </main>
+                        </div>
+                    </div>
                 </div>
-
-                {move || (active_tab.get() == 0).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Multi-client portfolio overview — every owner, every unit, one screen"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"pm.folio.co/portfolio"</span>
-                        </div>
-                        <div class="vp-screen ap-dash">
-                            <div class="ap-kpi-row">
-                                <div class="ap-kpi"><div class="ap-kpi-val">"147"</div><div class="ap-kpi-label">"Units managed"</div><div class="ap-kpi-delta ap-delta--up">"↑ 12 this quarter"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"23"</div><div class="ap-kpi-label">"Owners / clients"</div><div class="ap-kpi-delta ap-delta--up">"3 new this month"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$182,400"</div><div class="ap-kpi-label">"Rent collected · Jul"</div><div class="ap-kpi-delta ap-delta--up">"98.6% collection rate"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$9,120"</div><div class="ap-kpi-label">"Mgmt fees earned"</div><div class="ap-kpi-delta ap-delta--up">"5% avg rate"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Client portfolios"</div>
-                            <div class="ap-client-list">
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(79,99,235,.25);color:#4F63EB;">"DW"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"David & Wendy Chen"</div><div class="ap-client-sub">"34 units · 4 buildings · Miami, FL"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--green">"100% collected"</span><span class="ap-client-fee">"$1,710 / mo"</span></div>
-                                </div>
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(255,107,53,.2);color:#FF6B35;">"RJ"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"Reginald Johnson LLC"</div><div class="ap-client-sub">"18 units · single portfolio · Atlanta, GA"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--warn">"1 late"</span><span class="ap-client-fee">"$900 / mo"</span></div>
-                                </div>
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(6,214,160,.2);color:#06D6A0;">"SP"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"Sofia Patel Investments"</div><div class="ap-client-sub">"12 STR + 8 LTR · Miami Beach"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--green">"All current"</span><span class="ap-client-fee">"$1,200 / mo"</span></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                })}
-
-                {move || (active_tab.get() == 1).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"White-labeled owner portal — your brand, real-time data, no client calls"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"owners.premierpm.co/david-chen"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-portal-header">
-                                <div class="ap-portal-logo">"Premier PM"</div>
-                                <div class="ap-portal-owner">"Welcome back, David"</div>
-                            </div>
-                            <div class="ap-stat-grid">
-                                <div class="ap-stat"><div class="ap-stat-val ap-val--green">"$12,350"</div><div class="ap-stat-lbl">"July net income"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"34 / 34"</div><div class="ap-stat-lbl">"Units occupied"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"100%"</div><div class="ap-stat-lbl">"Collection rate"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"1"</div><div class="ap-stat-lbl">"Open work orders"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Recent owner statements"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"July 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"June 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Delivered"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"May 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Delivered"</span><span>"⬇ PDF"</span></div>
-                            </div>
-                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(6,214,160,.06);border:1px solid rgba(6,214,160,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
-                                "✉ Monthly statement automatically delivered on the 1st. No calls, no PDFs to manually send."
-                            </div>
-                        </div>
-                    </div>
-                })}
-
-                {move || (active_tab.get() == 2).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Maintenance across all portfolios — you approve invoices so owners never have to"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"pm.folio.co/maintenance"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-filter-bar">
-                                <span class="ap-filter-chip ap-chip--active">"All (8)"</span>
-                                <span class="ap-filter-chip">"Open (3)"</span>
-                                <span class="ap-filter-chip">"Pending approval (2)"</span>
-                                <span class="ap-filter-chip">"Closed (3)"</span>
-                            </div>
-                            <div class="ap-wo-list">
-                                <div class="ap-wo-card ap-wo--open">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--open">"Open"</span><span class="ap-wo-id">"#WO-4421"</span><span class="ap-wo-date">"Jul 4, 2026"</span></div>
-                                    <div class="ap-wo-title">"Water heater failure · Chen Portfolio · Unit 8"</div>
-                                    <div class="ap-wo-meta">"Priority: Emergency · Tenant notified"</div>
-                                    <div class="ap-wo-vendor-row">
-                                        <div class="vp-avatar-sm">"HW"</div>
-                                        <span class="ap-wo-vendor">"HeatWave Plumbing — dispatched"</span>
-                                        <span class="ap-wo-eta">"ETA: Today"</span>
-                                    </div>
-                                </div>
-                                <div class="ap-wo-card ap-wo--review">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-4418"</span><span class="ap-wo-date">"Jul 1, 2026"</span></div>
-                                    <div class="ap-wo-title">"AC servicing · Patel Portfolio · 5 units"</div>
-                                    <div class="ap-wo-meta">"Bulk job completed — 5 units"</div>
-                                    <div class="ap-wo-invoice-row">
-                                        <span>"Invoice: $1,250 · CoolAir Services"</span>
-                                        <div class="ap-wo-actions">
-                                            <button class="ap-btn-approve">"✓ Approve all"</button>
-                                            <button class="ap-btn-reject">"Review"</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="ap-wo-card ap-wo--review">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-4415"</span><span class="ap-wo-date">"Jun 29, 2026"</span></div>
-                                    <div class="ap-wo-title">"Roof repair · Johnson Portfolio · Building B"</div>
-                                    <div class="ap-wo-meta">"Completed · Within PM approval threshold ($2,500)"</div>
-                                    <div class="ap-wo-invoice-row">
-                                        <span>"Invoice: $2,100 · TopLine Roofing"</span>
-                                        <div class="ap-wo-actions">
-                                            <button class="ap-btn-approve">"✓ Approve"</button>
-                                            <button class="ap-btn-reject">"Dispute"</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            // Owner shield callout
-                            <div style="margin-top:.85rem;padding:.65rem .75rem;background:rgba(6,214,160,.06);border:1px solid rgba(6,214,160,.18);border-radius:9px;">
-                                <div style="font-size:.72rem;font-weight:800;color:#06D6A0;margin-bottom:.3rem;">"🛡 PM Approval Authority"</div>
-                                <div style="font-size:.73rem;color:var(--mk-muted);line-height:1.5;">
-                                    "You set an approval threshold per client (e.g. $2,500). "
-                                    "Invoices below it you approve directly — owners are never pinged for a $400 plumbing bill. "
-                                    "Above-threshold jobs automatically notify the owner for sign-off before payment is released."
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                })}
-
-                {move || (active_tab.get() == 3).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Separate trust accounts per client — automated disbursements, zero commingling"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"pm.folio.co/accounting"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-trust-accounts">
-                                <div class="ap-trust-row">
-                                    <div class="ap-trust-client">"Chen Portfolio"</div>
-                                    <div class="ap-trust-balance">"$18,420"</div>
-                                    <span class="ap-badge ap-badge--green">"Reconciled"</span>
-                                    <button class="ap-disburse-btn">"Disburse $12,350"</button>
-                                </div>
-                                <div class="ap-trust-row">
-                                    <div class="ap-trust-client">"Johnson LLC"</div>
-                                    <div class="ap-trust-balance">"$9,840"</div>
-                                    <span class="ap-badge ap-badge--green">"Reconciled"</span>
-                                    <button class="ap-disburse-btn">"Disburse $8,100"</button>
-                                </div>
-                                <div class="ap-trust-row">
-                                    <div class="ap-trust-client">"Patel Investments"</div>
-                                    <div class="ap-trust-balance">"$14,290"</div>
-                                    <span class="ap-badge ap-badge--warn">"1 pending expense"</span>
-                                    <button class="ap-disburse-btn" style="opacity:.5;cursor:not-allowed;">"Hold"</button>
-                                </div>
-                            </div>
-                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(79,99,235,.06);border:1px solid rgba(79,99,235,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
-                                "🔒 Each client's funds held in a separate ledger. Automated monthly disbursements with full audit trail."
-                            </div>
-                        </div>
-                    </div>
-                })}
-
-                {move || (active_tab.get() == 4).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Portfolio analytics — occupancy trends, revenue per door, and owner-ready reports"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"pm.folio.co/reports"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-pay-summary">
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"98.6%"</div><div class="ap-pay-sum-lbl">"Collection rate · Jul"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$1,240"</div><div class="ap-pay-sum-lbl">"Revenue per door"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"96.3%"</div><div class="ap-pay-sum-lbl">"Portfolio occupancy"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$9,120"</div><div class="ap-pay-sum-lbl">"Mgmt fees · Jul"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Available reports"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"Monthly owner statements (23 owners)"</span><span class="ap-pay-status ap-pay--paid">"Auto-send"</span><span>"⬇ Bulk"</span></div>
-                                <div class="ap-pay-row"><span>"Maintenance cost summary"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"Vacancy & turnover report"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"Tax prep package (all portfolios)"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ ZIP"</span></div>
-                            </div>
-                        </div>
-                    </div>
-                })}
             </div>
         </section>
     }

@@ -487,224 +487,165 @@ fn BrokerSkeleton() -> impl IntoView {
     }
 }
 
-// ── App Preview — Broker dashboard mockup ─────────────────────────────────────
-/// Five-tab walkthrough of the Folio Broker experience.
-/// Tabs: Listings CRM · Buyer/Seller Profiles · Commission Tracker · Agent Accounts · Branded Portal
+
+// ── App Preview — Broker dashboard (CSS-only radio tabs) ─────────────────────
+/// Five-tab walkthrough of the Folio Broker experience using pure CSS radio tabs.
+/// Tabs: Listings CRM · Client Profiles · Commissions · Agent Accounts · Client Portal
 #[component]
 fn BrokerAppPreview() -> impl IntoView {
-    let active_tab = RwSignal::new(0u8);
-
     view! {
         <section class="mktg-section ap-section" id="broker-app-preview"
             style="background:rgba(99,79,235,.015);border-top:1px solid rgba(99,79,235,.08);">
             <div class="mktg-container">
                 <div class="ap-header">
                     <span class="mktg-label">"See it in action"</span>
-                    <h2 class="mktg-h2">"Your whole brokerage, one command center"</h2>
-                    <p class="mktg-sub">"Active listings, buyer pipelines, commission tracking, and agent accounts — built for licensed brokers."</p>
+                    <h2 class="mktg-h2">"Your listings, your clients, your commission pipeline"</h2>
+                    <p class="mktg-sub">"CRM, commissions, agent accounts, and a white-labeled client portal — in one brokerage platform."</p>
                 </div>
 
-                <div class="vp-tab-row">
-                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(0)>"🏠 Listings CRM"</button>
-                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(1)>"👤 Client Profiles"</button>
-                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(2)>"💰 Commissions"</button>
-                    <button class=move || if active_tab.get()==3 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(3)>"👥 Agent Accounts"</button>
-                    <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(4)>"🌐 Client Portal"</button>
-                </div>
+                <div class="asp-outer">
+                    <p class="asp-caption">"↓ Click any tab to explore"</p>
 
-                {move || (active_tab.get() == 0).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"All your active listings — status, offer pipeline, days on market, and next steps"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"broker.folio.co/listings"</span>
-                        </div>
-                        <div class="vp-screen ap-dash">
-                            <div class="ap-kpi-row">
-                                <div class="ap-kpi"><div class="ap-kpi-val">"14"</div><div class="ap-kpi-label">"Active listings"</div><div class="ap-kpi-delta ap-delta--up">"3 new this week"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"8"</div><div class="ap-kpi-label">"Under offer"</div><div class="ap-kpi-delta ap-delta--up">"57% conversion"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"24 days"</div><div class="ap-kpi-label">"Avg days on market"</div><div class="ap-kpi-delta ap-delta--up">"↓ 6 from last qtr"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$4.2M"</div><div class="ap-kpi-label">"Pipeline value"</div><div class="ap-kpi-delta ap-delta--up">"↑ $620K MTM"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Active listings"</div>
-                            <div class="ap-listing-grid">
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--purple">"For Sale"</div>
-                                    <div class="ap-listing-name">"4BR · 2100 Brickell Ave #12"</div>
-                                    <div class="ap-listing-tenant">"Listed $895,000 · 12 DOM"</div>
-                                    <div class="ap-listing-rent">"3 offers received"</div>
-                                    <div class="ap-listing-status ap-status--green">"● Best & Final Due Jul 8"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--blue">"For Rent"</div>
-                                    <div class="ap-listing-name">"2BR · 88 SW 7th St #4"</div>
-                                    <div class="ap-listing-tenant">"Listed $3,200/mo · 5 DOM"</div>
-                                    <div class="ap-listing-rent">"6 applications"</div>
-                                    <div class="ap-listing-status ap-status--green">"● Screening"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--gray">"For Sale"</div>
-                                    <div class="ap-listing-name">"3BR · 1450 NE Miami Ct #7"</div>
-                                    <div class="ap-listing-tenant">"Listed $650,000 · 38 DOM"</div>
-                                    <div class="ap-listing-rent">"Price reduction pending"</div>
-                                    <div class="ap-listing-status ap-status--warn">"⚠ Stale — needs action"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--purple">"For Sale"</div>
-                                    <div class="ap-listing-name">"Studio · 201 SE 2nd Ave"</div>
-                                    <div class="ap-listing-tenant">"Under Contract $420,000"</div>
-                                    <div class="ap-listing-rent">"Closing Jul 25, 2026"</div>
-                                    <div class="ap-listing-status ap-status--green">"● In escrow"</div>
-                                </div>
-                            </div>
-                        </div>
+                    <input type="radio" name="br" id="br-t1" class="asp-radio" checked/>
+                    <input type="radio" name="br" id="br-t2" class="asp-radio"/>
+                    <input type="radio" name="br" id="br-t3" class="asp-radio"/>
+                    <input type="radio" name="br" id="br-t4" class="asp-radio"/>
+                    <input type="radio" name="br" id="br-t5" class="asp-radio"/>
+
+                    <div class="asp-tabs">
+                        <label for="br-t1" class="asp-tab-label">"🏠 Listings CRM"</label>
+                        <label for="br-t2" class="asp-tab-label">"👤 Client Profiles"</label>
+                        <label for="br-t3" class="asp-tab-label">"💰 Commissions"</label>
+                        <label for="br-t4" class="asp-tab-label">"👥 Agent Accounts"</label>
+                        <label for="br-t5" class="asp-tab-label">"🌐 Client Portal"</label>
                     </div>
-                })}
 
-                {move || (active_tab.get() == 1).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Buyer and seller profiles — pre-qual status, search criteria, showing history, and next action"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"broker.folio.co/clients/james-okafor"</span>
+                    <div class="asp-window">
+                        <div class="asp-chrome-bar">
+                            <span class="asp-dot asp-dot-red"></span>
+                            <span class="asp-dot asp-dot-yellow"></span>
+                            <span class="asp-dot asp-dot-green"></span>
+                            <span class="asp-url">"folio.co/brokers/crm"</span>
                         </div>
-                        <div class="vp-screen">
-                            <div class="ap-tenant-header">
-                                <div class="vp-avatar">"JO"</div>
-                                <div class="ap-tenant-meta">
-                                    <div class="ap-tenant-name">"James & Keiko Okafor"</div>
-                                    <div class="ap-tenant-sub">"Buyers · Budget $750K–$900K · Brickell / Edgewater preferred"</div>
-                                    <div class="ap-badge-row">
-                                        <span class="ap-badge ap-badge--green">"✓ Pre-approved $900K"</span>
-                                        <span class="ap-badge ap-badge--blue">"Active — 6 showings"</span>
-                                        <span class="ap-badge ap-badge--purple">"Agent: Sarah Kim"</span>
+                        <div class="asp-shell">
+                            <aside class="asp-sidebar" style="--folio-accent2:#a78bfa;">
+                                <div class="asp-sidebar-logo" style="color:#a78bfa;">
+                                    "Folio"
+                                    <span>"Brokerage"</span>
+                                </div>
+                                <a class="asp-nav-item asp-nav-item--active" style="background:rgba(99,79,235,.14);color:#a78bfa;"><span class="asp-nav-icon">"🏠"</span>"Listings CRM"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"👤"</span>"Clients"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"💰"</span>"Commissions"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"👥"</span>"Agents"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🌐"</span>"Client Portal"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📈"</span>"Reports"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"⚙"</span>"Settings"</a>
+                            </aside>
+
+                            <main class="asp-main">
+
+                                // TAB 1: Listings CRM
+                                <div class="asp-panel" data-tab="1">
+                                    <div class="asp-page-title">"Listings CRM"</div>
+                                    <div class="asp-page-sub">"14 active listings · $6.2M pipeline"</div>
+                                    <div class="asp-stat-grid">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Active listings"</div><div class="asp-stat-value">"14"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Avg days on market"</div><div class="asp-stat-value">"18"</div><div class="asp-stat-delta asp-delta-up">"↓ 4 vs last mo"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Pipeline value"</div><div class="asp-stat-value" style="color:#a78bfa;">"$6.2M"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Offers received"</div><div class="asp-stat-value">"5"</div></div>
                                     </div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Address"</th><th>"Type"</th><th>"List price"</th><th>"DOM"</th><th>"Status"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"1402 Brickell Ave #14B"</td><td>"For sale"</td><td>"$740,000"</td><td>"12"</td><td><span class="asp-status asp-status--warn">"2 offers"</span></td></tr>
+                                            <tr><td>"81 NW 2nd Ave"</td><td>"For rent"</td><td>"$3,200/mo"</td><td>"4"</td><td><span class="asp-status asp-status--green">"Showing today"</span></td></tr>
+                                            <tr><td>"3388 SW 27th Ct"</td><td>"For sale"</td><td>"$520,000"</td><td>"22"</td><td><span class="asp-status asp-status--blue">"Under contract"</span></td></tr>
+                                            <tr><td>"920 Edgewater Dr"</td><td>"For sale"</td><td>"$1.1M"</td><td>"8"</td><td><span class="asp-status asp-status--green">"Active"</span></td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="ap-score-ring" style="background:rgba(99,79,235,.12);"><div class="ap-score-ring-val" style="color:#634FEB;">"A"</div><div class="ap-score-ring-label">"Lead score"</div></div>
-                            </div>
-                            <div class="ap-stat-grid">
-                                <div class="ap-stat"><div class="ap-stat-val">"6"</div><div class="ap-stat-lbl">"Showings"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"2"</div><div class="ap-stat-lbl">"Offers made"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"18 days"</div><div class="ap-stat-lbl">"In pipeline"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"Jul 12"</div><div class="ap-stat-lbl">"Next showing"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Activity timeline"</div>
-                            <div class="ap-activity-list">
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(99,79,235,.15);color:#634FEB;">"🏠"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Showing — 2100 Brickell Ave #12"</span><span class="ap-activity-time">"Yesterday · Liked it"</span></div>
-                                </div>
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(255,189,46,.12);color:#FFBD2E;">"📋"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Offer submitted — 1450 NE Miami Ct #7 · $640K"</span><span class="ap-activity-time">"3 days ago · Countered"</span></div>
-                                </div>
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(6,214,160,.15);color:#06D6A0;">"✉"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"New matches sent — 3 listings within criteria"</span><span class="ap-activity-time">"5 days ago · Opened"</span></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                })}
 
-                {move || (active_tab.get() == 2).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Commission tracking — pipeline, splits, escrow status, and payout projections"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"broker.folio.co/commissions"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-pay-summary">
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$68,400"</div><div class="ap-pay-sum-lbl">"YTD commissions"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$31,500"</div><div class="ap-pay-sum-lbl">"In escrow / pending"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$21,240"</div><div class="ap-pay-sum-lbl">"Agent payouts YTD"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$47,160"</div><div class="ap-pay-sum-lbl">"Brokerage net YTD"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Commission pipeline"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"201 SE 2nd Ave — Closing Jul 25"</span><span class="ap-pay-status ap-pay--paid">"In Escrow"</span><span class="ap-amt--credit">"$12,600"</span></div>
-                                <div class="ap-pay-row"><span>"2100 Brickell Ave — Under offer"</span><span class="ap-pay-status" style="color:#FFBD2E;">"Pending"</span><span class="ap-amt--credit">"$26,850"</span></div>
-                                <div class="ap-pay-row"><span>"88 SW 7th St — Lease signed"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span class="ap-amt--credit">"$3,200"</span></div>
-                                <div class="ap-pay-row"><span>"1450 NE Miami Ct — Counter accepted"</span><span class="ap-pay-status" style="color:#FFBD2E;">"Pending"</span><span class="ap-amt--credit">"$18,720"</span></div>
-                            </div>
-                        </div>
-                    </div>
-                })}
+                                // TAB 2: Client Profiles
+                                <div class="asp-panel" data-tab="2">
+                                    <div class="asp-page-title">"Client — James & Keiko Okafor"</div>
+                                    <div class="asp-page-sub">"Buyer profile · Budget $600–750K · Agent: Sofia Martins"</div>
+                                    <div style="display:flex;gap:.85rem;margin-bottom:.85rem;align-items:flex-start;">
+                                        <div class="asp-avatar asp-avatar-lg" style="background:rgba(99,79,235,.2);color:#a78bfa;">"JO"</div>
+                                        <div>
+                                            <div style="display:flex;gap:.35rem;flex-wrap:wrap;">
+                                                <span class="asp-status asp-status--green">"✓ Pre-qualified $725K"</span>
+                                                <span class="asp-status asp-status--blue">"12 showings"</span>
+                                                <span class="asp-status asp-status--gray">"Score: 82"</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="asp-section-hdr">"Timeline"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"Jun 30"</td><td>"Showing — 1402 Brickell Ave"</td><td><span class="asp-status asp-status--warn">"Offer pending"</span></td></tr>
+                                            <tr><td>"Jun 28"</td><td>"Showing — 3388 SW 27th Ct"</td><td><span class="asp-status asp-status--gray">"No offer"</span></td></tr>
+                                            <tr><td>"Jun 24"</td><td>"Pre-qual confirmed — Beacon Mortgage"</td><td><span class="asp-status asp-status--green">"Approved"</span></td></tr>
+                                            <tr><td>"Jun 18"</td><td>"Intake call with Sofia Martins"</td><td><span class="asp-status asp-status--green">"Done"</span></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
 
-                {move || (active_tab.get() == 3).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Agent accounts with per-agent pipelines, commission splits, and performance dashboards"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"broker.folio.co/agents"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-client-list">
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(99,79,235,.25);color:#634FEB;">"SK"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"Sarah Kim"</div><div class="ap-client-sub">"Senior Agent · 4 active listings · 8 buyer clients"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--green">"$41,200 YTD"</span><span class="ap-client-fee">"70/30 split"</span></div>
+                                // TAB 3: Commissions
+                                <div class="asp-panel" data-tab="3">
+                                    <div class="asp-page-title">"Commissions"</div>
+                                    <div class="asp-page-sub">"YTD brokerage earnings"</div>
+                                    <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Closed · YTD"</div><div class="asp-stat-value" style="color:#22c55e;">"$148,200"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"In escrow"</div><div class="asp-stat-value" style="color:#f59e0b;">"$38,000"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Pending"</div><div class="asp-stat-value">"$52,400"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Deals closed · YTD"</div><div class="asp-stat-value">"9"</div></div>
+                                    </div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Property"</th><th>"Closed"</th><th>"Commission"</th><th>"Status"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"920 Edgewater Dr"</td><td>"In escrow"</td><td class="asp-credit">"$33,000"</td><td><span class="asp-status asp-status--warn">"Awaiting close"</span></td></tr>
+                                            <tr><td>"3388 SW 27th Ct"</td><td>"Jun 15"</td><td class="asp-credit">"$15,600"</td><td><span class="asp-status asp-status--green">"Paid"</span></td></tr>
+                                            <tr><td>"1100 Biscayne Blvd"</td><td>"May 28"</td><td class="asp-credit">"$24,000"</td><td><span class="asp-status asp-status--green">"Paid"</span></td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(6,214,160,.2);color:#06D6A0;">"MT"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"Marcus Torres"</div><div class="ap-client-sub">"Agent · 2 active listings · 5 buyer clients"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--blue">"$18,600 YTD"</span><span class="ap-client-fee">"60/40 split"</span></div>
-                                </div>
-                                <div class="ap-client-row">
-                                    <div class="vp-avatar" style="background:rgba(255,189,46,.18);color:#FFBD2E;">"AN"</div>
-                                    <div class="ap-client-meta"><div class="ap-client-name">"Alicia Nguyen"</div><div class="ap-client-sub">"New Agent · 1 active listing · 3 buyer clients"</div></div>
-                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--warn">"$8,600 YTD"</span><span class="ap-client-fee">"50/50 split"</span></div>
-                                </div>
-                            </div>
-                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(99,79,235,.06);border:1px solid rgba(99,79,235,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
-                                "Each agent has their own login, sees only their clients and listings, and gets automated commission statements."
-                            </div>
-                        </div>
-                    </div>
-                })}
 
-                {move || (active_tab.get() == 4).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"White-labeled client portal — buyers and sellers track their deal in real time under your brand"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"clients.miamirealty.co/james-okafor"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-portal-header">
-                                <div class="ap-portal-logo">"Miami Realty Group"</div>
-                                <div class="ap-portal-owner">"Welcome, James & Keiko"</div>
-                            </div>
-                            <div class="ap-section-title">"Your offer — 201 SE 2nd Ave"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"Offer accepted"</span><span class="ap-pay-status ap-pay--paid">"✓ Done"</span><span>"Jun 28"</span></div>
-                                <div class="ap-pay-row"><span>"Inspection"</span><span class="ap-pay-status ap-pay--paid">"✓ Done"</span><span>"Jul 2"</span></div>
-                                <div class="ap-pay-row"><span>"Appraisal"</span><span class="ap-pay-status ap-pay--paid">"✓ Done"</span><span>"Jul 8"</span></div>
-                                <div class="ap-pay-row"><span>"Final walkthrough"</span><span class="ap-pay-status" style="color:#FFBD2E;">"Scheduled"</span><span>"Jul 24"</span></div>
-                                <div class="ap-pay-row"><span>"Closing"</span><span class="ap-pay-status" style="color:var(--mk-muted);">"Upcoming"</span><span>"Jul 25"</span></div>
-                            </div>
-                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(6,214,160,.06);border:1px solid rgba(6,214,160,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
-                                "🎉 Your closing is 9 days away. Sarah Kim will contact you 48h before to confirm wire details."
-                            </div>
+                                // TAB 4: Agent Accounts
+                                <div class="asp-panel" data-tab="4">
+                                    <div class="asp-page-title">"Agent Accounts"</div>
+                                    <div class="asp-page-sub">"Isolated dashboards — each agent sees only their clients"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Agent"</th><th>"Active clients"</th><th>"YTD earnings"</th><th>"Split"</th><th>"Status"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"Sofia Martins"</td><td>"7"</td><td class="asp-credit">"$61,200"</td><td>"70 / 30"</td><td><span class="asp-status asp-status--green">"Active"</span></td></tr>
+                                            <tr><td>"Carlos Reyes"</td><td>"4"</td><td class="asp-credit">"$42,800"</td><td>"65 / 35"</td><td><span class="asp-status asp-status--green">"Active"</span></td></tr>
+                                            <tr><td>"Yuki Tanaka"</td><td>"3"</td><td class="asp-credit">"$29,400"</td><td>"60 / 40"</td><td><span class="asp-status asp-status--gray">"On leave"</span></td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-callout">"<strong>🔒 Data isolation</strong> — Each agent logs into their own dashboard. They see their clients, their pipeline, their commissions — not anyone else's."</div>
+                                </div>
+
+                                // TAB 5: Client Portal
+                                <div class="asp-panel" data-tab="5">
+                                    <div class="asp-page-title">"Client Portal"</div>
+                                    <div class="asp-page-sub">"White-labeled under your brand — clients.miamirealty.co"</div>
+                                    <div class="asp-section-hdr">"James & Keiko Okafor — Closing tracker"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"📋"</td><td>"Purchase agreement signed"</td><td><span class="asp-status asp-status--green">"Complete"</span></td><td class="asp-muted">"Jun 22"</td></tr>
+                                            <tr><td>"🏦"</td><td>"Mortgage underwriting"</td><td><span class="asp-status asp-status--green">"Approved"</span></td><td class="asp-muted">"Jun 30"</td></tr>
+                                            <tr><td>"🔍"</td><td>"Home inspection"</td><td><span class="asp-status asp-status--green">"Passed"</span></td><td class="asp-muted">"Jul 2"</td></tr>
+                                            <tr><td>"🏡"</td><td>"Title search"</td><td><span class="asp-status asp-status--warn">"In progress"</span></td><td class="asp-muted">"Est. Jul 8"</td></tr>
+                                            <tr><td>"📦"</td><td>"Closing & key handover"</td><td><span class="asp-status asp-status--gray">"Scheduled"</span></td><td class="asp-muted">"Jul 15"</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-callout">"<strong>🌐 Your brand, not ours</strong> — Clients see your brokerage name and logo. Folio is invisible infrastructure."</div>
+                                </div>
+
+                            </main>
                         </div>
                     </div>
-                })}
+                </div>
             </div>
         </section>
     }

@@ -1130,13 +1130,13 @@ fn LandingPageSkeleton() -> impl IntoView {
     }
 }
 
-// ── App Preview — interactive dashboard mockup ─────────────────────────────────
-/// Five-tab walkthrough of the Folio landlord dashboard.
-/// Tabs: Dashboard · Tenants · Listings · Maintenance · Payments
+
+// ── App Preview — CSS-only radio tabs, real app shell mockup ─────────────────
+/// Six-tab walkthrough of the Folio landlord dashboard using pure CSS radio
+/// tabs (no JS / no WASM hydration required).
+/// Tabs: Dashboard · Tenants · Listings · Maintenance · Payments · Owner Portal
 #[component]
 fn MktgAppPreview() -> impl IntoView {
-    let active_tab = RwSignal::new(0u8);
-
     view! {
         <section class="mktg-section ap-section" id="app-preview">
             <div class="mktg-container">
@@ -1146,266 +1146,248 @@ fn MktgAppPreview() -> impl IntoView {
                     <p class="mktg-sub">"From tenant screening to tax exports — Folio replaces five tools with one login."</p>
                 </div>
 
-                <div class="vp-tab-row">
-                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(0)>"🏠 Dashboard"</button>
-                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(1)>"👤 Tenants"</button>
-                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(2)>"🏘️ Listings"</button>
-                    <button class=move || if active_tab.get()==3 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(3)>"🔧 Maintenance"</button>
-                    <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(4)>"💳 Payments"</button>
-                    <button class=move || if active_tab.get()==5 {"vp-tab vp-tab--active"} else {"vp-tab"}
-                            on:click=move |_| active_tab.set(5)>"📊 Owner / Investor"</button>
-                </div>
+                <div class="asp-outer">
+                    <p class="asp-caption">"↓ Click any tab to explore"</p>
 
-                {move || (active_tab.get() == 0).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Landlord OS — your whole portfolio at a glance"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"app.folio.co/dashboard"</span>
-                        </div>
-                        <div class="vp-screen ap-dash">
-                            <div class="ap-kpi-row">
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$24,850"</div><div class="ap-kpi-label">"Rent collected · Jul"</div><div class="ap-kpi-delta ap-delta--up">"↑ 4.2% vs Jun"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"18 / 19"</div><div class="ap-kpi-label">"Units occupied"</div><div class="ap-kpi-delta ap-delta--up">"94.7% occupancy"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"2"</div><div class="ap-kpi-label">"Open work orders"</div><div class="ap-kpi-delta ap-delta--warn">"1 overdue"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$1,240"</div><div class="ap-kpi-label">"Outstanding balance"</div><div class="ap-kpi-delta ap-delta--warn">"3 days past due"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Recent activity"</div>
-                            <div class="ap-activity-list">
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(6,214,160,.15);color:#06D6A0;">"💰"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Rent received — Unit 4B · Marcus Reid"</span><span class="ap-activity-time">"2 hours ago"</span></div>
-                                    <span class="ap-activity-amt ap-amt--credit">"+ $1,850"</span>
-                                </div>
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(255,107,53,.12);color:#FF6B35;">"🔧"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Work order dispatched — HVAC Unit 2A"</span><span class="ap-activity-time">"Yesterday"</span></div>
-                                    <span class="ap-activity-amt">"$340 est."</span>
-                                </div>
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(79,99,235,.15);color:#4F63EB;">"📋"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Lease renewed — Unit 7C · Aisha Okonkwo"</span><span class="ap-activity-time">"2 days ago"</span></div>
-                                    <span class="ap-activity-amt">"12 mo"</span>
-                                </div>
-                                <div class="ap-activity-row">
-                                    <span class="ap-activity-icon" style="background:rgba(255,189,46,.12);color:#FFBD2E;">"⚠️"</span>
-                                    <div class="ap-activity-body"><span class="ap-activity-main">"Late notice sent — Unit 9A · Tom Rivas"</span><span class="ap-activity-time">"3 days ago"</span></div>
-                                    <span class="ap-activity-amt ap-amt--warn">"$1,240"</span>
-                                </div>
-                            </div>
-                        </div>
+                    // All radios MUST come before .asp-tabs and .asp-window
+                    // so the CSS sibling selector (#lp-tN:checked ~ .asp-window) works.
+                    <input type="radio" name="lp" id="lp-t1" class="asp-radio" checked/>
+                    <input type="radio" name="lp" id="lp-t2" class="asp-radio"/>
+                    <input type="radio" name="lp" id="lp-t3" class="asp-radio"/>
+                    <input type="radio" name="lp" id="lp-t4" class="asp-radio"/>
+                    <input type="radio" name="lp" id="lp-t5" class="asp-radio"/>
+                    <input type="radio" name="lp" id="lp-t6" class="asp-radio"/>
+
+                    <div class="asp-tabs">
+                        <label for="lp-t1" class="asp-tab-label">"🏠 Dashboard"</label>
+                        <label for="lp-t2" class="asp-tab-label">"👤 Tenants"</label>
+                        <label for="lp-t3" class="asp-tab-label">"🏘 Listings"</label>
+                        <label for="lp-t4" class="asp-tab-label">"🔧 Maintenance"</label>
+                        <label for="lp-t5" class="asp-tab-label">"💳 Payments"</label>
+                        <label for="lp-t6" class="asp-tab-label">"📊 Owner Portal"</label>
                     </div>
-                })}
 
-                {move || (active_tab.get() == 1).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Full tenant profile — screening score, lease, payment history, communications"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"app.folio.co/tenants/marcus-reid"</span>
+                    <div class="asp-window">
+                        <div class="asp-chrome-bar">
+                            <span class="asp-dot asp-dot-red"></span>
+                            <span class="asp-dot asp-dot-yellow"></span>
+                            <span class="asp-dot asp-dot-green"></span>
+                            <span class="asp-url" id="lp-url-bar">"app.folio.co/l/dashboard"</span>
                         </div>
-                        <div class="vp-screen">
-                            <div class="ap-tenant-header">
-                                <div class="vp-avatar">"MR"</div>
-                                <div class="ap-tenant-meta">
-                                    <div class="ap-tenant-name">"Marcus Reid"</div>
-                                    <div class="ap-tenant-sub">"Unit 4B · 182 Oak St · Lease ends Dec 31, 2026"</div>
-                                    <div class="ap-badge-row">
-                                        <span class="ap-badge ap-badge--green">"✓ ID Verified"</span>
-                                        <span class="ap-badge ap-badge--green">"✓ Background Clear"</span>
-                                        <span class="ap-badge ap-badge--blue">"On-time payer"</span>
+                        <div class="asp-shell">
+                            // ── Sidebar nav ──────────────────────────────────
+                            <aside class="asp-sidebar">
+                                <div class="asp-sidebar-logo">
+                                    "Folio"
+                                    <span>"Landlord"</span>
+                                </div>
+                                <a class="asp-nav-item asp-nav-item--active">
+                                    <span class="asp-nav-icon">"🏠"</span>"Dashboard"
+                                </a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🏘"</span>"Portfolio"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"👤"</span>"Tenants"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📋"</span>"Leases"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"🔧"</span>"Maintenance"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"💳"</span>"Payments"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📅"</span>"Reservations"</a>
+                                <a class="asp-nav-item"><span class="asp-nav-icon">"📊"</span>"Reports"</a>
+                            </aside>
+                            // ── Tab panels ───────────────────────────────────
+                            <main class="asp-main">
+
+                                // TAB 1: Dashboard
+                                <div class="asp-panel" data-tab="1">
+                                    <div class="asp-page-title">"Welcome back, Sarah!"</div>
+                                    <div class="asp-page-sub">"Here's what's happening across your portfolio today."</div>
+                                    <div class="asp-stat-grid">
+                                        <div class="asp-stat-card">
+                                            <div class="asp-stat-icon">"🏠"</div>
+                                            <div class="asp-stat-label">"Properties"</div>
+                                            <div class="asp-stat-value">"19"</div>
+                                        </div>
+                                        <div class="asp-stat-card">
+                                            <div class="asp-stat-icon">"📋"</div>
+                                            <div class="asp-stat-label">"Active Leases"</div>
+                                            <div class="asp-stat-value">"18"</div>
+                                        </div>
+                                        <div class="asp-stat-card">
+                                            <div class="asp-stat-icon">"💰"</div>
+                                            <div class="asp-stat-label">"Revenue MTD"</div>
+                                            <div class="asp-stat-value">"$24.8K"</div>
+                                            <div class="asp-stat-delta asp-delta-up">"↑ 4.2%"</div>
+                                        </div>
+                                        <div class="asp-stat-card">
+                                            <div class="asp-stat-icon">"🔧"</div>
+                                            <div class="asp-stat-label">"Open Work Orders"</div>
+                                            <div class="asp-stat-value">"2"</div>
+                                            <div class="asp-stat-delta asp-delta-warn">"1 overdue"</div>
+                                        </div>
                                     </div>
+                                    <div class="asp-section-hdr">"Recent activity"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"💰 Rent received"</td><td>"Unit 4B · Marcus Reid"</td><td class="asp-credit">"+$1,850"</td><td class="asp-muted">"2h ago"</td></tr>
+                                            <tr><td>"🔧 Work order dispatched"</td><td>"HVAC · Unit 2A"</td><td class="asp-muted">"$340 est."</td><td class="asp-muted">"Yesterday"</td></tr>
+                                            <tr><td>"📋 Lease renewed"</td><td>"Unit 7C · Aisha Okonkwo"</td><td class="asp-muted">"12 mo"</td><td class="asp-muted">"2 days ago"</td></tr>
+                                            <tr><td>"⚠️ Late notice sent"</td><td>"Unit 9A · Tom Rivas"</td><td class="asp-debit">"$1,240"</td><td class="asp-muted">"3 days ago"</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="ap-score-ring"><div class="ap-score-ring-val">"94"</div><div class="ap-score-ring-label">"Tenant Score"</div></div>
-                            </div>
-                            <div class="ap-stat-grid">
-                                <div class="ap-stat"><div class="ap-stat-val">"$1,850"</div><div class="ap-stat-lbl">"Monthly rent"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"18 mo"</div><div class="ap-stat-lbl">"Tenancy"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"100%"</div><div class="ap-stat-lbl">"On-time rate"</div></div>
-                                <div class="ap-stat"><div class="ap-stat-val">"0"</div><div class="ap-stat-lbl">"Open disputes"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Payment history"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"Jul 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
-                                <div class="ap-pay-row"><span>"Jun 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
-                                <div class="ap-pay-row"><span>"May 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
-                                <div class="ap-pay-row"><span>"Apr 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
-                            </div>
-                        </div>
-                    </div>
-                })}
 
-                {move || (active_tab.get() == 2).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"All your STR and LTR units — occupancy, revenue, and next guest at a glance"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"app.folio.co/listings"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-filter-bar">
-                                <span class="ap-filter-chip ap-chip--active">"All (19)"</span>
-                                <span class="ap-filter-chip">"LTR (14)"</span>
-                                <span class="ap-filter-chip">"STR (5)"</span>
-                                <span class="ap-filter-chip">"Vacant (1)"</span>
-                            </div>
-                            <div class="ap-listing-grid">
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--blue">"LTR"</div>
-                                    <div class="ap-listing-name">"182 Oak St · Unit 4B"</div>
-                                    <div class="ap-listing-tenant">"Marcus Reid · Ends Dec 2026"</div>
-                                    <div class="ap-listing-rent">"$1,850 / mo"</div>
-                                    <div class="ap-listing-status ap-status--green">"● Occupied"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--purple">"STR"</div>
-                                    <div class="ap-listing-name">"45 Beach Ave · Apt 1"</div>
-                                    <div class="ap-listing-tenant">"Next: Chen family · Aug 3–10"</div>
-                                    <div class="ap-listing-rent">"$285 / night"</div>
-                                    <div class="ap-listing-status ap-status--green">"● 89% booked"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--blue">"LTR"</div>
-                                    <div class="ap-listing-name">"77 Maple Dr · Unit 9A"</div>
-                                    <div class="ap-listing-tenant">"Tom Rivas · Ends Mar 2027"</div>
-                                    <div class="ap-listing-rent">"$1,240 / mo"</div>
-                                    <div class="ap-listing-status ap-status--warn">"⚠ Rent overdue"</div>
-                                </div>
-                                <div class="ap-listing-card">
-                                    <div class="ap-listing-badge ap-badge--gray">"LTR"</div>
-                                    <div class="ap-listing-name">"14 Elm Ct · Unit 2"</div>
-                                    <div class="ap-listing-tenant">"Vacant · Listed"</div>
-                                    <div class="ap-listing-rent">"$1,650 / mo"</div>
-                                    <div class="ap-listing-status ap-status--gray">"○ Available Aug 1"</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                })}
-
-                {move || (active_tab.get() == 3).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Vendor dispatch, job tracking, and invoice approval — zero phone tag"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"app.folio.co/maintenance"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-wo-list">
-                                <div class="ap-wo-card ap-wo--open">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--open">"Open"</span><span class="ap-wo-id">"#WO-2841"</span><span class="ap-wo-date">"Jul 3, 2026"</span></div>
-                                    <div class="ap-wo-title">"HVAC not cooling · Unit 2A"</div>
-                                    <div class="ap-wo-meta">"Reported by tenant · Priority: High"</div>
-                                    <div class="ap-wo-vendor-row">
-                                        <div class="vp-avatar-sm">"AC"</div>
-                                        <span class="ap-wo-vendor">"Arctic Cool HVAC — dispatched"</span>
-                                        <span class="ap-wo-eta">"ETA: Jul 6"</span>
+                                // TAB 2: Tenants
+                                <div class="asp-panel" data-tab="2">
+                                    <div class="asp-page-title">"Tenant — Marcus Reid"</div>
+                                    <div class="asp-page-sub">"Unit 4B · 182 Oak St · Lease ends Dec 31, 2026"</div>
+                                    <div style="display:flex;align-items:flex-start;gap:.85rem;margin-bottom:1rem;">
+                                        <div class="asp-avatar asp-avatar-lg" style="background:rgba(99,102,241,.2);color:#818cf8;">"MR"</div>
+                                        <div style="flex:1;">
+                                            <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.5rem;">
+                                                <span class="asp-status asp-status--green">"✓ ID Verified"</span>
+                                                <span class="asp-status asp-status--green">"✓ Background Clear"</span>
+                                                <span class="asp-status asp-status--blue">"On-time payer"</span>
+                                            </div>
+                                            <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                                <div class="asp-stat-card"><div class="asp-stat-label">"Monthly rent"</div><div class="asp-stat-value" style="font-size:.9rem;">"$1,850"</div></div>
+                                                <div class="asp-stat-card"><div class="asp-stat-label">"Tenancy"</div><div class="asp-stat-value" style="font-size:.9rem;">"18 mo"</div></div>
+                                                <div class="asp-stat-card"><div class="asp-stat-label">"On-time rate"</div><div class="asp-stat-value" style="font-size:.9rem;">"100%"</div></div>
+                                                <div class="asp-stat-card"><div class="asp-stat-label">"Score"</div><div class="asp-stat-value" style="font-size:.9rem;color:#818cf8;">"94"</div></div>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <div class="asp-section-hdr">"Payment history"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Date"</th><th>"Description"</th><th>"Status"</th><th>"Amount"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"Jul 1, 2026"</td><td>"Monthly rent"</td><td><span class="asp-status asp-status--green">"Paid"</span></td><td class="asp-credit">"$1,850"</td></tr>
+                                            <tr><td>"Jun 1, 2026"</td><td>"Monthly rent"</td><td><span class="asp-status asp-status--green">"Paid"</span></td><td class="asp-credit">"$1,850"</td></tr>
+                                            <tr><td>"May 1, 2026"</td><td>"Monthly rent"</td><td><span class="asp-status asp-status--green">"Paid"</span></td><td class="asp-credit">"$1,850"</td></tr>
+                                            <tr><td>"Apr 1, 2026"</td><td>"Monthly rent"</td><td><span class="asp-status asp-status--green">"Paid"</span></td><td class="asp-credit">"$1,850"</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="ap-wo-card ap-wo--review">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-2839"</span><span class="ap-wo-date">"Jun 28, 2026"</span></div>
-                                    <div class="ap-wo-title">"Leaking pipe under sink · Unit 7C"</div>
-                                    <div class="ap-wo-meta">"Completed · Awaiting approval"</div>
-                                    <div class="ap-wo-invoice-row">
-                                        <span>"Invoice: $285 · RapidFix Plumbing"</span>
-                                        <div class="ap-wo-actions">
-                                            <button class="ap-btn-approve">"✓ Approve"</button>
-                                            <button class="ap-btn-reject">"✗ Dispute"</button>
+
+                                // TAB 3: Listings
+                                <div class="asp-panel" data-tab="3">
+                                    <div class="asp-page-title">"Portfolio"</div>
+                                    <div class="asp-page-sub">"19 units · 94.7% occupancy · 1 vacant"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Unit"</th><th>"Type"</th><th>"Tenant / Status"</th><th>"Rent"</th><th>"Status"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"182 Oak St · 4B"</td><td><span class="asp-status asp-status--blue">"LTR"</span></td><td>"Marcus Reid"</td><td>"$1,850"</td><td><span class="asp-status asp-status--green">"Occupied"</span></td></tr>
+                                            <tr><td>"45 Beach Ave · 1"</td><td><span class="asp-status asp-status--gray">"STR"</span></td><td>"Next: Chen family Aug 3"</td><td>"$285/night"</td><td><span class="asp-status asp-status--green">"89% booked"</span></td></tr>
+                                            <tr><td>"77 Maple Dr · 9A"</td><td><span class="asp-status asp-status--blue">"LTR"</span></td><td>"Tom Rivas"</td><td>"$1,240"</td><td><span class="asp-status asp-status--warn">"Rent overdue"</span></td></tr>
+                                            <tr><td>"14 Elm Ct · 2"</td><td><span class="asp-status asp-status--blue">"LTR"</span></td><td>"Vacant"</td><td>"$1,650"</td><td><span class="asp-status asp-status--gray">"Available Aug 1"</span></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                // TAB 4: Maintenance
+                                <div class="asp-panel" data-tab="4">
+                                    <div class="asp-page-title">"Maintenance"</div>
+                                    <div class="asp-page-sub">"2 open · 1 awaiting invoice approval · 3 closed this month"</div>
+                                    <div class="asp-card">
+                                        <div class="asp-card-row">
+                                            <div>
+                                                <div style="display:flex;gap:.35rem;align-items:center;margin-bottom:.3rem;">
+                                                    <span class="asp-status asp-status--warn">"Open"</span>
+                                                    <span class="asp-muted" style="font-size:.68rem;">"#WO-2841 · Jul 3"</span>
+                                                    <span class="asp-status asp-status--red">"High priority"</span>
+                                                </div>
+                                                <div class="asp-card-title">"HVAC not cooling · Unit 2A"</div>
+                                                <div class="asp-card-sub">"Arctic Cool HVAC dispatched · ETA Jul 6"</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="asp-card">
+                                        <div class="asp-card-row">
+                                            <div style="flex:1;">
+                                                <div style="display:flex;gap:.35rem;align-items:center;margin-bottom:.3rem;">
+                                                    <span class="asp-status asp-status--blue">"Invoice Review"</span>
+                                                    <span class="asp-muted" style="font-size:.68rem;">"#WO-2839 · Jun 28"</span>
+                                                </div>
+                                                <div class="asp-card-title">"Leaking pipe under sink · Unit 7C"</div>
+                                                <div class="asp-card-sub">"Invoice: $285 · RapidFix Plumbing"</div>
+                                            </div>
+                                            <div style="display:flex;gap:.35rem;">
+                                                <button class="asp-btn asp-btn-approve">"✓ Approve"</button>
+                                                <button class="asp-btn" style="background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.25);color:#f87171;">"✗ Dispute"</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="asp-card" style="opacity:.6;">
+                                        <div class="asp-card-row">
+                                            <div>
+                                                <div style="display:flex;gap:.35rem;align-items:center;margin-bottom:.3rem;">
+                                                    <span class="asp-status asp-status--gray">"Closed"</span>
+                                                    <span class="asp-muted" style="font-size:.68rem;">"#WO-2830 · Jun 15"</span>
+                                                </div>
+                                                <div class="asp-card-title">"Broken lock · Unit 11B"</div>
+                                                <div class="asp-card-sub">"Paid $120 · SafeKey Locksmith"</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="ap-wo-card ap-wo--closed">
-                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--closed">"Closed"</span><span class="ap-wo-id">"#WO-2830"</span><span class="ap-wo-date">"Jun 15, 2026"</span></div>
-                                    <div class="ap-wo-title">"Broken lock · Unit 11B"</div>
-                                    <div class="ap-wo-meta">"Completed · Paid $120 · SafeKey Locksmith"</div>
+
+                                // TAB 5: Payments
+                                <div class="asp-panel" data-tab="5">
+                                    <div class="asp-page-title">"Payments"</div>
+                                    <div class="asp-page-sub">"Ledger — July 2026"</div>
+                                    <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Collected · Jul"</div><div class="asp-stat-value" style="color:#22c55e;">"$24,850"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Outstanding"</div><div class="asp-stat-value" style="color:#f59e0b;">"$1,240"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Expenses · Jul"</div><div class="asp-stat-value">"$3,180"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Net income"</div><div class="asp-stat-value" style="color:#22c55e;">"$21,670"</div></div>
+                                    </div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Date"</th><th>"Description"</th><th>"Amount"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"Jul 1"</td><td>"Rent · Marcus Reid"</td><td class="asp-credit">"+$1,850"</td></tr>
+                                            <tr><td>"Jul 1"</td><td>"Rent · Aisha Okonkwo"</td><td class="asp-credit">"+$2,100"</td></tr>
+                                            <tr><td>"Jul 3"</td><td>"Arctic Cool HVAC"</td><td class="asp-debit">"-$340"</td></tr>
+                                            <tr><td>"Jul 4"</td><td>"Insurance premium"</td><td class="asp-debit">"-$480"</td></tr>
+                                            <tr><td>"Jul 4"</td><td>"Rent · Tom Rivas"</td><td style="color:#f59e0b;">"+$1,240 (pending)"</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+                                        <button class="asp-btn asp-btn-export">"⬇ Export Schedule E (IRS)"</button>
+                                        <button class="asp-btn asp-btn-export">"⬇ Export CSV"</button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                })}
 
-                {move || (active_tab.get() == 4).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Rent collection, expense ledger, and one-click tax export — no spreadsheets"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"app.folio.co/payments"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-pay-summary">
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$24,850"</div><div class="ap-pay-sum-lbl">"Collected · Jul 2026"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--warn">"$1,240"</div><div class="ap-pay-sum-lbl">"Outstanding"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$3,180"</div><div class="ap-pay-sum-lbl">"Expenses · Jul"</div></div>
-                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$21,670"</div><div class="ap-pay-sum-lbl">"Net income"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Ledger — July 2026"</div>
-                            <div class="ap-ledger">
-                                <div class="ap-ledger-row"><span>"Jul 1 · Marcus Reid"</span><span class="ap-amt--credit">"+$1,850"</span></div>
-                                <div class="ap-ledger-row"><span>"Jul 1 · Aisha Okonkwo"</span><span class="ap-amt--credit">"+$2,100"</span></div>
-                                <div class="ap-ledger-row"><span>"Jul 3 · Arctic Cool HVAC"</span><span class="ap-amt--debit">"-$340"</span></div>
-                                <div class="ap-ledger-row"><span>"Jul 4 · Insurance premium"</span><span class="ap-amt--debit">"-$480"</span></div>
-                                <div class="ap-ledger-row"><span>"Jul 4 · Tom Rivas"</span><span style="color:#FFBD2E;">"+$1,240 (pending)"</span></div>
-                            </div>
-                            <div class="ap-export-row">
-                                <button class="ap-export-btn">"⬇ Export Schedule E (IRS)"</button>
-                                <button class="ap-export-btn">"⬇ Export CSV"</button>
-                            </div>
-                        </div>
-                    </div>
-                })}
+                                // TAB 6: Owner Portal
+                                <div class="asp-panel" data-tab="6">
+                                    <div class="asp-page-title">"Owner Portal"</div>
+                                    <div class="asp-page-sub">"Read-only investor view — equity, distributions, and tax documents"</div>
+                                    <div class="asp-stat-grid" style="grid-template-columns:repeat(4,1fr);">
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Portfolio value"</div><div class="asp-stat-value">"$2.4M"</div><div class="asp-stat-delta asp-delta-up">"↑ $180K YTD"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Total equity"</div><div class="asp-stat-value">"$940K"</div><div class="asp-stat-delta asp-delta-up">"39% avg LTV"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Net income · Jul"</div><div class="asp-stat-value" style="color:#22c55e;">"$21,670"</div></div>
+                                        <div class="asp-stat-card"><div class="asp-stat-label">"Cash-on-cash"</div><div class="asp-stat-value" style="color:#818cf8;">"7.8%"</div></div>
+                                    </div>
+                                    <div class="asp-section-hdr">"Distribution history"</div>
+                                    <table class="asp-table">
+                                        <thead><tr><th>"Period"</th><th>"Status"</th><th>"Amount"</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>"Jul 2026"</td><td><span class="asp-status asp-status--green">"Deposited"</span></td><td class="asp-credit">"+$8,240"</td></tr>
+                                            <tr><td>"Jun 2026"</td><td><span class="asp-status asp-status--green">"Deposited"</span></td><td class="asp-credit">"+$7,980"</td></tr>
+                                            <tr><td>"May 2026"</td><td><span class="asp-status asp-status--green">"Deposited"</span></td><td class="asp-credit">"+$8,100"</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-section-hdr">"Documents"</div>
+                                    <table class="asp-table">
+                                        <tbody>
+                                            <tr><td>"July 2026 Statement"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"Depreciation schedule (MACRS)"</td><td><span class="asp-status asp-status--green">"Ready"</span></td><td><button class="asp-btn asp-btn-export">"⬇ PDF"</button></td></tr>
+                                            <tr><td>"Schedule E package · 2025"</td><td><span class="asp-status asp-status--green">"Filed"</span></td><td><button class="asp-btn asp-btn-export">"⬇ ZIP"</button></td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="asp-callout">"<strong>🔒 Read-only access</strong> — Owners see their numbers. They cannot access rent rolls, lease documents, or tenant contact data."</div>
+                                </div>
 
-                {move || (active_tab.get() == 5).then(|| view! {
-                    <div class="vp-panel">
-                        <p class="vp-caption">"Read-only investor portal — equity, distributions, statements, and tax summary in one view"</p>
-                        <div class="vp-chrome">
-                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
-                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
-                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
-                            <span class="vp-chrome-url">"investors.folio.co/oak-portfolio"</span>
-                        </div>
-                        <div class="vp-screen">
-                            <div class="ap-section-title">"Equity dashboard"</div>
-                            <div class="ap-kpi-row">
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$2.4M"</div><div class="ap-kpi-label">"Portfolio value"</div><div class="ap-kpi-delta ap-delta--up">"↑ $180K YTD"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$940K"</div><div class="ap-kpi-label">"Total equity"</div><div class="ap-kpi-delta ap-delta--up">"39% avg LTV"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"$21,670"</div><div class="ap-kpi-label">"Net income · Jul"</div><div class="ap-kpi-delta ap-delta--up">"↑ 6.1% MoM"</div></div>
-                                <div class="ap-kpi"><div class="ap-kpi-val">"7.8%"</div><div class="ap-kpi-label">"Cash-on-cash return"</div><div class="ap-kpi-delta ap-delta--up">"vs 6.2% last yr"</div></div>
-                            </div>
-                            <div class="ap-section-title">"Distribution history"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"Jul 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $8,240"</span></div>
-                                <div class="ap-pay-row"><span>"Jun 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $7,980"</span></div>
-                                <div class="ap-pay-row"><span>"May 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $8,100"</span></div>
-                                <div class="ap-pay-row"><span>"Apr 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Deposited"</span><span class="ap-amt--credit">"+ $7,750"</span></div>
-                            </div>
-                            <div class="ap-section-title" style="margin-top:.85rem;">"Property statements & tax"</div>
-                            <div class="ap-payment-list">
-                                <div class="ap-pay-row"><span>"July 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"YTD Income & Expense"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"Depreciation schedule (MACRS)"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
-                                <div class="ap-pay-row"><span>"Schedule E package · 2025"</span><span class="ap-pay-status ap-pay--paid">"Filed"</span><span>"⬇ ZIP"</span></div>
-                            </div>
-                            <div style="margin-top:.75rem;padding:.55rem .7rem;background:rgba(130,80,255,.06);border:1px solid rgba(130,80,255,.18);border-radius:9px;font-size:.73rem;color:var(--mk-muted);">
-                                "🔒 Read-only access. Owners see their numbers — they can't touch rent rolls, leases, or tenant data."
-                            </div>
+                            </main>
                         </div>
                     </div>
-                })}
+                </div>
             </div>
         </section>
     }
