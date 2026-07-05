@@ -3,6 +3,7 @@ pub mod broker_landing_page;
 pub mod property_manager_landing_page;
 pub mod vendor_landing_page;
 pub mod founding_member_page;
+pub mod beta_program_page;
 pub mod cohost_marketplace;
 pub mod renter_application;
 pub mod lead_portal;

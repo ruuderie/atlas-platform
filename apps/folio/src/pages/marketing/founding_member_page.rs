@@ -60,6 +60,7 @@ pub fn FoundingMemberPage() -> impl IntoView {
         <FoundingGuarantee/>
         <FoundingFaq/>
         <FoundingCta/>
+        <BetaCalloutStrip/>
         <FoundingFooter/>
     }
 }
@@ -610,6 +611,28 @@ fn FoundingCta() -> impl IntoView {
                 <p style="margin-top:1.5rem;font-size:.8rem;color:#9ca3af;">"30-day money-back guarantee · Cards, ACH, Bitcoin & Lightning accepted"</p>
             </div>
         </section>
+    }
+}
+
+// ── Beta program callout strip ────────────────────────────────────────────────
+
+#[component]
+fn BetaCalloutStrip() -> impl IntoView {
+    view! {
+        <div class="mktg-section-inner">
+            <div class="beta-callout-strip">
+                <span class="material-symbols-outlined beta-callout-strip-icon"
+                      style="font-variation-settings:'FILL' 1">"science"</span>
+                <div class="beta-callout-text">
+                    <strong>"Apply for the Folio Beta Program"</strong>
+                    <p>"Get free access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
+                </div>
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
+                    "Apply now"
+                    <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
+                </a>
+            </div>
+        </div>
     }
 }
 
