@@ -31,6 +31,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
         <PmProblem/>
         <PmFeatures/>
         <PmOwnerPortal/>
+        <PmAppPreview/>
         <PmPricing/>
         <PmCta/>
         <BetaCalloutStrip/>
@@ -487,5 +488,218 @@ fn PmFooter() -> impl IntoView {
                 </div>
             </div>
         </footer>
+    }
+}
+
+// ── App Preview — PM dashboard mockup ────────────────────────────────────────
+/// Five-tab walkthrough of the Folio PM experience.
+/// Tabs: Portfolio · Owner Portal · Maintenance · Trust Accounting · Reports
+#[component]
+fn PmAppPreview() -> impl IntoView {
+    let active_tab = RwSignal::new(0u8);
+
+    view! {
+        <section class="mktg-section ap-section" id="pm-app-preview"
+            style="background:rgba(6,214,160,.015);border-top:1px solid rgba(6,214,160,.08);">
+            <div class="mktg-container">
+                <div class="ap-header">
+                    <span class="mktg-label">"See it in action"</span>
+                    <h2 class="mktg-h2">"Run every portfolio — like you have a team of 10"</h2>
+                    <p class="mktg-sub">"Owner portals, trust accounting, maintenance dispatch, and billing — all wired together."</p>
+                </div>
+
+                <div class="vp-tab-row">
+                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(0)>"📊 Portfolio"</button>
+                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(1)>"🏠 Owner Portal"</button>
+                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(2)>"🔧 Maintenance"</button>
+                    <button class=move || if active_tab.get()==3 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(3)>"🏦 Trust Accounting"</button>
+                    <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(4)>"📈 Reports"</button>
+                </div>
+
+                {move || (active_tab.get() == 0).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Multi-client portfolio overview — every owner, every unit, one screen"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"pm.folio.co/portfolio"</span>
+                        </div>
+                        <div class="vp-screen ap-dash">
+                            <div class="ap-kpi-row">
+                                <div class="ap-kpi"><div class="ap-kpi-val">"147"</div><div class="ap-kpi-label">"Units managed"</div><div class="ap-kpi-delta ap-delta--up">"↑ 12 this quarter"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"23"</div><div class="ap-kpi-label">"Owners / clients"</div><div class="ap-kpi-delta ap-delta--up">"3 new this month"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$182,400"</div><div class="ap-kpi-label">"Rent collected · Jul"</div><div class="ap-kpi-delta ap-delta--up">"98.6% collection rate"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$9,120"</div><div class="ap-kpi-label">"Mgmt fees earned"</div><div class="ap-kpi-delta ap-delta--up">"5% avg rate"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Client portfolios"</div>
+                            <div class="ap-client-list">
+                                <div class="ap-client-row">
+                                    <div class="vp-avatar" style="background:rgba(79,99,235,.25);color:#4F63EB;">"DW"</div>
+                                    <div class="ap-client-meta"><div class="ap-client-name">"David & Wendy Chen"</div><div class="ap-client-sub">"34 units · 4 buildings · Miami, FL"</div></div>
+                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--green">"100% collected"</span><span class="ap-client-fee">"$1,710 / mo"</span></div>
+                                </div>
+                                <div class="ap-client-row">
+                                    <div class="vp-avatar" style="background:rgba(255,107,53,.2);color:#FF6B35;">"RJ"</div>
+                                    <div class="ap-client-meta"><div class="ap-client-name">"Reginald Johnson LLC"</div><div class="ap-client-sub">"18 units · single portfolio · Atlanta, GA"</div></div>
+                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--warn">"1 late"</span><span class="ap-client-fee">"$900 / mo"</span></div>
+                                </div>
+                                <div class="ap-client-row">
+                                    <div class="vp-avatar" style="background:rgba(6,214,160,.2);color:#06D6A0;">"SP"</div>
+                                    <div class="ap-client-meta"><div class="ap-client-name">"Sofia Patel Investments"</div><div class="ap-client-sub">"12 STR + 8 LTR · Miami Beach"</div></div>
+                                    <div class="ap-client-stats"><span class="ap-badge ap-badge--green">"All current"</span><span class="ap-client-fee">"$1,200 / mo"</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 1).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"White-labeled owner portal — your brand, real-time data, no client calls"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"owners.premierpm.co/david-chen"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-portal-header">
+                                <div class="ap-portal-logo">"Premier PM"</div>
+                                <div class="ap-portal-owner">"Welcome back, David"</div>
+                            </div>
+                            <div class="ap-stat-grid">
+                                <div class="ap-stat"><div class="ap-stat-val ap-val--green">"$12,350"</div><div class="ap-stat-lbl">"July net income"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"34 / 34"</div><div class="ap-stat-lbl">"Units occupied"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"100%"</div><div class="ap-stat-lbl">"Collection rate"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"1"</div><div class="ap-stat-lbl">"Open work orders"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Recent owner statements"</div>
+                            <div class="ap-payment-list">
+                                <div class="ap-pay-row"><span>"July 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"June 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Delivered"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"May 2026 Statement"</span><span class="ap-pay-status ap-pay--paid">"Delivered"</span><span>"⬇ PDF"</span></div>
+                            </div>
+                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(6,214,160,.06);border:1px solid rgba(6,214,160,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
+                                "✉ Monthly statement automatically delivered on the 1st. No calls, no PDFs to manually send."
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 2).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Maintenance across all portfolios — dispatch, track, approve invoices at scale"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"pm.folio.co/maintenance"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-filter-bar">
+                                <span class="ap-filter-chip ap-chip--active">"All (8)"</span>
+                                <span class="ap-filter-chip">"Open (3)"</span>
+                                <span class="ap-filter-chip">"Pending (2)"</span>
+                                <span class="ap-filter-chip">"Closed (3)"</span>
+                            </div>
+                            <div class="ap-wo-list">
+                                <div class="ap-wo-card ap-wo--open">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--open">"Open"</span><span class="ap-wo-id">"#WO-4421"</span><span class="ap-wo-date">"Jul 4, 2026"</span></div>
+                                    <div class="ap-wo-title">"Water heater failure · Chen Portfolio · Unit 8"</div>
+                                    <div class="ap-wo-meta">"Priority: Emergency · Tenant notified"</div>
+                                    <div class="ap-wo-vendor-row">
+                                        <div class="vp-avatar-sm">"HW"</div>
+                                        <span class="ap-wo-vendor">"HeatWave Plumbing — dispatched"</span>
+                                        <span class="ap-wo-eta">"ETA: Today"</span>
+                                    </div>
+                                </div>
+                                <div class="ap-wo-card ap-wo--review">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-4418"</span><span class="ap-wo-date">"Jul 1, 2026"</span></div>
+                                    <div class="ap-wo-title">"AC servicing · Patel Portfolio · 5 units"</div>
+                                    <div class="ap-wo-meta">"Bulk job completed — 5 units"</div>
+                                    <div class="ap-wo-invoice-row">
+                                        <span>"Invoice: $1,250 · CoolAir Services"</span>
+                                        <div class="ap-wo-actions">
+                                            <button class="ap-btn-approve">"✓ Approve all"</button>
+                                            <button class="ap-btn-reject">"Review"</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 3).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Separate trust accounts per client — automated disbursements, zero commingling"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"pm.folio.co/accounting"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-trust-accounts">
+                                <div class="ap-trust-row">
+                                    <div class="ap-trust-client">"Chen Portfolio"</div>
+                                    <div class="ap-trust-balance">"$18,420"</div>
+                                    <span class="ap-badge ap-badge--green">"Reconciled"</span>
+                                    <button class="ap-disburse-btn">"Disburse $12,350"</button>
+                                </div>
+                                <div class="ap-trust-row">
+                                    <div class="ap-trust-client">"Johnson LLC"</div>
+                                    <div class="ap-trust-balance">"$9,840"</div>
+                                    <span class="ap-badge ap-badge--green">"Reconciled"</span>
+                                    <button class="ap-disburse-btn">"Disburse $8,100"</button>
+                                </div>
+                                <div class="ap-trust-row">
+                                    <div class="ap-trust-client">"Patel Investments"</div>
+                                    <div class="ap-trust-balance">"$14,290"</div>
+                                    <span class="ap-badge ap-badge--warn">"1 pending expense"</span>
+                                    <button class="ap-disburse-btn" style="opacity:.5;cursor:not-allowed;">"Hold"</button>
+                                </div>
+                            </div>
+                            <div style="margin-top:.75rem;padding:.6rem;background:rgba(79,99,235,.06);border:1px solid rgba(79,99,235,.15);border-radius:8px;font-size:.75rem;color:var(--mk-muted);">
+                                "🔒 Each client's funds held in a separate ledger. Automated monthly disbursements with full audit trail."
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 4).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Portfolio analytics — occupancy trends, revenue per door, and owner-ready reports"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"pm.folio.co/reports"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-pay-summary">
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"98.6%"</div><div class="ap-pay-sum-lbl">"Collection rate · Jul"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$1,240"</div><div class="ap-pay-sum-lbl">"Revenue per door"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"96.3%"</div><div class="ap-pay-sum-lbl">"Portfolio occupancy"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$9,120"</div><div class="ap-pay-sum-lbl">"Mgmt fees · Jul"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Available reports"</div>
+                            <div class="ap-payment-list">
+                                <div class="ap-pay-row"><span>"Monthly owner statements (23 owners)"</span><span class="ap-pay-status ap-pay--paid">"Auto-send"</span><span>"⬇ Bulk"</span></div>
+                                <div class="ap-pay-row"><span>"Maintenance cost summary"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"Vacancy & turnover report"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ PDF"</span></div>
+                                <div class="ap-pay-row"><span>"Tax prep package (all portfolios)"</span><span class="ap-pay-status ap-pay--paid">"Ready"</span><span>"⬇ ZIP"</span></div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+            </div>
+        </section>
     }
 }

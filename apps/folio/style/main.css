@@ -5480,3 +5480,277 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   .beta-callout-strip { flex-direction: column; padding: 1.5rem; text-align: center; }
   .beta-callout-strip-icon { margin: 0 auto; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   App Preview — interactive dashboard mockups (all 3 landing pages)
+   Used by: MktgAppPreview, PmAppPreview, BrokerAppPreview
+   All classes prefixed ap-* to avoid collision with existing vp-* vendor
+   preview system.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ap-section { background: rgba(255,255,255,.01); }
+.ap-header { text-align: center; margin-bottom: 2rem; }
+
+/* ── KPI cards ─────────────────────────────────────────────────────────── */
+.ap-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 640px) { .ap-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+.ap-kpi {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+  padding: .75rem;
+}
+.ap-kpi-val { font-size: 1.15rem; font-weight: 800; color: #fff; }
+.ap-kpi-label { font-size: .72rem; color: var(--mk-muted); margin-top: .2rem; }
+.ap-kpi-delta { font-size: .68rem; margin-top: .3rem; font-weight: 600; }
+.ap-delta--up   { color: #06D6A0; }
+.ap-delta--warn { color: #FFBD2E; }
+.ap-delta--down { color: #FF453A; }
+
+/* ── Activity feed ──────────────────────────────────────────────────────── */
+.ap-section-title {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--mk-muted);
+  margin: 1rem 0 .5rem;
+}
+.ap-activity-list { display: flex; flex-direction: column; gap: .5rem; }
+.ap-activity-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .45rem .5rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,.025);
+  transition: background .12s;
+}
+.ap-activity-row:hover { background: rgba(255,255,255,.045); }
+.ap-activity-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; flex-shrink: 0;
+}
+.ap-activity-body { flex: 1; min-width: 0; }
+.ap-activity-main { display: block; font-size: .78rem; font-weight: 600; color: #E8EAF0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-activity-time { display: block; font-size: .68rem; color: var(--mk-muted); margin-top: .1rem; }
+.ap-activity-amt { font-size: .78rem; font-weight: 700; color: var(--mk-muted); white-space: nowrap; }
+.ap-amt--credit { color: #06D6A0; }
+.ap-amt--debit  { color: #FF453A; }
+.ap-amt--warn   { color: #FFBD2E; }
+
+/* ── Tenant profile ─────────────────────────────────────────────────────── */
+.ap-tenant-header {
+  display: flex;
+  align-items: flex-start;
+  gap: .85rem;
+  margin-bottom: 1rem;
+}
+.ap-tenant-meta { flex: 1; min-width: 0; }
+.ap-tenant-name { font-size: 1rem; font-weight: 700; color: #fff; }
+.ap-tenant-sub  { font-size: .75rem; color: var(--mk-muted); margin-top: .15rem; }
+.ap-badge-row   { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+.ap-badge {
+  font-size: .65rem; font-weight: 700;
+  padding: 2px 7px; border-radius: 5px;
+  border: 1px solid;
+}
+.ap-badge--green  { background: rgba(6,214,160,.1);  border-color: rgba(6,214,160,.25);  color: #06D6A0; }
+.ap-badge--blue   { background: rgba(10,132,255,.1); border-color: rgba(10,132,255,.25); color: #0A84FF; }
+.ap-badge--purple { background: rgba(99,79,235,.12); border-color: rgba(99,79,235,.25);  color: #8B7FFF; }
+.ap-badge--warn   { background: rgba(255,189,46,.1); border-color: rgba(255,189,46,.25); color: #FFBD2E; }
+.ap-badge--gray   { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.1); color: var(--mk-muted); }
+
+.ap-score-ring {
+  width: 62px; height: 62px; border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  border: 2px solid rgba(6,214,160,.3);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ap-score-ring-val   { font-size: 1.1rem; font-weight: 800; color: #06D6A0; line-height: 1; }
+.ap-score-ring-label { font-size: .55rem; color: var(--mk-muted); text-align: center; }
+
+/* ── Stat mini grid ─────────────────────────────────────────────────────── */
+.ap-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 480px) { .ap-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+.ap-stat { background: rgba(255,255,255,.03); border-radius: 8px; padding: .5rem .6rem; }
+.ap-stat-val { font-size: .95rem; font-weight: 700; color: #fff; }
+.ap-stat-lbl { font-size: .65rem; color: var(--mk-muted); margin-top: .1rem; }
+.ap-val--green { color: #06D6A0; }
+.ap-val--warn  { color: #FFBD2E; }
+
+/* ── Payment list / ledger ──────────────────────────────────────────────── */
+.ap-payment-list { display: flex; flex-direction: column; gap: .3rem; }
+.ap-pay-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .4rem .5rem; border-radius: 6px;
+  background: rgba(255,255,255,.025);
+  font-size: .75rem; color: #E8EAF0;
+  gap: .5rem;
+}
+.ap-pay-status { font-size: .68rem; font-weight: 700; }
+.ap-pay--paid  { color: #06D6A0; }
+
+.ap-ledger { display: flex; flex-direction: column; gap: .3rem; }
+.ap-ledger-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .35rem .5rem; border-radius: 6px;
+  background: rgba(255,255,255,.025);
+  font-size: .75rem; color: #E8EAF0;
+}
+
+/* ── Payment summary strip ──────────────────────────────────────────────── */
+.ap-pay-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .6rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 600px) { .ap-pay-summary { grid-template-columns: repeat(2, 1fr); } }
+.ap-pay-sum-item { text-align: center; }
+.ap-pay-sum-val  { font-size: 1.05rem; font-weight: 800; color: #E8EAF0; }
+.ap-pay-sum-lbl  { font-size: .68rem; color: var(--mk-muted); margin-top: .15rem; }
+
+.ap-export-row { display: flex; gap: .6rem; margin-top: .85rem; flex-wrap: wrap; }
+.ap-export-btn {
+  font-size: .72rem; font-weight: 600; padding: .4rem .85rem;
+  border-radius: 7px; border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05); color: #E8EAF0;
+  cursor: pointer; transition: background .12s;
+}
+.ap-export-btn:hover { background: rgba(255,255,255,.1); }
+
+/* ── Filter bar ─────────────────────────────────────────────────────────── */
+.ap-filter-bar { display: flex; gap: .4rem; margin-bottom: .75rem; flex-wrap: wrap; }
+.ap-filter-chip {
+  font-size: .7rem; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04); color: var(--mk-muted);
+  cursor: pointer;
+}
+.ap-chip--active {
+  background: rgba(10,132,255,.15);
+  border-color: rgba(10,132,255,.35);
+  color: #0A84FF;
+}
+
+/* ── Listing cards grid ─────────────────────────────────────────────────── */
+.ap-listing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .6rem;
+}
+@media (max-width: 480px) { .ap-listing-grid { grid-template-columns: 1fr; } }
+.ap-listing-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px;
+  padding: .7rem;
+}
+.ap-listing-badge {
+  display: inline-block; font-size: .6rem; font-weight: 800;
+  letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 5px; margin-bottom: .4rem;
+}
+.ap-listing-name   { font-size: .82rem; font-weight: 700; color: #fff; }
+.ap-listing-tenant { font-size: .7rem; color: var(--mk-muted); margin-top: .2rem; }
+.ap-listing-rent   { font-size: .78rem; font-weight: 600; color: #E8EAF0; margin-top: .3rem; }
+.ap-listing-status { font-size: .68rem; font-weight: 600; margin-top: .3rem; }
+.ap-status--green  { color: #06D6A0; }
+.ap-status--warn   { color: #FFBD2E; }
+.ap-status--gray   { color: var(--mk-muted); }
+
+/* ── Work order cards ───────────────────────────────────────────────────── */
+.ap-wo-list   { display: flex; flex-direction: column; gap: .6rem; }
+.ap-wo-card   { border-radius: 10px; padding: .75rem; border-left: 3px solid transparent; background: rgba(255,255,255,.035); }
+.ap-wo--open  { border-left-color: #FFBD2E; }
+.ap-wo--review{ border-left-color: #0A84FF; }
+.ap-wo--closed{ border-left-color: rgba(255,255,255,.12); opacity: .7; }
+
+.ap-wo-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; }
+.ap-wo-badge  {
+  font-size: .62rem; font-weight: 800; padding: 2px 7px; border-radius: 5px; text-transform: uppercase;
+}
+.ap-wo-badge--open   { background: rgba(255,189,46,.15); color: #FFBD2E; }
+.ap-wo-badge--review { background: rgba(10,132,255,.15); color: #0A84FF; }
+.ap-wo-badge--closed { background: rgba(255,255,255,.08); color: var(--mk-muted); }
+
+.ap-wo-id    { font-size: .68rem; font-family: monospace; color: var(--mk-muted); }
+.ap-wo-date  { font-size: .68rem; color: var(--mk-muted); margin-left: auto; }
+.ap-wo-title { font-size: .82rem; font-weight: 700; color: #E8EAF0; }
+.ap-wo-meta  { font-size: .7rem; color: var(--mk-muted); margin-top: .2rem; }
+.ap-wo-vendor-row {
+  display: flex; align-items: center; gap: .5rem;
+  margin-top: .5rem; padding-top: .5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.ap-wo-vendor { font-size: .75rem; color: #E8EAF0; flex: 1; }
+.ap-wo-eta    { font-size: .68rem; font-weight: 700; color: #06D6A0; }
+.ap-wo-invoice-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: .5rem; padding-top: .5rem;
+  border-top: 1px solid rgba(255,255,255,.06);
+  font-size: .75rem; color: #E8EAF0; gap: .5rem; flex-wrap: wrap;
+}
+.ap-wo-actions { display: flex; gap: .4rem; }
+.ap-btn-approve {
+  font-size: .68rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;
+  background: rgba(6,214,160,.15); border: 1px solid rgba(6,214,160,.3); color: #06D6A0; cursor: pointer;
+}
+.ap-btn-reject {
+  font-size: .68rem; font-weight: 700; padding: 3px 9px; border-radius: 6px;
+  background: rgba(255,69,58,.1); border: 1px solid rgba(255,69,58,.25); color: #FF453A; cursor: pointer;
+}
+
+/* ── Client list (PM & Broker) ──────────────────────────────────────────── */
+.ap-client-list { display: flex; flex-direction: column; gap: .5rem; }
+.ap-client-row {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .55rem .6rem; border-radius: 9px;
+  background: rgba(255,255,255,.03);
+}
+.ap-client-meta { flex: 1; min-width: 0; }
+.ap-client-name { font-size: .82rem; font-weight: 700; color: #fff; }
+.ap-client-sub  { font-size: .7rem; color: var(--mk-muted); margin-top: .1rem; }
+.ap-client-stats { display: flex; flex-direction: column; align-items: flex-end; gap: .2rem; }
+.ap-client-fee  { font-size: .72rem; font-weight: 600; color: var(--mk-muted); }
+
+/* ── Owner / Client portal header ──────────────────────────────────────── */
+.ap-portal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .6rem .75rem; border-radius: 9px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  margin-bottom: .85rem;
+}
+.ap-portal-logo  { font-size: .85rem; font-weight: 800; color: #fff; }
+.ap-portal-owner { font-size: .75rem; color: var(--mk-muted); }
+
+/* ── Trust accounting ───────────────────────────────────────────────────── */
+.ap-trust-accounts { display: flex; flex-direction: column; gap: .5rem; }
+.ap-trust-row {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .55rem .65rem; border-radius: 9px;
+  background: rgba(255,255,255,.035);
+}
+.ap-trust-client  { font-size: .8rem; font-weight: 700; color: #E8EAF0; flex: 1; min-width: 120px; }
+.ap-trust-balance { font-size: .9rem; font-weight: 800; color: #fff; }
+.ap-disburse-btn {
+  font-size: .7rem; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+  background: rgba(6,214,160,.12); border: 1px solid rgba(6,214,160,.25); color: #06D6A0;
+  cursor: pointer; margin-left: auto;
+}

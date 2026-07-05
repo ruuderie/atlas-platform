@@ -202,6 +202,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
             <MktgFeatures/>
             <MktgTenantPortal/>
             <MktgStr/>
+            <MktgAppPreview/>
             <MktgInternational/>
             <MktgPayments/>
             <MktgPricing/>
@@ -1067,5 +1068,246 @@ fn LandingPageSkeleton() -> impl IntoView {
                 <div class="mktg-skeleton mktg-sk-btn"></div>
             </div>
         </div>
+    }
+}
+
+// ── App Preview — interactive dashboard mockup ─────────────────────────────────
+/// Five-tab walkthrough of the Folio landlord dashboard.
+/// Tabs: Dashboard · Tenants · Listings · Maintenance · Payments
+#[component]
+fn MktgAppPreview() -> impl IntoView {
+    let active_tab = RwSignal::new(0u8);
+
+    view! {
+        <section class="mktg-section ap-section" id="app-preview">
+            <div class="mktg-container">
+                <div class="ap-header">
+                    <span class="mktg-label">"See it in action"</span>
+                    <h2 class="mktg-h2">"Everything you need, in one place"</h2>
+                    <p class="mktg-sub">"From tenant screening to tax exports — Folio replaces five tools with one login."</p>
+                </div>
+
+                <div class="vp-tab-row">
+                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(0)>"🏠 Dashboard"</button>
+                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(1)>"👤 Tenants"</button>
+                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(2)>"🏘️ Listings"</button>
+                    <button class=move || if active_tab.get()==3 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(3)>"🔧 Maintenance"</button>
+                    <button class=move || if active_tab.get()==4 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(4)>"💳 Payments"</button>
+                </div>
+
+                {move || (active_tab.get() == 0).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Landlord OS — your whole portfolio at a glance"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/dashboard"</span>
+                        </div>
+                        <div class="vp-screen ap-dash">
+                            <div class="ap-kpi-row">
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$24,850"</div><div class="ap-kpi-label">"Rent collected · Jul"</div><div class="ap-kpi-delta ap-delta--up">"↑ 4.2% vs Jun"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"18 / 19"</div><div class="ap-kpi-label">"Units occupied"</div><div class="ap-kpi-delta ap-delta--up">"94.7% occupancy"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"2"</div><div class="ap-kpi-label">"Open work orders"</div><div class="ap-kpi-delta ap-delta--warn">"1 overdue"</div></div>
+                                <div class="ap-kpi"><div class="ap-kpi-val">"$1,240"</div><div class="ap-kpi-label">"Outstanding balance"</div><div class="ap-kpi-delta ap-delta--warn">"3 days past due"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Recent activity"</div>
+                            <div class="ap-activity-list">
+                                <div class="ap-activity-row">
+                                    <span class="ap-activity-icon" style="background:rgba(6,214,160,.15);color:#06D6A0;">"💰"</span>
+                                    <div class="ap-activity-body"><span class="ap-activity-main">"Rent received — Unit 4B · Marcus Reid"</span><span class="ap-activity-time">"2 hours ago"</span></div>
+                                    <span class="ap-activity-amt ap-amt--credit">"+ $1,850"</span>
+                                </div>
+                                <div class="ap-activity-row">
+                                    <span class="ap-activity-icon" style="background:rgba(255,107,53,.12);color:#FF6B35;">"🔧"</span>
+                                    <div class="ap-activity-body"><span class="ap-activity-main">"Work order dispatched — HVAC Unit 2A"</span><span class="ap-activity-time">"Yesterday"</span></div>
+                                    <span class="ap-activity-amt">"$340 est."</span>
+                                </div>
+                                <div class="ap-activity-row">
+                                    <span class="ap-activity-icon" style="background:rgba(79,99,235,.15);color:#4F63EB;">"📋"</span>
+                                    <div class="ap-activity-body"><span class="ap-activity-main">"Lease renewed — Unit 7C · Aisha Okonkwo"</span><span class="ap-activity-time">"2 days ago"</span></div>
+                                    <span class="ap-activity-amt">"12 mo"</span>
+                                </div>
+                                <div class="ap-activity-row">
+                                    <span class="ap-activity-icon" style="background:rgba(255,189,46,.12);color:#FFBD2E;">"⚠️"</span>
+                                    <div class="ap-activity-body"><span class="ap-activity-main">"Late notice sent — Unit 9A · Tom Rivas"</span><span class="ap-activity-time">"3 days ago"</span></div>
+                                    <span class="ap-activity-amt ap-amt--warn">"$1,240"</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 1).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Full tenant profile — screening score, lease, payment history, communications"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/tenants/marcus-reid"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-tenant-header">
+                                <div class="vp-avatar">"MR"</div>
+                                <div class="ap-tenant-meta">
+                                    <div class="ap-tenant-name">"Marcus Reid"</div>
+                                    <div class="ap-tenant-sub">"Unit 4B · 182 Oak St · Lease ends Dec 31, 2026"</div>
+                                    <div class="ap-badge-row">
+                                        <span class="ap-badge ap-badge--green">"✓ ID Verified"</span>
+                                        <span class="ap-badge ap-badge--green">"✓ Background Clear"</span>
+                                        <span class="ap-badge ap-badge--blue">"On-time payer"</span>
+                                    </div>
+                                </div>
+                                <div class="ap-score-ring"><div class="ap-score-ring-val">"94"</div><div class="ap-score-ring-label">"Tenant Score"</div></div>
+                            </div>
+                            <div class="ap-stat-grid">
+                                <div class="ap-stat"><div class="ap-stat-val">"$1,850"</div><div class="ap-stat-lbl">"Monthly rent"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"18 mo"</div><div class="ap-stat-lbl">"Tenancy"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"100%"</div><div class="ap-stat-lbl">"On-time rate"</div></div>
+                                <div class="ap-stat"><div class="ap-stat-val">"0"</div><div class="ap-stat-lbl">"Open disputes"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Payment history"</div>
+                            <div class="ap-payment-list">
+                                <div class="ap-pay-row"><span>"Jul 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
+                                <div class="ap-pay-row"><span>"Jun 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
+                                <div class="ap-pay-row"><span>"May 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
+                                <div class="ap-pay-row"><span>"Apr 1, 2026"</span><span class="ap-pay-status ap-pay--paid">"Paid"</span><span>"$1,850"</span></div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 2).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"All your STR and LTR units — occupancy, revenue, and next guest at a glance"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/listings"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-filter-bar">
+                                <span class="ap-filter-chip ap-chip--active">"All (19)"</span>
+                                <span class="ap-filter-chip">"LTR (14)"</span>
+                                <span class="ap-filter-chip">"STR (5)"</span>
+                                <span class="ap-filter-chip">"Vacant (1)"</span>
+                            </div>
+                            <div class="ap-listing-grid">
+                                <div class="ap-listing-card">
+                                    <div class="ap-listing-badge ap-badge--blue">"LTR"</div>
+                                    <div class="ap-listing-name">"182 Oak St · Unit 4B"</div>
+                                    <div class="ap-listing-tenant">"Marcus Reid · Ends Dec 2026"</div>
+                                    <div class="ap-listing-rent">"$1,850 / mo"</div>
+                                    <div class="ap-listing-status ap-status--green">"● Occupied"</div>
+                                </div>
+                                <div class="ap-listing-card">
+                                    <div class="ap-listing-badge ap-badge--purple">"STR"</div>
+                                    <div class="ap-listing-name">"45 Beach Ave · Apt 1"</div>
+                                    <div class="ap-listing-tenant">"Next: Chen family · Aug 3–10"</div>
+                                    <div class="ap-listing-rent">"$285 / night"</div>
+                                    <div class="ap-listing-status ap-status--green">"● 89% booked"</div>
+                                </div>
+                                <div class="ap-listing-card">
+                                    <div class="ap-listing-badge ap-badge--blue">"LTR"</div>
+                                    <div class="ap-listing-name">"77 Maple Dr · Unit 9A"</div>
+                                    <div class="ap-listing-tenant">"Tom Rivas · Ends Mar 2027"</div>
+                                    <div class="ap-listing-rent">"$1,240 / mo"</div>
+                                    <div class="ap-listing-status ap-status--warn">"⚠ Rent overdue"</div>
+                                </div>
+                                <div class="ap-listing-card">
+                                    <div class="ap-listing-badge ap-badge--gray">"LTR"</div>
+                                    <div class="ap-listing-name">"14 Elm Ct · Unit 2"</div>
+                                    <div class="ap-listing-tenant">"Vacant · Listed"</div>
+                                    <div class="ap-listing-rent">"$1,650 / mo"</div>
+                                    <div class="ap-listing-status ap-status--gray">"○ Available Aug 1"</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 3).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Vendor dispatch, job tracking, and invoice approval — zero phone tag"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/maintenance"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-wo-list">
+                                <div class="ap-wo-card ap-wo--open">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--open">"Open"</span><span class="ap-wo-id">"#WO-2841"</span><span class="ap-wo-date">"Jul 3, 2026"</span></div>
+                                    <div class="ap-wo-title">"HVAC not cooling · Unit 2A"</div>
+                                    <div class="ap-wo-meta">"Reported by tenant · Priority: High"</div>
+                                    <div class="ap-wo-vendor-row">
+                                        <div class="vp-avatar-sm">"AC"</div>
+                                        <span class="ap-wo-vendor">"Arctic Cool HVAC — dispatched"</span>
+                                        <span class="ap-wo-eta">"ETA: Jul 6"</span>
+                                    </div>
+                                </div>
+                                <div class="ap-wo-card ap-wo--review">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--review">"Invoice Review"</span><span class="ap-wo-id">"#WO-2839"</span><span class="ap-wo-date">"Jun 28, 2026"</span></div>
+                                    <div class="ap-wo-title">"Leaking pipe under sink · Unit 7C"</div>
+                                    <div class="ap-wo-meta">"Completed · Awaiting approval"</div>
+                                    <div class="ap-wo-invoice-row">
+                                        <span>"Invoice: $285 · RapidFix Plumbing"</span>
+                                        <div class="ap-wo-actions">
+                                            <button class="ap-btn-approve">"✓ Approve"</button>
+                                            <button class="ap-btn-reject">"✗ Dispute"</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ap-wo-card ap-wo--closed">
+                                    <div class="ap-wo-header"><span class="ap-wo-badge ap-wo-badge--closed">"Closed"</span><span class="ap-wo-id">"#WO-2830"</span><span class="ap-wo-date">"Jun 15, 2026"</span></div>
+                                    <div class="ap-wo-title">"Broken lock · Unit 11B"</div>
+                                    <div class="ap-wo-meta">"Completed · Paid $120 · SafeKey Locksmith"</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                })}
+
+                {move || (active_tab.get() == 4).then(|| view! {
+                    <div class="vp-panel">
+                        <p class="vp-caption">"Rent collection, expense ledger, and one-click tax export — no spreadsheets"</p>
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/payments"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div class="ap-pay-summary">
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$24,850"</div><div class="ap-pay-sum-lbl">"Collected · Jul 2026"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--warn">"$1,240"</div><div class="ap-pay-sum-lbl">"Outstanding"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val">"$3,180"</div><div class="ap-pay-sum-lbl">"Expenses · Jul"</div></div>
+                                <div class="ap-pay-sum-item"><div class="ap-pay-sum-val ap-val--green">"$21,670"</div><div class="ap-pay-sum-lbl">"Net income"</div></div>
+                            </div>
+                            <div class="ap-section-title">"Ledger — July 2026"</div>
+                            <div class="ap-ledger">
+                                <div class="ap-ledger-row"><span>"Jul 1 · Marcus Reid"</span><span class="ap-amt--credit">"+$1,850"</span></div>
+                                <div class="ap-ledger-row"><span>"Jul 1 · Aisha Okonkwo"</span><span class="ap-amt--credit">"+$2,100"</span></div>
+                                <div class="ap-ledger-row"><span>"Jul 3 · Arctic Cool HVAC"</span><span class="ap-amt--debit">"-$340"</span></div>
+                                <div class="ap-ledger-row"><span>"Jul 4 · Insurance premium"</span><span class="ap-amt--debit">"-$480"</span></div>
+                                <div class="ap-ledger-row"><span>"Jul 4 · Tom Rivas"</span><span style="color:#FFBD2E;">"+$1,240 (pending)"</span></div>
+                            </div>
+                            <div class="ap-export-row">
+                                <button class="ap-export-btn">"⬇ Export Schedule E (IRS)"</button>
+                                <button class="ap-export-btn">"⬇ Export CSV"</button>
+                            </div>
+                        </div>
+                    </div>
+                })}
+            </div>
+        </section>
     }
 }
