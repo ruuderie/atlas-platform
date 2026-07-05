@@ -122,15 +122,13 @@ fn PmHero() -> impl IntoView {
                     " Built for property managers & PMCs · Multi-portfolio edition"
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Run every property."
-                    <span class="mktg-h1-accent"> " Bill every owner."</span>
-                    <br/>
-                    "Scale without chaos."
+                    "Manage every portfolio."
+                    <span class="mktg-h1-accent"> " Impress every owner."</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
-                    "Folio gives property managers one platform for multi-client portfolios, \
-                     owner statements, trust accounting, and maintenance dispatch — \
-                     without the $280/mo AppFolio minimum."
+                    "Professional property management runs on owner trust. Folio gives you \
+                     branded portals, automated statements, trust accounting, and maintenance dispatch \
+                     — so you run like a firm of 50, even when you're a team of three."
                 </p>
 
                 // ── Inline lead capture ────────────────────────────────────
@@ -198,11 +196,12 @@ fn PmProblem() -> impl IntoView {
     view! {
         <section class="mktg-section" style="background:rgba(255,107,53,.03);border-top:1px solid rgba(255,107,53,.12);border-bottom:1px solid rgba(255,107,53,.12);">
             <div class="mktg-section-inner" style="text-align:center;">
-                <p class="mktg-section-eyebrow" style="color:#ff6b35;">"The Problem"</p>
-                <h2 class="mktg-section-h2" style="max-width:700px;margin:0 auto 1rem;">"You're managing 50 units across 8 owners with spreadsheets, texts, and 3 different apps."</h2>
+                <p class="mktg-section-eyebrow" style="color:#ff6b35;">"The problem with PM software today"</p>
+                <h2 class="mktg-section-h2" style="max-width:700px;margin:0 auto 1rem;">"You’re running a professional business on consumer tools. Your owners deserve better."</h2>
                 <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 3rem;">
-                    "Traditional property management software either costs $280/mo before you touch a unit, \
-                     or lacks the owner portal and trust accounting features real PMCs need."
+                    "Enterprise platforms cost $280/mo before you touch a unit. \
+                     Lightweight tools lack trust accounting and owner portals. \
+                     Folio is the missing middle — professional-grade at an independent PM price."
                 </p>
                 <div class="mktg-feature-grid" style="max-width:900px;margin:0 auto;">
                     <div class="mktg-feature-card" style="border-color:rgba(239,68,68,.2);background:rgba(239,68,68,.04);">
@@ -233,8 +232,8 @@ fn PmFeatures() -> impl IntoView {
     view! {
         <section id="pm-features" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Features"</p>
-                <h2 class="mktg-section-h2">"Everything a PMC needs. Nothing it doesn't."</h2>
+                <p class="mktg-section-eyebrow">"Platform capabilities"</p>
+                <h2 class="mktg-section-h2">"Built for PMCs. Not adapted from something else."</h2>
                 <div class="mktg-feature-grid">
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"account_tree"</span>
@@ -290,8 +289,8 @@ fn PmOwnerPortal() -> impl IntoView {
         <section id="pm-owner-portal" class="mktg-section" style="background:rgba(6,214,160,.04);border-top:1px solid rgba(6,214,160,.12);border-bottom:1px solid rgba(6,214,160,.12);">
             <div class="mktg-section-inner" style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">
                 <div>
-                    <p class="mktg-section-eyebrow">"Owner Portal"</p>
-                    <h2 class="mktg-section-h2" style="font-size:clamp(1.6rem,3vw,2.2rem);">"Your clients get a professional portal. You stop answering emails."</h2>
+                    <p class="mktg-section-eyebrow">"Owner retention"</p>
+                    <h2 class="mktg-section-h2" style="font-size:clamp(1.6rem,3vw,2.2rem);">"When owners can see their numbers anytime, they stop calling you."</h2>
                     <p style="color:var(--mk-muted);line-height:1.7;margin:1rem 0 1.5rem;">
                         "Every owner gets a branded portal showing their properties, \
                          monthly statements, maintenance history, and account balance. \
@@ -502,9 +501,9 @@ fn PmAppPreview() -> impl IntoView {
             style="background:rgba(6,214,160,.015);border-top:1px solid rgba(6,214,160,.08);">
             <div class="mktg-container">
                 <div class="ap-header">
-                    <span class="mktg-label">"See it in action"</span>
-                    <h2 class="mktg-h2">"Run every portfolio — like you have a team of 10"</h2>
-                    <p class="mktg-sub">"Owner portals, trust accounting, maintenance dispatch, and billing — all wired together."</p>
+                    <span class="mktg-label">"Inside the platform"</span>
+                    <h2 class="mktg-h2">"The full PM workflow — from dispatch to disbursement"</h2>
+                    <p class="mktg-sub">"Every screen below is a real view from Folio PM. 147 units, 23 owners, all of it in one dashboard — with each owner seeing only their portfolio."</p>
                 </div>
 
                 <div class="asp-outer">

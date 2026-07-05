@@ -171,13 +171,12 @@ fn BrokerHero() -> impl IntoView {
                     " Beta Access Open · Built for licensed brokers & real estate teams"
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Run your whole brokerage"
-                    <span class="mktg-h1-accent">" from one place."</span>
+                    "Close more deals."
+                    <span class="mktg-h1-accent"> " Keep your commission straight."</span>
                 </h1>
                 <p class="mktg-hero-sub">
-                    "Folio gives licensed brokers and their agents a single platform to manage \
-                     listings, track every buyer and seller in the pipeline, close more deals, \
-                     and keep commissions straight — without juggling spreadsheets and three different tools."
+                    "Folio is the brokerage platform that connects your listing pipeline, client portals, \
+                     agent accounts, and commission ledger — under your brand, without the enterprise price tag."
                 </p>
 
                 <div class="mktg-proof-strip" style="margin-top:32px">
@@ -233,8 +232,8 @@ fn BrokerFeatures() -> impl IntoView {
     view! {
         <section id="broker-features" class="mktg-section mktg-features">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"What's included"</p>
-                <h2 class="mktg-section-h2">"Everything your brokerage needs. Nothing it doesn't."</h2>
+                <p class="mktg-section-eyebrow">"The platform"</p>
+                <h2 class="mktg-section-h2">"Built for the way brokerages actually run."</h2>
                 <div class="mktg-feature-grid">
                     {features.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-feature-cell">
@@ -256,8 +255,8 @@ fn BrokerPortals() -> impl IntoView {
     view! {
         <section id="broker-portals" class="mktg-section mktg-str-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Client & agent portals"</p>
-                <h2 class="mktg-section-h2 mktg-h2-light">"Your clients and agents always know where every deal stands."</h2>
+                <p class="mktg-section-eyebrow mktg-eyebrow-light">"Client & agent experience"</p>
+                <h2 class="mktg-section-h2 mktg-h2-light">"Your brand on every client touchpoint. Your agents never out of the loop."</h2>
                 <p class="mktg-section-sub mktg-sub-light">
                     "Buyers track their offer status. Sellers see showing feedback and market comparisons. \
                      Agents get a deal board scoped to their pipeline. You see the whole brokerage. \
@@ -293,8 +292,8 @@ fn BrokerAgents() -> impl IntoView {
     view! {
         <section id="broker-agents" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Built for teams"</p>
-                <h2 class="mktg-section-h2">"Agents work in the same platform. Not on a separate spreadsheet."</h2>
+                <p class="mktg-section-eyebrow">"Agent management"</p>
+                <h2 class="mktg-section-h2">"Grow your team without losing control of your commission."</h2>
                 <p class="mktg-section-sub">
                     "Folio's brokerage mode lets you add agents under your license. \
                      Each agent works their own deal pipeline scoped to their clients. \
@@ -498,9 +497,9 @@ fn BrokerAppPreview() -> impl IntoView {
             style="background:rgba(99,79,235,.015);border-top:1px solid rgba(99,79,235,.08);">
             <div class="mktg-container">
                 <div class="ap-header">
-                    <span class="mktg-label">"See it in action"</span>
-                    <h2 class="mktg-h2">"Your listings, your clients, your commission pipeline"</h2>
-                    <p class="mktg-sub">"CRM, commissions, agent accounts, and a white-labeled client portal — in one brokerage platform."</p>
+                    <span class="mktg-label">"Inside the platform"</span>
+                    <h2 class="mktg-h2">"From first showing to closed deal — tracked in one place"</h2>
+                    <p class="mktg-sub">"Every tab below is a real screen from the Folio brokerage platform. Your brand. Your pipeline. Your commission ledger."</p>
                 </div>
 
                 <div class="asp-outer">

@@ -383,16 +383,16 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
             <div class="mktg-hero-inner">
                 <div class="mktg-eyebrow">
                     <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"science"</span>
-                    " Beta Access Open · Built by a landlord · US · Canada · Brazil"
+                    " Beta Access Open · US · Canada · Brazil"
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Your entire portfolio."
-                    <span class="mktg-h1-accent">" One login."</span>
+                    "The operating system"
+                    <span class="mktg-h1-accent"> " for the modern real estate investor."</span>
                 </h1>
                 <p class="mktg-hero-sub">
-                    "Stop juggling five apps. Folio connects rent collection, leases, maintenance, \
-                     vacation rental calendars and local compliance into one platform — \
-                     built by a landlord who was tired of the same mess you are."
+                    "Your rental business runs on gut feel, spreadsheets, and three apps that don’t talk to each other. \
+                     Folio is the purpose-built platform that handles rent, leases, maintenance, vacation rentals, \
+                     and compliance — so you can run your properties like the business they actually are."
                 </p>
 
                 // Waitlist form — 3-step reactive form
@@ -700,7 +700,7 @@ fn MktgFeatures() -> impl IntoView {
         <section id="features" class="mktg-section mktg-features">
             <div class="mktg-section-inner">
                 <p class="mktg-section-eyebrow">"What's included"</p>
-                <h2 class="mktg-section-h2">"Everything you need. Nothing you don't."</h2>
+                <h2 class="mktg-section-h2">"From first lease to tax season — covered."</h2>
                 <div class="mktg-feature-grid">
                     {cells.into_iter().map(|(icon, title, desc)| view! {
                         <div class="mktg-feature-cell">
@@ -722,8 +722,8 @@ fn MktgTenantPortal() -> impl IntoView {
     view! {
         <section id="tenant-portal" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Built for tenants too"</p>
-                <h2 class="mktg-section-h2">"Your tenants get their own portal — included, always free."</h2>
+                <p class="mktg-section-eyebrow">"Tenant experience"</p>
+                <h2 class="mktg-section-h2">"Happy tenants pay on time. Give them a portal worth logging into."</h2>
                 <p class="mktg-section-sub">
                     "When your tenant logs in, they see their own dashboard — not yours. \
                      They can pay rent, report a problem, sign their lease, and track move-in \
@@ -1141,9 +1141,9 @@ fn MktgAppPreview() -> impl IntoView {
         <section class="mktg-section ap-section" id="app-preview">
             <div class="mktg-container">
                 <div class="ap-header">
-                    <span class="mktg-label">"See it in action"</span>
-                    <h2 class="mktg-h2">"Everything you need, in one place"</h2>
-                    <p class="mktg-sub">"From tenant screening to tax exports — Folio replaces five tools with one login."</p>
+                    <span class="mktg-label">"Inside the platform"</span>
+                    <h2 class="mktg-h2">"Purpose-built for how you actually operate"</h2>
+                    <p class="mktg-sub">"Not a generic SaaS tool with a landlord skin. Folio was designed ground-up for the realities of owning and managing real property — from first lease to Schedule E."</p>
                 </div>
 
                 <div class="asp-outer">
