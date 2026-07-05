@@ -134,6 +134,20 @@ pub fn shell(
             animation:fl-slide 1.2s ease-in-out infinite alternate;
         }
         @keyframes fl-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+
+        /* Hide Material Symbols ligature text until the icon font resolves.
+           display=block on the @font-face prevents the swap flash,
+           but the glyph is still invisible (blank) during load — which is
+           correct and far better than showing raw words like 'menu' or 'close'.
+           The JS FontFace observer below adds .ms-ready to <html> once loaded,
+           which reveals the icons. Falls back to a 2s timeout. */
+        .material-symbols-outlined{
+            visibility:hidden;
+            font-display:block;
+        }
+        html.ms-ready .material-symbols-outlined{
+            visibility:visible;
+        }
     "#;
     // Dismiss script: waits for the CSS <link> to fire onload, then fades the loader.
     // Falls back to a 3s timeout so it never blocks the page.
@@ -145,6 +159,21 @@ pub fn shell(
             var lnk=document.querySelector('link[href*="folio-v1"]');
             if(lnk){lnk.addEventListener('load',done);lnk.addEventListener('error',done);}
             setTimeout(done,3000);
+
+            // Material Symbols FontFace observer
+            // Once the icon font is available, reveal all icons atomically
+            // so they never flash as raw text ("menu", "close", etc.).
+            var revealIcons = function(){
+                document.documentElement.classList.add('ms-ready');
+            };
+            if(document.fonts && document.fonts.load){
+                document.fonts.load('1em "Material Symbols Outlined"')
+                    .then(revealIcons)
+                    .catch(revealIcons);
+            } else {
+                // Fallback: reveal after 2s — icon font should have loaded by then.
+                setTimeout(revealIcons, 2000);
+            }
         })();
     "#;
 
@@ -173,7 +202,7 @@ pub fn shell(
                 <Link rel="preconnect" href="https://fonts.googleapis.com"/>
                 <Link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
                 <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"/>
-                <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"/>
+                <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"/>
             </head>
             <body>
                 // ── Loading screen markup ─────────────────────────────────────
