@@ -192,6 +192,7 @@ fn AllPagesTab(
 ) -> impl IntoView {
     let (search, set_search) = signal(String::new());
     let (filter, set_filter) = signal("all"); // "all" | "published" | "draft"
+    let (locale_filter, set_locale_filter) = signal("all"); // "all" | "en" | "pt" | "es"
 
     view! {
         <div class="pages-tab-root">
@@ -211,6 +212,17 @@ fn AllPagesTab(
                         on:click=move |_| set_filter.set("published")>"Published"</button>
                     <button class=move || if filter.get()=="draft"{"filter-chip active"}else{"filter-chip"}
                         on:click=move |_| set_filter.set("draft")>"Draft"</button>
+                </div>
+                // Locale filter
+                <div class="lp-filter-chips" style="border-left:1px solid var(--border);padding-left:.75rem;margin-left:.25rem;">
+                    <button class=move || if locale_filter.get()=="all"{"filter-chip active"}else{"filter-chip"}
+                        on:click=move |_| set_locale_filter.set("all")>"🌐 All locales"</button>
+                    <button class=move || if locale_filter.get()=="en"{"filter-chip active"}else{"filter-chip"}
+                        on:click=move |_| set_locale_filter.set("en")>"🇺🇸 EN"</button>
+                    <button class=move || if locale_filter.get()=="pt"{"filter-chip active"}else{"filter-chip"}
+                        on:click=move |_| set_locale_filter.set("pt")>"🇧🇷 PT"</button>
+                    <button class=move || if locale_filter.get()=="es"{"filter-chip active"}else{"filter-chip"}
+                        on:click=move |_| set_locale_filter.set("es")>"🌎 ES"</button>
                 </div>
                 <div class="pt-spacer" />
                 <button class="btn-cobalt" on:click=move |_| {
@@ -232,6 +244,7 @@ fn AllPagesTab(
                     <thead>
                         <tr>
                             <th>"Page"</th>
+                            <th>"Locale"</th>
                             <th>"Type"</th>
                             <th>"Status"</th>
                             <th>"Updated"</th>
@@ -243,8 +256,9 @@ fn AllPagesTab(
                             <tr><td colspan="5" class="lp-loading">"Loading pages…"</td></tr>
                         }>
                             {move || pages_res.get().map(|pages| {
-                                let q = search.get().to_lowercase();
-                                let f = filter.get();
+                                let q  = search.get().to_lowercase();
+                                let f  = filter.get();
+                                let lf = locale_filter.get();
                                 let filtered: Vec<_> = pages.into_iter().filter(|p| {
                                     let matches_search = q.is_empty()
                                         || p.title.to_lowercase().contains(&q)
@@ -254,12 +268,13 @@ fn AllPagesTab(
                                         "draft"     => !p.is_published,
                                         _           => true,
                                     };
-                                    matches_search && matches_filter
+                                    let matches_locale = lf == "all" || p.locale == lf;
+                                    matches_search && matches_filter && matches_locale
                                 }).collect();
 
                                 if filtered.is_empty() {
                                     return view! {
-                                        <tr><td colspan="5" class="lp-empty">"No pages match this filter."</td></tr>
+                                        <tr><td colspan="6" class="lp-empty">"No pages match this filter."</td></tr>
                                     }.into_any();
                                 }
 
@@ -276,6 +291,16 @@ fn AllPagesTab(
                                             <td>
                                                 <div class="lp-page-name">{page.title.clone()}</div>
                                                 <div class="lp-page-slug">"/"{ page.slug.clone() }</div>
+                                            </td>
+                                            <td>
+                                                <span class="locale-badge">
+                                                    {match page.locale.as_str() {
+                                                        "pt" => "🇧🇷 PT",
+                                                        "es" => "🌎 ES",
+                                                        "fr" => "🇨🇦 FR",
+                                                        _    => "🇺🇸 EN",
+                                                    }}
+                                                </span>
                                             </td>
                                             <td><span class="type-badge">{page.page_type.clone()}</span></td>
                                             <td>
@@ -330,22 +355,25 @@ fn EditorTab(
     let (viewport, set_viewport) = signal("desktop"); // "desktop" | "tablet" | "mobile"
 
     // Editable property inspector fields
-    let edit_slug     = RwSignal::new(String::new());
-    let edit_title    = RwSignal::new(String::new());
+    let edit_slug      = RwSignal::new(String::new());
+    let edit_title     = RwSignal::new(String::new());
     let edit_meta_desc = RwSignal::new(String::new());
-    let saving        = RwSignal::new(false);
-    let save_msg      = RwSignal::new(None::<(bool, String)>); // (is_ok, msg)
-    let publishing    = RwSignal::new(false);
+    let edit_locale    = RwSignal::new("en".to_string()); // "en" | "pt" | "es" | "fr"
+    let saving         = RwSignal::new(false);
+    let save_msg       = RwSignal::new(None::<(bool, String)>); // (is_ok, msg)
+    let publishing     = RwSignal::new(false);
 
     // Sync edit fields whenever the user selects a different page
     Effect::new(move |_| {
         if let Some(page) = selected_page.get() {
             edit_slug.set(page.slug.clone());
             edit_title.set(page.title.clone());
+            edit_locale.set(page.locale.clone());
         } else {
             edit_slug.set(String::new());
             edit_title.set(String::new());
             edit_meta_desc.set(String::new());
+            edit_locale.set("en".to_string());
         }
     });
 
@@ -353,15 +381,17 @@ fn EditorTab(
         let Some(page) = selected_page.get() else { return; };
         saving.set(true);
         save_msg.set(None);
-        let slug  = edit_slug.get();
-        let title = edit_title.get();
-        let desc  = edit_meta_desc.get();
-        let pid   = page.id;
+        let slug   = edit_slug.get();
+        let title  = edit_title.get();
+        let desc   = edit_meta_desc.get();
+        let locale = edit_locale.get();
+        let pid    = page.id;
         leptos::task::spawn_local(async move {
             let payload = UpdateLandingPagePayload {
                 slug:        if slug.is_empty() { None } else { Some(slug) },
                 title:       if title.is_empty() { None } else { Some(title) },
                 description: if desc.is_empty() { None } else { Some(desc) },
+                locale:      if locale == "en" { None } else { Some(locale) },
                 ..Default::default()
             };
             match update_landing_page(pid, payload).await {
@@ -519,6 +549,7 @@ fn EditorTab(
                     edit_slug=edit_slug
                     edit_title=edit_title
                     edit_meta_desc=edit_meta_desc
+                    edit_locale=edit_locale
                 />
             </div>
         </div>
@@ -561,6 +592,7 @@ fn PropertyInspector(
     edit_slug: RwSignal<String>,
     edit_title: RwSignal<String>,
     edit_meta_desc: RwSignal<String>,
+    edit_locale: RwSignal<String>,
 ) -> impl IntoView {
     // Pixel config resource — refetches whenever the selected page changes
     let pixel_res: LocalResource<PagePixelConfig> = LocalResource::new(move || {
@@ -596,6 +628,22 @@ fn PropertyInspector(
                 "Page Properties"
             </div>
 
+            <div class="prop-section">
+                <label class="form-label">"Locale"
+                    <span style="font-size:9px;opacity:.5;margin-left:4px;font-weight:400">
+                        "(EN is default — only create PT/ES pages once translations are ready)"
+                    </span>
+                </label>
+                <select class="form-input"
+                    prop:value=move || edit_locale.get()
+                    on:change=move |e| edit_locale.set(event_target_value(&e))
+                >
+                    <option value="en" selected=move || edit_locale.get()=="en">"🇺🇸 English (EN)"</option>
+                    <option value="pt" selected=move || edit_locale.get()=="pt">"🇧🇷 Português (PT)"</option>
+                    <option value="es" selected=move || edit_locale.get()=="es">"🌎 Español (ES)"</option>
+                    <option value="fr" selected=move || edit_locale.get()=="fr">"🇨🇦 Français (FR)"</option>
+                </select>
+            </div>
             <div class="prop-section">
                 <label class="form-label">"Slug"</label>
                 <input class="form-input" placeholder="my-landing-page"

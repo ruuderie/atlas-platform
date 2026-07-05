@@ -18,6 +18,7 @@ pub struct LandingPageSummary {
     pub slug: String,
     pub title: String,
     pub page_type: String,
+    pub locale: String,           // "en" | "pt" | "es" | "fr"
     pub is_published: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -33,6 +34,7 @@ pub struct LandingPage {
     pub title: String,
     pub description: String,
     pub page_type: String,
+    pub locale: String,           // "en" | "pt" | "es" | "fr"
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub is_published: bool,
@@ -80,6 +82,7 @@ pub struct CreateLandingPagePayload {
     pub title: String,
     pub description: Option<String>,
     pub page_type: Option<String>,
+    pub locale: Option<String>,   // defaults to "en" on the backend
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub is_published: Option<bool>,
@@ -90,6 +93,7 @@ pub struct UpdateLandingPagePayload {
     pub title: Option<String>,
     pub description: Option<String>,
     pub page_type: Option<String>,
+    pub locale: Option<String>,   // change locale of an existing page
     pub hero_payload: Option<Value>,
     pub blocks_payload: Option<Value>,
     pub slug: Option<String>,

@@ -91,3 +91,21 @@
 .popup-btn:hover {
   opacity: 0.9;
 }
+
+/* ── Landing Page Builder: Locale badge ─────────────────────────────────────
+ * Shown in the "Locale" column of the All Pages table.
+ * Small pill with a flag emoji + language code.
+ */
+.locale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: #8B92A8;
+  white-space: nowrap;
+}

@@ -309,6 +309,7 @@ pub mod m20260927_folio_broker_product_seed;    // Folio Broker Edition: registe
 pub mod m20260928_cohost_marketplace_product_seed; // Cohost Network: register folio-cohost-market product + page template
 pub mod m20260929_folio_pm_product_seed;        // Folio PM Edition: register folio-pm product + page template
 pub mod m20260930_folio_vendor_product_seed;    // Folio Vendor Marketplace: register folio-vendor product + page template
+pub mod m20260931_app_pages_locale;             // i18n: add locale column (en/pt/es/fr) to app_pages + compound index
 
 pub struct Migrator;
 
@@ -585,6 +586,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260928_cohost_marketplace_product_seed::Migration),
             Box::new(m20260929_folio_pm_product_seed::Migration),
             Box::new(m20260930_folio_vendor_product_seed::Migration),
+            Box::new(m20260931_app_pages_locale::Migration),
 
         ];
 
