@@ -85,8 +85,9 @@ fn VendorNav() -> impl IntoView {
             <a href="/"                    on:click=move |_| menu_open.set(false)>"For Landlords"</a>
             <a href="/property-managers"   on:click=move |_| menu_open.set(false)>"For PMs"</a>
             <a href="/brokers"             on:click=move |_| menu_open.set(false)>"For Brokers"</a>
-            <a href="#vendor-signup"       on:click=move |_| menu_open.set(false)             <a href="/founding"       on:click=move |_| menu_open.set(false)>"Founding Member"</a>
-            class="mktg-btn-accent mktg-mobile-nav-cta">"Join marketplace"</a>
+            <a href="#vendor-signup"       on:click=move |_| menu_open.set(false)>"Join marketplace"</a>
+            <a href="/founding"            on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
+            <a href="/beta"               on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
         </div>
     }
 }

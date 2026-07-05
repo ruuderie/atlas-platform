@@ -139,8 +139,9 @@ fn BrokerNav() -> impl IntoView {
             <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
             <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
             <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
-            <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false)             <a href="/founding"       on:click=move |_| menu_open.set(false)>"Founding Member"</a>
-            class="mktg-btn-accent mktg-mobile-nav-cta">"Get early access"</a>
+            <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false)>"Get early access"</a>
+            <a href="/founding"        on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
+            <a href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
         </div>
     }
 }
