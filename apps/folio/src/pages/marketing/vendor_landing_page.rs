@@ -31,6 +31,7 @@ pub fn VendorLandingPage() -> impl IntoView {
         <VendorTrades/>
         <VendorHow/>
         <VendorFeatures/>
+        <VendorProfilePreviews/>
         <VendorPricing/>
         <VendorCta/>
         <BetaCalloutStrip/>
@@ -381,6 +382,355 @@ fn VendorTrades() -> impl IntoView {
                     </a>
                     <p style="margin-top:.75rem;font-size:.78rem;color:#6b7280;">"Free to join. No subscription required."</p>
                 </div>
+            </div>
+        </section>
+    }
+}
+
+// ── Profile Previews ─────────────────────────────────────────────────────────
+
+/// Three-tab mock of what a vendor profile looks like across platform surfaces:
+///   Tab 0 — Your Profile Card   (the vendor's own view, G-27 scorecard)
+///   Tab 1 — Network Search      (how a landlord/PM finds you inside their instance)
+///   Tab 2 — Service Finder      (tenant-facing search result card)
+#[component]
+fn VendorProfilePreviews() -> impl IntoView {
+    let active_tab = RwSignal::new(0u8);
+
+    view! {
+        <section id="vendor-preview" class="mktg-section" style="background:rgba(255,107,53,.02);border-top:1px solid rgba(255,107,53,.08);">
+            <div class="mktg-section-inner">
+                <p class="mktg-section-eyebrow">"Your profile on the platform"</p>
+                <h2 class="mktg-section-h2">"See exactly how you show up."</h2>
+                <p class="mktg-section-sub" style="max-width:580px;margin:0 auto 2.5rem;">
+                    "Your Folio profile surfaces differently depending on who's looking. \
+                     Every view is powered by the Atlas G-27 Scorecard — a real-time \
+                     reputation engine built on verified job data, not just star ratings."
+                </p>
+
+                // ── Tab bar ───────────────────────────────────────────────────
+                <div class="vp-tab-row">
+                    <button class=move || if active_tab.get()==0 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(0)>
+                        <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"badge"</span>
+                        "Your Profile"
+                    </button>
+                    <button class=move || if active_tab.get()==1 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(1)>
+                        <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"manage_search"</span>
+                        "Network Search"
+                    </button>
+                    <button class=move || if active_tab.get()==2 {"vp-tab vp-tab--active"} else {"vp-tab"}
+                            on:click=move |_| active_tab.set(2)>
+                        <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"home_repair_service"</span>
+                        "Service Finder"
+                    </button>
+                </div>
+
+                // ── Tab 0: Your Profile (G-27 scorecard) ─────────────────────
+                {move || (active_tab.get() == 0).then(|| view! {
+                    <div class="vp-panel">
+                        // Browser chrome mockup
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/vendor/profile"</span>
+                        </div>
+                        <div class="vp-screen">
+
+                            // ── Profile header ───────────────────────────────
+                            <div class="vp-profile-header">
+                                <div class="vp-avatar">"MR"</div>
+                                <div class="vp-profile-meta">
+                                    <div style="display:flex;align-items:center;gap:.5rem;">
+                                        <h3 class="vp-profile-name">"Martinez Plumbing LLC"</h3>
+                                        <span class="vp-verified-badge">
+                                            <span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">"verified"</span>
+                                            "Verified"
+                                        </span>
+                                    </div>
+                                    <div class="vp-profile-trade">"🚿 Plumbing · Miami-Dade, FL · 12 mi radius"</div>
+                                    <div style="display:flex;align-items:center;gap:1rem;margin-top:.4rem;">
+                                        <span class="vp-stat-chip">
+                                            <span class="material-symbols-outlined" style="font-size:13px">"work"</span>
+                                            "147 jobs completed"
+                                        </span>
+                                        <span class="vp-stat-chip">
+                                            <span class="material-symbols-outlined" style="font-size:13px">"schedule"</span>
+                                            "4.2 yr on platform"
+                                        </span>
+                                    </div>
+                                </div>
+                                // ── Composite score badge ─────────────────────
+                                <div class="vp-score-badge">
+                                    <div class="vp-score-num">"94"</div>
+                                    <div class="vp-score-label">"Atlas Score"</div>
+                                    <div class="vp-score-band vp-band-elite">"Elite"</div>
+                                </div>
+                            </div>
+
+                            // ── G-27 dimension scorecard ─────────────────────
+                            <div class="vp-scorecard-section">
+                                <div class="vp-sc-header">
+                                    <span style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mk-muted);">"G-27 Atlas Scorecard"</span>
+                                    <span class="vp-confidence-chip">"High confidence · 147 verified entries"</span>
+                                </div>
+                                <div class="vp-dimensions">
+                                    // Response Time
+                                    <div class="vp-dim">
+                                        <div class="vp-dim-label">
+                                            <span>"Response Time"</span>
+                                            <span class="vp-dim-score">"97"</span>
+                                        </div>
+                                        <div class="vp-dim-bar-track">
+                                            <div class="vp-dim-bar" style="width:97%;background:linear-gradient(90deg,#06d6a0,#00b894);"></div>
+                                        </div>
+                                        <span class="vp-dim-pct">"Top 3%"</span>
+                                    </div>
+                                    // Work Quality
+                                    <div class="vp-dim">
+                                        <div class="vp-dim-label">
+                                            <span>"Work Quality"</span>
+                                            <span class="vp-dim-score">"96"</span>
+                                        </div>
+                                        <div class="vp-dim-bar-track">
+                                            <div class="vp-dim-bar" style="width:96%;background:linear-gradient(90deg,#06d6a0,#00b894);"></div>
+                                        </div>
+                                        <span class="vp-dim-pct">"Top 4%"</span>
+                                    </div>
+                                    // Reliability
+                                    <div class="vp-dim">
+                                        <div class="vp-dim-label">
+                                            <span>"Reliability"</span>
+                                            <span class="vp-dim-score">"93"</span>
+                                        </div>
+                                        <div class="vp-dim-bar-track">
+                                            <div class="vp-dim-bar" style="width:93%;background:linear-gradient(90deg,#06d6a0,#00b894);"></div>
+                                        </div>
+                                        <span class="vp-dim-pct">"Top 7%"</span>
+                                    </div>
+                                    // Pricing Accuracy
+                                    <div class="vp-dim">
+                                        <div class="vp-dim-label">
+                                            <span>"Pricing Accuracy"</span>
+                                            <span class="vp-dim-score">"91"</span>
+                                        </div>
+                                        <div class="vp-dim-bar-track">
+                                            <div class="vp-dim-bar" style="width:91%;background:linear-gradient(90deg,#f59e0b,#e67e22);"></div>
+                                        </div>
+                                        <span class="vp-dim-pct">"Top 9%"</span>
+                                    </div>
+                                    // Communication
+                                    <div class="vp-dim">
+                                        <div class="vp-dim-label">
+                                            <span>"Communication"</span>
+                                            <span class="vp-dim-score">"95"</span>
+                                        </div>
+                                        <div class="vp-dim-bar-track">
+                                            <div class="vp-dim-bar" style="width:95%;background:linear-gradient(90deg,#06d6a0,#00b894);"></div>
+                                        </div>
+                                        <span class="vp-dim-pct">"Top 5%"</span>
+                                    </div>
+                                </div>
+
+                                // ── Trend sparkline (time-series) ─────────────
+                                <div class="vp-trend-row">
+                                    <span style="font-size:.75rem;color:var(--mk-muted);">"12-month trend"</span>
+                                    <div class="vp-sparkline">
+                                        <svg viewBox="0 0 120 32" style="width:120px;height:32px;">
+                                            <polyline
+                                                points="0,28 15,24 30,26 45,20 60,18 75,15 90,10 105,8 120,6"
+                                                fill="none" stroke="#06d6a0" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                            />
+                                            <circle cx="120" cy="6" r="3" fill="#06d6a0"/>
+                                        </svg>
+                                        <span style="font-size:.75rem;color:#06d6a0;font-weight:700;">"↑ +6 pts"</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            // ── Quick stats footer ───────────────────────────
+                            <div class="vp-profile-footer">
+                                <div class="vp-foot-stat">
+                                    <span class="vp-foot-num">"$285"</span>
+                                    <span class="vp-foot-label">"Avg ticket"</span>
+                                </div>
+                                <div class="vp-foot-stat">
+                                    <span class="vp-foot-num">"98%"</span>
+                                    <span class="vp-foot-label">"On-time"</span>
+                                </div>
+                                <div class="vp-foot-stat">
+                                    <span class="vp-foot-num">"$41.8k"</span>
+                                    <span class="vp-foot-label">"Earned YTD"</span>
+                                </div>
+                                <div class="vp-foot-stat">
+                                    <span class="vp-foot-num">"4.9 ★"</span>
+                                    <span class="vp-foot-label">"Client rating"</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="vp-caption">"Your dashboard — live scores, earnings, and trend data in one place."</p>
+                    </div>
+                })}
+
+                // ── Tab 1: Network Instance Search ────────────────────────────
+                {move || (active_tab.get() == 1).then(|| view! {
+                    <div class="vp-panel">
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"app.folio.co/maintenance/find-vendor"</span>
+                        </div>
+                        <div class="vp-screen">
+                            // Search bar
+                            <div class="vp-search-bar">
+                                <span class="material-symbols-outlined" style="color:var(--mk-muted);font-size:18px">"search"</span>
+                                <span style="color:var(--mk-muted);font-size:.9rem;">"Plumbing · Miami, FL · Available this week"</span>
+                                <span class="vp-search-badge">"3 results"</span>
+                            </div>
+
+                            // Result cards (your card is first / featured)
+                            <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:1rem;">
+
+                                // Your card — ranked #1
+                                <div class="vp-search-card vp-search-card--top">
+                                    <div class="vp-sc-rank">"#1"</div>
+                                    <div class="vp-avatar vp-avatar-sm">"MR"</div>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="display:flex;align-items:center;gap:.5rem;">
+                                            <strong style="font-size:.95rem;color:#fff;">"Martinez Plumbing LLC"</strong>
+                                            <span class="vp-verified-badge">"✓ Verified"</span>
+                                            <span class="vp-search-atlas-score">"94 ⬛"</span>
+                                        </div>
+                                        <div style="font-size:.8rem;color:var(--mk-muted);margin-top:.15rem;">
+                                            "🚿 Plumbing · 3.2 mi away · "
+                                            <span style="color:#06d6a0;font-weight:600;">"Available Mon–Fri"</span>
+                                        </div>
+                                        <div style="display:flex;gap:.5rem;margin-top:.4rem;flex-wrap:wrap;">
+                                            <span class="vp-tag">"147 jobs"</span>
+                                            <span class="vp-tag">"Avg $285"</span>
+                                            <span class="vp-tag">"98% on-time"</span>
+                                            <span class="vp-tag vp-tag-green">"Responded in 4 min"</span>
+                                        </div>
+                                    </div>
+                                    <button class="mktg-btn-accent" style="font-size:.8rem;padding:.4rem .9rem;flex-shrink:0;">"Dispatch →"</button>
+                                </div>
+
+                                // Competitor #2 — greyed out
+                                <div class="vp-search-card" style="opacity:.55;">
+                                    <div class="vp-sc-rank" style="color:var(--mk-muted);">"#2"</div>
+                                    <div class="vp-avatar vp-avatar-sm" style="background:rgba(255,255,255,.1);">"JT"</div>
+                                    <div style="flex:1;">
+                                        <div style="font-size:.9rem;color:var(--mk-text);">"Joe's Plumbing"</div>
+                                        <div style="font-size:.78rem;color:var(--mk-muted);">"🚿 Plumbing · 7.8 mi away · Next available Thu"</div>
+                                        <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+                                            <span class="vp-tag">"62 jobs"</span>
+                                            <span class="vp-tag">"Avg $310"</span>
+                                            <span class="vp-tag">"Atlas Score: 71"</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                // Competitor #3 — greyed out
+                                <div class="vp-search-card" style="opacity:.4;">
+                                    <div class="vp-sc-rank" style="color:var(--mk-muted);">"#3"</div>
+                                    <div class="vp-avatar vp-avatar-sm" style="background:rgba(255,255,255,.07);">"RS"</div>
+                                    <div style="flex:1;">
+                                        <div style="font-size:.9rem;color:var(--mk-text);">"Reliable Solutions"</div>
+                                        <div style="font-size:.78rem;color:var(--mk-muted);">"🚿 Plumbing · 11.2 mi away · Next available Fri"</div>
+                                        <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+                                            <span class="vp-tag">"29 jobs"</span>
+                                            <span class="vp-tag">"Atlas Score: 58"</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="vp-caption">"Your Atlas Score determines your rank in every landlord and PM's search. Higher score = top of the list."</p>
+                    </div>
+                })}
+
+                // ── Tab 2: Service Finder (tenant / landlord consumer view) ───
+                {move || (active_tab.get() == 2).then(|| view! {
+                    <div class="vp-panel">
+                        <div class="vp-chrome">
+                            <span class="vp-chrome-dot" style="background:#ff5f57;"></span>
+                            <span class="vp-chrome-dot" style="background:#ffbd2e;"></span>
+                            <span class="vp-chrome-dot" style="background:#28ca41;"></span>
+                            <span class="vp-chrome-url">"folio.co/services/plumbing/miami"</span>
+                        </div>
+                        <div class="vp-screen">
+                            <div style="font-size:.75rem;color:var(--mk-muted);margin-bottom:1rem;">
+                                "Plumbers near Miami, FL · 3 verified vendors"
+                            </div>
+
+                            // Featured vendor card — consumer view
+                            <div class="vp-service-card">
+                                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                    <div style="display:flex;gap:1rem;align-items:center;">
+                                        <div class="vp-avatar" style="width:52px;height:52px;font-size:1.1rem;">"MR"</div>
+                                        <div>
+                                            <div style="display:flex;align-items:center;gap:.5rem;">
+                                                <strong style="font-size:1rem;color:#fff;">"Martinez Plumbing LLC"</strong>
+                                                <span class="vp-verified-badge">"✓"</span>
+                                            </div>
+                                            <div style="font-size:.8rem;color:var(--mk-muted);margin-top:.1rem;">"Licensed · Insured · Miami-Dade"</div>
+                                            // Star rating (rendered from G-27 composite)
+                                            <div style="display:flex;align-items:center;gap:.35rem;margin-top:.3rem;">
+                                                <span style="color:#f59e0b;font-size:.95rem;">"★★★★★"</span>
+                                                <span style="font-size:.85rem;font-weight:700;color:#fff;">"4.9"</span>
+                                                <span style="font-size:.78rem;color:var(--mk-muted);">"(147 reviews)"</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:.75rem;color:var(--mk-muted);">"Starting from"</div>
+                                        <div style="font-size:1.4rem;font-weight:800;color:#fff;">"$95"</div>
+                                        <div style="font-size:.72rem;color:var(--mk-muted);">"service call"</div>
+                                    </div>
+                                </div>
+
+                                // Tags
+                                <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:1rem;">
+                                    <span class="vp-tag vp-tag-green">"Available today"</span>
+                                    <span class="vp-tag">"Emergency service"</span>
+                                    <span class="vp-tag">"Free estimate"</span>
+                                    <span class="vp-tag">"ACH accepted"</span>
+                                </div>
+
+                                // Recent jobs
+                                <div class="vp-recent-jobs">
+                                    <div style="font-size:.72rem;font-weight:700;color:var(--mk-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">"Recent jobs"</div>
+                                    <div class="vp-job-row">
+                                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
+                                        <span>"Water heater replacement · 2 days ago"</span>
+                                        <span class="vp-job-rating">"★ 5.0"</span>
+                                    </div>
+                                    <div class="vp-job-row">
+                                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
+                                        <span>"Drain clearing · 1 week ago"</span>
+                                        <span class="vp-job-rating">"★ 5.0"</span>
+                                    </div>
+                                    <div class="vp-job-row">
+                                        <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
+                                        <span>"Fixture replacement · 2 weeks ago"</span>
+                                        <span class="vp-job-rating">"★ 4.8"</span>
+                                    </div>
+                                </div>
+
+                                // CTA
+                                <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+                                    <a href="#vendor-signup" class="mktg-btn-accent" style="flex:1;text-align:center;padding:.7rem;">"Book now"</a>
+                                    <button style="flex:1;padding:.7rem;border-radius:8px;border:1px solid var(--mk-border);background:none;color:var(--mk-muted);font-size:.85rem;cursor:pointer;">"Get estimate"</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="vp-caption">"What tenants and landlords see when they search for services. Your reviews and score determine placement."</p>
+                    </div>
+                })}
             </div>
         </section>
     }

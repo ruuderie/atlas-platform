@@ -4743,6 +4743,213 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .mktg-pricing-pm-callout a { color: #06d6a0; text-decoration: none; }
 .mktg-pricing-pm-callout a:hover { text-decoration: underline; }
 
+/* ── Vendor Profile Previews ────────────────────────────────────────────────── */
+/* Tab bar */
+.vp-tab-row {
+  display: flex; gap: .5rem; justify-content: center;
+  border-bottom: 1px solid var(--mk-border);
+  margin-bottom: 2rem; padding-bottom: 0;
+  flex-wrap: wrap;
+}
+.vp-tab {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .65rem 1.25rem; border-radius: 8px 8px 0 0;
+  border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--mk-muted);
+  font-size: .875rem; font-weight: 500; cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+  margin-bottom: -1px;
+}
+.vp-tab:hover { color: var(--mk-text); background: rgba(255,255,255,.04); }
+.vp-tab--active {
+  color: #fff; border-bottom-color: var(--mk-accent);
+  background: rgba(255,107,53,.06);
+}
+
+/* Panel + browser chrome */
+.vp-panel { max-width: 760px; margin: 0 auto; }
+.vp-chrome {
+  display: flex; align-items: center; gap: .4rem;
+  background: rgba(255,255,255,.05); border: 1px solid var(--mk-border);
+  border-bottom: none; border-radius: 10px 10px 0 0;
+  padding: .6rem 1rem;
+}
+.vp-chrome-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.vp-chrome-url {
+  margin-left: .75rem; flex: 1; text-align: center;
+  font-size: .75rem; color: var(--mk-muted);
+  background: rgba(255,255,255,.07); border-radius: 5px;
+  padding: .2rem .75rem; max-width: 320px; margin-inline: auto;
+}
+.vp-screen {
+  background: rgba(10,18,32,.9); border: 1px solid var(--mk-border);
+  border-radius: 0 0 10px 10px; padding: 1.5rem;
+  min-height: 340px;
+}
+.vp-caption {
+  text-align: center; font-size: .8rem; color: var(--mk-muted);
+  margin-top: .75rem; font-style: italic;
+}
+
+/* Avatar */
+.vp-avatar {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--mk-accent), #ff9a3c);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .95rem; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.vp-avatar-sm { width: 36px; height: 36px; font-size: .8rem; border-radius: 9px; }
+
+/* Profile header */
+.vp-profile-header {
+  display: flex; gap: 1rem; align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+.vp-profile-meta { flex: 1; min-width: 0; }
+.vp-profile-name { font-size: 1rem; font-weight: 700; color: #fff; margin: 0; }
+.vp-profile-trade { font-size: .8rem; color: var(--mk-muted); margin-top: .2rem; }
+
+/* Verified badge */
+.vp-verified-badge {
+  display: inline-flex; align-items: center; gap: .2rem;
+  font-size: .72rem; font-weight: 600; color: #06d6a0;
+  background: rgba(6,214,160,.12); border: 1px solid rgba(6,214,160,.25);
+  border-radius: 5px; padding: .1rem .4rem;
+}
+
+/* Stat chips */
+.vp-stat-chip {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .75rem; color: var(--mk-muted);
+  background: rgba(255,255,255,.06); border-radius: 5px;
+  padding: .2rem .5rem;
+}
+
+/* Atlas Score badge */
+.vp-score-badge {
+  text-align: center; padding: .75rem 1.1rem;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; flex-shrink: 0;
+}
+.vp-score-num {
+  font-size: 2rem; font-weight: 900; color: #fff; line-height: 1;
+  background: linear-gradient(135deg, #06d6a0, #00b894);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.vp-score-label { font-size: .65rem; color: var(--mk-muted); margin-top: .1rem; text-transform: uppercase; letter-spacing: .05em; }
+.vp-score-band { font-size: .7rem; font-weight: 700; border-radius: 4px; padding: .15rem .45rem; margin-top: .3rem; display: inline-block; }
+.vp-band-elite { background: rgba(6,214,160,.2); color: #06d6a0; border: 1px solid rgba(6,214,160,.3); }
+.vp-band-pro   { background: rgba(255,107,53,.2); color: #ff6b35; border: 1px solid rgba(255,107,53,.3); }
+.vp-band-rising { background: rgba(245,158,11,.2); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+
+/* G-27 scorecard section */
+.vp-scorecard-section {
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; padding: 1rem;
+}
+.vp-sc-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: .9rem; flex-wrap: wrap; gap: .5rem;
+}
+.vp-confidence-chip {
+  font-size: .7rem; color: #06d6a0;
+  background: rgba(6,214,160,.1); border: 1px solid rgba(6,214,160,.2);
+  border-radius: 4px; padding: .15rem .5rem;
+}
+.vp-dimensions { display: flex; flex-direction: column; gap: .65rem; }
+.vp-dim { display: grid; grid-template-columns: 1fr 3fr auto; gap: .5rem; align-items: center; }
+.vp-dim-label {
+  display: flex; justify-content: space-between;
+  font-size: .78rem; color: var(--mk-text);
+}
+.vp-dim-score { font-weight: 700; color: #fff; font-size: .78rem; }
+.vp-dim-bar-track {
+  height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden;
+}
+.vp-dim-bar { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.vp-dim-pct { font-size: .68rem; color: var(--mk-muted); text-align: right; white-space: nowrap; }
+
+/* Sparkline / trend */
+.vp-trend-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 1rem; padding-top: .75rem;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.vp-sparkline { display: flex; align-items: center; gap: .5rem; }
+
+/* Profile footer stats */
+.vp-profile-footer {
+  display: flex; gap: 0; margin-top: 1.25rem;
+  border: 1px solid rgba(255,255,255,.08); border-radius: 10px; overflow: hidden;
+}
+.vp-foot-stat {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: .75rem .5rem; border-right: 1px solid rgba(255,255,255,.08);
+}
+.vp-foot-stat:last-child { border-right: none; }
+.vp-foot-num { font-size: 1rem; font-weight: 800; color: #fff; }
+.vp-foot-label { font-size: .65rem; color: var(--mk-muted); margin-top: .1rem; text-align: center; }
+
+/* Search bar mock */
+.vp-search-bar {
+  display: flex; align-items: center; gap: .75rem;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px; padding: .6rem 1rem;
+}
+.vp-search-badge {
+  margin-left: auto; font-size: .72rem; color: #06d6a0;
+  background: rgba(6,214,160,.12); border: 1px solid rgba(6,214,160,.2);
+  border-radius: 4px; padding: .15rem .5rem;
+}
+
+/* Search result cards */
+.vp-search-card {
+  display: flex; align-items: flex-start; gap: .75rem;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; padding: .9rem 1rem;
+  transition: border-color .15s;
+}
+.vp-search-card--top {
+  background: rgba(255,107,53,.05); border-color: rgba(255,107,53,.25);
+  box-shadow: 0 0 20px rgba(255,107,53,.07);
+}
+.vp-sc-rank {
+  font-size: .75rem; font-weight: 800; color: var(--mk-accent);
+  min-width: 1.5rem; padding-top: .15rem;
+}
+.vp-search-atlas-score {
+  font-size: .72rem; font-weight: 700; color: #fff;
+  background: rgba(6,214,160,.15); border: 1px solid rgba(6,214,160,.25);
+  border-radius: 4px; padding: .1rem .4rem;
+}
+
+/* Tags */
+.vp-tag {
+  font-size: .7rem; color: var(--mk-muted);
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px; padding: .15rem .45rem;
+  white-space: nowrap;
+}
+.vp-tag-green {
+  color: #06d6a0; background: rgba(6,214,160,.1);
+  border-color: rgba(6,214,160,.2);
+}
+
+/* Service card (consumer view) */
+.vp-service-card {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px; padding: 1.25rem;
+}
+.vp-recent-jobs {
+  margin-top: 1rem; padding-top: .9rem;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.vp-job-row {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .8rem; color: var(--mk-muted); margin-bottom: .4rem;
+}
+.vp-job-rating { margin-left: auto; color: #f59e0b; font-size: .78rem; font-weight: 700; }
+
 /* ── Owner portal section responsive ───────────────────────────────────────── */
 @media (max-width: 768px) {
   #pm-owner-portal .mktg-section-inner { grid-template-columns: 1fr !important; }
