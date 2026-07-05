@@ -231,6 +231,7 @@ fn MktgNav() -> impl IntoView {
                     <a href="#features">"Features"</a>
                     <a href="#tenant-portal">"Tenant Portal"</a>
                     <a href="#str">"Vacation Rentals"</a>
+                    <a href="#app-preview">"How it works"</a>
                     <a href="/cohost-market">"Cohost Network"</a>
                     <a href="#pricing">"Pricing"</a>
                     <a href="/brokers" class="mktg-nav-broker-link">"For Brokers"</a>
@@ -1022,9 +1023,9 @@ fn MktgFooter() -> impl IntoView {
 
 #[component]
 fn MktgScripts() -> impl IntoView {
-    let js = r#"
+    let js = r##"
 (function() {
-  // Nav scroll: darken slightly on scroll (page is always dark)
+  // ── Nav scroll: darken on scroll ──────────────────────────────────────────
   var nav = document.getElementById('mktg-nav');
   if (nav) {
     window.addEventListener('scroll', function() {
@@ -1035,7 +1036,8 @@ fn MktgScripts() -> impl IntoView {
       }
     }, { passive: true });
   }
-  // Share button
+
+  // ── Share button ──────────────────────────────────────────────────────────
   var shareBtn = document.getElementById('mktg-share-btn');
   if (shareBtn) {
     shareBtn.addEventListener('click', function() {
@@ -1051,8 +1053,65 @@ fn MktgScripts() -> impl IntoView {
       }
     });
   }
+
+  // ── Scroll-spy: sync nav highlight with visible section ───────────────────
+  // Maps section IDs to the href value on the corresponding nav <a>
+  var SPY_MAP = {
+    'features':     '#features',
+    'tenant-portal':'#tenant-portal',
+    'str':          '#str',
+    'app-preview':  '#app-preview',
+    'pricing':      '#pricing'
+  };
+
+  var navLinks = nav ? nav.querySelectorAll('.mktg-nav-links a[href^="#"]') : [];
+
+  function setActive(href) {
+    navLinks.forEach(function(a) {
+      if (a.getAttribute('href') === href) {
+        a.classList.add('mktg-nav--active');
+      } else {
+        a.classList.remove('mktg-nav--active');
+      }
+    });
+  }
+
+  // Clear all active markers when near the top (hero section)
+  function clearActive() {
+    navLinks.forEach(function(a) { a.classList.remove('mktg-nav--active'); });
+  }
+
+  if ('IntersectionObserver' in window && nav && navLinks.length) {
+    // rootMargin: top=-40% means the element must have scrolled 40% into the
+    // viewport before we fire; bottom=-55% cuts off early so we don't mark the
+    // next section while still reading the current one.
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var href = SPY_MAP[entry.target.id];
+          if (href) setActive(href);
+        }
+      });
+    }, {
+      rootMargin: '-40% 0px -55% 0px',
+      threshold: 0
+    });
+
+    // Also watch the hero to clear highlights when user scrolls back to top
+    var heroObs = new IntersectionObserver(function(entries) {
+      if (entries[0] && entries[0].isIntersecting) clearActive();
+    }, { threshold: 0.15 });
+
+    Object.keys(SPY_MAP).forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    var hero = document.getElementById('hero');
+    if (hero) heroObs.observe(hero);
+  }
 })();
-    "#;
+    "##;
     view! { <script>{js}</script> }
 }
 
