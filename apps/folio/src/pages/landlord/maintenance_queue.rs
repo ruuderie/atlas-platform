@@ -359,7 +359,7 @@ pub fn MaintenanceQueue() -> impl IntoView {
                     />
                 </div>
                 // Category chips (only shown on Work Orders tab)
-                {move || (active_tab.get() == MaintenanceTab::WorkOrders).then(|| view! {
+                <Show when=move || active_tab.get() == MaintenanceTab::WorkOrders fallback=|| ()>
                     <div class="mq-category-chips">
                         {categories.iter().copied().map(|cat| view! {
                             <button
@@ -379,9 +379,9 @@ pub fn MaintenanceQueue() -> impl IntoView {
                             </button>
                         }).collect_view()}
                     </div>
-                })}
+                </Show>
                 // Priority filter (only shown on Work Orders tab)
-                {move || (active_tab.get() == MaintenanceTab::WorkOrders).then(|| view! {
+                <Show when=move || active_tab.get() == MaintenanceTab::WorkOrders fallback=|| ()>
                     <div class="mq-priority-chips">
                         <button
                             class=move || if priority_filter.get().is_none() { "mq-priority-chip mq-priority-chip--active" } else { "mq-priority-chip" }
@@ -405,7 +405,7 @@ pub fn MaintenanceQueue() -> impl IntoView {
                             </button>
                         }).collect_view()}
                     </div>
-                })}
+                </Show>
             </div>
 
             // ── Content ───────────────────────────────────────────────

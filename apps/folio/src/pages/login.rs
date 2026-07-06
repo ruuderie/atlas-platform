@@ -112,7 +112,7 @@ fn AuthPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                {move || (!sent.get()).then(|| view! {
+                <Show when=move || !sent.get() fallback=|| ()>
                     <div class="login-auth-form-wrap">
                         <h1 class="login-auth-h1">"Welcome back"</h1>
                         <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
@@ -131,9 +131,9 @@ fn AuthPanel() -> impl IntoView {
                                     on:input=move |ev| email.set(event_target_value(&ev))
                                 />
                             </div>
-                            {move || err.get().map(|e| view! {
-                                <p class="login-field-error">{e}</p>
-                            })}
+                            <Show when=move || err.get().is_some() fallback=|| ()>
+                                <p class="login-field-error">{move || err.get().unwrap_or_default()}</p>
+                            </Show>
                             <button
                                 type="submit"
                                 class="login-auth-btn"
@@ -164,9 +164,9 @@ fn AuthPanel() -> impl IntoView {
                             </p>
                         </div>
                     </div>
-                })}
+                </Show>
 
-                {move || sent.get().then(|| view! {
+                <Show when=move || sent.get() fallback=|| ()>
                     <div class="login-sent-wrap">
                         <div class="login-sent-icon">
                             <span class="material-symbols-outlined" style="font-size:48px;color:#06d6a0;font-variation-settings:'FILL' 1">"mark_email_read"</span>
@@ -187,7 +187,7 @@ fn AuthPanel() -> impl IntoView {
                             on:click=move |_| { sent.set(false); err.set(None); }
                         >"Use a different email"</button>
                     </div>
-                })}
+                </Show>
 
                 <p class="login-legal">
                     "By continuing you agree to Folio's "
