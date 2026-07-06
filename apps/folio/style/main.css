@@ -4347,8 +4347,8 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 }
 .mktg-nav-links a {
   color: var(--mk-muted); text-decoration: none; font-size: .83rem;
-  white-space: nowrap;
-  transition: color .15s;
+  white-space: nowrap; padding: .4rem .5rem; border-radius: 6px;
+  transition: color .15s, background .15s;
 }
 .mktg-nav-links a:hover { color: var(--mk-text); }
 /* broker page back-link — visually separated from primary nav items */
@@ -5072,10 +5072,14 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 }
 .mktg-nav-hamburger:hover { background: rgba(255,255,255,.07); }
 .mktg-nav-hamburger .material-symbols-outlined { font-size: 1.5rem; }
+@media (max-width: 900px) {
+  .mktg-nav-hamburger { display: flex; }
+}
 
 /* ── Mobile nav drawer ───────────────────────────────────────────────────────── */
 .mktg-mobile-nav {
   display: none;
+  pointer-events: none; /* belt-and-suspenders: never intercept clicks when closed */
   position: fixed;
   top: 64px; left: 0; right: 0; bottom: 0;
   background: rgba(7, 13, 24, .97);
@@ -5088,7 +5092,7 @@ details[open] .hh-former-summary::before { content: "▾ "; }
   overflow-y: auto;
   border-top: 1px solid var(--mk-border);
 }
-.mktg-mobile-nav--open { display: flex; }
+.mktg-mobile-nav--open { display: flex; pointer-events: auto; }
 .mktg-mobile-nav a {
   color: var(--mk-text);
   font-size: 1.1rem; font-weight: 500;
