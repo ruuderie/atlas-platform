@@ -220,9 +220,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
 #[component]
 fn MktgNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
-    let role_open = RwSignal::new(false);
     let lang_res  = Resource::new(|| (), |_| get_current_lang());
-    // Close role dropdown on any outside click
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -230,55 +228,41 @@ fn MktgNav() -> impl IntoView {
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
                 </A>
-                // ── Desktop links ──────────────────────────────────────────
+                // ── Desktop links (2 anchors + role dropdown) ──────────────
                 <div class="mktg-nav-links">
-                    <a href="#features">"Features"</a>
-                    <a href="#tenant-portal">"Tenant Portal"</a>
-                    <a href="#str">"Vacation Rentals"</a>
                     <a href="#app-preview">"How it works"</a>
-                    <A href="/cohost-market">"Cohost Network"</A>
                     <a href="#pricing">"Pricing"</a>
-                    // ── Role dropdown ────────────────────────────────────
-                    <div class="mktg-nav-role-dropdown">
-                        <button
-                            class="mktg-nav-role-trigger"
-                            aria-expanded=move || role_open.get().to_string()
-                            aria-label="Select your role"
-                            on:click=move |e| { e.stop_propagation(); role_open.update(|o| *o = !*o); }
-                        >
-                            "For you"
-                            <span class=move || if role_open.get() {
-                                "mktg-nav-role-arrow mktg-nav-role-arrow--open"
-                            } else {
-                                "mktg-nav-role-arrow"
-                            }>
+                    // Role dropdown — native <details> toggle, zero JS needed
+                    <details class="mktg-nav-role-dropdown">
+                        <summary aria-label="Select your role">
+                            "For your role"
+                            <span class="mktg-nav-role-arrow">
                                 <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
                             </span>
-                        </button>
-                        <div class=move || if role_open.get() {
-                            "mktg-nav-role-panel mktg-nav-role-panel--open"
-                        } else {
-                            "mktg-nav-role-panel"
-                        }>
-                            <A href="/" attr:class="mktg-nav-role-item mktg-nav-role-item--active" on:click=move |_| role_open.set(false)>
+                        </summary>
+                        <div class="mktg-nav-role-panel">
+                            <A href="/" attr:class="mktg-nav-role-item mktg-nav-role-item--active">
                                 <span class="mktg-nav-role-icon">"🏠"</span>
                                 "For Landlords"
                             </A>
-                            <A href="/property-managers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                            <A href="/property-managers" attr:class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏢"</span>
                                 "For Property Managers"
                             </A>
-                            <A href="/brokers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                            <A href="/brokers" attr:class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🤝"</span>
                                 "For Brokers"
                             </A>
-                            <A href="/vendors" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                            <A href="/vendors" attr:class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🔧"</span>
                                 "For Vendors"
                             </A>
+                            <A href="/cohost-market" attr:class="mktg-nav-role-item">
+                                <span class="mktg-nav-role-icon">"🌐"</span>
+                                "Cohost Network"
+                            </A>
                         </div>
-                    </div>
-                    <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
+                    </details>
                 </div>
                 <div class="mktg-nav-actions">
                     // ── Language switcher ──────────────────────────────────
@@ -291,7 +275,9 @@ fn MktgNav() -> impl IntoView {
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
                     </A>
-                    <a href="#waitlist-wrap" class="mktg-btn-accent">"Join waitlist"</a>
+                    // Founders — premium CTA in actions area for prominence
+                    <A href="/founding" attr:class="mktg-btn-founders" attr:id="nav-founders-btn">"Founders ✦"</A>
+                    <a href="#waitlist-wrap" class="mktg-btn-accent" id="nav-waitlist-btn">"Join waitlist"</a>
                     // ── Hamburger (mobile only) ────────────────────────────
                     <button
                         class="mktg-nav-hamburger"
@@ -305,26 +291,28 @@ fn MktgNav() -> impl IntoView {
                 </div>
             </div>
         </nav>
-        // ── Mobile nav drawer ─────────────────────────────────────────────
+        // ── Mobile nav drawer (full link list — space not a constraint) ────
         <div class=move || if menu_open.get() {
             "mktg-mobile-nav mktg-mobile-nav--open"
         } else {
             "mktg-mobile-nav"
         }>
-            <a href="#features"    on:click=move |_| menu_open.set(false)>"Features"</a>
-            <a href="#tenant-portal" on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
-            <a href="#str"         on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
-            <A href="/cohost-market" on:click=move |_| menu_open.set(false)>"Cohost Network"</A>
-            <a href="#pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <A href="/brokers"     on:click=move |_| menu_open.set(false) attr:class="mktg-mobile-nav-broker">"For Brokers"</A>
+            <a href="#features"         on:click=move |_| menu_open.set(false)>"Features"</a>
+            <a href="#tenant-portal"    on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
+            <a href="#str"             on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
+            <A href="/cohost-market"   on:click=move |_| menu_open.set(false)>"Cohost Network"</A>
+            <a href="#pricing"         on:click=move |_| menu_open.set(false)>"Pricing"</a>
+            <A href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</A>
             <A href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</A>
-            <A href="/vendors"    on:click=move |_| menu_open.set(false)>"For Vendors"</A>
-            <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
-            <A href="/founding"      on:click=move |_| menu_open.set(false)>"Founding ✦"</A>
-            <A href="/beta"          on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
+            <A href="/brokers"         on:click=move |_| menu_open.set(false)>"For Brokers"</A>
+            <A href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</A>
+            <a href="#waitlist-wrap"   on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
+            <A href="/founding"        on:click=move |_| menu_open.set(false)>"Founders ✦"</A>
+            <A href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
         </div>
     }
 }
+
 
 // ── Hero + waitlist form ──────────────────────────────────────────────────────
 
