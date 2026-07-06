@@ -3,7 +3,7 @@ use leptos_meta::*;
 use leptos_router::components::{Redirect, Route, Router, Routes, ParentRoute};
 use leptos_router::path;
 
-use crate::auth::{FolioRole, SessionInfo, check_session};
+use crate::auth::{FolioRole, SessionInfo};
 use crate::pages::not_found::NotFound;
 use crate::pages::login::Login;
 use crate::pages::verify::Verify;
@@ -147,15 +147,22 @@ use crate::components::layouts::{
     brokerage_layouts::{AgentLayout, BrokerLayout},
 };
 
-/// Root application. Provides session context once, then routes to the
-/// appropriate namespace via RoleRedirect.
+/// Root application shell. Sets up meta context and the router.
+///
+/// # Session strategy
+/// `check_session()` is intentionally NOT called here. Marketing pages
+/// (`/`, `/beta`, `/brokers`, `/founding`, etc.) are public and must
+/// render with zero auth overhead — no round-trip to the backend.
+///
+/// Session checks happen lazily, only where they are needed:
+/// - `HomeDispatch` (`/`)       — must branch authenticated vs anonymous
+/// - `role_shell_view` (`/l`, `/t`, etc.) — must guard authenticated routes
+///
+/// See docs/leptos_architecture_decisions.md § 5 for the full rationale.
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    // Single session resource — fetched once, provided via context to all children.
-    let session = Resource::new(|| (), |_| check_session());
-    provide_context(session);
 
     view! {
         <Router>
@@ -384,9 +391,13 @@ fn BrokerShell() -> impl IntoView {
 }
 
 /// Shared guard logic for all role shells.
+///
+/// Creates its own `check_session` Resource locally rather than reading
+/// from context. This is intentional — see App doc comment for the
+/// session strategy.
 fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sync + 'static) -> impl IntoView {
-    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
-        .expect("Session context missing");
+    use crate::auth::check_session;
+    let session = Resource::new(|| (), |_| check_session());
 
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>
@@ -411,8 +422,10 @@ fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sy
 
 #[component]
 fn HomeDispatch() -> impl IntoView {
-    let session = use_context::<Resource<Result<SessionInfo, server_fn::error::ServerFnError>>>()
-        .expect("Session context missing");
+    // Creates its own session resource — not shared from App context.
+    // See App doc comment for the session strategy.
+    use crate::auth::check_session;
+    let session = Resource::new(|| (), |_| check_session());
 
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>
