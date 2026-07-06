@@ -4376,7 +4376,7 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .mktg-btn-signin {
   padding: .45rem 1rem; border-radius: 8px; display: inline-flex; align-items: center; gap: .35rem;
   border: 1px solid rgba(255,255,255,.18); color: var(--mk-text);
-  background: rgba(255,255,255,.06);
+  background: rgba(255,255,255,.06); white-space: nowrap;
   text-decoration: none; font-size: .85rem; font-weight: 600;
   transition: background .15s, border-color .15s, color .15s;
 }
