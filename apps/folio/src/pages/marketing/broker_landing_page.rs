@@ -39,20 +39,7 @@ pub async fn load_broker_page() -> Result<crate::pages::marketing::market_landin
 
 #[component]
 pub fn BrokerLandingPage() -> impl IntoView {
-    let page = Resource::new(|| (), |_| load_broker_page());
-
-    view! {
-        <Suspense fallback=|| view! { <BrokerSkeleton/> }>
-            {move || page.get().map(|result| match result {
-                Err(_) => view! { <BrokerDefault/> }.into_any(),
-                Ok(data) => match data.launch_mode {
-                    crate::pages::marketing::market_landing_page::LaunchMode::Draft
-                        => view! { <NotFound/> }.into_any(),
-                    _ => view! { <BrokerDefault/> }.into_any(),
-                },
-            })}
-        </Suspense>
-    }
+    view! { <BrokerDefault/> }
 }
 
 // ── Default hardcoded content (used until DB record is published) ─────────────
