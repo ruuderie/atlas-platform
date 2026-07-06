@@ -224,10 +224,10 @@ fn MktgNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <A href="/" attr:class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </A>
+                </a>
                 // ── Desktop links (2 anchors + role dropdown) ──────────────
                 <div class="mktg-nav-links">
                     <a href="#app-preview">"How it works"</a>
@@ -241,26 +241,26 @@ fn MktgNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <A href="/" attr:class="mktg-nav-role-item mktg-nav-role-item--active">
+                            <a href="/" class="mktg-nav-role-item mktg-nav-role-item--active">
                                 <span class="mktg-nav-role-icon">"🏠"</span>
                                 "For Landlords"
-                            </A>
-                            <A href="/property-managers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/property-managers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏢"</span>
                                 "For Property Managers"
-                            </A>
-                            <A href="/brokers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/brokers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🤝"</span>
                                 "For Brokers"
-                            </A>
-                            <A href="/vendors" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/vendors" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🔧"</span>
                                 "For Vendors"
-                            </A>
-                            <A href="/cohost-market" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/cohost-market" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🌐"</span>
                                 "Cohost Network"
-                            </A>
+                            </a>
                         </div>
                     </details>
                 </div>
@@ -271,12 +271,12 @@ fn MktgNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <A href="/login" attr:class="mktg-btn-signin" attr:id="nav-signin-btn">
+                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </A>
+                    </a>
                     // Founders — premium CTA in actions area for prominence
-                    <A href="/founding" attr:class="mktg-btn-founders" attr:id="nav-founders-btn">"Founders ✦"</A>
+                    <a href="/founding" class="mktg-btn-founders" id="nav-founders-btn">"Founders ✦"</a>
                     <a href="#waitlist-wrap" class="mktg-btn-accent" id="nav-waitlist-btn">"Join waitlist"</a>
                     // ── Hamburger (mobile only) ────────────────────────────
                     <button
@@ -300,15 +300,15 @@ fn MktgNav() -> impl IntoView {
             <a href="#features"         on:click=move |_| menu_open.set(false)>"Features"</a>
             <a href="#tenant-portal"    on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
             <a href="#str"             on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
-            <A href="/cohost-market"   on:click=move |_| menu_open.set(false)>"Cohost Network"</A>
+            <a href="/cohost-market"   on:click=move |_| menu_open.set(false)>"Cohost Network"</a>
             <a href="#pricing"         on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <A href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</A>
-            <A href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</A>
-            <A href="/brokers"         on:click=move |_| menu_open.set(false)>"For Brokers"</A>
-            <A href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</A>
+            <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
+            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
+            <a href="/brokers"         on:click=move |_| menu_open.set(false)>"For Brokers"</a>
+            <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
             <a href="#waitlist-wrap"   on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
-            <A href="/founding"        on:click=move |_| menu_open.set(false)>"Founders ✦"</A>
-            <A href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
+            <a href="/founding"        on:click=move |_| menu_open.set(false)>"Founders ✦"</a>
+            <a href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
         </div>
     }
 }
@@ -1001,10 +1001,10 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <strong>"Apply for the Folio Beta Program"</strong>
                     <p>"Get free access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <A href="/beta" attr:class="beta-callout-cta" attr:id="beta-strip-cta">
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
-                </A>
+                </a>
             </div>
         </div>
     }
@@ -1022,7 +1022,7 @@ fn MktgFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <A href="/login">"Sign in"</A>
+                    <a href="/login">"Sign in"</a>
                     <a href="#pricing">"Pricing"</a>
                     <a href="#features">"Features"</a>
                 </div>

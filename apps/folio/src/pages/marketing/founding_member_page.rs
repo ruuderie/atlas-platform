@@ -74,10 +74,10 @@ fn FoundingNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <A href="/" attr:class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </A>
+                </a>
                 <div class="mktg-nav-links">
                     <a href="#founding-landlord">"For Landlords"</a>
                     <a href="#founding-broker">"For Brokers"</a>
@@ -92,26 +92,26 @@ fn FoundingNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <A href="/" attr:class="mktg-nav-role-item">
+                            <a href="/" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </A>
-                            <A href="/property-managers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/property-managers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </A>
-                            <A href="/brokers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/brokers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </A>
-                            <A href="/vendors" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/vendors" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </A>
+                            </a>
                         </div>
                     </details>
                 </div>
                 <div class="mktg-nav-actions">
-                    <A href="/login" attr:class="mktg-btn-signin" attr:id="founding-nav-signin">
+                    <a href="/login" class="mktg-btn-signin" id="founding-nav-signin">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </A>
+                    </a>
                     <a href="#founding-landlord" class="mktg-btn-accent" id="founding-nav-cta">"See founding tiers"</a>
                     <button
                         class="mktg-nav-hamburger"
@@ -650,10 +650,10 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <strong>"Apply for the Folio Beta Program"</strong>
                     <p>"Get discounted access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <A href="/beta" attr:class="beta-callout-cta" attr:id="beta-strip-cta">
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
-                </A>
+                </a>
             </div>
         </div>
     }
@@ -671,12 +671,12 @@ fn FoundingFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Founding Member Program"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <A href="/">"For Landlords"</A>
-                    <A href="/brokers">"For Brokers"</A>
-                    <A href="/property-managers">"For PMs"</A>
-                    <A href="/vendors">"For Vendors"</A>
-                    <A href="/">"Monthly pricing"</A>
-                    <A href="/login">"Sign in"</A>
+                    <a href="/">"For Landlords"</a>
+                    <a href="/brokers">"For Brokers"</a>
+                    <a href="/property-managers">"For PMs"</a>
+                    <a href="/vendors">"For Vendors"</a>
+                    <a href="/">"Monthly pricing"</a>
+                    <a href="/login">"Sign in"</a>
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

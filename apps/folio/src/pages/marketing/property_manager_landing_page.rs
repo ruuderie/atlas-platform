@@ -49,10 +49,10 @@ fn PmNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <A href="/" attr:class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </A>
+                </a>
                 // ── Desktop links ──────────────────────────────────────────
                 <div class="mktg-nav-links">
                     <a href="#pm-features">"Features"</a>
@@ -66,21 +66,21 @@ fn PmNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <A href="/" attr:class="mktg-nav-role-item">
+                            <a href="/" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </A>
-                            <A href="/property-managers" attr:class="mktg-nav-role-item mktg-nav-role-item--active">
+                            </a>
+                            <a href="/property-managers" class="mktg-nav-role-item mktg-nav-role-item--active">
                                 <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </A>
-                            <A href="/brokers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/brokers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </A>
-                            <A href="/vendors" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/vendors" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </A>
+                            </a>
                         </div>
                     </details>
-                    <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
+                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <Suspense fallback=|| ()>
@@ -88,10 +88,10 @@ fn PmNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <A href="/login" attr:class="mktg-btn-signin" attr:id="pm-nav-signin-btn">
+                    <a href="/login" class="mktg-btn-signin" id="pm-nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </A>
+                    </a>
                     <a href="#pm-waitlist" class="mktg-btn-accent">"Get early access"</a>
                     <button
                         class="mktg-nav-hamburger"
@@ -113,12 +113,12 @@ fn PmNav() -> impl IntoView {
             <a href="#pm-features"    on:click=move |_| menu_open.set(false)>"Features"</a>
             <a href="#pm-owner-portal" on:click=move |_| menu_open.set(false)>"Owner Portal"</a>
             <a href="#pm-pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <A href="/"              on:click=move |_| menu_open.set(false)>"For Landlords"</A>
-            <A href="/brokers"       on:click=move |_| menu_open.set(false)>"For Brokers"</A>
-            <A href="/vendors"       on:click=move |_| menu_open.set(false)>"For Vendors"</A>
+            <a href="/"              on:click=move |_| menu_open.set(false)>"For Landlords"</a>
+            <a href="/brokers"       on:click=move |_| menu_open.set(false)>"For Brokers"</a>
+            <a href="/vendors"       on:click=move |_| menu_open.set(false)>"For Vendors"</a>
             <a href="#pm-waitlist"   on:click=move |_| menu_open.set(false)>"Get early access"</a>
-            <A href="/founding"      on:click=move |_| menu_open.set(false)>"Founding ✦"</A>
-            <A href="/beta"          on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
+            <a href="/founding"      on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
+            <a href="/beta"          on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
         </div>
     }
 }
@@ -469,10 +469,10 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <p>"Get discounted access during beta in exchange for real feedback. We review every \
                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <A href="/beta" attr:class="beta-callout-cta" attr:id="beta-strip-cta-pm">
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta-pm">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
-                </A>
+                </a>
             </div>
         </div>
     }
@@ -490,11 +490,11 @@ fn PmFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Property Manager Edition"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <A href="/">"For Landlords"</A>
-                    <A href="/brokers">"For Brokers"</A>
-                    <A href="/vendors">"For Vendors"</A>
-                    <A href="/cohost-market">"Cohost Network"</A>
-                    <A href="/login">"Sign in"</A>
+                    <a href="/">"For Landlords"</a>
+                    <a href="/brokers">"For Brokers"</a>
+                    <a href="/vendors">"For Vendors"</a>
+                    <a href="/cohost-market">"Cohost Network"</a>
+                    <a href="/login">"Sign in"</a>
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

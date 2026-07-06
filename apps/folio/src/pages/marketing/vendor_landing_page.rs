@@ -49,10 +49,10 @@ fn VendorNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <A href="/" attr:class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </A>
+                </a>
                 // ── Desktop links (same pattern as all other mktg pages) ───
                 <div class="mktg-nav-links">
                     <a href="#vendor-how">"How it works"</a>
@@ -68,21 +68,21 @@ fn VendorNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <A href="/" attr:class="mktg-nav-role-item">
+                            <a href="/" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
-                            </A>
-                            <A href="/property-managers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/property-managers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
-                            </A>
-                            <A href="/brokers" attr:class="mktg-nav-role-item">
+                            </a>
+                            <a href="/brokers" class="mktg-nav-role-item">
                                 <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
-                            </A>
-                            <A href="/vendors" attr:class="mktg-nav-role-item mktg-nav-role-item--active">
+                            </a>
+                            <a href="/vendors" class="mktg-nav-role-item mktg-nav-role-item--active">
                                 <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
-                            </A>
+                            </a>
                         </div>
                     </details>
-                    <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
+                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <Suspense fallback=|| ()>
@@ -90,10 +90,10 @@ fn VendorNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <A href="/login" attr:class="mktg-btn-signin" attr:id="vendor-nav-signin-btn">
+                    <a href="/login" class="mktg-btn-signin" id="vendor-nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </A>
+                    </a>
                     <a href="#vendor-signup" class="mktg-btn-accent" id="vendor-nav-cta">"Join marketplace"</a>
                     <button
                         class="mktg-nav-hamburger"
@@ -116,11 +116,11 @@ fn VendorNav() -> impl IntoView {
             <a href="#vendor-trades"      on:click=move |_| menu_open.set(false)>"Trades"</a>
             <a href="#vendor-features"    on:click=move |_| menu_open.set(false)>"Features"</a>
             <a href="#vendor-pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <A href="/"                   on:click=move |_| menu_open.set(false)>"For Landlords"</A>
-            <A href="/property-managers"  on:click=move |_| menu_open.set(false)>"For PMs"</A>
-            <A href="/brokers"            on:click=move |_| menu_open.set(false)>"For Brokers"</A>
+            <a href="/"                   on:click=move |_| menu_open.set(false)>"For Landlords"</a>
+            <a href="/property-managers"  on:click=move |_| menu_open.set(false)>"For PMs"</a>
+            <a href="/brokers"            on:click=move |_| menu_open.set(false)>"For Brokers"</a>
             <a href="#vendor-signup"      on:click=move |_| menu_open.set(false)>"Join marketplace"</a>
-            <A href="/founding"           on:click=move |_| menu_open.set(false)>"Founding ✦"</A>
+            <a href="/founding"           on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
         </div>
     }
 }
@@ -845,11 +845,11 @@ fn VendorFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"The Landlord OS · Vendor Marketplace"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <A href="/">"For Landlords"</A>
-                    <A href="/property-managers">"For Property Managers"</A>
-                    <A href="/brokers">"For Brokers"</A>
-                    <A href="/cohost-market">"Cohost Network"</A>
-                    <A href="/login">"Sign in"</A>
+                    <a href="/">"For Landlords"</a>
+                    <a href="/property-managers">"For Property Managers"</a>
+                    <a href="/brokers">"For Brokers"</a>
+                    <a href="/cohost-market">"Cohost Network"</a>
+                    <a href="/login">"Sign in"</a>
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "
