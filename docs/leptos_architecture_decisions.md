@@ -203,3 +203,81 @@ details > summary::-webkit-details-marker { display: none; }
 | Works sometimes, not others | Race between click and WASM hydration completing | Add `rel="external"` to remove WASM dependency |
 | Hash anchor doesn't scroll | Element `id` doesn't match `href` fragment | Verify `id` matches exactly |
 | Dropdown never opens | Signal-based toggle requires WASM; hydration failed | Replace with `<details>`/`<summary>` |
+
+---
+
+## 5. Session Check Strategy — Marketing vs Authenticated Routes
+
+> **Context**: Established July 2026 after identifying that `check_session()` (a network call to `GET /api/folio/me` on the Atlas backend) was firing on every marketing page SSR render, adding ~200–400ms of backend round-trip to the TTFB of purely public pages.
+
+### 5.1 The rule
+
+**`check_session()` must only run where the result is actually used.**
+
+| Route | Needs session? | Why |
+|---|---|---|
+| `/beta`, `/brokers`, `/founding`, `/vendors`, `/property-managers`, `/lp` | ❌ No | Purely public marketing pages — same content regardless of auth state |
+| `/login`, `/verify` | ❌ No | Auth flow — redirects are handled by the backend, not the frontend |
+| `/` (`HomeDispatch`) | ✅ Yes | Must branch: authenticated user → role home, anonymous → `MarketLandingPage` |
+| `/l/**`, `/t/**`, `/v/**`, `/pmc/**`, `/o/**`, `/a/**`, `/b/**` | ✅ Yes | Must guard: unauthenticated → `/login`, wrong role → correct home |
+
+### 5.2 Implementation pattern
+
+`check_session()` is **not** called in the root `App` component. Each consumer creates its own `Resource` locally:
+
+```rust
+// ✅ CORRECT: session only where needed
+#[component]
+pub fn App() -> impl IntoView {
+    provide_meta_context();
+    // No session resource here — marketing pages must not pay this cost.
+    // See docs/leptos_architecture_decisions.md § 5.
+    view! { <Router><Routes ...> ... </Routes></Router> }
+}
+
+fn role_shell_view(...) -> impl IntoView {
+    use crate::auth::check_session;
+    let session = Resource::new(|| (), |_| check_session()); // local, not from context
+    ...
+}
+
+#[component]
+fn HomeDispatch() -> impl IntoView {
+    use crate::auth::check_session;
+    let session = Resource::new(|| (), |_| check_session()); // local, not from context
+    ...
+}
+```
+
+```rust
+// ❌ WRONG: session in App root — fires on every page, including marketing
+#[component]
+pub fn App() -> impl IntoView {
+    let session = Resource::new(|| (), |_| check_session());
+    provide_context(session); // every child route now pays the auth cost
+    ...
+}
+```
+
+### 5.3 Why not `provide_context`?
+
+The original design used `provide_context(session)` in `App` so the Resource is created once and shared. This works for the authenticated app, but it means the Resource is **created and resolved during SSR for every route** — including marketing pages that never read the context.
+
+In Leptos 0.8, a `Resource::new(...)` call starts the async computation immediately in SSR. The `<Suspense>` barrier in `role_shell_view`/`HomeDispatch` then waits for it to resolve before sending HTML. Moving the Resource creation out of `App` means **marketing page SSR renders never block on auth**.
+
+### 5.4 What about Leptos resource deduplication?
+
+Leptos 0.8 does not automatically deduplicate server function calls across multiple `Resource::new` instances for the same server fn. However, this is not a concern here because:
+- The authenticated shells (`role_shell_view`) are behind `<ParentRoute>` and only one mounts at a time
+- `HomeDispatch` is the only consumer at `/`
+
+There is no scenario where `check_session()` fires more than once per request.
+
+### 5.5 Adding a new route checklist
+
+When adding a new route to `app.rs`, ask:
+
+1. **Can an anonymous user see this page?** → No session check needed. Just add the `<Route>`.
+2. **Does the page content differ based on auth state?** → Use `HomeDispatch` pattern (local Resource + `<Suspense>`).
+3. **Is this behind a role guard?** → Use `role_shell_view()` or a `<ParentRoute>` with a shell that creates its own Resource.
+4. **Never** add `provide_context(session)` to `App` or any parent component visible to public routes.
