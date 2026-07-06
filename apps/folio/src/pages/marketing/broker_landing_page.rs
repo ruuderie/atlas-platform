@@ -83,7 +83,7 @@ fn BrokerNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo" rel="external">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
                 </a>
@@ -102,21 +102,21 @@ fn BrokerNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item">
+                            <a href="/" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
                             </a>
-                            <a href="/property-managers" class="mktg-nav-role-item">
+                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
                             </a>
-                            <a href="/brokers" class="mktg-nav-role-item mktg-nav-role-item--active">
+                            <a href="/brokers" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
                                 <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
                             </a>
-                            <a href="/vendors" class="mktg-nav-role-item">
+                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
                             </a>
                         </div>
                     </details>
-                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
+                    <a href="/founding" class="mktg-nav-broker-link" rel="external">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
                     <Suspense fallback=|| ()>
@@ -124,7 +124,7 @@ fn BrokerNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="broker-nav-signin-btn">
+                    <a href="/login" class="mktg-btn-signin" id="broker-nav-signin-btn" rel="external">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
                     </a>
@@ -152,12 +152,12 @@ fn BrokerNav() -> impl IntoView {
             <a href="#broker-portals"  on:click=move |_| menu_open.set(false)>"Portals"</a>
             <a href="#broker-agents"   on:click=move |_| menu_open.set(false)>"Agent Accounts"</a>
             <a href="#broker-pricing"  on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
-            <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
+            <a href="/"                on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
+            <a href="/property-managers" on:click=move |_| menu_open.set(false) rel="external">"For Property Managers"</a>
+            <a href="/vendors"         on:click=move |_| menu_open.set(false) rel="external">"For Vendors"</a>
             <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false)>"Get early access"</a>
-            <a href="/founding"        on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
-            <a href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
+            <a href="/founding"        on:click=move |_| menu_open.set(false) rel="external">"Founding ✦"</a>
+            <a href="/beta"            on:click=move |_| menu_open.set(false) rel="external">"Apply for Beta"</a>
         </div>
     }
 }
@@ -209,7 +209,7 @@ fn BrokerHero() -> impl IntoView {
                     <a href="/#waitlist-wrap" class="mktg-btn-accent mktg-btn-lg" id="broker-hero-cta">
                         "Reserve beta access →"
                     </a>
-                    <a href="/login" class="mktg-btn-signin" style="padding:14px 24px;font-size:15px" id="broker-hero-signin">
+                    <a href="/login" class="mktg-btn-signin" style="padding:14px 24px;font-size:15px" id="broker-hero-signin" rel="external">
                         "Sign in"
                     </a>
                 </div>
@@ -438,7 +438,7 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <strong>"Apply for the Folio Beta Program"</strong>
                     <p>"Get discounted access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta" rel="external">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
                 </a>
@@ -459,8 +459,8 @@ fn BrokerFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Broker Edition"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/">"← Main page"</a>
-                    <a href="/login">"Sign in"</a>
+                    <a href="/" rel="external">"← Main page"</a>
+                    <a href="/login" rel="external">"Sign in"</a>
                     <a href="#broker-pricing">"Pricing"</a>
                     <a href="#broker-features">"Features"</a>
                 </div>

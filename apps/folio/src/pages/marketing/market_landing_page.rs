@@ -224,7 +224,7 @@ fn MktgNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <a href="/" class="mktg-nav-logo" rel="external">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
                 </a>
@@ -241,23 +241,23 @@ fn MktgNav() -> impl IntoView {
                             </span>
                         </summary>
                         <div class="mktg-nav-role-panel">
-                            <a href="/" class="mktg-nav-role-item mktg-nav-role-item--active">
+                            <a href="/" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
                                 <span class="mktg-nav-role-icon">"🏠"</span>
                                 "For Landlords"
                             </a>
-                            <a href="/property-managers" class="mktg-nav-role-item">
+                            <a href="/property-managers" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🏢"</span>
                                 "For Property Managers"
                             </a>
-                            <a href="/brokers" class="mktg-nav-role-item">
+                            <a href="/brokers" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🤝"</span>
                                 "For Brokers"
                             </a>
-                            <a href="/vendors" class="mktg-nav-role-item">
+                            <a href="/vendors" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🔧"</span>
                                 "For Vendors"
                             </a>
-                            <a href="/cohost-market" class="mktg-nav-role-item">
+                            <a href="/cohost-market" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🌐"</span>
                                 "Cohost Network"
                             </a>
@@ -271,12 +271,12 @@ fn MktgNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
+                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn" rel="external">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
                     </a>
                     // Founders — premium CTA in actions area for prominence
-                    <a href="/founding" class="mktg-btn-founders" id="nav-founders-btn">"Founders ✦"</a>
+                    <a href="/founding" class="mktg-btn-founders" id="nav-founders-btn" rel="external">"Founders ✦"</a>
                     <a href="#waitlist-wrap" class="mktg-btn-accent" id="nav-waitlist-btn">"Join waitlist"</a>
                     // ── Hamburger (mobile only) ────────────────────────────
                     <button
@@ -300,15 +300,15 @@ fn MktgNav() -> impl IntoView {
             <a href="#features"         on:click=move |_| menu_open.set(false)>"Features"</a>
             <a href="#tenant-portal"    on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
             <a href="#str"             on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
-            <a href="/cohost-market"   on:click=move |_| menu_open.set(false)>"Cohost Network"</a>
+            <a href="/cohost-market"   on:click=move |_| menu_open.set(false) rel="external">"Cohost Network"</a>
             <a href="#pricing"         on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
-            <a href="/brokers"         on:click=move |_| menu_open.set(false)>"For Brokers"</a>
-            <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
+            <a href="/"                on:click=move |_| menu_open.set(false) rel="external">"For Landlords"</a>
+            <a href="/property-managers" on:click=move |_| menu_open.set(false) rel="external">"For Property Managers"</a>
+            <a href="/brokers"         on:click=move |_| menu_open.set(false) rel="external">"For Brokers"</a>
+            <a href="/vendors"         on:click=move |_| menu_open.set(false) rel="external">"For Vendors"</a>
             <a href="#waitlist-wrap"   on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
-            <a href="/founding"        on:click=move |_| menu_open.set(false)>"Founders ✦"</a>
-            <a href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
+            <a href="/founding"        on:click=move |_| menu_open.set(false) rel="external">"Founders ✦"</a>
+            <a href="/beta"            on:click=move |_| menu_open.set(false) rel="external">"Apply for Beta"</a>
         </div>
     }
 }
@@ -454,7 +454,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                             </p>
                             <p class="mktg-wl-signin-hint">
                                 "Already have access? "
-                                <a href="/login" class="mktg-wl-signin-link" id="hero-signin-link">"Sign in →"</a>
+                                <a href="/login" class="mktg-wl-signin-link" id="hero-signin-link" rel="external">"Sign in →"</a>
                             </p>
                         </div>
                     </Show>
@@ -795,7 +795,7 @@ fn MktgStr() -> impl IntoView {
                         </div>
                     }).collect_view()}
                     // Cohost Network — live page
-                    <a href="/cohost-market" class="mktg-str-card mktg-str-card--cohost" style="display:block;text-decoration:none;cursor:pointer;">
+                    <a href="/cohost-market" class="mktg-str-card mktg-str-card--cohost" style="display:block;text-decoration:none;cursor:pointer;" rel="external">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                             <span class="material-symbols-outlined mktg-str-icon" style="margin-bottom:0">"handshake"</span>
                             <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:2px 8px;border-radius:4px;background:rgba(6,214,160,0.15);color:#06d6a0;">"New"</span>
@@ -959,7 +959,7 @@ fn MktgPricing() -> impl IntoView {
                     <div>
                         <strong>"Managing properties for clients?"</strong>
                         " Property managers and PMCs get a dedicated plan with owner portals, trust accounting, and multi-portfolio billing. "
-                        <a href="/property-managers">"See Property Manager pricing →"</a>
+                        <a href="/property-managers" rel="external">"See Property Manager pricing →"</a>
                     </div>
                 </div>
             </div>
@@ -1001,7 +1001,7 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <strong>"Apply for the Folio Beta Program"</strong>
                     <p>"Get free access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
+                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta" rel="external">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
                 </a>
@@ -1022,7 +1022,7 @@ fn MktgFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/login">"Sign in"</a>
+                    <a href="/login" rel="external">"Sign in"</a>
                     <a href="#pricing">"Pricing"</a>
                     <a href="#features">"Features"</a>
                 </div>
