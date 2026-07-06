@@ -45,6 +45,7 @@ pub fn VendorLandingPage() -> impl IntoView {
 #[component]
 fn VendorNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
+    let role_open = RwSignal::new(false);
     let lang_res  = Resource::new(|| (), |_| get_current_lang());
     view! {
         <nav id="mktg-nav" class="mktg-nav">
@@ -59,10 +60,34 @@ fn VendorNav() -> impl IntoView {
                     <a href="#vendor-trades">"Trades"</a>
                     <a href="#vendor-features">"Features"</a>
                     <a href="#vendor-pricing">"Pricing"</a>
-                    // Cross-page links — separator via mktg-nav-broker-link
-                    <A href="/" attr:class="mktg-nav-broker-link">"For Landlords"</A>
-                    <A href="/property-managers">"For PMs"</A>
-                    <A href="/brokers">"For Brokers"</A>
+                    // Cross-page links — role dropdown
+                    <div class="mktg-nav-role-dropdown">
+                        <button
+                            class="mktg-nav-role-trigger"
+                            aria-expanded=move || role_open.get().to_string()
+                            aria-label="Select your role"
+                            on:click=move |e| { e.stop_propagation(); role_open.update(|o| *o = !*o); }
+                        >
+                            "For you"
+                            <span class=move || if role_open.get() { "mktg-nav-role-arrow mktg-nav-role-arrow--open" } else { "mktg-nav-role-arrow" }>
+                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
+                            </span>
+                        </button>
+                        <div class=move || if role_open.get() { "mktg-nav-role-panel mktg-nav-role-panel--open" } else { "mktg-nav-role-panel" }>
+                            <A href="/" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
+                            </A>
+                            <A href="/property-managers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
+                            </A>
+                            <A href="/brokers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
+                            </A>
+                            <A href="/vendors" attr:class="mktg-nav-role-item mktg-nav-role-item--active" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
+                            </A>
+                        </div>
+                    </div>
                     <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
                 </div>
                 <div class="mktg-nav-actions">

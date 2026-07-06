@@ -4365,6 +4365,64 @@ details[open] .hh-former-summary::before { content: "▾ "; }
 .mktg-nav-broker-link:hover { opacity: 1; color: var(--mk-text) !important; }
 .mktg-nav-actions { margin-left: auto; display: flex; align-items: center; gap: .75rem; }
 
+/* ── "For you ▾" role dropdown ─────────────────────────────────────────────── */
+.mktg-nav-role-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+.mktg-nav-role-trigger {
+  display: flex; align-items: center; gap: .3rem;
+  background: none; border: none; cursor: pointer;
+  color: var(--mk-muted); font-size: .83rem; font-weight: 500;
+  padding: .4rem .5rem; border-radius: 6px;
+  transition: color .15s, background .15s;
+  white-space: nowrap;
+}
+.mktg-nav-role-trigger:hover { color: var(--mk-text); background: rgba(255,255,255,.05); }
+.mktg-nav-role-arrow {
+  display: inline-flex; align-items: center;
+  transition: transform .2s;
+}
+.mktg-nav-role-arrow--open { transform: rotate(180deg); }
+.mktg-nav-role-panel {
+  display: none;
+  position: absolute; top: calc(100% + .6rem); left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  background: rgba(10,18,40,0.97);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  padding: .5rem;
+  z-index: 200;
+  /* subtle appear animation */
+  animation: roleDropIn .15s ease;
+}
+@keyframes roleDropIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.mktg-nav-role-panel--open { display: flex; flex-direction: column; }
+.mktg-nav-role-item {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .6rem .8rem; border-radius: 8px;
+  color: var(--mk-muted); text-decoration: none;
+  font-size: .85rem; font-weight: 500;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.mktg-nav-role-item:hover { background: rgba(255,255,255,.07); color: var(--mk-text); }
+.mktg-nav-role-item--active {
+  color: #06d6a0;
+  border-left: 2px solid #06d6a0;
+  padding-left: calc(.8rem - 2px);
+}
+.mktg-nav-role-item--active:hover { color: #06d6a0; background: rgba(6,214,160,.07); }
+.mktg-nav-role-icon { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+
+
 .mktg-btn-ghost {
   padding: .45rem 1rem; border-radius: 8px;
   border: 1px solid var(--mk-border); color: var(--mk-muted);

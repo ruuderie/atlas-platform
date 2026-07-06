@@ -45,6 +45,7 @@ pub fn PropertyManagerLandingPage() -> impl IntoView {
 #[component]
 fn PmNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
+    let role_open = RwSignal::new(false);
     let lang_res  = Resource::new(|| (), |_| get_current_lang());
     view! {
         <nav id="mktg-nav" class="mktg-nav">
@@ -58,8 +59,33 @@ fn PmNav() -> impl IntoView {
                     <a href="#pm-features">"Features"</a>
                     <a href="#pm-owner-portal">"Owner Portal"</a>
                     <a href="#pm-pricing">"Pricing"</a>
-                    <A href="/brokers" attr:class="mktg-nav-broker-link">"For Brokers →"</A>
-                    <A href="/vendors">"For Vendors"</A>
+                    <div class="mktg-nav-role-dropdown">
+                        <button
+                            class="mktg-nav-role-trigger"
+                            aria-expanded=move || role_open.get().to_string()
+                            aria-label="Select your role"
+                            on:click=move |e| { e.stop_propagation(); role_open.update(|o| *o = !*o); }
+                        >
+                            "For you"
+                            <span class=move || if role_open.get() { "mktg-nav-role-arrow mktg-nav-role-arrow--open" } else { "mktg-nav-role-arrow" }>
+                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
+                            </span>
+                        </button>
+                        <div class=move || if role_open.get() { "mktg-nav-role-panel mktg-nav-role-panel--open" } else { "mktg-nav-role-panel" }>
+                            <A href="/" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
+                            </A>
+                            <A href="/property-managers" attr:class="mktg-nav-role-item mktg-nav-role-item--active" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
+                            </A>
+                            <A href="/brokers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
+                            </A>
+                            <A href="/vendors" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
+                            </A>
+                        </div>
+                    </div>
                     <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
                 </div>
                 <div class="mktg-nav-actions">
@@ -449,10 +475,10 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <p>"Get discounted access during beta in exchange for real feedback. We review every \
                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta-pm">
+                <A href="/beta" attr:class="beta-callout-cta" attr:id="beta-strip-cta-pm">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
-                </a>
+                </A>
             </div>
         </div>
     }

@@ -41,6 +41,7 @@ pub fn BetaProgramPage() -> impl IntoView {
 #[component]
 fn BetaNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
+    let role_open = RwSignal::new(false);
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -54,6 +55,33 @@ fn BetaNav() -> impl IntoView {
                     <a href="#beta-apply">"Apply"</a>
                     <A href="/founding">"Lifetime plans"</A>
                     <a href="/#pricing">"Pricing"</a>
+                    <div class="mktg-nav-role-dropdown">
+                        <button
+                            class="mktg-nav-role-trigger"
+                            aria-expanded=move || role_open.get().to_string()
+                            aria-label="Explore role pages"
+                            on:click=move |e| { e.stop_propagation(); role_open.update(|o| *o = !*o); }
+                        >
+                            "For you"
+                            <span class=move || if role_open.get() { "mktg-nav-role-arrow mktg-nav-role-arrow--open" } else { "mktg-nav-role-arrow" }>
+                                <span class="material-symbols-outlined" style="font-size:15px">"expand_more"</span>
+                            </span>
+                        </button>
+                        <div class=move || if role_open.get() { "mktg-nav-role-panel mktg-nav-role-panel--open" } else { "mktg-nav-role-panel" }>
+                            <A href="/" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
+                            </A>
+                            <A href="/property-managers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
+                            </A>
+                            <A href="/brokers" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
+                            </A>
+                            <A href="/vendors" attr:class="mktg-nav-role-item" on:click=move |_| role_open.set(false)>
+                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
+                            </A>
+                        </div>
+                    </div>
                 </div>
                 <div class="mktg-nav-actions">
                     <A href="/login" attr:class="mktg-btn-signin" attr:id="beta-nav-signin">
@@ -112,7 +140,7 @@ fn BetaHero() -> impl IntoView {
 
                 <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:2rem;">
                     <a href="#beta-apply" class="mktg-btn-accent mktg-btn-lg" id="beta-hero-cta">"Apply for beta →"</a>
-                    <a href="/founding" class="mktg-btn-ghost-sm">"See founding member pricing"</a>
+                    <A href="/founding" attr:class="mktg-btn-ghost-sm">"See founding member pricing"</A>
                 </div>
 
                 <div class="mktg-stats" style="margin-top:3rem;border-top:1px solid var(--mk-border);padding-top:2rem;">
