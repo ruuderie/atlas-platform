@@ -32,6 +32,7 @@
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
 use leptos_router::hooks::use_params_map;
+use leptos_router::components::A;
 use serde::{Deserialize, Serialize};
 
 use crate::geo::{VisitorGeo, get_visitor_geo};
@@ -223,22 +224,22 @@ fn MktgNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <A href="/" attr:class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </a>
+                </A>
                 // ── Desktop links ──────────────────────────────────────────
                 <div class="mktg-nav-links">
                     <a href="#features">"Features"</a>
                     <a href="#tenant-portal">"Tenant Portal"</a>
                     <a href="#str">"Vacation Rentals"</a>
                     <a href="#app-preview">"How it works"</a>
-                    <a href="/cohost-market">"Cohost Network"</a>
+                    <A href="/cohost-market">"Cohost Network"</A>
                     <a href="#pricing">"Pricing"</a>
-                    <a href="/brokers" class="mktg-nav-broker-link">"For Brokers"</a>
-                    <a href="/property-managers">"For PMs"</a>
-                    <a href="/vendors">"For Vendors"</a>
-                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
+                    <A href="/brokers" attr:class="mktg-nav-broker-link">"For Brokers"</A>
+                    <A href="/property-managers">"For PMs"</A>
+                    <A href="/vendors">"For Vendors"</A>
+                    <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
                 </div>
                 <div class="mktg-nav-actions">
                     // ── Language switcher ──────────────────────────────────
@@ -247,10 +248,10 @@ fn MktgNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
+                    <A href="/login" attr:class="mktg-btn-signin" attr:id="nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </a>
+                    </A>
                     <a href="#waitlist-wrap" class="mktg-btn-accent">"Join waitlist"</a>
                     // ── Hamburger (mobile only) ────────────────────────────
                     <button
@@ -274,14 +275,14 @@ fn MktgNav() -> impl IntoView {
             <a href="#features"    on:click=move |_| menu_open.set(false)>"Features"</a>
             <a href="#tenant-portal" on:click=move |_| menu_open.set(false)>"Tenant Portal"</a>
             <a href="#str"         on:click=move |_| menu_open.set(false)>"Vacation Rentals"</a>
-            <a href="/cohost-market" on:click=move |_| menu_open.set(false)>"Cohost Network"</a>
+            <A href="/cohost-market" on:click=move |_| menu_open.set(false)>"Cohost Network"</A>
             <a href="#pricing"     on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/brokers"     on:click=move |_| menu_open.set(false) class="mktg-mobile-nav-broker">"For Brokers"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
-            <a href="/vendors"    on:click=move |_| menu_open.set(false)>"For Vendors"</a>
+            <A href="/brokers"     on:click=move |_| menu_open.set(false) attr:class="mktg-mobile-nav-broker">"For Brokers"</A>
+            <A href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</A>
+            <A href="/vendors"    on:click=move |_| menu_open.set(false)>"For Vendors"</A>
             <a href="#waitlist-wrap" on:click=move |_| menu_open.set(false)>"Join waitlist"</a>
-            <a href="/founding"      on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
-            <a href="/beta"          on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
+            <A href="/founding"      on:click=move |_| menu_open.set(false)>"Founding ✦"</A>
+            <A href="/beta"          on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
         </div>
     }
 }
@@ -994,7 +995,7 @@ fn MktgFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/login">"Sign in"</a>
+                    <A href="/login">"Sign in"</A>
                     <a href="#pricing">"Pricing"</a>
                     <a href="#features">"Features"</a>
                 </div>

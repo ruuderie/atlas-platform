@@ -1,5 +1,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
+use leptos_router::components::A;
 use crate::auth::FolioRole;
 
 // ── NavIcon — every icon used in Folio, compile-checked ───────────────────────
@@ -796,16 +797,16 @@ pub fn SidebarNav(
                                     let active = is_active(&path, item.route);
                                     view! {
                                         <li>
-                                            <a
+                                            <A
                                                 href=item.route.path()
-                                                class=if active { "nav-link nav-link--active" } else { "nav-link" }
-                                                aria-current=if active { Some("page") } else { None }
+                                                attr:class=if active { "nav-link nav-link--active" } else { "nav-link" }
+                                                attr:aria-current=if active { Some("page") } else { None }
                                             >
                                                 <span class="material-symbols-outlined nav-link-icon">
                                                     {item.icon.as_str()}
                                                 </span>
                                                 <span class="nav-link-label">{item.label}</span>
-                                            </a>
+                                            </A>
                                         </li>
                                     }
                                 }).collect_view()}
@@ -824,15 +825,15 @@ pub fn SidebarNav(
                                 let active = is_active(&path, item.route);
                                 view! {
                                     <li>
-                                        <a
+                                        <A
                                             href=item.route.path()
-                                            class=if active { "nav-link nav-link--active" } else { "nav-link" }
+                                            attr:class=if active { "nav-link nav-link--active" } else { "nav-link" }
                                         >
                                             <span class="material-symbols-outlined nav-link-icon">
                                                 {item.icon.as_str()}
                                             </span>
                                             <span class="nav-link-label">{item.label}</span>
-                                        </a>
+                                        </A>
                                     </li>
                                 }
                             }).collect_view()}

@@ -15,6 +15,7 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use leptos_router::components::A;
 
 // ── Spot availability (server-rendered; update + redeploy to reflect sales) ──
 
@@ -73,10 +74,10 @@ fn FoundingNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <A href="/" attr:class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </a>
+                </A>
                 <div class="mktg-nav-links">
                     <a href="#founding-landlord">"For Landlords"</a>
                     <a href="#founding-broker">"For Brokers"</a>
@@ -85,10 +86,10 @@ fn FoundingNav() -> impl IntoView {
                     <a href="#founding-faq">"FAQ"</a>
                 </div>
                 <div class="mktg-nav-actions">
-                    <a href="/login" class="mktg-btn-signin" id="founding-nav-signin">
+                    <A href="/login" attr:class="mktg-btn-signin" attr:id="founding-nav-signin">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </a>
+                    </A>
                     <a href="#founding-landlord" class="mktg-btn-accent" id="founding-nav-cta">"See founding tiers"</a>
                     <button
                         class="mktg-nav-hamburger"
@@ -627,10 +628,10 @@ fn BetaCalloutStrip() -> impl IntoView {
                     <strong>"Apply for the Folio Beta Program"</strong>
                     <p>"Get discounted access during beta in exchange for real feedback. We review every                        application — accepted members shape the product roadmap."</p>
                 </div>
-                <a href="/beta" class="beta-callout-cta" id="beta-strip-cta">
+                <A href="/beta" attr:class="beta-callout-cta" attr:id="beta-strip-cta">
                     "Apply now"
                     <span class="material-symbols-outlined" style="font-size:16px">"arrow_forward"</span>
-                </a>
+                </A>
             </div>
         </div>
     }
@@ -648,12 +649,12 @@ fn FoundingFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Founding Member Program"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/">"For Landlords"</a>
-                    <a href="/brokers">"For Brokers"</a>
-                    <a href="/property-managers">"For PMs"</a>
-                    <a href="/vendors">"For Vendors"</a>
-                    <a href="/#pricing">"Monthly pricing"</a>
-                    <a href="/login">"Sign in"</a>
+                    <A href="/">"For Landlords"</A>
+                    <A href="/brokers">"For Brokers"</A>
+                    <A href="/property-managers">"For PMs"</A>
+                    <A href="/vendors">"For Vendors"</A>
+                    <A href="/">"Monthly pricing"</A>
+                    <A href="/login">"Sign in"</A>
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

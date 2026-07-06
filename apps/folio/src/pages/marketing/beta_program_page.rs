@@ -16,6 +16,7 @@
 
 use leptos::prelude::*;
 use leptos_meta::{Link, Meta, Title};
+use leptos_router::components::A;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -43,22 +44,22 @@ fn BetaNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <A href="/" attr:class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </a>
+                </A>
                 <div class="mktg-nav-links">
                     <a href="#beta-what-you-get">"What you get"</a>
                     <a href="#beta-what-we-look-for">"Who we accept"</a>
                     <a href="#beta-apply">"Apply"</a>
-                    <a href="/founding">"Lifetime plans"</a>
+                    <A href="/founding">"Lifetime plans"</A>
                     <a href="/#pricing">"Pricing"</a>
                 </div>
                 <div class="mktg-nav-actions">
-                    <a href="/login" class="mktg-btn-signin" id="beta-nav-signin">
+                    <A href="/login" attr:class="mktg-btn-signin" attr:id="beta-nav-signin">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </a>
+                    </A>
                     <a href="#beta-apply" class="mktg-btn-accent" id="beta-nav-cta">"Apply now"</a>
                     <button
                         class="mktg-nav-hamburger"
@@ -80,7 +81,7 @@ fn BetaNav() -> impl IntoView {
             <a href="#beta-what-you-get"    on:click=move |_| menu_open.set(false)>"What you get"</a>
             <a href="#beta-what-we-look-for" on:click=move |_| menu_open.set(false)>"Who we accept"</a>
             <a href="#beta-apply"           on:click=move |_| menu_open.set(false)>"Apply"</a>
-            <a href="/founding"             on:click=move |_| menu_open.set(false)>"Lifetime plans"</a>
+            <A href="/founding"             on:click=move |_| menu_open.set(false)>"Lifetime plans"</A>
             <a href="/#pricing"             on:click=move |_| menu_open.set(false)>"Pricing"</a>
             <a href="#beta-apply" on:click=move |_| menu_open.set(false) class="mktg-btn-accent mktg-mobile-nav-cta">"Apply now"</a>
         </div>
@@ -279,7 +280,7 @@ fn BetaApplication() -> impl IntoView {
                             <p>"We review every application personally and respond within 48 hours. \
                                Check your inbox — if accepted, you'll get an invite link with \
                                instructions to set up your account."</p>
-                            <p style="color:var(--mk-muted);font-size:.85rem;">"In the meantime, you can also explore our "<a href="/founding" style="color:#06d6a0;">"lifetime founding member plans"</a>" if you'd rather lock in a price now."</p>
+                            <p style="color:var(--mk-muted);font-size:.85rem;">"In the meantime, you can also explore our "<A href="/founding" attr:style="color:#06d6a0;">"lifetime founding member plans"</A>" if you'd rather lock in a price now."</p>
                         </div>
                     }.into_any()
                 } else {
@@ -479,12 +480,12 @@ fn BetaFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Beta Program"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/">"For Landlords"</a>
-                    <a href="/brokers">"For Brokers"</a>
-                    <a href="/property-managers">"For PMs"</a>
-                    <a href="/vendors">"For Vendors"</a>
-                    <a href="/founding">"Lifetime plans"</a>
-                    <a href="/login">"Sign in"</a>
+                    <A href="/">"For Landlords"</A>
+                    <A href="/brokers">"For Brokers"</A>
+                    <A href="/property-managers">"For PMs"</A>
+                    <A href="/vendors">"For Vendors"</A>
+                    <A href="/founding">"Lifetime plans"</A>
+                    <A href="/login">"Sign in"</A>
                 </div>
                 <div class="mktg-footer-legal">
                     "© 2026 Folio · Atlas Platform · "

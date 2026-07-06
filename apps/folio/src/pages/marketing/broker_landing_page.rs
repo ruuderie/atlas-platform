@@ -21,6 +21,7 @@ use leptos_meta::{Link, Meta, Title};
 
 use crate::pages::not_found::NotFound;
 use crate::components::lang::{LanguageSwitcher, get_current_lang};
+use leptos_router::components::A;
 
 // ── Server function ───────────────────────────────────────────────────────────
 
@@ -82,20 +83,20 @@ fn BrokerNav() -> impl IntoView {
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
-                <a href="/" class="mktg-nav-logo">
+                <A href="/" attr:class="mktg-nav-logo">
                     <span class="mktg-logo-mark">"F"</span>
                     "Folio"
-                </a>
+                </A>
                 // ── Desktop links ──────────────────────────────────────────
                 <div class="mktg-nav-links">
                     <a href="#broker-features">"Features"</a>
                     <a href="#broker-portals">"Portals"</a>
                     <a href="#broker-agents">"Agent Accounts"</a>
                     <a href="#broker-pricing">"Pricing"</a>
-                    <a href="/" class="mktg-nav-broker-link">"For Landlords"</a>
-                    <a href="/property-managers">"For PMs"</a>
-                    <a href="/vendors">"For Vendors"</a>
-                    <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
+                    <A href="/" attr:class="mktg-nav-broker-link">"For Landlords"</A>
+                    <A href="/property-managers">"For PMs"</A>
+                    <A href="/vendors">"For Vendors"</A>
+                    <A href="/founding" attr:class="mktg-nav-broker-link">"Founders ✦"</A>
                 </div>
                 <div class="mktg-nav-actions">
                     <Suspense fallback=|| ()>
@@ -103,10 +104,10 @@ fn BrokerNav() -> impl IntoView {
                             <LanguageSwitcher current_lang=code/>
                         })}
                     </Suspense>
-                    <a href="/login" class="mktg-btn-signin" id="broker-nav-signin-btn">
+                    <A href="/login" attr:class="mktg-btn-signin" attr:id="broker-nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
-                    </a>
+                    </A>
                     <a href="/#waitlist-wrap" class="mktg-btn-accent">"Get early access"</a>
                     // ── Hamburger (mobile only) ────────────────────────────
                     <button
@@ -131,12 +132,12 @@ fn BrokerNav() -> impl IntoView {
             <a href="#broker-portals"  on:click=move |_| menu_open.set(false)>"Portals"</a>
             <a href="#broker-agents"   on:click=move |_| menu_open.set(false)>"Agent Accounts"</a>
             <a href="#broker-pricing"  on:click=move |_| menu_open.set(false)>"Pricing"</a>
-            <a href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</a>
-            <a href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</a>
-            <a href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</a>
+            <A href="/"                on:click=move |_| menu_open.set(false)>"For Landlords"</A>
+            <A href="/property-managers" on:click=move |_| menu_open.set(false)>"For Property Managers"</A>
+            <A href="/vendors"         on:click=move |_| menu_open.set(false)>"For Vendors"</A>
             <a href="/#waitlist-wrap"  on:click=move |_| menu_open.set(false)>"Get early access"</a>
-            <a href="/founding"        on:click=move |_| menu_open.set(false)>"Founding ✦"</a>
-            <a href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</a>
+            <A href="/founding"        on:click=move |_| menu_open.set(false)>"Founding ✦"</A>
+            <A href="/beta"            on:click=move |_| menu_open.set(false)>"Apply for Beta"</A>
         </div>
     }
 }
@@ -438,8 +439,8 @@ fn BrokerFooter() -> impl IntoView {
                     <div class="mktg-footer-tagline">"Modern Landlord OS · Broker Edition"</div>
                 </div>
                 <div class="mktg-footer-links">
-                    <a href="/">"← Main page"</a>
-                    <a href="/login">"Sign in"</a>
+                    <A href="/">"← Main page"</A>
+                    <A href="/login">"Sign in"</A>
                     <a href="#broker-pricing">"Pricing"</a>
                     <a href="#broker-features">"Features"</a>
                 </div>
