@@ -204,7 +204,7 @@ pub fn LanguageSwitcher(
             </button>
 
             // ── Dropdown ───────────────────────────────────────────
-            {move || open.get().then(|| view! {
+            <Show when=move || open.get() fallback=|| ()>
                 // Backdrop — click outside to close
                 <div
                     style="position:fixed;inset:0;z-index:199;"
@@ -239,14 +239,14 @@ pub fn LanguageSwitcher(
                             >
                                 <span style="font-size:1rem;">{flag}</span>
                                 <span style="font-size:.85rem;">{label}</span>
-                                {is_active.then(|| view! {
+                                <Show when=move || is_active fallback=|| ()>
                                     <span class="material-symbols-outlined" style="font-size:13px;color:#06d6a0;margin-left:auto;font-variation-settings:'FILL' 1">"check"</span>
-                                })}
+                                </Show>
                             </button>
                         }
                     }).collect_view()}
                 </div>
-            })}
+            </Show>
         </div>
     }
 }

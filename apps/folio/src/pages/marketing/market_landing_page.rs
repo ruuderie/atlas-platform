@@ -401,7 +401,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                     data-country=country_code
                 >
                     // ── Step 0: email entry ──────────────────────────────────
-                    {move || (step.get() == 0).then(|| view! {
+                    <Show when=move || step.get() == 0 fallback=|| ()>
                         <div class="mktg-wl-step">
                             <div class="mktg-wl-row">
                                 <input
@@ -421,9 +421,9 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                                     "Get early access →"
                                 </button>
                             </div>
-                            {move || (!err_msg.get().is_empty()).then(|| view! {
-                                <p class="mktg-wl-err">{err_msg.get()}</p>
-                            })}
+                            <Show when=move || !err_msg.get().is_empty() fallback=|| ()>
+                                <p class="mktg-wl-err">{move || err_msg.get()}</p>
+                            </Show>
                             <p class="mktg-wl-count-line">
                                 <span class="mktg-wl-count">{move || position.get()}</span>
                                 " landlords already in line for beta access"
@@ -433,10 +433,10 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                                 <a href="/login" class="mktg-wl-signin-link" id="hero-signin-link">"Sign in →"</a>
                             </p>
                         </div>
-                    })}
+                    </Show>
 
-                    // ── Step 1: details ──────────────────────────────────────
-                    {move || (step.get() == 1).then(|| view! {
+                    // ── Step 1: details ─────────────────────────────────────────
+                    <Show when=move || step.get() == 1 fallback=|| ()>
                         <div class="mktg-wl-step mktg-wl-details">
                             <div class="mktg-wl-card">
                             <p class="mktg-wl-card-head">"One more thing — takes 30 seconds"</p>
@@ -524,10 +524,10 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                                 {move || if loading.get() { "Submitting…" } else { "Secure my spot" }}
                             </button>
                         </div>
-                    })}
+                    </Show>
 
                     // ── Step 2: success ──────────────────────────────────────
-                    {move || (step.get() == 2).then(|| view! {
+                    <Show when=move || step.get() == 2 fallback=|| ()>
                         <div class="mktg-wl-success">
                             <div class="mktg-success-icon">
                                 <span class="material-symbols-outlined" style="font-size:36px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
@@ -551,11 +551,11 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                                 </div>
                             </div>
                         </div>
-                    })}
+                    </Show>
                 </div>
 
                 // Proof strip (visible only on step 0)
-                {move || (step.get() == 0).then(|| view! {
+                <Show when=move || step.get() == 0 fallback=|| ()>
                     <div class="mktg-proof-strip">
                         <span class="mktg-proof-item">
                             <span class="material-symbols-outlined" style="font-size:14px;color:#06d6a0;font-variation-settings:'FILL' 1">"science"</span>
@@ -582,7 +582,7 @@ fn MktgHero(launch_mode: LaunchMode, product_slug: String, variant_slug: String,
                             "US · Canada · Brazil"
                         </span>
                     </div>
-                })}
+                </Show>
             </div>
         </section>
     }

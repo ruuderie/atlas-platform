@@ -185,7 +185,7 @@ fn VendorHero() -> impl IntoView {
                 <div id="vendor-signup" style="margin-top:2.5rem;" class="mktg-wl-wrap">
 
                     // Step 0: pick your trade
-                    {move || (step.get() == 0).then(|| view! {
+                    <Show when=move || step.get() == 0 fallback=|| ()>
                         <div class="mktg-wl-step">
                             <div class="mktg-wl-card" style="text-align:left;">
                                 <p class="mktg-wl-card-head">"What's your trade?"</p>
@@ -222,10 +222,10 @@ fn VendorHero() -> impl IntoView {
                                 </button>
                             </div>
                         </div>
-                    })}
+                    </Show>
 
                     // Step 1: contact + service area
-                    {move || (step.get() == 1).then(|| view! {
+                    <Show when=move || step.get() == 1 fallback=|| ()>
                         <div class="mktg-wl-step mktg-wl-details">
                             <div class="mktg-wl-card" style="text-align:left;">
                                 <p class="mktg-wl-card-head">"Almost done — takes 30 seconds"</p>
@@ -279,10 +279,10 @@ fn VendorHero() -> impl IntoView {
                                 >"← Change trade"</button>
                             </div>
                         </div>
-                    })}
+                    </Show>
 
                     // Step 2: success
-                    {move || (step.get() == 2).then(|| view! {
+                    <Show when=move || step.get() == 2 fallback=|| ()>
                         <div class="mktg-wl-success">
                             <div class="mktg-success-icon">
                                 <span class="material-symbols-outlined" style="font-size:36px;color:#06d6a0;font-variation-settings:'FILL' 1">"check_circle"</span>
@@ -305,7 +305,7 @@ fn VendorHero() -> impl IntoView {
                                 </div>
                             </div>
                         </div>
-                    })}
+                    </Show>
                 </div>
 
                 <div class="mktg-stats" style="margin-top:3rem;border-top:1px solid var(--mk-border);padding-top:2rem;">
