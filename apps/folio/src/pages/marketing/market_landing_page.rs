@@ -644,12 +644,6 @@ fn MktgPersonas() -> impl IntoView {
             "Schedule management",
             "Marketplace profile",
         ]),
-        ("📊", "Owner / Investor", "purple", "Read-only portal", vec![
-            "Equity dashboard",
-            "Property statements",
-            "Distribution history",
-            "Tax & depreciation summary",
-        ]),
     ];
 
     view! {
