@@ -219,6 +219,7 @@ fn FolioLandingFull(data: LandingPageData, geo: VisitorGeo) -> impl IntoView {
 #[component]
 fn MktgNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
+    let lang_res  = Resource::new(|| (), |_| get_current_lang());
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -241,16 +242,11 @@ fn MktgNav() -> impl IntoView {
                 </div>
                 <div class="mktg-nav-actions">
                     // ── Language switcher ──────────────────────────────────
-                    {
-                        let lang_res = Resource::new(|| (), |_| get_current_lang());
-                        view! {
-                            <Suspense fallback=|| ()>
-                                {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                                    <LanguageSwitcher current_lang=code/>
-                                })}
-                            </Suspense>
-                        }
-                    }
+                    <Suspense fallback=|| ()>
+                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
+                            <LanguageSwitcher current_lang=code/>
+                        })}
+                    </Suspense>
                     <a href="/login" class="mktg-btn-signin" id="nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"

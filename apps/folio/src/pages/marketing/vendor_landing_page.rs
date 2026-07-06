@@ -44,6 +44,7 @@ pub fn VendorLandingPage() -> impl IntoView {
 #[component]
 fn VendorNav() -> impl IntoView {
     let menu_open = RwSignal::new(false);
+    let lang_res  = Resource::new(|| (), |_| get_current_lang());
     view! {
         <nav id="mktg-nav" class="mktg-nav">
             <div class="mktg-nav-inner">
@@ -64,16 +65,11 @@ fn VendorNav() -> impl IntoView {
                     <a href="/founding" class="mktg-nav-broker-link">"Founders ✦"</a>
                 </div>
                 <div class="mktg-nav-actions">
-                    {
-                        let lang_res = Resource::new(|| (), |_| get_current_lang());
-                        view! {
-                            <Suspense fallback=|| ()>
-                                {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
-                                    <LanguageSwitcher current_lang=code/>
-                                })}
-                            </Suspense>
-                        }
-                    }
+                    <Suspense fallback=|| ()>
+                        {move || lang_res.get().and_then(|r| r.ok()).map(|code| view! {
+                            <LanguageSwitcher current_lang=code/>
+                        })}
+                    </Suspense>
                     <a href="/login" class="mktg-btn-signin" id="vendor-nav-signin-btn">
                         <span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">"login"</span>
                         " Sign in"
