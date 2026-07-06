@@ -41,11 +41,24 @@ fn BrandPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
                 <div class="login-brand-tagline">
-                    "Modern Landlord OS"
+                    "Your portfolio. Finally under control."
+                </div>
+
+                <div class="login-brand-hero-copy">
+                    <p class="login-brand-headline">
+                        "Run your properties"
+                        <br/>
+                        "like the business"
+                        <br/>
+                        <em>"they actually are."</em>
+                    </p>
+                    <p class="login-brand-subline">
+                        "One platform for rent collection, leases, maintenance, vacation rentals, and compliance — built for serious operators."
+                    </p>
                 </div>
 
                 <div class="login-brand-stats">
-                    {[("34+", "PM generics"), ("7", "role portals"), ("3", "countries")].iter().map(|(v, l)| view! {
+                    {[("40%", "faster maintenance close"), ("1", "login for your whole portfolio"), ("3", "countries — US · CA · BR")].iter().map(|(v, l)| view! {
                         <div class="login-stat">
                             <div class="login-stat-val">{*v}</div>
                             <div class="login-stat-label">{*l}</div>
@@ -54,7 +67,7 @@ fn BrandPanel() -> impl IntoView {
                 </div>
 
                 <div class="login-brand-roles">
-                    {["Landlord", "Property Manager", "STR Host", "Tenant", "Vendor", "Owner"].iter().map(|r| view! {
+                    {["Landlords", "Property Managers", "STR Hosts", "Brokers", "Vendors"].iter().map(|r| view! {
                         <span class="login-role-tag">{*r}</span>
                     }).collect_view()}
                 </div>
