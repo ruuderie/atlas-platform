@@ -22,8 +22,8 @@ use leptos_meta::{Link, Meta, Title};
 #[component]
 pub fn BetaProgramPage() -> impl IntoView {
     view! {
-        <Title text="Folio Beta Program — Apply for Free Early Access"/>
-        <Meta name="description" content="Apply to join the Folio beta program. Get free access during beta in exchange for real usage and feedback. Limited spots. We review every application."/>
+        <Title text="Folio Beta Program — Apply for Discounted Early Access"/>
+        <Meta name="description" content="Apply to join the Folio beta program. Get discounted access during beta in exchange for real usage and feedback. Limited spots. We review every application."/>
         <Link rel="canonical" href="https://folio1.atlas.oply.co/beta"/>
 
         <BetaNav/>
@@ -100,24 +100,24 @@ fn BetaHero() -> impl IntoView {
                     " Beta Program · Application Required · Limited Spots"
                 </div>
                 <h1 class="mktg-hero-h1">
-                    "Free access."
+                    "Discounted access."
                     <span class="mktg-h1-accent"> " Real feedback."</span>
                 </h1>
                 <p class="mktg-hero-sub" style="max-width:580px;margin:1.5rem auto 0;">
                     "We're opening a curated beta program for active landlords, brokers, \
                      property managers, and vendors. If accepted, you get full access to Folio \
-                     at no cost during the beta period — in exchange for real usage and honest feedback."
+                     at a discounted rate during the beta period — in exchange for real usage and honest feedback."
                 </p>
 
                 <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:2rem;">
                     <a href="#beta-apply" class="mktg-btn-accent mktg-btn-lg" id="beta-hero-cta">"Apply for beta →"</a>
-                    <a href="/#pricing" class="mktg-btn-ghost-sm">"See regular pricing"</a>
+                    <a href="/founding" class="mktg-btn-ghost-sm">"See founding member pricing"</a>
                 </div>
 
                 <div class="mktg-stats" style="margin-top:3rem;border-top:1px solid var(--mk-border);padding-top:2rem;">
                     <div class="mktg-stat">
-                        <div class="mktg-stat-num">"Free"</div>
-                        <div class="mktg-stat-label">"during beta period"</div>
+                        <div class="mktg-stat-num">"Discounted"</div>
+                        <div class="mktg-stat-label">"rate during beta"</div>
                     </div>
                     <div class="mktg-stat">
                         <div class="mktg-stat-num">"Curated"</div>
@@ -140,38 +140,38 @@ fn BetaWhatYouGet() -> impl IntoView {
     view! {
         <section id="beta-what-you-get" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Beta perks"</p>
+                <p class="mktg-section-eyebrow">"Beta member perks"</p>
                 <h2 class="mktg-section-h2">"What accepted beta members get."</h2>
                 <div class="mktg-feature-grid" style="margin-top:2rem;">
                     <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"key"</span>
-                        <h3>"Full platform access, free"</h3>
-                        <p>"Complete access to your role's portal — landlord, broker, PM, or vendor — at no charge for the entire beta period."</p>
+                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"percent"</span>
+                        <h3>"Discounted access during beta"</h3>
+                        <p>"Beta members pay a reduced rate for full platform access. Not free — discounted. Real operators pay. That's what makes the feedback worth something."</p>
                     </div>
                     <div class="mktg-feature-card">
-                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"discount"</span>
-                        <h3>"Discounted price when beta ends"</h3>
-                        <p>"Beta members who continue get a permanent 30% discount off regular pricing — locked in for as long as you stay subscribed."</p>
+                        <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"key"</span>
+                        <h3>"Full platform access, day one"</h3>
+                        <p>"Complete access to your role's portal — landlord, broker, PM, or vendor — the moment you're accepted. No waiting list, no drip rollout."</p>
                     </div>
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"rocket_launch"</span>
-                        <h3>"Early access to every new feature"</h3>
-                        <p>"Beta members see new portals and features before they're public. You ship with us."</p>
+                        <h3>"First access to every new feature"</h3>
+                        <p>"Founding members see new portals and capabilities before the public. You're not waiting for the changelog — you're influencing it."</p>
                     </div>
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"groups"</span>
                         <h3>"Direct line to the product team"</h3>
-                        <p>"Your feedback shapes what we build next. We do monthly video calls with active beta members. Your use cases drive the roadmap."</p>
+                        <p>"Your feedback shapes what we build next. Monthly calls with the founding cohort. Your use cases drive the roadmap — not a ticket queue."</p>
                     </div>
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"badge"</span>
-                        <h3>"Beta Member badge"</h3>
-                        <p>"Your profile carries a permanent Beta Member badge visible across the platform. First-wave status, recognized forever."</p>
+                        <h3>"Founding Member badge"</h3>
+                        <p>"Your profile carries a permanent Founding Member badge across the platform. First-wave status, recognized forever."</p>
                     </div>
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"support_agent"</span>
                         <h3>"Priority support"</h3>
-                        <p>"Beta members get direct Slack or email access to the engineering team. You're not filing tickets into a void."</p>
+                        <p>"Founding members get direct Slack or email access to the engineering team. You're not filing tickets into a void."</p>
                     </div>
                 </div>
             </div>
@@ -215,7 +215,7 @@ fn BetaWhatWeLookFor() -> impl IntoView {
                             <li>"No active portfolio (planning to buy someday)"</li>
                             <li>"Just curious — no current business need"</li>
                             <li>"Won't have time to give feedback"</li>
-                            <li>"Looking for a free tool with no intention to pay later"</li>
+                            <li>"Looking for software with no intention to use it seriously"</li>
                         </ul>
                     </div>
                 </div>

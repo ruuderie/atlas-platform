@@ -449,7 +449,7 @@ fn BetaCalloutStrip() -> impl IntoView {
                       style="font-variation-settings:'FILL' 1">"science"</span>
                 <div class="beta-callout-text">
                     <strong>"Apply for the Folio Beta Program"</strong>
-                    <p>"Get free access during beta in exchange for real feedback. We review every \
+                    <p>"Get discounted access during beta in exchange for real feedback. We review every \
                        application — accepted members shape the product roadmap."</p>
                 </div>
                 <a href="/beta" class="beta-callout-cta" id="beta-strip-cta-pm">
