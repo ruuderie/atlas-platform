@@ -146,7 +146,7 @@ fn BetaWhatYouGet() -> impl IntoView {
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"percent"</span>
                         <h3>"Discounted access during beta"</h3>
-                        <p>"Beta members pay a reduced rate for full platform access. Not free — discounted. Real operators pay. That's what makes the feedback worth something."</p>
+                        <p>"Beta members get full platform access at a reduced rate for the entire beta period. Accepted members get priority pricing when we move to general availability."</p>
                     </div>
                     <div class="mktg-feature-card">
                         <span class="material-symbols-outlined" style="color:#06d6a0;font-variation-settings:'FILL' 1">"key"</span>
