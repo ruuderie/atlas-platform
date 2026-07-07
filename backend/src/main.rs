@@ -60,7 +60,8 @@ async fn handle_error(error: Box<dyn std::error::Error + Send + Sync>) -> (http:
 
 #[allow(dead_code)]
 fn configure_cors(network_client: &str, admin_client: &str) -> CorsLayer {
-    let is_dev = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string()) == "development";
+    let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string());
+    let is_dev = env == "development" || env == "dev";
 
     let allow_origin = if is_dev {
         // [WARNING]: DANGEROUS IN PRODUCTION

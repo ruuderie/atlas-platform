@@ -281,7 +281,8 @@ pub async fn request_magic_link(
                     .await
                     .unwrap_or(None);
 
-                let is_dev = std::env::var("ENVIRONMENT").unwrap_or_default() == "development";
+                let env = std::env::var("ENVIRONMENT").unwrap_or_default();
+                let is_dev = env == "development" || env == "dev";
                 if domain_record.is_none() && !(is_dev && (host == "localhost" || host.starts_with("127."))) {
                     tracing::warn!(
                         "Magic link request: redirect_url host '{}' not in app_domains — rejecting",

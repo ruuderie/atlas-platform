@@ -249,6 +249,8 @@ pub async fn provision_tenant(
     // include Anchor (e.g. Folio-only), fall back to the first provisioned instance.
     let mut anchor_instance_id: Option<Uuid> = None;
     let mut first_instance_id: Option<Uuid> = None;
+    let mut folio_instance_id: Option<Uuid> = None;
+    let mut network_instance_id: Option<Uuid> = None;
     for app_type in &apps {
         let instance_id = Uuid::new_v4();
         let new_instance = app_instance::ActiveModel {
@@ -286,6 +288,12 @@ pub async fn provision_tenant(
         if app_type == "anchor" {
             anchor_instance_id = Some(instance_id);
         }
+        if app_type == "property_management" {
+            folio_instance_id = Some(instance_id);
+        }
+        if app_type == "network_instance" {
+            network_instance_id = Some(instance_id);
+        }
         tracing::info!(event = "provision.app_instance.created", tenant_id = %tenant_id, app_type = %app_type, instance_id = %instance_id);
     }
 
@@ -303,6 +311,44 @@ pub async fn provision_tenant(
     };
     new_domain.insert(&txn).await.map_err(|e| internal(e))?;
     tracing::info!(event = "provision.app_domain.created", tenant_id = %tenant_id, domain = %payload.domain);
+
+    // Binds Folio FQDN if property_management app is provisioned
+    let mut created_folio_domain = None;
+    if let Some(folio_inst_id) = folio_instance_id {
+        let folio_domain = if payload.domain == "localhost" {
+            "folio.localhost".to_string()
+        } else {
+            format!("folio.{}", payload.domain)
+        };
+        let new_folio_domain = app_domain::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            app_instance_id: Set(folio_inst_id),
+            domain_name: Set(folio_domain.clone()),
+            created_at: Set(now),
+        };
+        new_folio_domain.insert(&txn).await.map_err(|e| internal(e))?;
+        tracing::info!(event = "provision.app_domain.created.folio", tenant_id = %tenant_id, domain = %folio_domain);
+        created_folio_domain = Some(folio_domain);
+    }
+
+    // Binds Network FQDN if network_instance app is provisioned
+    let mut created_network_domain = None;
+    if let Some(network_inst_id) = network_instance_id {
+        let network_domain = if payload.domain == "localhost" {
+            "network.localhost".to_string()
+        } else {
+            format!("network.{}", payload.domain)
+        };
+        let new_network_domain = app_domain::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            app_instance_id: Set(network_inst_id),
+            domain_name: Set(network_domain.clone()),
+            created_at: Set(now),
+        };
+        new_network_domain.insert(&txn).await.map_err(|e| internal(e))?;
+        tracing::info!(event = "provision.app_domain.created.network", tenant_id = %tenant_id, domain = %network_domain);
+        created_network_domain = Some(network_domain);
+    }
 
     // 3e. (CMS scaffolding + module seeding called post-commit below — idempotent)
 
@@ -379,9 +425,33 @@ pub async fn provision_tenant(
             tracing::info!(event = "provision.webauthn.seeded", domain = %payload.domain, rp_id = %rp_id);
         }
     }
+    if let Some(ref folio_domain) = created_folio_domain {
+        let origin_url = format!("https://{}", folio_domain);
+        if let Ok(url) = Url::parse(&origin_url) {
+            if let Some(host) = url.host_str() {
+                let _ = webauthn_state.registry.get_or_create(&origin_url).await;
+                tracing::info!(event = "provision.webauthn.seeded", domain = %folio_domain, rp_id = %host);
+            }
+        }
+    }
+    if let Some(ref network_domain) = created_network_domain {
+        let origin_url = format!("https://{}", network_domain);
+        if let Ok(url) = Url::parse(&origin_url) {
+            if let Some(host) = url.host_str() {
+                let _ = webauthn_state.registry.get_or_create(&origin_url).await;
+                tracing::info!(event = "provision.webauthn.seeded", domain = %network_domain, rp_id = %host);
+            }
+        }
+    }
 
     // 5d. Register new domain with the dynamic CORS registry on-the-fly
     cors_registry.add_host(&payload.domain);
+    if let Some(ref folio_domain) = created_folio_domain {
+        cors_registry.add_host(folio_domain);
+    }
+    if let Some(ref network_domain) = created_network_domain {
+        cors_registry.add_host(network_domain);
+    }
 
     // 5e. Trigger ingress and TLS automation via K8s Sidecar
     // Use the first app in the provisioned list as the primary route target.
@@ -399,6 +469,40 @@ pub async fn provision_tenant(
             error       = %e,
             message     = "Ingress provisioning failed, but tenant database setup succeeded."
         );
+    }
+
+    if let Some(ref folio_domain) = created_folio_domain {
+        if let Err(e) = ingress_provisioner.provision_domain(
+            &payload.tenant_name,
+            folio_domain,
+            "property_management",
+        ).await {
+            tracing::error!(
+                event       = "provision.ingress.failed",
+                tenant_slug = %payload.tenant_name,
+                domain      = %folio_domain,
+                app_slug    = "property_management",
+                error       = %e,
+                message     = "Ingress provisioning failed for Folio subdomain"
+            );
+        }
+    }
+
+    if let Some(ref network_domain) = created_network_domain {
+        if let Err(e) = ingress_provisioner.provision_domain(
+            &payload.tenant_name,
+            network_domain,
+            "network_instance",
+        ).await {
+            tracing::error!(
+                event       = "provision.ingress.failed",
+                tenant_slug = %payload.tenant_name,
+                domain      = %network_domain,
+                app_slug    = "network_instance",
+                error       = %e,
+                message     = "Ingress provisioning failed for Network subdomain"
+            );
+        }
     }
 
     // ── 6. Generate one-time passkey setup link + send email ───────────────────

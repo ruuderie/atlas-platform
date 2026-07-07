@@ -204,9 +204,9 @@ pub fn shell(
                 // ── CSS + WASM preloads — highest-priority fetches ──────────────
                 // Browser starts fetching these while still parsing HTML,
                 // hiding network latency behind SSR render time.
-                <link rel="preload" as_="style" href="/pkg/folio-v1.css"/>
-                <link rel="preload" as_="fetch" href="/pkg/folio-v1.wasm" crossorigin="anonymous"/>
-                <link rel="preload" as_="script" href="/pkg/folio-v1.js"/>
+                <link rel="preload" attr:as="style" href="/pkg/folio-v1.css"/>
+                <link rel="preload" attr:as="fetch" href="/pkg/folio-v1.wasm" crossorigin="anonymous"/>
+                <link rel="preload" attr:as="script" href="/pkg/folio-v1.js"/>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
                 {reload}

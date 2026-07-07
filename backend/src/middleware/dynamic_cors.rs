@@ -18,7 +18,8 @@ pub struct DynamicCorsRegistry {
 impl DynamicCorsRegistry {
     /// Create a new registry backed by the database.
     pub fn new(db: DatabaseConnection) -> Self {
-        let is_dev = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string()) == "development";
+        let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "production".to_string());
+        let is_dev = env == "development" || env == "dev";
         Self {
             db: Some(db),
             is_dev,
