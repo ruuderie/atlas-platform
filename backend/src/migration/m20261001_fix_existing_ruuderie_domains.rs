@@ -14,8 +14,8 @@ impl MigrationTrait for Migration {
                 v_folio_app_id UUID;
                 v_network_app_id UUID;
             BEGIN
-                -- Find the ruuderie / buildwithruud tenant
-                SELECT id INTO v_ruud_id FROM tenant WHERE name ILIKE '%buildwithruud%' OR name ILIKE '%ruud%' OR name ILIKE '%ruuderie%' LIMIT 1;
+                -- Find the ruuderie tenant
+                SELECT id INTO v_ruud_id FROM tenant WHERE name = 'ruuderie' LIMIT 1;
                 
                 IF v_ruud_id IS NOT NULL THEN
                     -- Find property_management app instance
