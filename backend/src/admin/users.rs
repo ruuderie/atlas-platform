@@ -126,8 +126,27 @@ async fn dispatch_invite_email(
     };
 
     // ── 2. Resolve landing URL ─────────────────────────────────────────────
-    let frontend_url = target_app_url
-        .map(|s| s.to_string())
+    let mut resolved_url = target_app_url
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.to_string());
+
+    if resolved_url.is_none() {
+        use crate::entities::{platform_invite, app_domain};
+        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait};
+        if let Ok(Some(invite)) = platform_invite::Entity::find_by_id(invite_id).one(db).await {
+            if let Some(instance_id) = invite.app_instance_id {
+                if let Ok(Some(domain_record)) = app_domain::Entity::find()
+                    .filter(app_domain::Column::AppInstanceId.eq(instance_id))
+                    .one(db)
+                    .await
+                {
+                    resolved_url = Some(format!("https://{}", domain_record.domain_name));
+                }
+            }
+        }
+    }
+
+    let frontend_url = resolved_url
         .unwrap_or_else(|| env::var("FRONTEND_URL")
             .unwrap_or_else(|_| "https://network.dev.atlas.oply.co".to_string()));
     let magic_link_url = format!("{}/magic-login?token={}", frontend_url, token);
