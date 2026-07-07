@@ -281,3 +281,35 @@ When adding a new route to `app.rs`, ask:
 2. **Does the page content differ based on auth state?** → Use `HomeDispatch` pattern (local Resource + `<Suspense>`).
 3. **Is this behind a role guard?** → Use `role_shell_view()` or a `<ParentRoute>` with a shell that creates its own Resource.
 4. **Never** add `provide_context(session)` to `App` or any parent component visible to public routes.
+
+### 5.6 Optimizing Active Sessions with Caching (July 2026)
+
+Even though session checks are scoped to authenticated routes, verifying the session on every page load (or nested route mount) can still create unnecessary overhead:
+1. **Server-side (SSR)**: `check_session` triggers a network HTTP `GET /api/folio/me` call to the backend, adding 150-300ms of backend round-trip latency directly to the SSR response time.
+2. **Client-side (WASM)**: Switching between shells or triggers of `get_session` client-side causes the Leptos Router to trigger client-side network fetches to `/api/CheckSession`.
+
+To keep page response sub-millisecond, a **two-layer caching strategy** is implemented inside `apps/folio/src/auth.rs` using the `get_session()` wrapper:
+
+#### 1. Layer 1: Client-Side Cache (WASM / Browser)
+- Keyed on the WASM instance's thread-local storage (`CACHED_SESSION`).
+- **TTL**: 15 seconds.
+- **Benefit**: If a user navigates between different layouts/shells client-side, the session verification resolves instantly (0ms) without triggering a client-side network request to the Axum server.
+
+#### 2. Layer 2: Server-Side Cache (SSR / Axum)
+- Handled via a bounded in-memory `moka` cache (`SERVER_SESSION_CACHE`) keyed on the session bearer token.
+- **TTL**: 30 seconds.
+- **Benefit**: Resolves subsequent server-rendered nested page loads or multiple resource reads in a single paint cycle instantly from memory, avoiding the network round-trip to `/api/folio/me` on the backend.
+
+#### Usage Pattern
+Always call `get_session()` inside resources rather than `check_session()` directly:
+
+```rust
+// ✅ CORRECT: automatically uses the client/server caching policy
+use crate::auth::get_session;
+let session = Resource::new(|| (), |_| get_session());
+
+// ❌ WRONG: bypasses caching and hits the network every time
+use crate::auth::check_session;
+let session = Resource::new(|| (), |_| check_session());
+```
+

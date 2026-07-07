@@ -392,12 +392,12 @@ fn BrokerShell() -> impl IntoView {
 
 /// Shared guard logic for all role shells.
 ///
-/// Creates its own `check_session` Resource locally rather than reading
+/// Creates its own `get_session` Resource locally rather than reading
 /// from context. This is intentional — see App doc comment for the
 /// session strategy.
 fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sync + 'static) -> impl IntoView {
-    use crate::auth::check_session;
-    let session = Resource::new(|| (), |_| check_session());
+    use crate::auth::get_session;
+    let session = Resource::new(|| (), |_| get_session());
 
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>
@@ -424,8 +424,8 @@ fn role_shell_view(required: FolioRole, layout: impl Fn() -> AnyView + Send + Sy
 fn HomeDispatch() -> impl IntoView {
     // Creates its own session resource — not shared from App context.
     // See App doc comment for the session strategy.
-    use crate::auth::check_session;
-    let session = Resource::new(|| (), |_| check_session());
+    use crate::auth::get_session;
+    let session = Resource::new(|| (), |_| get_session());
 
     view! {
         <Suspense fallback=|| view! { <FullPageLoader/> }>

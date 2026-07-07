@@ -88,6 +88,78 @@ fn default_wizard_total() -> usize { 7 }
 
 // ── Server functions ──────────────────────────────────────────────────────────
 
+#[cfg(feature = "ssr")]
+static SERVER_SESSION_CACHE: std::sync::OnceLock<moka::future::Cache<String, SessionInfo>> = std::sync::OnceLock::new();
+
+#[cfg(feature = "ssr")]
+fn get_server_session_cache() -> moka::future::Cache<String, SessionInfo> {
+    SERVER_SESSION_CACHE.get_or_init(|| {
+        moka::future::Cache::builder()
+            .max_capacity(2000)
+            .time_to_live(std::time::Duration::from_secs(30)) // 30 seconds TTL
+            .build()
+    }).clone()
+}
+
+#[cfg(not(feature = "ssr"))]
+mod client_cache {
+    use super::SessionInfo;
+    use std::cell::RefCell;
+
+    thread_local! {
+        static CACHED_SESSION: RefCell<Option<(f64, SessionInfo)>> = const { RefCell::new(None) };
+    }
+
+    const TTL_MS: f64 = 15_000.0; // 15 seconds TTL on client
+
+    pub fn get() -> Option<SessionInfo> {
+        CACHED_SESSION.with(|cache| {
+            if let Some((timestamp, ref info)) = *cache.borrow() {
+                let now = js_sys::Date::now();
+                if now - timestamp < TTL_MS {
+                    return Some(info.clone());
+                }
+            }
+            None
+        })
+    }
+
+    pub fn set(info: SessionInfo) {
+        CACHED_SESSION.with(|cache| {
+            *cache.borrow_mut() = Some((js_sys::Date::now(), info));
+        });
+    }
+
+    pub fn clear() {
+        CACHED_SESSION.with(|cache| {
+            *cache.borrow_mut() = None;
+        });
+    }
+}
+
+/// Client/Server caching wrapper around check_session.
+/// Use this instead of check_session() directly in components.
+pub async fn get_session() -> Result<SessionInfo, ServerFnError> {
+    #[cfg(not(feature = "ssr"))]
+    {
+        if let Some(info) = client_cache::get() {
+            return Ok(info);
+        }
+    }
+
+    let res = check_session().await;
+
+    #[cfg(not(feature = "ssr"))]
+    {
+        match &res {
+            Ok(info) => client_cache::set(info.clone()),
+            Err(_) => client_cache::clear(),
+        }
+    }
+
+    res
+}
+
 /// Validate the current session and return the user's Folio identity.
 /// Calls `GET /api/folio/me` on the Atlas backend.
 #[server(CheckSession, "/api")]
@@ -99,15 +171,29 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
     let token = extract_bearer_token(&headers)
         .ok_or_else(|| ServerFnError::new("No session token"))?;
 
-    let info = crate::atlas_client::authenticated_get::<SessionInfo>(
-        "/api/folio/me",
-        &token,
-        None,
-    )
-    .await
-    .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
+    #[cfg(feature = "ssr")]
+    {
+        let cache = get_server_session_cache();
+        if let Some(info) = cache.get(&token).await {
+            return Ok(info);
+        }
 
-    Ok(info)
+        let info = crate::atlas_client::authenticated_get::<SessionInfo>(
+            "/api/folio/me",
+            &token,
+            None,
+        )
+        .await
+        .map_err(|e| ServerFnError::new(format!("Session check failed: {e}")))?;
+
+        cache.insert(token, info.clone()).await;
+        Ok(info)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = token;
+        Err(ServerFnError::new("Client fallback"))
+    }
 }
 
 /// Request a magic-link login email.
