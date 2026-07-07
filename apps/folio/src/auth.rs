@@ -199,16 +199,42 @@ pub async fn check_session() -> Result<SessionInfo, ServerFnError> {
 /// Request a magic-link login email.
 #[server(RequestMagicLink, "/api")]
 pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
-    let payload = serde_json::json!({ "email": email });
-    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/auth/magic-link/request",
-        "",
-        None,
-        &payload,
-    )
-    .await
-    .map(|_| ())
-    .map_err(ServerFnError::new)
+    #[cfg(feature = "ssr")]
+    {
+        use axum::http::HeaderMap;
+        use leptos_axum::extract;
+
+        let headers = extract::<HeaderMap>().await.unwrap_or_default();
+        let host = headers
+            .get("host")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("localhost");
+        let scheme = if host.starts_with("localhost") || host.starts_with("127.") {
+            "http"
+        } else {
+            "https"
+        };
+        let redirect_url = format!("{}://{}/verify", scheme, host);
+
+        let payload = serde_json::json!({
+            "email": email,
+            "redirect_url": redirect_url,
+        });
+        crate::atlas_client::authenticated_post::<_, serde_json::Value>(
+            "/api/auth/magic-link/request",
+            "",
+            None,
+            &payload,
+        )
+        .await
+        .map(|_| ())
+        .map_err(ServerFnError::new)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = email;
+        Ok(())
+    }
 }
 
 /// Verify a magic-link token, return session info (backend sets cookie).

@@ -292,19 +292,23 @@ pub async fn request_magic_link(
                 }
 
                 let mut tenant_name = None;
+                let mut is_folio = false;
                 let mut resolved_app_instance_id = app_instance_id.clone();
                 let mut resolved_tenant_id = Uuid::nil();
                 if let Some(domain) = domain_record {
                     resolved_app_instance_id = domain.app_instance_id.to_string();
                     if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
                         resolved_tenant_id = app_inst.tenant_id;
+                        if app_inst.app_type.eq_ignore_ascii_case("folio") {
+                            is_folio = true;
+                        }
                         if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
                             tenant_name = Some(tenant.name);
                         }
                     }
                 }
 
-                Some((url_str.clone(), tenant_name, resolved_app_instance_id, resolved_tenant_id))
+                Some((url_str.clone(), tenant_name, resolved_app_instance_id, resolved_tenant_id, is_folio))
             }
             Err(e) => {
                 tracing::warn!("Magic link request: invalid redirect_url '{}': {:?}", url_str, e);
@@ -316,9 +320,9 @@ pub async fn request_magic_link(
         None
     };
 
-    let (validated_redirect_url, tenant_name_opt, final_app_instance_id, tenant_id) = match validated_redirect_url_data {
-        Some((url, name_opt, app_id, t_id)) => (Some(url), name_opt, app_id, t_id),
-        None => (None, None, app_instance_id, Uuid::nil()),
+    let (validated_redirect_url, tenant_name_opt, final_app_instance_id, tenant_id, is_folio) = match validated_redirect_url_data {
+        Some((url, name_opt, app_id, t_id, folio)) => (Some(url), name_opt, app_id, t_id, folio),
+        None => (None, None, app_instance_id, Uuid::nil(), false),
     };
 
     if let Some(user_mod) = user_model {
@@ -492,7 +496,11 @@ pub async fn request_magic_link(
             }
         };
 
-        let brand_name = tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string());
+        let brand_name = if is_folio {
+            "Folio".to_string()
+        } else {
+            tenant_name_opt.unwrap_or_else(|| "Atlas Platform".to_string())
+        };
 
         let magic_link_url = match validated_redirect_url {
             Some(ref base) => {
@@ -512,14 +520,28 @@ pub async fn request_magic_link(
         let email_payload = crate::handlers::communications::SendEmailPayload {
             tenant_id,
             to_email: user_mod.email.clone(),
-            subject: format!("Sign in to {}", brand_name),
-            body_html: format!(
-                "<h2>Sign in to {1}</h2>\
-                <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
-                <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
-                <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
-                magic_link_url, brand_name
-            ),
+            subject: if is_folio {
+                "Your Folio Magic Link".to_string()
+            } else {
+                format!("Sign in to {}", brand_name)
+            },
+            body_html: if is_folio {
+                format!(
+                    "<h2>Sign in to Folio</h2>\
+                    <p>Click the link below to securely log into your Folio account. This link expires in 15 minutes.</p>\
+                    <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;color:#06d6a0;text-decoration:none;\">Log In Now</a>\
+                    <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, you can safely ignore this email.</p>",
+                    magic_link_url
+                )
+            } else {
+                format!(
+                    "<h2>Sign in to {1}</h2>\
+                    <p>Click the link below to log in securely. This link expires in 15 minutes.</p>\
+                    <br><a href=\"{0}\" style=\"font-size:16px;font-weight:bold;\">Log In Now</a>\
+                    <br><br><p style=\"font-size:12px;color:#666;\">If you did not request this, ignore this email.</p>",
+                    magic_link_url, brand_name
+                )
+            },
             attachments: Vec::new(),
         };
 
