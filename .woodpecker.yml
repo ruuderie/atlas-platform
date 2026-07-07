@@ -37,7 +37,7 @@ steps:
   # Expected improvement: From ~10-15 min → 3-6 min on subsequent runs
   # ═══════════════════════════════════════════════════════════════════════════
   test_workspace:
-    image: rust:1.91-slim   # Upgraded to support aws-smithy-* and time crates (require 1.88+)
+    image: rust:1.94-slim   # Upgraded to support aws-smithy-* and time crates (require 1.94.1+)
     environment:
       TEST_DATABASE_URL: postgres://postgres:postgres@database:5432/oplydbtest
       CARGO_INCREMENTAL: "1"
@@ -141,7 +141,7 @@ steps:
   # WASM compilation (wasm32-unknown-unknown) is done inside the Dockerfile;
   # here we only check native SSR compilation which covers 99% of errors.
   check_apps_compile:
-    image: rust:1.91-slim
+    image: rust:1.94-slim
     environment:
       CARGO_INCREMENTAL: "1"
       CARGO_TERM_COLOR: always
