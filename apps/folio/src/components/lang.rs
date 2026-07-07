@@ -167,7 +167,7 @@ pub async fn set_language(lang_code: String) -> Result<(), ServerFnError> {
 /// Compact globe dropdown for the marketing nav.
 ///
 /// Usage in any nav:
-/// ```rust
+/// ```ignore
 /// <LanguageSwitcher current_lang="en".to_string() />
 /// ```
 ///
