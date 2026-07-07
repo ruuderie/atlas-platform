@@ -67,6 +67,8 @@ ssr = [
     "dep:leptos_axum",
     "leptos/ssr",
     "shared-ui/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
     "dep:reqwest",
     "dep:dotenvy",
     "dep:tower-http",
