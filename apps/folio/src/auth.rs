@@ -256,7 +256,7 @@ pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnErr
     #[cfg(feature = "ssr")]
     {
         use leptos_axum::ResponseOptions;
-        let resp_opts = leptos::use_context::<ResponseOptions>();
+        let resp_opts = use_context::<ResponseOptions>();
 
         let payload = serde_json::json!({ "token": token });
 
