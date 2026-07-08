@@ -243,8 +243,23 @@ async fn verify_handler(
         return error_html(title, detail);
     }
 
-    // Extract Set-Cookie from backend response
-    let cookie_val = backend_res
+    // Extract the session token from `Set-Cookie: session=TOKEN; ...`
+    // The verify endpoint returns it here; we need it both to forward to the
+    // browser AND to call /api/folio/me for routing info.
+    let session_token = backend_res
+        .headers()
+        .get_all(reqwest::header::SET_COOKIE)
+        .iter()
+        .find_map(|v| {
+            let s = v.to_str().ok()?;
+            s.split(';')
+                .next()
+                .and_then(|kv| kv.trim().strip_prefix("session="))
+                .map(|t| t.to_string())
+        });
+
+    // Rebuild the full Set-Cookie string to forward to the browser
+    let cookie_header = backend_res
         .headers()
         .get_all(reqwest::header::SET_COOKIE)
         .iter()
@@ -253,16 +268,46 @@ async fn verify_handler(
             if s.contains("session=") { Some(s.to_string()) } else { None }
         });
 
-    // Parse the SessionInfo body to decide where to redirect
+    let token = match session_token {
+        Some(t) => t,
+        None => {
+            return error_html(
+                "Login link invalid or expired.",
+                "No session cookie after verify. Please try again.",
+            );
+        }
+    };
+
+    // Second call: GET /api/folio/me with the session token.
+    // This is the Folio-specific endpoint that returns has_passkey and
+    // onboarding_complete — the verify endpoint does not include these fields.
     #[derive(serde::Deserialize)]
-    struct SessionResp {
+    struct FolioMe {
         has_passkey: bool,
         onboarding_complete: bool,
     }
 
-    let session: SessionResp = match backend_res.json().await {
-        Ok(s) => s,
-        Err(_) => {
+    let me_url = format!("{}/api/folio/me", atlas_url);
+    let me_res = match client
+        .get(&me_url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("[folio] verify: /api/folio/me unreachable: {e}");
+            return error_html(
+                "Login link invalid or expired.",
+                "Unable to reach the authentication server. Please try again.",
+            );
+        }
+    };
+
+    let me: FolioMe = match me_res.json().await {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("[folio] verify: /api/folio/me parse error: {e}");
             return error_html(
                 "Login link invalid or expired.",
                 "Unexpected response from the authentication server.",
@@ -270,20 +315,20 @@ async fn verify_handler(
         }
     };
 
-    let dest = if !session.has_passkey {
+    let dest = if !me.has_passkey {
         "/auth/passkey-setup"
-    } else if !session.onboarding_complete {
+    } else if !me.onboarding_complete {
         "/onboarding"
     } else {
         "/dashboard"
     };
 
-    // Build redirect with the session cookie attached
+    // Build redirect with the session cookie attached so the browser is authenticated
     let mut builder = Response::builder()
         .status(StatusCode::FOUND)
         .header(header::LOCATION, dest);
 
-    if let Some(cookie) = cookie_val {
+    if let Some(cookie) = cookie_header {
         if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
             builder = builder.header(header::SET_COOKIE, val);
         }
