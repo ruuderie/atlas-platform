@@ -48,7 +48,7 @@ pub async fn get_onboarding_draft() -> Result<OnboardingDraft, server_fn::error:
     use leptos_axum::extract;
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_bearer_token(&headers)
+    let token = crate::auth::extract_bearer_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
 
     crate::atlas_client::authenticated_get::<OnboardingDraft>(
@@ -76,7 +76,7 @@ pub async fn submit_onboarding(
     use leptos_axum::extract;
 
     let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let token = extract_bearer_token(&headers)
+    let token = crate::auth::extract_bearer_token(&headers)
         .ok_or_else(|| server_fn::error::ServerFnError::new("No session token"))?;
 
     let payload = serde_json::json!({
@@ -99,25 +99,9 @@ pub async fn submit_onboarding(
     .map_err(server_fn::error::ServerFnError::new)
 }
 
-#[cfg(feature = "ssr")]
-fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer ").map(str::to_string))
-        .or_else(|| {
-            headers
-                .get(axum::http::header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|c| {
-                    c.split(';').find_map(|part| {
-                        part.trim()
-                            .strip_prefix("atlas_session=")
-                            .map(str::to_string)
-                    })
-                })
-        })
-}
+// Local extract_bearer_token removed — use crate::auth::extract_bearer_token instead.
+// See apps/folio/src/auth.rs for the canonical implementation that handles both
+// 'session=' and 'atlas_session=' cookie names.
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 

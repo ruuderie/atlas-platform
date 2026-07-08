@@ -85,6 +85,55 @@ pub struct SessionInfo {
 
 fn default_wizard_total() -> usize { 7 }
 
+// ── Shared SSR token extractor ────────────────────────────────────────────────
+//
+// Single authoritative function for extracting the session token from an
+// incoming request inside a Leptos server function.
+//
+// Accepts tokens in priority order:
+//   1. `Authorization: Bearer <TOKEN>` header
+//   2. `session=<TOKEN>` cookie  (set by auth_frontend.rs / verify_handler)
+//   3. `atlas_session=<TOKEN>` cookie  (legacy name — kept for compatibility)
+//
+// The `session=` cookie is the canonical name used by all backend handlers
+// (sessions.rs, auth_frontend.rs). The `atlas_session=` fallback exists because
+// several server functions were written before the naming was standardised.
+// Both are accepted here so neither old nor new sessions fail.
+//
+// Usage inside a #[server] function:
+//   let headers = extract::<HeaderMap>().await.unwrap_or_default();
+//   let token = crate::auth::extract_bearer_token(&headers)
+//       .ok_or_else(|| ServerFnError::new("No session token"))?;
+#[cfg(feature = "ssr")]
+pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    // 1. Authorization: Bearer
+    if let Some(token) = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer ").map(str::to_string))
+    {
+        return Some(token);
+    }
+
+    // 2. Cookie header — try both known names
+    let cookie_str = headers
+        .get(axum::http::header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    for part in cookie_str.split(';') {
+        let part = part.trim();
+        if let Some(t) = part.strip_prefix("session=") {
+            return Some(t.to_string());
+        }
+        if let Some(t) = part.strip_prefix("atlas_session=") {
+            return Some(t.to_string());
+        }
+    }
+
+    None
+}
+
 
 // ── Server functions ──────────────────────────────────────────────────────────
 

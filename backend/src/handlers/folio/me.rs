@@ -226,21 +226,31 @@ pub async fn get_folio_me(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn extract_bearer(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers
+    // 1. Authorization: Bearer header
+    if let Some(token) = headers
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
         .map(|s| s.to_string())
-        .or_else(|| {
-            headers
-                .get(axum::http::header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|cookies| {
-                    cookies.split(';').find_map(|part| {
-                        part.trim()
-                            .strip_prefix("atlas_session=")
-                            .map(|t| t.to_string())
-                    })
-                })
-        })
+    {
+        return Some(token);
+    }
+
+    // 2. Cookie — accept both 'session=' (canonical) and 'atlas_session=' (legacy)
+    let cookie_str = headers
+        .get(axum::http::header::COOKIE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    for part in cookie_str.split(';') {
+        let part = part.trim();
+        if let Some(t) = part.strip_prefix("session=") {
+            return Some(t.to_string());
+        }
+        if let Some(t) = part.strip_prefix("atlas_session=") {
+            return Some(t.to_string());
+        }
+    }
+
+    None
 }
