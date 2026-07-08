@@ -6,7 +6,7 @@ use leptos_router::path;
 use crate::auth::{FolioRole, SessionInfo};
 use crate::pages::not_found::NotFound;
 use crate::pages::login::Login;
-use crate::pages::verify::Verify;
+
 use crate::pages::marketing::market_landing_page::MarketLandingPage;
 use crate::pages::marketing::broker_landing_page::BrokerLandingPage;
 use crate::pages::marketing::property_manager_landing_page::PropertyManagerLandingPage;
@@ -168,7 +168,8 @@ pub fn App() -> impl IntoView {
             <Routes fallback=|| view! { <NotFound/> }>
                 // ── Public ────────────────────────────────────────────────────
                 <Route path=path!("/login")              view=Login/>
-                <Route path=path!("/verify")             view=Verify/>
+                // /verify is handled by the SSR-only Axum handler in main.rs — not a Leptos route.
+
                 // Auth + first-run — no layout chrome
                 <Route path=path!("/auth/passkey-setup") view=PasskeySetup/>
                 <Route path=path!("/onboarding")         view=OnboardingWizard/>

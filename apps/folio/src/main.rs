@@ -170,11 +170,8 @@ pub fn shell(
 ///   2. Reads the `Set-Cookie: session=...` from the backend response
 ///   3. Returns an HTTP 302 to the right destination with the cookie attached
 ///
-/// This fixes the "No session cookie after verify" bug: when Leptos handles
-/// /verify as a client-side Resource the SET_COOKIE is lost because the
-/// ResponseOptions write only affects the SSR render pass, not the subsequent
-/// client-side server fn fetch. By intercepting /verify here, before leptos_routes,
-/// the cookie is set directly on the browser-visible HTTP response.
+/// Error states are returned as inline HTML — /verify is NOT a Leptos route
+/// (removing it fixed the "Overlapping method route" startup panic).
 #[cfg(feature = "ssr")]
 async fn verify_handler(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
@@ -182,11 +179,35 @@ async fn verify_handler(
     use axum::http::StatusCode;
     use axum::response::Response;
 
+    /// Render a minimal error HTML page for the verify flow.
+    fn error_html(title: &str, message: &str) -> Response {
+        let body = format!(
+            r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Login link error — Folio</title>
+<link rel="stylesheet" href="/pkg/folio-v1.css">
+</head><body>
+<div class="verify-page">
+  <div class="verify-error">
+    <p><strong>{title}</strong></p>
+    <p class="error-detail">{message}</p>
+    <a href="/login">Try again →</a>
+  </div>
+</div></body></html>"#,
+        );
+        Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+            .body(axum::body::Body::from(body))
+            .unwrap()
+    }
+
     let token = match params.get("token") {
         Some(t) if !t.is_empty() => t.clone(),
         _ => {
-            // No token → redirect to /verify with error flag so Leptos shows UI
-            return axum::response::Redirect::to("/verify?error=missing_token").into_response();
+            return error_html(
+                "Login link invalid or expired.",
+                "No token found in the link. Please request a new one.",
+            );
         }
     };
 
@@ -204,17 +225,22 @@ async fn verify_handler(
         Ok(r) => r,
         Err(e) => {
             eprintln!("[folio] verify: backend unreachable: {e}");
-            return axum::response::Redirect::to("/verify?error=backend_error").into_response();
+            return error_html(
+                "Login link invalid or expired.",
+                "Unable to reach the authentication server. Please try again.",
+            );
         }
     };
 
     if !backend_res.status().is_success() {
-        // Pull the structured error code if present so the Leptos UI can show
-        // contextual messages (token_expired, token_already_used, etc.)
         let body = backend_res.text().await.unwrap_or_default();
-        let code = body.strip_prefix("error_code:").unwrap_or("invalid");
-        let dest = format!("/verify?error={}", code.replace(' ', "+"));
-        return axum::response::Redirect::to(&dest).into_response();
+        let (title, detail) = match body.strip_prefix("error_code:").unwrap_or("invalid") {
+            "token_expired"      => ("Login link expired.", "This link is no longer valid. Please request a new one."),
+            "token_already_used" => ("Login link already used.", "Each link can only be used once. Please request a new one."),
+            "token_not_found"    => ("Login link invalid or expired.", "This link could not be found. Please request a new one."),
+            _                    => ("Login link invalid or expired.", "error running server function"),
+        };
+        return error_html(title, detail);
     }
 
     // Extract Set-Cookie from backend response
@@ -237,7 +263,10 @@ async fn verify_handler(
     let session: SessionResp = match backend_res.json().await {
         Ok(s) => s,
         Err(_) => {
-            return axum::response::Redirect::to("/verify?error=parse_error").into_response();
+            return error_html(
+                "Login link invalid or expired.",
+                "Unexpected response from the authentication server.",
+            );
         }
     };
 
@@ -260,7 +289,7 @@ async fn verify_handler(
         }
     }
 
-    builder.body(axum::body::Body::empty()).unwrap().into_response()
+    builder.body(axum::body::Body::empty()).unwrap()
 }
 
 #[cfg(not(feature = "ssr"))]
