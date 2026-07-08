@@ -130,6 +130,8 @@ pub fn shell(
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="robots" content="noindex, nofollow"/>
                 <title>"Folio – Property Management"</title>
+                // Inline SVG favicon — prevents 404 noise; no separate file needed
+                <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0f1a'/%3E%3Cpath d='M16 6 L27 14 L27 26 L19 26 L19 20 L13 20 L13 26 L5 26 L5 14 Z' fill='%2306d6a0'/%3E%3C/svg%3E"/>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
                 {reload}
