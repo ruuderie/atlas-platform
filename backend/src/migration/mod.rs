@@ -311,6 +311,7 @@ pub mod m20260929_folio_pm_product_seed;        // Folio PM Edition: register fo
 pub mod m20260930_folio_vendor_product_seed;    // Folio Vendor Marketplace: register folio-vendor product + page template
 pub mod m20260931_app_pages_locale;             // i18n: add locale column (en/pt/es/fr) to app_pages + compound index
 pub mod m20261001_fix_existing_ruuderie_domains;
+pub mod m20261002_seed_ruuderie_folio_domain;  // Create ruuderie tenant+app_instance+domain if missing
 
 pub struct Migrator;
 
@@ -589,6 +590,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260930_folio_vendor_product_seed::Migration),
             Box::new(m20260931_app_pages_locale::Migration),
             Box::new(m20261001_fix_existing_ruuderie_domains::Migration),
+            Box::new(m20261002_seed_ruuderie_folio_domain::Migration),
 
         ];
 
