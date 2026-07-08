@@ -243,23 +243,38 @@ fn MktgNav() -> impl IntoView {
                         <div class="mktg-nav-role-panel">
                             <a href="/" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
                                 <span class="mktg-nav-role-icon">"🏠"</span>
-                                "For Landlords"
+                                <span class="mktg-nav-role-label">
+                                    "For Landlords"
+                                    <span class="mktg-nav-role-sub">"Own your properties"</span>
+                                </span>
                             </a>
                             <a href="/property-managers" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🏢"</span>
-                                "For Property Managers"
+                                <span class="mktg-nav-role-label">
+                                    "For Property Managers"
+                                    <span class="mktg-nav-role-sub">"Manage for clients"</span>
+                                </span>
                             </a>
                             <a href="/brokers" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🤝"</span>
-                                "For Brokers"
+                                <span class="mktg-nav-role-label">
+                                    "For Brokers"
+                                    <span class="mktg-nav-role-sub">"Represent buyers & sellers"</span>
+                                </span>
                             </a>
                             <a href="/vendors" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🔧"</span>
-                                "For Vendors"
+                                <span class="mktg-nav-role-label">
+                                    "For Vendors"
+                                    <span class="mktg-nav-role-sub">"Offer services"</span>
+                                </span>
                             </a>
                             <a href="/cohost-market" class="mktg-nav-role-item" rel="external">
                                 <span class="mktg-nav-role-icon">"🌐"</span>
-                                "Cohost Network"
+                                <span class="mktg-nav-role-label">
+                                    "Cohost Network"
+                                    <span class="mktg-nav-role-sub">"Co-manage STRs"</span>
+                                </span>
                             </a>
                         </div>
                     </details>
@@ -887,9 +902,9 @@ fn MktgPricing() -> impl IntoView {
     view! {
         <section id="pricing" class="mktg-section">
             <div class="mktg-section-inner">
-                <p class="mktg-section-eyebrow">"Pricing"</p>
+                <p class="mktg-section-eyebrow">"For landlords · your own properties"</p>
                 <h2 class="mktg-section-h2">"Simple. Transparent. No surprises."</h2>
-                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Start free. Pay as you grow. Every plan includes the tenant portal and maintenance hub — no hidden add-ons."</p>
+                <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Start free. Pay as you grow. Built for landlords managing their own portfolio — no owner-client billing, no trust accounting."</p>
                 <div class="mktg-pricing-grid">
 
                     // ── Free — try the product ─────────────────────────────
@@ -954,12 +969,18 @@ fn MktgPricing() -> impl IntoView {
                 </div>
 
                 // ── Property Manager callout ────────────────────────────────
+                // Bright-line trigger: "charging a management fee" is the
+                // clearest signal that distinguishes a commercial PM from a
+                // solo landlord. This steers mis-matched visitors before they
+                // sign up on the wrong plan.
                 <div class="mktg-pricing-pm-callout">
                     <span class="material-symbols-outlined" style="font-size:20px;color:#06d6a0">"business_center"</span>
                     <div>
-                        <strong>"Managing properties for clients?"</strong>
-                        " Property managers and PMCs get a dedicated plan with owner portals, trust accounting, and multi-portfolio billing. "
-                        <a href="/property-managers" rel="external">"See Property Manager pricing →"</a>
+                        <strong>"Charging clients a management fee?"</strong>
+                        " You're a property manager, not a landlord — and you're on the wrong page. \
+                          Folio PM includes owner portals, trust accounting, and multi-portfolio billing \
+                          built for businesses that manage properties on behalf of clients. "
+                        <a href="/property-managers" rel="external">"See Property Manager plans →"</a>
                     </div>
                 </div>
             </div>

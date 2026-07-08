@@ -67,16 +67,32 @@ fn PmNav() -> impl IntoView {
                         </summary>
                         <div class="mktg-nav-role-panel">
                             <a href="/" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🏠"</span>"For Landlords"
+                                <span class="mktg-nav-role-icon">"🏠"</span>
+                                <span class="mktg-nav-role-label">
+                                    "For Landlords"
+                                    <span class="mktg-nav-role-sub">"Own your properties"</span>
+                                </span>
                             </a>
                             <a href="/property-managers" class="mktg-nav-role-item mktg-nav-role-item--active" rel="external">
-                                <span class="mktg-nav-role-icon">"🏢"</span>"For Property Managers"
+                                <span class="mktg-nav-role-icon">"🏢"</span>
+                                <span class="mktg-nav-role-label">
+                                    "For Property Managers"
+                                    <span class="mktg-nav-role-sub">"Manage for clients"</span>
+                                </span>
                             </a>
                             <a href="/brokers" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🤝"</span>"For Brokers"
+                                <span class="mktg-nav-role-icon">"🤝"</span>
+                                <span class="mktg-nav-role-label">
+                                    "For Brokers"
+                                    <span class="mktg-nav-role-sub">"Represent buyers & sellers"</span>
+                                </span>
                             </a>
                             <a href="/vendors" class="mktg-nav-role-item" rel="external">
-                                <span class="mktg-nav-role-icon">"🔧"</span>"For Vendors"
+                                <span class="mktg-nav-role-icon">"🔧"</span>
+                                <span class="mktg-nav-role-label">
+                                    "For Vendors"
+                                    <span class="mktg-nav-role-sub">"Offer services"</span>
+                                </span>
                             </a>
                         </div>
                     </details>
@@ -334,8 +350,8 @@ fn PmOwnerPortal() -> impl IntoView {
                                 <span style="color:var(--mk-muted);font-weight:600;">"-$428"</span>
                             </div>
                             <div style="display:flex;justify-content:space-between;padding:.75rem;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.06);">
-                                <span style="color:var(--mk-text);font-size:.9rem;">"Maintenance"</span>
-                                <span style="color:var(--mk-muted);font-weight:600;">"-$185"</span>
+                                <span style="color:var(--mk-text);font-size:.9rem;">"Disbursed to owner"</span>
+                                <span style="color:#f59e0b;font-weight:600;">"$3,667"</span>
                             </div>
                         </div>
                     </div>
@@ -359,27 +375,49 @@ fn PmPricing() -> impl IntoView {
                 <p class="mktg-section-eyebrow">"Pricing"</p>
                 <h2 class="mktg-section-h2">"Pay per portfolio, not per feature."</h2>
                 <p class="mktg-section-sub" style="max-width:560px;margin:0 auto 2.5rem;">"Every plan includes trust accounting, owner portals, and maintenance dispatch. No surprise add-ons."</p>
+
+                // ── Audience qualifier ────────────────────────────────────────
+                // If you only manage your own properties, you are a landlord,
+                // not a PM. This strip routes mis-matched visitors before
+                // they select a tier that doesn't match their actual use case.
+                <div class="mktg-pricing-audience-guard">
+                    <span class="material-symbols-outlined" style="font-size:18px;color:#f59e0b">"info"</span>
+                    <div>
+                        "These plans are for businesses that "
+                        <strong>"charge clients a management fee"</strong>
+                        " and manage properties on their behalf. \
+                          If you only manage your own portfolio, "
+                        <a href="/" rel="external">"see Landlord plans →"</a>
+                    </div>
+                </div>
+
                 <div class="mktg-pricing-grid">
 
-                    // ── Starter PM ─────────────────────────────────────────
+                    // ── Starter PM ($99 — clear separation from Landlord Pro $79) ──────
+                    //
+                    // $99 positions this tier as genuinely commercial: the first
+                    // plan that includes owner-client billing infrastructure.
+                    // The price gap vs Landlord Pro ($79, personal use) signals
+                    // that PM is a step up, not a cheaper path to the same features.
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Starter PM"</span>
-                        <div class="mktg-pricing-price">"$79"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"1 portfolio · up to 20 units"</div>
+                        <div class="mktg-pricing-price">"$99"<span class="mktg-pricing-per">"/mo"</span></div>
+                        <div class="mktg-pricing-sub">"1 client portfolio · up to 20 units"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Full landlord platform"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"1 branded owner portal"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Trust accounting ledger"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Maintenance dispatch"</li>
+                            <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#06d6a0;font-variation-settings:'FILL' 1">"check"</span>"Requires 2+ owner-clients"</li>
                         </ul>
                         <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pm-pricing-starter">"Join waitlist"</a>
                     </div>
 
-                    // ── Growth PM (FEATURED) ───────────────────────────────
+                    // ── Growth PM (FEATURED) ───────────────────────────────────────────────
                     <div class="mktg-pricing-card mktg-pricing-featured">
                         <span class="mktg-pricing-tier">"Growth PM"</span>
                         <div class="mktg-pricing-price">"$199"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 5 portfolios · 100 units"</div>
+                        <div class="mktg-pricing-sub">"Up to 5 client portfolios · 100 units"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"Everything in Starter PM"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#ff6b35;font-variation-settings:'FILL' 1">"check"</span>"5 branded owner portals"</li>
@@ -390,11 +428,11 @@ fn PmPricing() -> impl IntoView {
                         <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-accent" id="pm-pricing-growth">"Get early access"</a>
                     </div>
 
-                    // ── Scale PM ───────────────────────────────────────────
+                    // ── Scale PM ────────────────────────────────────────────────────────────
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Scale PM"</span>
                         <div class="mktg-pricing-price">"$399"<span class="mktg-pricing-per">"/mo"</span></div>
-                        <div class="mktg-pricing-sub">"Up to 15 portfolios · 300 units"</div>
+                        <div class="mktg-pricing-sub">"Up to 15 client portfolios · 300 units"</div>
                         <ul class="mktg-pricing-features">
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Everything in Growth PM"</li>
                             <li class="mktg-pf"><span class="material-symbols-outlined" style="font-size:16px;color:#f59e0b;font-variation-settings:'FILL' 1">"check"</span>"Full trust accounting suite"</li>
@@ -405,7 +443,7 @@ fn PmPricing() -> impl IntoView {
                         <a href="#pm-waitlist" class="mktg-pricing-btn mktg-pricing-btn-ghost" id="pm-pricing-scale">"Get early access"</a>
                     </div>
 
-                    // ── Enterprise PM ──────────────────────────────────────
+                    // ── Enterprise PM ───────────────────────────────────────────────────────
                     <div class="mktg-pricing-card">
                         <span class="mktg-pricing-tier">"Enterprise"</span>
                         <div class="mktg-pricing-price">"Custom"</div>
@@ -421,13 +459,19 @@ fn PmPricing() -> impl IntoView {
                     </div>
                 </div>
 
-                // ── Competitive callout ────────────────────────────────────
+                // ── Competitive callout (per-portfolio framing, not per-unit) ────────────
+                //
+                // Per-unit math was removed: "less than $2/unit" invited solo
+                // landlords to compare against the individual tier and undermined
+                // the audience separation. Per-portfolio is the natural PM unit
+                // and cannot be gamed by a solo landlord doing arithmetic.
                 <div class="mktg-pricing-pm-callout">
                     <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">"trending_down"</span>
                     <div>
                         <strong>"AppFolio starts at $280/mo minimum."</strong>
-                        " Buildium starts at $55/mo but charges per unit after 20. Folio's Growth PM covers 100 units for $199 — "
-                        <strong>"less than $2/unit."</strong>
+                        " Buildium charges per unit after 20 — costs balloon as your portfolio grows. \
+                          Folio Growth PM covers 5 client portfolios for $199, priced per portfolio, not per unit. "
+                        <strong>"No surprise overage charges."</strong>
                     </div>
                 </div>
             </div>
