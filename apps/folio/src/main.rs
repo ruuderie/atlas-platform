@@ -122,75 +122,6 @@ pub fn shell(
     let is_deployed = !env.is_empty() && env != "local";
     let reload = (!is_deployed).then(|| view! { <AutoReload options=options.clone() /> });
 
-    // ── Inline critical CSS: branded loading screen ─────────────────────────────
-    // Shown immediately with the HTML before any external asset loads.
-    // Dismissed by a tiny inline script once /pkg/folio-v1.css fires its load event.
-    // This eliminates the unstyled flash on slow CDN / cold cache loads.
-    let loading_style = r#"
-        #folio-loader{
-            position:fixed;inset:0;z-index:9999;
-            background:#070d18;
-            display:flex;flex-direction:column;align-items:center;justify-content:center;
-            gap:1.25rem;
-            transition:opacity .35s ease,visibility .35s ease;
-        }
-        #folio-loader.fl-done{opacity:0;visibility:hidden;pointer-events:none;}
-        .fl-logo{
-            font-size:2.25rem;font-weight:800;letter-spacing:-.04em;
-            background:linear-gradient(135deg,#06d6a0,#3b82f6);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-            background-clip:text;
-        }
-        .fl-bar{width:120px;height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden;}
-        .fl-fill{
-            height:100%;width:40%;border-radius:2px;
-            background:linear-gradient(90deg,#06d6a0,#3b82f6);
-            animation:fl-slide 1.2s ease-in-out infinite alternate;
-        }
-        @keyframes fl-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-
-        /* Hide Material Symbols ligature text until the icon font resolves.
-           display=block on the @font-face prevents the swap flash,
-           but the glyph is still invisible (blank) during load — which is
-           correct and far better than showing raw words like 'menu' or 'close'.
-           The JS FontFace observer below adds .ms-ready to <html> once loaded,
-           which reveals the icons. Falls back to a 2s timeout. */
-        .material-symbols-outlined{
-            visibility:hidden;
-            font-display:block;
-        }
-        html.ms-ready .material-symbols-outlined{
-            visibility:visible;
-        }
-    "#;
-    // Dismiss script: waits for the CSS <link> to fire onload, then fades the loader.
-    // Falls back to a 3s timeout so it never blocks the page.
-    let dismiss_script = r#"
-        (function(){
-            var el=document.getElementById('folio-loader');
-            if(!el)return;
-            var done=function(){el.classList.add('fl-done');};
-            var lnk=document.querySelector('link[href*="folio-v1"]');
-            if(lnk){lnk.addEventListener('load',done);lnk.addEventListener('error',done);}
-            setTimeout(done,3000);
-
-            // Material Symbols FontFace observer
-            // Once the icon font is available, reveal all icons atomically
-            // so they never flash as raw text ("menu", "close", etc.).
-            var revealIcons = function(){
-                document.documentElement.classList.add('ms-ready');
-            };
-            if(document.fonts && document.fonts.load){
-                document.fonts.load('1em "Material Symbols Outlined"')
-                    .then(revealIcons)
-                    .catch(revealIcons);
-            } else {
-                // Fallback: reveal after 2s — icon font should have loaded by then.
-                setTimeout(revealIcons, 2000);
-            }
-        })();
-    "#;
-
     view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -199,8 +130,6 @@ pub fn shell(
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="robots" content="noindex, nofollow"/>
                 <title>"Folio – Property Management"</title>
-                // ── Branded loading screen (inline, no external deps) ────────────
-                <style inner_html=loading_style></style>
                 // Inject API base URL before WASM loads
                 <script inner_html=env_script></script>
                 {reload}
@@ -217,12 +146,7 @@ pub fn shell(
                 <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"/>
             </head>
             <body>
-                <div id="folio-loader" aria-hidden="true">
-                    <div class="fl-logo">"Folio"</div>
-                    <div class="fl-bar"><div class="fl-fill"></div></div>
-                </div>
-                <script inner_html=dismiss_script></script>
-                <div id="app"><App/></div>
+                <App/>
             </body>
         </html>
     }
