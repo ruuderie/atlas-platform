@@ -794,6 +794,83 @@ pub async fn verify_magic_link(
                         tenant_id = %tenant_id,
                         app_role  = %app_role_slug,
                     );
+
+                    // ── Link to existing workspace account (if specified) ────────
+                    // When `invite.account_id` is set, the invite targets an existing
+                    // atlas_accounts row (a specific workspace). Link the user to it
+                    // as a Member. ON CONFLICT DO NOTHING — idempotent re-invite.
+                    if let Some(target_account_id) = invite.account_id {
+                        let _ = db
+                            .execute(sea_orm::Statement::from_sql_and_values(
+                                sea_orm::DbBackend::Postgres,
+                                r#"INSERT INTO user_account
+                                       (id, user_id, account_id, role, is_active, created_at, updated_at)
+                                   VALUES ($1, $2, $3, 'Member', true, NOW(), NOW())
+                                   ON CONFLICT (user_id, account_id) DO NOTHING"#,
+                                [
+                                    Uuid::new_v4().into(),
+                                    user_mod.id.into(),
+                                    target_account_id.into(),
+                                ],
+                            ))
+                            .await;
+
+                        tracing::info!(
+                            event = "magic_link.workspace_linked",
+                            user_id    = %user_mod.id,
+                            account_id = %target_account_id,
+                        );
+                    }
+
+                    // ── Asset-level access grants (cohost / vendor / delegate) ──
+                    // When invite.asset_ids is set, insert atlas_user_asset_access rows
+                    // so the service layer can filter queries to only the granted assets.
+                    // ON CONFLICT DO NOTHING — idempotent re-invite.
+                    if let Some(asset_ids_json) = &invite.asset_ids {
+                        if let Ok(asset_ids) = serde_json::from_value::<Vec<Uuid>>(asset_ids_json.clone()) {
+                            for asset_id in &asset_ids {
+                                let _ = db
+                                    .execute(sea_orm::Statement::from_sql_and_values(
+                                        sea_orm::DbBackend::Postgres,
+                                        r#"INSERT INTO atlas_user_asset_access
+                                               (id, user_id, asset_id, role_profile_id, granted_at, is_active)
+                                           VALUES ($1, $2, $3, $4, NOW(), true)
+                                           ON CONFLICT (user_id, asset_id, role_profile_id) DO NOTHING"#,
+                                        [
+                                            Uuid::new_v4().into(),
+                                            user_mod.id.into(),
+                                            (*asset_id).into(),
+                                            role_profile_id.into(),
+                                        ],
+                                    ))
+                                    .await;
+                            }
+                            tracing::info!(
+                                event = "magic_link.asset_access_seeded",
+                                user_id    = %user_mod.id,
+                                asset_count = asset_ids.len(),
+                            );
+                        }
+                    }
+
+                    // ── Lease linkage (tenant role) ────────────────────────────
+                    // When invite.lease_id is set, assign the accepted user as the
+                    // tenant on that specific lease. ON CONFLICT: update is idempotent.
+                    if let Some(lease_id) = invite.lease_id {
+                        let _ = db
+                            .execute(sea_orm::Statement::from_sql_and_values(
+                                sea_orm::DbBackend::Postgres,
+                                "UPDATE atlas_leases SET tenant_user_id = $1 WHERE id = $2",
+                                [user_mod.id.into(), lease_id.into()],
+                            ))
+                            .await;
+
+                        tracing::info!(
+                            event = "magic_link.lease_linked",
+                            user_id  = %user_mod.id,
+                            lease_id = %lease_id,
+                        );
+                    }
                 } else {
                     tracing::warn!(
                         event = "magic_link.rbac_role_seed_failed",

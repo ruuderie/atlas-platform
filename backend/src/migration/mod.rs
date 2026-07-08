@@ -312,6 +312,10 @@ pub mod m20260930_folio_vendor_product_seed;    // Folio Vendor Marketplace: reg
 pub mod m20260931_app_pages_locale;             // i18n: add locale column (en/pt/es/fr) to app_pages + compound index
 pub mod m20261001_fix_existing_ruuderie_domains;
 pub mod m20261002_seed_ruuderie_folio_domain;  // Create ruuderie tenant+app_instance+domain if missing
+pub mod m20261003_platform_invite_account_id;  // Add account_id to platform_invite for workspace-scoped invites
+pub mod m20261004_platform_invite_asset_lease_scope; // Add asset_ids[] + lease_id to platform_invite
+pub mod m20261005_atlas_user_asset_access;     // Create atlas_user_asset_access for per-asset permission grants
+pub mod m20261006_folio_missing_role_profiles; // Seed cohost, str_host, agent, broker role profiles
 
 pub struct Migrator;
 
@@ -591,6 +595,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20260931_app_pages_locale::Migration),
             Box::new(m20261001_fix_existing_ruuderie_domains::Migration),
             Box::new(m20261002_seed_ruuderie_folio_domain::Migration),
+            Box::new(m20261003_platform_invite_account_id::Migration),
+            Box::new(m20261004_platform_invite_asset_lease_scope::Migration),
+            Box::new(m20261005_atlas_user_asset_access::Migration),
+            Box::new(m20261006_folio_missing_role_profiles::Migration),
 
         ];
 

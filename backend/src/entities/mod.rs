@@ -73,6 +73,7 @@ pub mod onboarding_progress;
 pub mod user_app_permission;
 pub mod atlas_role_profiles;           // G-32: role profile templates (platform or tenant-scoped)
 pub mod atlas_user_app_roles;          // G-32: user↔role assignments per app+tenant
+pub mod atlas_user_asset_access;       // G-32 ext: per-asset access grants (cohost, delegate, vendor scope)
 pub mod atlas_role_profile_permissions; // G-32: permission slugs per role profile
 pub mod atlas_app_deployment_config;   // G-33: per-tenant app deployment mode + config
 

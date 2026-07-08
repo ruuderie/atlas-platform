@@ -941,6 +941,14 @@ pub enum FolioRole {
     /// Beneficial property owner who has delegated day-to-day management to a PMC.
     /// Has **read-only** visibility into their own portfolio. Home path: `/o`.
     Owner,
+    /// STR co-host — manages bookings, messaging, cleaning for specific STR assets
+    /// they've been delegated. Access is asset-scoped via `atlas_user_asset_access`.
+    /// Home path: `/ch`.
+    Cohost,
+    /// Short-term rental host — full STR suite for their own listings (not delegated).
+    /// Distinct from Landlord: portal is STR-first (calendar, channels, guests).
+    /// Home path: `/str`.
+    StrHost,
     /// Real estate agent — manages client files, listings, and deals.
     /// Requires `folio_mode = "brokerage"` in `atlas_app_deployment_config`.
     /// Home path: `/a`.
@@ -961,6 +969,8 @@ impl FolioRole {
             Self::Vendor          => "/work-orders",
             Self::PropertyManager => "/pm",
             Self::Owner           => "/owner",
+            Self::Cohost          => "/ch",
+            Self::StrHost         => "/str",
             Self::Agent           => "/a",
             Self::Broker          => "/b",
         }
@@ -990,6 +1000,8 @@ impl fmt::Display for FolioRole {
             Self::Vendor          => "vendor",
             Self::PropertyManager => "property_manager",
             Self::Owner           => "owner",
+            Self::Cohost          => "cohost",
+            Self::StrHost         => "str_host",
             Self::Agent           => "agent",
             Self::Broker          => "broker",
         })
@@ -1005,6 +1017,8 @@ impl TryFrom<String> for FolioRole {
             "vendor"            => Ok(Self::Vendor),
             "property_manager"  => Ok(Self::PropertyManager),
             "owner"             => Ok(Self::Owner),
+            "cohost"            => Ok(Self::Cohost),
+            "str_host"          => Ok(Self::StrHost),
             "agent"             => Ok(Self::Agent),
             "broker"            => Ok(Self::Broker),
             other               => Err(format!("unknown FolioRole: '{other}'")),

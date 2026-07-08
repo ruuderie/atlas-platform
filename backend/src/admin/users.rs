@@ -65,6 +65,15 @@ pub struct CreateInviteInput {
     pub tenant: String,
     /// Scopes the invite to a specific app instance
     pub app_instance_id: Option<Uuid>,
+    /// When set: links the invited user to this existing atlas_accounts row instead of
+    /// creating a new account. Useful for adding a user to an existing workspace.
+    pub account_id: Option<Uuid>,
+    /// When set: scopes the invite to specific atlas_assets rows (cohost/vendor/delegate).
+    /// NULL = no asset restriction (org-level access for the granted role).
+    #[serde(default)]
+    pub asset_ids: Option<Vec<Uuid>>,
+    /// When set (tenant invites): auto-links the accepted user to this lease.
+    pub lease_id: Option<Uuid>,
     /// Overrides FRONTEND_URL for the magic link — use the instance's custom domain
     pub target_app_url: Option<String>,
     /// Optional personal note from the operator, shown in the email
@@ -346,8 +355,11 @@ pub async fn create_invite(
         tenant_name:     Set(input.tenant.clone()),
         invited_by:      Set(invited_by_str.clone()),
         display_name:    Set(input.display_name.clone()),
-        app_role:      Set(input.app_role.clone()),
+        app_role:        Set(input.app_role.clone()),
         app_instance_id: Set(input.app_instance_id),
+        account_id:      Set(input.account_id),
+        asset_ids:       Set(input.asset_ids.as_ref().and_then(|ids| serde_json::to_value(ids).ok())),
+        lease_id:        Set(input.lease_id),
         target_app_url:  Set(input.target_app_url.clone()),
         personal_message:Set(input.personal_message.clone()),
         created_at:      Set(created_at),

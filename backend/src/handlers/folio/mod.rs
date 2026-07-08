@@ -34,3 +34,4 @@ pub mod str_guest;        // G-22 — STR guest/vehicle registration + special r
 pub mod comms;            // G-07 — Unified communications: rooms, messages, platform_support
 pub mod notifications;      // G-07 ext — Notification inbox, channel prefs, tenant channel settings
 pub mod onboarding_submit; // POST /api/folio/onboarding/submit — atomic first-run wizard save
+pub mod provision;         // POST /api/folio/provision/invite — unified all-persona provisioning

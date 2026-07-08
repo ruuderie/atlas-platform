@@ -23,6 +23,13 @@ pub enum FolioRole {
     /// Beneficial property owner who has delegated day-to-day management to a
     /// PMC. Read-only visibility into their own portfolio.
     Owner,
+    /// STR co-host — manages bookings, messaging, and operations for specific
+    /// STR properties they've been delegated access to. Asset-scoped.
+    Cohost,
+    /// Short-term rental host — full STR suite for their own listings.
+    /// Distinct from Landlord in that their portal is STR-first (calendar,
+    /// channel sync, guest messaging) rather than lease-management-first.
+    StrHost,
     /// Real estate agent — manages client files, listings, and deals.
     /// Requires `folio_mode = "brokerage"` on the instance. Home path: `/a`.
     Agent,
@@ -40,6 +47,8 @@ impl FolioRole {
             Self::Vendor          => "/v",
             Self::PropertyManager => "/pmc",
             Self::Owner           => "/o",
+            Self::Cohost          => "/ch",
+            Self::StrHost         => "/str",
             Self::Agent           => "/a",
             Self::Broker          => "/b",
         }
@@ -51,6 +60,8 @@ impl FolioRole {
             Self::Vendor          => "Vendor Portal",
             Self::PropertyManager => "PMC Dashboard",
             Self::Owner           => "Owner Portal",
+            Self::Cohost          => "Cohost Portal",
+            Self::StrHost         => "STR Host Portal",
             Self::Agent           => "Agent Portal",
             Self::Broker          => "Broker Portal",
         }

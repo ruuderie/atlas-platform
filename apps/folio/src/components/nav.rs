@@ -743,7 +743,22 @@ static STR_HOST_NAV: NavConfig = NavConfig {
     ],
 };
 
-// ── Role → Config binding ─────────────────────────────────────────────────────
+static COHOST_NAV: NavConfig = NavConfig {
+    role_label: "Cohost",
+    groups: &[NavGroup {
+        label: None,
+        items: &[
+            NavItem::new(FolioRoute::StrHostDashboard,    "Dashboard",    NavIcon::Home),
+            NavItem::new(FolioRoute::StrHostCalendar,     "Calendar",     NavIcon::CalendarMonth),
+            NavItem::new(FolioRoute::StrHostReservations, "Reservations", NavIcon::EventAvailable),
+            NavItem::new(FolioRoute::StrHostMessages,     "Messages",     NavIcon::Chat),
+        ],
+    }],
+    footer_items: &[
+        NavItem::new(FolioRoute::StrHostIncidents, "Incidents", NavIcon::Report),
+    ],
+};
+
 //
 // This is the key architectural point: FolioRole IS the index into nav configs.
 // Layouts don't import a specific *_NAV static — they pass `role.nav_config()`.
@@ -757,6 +772,8 @@ impl FolioRole {
             Self::Vendor          => &VENDOR_NAV,
             Self::PropertyManager => &PMC_NAV,
             Self::Owner           => &OWNER_NAV,
+            Self::Cohost          => &COHOST_NAV,
+            Self::StrHost         => &STR_HOST_NAV,
             Self::Agent           => &AGENT_NAV,
             Self::Broker          => &BROKER_NAV,
         }

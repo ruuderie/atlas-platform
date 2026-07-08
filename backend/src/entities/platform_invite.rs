@@ -17,6 +17,19 @@ pub struct Model {
     pub app_role: Option<String>,
     /// The specific app instance this invite is scoped to
     pub app_instance_id: Option<Uuid>,
+    /// When set: link the accepted user to this existing atlas_accounts row instead of
+    /// creating a new account. Enables adding a user to an existing workspace.
+    pub account_id: Option<Uuid>,
+    /// When set: link the accepted user to these existing atlas_assets rows.
+    /// Enables cohost/vendor/delegate invites scoped to specific properties.
+    /// NULL = no asset restriction (full account access for the granted role).
+    /// SeaORM does not natively support UUID arrays — stored as JSONB for now,
+    /// deserialized as Vec<Uuid> in application logic.
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub asset_ids: Option<serde_json::Value>,
+    /// When set (tenant invites only): automatically links the accepted user to
+    /// this specific lease via `atlas_leases.tenant_user_id = user_id`.
+    pub lease_id: Option<Uuid>,
     /// URL override for the magic link landing page (per-instance domain)
     pub target_app_url: Option<String>,
     /// Optional personal message from the operator, included in the invite email
