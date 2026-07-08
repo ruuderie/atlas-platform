@@ -300,11 +300,22 @@ pub async fn request_magic_link(
                     resolved_app_instance_id = domain.app_instance_id.to_string();
                     if let Ok(Some(app_inst)) = crate::entities::app_instance::Entity::find_by_id(domain.app_instance_id).one(&db).await {
                         resolved_tenant_id = app_inst.tenant_id;
-                        if app_inst.app_type.eq_ignore_ascii_case("folio") {
+                        // "property_management" is the canonical app_type for Folio instances.
+                        // The legacy value "folio" is kept for backward compat.
+                        if app_inst.app_type.eq_ignore_ascii_case("folio")
+                            || app_inst.app_type.eq_ignore_ascii_case("property_management")
+                        {
                             is_folio = true;
                         }
                         if let Ok(Some(tenant)) = crate::entities::tenant::Entity::find_by_id(app_inst.tenant_id).one(&db).await {
-                            tenant_name = Some(tenant.name);
+                            // Prefer page_title (the operator-controlled display name) over
+                            // the internal tenant slug.  This is what shows in magic-link
+                            // emails and browser titles. Falls back to tenant.name if unset.
+                            tenant_name = Some(
+                                tenant.page_title
+                                    .filter(|s| !s.is_empty())
+                                    .unwrap_or(tenant.name)
+                            );
                         }
                     }
                 }

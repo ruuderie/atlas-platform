@@ -30,6 +30,44 @@ pub async fn post<B: Serialize, T: DeserializeOwned>(path: &str, body: &B) -> Re
     res.json::<T>().await.map_err(|e| e.to_string())
 }
 
+/// Unauthenticated POST that also extracts the bearer token from the `Set-Cookie`
+/// response header. Used by the magic-link verify flow: the backend marks the token
+/// used, creates a session, and returns it as `Set-Cookie: session=TOKEN; …`.
+/// The `SessionResponse.token` field has `#[serde(skip_serializing)]` so it is NOT
+/// in the JSON body — we MUST read it from the response headers.
+///
+/// Returns `(parsed_body, Some(bearer_token))` on success.
+/// `bearer_token` is `None` if the backend didn't set a session cookie
+/// (shouldn't happen on a 200, but we surface the error clearly).
+pub async fn post_returning_session<B: Serialize, T: DeserializeOwned>(
+    path: &str,
+    body: &B,
+) -> Result<(T, Option<String>), String> {
+    let url = format!("{}{}", get_atlas_api_url(), path);
+    let res = CLIENT.post(&url).json(body).send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        let status = res.status();
+        let msg = res.text().await.unwrap_or_default();
+        return Err(format!("API {status}: {msg}"));
+    }
+    // Extract the session token from `Set-Cookie: session=TOKEN; …`
+    // The backend's session_cookie_header() always uses the name "session".
+    let session_token = res
+        .headers()
+        .get_all(reqwest::header::SET_COOKIE)
+        .iter()
+        .find_map(|v| {
+            let s = v.to_str().ok()?;
+            // Handle both `session=TOKEN` and `session=TOKEN; HttpOnly; …`
+            s.split(';')
+                .next()
+                .and_then(|kv| kv.trim().strip_prefix("session="))
+                .map(|t| t.to_string())
+        });
+    let body_parsed = res.json::<T>().await.map_err(|e| e.to_string())?;
+    Ok((body_parsed, session_token))
+}
+
 /// Authenticated GET — forwards session cookie and optional tenant-id header.
 pub async fn authenticated_get<T: DeserializeOwned>(
     path: &str,

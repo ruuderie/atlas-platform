@@ -235,35 +235,67 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
     }
 }
 
-/// Verify a magic-link token, return session info (backend sets cookie).
+/// Verify a magic-link token and return the Folio session.
+///
+/// # Why this is not a simple round-trip
+///
+/// The backend's `SessionResponse.token` field carries
+/// `#[serde(skip_serializing)]` — it is intentionally absent from the JSON
+/// body for security. The session token travels exclusively as a
+/// `Set-Cookie: session=TOKEN` response header.
+///
+/// This server function therefore:
+/// 1. Calls the backend verify endpoint via `post_returning_session` which
+///    reads the session token out of the `Set-Cookie` response header.
+/// 2. Forwards the session cookie to the browser via `ResponseOptions` so
+///    all subsequent browser requests are authenticated.
+/// 3. Uses the captured token directly to call `/api/folio/me` and return
+///    the Folio identity — no need to re-extract from incoming headers.
 #[server(VerifyMagicLink, "/api")]
 pub async fn verify_magic_link(token: String) -> Result<SessionInfo, ServerFnError> {
-    let payload = serde_json::json!({ "token": token });
-    // Verify with the generic auth endpoint first to get the session cookie set,
-    // then call /api/folio/me to get the folio-specific role.
-    crate::atlas_client::authenticated_post::<_, serde_json::Value>(
-        "/api/auth/magic-link/verify",
-        "",
-        None,
-        &payload,
-    )
-    .await
-    .map_err(|e| ServerFnError::new(format!("Token verification failed: {e}")))?;
+    #[cfg(feature = "ssr")]
+    {
+        use leptos_axum::ResponseOptions;
+        let resp_opts = leptos::use_context::<ResponseOptions>();
 
-    // Now fetch folio identity (session cookie is set by the verify call above).
-    use axum::http::HeaderMap;
-    use leptos_axum::extract;
-    let headers = extract::<HeaderMap>().await.unwrap_or_default();
-    let session_token = extract_bearer_token(&headers)
-        .ok_or_else(|| ServerFnError::new("No session cookie after verify"))?;
+        let payload = serde_json::json!({ "token": token });
 
-    crate::atlas_client::authenticated_get::<SessionInfo>(
-        "/api/folio/me",
-        &session_token,
-        None,
-    )
-    .await
-    .map_err(|e| ServerFnError::new(e))
+        let (_, session_token_opt) = crate::atlas_client::post_returning_session::<_, serde_json::Value>(
+            "/api/auth/magic-link/verify",
+            &payload,
+        )
+        .await
+        .map_err(|e| ServerFnError::new(format!("Token verification failed: {e}")))?;
+
+        let session_token = session_token_opt
+            .ok_or_else(|| ServerFnError::new("No session cookie after verify"))?;
+
+        // Forward the session cookie to the browser so it persists for all
+        // subsequent requests. We mirror the same cookie attributes the backend
+        // uses in session_cookie_header().
+        if let Some(resp) = resp_opts {
+            if let Ok(cookie_val) = axum::http::HeaderValue::from_str(&format!(
+                "session={}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400",
+                session_token
+            )) {
+                resp.insert_header(axum::http::header::SET_COOKIE, cookie_val);
+            }
+        }
+
+        // Fetch Folio identity using the captured session token directly.
+        crate::atlas_client::authenticated_get::<SessionInfo>(
+            "/api/folio/me",
+            &session_token,
+            None,
+        )
+        .await
+        .map_err(|e| ServerFnError::new(e))
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = token;
+        Err(ServerFnError::new("Client fallback"))
+    }
 }
 
 /// Revoke the current session (logout).
@@ -299,8 +331,11 @@ fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|cookies| {
                     cookies.split(';').find_map(|part| {
-                        part.trim()
-                            .strip_prefix("atlas_session=")
+                        let part = part.trim();
+                        // Accept both "session=" (what the backend sets) and
+                        // "atlas_session=" (legacy alias) to avoid a hard cutover.
+                        part.strip_prefix("session=")
+                            .or_else(|| part.strip_prefix("atlas_session="))
                             .map(|t| t.to_string())
                     })
                 })
