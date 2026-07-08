@@ -220,10 +220,8 @@ pub async fn request_magic_link(email: String) -> Result<(), ServerFnError> {
             "email": email,
             "redirect_url": redirect_url,
         });
-        crate::atlas_client::authenticated_post::<_, serde_json::Value>(
+        crate::atlas_client::post::<_, serde_json::Value>(
             "/api/auth/magic-link/request",
-            "",
-            None,
             &payload,
         )
         .await
