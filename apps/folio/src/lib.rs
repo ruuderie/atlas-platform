@@ -19,7 +19,11 @@ pub use state::AppState;
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {
     use crate::app::App;
+    use wasm_bindgen::JsCast;
     console_error_panic_hook::set_once();
-    let container = leptos::prelude::document().get_element_by_id("app").unwrap();
-    leptos::mount::hydrate_from(container, App);
+    let container = leptos::prelude::document()
+        .get_element_by_id("app")
+        .unwrap()
+        .unchecked_into::<web_sys::HtmlElement>();
+    leptos::mount::hydrate_from(container, App).forget();
 }
