@@ -577,7 +577,7 @@ async fn test_property_management_app_type_triggers_folio_branding() {
 async fn test_magic_link_email_uses_page_title_as_brand_name() {
     with_smtp_blanked(|| async {
     use crate::entities::{app_instance, app_domain, outbox_job, tenant};
-    use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelBehavior};
+    use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, ColumnTrait, QueryOrder, Set};
 
     let (app, db) = setup_test_app().await;
 
@@ -709,13 +709,15 @@ async fn test_magic_link_email_uses_page_title_as_brand_name() {
 
     // Pick the job for email2 (the fallback user's job).
     let fallback_job = jobs2.iter().find(|j| {
-        j.payload.get("to_email").and_then(|v| v.as_str()) == Some(&email2)
+        j.payload.get("to_email")
+            .and_then(|v: &serde_json::Value| v.as_str())
+            == Some(email2.as_str())
     });
     let subject2 = fallback_job
         .expect("must have an outbox job for the fallback user")
         .payload
         .get("subject")
-        .and_then(|v| v.as_str())
+        .and_then(|v: &serde_json::Value| v.as_str())
         .unwrap_or("");
 
     let fallback_expected = format!("Sign in to {}", raw_name);
