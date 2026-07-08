@@ -664,10 +664,23 @@ async fn test_magic_link_email_uses_page_title_as_brand_name() {
         display_name, raw_name, subject
     );
 
-    // Also verify that a blank page_title falls back to tenant.name.
+    // ── Fallback: empty page_title must fall back to tenant.name ──────────────
+    //
+    // We CANNOT re-use the same email as the first request: the 60-second
+    // in-memory idempotency cache (MAGIC_LINK_REQUEST_CACHE, keyed by email)
+    // is still hot. A second call for the same address returns 200 OK but
+    // does NOT create a new outbox job, so we'd still see the old subject.
+    // Solution: register a fresh user whose email is a different cache key.
+
     let mut tenant_no_title: tenant::ActiveModel = updated_tenant.clone().into();
-    tenant_no_title.page_title = Set(Some(String::new())); // empty string = use name
+    tenant_no_title.page_title = Set(Some(String::new())); // empty string → use name
     tenant_no_title.update(&db).await.expect("failed to clear page_title");
+
+    // Fresh user → fresh cache key → idempotency cache doesn't suppress this request.
+    let mut username2 = format!("pagetitle2_{}", uuid::Uuid::new_v4());
+    let (status2, json_body2) = test_utils::register_test_user(&app, updated_tenant.id, &mut username2).await;
+    assert_eq!(status2, StatusCode::CREATED);
+    let email2 = json_body2["user"]["email"].as_str().unwrap().to_string();
 
     let req2 = app.clone()
         .oneshot(
@@ -677,23 +690,29 @@ async fn test_magic_link_email_uses_page_title_as_brand_name() {
                 .header("Content-Type", "application/json")
                 .header("Host", "localhost")
                 .body(axum::body::Body::from(serde_json::json!({
-                    "email":        email,
+                    "email":        email2,
                     "redirect_url": redirect_url,
                 }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(req2.status(), StatusCode::OK);
+    assert_eq!(req2.status(), StatusCode::OK, "second request (fallback user) must return 200");
 
     let jobs2 = outbox_job::Entity::find()
         .filter(outbox_job::Column::JobType.eq("send_magic_link_email"))
         .filter(outbox_job::Column::TenantId.eq(updated_tenant.id))
+        .order_by_desc(outbox_job::Column::Id)
         .all(&db)
         .await
         .unwrap();
 
-    let subject2 = jobs2.last().unwrap()
+    // Pick the job for email2 (the fallback user's job).
+    let fallback_job = jobs2.iter().find(|j| {
+        j.payload.get("to_email").and_then(|v| v.as_str()) == Some(&email2)
+    });
+    let subject2 = fallback_job
+        .expect("must have an outbox job for the fallback user")
         .payload
         .get("subject")
         .and_then(|v| v.as_str())
@@ -708,3 +727,4 @@ async fn test_magic_link_email_uses_page_title_as_brand_name() {
     );
     }).await;
 }
+
