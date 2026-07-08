@@ -2,6 +2,9 @@
 
 #[cfg(feature = "ssr")]
 use axum::http::{HeaderValue, header};
+#[cfg(feature = "ssr")]
+use axum::response::IntoResponse as AxumIntoResponse;
+
 use folio::app::App;
 #[cfg(feature = "ssr")]
 use folio::state::{AppState, AtlasApiUrl, PublicApiBaseUrl};
@@ -49,6 +52,12 @@ async fn main() {
             "/api/health",
             axum::routing::get(|| async { axum::http::StatusCode::OK }),
         )
+        // ── Magic-link verify: SSR-only Axum route ───────────────────────────────
+        // Must be registered BEFORE leptos_routes so it intercepts GET /verify
+        // before the Leptos catch-all. Runs the token exchange server-side,
+        // sets the session cookie directly on the HTTP 302 response.
+        // The Leptos Verify component only handles the error-state UI.
+        .route("/verify", axum::routing::get(verify_handler))
         .route(
             "/api/{*fn_name}",
             axum::routing::get(leptos_axum::handle_server_fns)
@@ -152,6 +161,106 @@ pub fn shell(
             </body>
         </html>
     }
+}
+
+/// SSR-only handler for GET /verify?token=...
+///
+/// Runs the magic-link token exchange entirely on the server:
+///   1. POSTs to the backend `/api/auth/magic-link/verify`
+///   2. Reads the `Set-Cookie: session=...` from the backend response
+///   3. Returns an HTTP 302 to the right destination with the cookie attached
+///
+/// This fixes the "No session cookie after verify" bug: when Leptos handles
+/// /verify as a client-side Resource the SET_COOKIE is lost because the
+/// ResponseOptions write only affects the SSR render pass, not the subsequent
+/// client-side server fn fetch. By intercepting /verify here, before leptos_routes,
+/// the cookie is set directly on the browser-visible HTTP response.
+#[cfg(feature = "ssr")]
+async fn verify_handler(
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl AxumIntoResponse {
+    use axum::http::StatusCode;
+    use axum::response::Response;
+
+    let token = match params.get("token") {
+        Some(t) if !t.is_empty() => t.clone(),
+        _ => {
+            // No token → redirect to /verify with error flag so Leptos shows UI
+            return axum::response::Redirect::to("/verify?error=missing_token").into_response();
+        }
+    };
+
+    let atlas_url = std::env::var("ATLAS_API_URL")
+        .unwrap_or_else(|_| "http://localhost:8000".to_string());
+    let url = format!("{}/api/auth/magic-link/verify", atlas_url);
+
+    let client = reqwest::Client::new();
+    let backend_res = match client
+        .post(&url)
+        .json(&serde_json::json!({ "token": token }))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(event = "verify.backend_unreachable", err = %e);
+            return axum::response::Redirect::to("/verify?error=backend_error").into_response();
+        }
+    };
+
+    if !backend_res.status().is_success() {
+        // Pull the structured error code if present so the Leptos UI can show
+        // contextual messages (token_expired, token_already_used, etc.)
+        let body = backend_res.text().await.unwrap_or_default();
+        let code = body.strip_prefix("error_code:").unwrap_or("invalid");
+        let dest = format!("/verify?error={}", code.replace(' ', "+"));
+        return axum::response::Redirect::to(&dest).into_response();
+    }
+
+    // Extract Set-Cookie from backend response
+    let cookie_val = backend_res
+        .headers()
+        .get_all(reqwest::header::SET_COOKIE)
+        .iter()
+        .find_map(|v| {
+            let s = v.to_str().ok()?;
+            if s.contains("session=") { Some(s.to_string()) } else { None }
+        });
+
+    // Parse the SessionInfo body to decide where to redirect
+    #[derive(serde::Deserialize)]
+    struct SessionResp {
+        has_passkey: bool,
+        onboarding_complete: bool,
+    }
+
+    let session: SessionResp = match backend_res.json().await {
+        Ok(s) => s,
+        Err(_) => {
+            return axum::response::Redirect::to("/verify?error=parse_error").into_response();
+        }
+    };
+
+    let dest = if !session.has_passkey {
+        "/auth/passkey-setup"
+    } else if !session.onboarding_complete {
+        "/onboarding"
+    } else {
+        "/dashboard"
+    };
+
+    // Build redirect with the session cookie attached
+    let mut builder = Response::builder()
+        .status(StatusCode::FOUND)
+        .header(header::LOCATION, dest);
+
+    if let Some(cookie) = cookie_val {
+        if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
+            builder = builder.header(header::SET_COOKIE, val);
+        }
+    }
+
+    builder.body(axum::body::Body::empty()).unwrap().into_response()
 }
 
 #[cfg(not(feature = "ssr"))]
