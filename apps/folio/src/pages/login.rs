@@ -125,83 +125,75 @@ fn AuthPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                <Show
-                    when=move || sent.get()
-                    fallback=move || view! {
-                        <div class="login-auth-form-wrap">
-                            <h1 class="login-auth-h1">"Welcome back"</h1>
-                            <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
+                <div class="login-auth-form-wrap" style=move || if sent.get() { "display: none" } else { "" }>
+                    <h1 class="login-auth-h1">"Welcome back"</h1>
+                    <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
 
-                            <form on:submit=submit class="login-auth-form">
-                                <div class="login-field">
-                                    <label class="login-field-label" for="auth-email">"Email address"</label>
-                                    <input
-                                        id="auth-email"
-                                        type="email"
-                                        class="login-field-input"
-                                        placeholder="you@example.com"
-                                        autocomplete="email"
-                                        required
-                                        prop:value=move || email.get()
-                                        on:input=move |ev| email.set(event_target_value(&ev))
-                                    />
-                                </div>
-                                <Show when=move || err.get().is_some() fallback=|| ()>
-                                    <p class="login-field-error">{move || err.get().unwrap_or_default()}</p>
-                                </Show>
-                                <button
-                                    type="submit"
-                                    class="login-auth-btn"
-                                    disabled=move || pending.get()
-                                    id="login-submit-btn"
-                                >
-                                    {move || if pending.get() {
-                                        view! {
-                                            <span class="login-btn-spinner"></span>
-                                            "Sending…"
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"send"</span>
-                                            "Send login link"
-                                        }.into_any()
-                                    }}
-                                </button>
-                            </form>
-
-                            <div class="login-divider">
-                                <span>"or"</span>
-                            </div>
-                            <div class="login-alt-actions">
-                                <p class="login-alt-text">
-                                    "New to Folio? "
-                                    <a href="#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
-                                </p>
-                            </div>
+                    <form on:submit=submit class="login-auth-form">
+                        <div class="login-field">
+                            <label class="login-field-label" for="auth-email">"Email address"</label>
+                            <input
+                                id="auth-email"
+                                type="email"
+                                class="login-field-input"
+                                placeholder="you@example.com"
+                                autocomplete="email"
+                                required
+                                prop:value=move || email.get()
+                                on:input=move |ev| email.set(event_target_value(&ev))
+                            />
                         </div>
-                    }
-                >
-                    <div class="login-sent-wrap">
-                        <div class="login-sent-icon">
-                            <span class="material-symbols-outlined" style="font-size:48px;color:#06d6a0;font-variation-settings:'FILL' 1">"mark_email_read"</span>
-                        </div>
-                        <h1 class="login-auth-h1">"Check your inbox"</h1>
-                        <p class="login-auth-sub">
-                            "We sent a secure login link to "
-                            <strong>{move || email.get()}</strong>
-                            ". It expires in 15 minutes."
+                        <p class="login-field-error" style=move || if err.get().is_some() { "" } else { "display: none" }>
+                            {move || err.get().unwrap_or_default()}
                         </p>
-                        <div class="login-sent-tips">
-                            <p class="login-sent-tip">
-                                <span class="material-symbols-outlined" style="font-size:16px;color:var(--folio-muted)">"info"</span>
-                                "Don't see it? Check your spam folder."
-                            </p>
-                        </div>
-                        <button class="login-resend-btn"
-                            on:click=move |_| { sent.set(false); err.set(None); }
-                        >"Use a different email"</button>
+                        <button
+                            type="submit"
+                            class="login-auth-btn"
+                            disabled=move || pending.get()
+                            id="login-submit-btn"
+                        >
+                            <span class="login-btn-content" style=move || if pending.get() { "display: none" } else { "display: inline-flex; align-items: center; gap: 8px;" }>
+                                <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"send"</span>
+                                "Send login link"
+                            </span>
+                            <span class="login-btn-content" style=move || if pending.get() { "display: inline-flex; align-items: center; gap: 8px;" } else { "display: none" }>
+                                <span class="login-btn-spinner"></span>
+                                "Sending…"
+                            </span>
+                        </button>
+                    </form>
+
+                    <div class="login-divider">
+                        <span>"or"</span>
                     </div>
-                </Show>
+                    <div class="login-alt-actions">
+                        <p class="login-alt-text">
+                            "New to Folio? "
+                            <a href="#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="login-sent-wrap" style=move || if sent.get() { "" } else { "display: none" }>
+                    <div class="login-sent-icon">
+                        <span class="material-symbols-outlined" style="font-size:48px;color:#06d6a0;font-variation-settings:'FILL' 1">"mark_email_read"</span>
+                    </div>
+                    <h1 class="login-auth-h1">"Check your inbox"</h1>
+                    <p class="login-auth-sub">
+                        "We sent a secure login link to "
+                        <strong>{move || email.get()}</strong>
+                        ". It expires in 15 minutes."
+                    </p>
+                    <div class="login-sent-tips">
+                        <p class="login-sent-tip">
+                            <span class="material-symbols-outlined" style="font-size:16px;color:var(--folio-muted)">"info"</span>
+                            "Don't see it? Check your spam folder."
+                        </p>
+                    </div>
+                    <button class="login-resend-btn"
+                        on:click=move |_| { sent.set(false); err.set(None); }
+                    >"Use a different email"</button>
+                </div>
 
                 <p class="login-legal">
                     "By continuing you agree to Folio's "
