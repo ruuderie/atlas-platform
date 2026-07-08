@@ -125,61 +125,62 @@ fn AuthPanel() -> impl IntoView {
                     <span class="login-logo-text">"Folio"</span>
                 </div>
 
-                <Show when=move || !sent.get() fallback=|| ()>
-                    <div class="login-auth-form-wrap">
-                        <h1 class="login-auth-h1">"Welcome back"</h1>
-                        <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
+                <Show
+                    when=move || sent.get()
+                    fallback=move || view! {
+                        <div class="login-auth-form-wrap">
+                            <h1 class="login-auth-h1">"Welcome back"</h1>
+                            <p class="login-auth-sub">"Enter your email to receive a secure login link. No password required."</p>
 
-                        <form on:submit=submit class="login-auth-form">
-                            <div class="login-field">
-                                <label class="login-field-label" for="auth-email">"Email address"</label>
-                                <input
-                                    id="auth-email"
-                                    type="email"
-                                    class="login-field-input"
-                                    placeholder="you@example.com"
-                                    autocomplete="email"
-                                    required
-                                    prop:value=move || email.get()
-                                    on:input=move |ev| email.set(event_target_value(&ev))
-                                />
+                            <form on:submit=submit class="login-auth-form">
+                                <div class="login-field">
+                                    <label class="login-field-label" for="auth-email">"Email address"</label>
+                                    <input
+                                        id="auth-email"
+                                        type="email"
+                                        class="login-field-input"
+                                        placeholder="you@example.com"
+                                        autocomplete="email"
+                                        required
+                                        prop:value=move || email.get()
+                                        on:input=move |ev| email.set(event_target_value(&ev))
+                                    />
+                                </div>
+                                <Show when=move || err.get().is_some() fallback=|| ()>
+                                    <p class="login-field-error">{move || err.get().unwrap_or_default()}</p>
+                                </Show>
+                                <button
+                                    type="submit"
+                                    class="login-auth-btn"
+                                    disabled=move || pending.get()
+                                    id="login-submit-btn"
+                                >
+                                    {move || if pending.get() {
+                                        view! {
+                                            <span class="login-btn-spinner"></span>
+                                            "Sending…"
+                                        }.into_any()
+                                    } else {
+                                        view! {
+                                            <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"send"</span>
+                                            "Send login link"
+                                        }.into_any()
+                                    }}
+                                </button>
+                            </form>
+
+                            <div class="login-divider">
+                                <span>"or"</span>
                             </div>
-                            <Show when=move || err.get().is_some() fallback=|| ()>
-                                <p class="login-field-error">{move || err.get().unwrap_or_default()}</p>
-                            </Show>
-                            <button
-                                type="submit"
-                                class="login-auth-btn"
-                                disabled=move || pending.get()
-                                id="login-submit-btn"
-                            >
-                                {move || if pending.get() {
-                                    view! {
-                                        <span class="login-btn-spinner"></span>
-                                        "Sending…"
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <span class="material-symbols-outlined" style="font-size:18px;font-variation-settings:'FILL' 1">"send"</span>
-                                        "Send login link"
-                                    }.into_any()
-                                }}
-                            </button>
-                        </form>
-
-                        <div class="login-divider">
-                            <span>"or"</span>
+                            <div class="login-alt-actions">
+                                <p class="login-alt-text">
+                                    "New to Folio? "
+                                    <a href="#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
+                                </p>
+                            </div>
                         </div>
-                        <div class="login-alt-actions">
-                            <p class="login-alt-text">
-                                "New to Folio? "
-                                <a href="#waitlist-wrap" class="login-alt-link">"Join the waitlist →"</a>
-                            </p>
-                        </div>
-                    </div>
-                </Show>
-
-                <Show when=move || sent.get() fallback=|| ()>
+                    }
+                >
                     <div class="login-sent-wrap">
                         <div class="login-sent-icon">
                             <span class="material-symbols-outlined" style="font-size:48px;color:#06d6a0;font-variation-settings:'FILL' 1">"mark_email_read"</span>
