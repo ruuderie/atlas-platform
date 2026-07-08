@@ -341,3 +341,97 @@ fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
                 })
         })
 }
+
+// ── Unit tests ────────────────────────────────────────────────────────────────
+//
+// Note: extract_bearer_token is SSR-only (cfg(feature = "ssr")).
+// These tests are compiled only when running cargo test with --features ssr.
+
+#[cfg(all(test, feature = "ssr"))]
+mod tests {
+    use super::extract_bearer_token;
+    use axum::http::{HeaderMap, HeaderValue, header};
+
+    fn headers_with(cookie: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(header::COOKIE, HeaderValue::from_str(cookie).unwrap());
+        h
+    }
+
+    fn headers_with_bearer(token: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
+        );
+        h
+    }
+
+    // ── session= cookie (canonical backend cookie name) ───────────────────────
+
+    /// REGRESSION: backend sets `Set-Cookie: session=TOKEN`. This must be
+    /// recognised by extract_bearer_token.  The original implementation only
+    /// looked for `atlas_session=` and so returned None even after a successful
+    /// magic-link verify, causing "No session cookie after verify".
+    #[test]
+    fn session_cookie_is_accepted() {
+        let headers = headers_with("session=my-token-abc");
+        assert_eq!(
+            extract_bearer_token(&headers).as_deref(),
+            Some("my-token-abc"),
+            "REGRESSION: 'session=' cookie must be accepted — it is what the backend sets"
+        );
+    }
+
+    /// session= with multiple cookies — correct value extracted.
+    #[test]
+    fn session_cookie_among_multiple_cookies() {
+        let headers = headers_with("other=xyz; session=correct-token; another=abc");
+        assert_eq!(
+            extract_bearer_token(&headers).as_deref(),
+            Some("correct-token")
+        );
+    }
+
+    // ── atlas_session= cookie (legacy alias) ──────────────────────────────────
+
+    /// Legacy alias must still work so existing browser sessions aren't invalidated
+    /// if cookies were set before the cookie-name normalisation.
+    #[test]
+    fn atlas_session_cookie_legacy_alias_is_accepted() {
+        let headers = headers_with("atlas_session=legacy-token");
+        assert_eq!(
+            extract_bearer_token(&headers).as_deref(),
+            Some("legacy-token"),
+            "'atlas_session=' must still be accepted as a legacy alias"
+        );
+    }
+
+    // ── Authorization: Bearer ─────────────────────────────────────────────────
+
+    /// Bearer token (used by server-to-server SSR calls) must be accepted.
+    #[test]
+    fn bearer_header_is_accepted_when_no_cookie() {
+        let headers = headers_with_bearer("srv-token-xyz");
+        assert_eq!(
+            extract_bearer_token(&headers).as_deref(),
+            Some("srv-token-xyz")
+        );
+    }
+
+    // ── Missing auth ──────────────────────────────────────────────────────────
+
+    /// No auth at all → None (not a panic).
+    #[test]
+    fn returns_none_when_no_auth_present() {
+        assert!(extract_bearer_token(&HeaderMap::new()).is_none());
+    }
+
+    /// Unrelated cookie, no bearer → None.
+    #[test]
+    fn returns_none_when_only_unrelated_cookie() {
+        let headers = headers_with("csrf=abcdef; other=value");
+        assert!(extract_bearer_token(&headers).is_none());
+    }
+}
+

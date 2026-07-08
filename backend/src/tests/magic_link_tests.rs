@@ -460,3 +460,251 @@ async fn test_magic_link_outbox_processing() {
     assert!(!processed_jobs.is_empty(), "The outbox job must be marked as 'completed'");
     }).await;
 }
+
+// ── Email branding regression tests ───────────────────────────────────────────
+
+/// REGRESSION: `property_management` app_type must trigger Folio branding.
+///
+/// Incident root cause: `is_folio` only matched `"folio"` but every provisioned
+/// Folio instance stores `app_type = "property_management"`. As a result every
+/// magic-link email subject line read "Sign in to {tenant_slug}" instead of
+/// "Your Folio Magic Link".
+///
+/// Fix: `is_folio` now also matches `"property_management"` (auth_frontend.rs).
+///
+/// This test registers a `property_management` app_instance + domain, requests
+/// a magic link pointing at that domain, and asserts the outbox job subject is
+/// exactly "Your Folio Magic Link".
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_property_management_app_type_triggers_folio_branding() {
+    with_smtp_blanked(|| async {
+    use crate::entities::{app_instance, app_domain, outbox_job};
+    use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, ColumnTrait, Set};
+
+    let (app, db) = setup_test_app().await;
+    let tenant = test_utils::create_test_tenant(&db).await;
+
+    // Register a user in this tenant.
+    let mut username = format!("foliobrand_{}", uuid::Uuid::new_v4());
+    let (status, json_body) = test_utils::register_test_user(&app, tenant.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let email = json_body["user"]["email"].as_str().unwrap().to_string();
+
+    // Create a property_management app_instance for this tenant.
+    let instance_id = uuid::Uuid::new_v4();
+    app_instance::ActiveModel {
+        id:        Set(instance_id),
+        tenant_id: Set(tenant.id),
+        app_type:  Set("property_management".to_string()),
+        created_at: Set(chrono::Utc::now()),
+        updated_at: Set(chrono::Utc::now()),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await
+    .expect("failed to insert app_instance");
+
+    // Register a domain for that instance.
+    let domain = format!("folio.test-{}.example.com", uuid::Uuid::new_v4());
+    app_domain::ActiveModel {
+        id:              Set(uuid::Uuid::new_v4()),
+        app_instance_id: Set(instance_id),
+        domain_name:     Set(domain.clone()),
+        created_at:      Set(chrono::Utc::now()),
+    }
+    .insert(&db)
+    .await
+    .expect("failed to insert app_domain");
+
+    // Request a magic link with redirect_url pointing at the property_management domain.
+    let redirect_url = format!("https://{}/verify", domain);
+    let req = app.clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/auth/magic-link/request")
+                .header("Content-Type", "application/json")
+                .header("Host", "localhost")
+                .body(axum::body::Body::from(serde_json::json!({
+                    "email":        email,
+                    "redirect_url": redirect_url,
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(req.status(), StatusCode::OK, "magic link request must return 200");
+
+    // Read the outbox job and verify email subject uses Folio branding.
+    let jobs = outbox_job::Entity::find()
+        .filter(outbox_job::Column::JobType.eq("send_magic_link_email"))
+        .filter(outbox_job::Column::TenantId.eq(tenant.id))
+        .all(&db)
+        .await
+        .unwrap();
+
+    assert!(!jobs.is_empty(), "an outbox job must have been created");
+
+    let subject = jobs.last().unwrap()
+        .payload
+        .get("subject")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    assert_eq!(
+        subject,
+        "Your Folio Magic Link",
+        "REGRESSION: property_management app_type must produce Folio email branding. \
+         Got subject: '{}'. Check is_folio detection in auth_frontend.rs — \
+         must match both 'folio' and 'property_management'.",
+        subject
+    );
+    }).await;
+}
+
+/// REGRESSION: `tenant.page_title` must be used as the email brand name,
+/// falling back to `tenant.name` only when `page_title` is NULL or empty.
+///
+/// Incident: emails said "Sign in to ruuderie" (the internal tenant slug)
+/// instead of the operator-configured display name.
+///
+/// Fix: request_magic_link now reads `tenant.page_title` first, falling back
+/// to `tenant.name` (auth_frontend.rs).
+///
+/// This is the productized way for operators to control what users see in
+/// emails and browser titles — set `page_title` in platform-admin tenant settings.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_magic_link_email_uses_page_title_as_brand_name() {
+    with_smtp_blanked(|| async {
+    use crate::entities::{app_instance, app_domain, outbox_job, tenant};
+    use sea_orm::{ActiveModelTrait, EntityTrait, QueryFilter, ColumnTrait, Set, ActiveModelBehavior};
+
+    let (app, db) = setup_test_app().await;
+
+    // Create a tenant with a raw internal name but a proper page_title.
+    let raw_name = format!("rawslug_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let display_name = "Acme Property Co";
+    let base_tenant = test_utils::create_test_tenant(&db).await;
+
+    // Update the tenant: set name to raw_name and page_title to display_name.
+    let mut tenant_active: tenant::ActiveModel = base_tenant.clone().into();
+    tenant_active.name       = Set(raw_name.clone());
+    tenant_active.page_title = Set(Some(display_name.to_string()));
+    let updated_tenant = tenant_active.update(&db).await.expect("failed to update tenant");
+
+    // Register a user.
+    let mut username = format!("pagetitle_{}", uuid::Uuid::new_v4());
+    let (status, json_body) = test_utils::register_test_user(&app, updated_tenant.id, &mut username).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let email = json_body["user"]["email"].as_str().unwrap().to_string();
+
+    // Create a non-Folio app_instance (anchor) so brand_name logic runs.
+    let instance_id = uuid::Uuid::new_v4();
+    app_instance::ActiveModel {
+        id:        Set(instance_id),
+        tenant_id: Set(updated_tenant.id),
+        app_type:  Set("anchor".to_string()),
+        created_at: Set(chrono::Utc::now()),
+        updated_at: Set(chrono::Utc::now()),
+        ..Default::default()
+    }
+    .insert(&db)
+    .await
+    .expect("failed to insert app_instance");
+
+    let domain = format!("anchor.test-{}.example.com", uuid::Uuid::new_v4());
+    app_domain::ActiveModel {
+        id:              Set(uuid::Uuid::new_v4()),
+        app_instance_id: Set(instance_id),
+        domain_name:     Set(domain.clone()),
+        created_at:      Set(chrono::Utc::now()),
+    }
+    .insert(&db)
+    .await
+    .expect("failed to insert app_domain");
+
+    let redirect_url = format!("https://{}/verify", domain);
+    let req = app.clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/auth/magic-link/request")
+                .header("Content-Type", "application/json")
+                .header("Host", "localhost")
+                .body(axum::body::Body::from(serde_json::json!({
+                    "email":        email,
+                    "redirect_url": redirect_url,
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(req.status(), StatusCode::OK);
+
+    let jobs = outbox_job::Entity::find()
+        .filter(outbox_job::Column::JobType.eq("send_magic_link_email"))
+        .filter(outbox_job::Column::TenantId.eq(updated_tenant.id))
+        .all(&db)
+        .await
+        .unwrap();
+
+    assert!(!jobs.is_empty(), "an outbox job must have been created");
+
+    let subject = jobs.last().unwrap()
+        .payload
+        .get("subject")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let expected = format!("Sign in to {}", display_name);
+    assert_eq!(
+        subject, expected,
+        "REGRESSION: email subject must use tenant.page_title ('{}') not tenant.name ('{}').\
+         Got: '{}'. Check that request_magic_link reads page_title before name in auth_frontend.rs.",
+        display_name, raw_name, subject
+    );
+
+    // Also verify that a blank page_title falls back to tenant.name.
+    let mut tenant_no_title: tenant::ActiveModel = updated_tenant.clone().into();
+    tenant_no_title.page_title = Set(Some(String::new())); // empty string = use name
+    tenant_no_title.update(&db).await.expect("failed to clear page_title");
+
+    let req2 = app.clone()
+        .oneshot(
+            axum::http::Request::builder()
+                .method("POST")
+                .uri("/api/auth/magic-link/request")
+                .header("Content-Type", "application/json")
+                .header("Host", "localhost")
+                .body(axum::body::Body::from(serde_json::json!({
+                    "email":        email,
+                    "redirect_url": redirect_url,
+                }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(req2.status(), StatusCode::OK);
+
+    let jobs2 = outbox_job::Entity::find()
+        .filter(outbox_job::Column::JobType.eq("send_magic_link_email"))
+        .filter(outbox_job::Column::TenantId.eq(updated_tenant.id))
+        .all(&db)
+        .await
+        .unwrap();
+
+    let subject2 = jobs2.last().unwrap()
+        .payload
+        .get("subject")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let fallback_expected = format!("Sign in to {}", raw_name);
+    assert_eq!(
+        subject2, fallback_expected,
+        "When page_title is empty, email subject must fall back to tenant.name. \
+         Expected: '{}', got: '{}'.",
+        fallback_expected, subject2
+    );
+    }).await;
+}
