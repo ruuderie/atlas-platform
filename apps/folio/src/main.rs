@@ -222,9 +222,7 @@ pub fn shell(
                     <div class="fl-bar"><div class="fl-fill"></div></div>
                 </div>
                 <script inner_html=dismiss_script></script>
-                <div id="app">
-                    <App/>
-                </div>
+                <div id="app"><App/></div>
             </body>
         </html>
     }
