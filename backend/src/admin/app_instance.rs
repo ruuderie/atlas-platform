@@ -392,6 +392,45 @@ pub async fn update_public_config(
             // Non-fatal: if the sidecar is unavailable the domain is still saved and
             // the admin can re-trigger by saving again once the sidecar is healthy.
             if let Some(ref domain) = body.custom_domain {
+                // ── Register domain in app_domains ────────────────────────────────────
+                // The provisioning flow registers the auto-generated folio.{base} subdomain.
+                // When an operator sets a *custom* domain here, that new hostname must also
+                // exist in app_domains so that domain-aware backend endpoints (e.g.
+                // /api/auth/magic-link/request redirect_url validation) can resolve it.
+                // Without this upsert, the ingress routes the domain correctly but the
+                // backend rejects it with 400, which surfaces as a 500 to the browser.
+                use crate::entities::app_domain;
+                let upsert_domain = app_domain::ActiveModel {
+                    id:              Set(uuid::Uuid::new_v4()),
+                    app_instance_id: Set(instance_id),
+                    domain_name:     Set(domain.clone()),
+                    created_at:      Set(chrono::Utc::now()),
+                };
+                if let Err(e) = app_domain::Entity::insert(upsert_domain)
+                    .on_conflict(
+                        sea_orm::sea_query::OnConflict::column(app_domain::Column::DomainName)
+                            .do_nothing()
+                            .to_owned(),
+                    )
+                    .exec(&db)
+                    .await
+                {
+                    use sea_orm::DbErr;
+                    if !matches!(e, DbErr::RecordNotInserted) {
+                        tracing::error!(
+                            event  = "update_config.app_domain_upsert.failed",
+                            domain = %domain,
+                            error  = %e,
+                        );
+                    }
+                } else {
+                    tracing::info!(
+                        event     = "update_config.app_domain_upsert.ok",
+                        domain    = %domain,
+                        instance  = %instance_id,
+                    );
+                }
+
                 let tenant_slug = inst.tenant_id.to_string();
                 let app_slug   = updated.app_slug.clone();
                 let dom        = domain.clone();
@@ -412,6 +451,7 @@ pub async fn update_public_config(
                     }
                 });
             }
+
 
             (StatusCode::OK, Json(resp)).into_response()
         }

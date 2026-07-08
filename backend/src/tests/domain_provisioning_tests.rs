@@ -439,7 +439,132 @@ async fn update_public_config_rejects_duplicate_custom_domain_with_409() {
         "duplicate custom_domain must return 409 CONFLICT");
 }
 
-// ── ATLAS_CNAME_TARGET env var contract (pure, no DB) ─────────────────────────
+// ── Regression: update_public_config must register custom domain in app_domains ──
+//
+// Incident: folio1.atlas.oply.co was set as a custom domain via platform-admin
+// update_public_config. The ingress was created correctly, but app_domains was
+// never updated. The magic-link backend validates redirect URLs against app_domains,
+// returned 400, which Folio surfaced as a 500 to the browser.
+//
+// Fix: update_public_config now upserts into app_domains when custom_domain is set.
+
+#[tokio::test]
+async fn update_public_config_custom_domain_is_registered_in_app_domains() {
+    let (app, db) = setup_test_app().await;
+    let (_, token) = test_utils::create_and_login_admin_user(&app, &db).await;
+
+    let slug = format!("custdom-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let base_domain = format!("{slug}.dev.atlas.oply.co");
+    let (s, iid) = provision_and_get_instance_id(&app, &db, &token, &slug, &base_domain).await;
+    assert_eq!(s, StatusCode::CREATED, "provision must return 201");
+
+    // Set a custom domain via update_public_config (simulates operator action in platform-admin)
+    let custom = format!("portal.{slug}.example.com");
+    let (s, _) = put_public_config(&app, &token, &iid, &custom).await;
+    assert_eq!(s, StatusCode::OK, "update_public_config must return 200");
+
+    // The custom domain must now exist in app_domains — this is the regression assertion.
+    use crate::entities::app_domain;
+    use sea_orm::EntityTrait;
+    let domain_row = app_domain::Entity::find()
+        .filter(app_domain::Column::DomainName.eq(&custom))
+        .one(&db)
+        .await
+        .expect("db query should not fail");
+
+    assert!(
+        domain_row.is_some(),
+        "Custom domain '{}' must be in app_domains after update_public_config — \
+         otherwise magic-link redirect_url validation returns 400",
+        custom
+    );
+    assert_eq!(
+        domain_row.unwrap().app_instance_id,
+        iid,
+        "app_domain row must reference the correct app_instance"
+    );
+}
+
+/// Regression: after provisioning a folio tenant, the magic-link endpoint must
+/// accept the auto-generated `folio.{domain}` subdomain as a valid redirect URL.
+///
+/// This guards against the folio1.atlas.oply.co incident where the domain was
+/// not in app_domains and magic-link returned 400 → Folio returned 500 to the browser.
+#[tokio::test]
+async fn provisioned_folio_subdomain_is_accepted_by_magic_link_endpoint() {
+    use axum::{body::Body, http::Request};
+    use http_body_util::BodyExt;
+
+    let (app, db) = setup_test_app().await;
+    let (_, token) = test_utils::create_and_login_admin_user(&app, &db).await;
+
+    let slug = format!("ml-folio-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let base_domain = format!("{slug}.dev.atlas.oply.co");
+
+    // Provision with anchor + property_management — the handler should register folio.{base} in app_domains.
+    let resp = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/admin/tenants/provision")
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {token}"))
+                .header("Host", "localhost")
+                .body(Body::from(serde_json::json!({
+                    "tenant_name":             slug,
+                    "display_name":            format!("ML Folio Test {slug}"),
+                    "domain":                  base_domain,
+                    "admin_email":             format!("admin@{base_domain}"),
+                    "admin_first_name":        "Test",
+                    "admin_last_name":         "Admin",
+                    "bypass_dns_verification": true,
+                    "apps":                    ["anchor", "property_management"],
+                }).to_string()))
+                .unwrap(),
+        )
+        .await.unwrap();
+
+    assert_eq!(resp.status(), StatusCode::CREATED, "provision must return 201");
+
+    // The folio subdomain follows the pattern folio.{base_domain}
+    let folio_domain = format!("folio.{base_domain}");
+    let redirect_url = format!("https://{folio_domain}/verify");
+
+    // POST to magic-link endpoint with folio domain as redirect_url.
+    // The email doesn't need to exist — the endpoint always returns 200 for valid domains
+    // (security: doesn't reveal whether email exists).
+    let ml_resp = app.clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/magic-link/request")
+                .header("Content-Type", "application/json")
+                .header("Host", folio_domain.as_str())
+                .body(Body::from(serde_json::json!({
+                    "email":        "test-user@example.com",
+                    "redirect_url": redirect_url,
+                }).to_string()))
+                .unwrap(),
+        )
+        .await.unwrap();
+
+    // Must be 200 — NOT 400 (unrecognized domain) which would surface as 500 in Folio.
+    let ml_status = ml_resp.status();
+    let ml_bytes = ml_resp.into_body().collect().await.unwrap().to_bytes();
+    let ml_body: serde_json::Value = serde_json::from_slice(&ml_bytes).unwrap_or_default();
+
+    assert_eq!(
+        ml_status,
+        StatusCode::OK,
+        "magic-link endpoint must return 200 for provisioned folio domain '{}'. \
+         Got: {:?} body: {}",
+        folio_domain,
+        ml_status,
+        ml_body,
+    );
+}
+
+
 
 mod cname_target_contract {
     use crate::admin::app_instance::DnsInstructions;
