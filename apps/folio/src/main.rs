@@ -203,7 +203,7 @@ async fn verify_handler(
     {
         Ok(r) => r,
         Err(e) => {
-            tracing::error!(event = "verify.backend_unreachable", err = %e);
+            eprintln!("[folio] verify: backend unreachable: {e}");
             return axum::response::Redirect::to("/verify?error=backend_error").into_response();
         }
     };
