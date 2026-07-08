@@ -217,7 +217,14 @@ pub fn shell(
                 <Link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"/>
             </head>
             <body>
-                <App/>
+                <div id="folio-loader" aria-hidden="true">
+                    <div class="fl-logo">"Folio"</div>
+                    <div class="fl-bar"><div class="fl-fill"></div></div>
+                </div>
+                <script inner_html=dismiss_script></script>
+                <div id="app">
+                    <App/>
+                </div>
             </body>
         </html>
     }

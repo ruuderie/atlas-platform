@@ -163,37 +163,7 @@ use crate::components::layouts::{
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
-    let dismiss_script = r#"
-        (function(){
-            var el=document.getElementById('folio-loader');
-            if(!el)return;
-            var done=function(){el.classList.add('fl-done');};
-            var lnk=document.querySelector('link[href*="folio-v1"]');
-            if(lnk){lnk.addEventListener('load',done);lnk.addEventListener('error',done);}
-            setTimeout(done,3000);
-
-            // Material Symbols FontFace observer
-            var revealIcons = function(){
-                document.documentElement.classList.add('ms-ready');
-            };
-            if(document.fonts && document.fonts.load){
-                document.fonts.load('1em "Material Symbols Outlined"')
-                    .then(revealIcons)
-                    .catch(revealIcons);
-            } else {
-                setTimeout(revealIcons, 2000);
-            }
-        })();
-    "#;
-
     view! {
-        // Render loader screen first so it matches the SSR DOM structure during hydration
-        <div id="folio-loader" aria-hidden="true">
-            <div class="fl-logo">"Folio"</div>
-            <div class="fl-bar"><div class="fl-fill"></div></div>
-        </div>
-        <script inner_html=dismiss_script></script>
-
         <Router>
             <Routes fallback=|| view! { <NotFound/> }>
                 // ── Public ────────────────────────────────────────────────────
