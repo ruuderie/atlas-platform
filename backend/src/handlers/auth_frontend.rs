@@ -17,7 +17,7 @@ use moka::future::Cache;
 use once_cell::sync::Lazy;
 use rand::{distributions::Alphanumeric, Rng};
 
-use crate::entities::{magic_link_token, user, account, user_account, outbox_job};
+use crate::entities::{magic_link_token, user, account, user_account, outbox_job, platform_invite};
 use crate::auth::verify_password;
 use crate::handlers::sessions::create_user_session;
 use crate::metrics;  // Prometheus metrics
@@ -723,6 +723,88 @@ pub async fn verify_magic_link(
     let mut ml_active: magic_link_token::ActiveModel = magic_link.into();
     ml_active.is_used = Set(true);
     let _ = ml_active.update(&db).await;
+
+    // ── Seed RBAC role from platform invite (if any) ──────────────────────────
+    // When a platform-admin invite has an `app_role` (e.g. "landlord"), we need
+    // to insert the user into `atlas_user_app_roles` so `/api/folio/me` returns
+    // 200. Without this, first-login always returned 403 (no role assigned).
+    //
+    // Strategy: find the most recent non-expired platform_invite for this email
+    // that has an app_role set and an app_instance_id, then:
+    //   1. Resolve tenant_id from the app_instance
+    //   2. Look up the role_profile_id for the app_role slug
+    //   3. Upsert into atlas_user_app_roles (ON CONFLICT DO NOTHING — idempotent)
+    {
+        use sea_orm::{ConnectionTrait, QueryOrder, Order};
+
+        let invite_row = platform_invite::Entity::find()
+            .filter(platform_invite::Column::Email.eq(&user_mod.email))
+            .filter(platform_invite::Column::ExpiresAt.gt(Utc::now()))
+            .order_by(platform_invite::Column::CreatedAt, Order::Desc)
+            .one(&db)
+            .await
+            .unwrap_or(None);
+
+        if let Some(invite) = invite_row {
+            if let (Some(app_role_slug), Some(instance_id)) = (&invite.app_role, invite.app_instance_id) {
+                // Resolve tenant_id from app_instance
+                let tenant_id_opt: Option<Uuid> = db
+                    .query_one(sea_orm::Statement::from_sql_and_values(
+                        sea_orm::DbBackend::Postgres,
+                        "SELECT tenant_id FROM app_instance WHERE id = $1 LIMIT 1",
+                        [instance_id.into()],
+                    ))
+                    .await
+                    .ok()
+                    .flatten()
+                    .and_then(|r| r.try_get::<Uuid>("", "tenant_id").ok());
+
+                // Resolve role_profile_id for this slug (app_slug = 'folio')
+                let profile_id_opt: Option<Uuid> = db
+                    .query_one(sea_orm::Statement::from_sql_and_values(
+                        sea_orm::DbBackend::Postgres,
+                        "SELECT id FROM atlas_role_profiles WHERE role_slug = $1 AND app_slug = 'folio' LIMIT 1",
+                        [app_role_slug.clone().into()],
+                    ))
+                    .await
+                    .ok()
+                    .flatten()
+                    .and_then(|r| r.try_get::<Uuid>("", "id").ok());
+
+                if let (Some(tenant_id), Some(role_profile_id)) = (tenant_id_opt, profile_id_opt) {
+                    let _ = db
+                        .execute(sea_orm::Statement::from_sql_and_values(
+                            sea_orm::DbBackend::Postgres,
+                            r#"INSERT INTO atlas_user_app_roles
+                                   (id, user_id, tenant_id, app_slug, role_profile_id, is_active, created_at)
+                               VALUES ($1, $2, $3, 'folio', $4, true, NOW())
+                               ON CONFLICT (user_id, tenant_id, app_slug) DO NOTHING"#,
+                            [
+                                Uuid::new_v4().into(),
+                                user_mod.id.into(),
+                                tenant_id.into(),
+                                role_profile_id.into(),
+                            ],
+                        ))
+                        .await;
+
+                    tracing::info!(
+                        event = "magic_link.rbac_role_seeded",
+                        user_id = %user_mod.id,
+                        tenant_id = %tenant_id,
+                        app_role  = %app_role_slug,
+                    );
+                } else {
+                    tracing::warn!(
+                        event = "magic_link.rbac_role_seed_failed",
+                        user_id   = %user_mod.id,
+                        app_role  = %app_role_slug,
+                        reason    = "tenant_id or role_profile_id not resolved",
+                    );
+                }
+            }
+        }
+    }
 
     let session_response = crate::handlers::sessions::create_session_for_user(&db, &user_mod)
         .await

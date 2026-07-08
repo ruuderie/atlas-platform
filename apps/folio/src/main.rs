@@ -304,6 +304,23 @@ async fn verify_handler(
         }
     };
 
+    // If /api/folio/me returns 4xx (e.g. 403 = no RBAC role assigned yet for a
+    // freshly-provisioned user), we still have a valid session — don't block login.
+    // Send to /onboarding so the wizard can complete setup that seeds the role.
+    if !me_res.status().is_success() {
+        let status = me_res.status();
+        eprintln!("[folio] verify: /api/folio/me returned {status} — redirecting to /onboarding");
+        let mut builder = Response::builder()
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, "/onboarding");
+        if let Some(cookie) = cookie_header {
+            if let Ok(val) = axum::http::HeaderValue::from_str(&cookie) {
+                builder = builder.header(header::SET_COOKIE, val);
+            }
+        }
+        return builder.body(axum::body::Body::empty()).unwrap();
+    }
+
     let me: FolioMe = match me_res.json().await {
         Ok(m) => m,
         Err(e) => {
