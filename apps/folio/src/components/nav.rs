@@ -61,6 +61,7 @@ pub enum NavIcon {
 
     // Analytics
     BarChart,        // meridian / analytics
+    ShowChart,       // property value tracker
 
     // Finance
     CreditCard,      // tenant payments
@@ -118,6 +119,7 @@ impl NavIcon {
             Self::Chat           => "chat",
 
             Self::BarChart       => "bar_chart",
+            Self::ShowChart       => "show_chart",
             Self::CreditCard     => "credit_card",
 
             Self::Star           => "star",
@@ -258,6 +260,11 @@ pub enum FolioRoute {
     GuestHouseRules,
     GuestInbox,
     GuestProfile,
+
+    // ── Property Owner Lite /po/** ──────────────────────────────────
+    PropertyOwnerLiteDashboard,
+    PropertyOwnerLiteValue,
+    PropertyOwnerLiteFindVendor,
 }
 
 impl FolioRoute {
@@ -361,6 +368,10 @@ impl FolioRoute {
             Self::GuestHouseRules        => "/g/house-rules",
             Self::GuestInbox             => "/g/inbox",
             Self::GuestProfile           => "/g/profile",
+
+            Self::PropertyOwnerLiteDashboard   => "/po",
+            Self::PropertyOwnerLiteValue       => "/po/value",
+            Self::PropertyOwnerLiteFindVendor  => "/po/find-vendor",
         }
     }
 
@@ -376,6 +387,7 @@ impl FolioRoute {
             | Self::StrHostDashboard
             | Self::AgentDashboard
             | Self::BrokerDashboard
+            | Self::PropertyOwnerLiteDashboard
         )
     }
 }
@@ -758,6 +770,21 @@ static BROKER_NAV: NavConfig = NavConfig {
     ],
 };
 
+static PROPERTY_OWNER_LITE_NAV: NavConfig = NavConfig {
+    role_label: "Property Owner",
+    groups: &[NavGroup {
+        label: None,
+        items: &[
+            NavItem::new(FolioRoute::PropertyOwnerLiteDashboard,  "My Property",    NavIcon::Home),
+            NavItem::new(FolioRoute::PropertyOwnerLiteValue,      "Property Value", NavIcon::ShowChart),
+            NavItem::new(FolioRoute::PropertyOwnerLiteFindVendor, "Find a Vendor",  NavIcon::Handyman),
+        ],
+    }],
+    footer_items: &[
+        NavItem::new(FolioRoute::Settings, "Settings", NavIcon::Settings),
+    ],
+};
+
 static STR_HOST_NAV: NavConfig = NavConfig {
     role_label: "STR Host",
     groups: &[NavGroup {
@@ -815,6 +842,7 @@ impl FolioRole {
             // session.has_str_assets = true (asset-level trait, not a role)
             Self::Agent           => &AGENT_NAV,
             Self::Broker          => &BROKER_NAV,
+            Self::PropertyOwnerLite => &PROPERTY_OWNER_LITE_NAV,
         }
     }
 }

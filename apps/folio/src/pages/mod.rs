@@ -14,3 +14,4 @@ pub mod marketing;  // zero-auth SSR landing pages served at /lp/*
 pub mod settings;
 pub mod auth;         // passkey_setup + future auth flows
 pub mod onboarding;   // first-run wizard
+pub mod property_owner; // Property Owner Lite — free-tier self-registered owners

@@ -148,6 +148,14 @@ use crate::pages::broker::dashboard::{
     BrokerDashboard, BrokerAgents, BrokerListings, BrokerCompliance, BrokerRevenue,
 };
 
+// Property Owner Lite pages
+use crate::pages::property_owner::{
+    dashboard::PropertyOwnerDashboard,
+    property_value::PropertyValuePage,
+    find_vendor::FindVendorPage,
+    review_submit::ReviewSubmitPage,
+};
+
 // Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
     landlord_layout::LandlordLayout,
@@ -156,6 +164,7 @@ use crate::components::layouts::{
     pmc_layout::PmcLayout,
     owner_layout::OwnerLayout,
     brokerage_layouts::{AgentLayout, BrokerLayout},
+    property_owner_layout::PropertyOwnerLayout,
 };
 
 /// Root application shell. Sets up meta context and the router.
@@ -363,6 +372,20 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/compliance") view=BrokerCompliance/>
                     <Route path=path!("/revenue")    view=BrokerRevenue/>
                 </ParentRoute>
+
+                // ── Property Owner Lite namespace /po/** ────────────────────────
+                // Free-tier self-registered owner: value tracking + vendor browse.
+                // Auth guard: PropertyOwnerLite role (via role_shell_view).
+                <ParentRoute path=path!("/po") view=PropertyOwnerShell>
+                    <Route path=path!("")               view=PropertyOwnerDashboard/>
+                    <Route path=path!("/value")         view=PropertyValuePage/>
+                    <Route path=path!("/find-vendor")   view=FindVendorPage/>
+                </ParentRoute>
+
+                // ── Public review route /review/:invite_id ───────────────────
+                // Zero-auth — vendor sends this link to past clients.
+                // Inline OTP gate lives inside ReviewSubmitPage.
+                <Route path=path!("/review/:invite_id") view=ReviewSubmitPage/>
             </Routes>
         </Router>
     }
@@ -412,6 +435,11 @@ fn AgentShell() -> impl IntoView {
 #[component]
 fn BrokerShell() -> impl IntoView {
     role_shell_view(FolioRole::Broker, || view! { <BrokerLayout/> }.into_any())
+}
+
+#[component]
+fn PropertyOwnerShell() -> impl IntoView {
+    role_shell_view(FolioRole::PropertyOwnerLite, || view! { <PropertyOwnerLayout/> }.into_any())
 }
 
 /// Shared guard logic for all role shells.

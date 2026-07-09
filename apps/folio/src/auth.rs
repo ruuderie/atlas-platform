@@ -40,6 +40,11 @@ pub enum FolioRole {
     /// Licensed real estate broker — manages agents and the office.
     /// Requires `folio_mode = "brokerage"` on the instance. Home path: `/b`.
     Broker,
+    /// Free-tier property owner — self-registered, no landlord invite required.
+    /// Can: log property valuations, browse vendor marketplace, submit G-27 reviews.
+    /// Cannot: manage leases, billing, tenants — those require upgrade to Landlord.
+    /// Home path: `/po`. Deserializes from backend "property_owner_lite" role slug.
+    PropertyOwnerLite,
 }
 
 impl FolioRole {
@@ -55,6 +60,7 @@ impl FolioRole {
             Self::Cohost          => "/ch",
             Self::Agent           => "/a",
             Self::Broker          => "/b",
+            Self::PropertyOwnerLite => "/po",
         }
     }
     pub fn label(&self) -> &'static str {
@@ -68,7 +74,13 @@ impl FolioRole {
             Self::Cohost          => "Cohost Portal",
             Self::Agent           => "Agent Portal",
             Self::Broker          => "Broker Portal",
+            Self::PropertyOwnerLite => "Property Owner Portal",
         }
+    }
+
+    /// True for the free-tier property owner (no lease/billing capabilities).
+    pub fn is_lite(&self) -> bool {
+        matches!(self, Self::PropertyOwnerLite)
     }
 }
 
