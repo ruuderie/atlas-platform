@@ -928,6 +928,8 @@ impl TryFrom<String> for ScorecardEntityType {
 /// - `Vendor`          — contractor. Assigned work orders and invoices.
 /// - `PropertyManager` — PMC operator. Cross-client view of multiple landlord books.
 ///                       Only valid when app config has `"pmc_enabled": true`.
+/// - `PropertyOwnerLite` — free-tier property owner. Tracks property value and vendors.
+///                       No leases, no billing. Upgrade path → Landlord via Stripe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum FolioRole {
@@ -951,6 +953,13 @@ pub enum FolioRole {
     // in their dashboard dynamically (has_str_assets in SessionInfo).
     Agent,
     Broker,
+    /// Free-tier property owner. Same `/dashboard` shell as Landlord but with
+    /// Landlord-only modules gated behind `is_lite()`. Tracks property value,
+    /// linked vendors, and submits G-27 reviews via invite.
+    ///
+    /// Upgrade path: `POST /api/folio/upgrade-role` → Stripe → `role_slug = 'landlord'`.
+    /// G-10 asset + value history carry forward with zero re-entry on upgrade.
+    PropertyOwnerLite,
 }
 
 impl FolioRole {
@@ -958,15 +967,16 @@ impl FolioRole {
     /// Used by the frontend router to redirect after login.
     pub fn home_path(&self) -> &'static str {
         match self {
-            Self::Landlord        => "/dashboard",
-            Self::Tenant          => "/my-home",
-            Self::StrGuest        => "/g",
-            Self::Vendor          => "/work-orders",
-            Self::PropertyManager => "/pm",
-            Self::Owner           => "/owner",
-            Self::Cohost          => "/ch",
-            Self::Agent           => "/a",
-            Self::Broker          => "/b",
+            Self::Landlord          => "/dashboard",
+            Self::Tenant            => "/my-home",
+            Self::StrGuest          => "/g",
+            Self::Vendor            => "/work-orders",
+            Self::PropertyManager   => "/pm",
+            Self::Owner             => "/owner",
+            Self::Cohost            => "/ch",
+            Self::Agent             => "/a",
+            Self::Broker            => "/b",
+            Self::PropertyOwnerLite => "/dashboard",
         }
     }
 
@@ -984,20 +994,29 @@ impl FolioRole {
     pub fn is_brokerage(&self) -> bool {
         matches!(self, Self::Agent | Self::Broker)
     }
+
+    /// Returns true if this is the free-tier Property Owner Lite role.
+    ///
+    /// Used by the frontend to gate Landlord-only modules (leases, rent collection,
+    /// maintenance dispatch, campaigns) and show the upgrade banner.
+    pub fn is_lite(&self) -> bool {
+        matches!(self, Self::PropertyOwnerLite)
+    }
 }
 
 impl fmt::Display for FolioRole {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Landlord        => "landlord",
-            Self::Tenant          => "tenant",
-            Self::StrGuest        => "str_guest",
-            Self::Vendor          => "vendor",
-            Self::PropertyManager => "property_manager",
-            Self::Owner           => "owner",
-            Self::Cohost          => "cohost",
-            Self::Agent           => "agent",
-            Self::Broker          => "broker",
+            Self::Landlord          => "landlord",
+            Self::Tenant            => "tenant",
+            Self::StrGuest          => "str_guest",
+            Self::Vendor            => "vendor",
+            Self::PropertyManager   => "property_manager",
+            Self::Owner             => "owner",
+            Self::Cohost            => "cohost",
+            Self::Agent             => "agent",
+            Self::Broker            => "broker",
+            Self::PropertyOwnerLite => "property_owner_lite",
         })
     }
 }
@@ -1006,18 +1025,19 @@ impl TryFrom<String> for FolioRole {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "landlord"          => Ok(Self::Landlord),
-            "tenant"            => Ok(Self::Tenant),
-            "str_guest"         => Ok(Self::StrGuest),
-            "vendor"            => Ok(Self::Vendor),
-            "property_manager"  => Ok(Self::PropertyManager),
-            "owner"             => Ok(Self::Owner),
-            "cohost"            => Ok(Self::Cohost),
-            "agent"             => Ok(Self::Agent),
-            "broker"            => Ok(Self::Broker),
+            "landlord"             => Ok(Self::Landlord),
+            "tenant"               => Ok(Self::Tenant),
+            "str_guest"            => Ok(Self::StrGuest),
+            "vendor"               => Ok(Self::Vendor),
+            "property_manager"     => Ok(Self::PropertyManager),
+            "owner"                => Ok(Self::Owner),
+            "cohost"               => Ok(Self::Cohost),
+            "agent"                => Ok(Self::Agent),
+            "broker"               => Ok(Self::Broker),
+            "property_owner_lite"  => Ok(Self::PropertyOwnerLite),
             // str_host was removed — it is an asset trait, not a role.
             // Invites with app_role="str_host" are rejected at provision validation.
-            other               => Err(format!("unknown FolioRole: '{other}' (hint: use 'landlord' — STR capability is enabled per-asset)")),
+            other => Err(format!("unknown FolioRole: '{other}' (hint: use 'landlord' — STR capability is enabled per-asset)")),
         }
     }
 }
@@ -1026,6 +1046,100 @@ impl TryFrom<&str> for FolioRole {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         FolioRole::try_from(s.to_string())
+    }
+}
+
+// ── PropertyValueSource ───────────────────────────────────────────────────────
+
+/// Source type for a property value history entry.
+///
+/// Stored as VARCHAR in `atlas_asset_value_history.source`.
+/// Each variant renders with a distinct marker style on the value history chart.
+/// `source_ref TEXT` on the same row carries the external URL, document ID,
+/// appraiser name, or AVM report ID for traceability.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PropertyValueSource {
+    /// Owner self-reported estimate.
+    ManualEntry,
+    /// The original purchase price — baseline anchor for appreciation tracking.
+    PurchasePrice,
+    /// Zillow automated valuation model estimate.
+    ZillowAvm,
+    /// County tax assessment value.
+    CountyRecord,
+    /// Licensed appraiser report (full appraisal).
+    CertifiedAppraisal,
+    /// Bank or lender appraisal from a mortgage or refinance.
+    BankAppraisal,
+    /// Real estate agent comparative market analysis.
+    AgentCma,
+}
+
+impl fmt::Display for PropertyValueSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::ManualEntry       => "manual",
+            Self::PurchasePrice     => "purchase_price",
+            Self::ZillowAvm         => "zillow_avm",
+            Self::CountyRecord      => "county_record",
+            Self::CertifiedAppraisal => "certified_appraisal",
+            Self::BankAppraisal     => "bank_appraisal",
+            Self::AgentCma          => "agent_cma",
+        })
+    }
+}
+
+impl TryFrom<String> for PropertyValueSource {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "manual"              => Ok(Self::ManualEntry),
+            "purchase_price"      => Ok(Self::PurchasePrice),
+            "zillow_avm"          => Ok(Self::ZillowAvm),
+            "county_record"       => Ok(Self::CountyRecord),
+            "certified_appraisal" => Ok(Self::CertifiedAppraisal),
+            "bank_appraisal"      => Ok(Self::BankAppraisal),
+            "agent_cma"           => Ok(Self::AgentCma),
+            other => Err(format!("unknown PropertyValueSource: '{other}'")),
+        }
+    }
+}
+
+// ── InvitePurpose ─────────────────────────────────────────────────────────────
+
+/// Discriminator stored in `platform_invite.invite_purpose`.
+///
+/// Distinguishes a standard onboarding invite from a vendor-initiated review
+/// request. The `context_entity_id` column on the same row carries the
+/// relevant entity FK (e.g. the `atlas_service_providers.id` for a review invite).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InvitePurpose {
+    /// Standard user onboarding invite (default behaviour, existing rows).
+    Onboarding,
+    /// Vendor-initiated G-27 review request sent to a property owner.
+    /// `context_entity_id` = the `atlas_service_providers.id` of the vendor.
+    ReviewRequest,
+}
+
+impl fmt::Display for InvitePurpose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Onboarding    => "onboarding",
+            Self::ReviewRequest => "review_request",
+        })
+    }
+}
+
+impl TryFrom<String> for InvitePurpose {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "onboarding"     => Ok(Self::Onboarding),
+            "review_request" => Ok(Self::ReviewRequest),
+            other => Err(format!("unknown InvitePurpose: '{other}'")),
+        }
     }
 }
 

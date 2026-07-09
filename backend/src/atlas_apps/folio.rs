@@ -63,6 +63,10 @@ impl AtlasApp for FolioApp {
             // ── Invite code resolve: public GET /api/folio/invite/resolve/:code ─
             // Intentionally unauthenticated so /join/:code works before signup.
             .merge(crate::handlers::folio::invite_codes::public_routes())
+            // ── Public review flow: G-27 review context + submit + vendor profile ─
+            // Cold-traffic: property owners arrive via vendor-sent invite link.
+            // OTP identity verified inside the submit handler.
+            .merge(crate::handlers::folio::review_invite::public_routes_raw())
             // ── Multi-role identity endpoint — validates bearer internally ───
             // Listed here so no outer session middleware wraps it twice;
             // me.rs validates the bearer token and session expiry itself.
@@ -160,7 +164,10 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::comms::authenticated_routes_raw())
             .merge(crate::handlers::folio::provision::authenticated_routes_raw())
             .merge(crate::handlers::folio::notifications::authenticated_routes_raw())
-            .merge(crate::handlers::folio::onboarding_submit::routes());
+            .merge(crate::handlers::folio::onboarding_submit::routes())
+            // ── Property Owner Lite — G-10 value history + G-27 review invites ───
+            .merge(crate::handlers::folio::property_value::authenticated_routes_raw())
+            .merge(crate::handlers::folio::review_invite::authenticated_routes_raw());
 
         // ── Owner-only sub-router ─────────────────────────────────────────────
         // Beneficial property owners — read-only visibility into their portfolio.

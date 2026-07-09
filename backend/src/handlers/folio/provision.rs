@@ -41,8 +41,9 @@ use axum::{
     routing::post,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait,
-    QueryFilter, QueryOrder, Order, Set,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend,
+    DatabaseConnection, EntityTrait,
+    QueryFilter, QueryOrder, Order, Set, Statement,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -57,7 +58,10 @@ use crate::types::pm::FolioRole;
 // ── Route registration ────────────────────────────────────────────────────────
 
 pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
-    Router::new().route("/api/folio/provision/invite", post(provision_invite))
+    Router::new()
+        .route("/api/folio/provision/invite", post(provision_invite))
+        .route("/api/folio/provision/self",   post(provision_self))
+        .route("/api/folio/upgrade-role",     post(upgrade_role))
 }
 
 // ── Request / Response ────────────────────────────────────────────────────────
@@ -386,6 +390,11 @@ async fn send_provision_email(
             "PMC Dashboard",
             "Manage your client portfolios, owner disbursements, and branded tenant portals.",
         ),
+        FolioRole::PropertyOwnerLite => (
+            "Your free Folio Property Owner account is ready",
+            "Property Owner Portal",
+            "Track your property's value over time, discover verified vendors in the Folio network, and leave reviews for service providers.",
+        ),
         _ => (
             "You've been invited to Folio",
             "Folio",
@@ -475,4 +484,218 @@ async fn send_provision_email(
             Err(e) => tracing::error!("provision_invite: SMTP send failed: {e:?}"),
         }
     });
+}
+
+// ── POST /api/folio/provision/self ────────────────────────────────────────────
+//
+// Self-signup for Property Owner Lite — no landlord invite required.
+// Called after OTP email verification. Creates user row (if new), writes
+// atlas_user_app_roles with role_slug = 'property_owner_lite', and optionally
+// writes a G-22 row to link the user to a vendor (from review invite deep-link).
+
+/// Input for the self-provision endpoint.
+#[derive(Debug, Deserialize)]
+pub struct ProvisionSelfInput {
+    pub email:        String,
+    pub display_name: Option<String>,
+    /// If the user arrived via a vendor review invite link, pass the invite ID
+    /// so the G-22 vendor tracking row is written and the review session is pre-linked.
+    pub invite_id:    Option<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProvisionSelfResponse {
+    pub user_id: Uuid,
+    pub email:   String,
+    pub role:    String,
+    pub is_new:  bool,
+}
+
+pub async fn provision_self(
+    State(db): State<DatabaseConnection>,
+    Json(body): Json<ProvisionSelfInput>,
+) -> impl IntoResponse {
+    let email_lower = body.email.to_lowercase();
+
+    // 1. Upsert user row
+    let (user_row, is_new) = match user::Entity::find()
+        .filter(user::Column::Email.eq(&email_lower))
+        .one(&db)
+        .await
+    {
+        Ok(Some(u)) => (u, false),
+        Ok(None) => {
+            let username = email_lower.split('@').next().unwrap_or(&email_lower).to_string();
+            let new_user = user::ActiveModel {
+                id:            Set(Uuid::new_v4()),
+                email:         Set(email_lower.clone()),
+                username:      Set(username),
+                first_name:    Set(body.display_name.clone().unwrap_or_default()),
+                last_name:     Set(String::new()),
+                phone:         Set(String::new()),
+                password_hash: Set(String::new()),
+                is_active:     Set(true),
+                created_at:    Set(Utc::now()),
+                ..Default::default()
+            };
+            match new_user.insert(&db).await {
+                Ok(u)  => (u, true),
+                Err(e) => {
+                    tracing::error!(error = %e, "provision_self: user insert failed");
+                    return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "provision_self: user lookup failed");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    // 2. Write atlas_user_app_roles row (ON CONFLICT DO NOTHING — idempotent)
+    //    Role profile id '00000000-0000-0000-0001-000000000007' is the
+    //    property_owner_lite seed from m20261015_g32_property_owner_lite_seed.
+    let role_sql = format!(
+        "INSERT INTO atlas_user_app_roles \
+         (id, user_id, app_slug, role_slug, role_profile_id, is_active, granted_at) \
+         VALUES (gen_random_uuid(), '{uid}'::uuid, 'folio', 'property_owner_lite', \
+         '00000000-0000-0000-0001-000000000007'::uuid, true, NOW()) \
+         ON CONFLICT (user_id, app_slug) DO NOTHING;",
+        uid = user_row.id
+    );
+    if let Err(e) = db.execute(
+        Statement::from_string(DatabaseBackend::Postgres, role_sql)
+    ).await {
+        tracing::error!(error = %e, "provision_self: role row insert failed");
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    // 3. If vendor invite_id provided, write G-22 vendor tracking relationship (best-effort)
+    if let Some(inv_id) = body.invite_id {
+        let g22_sql = format!(
+            "INSERT INTO atlas_record_relationships \
+             (id, tenant_id, relationship_type, source_entity_type, source_entity_id, \
+              target_entity_type, target_entity_id, created_at) \
+             SELECT gen_random_uuid(), pi.app_instance_id, 'tracks_vendor', \
+                    'user', '{uid}'::uuid, 'atlas_service_provider', pi.context_entity_id, NOW() \
+             FROM platform_invite pi \
+             WHERE pi.id = '{inv_id}'::uuid \
+               AND pi.invite_purpose = 'review_request' \
+               AND pi.context_entity_id IS NOT NULL \
+             ON CONFLICT DO NOTHING;",
+            uid = user_row.id,
+            inv_id = inv_id,
+        );
+        let _ = db.execute(
+            Statement::from_string(DatabaseBackend::Postgres, g22_sql)
+        ).await;
+    }
+
+    tracing::info!(
+        event = "provision_self.created",
+        user_id = %user_row.id,
+        email = %email_lower,
+        is_new,
+    );
+
+    (StatusCode::CREATED, Json(ProvisionSelfResponse {
+        user_id: user_row.id,
+        email:   email_lower,
+        role:    FolioRole::PropertyOwnerLite.to_string(),
+        is_new,
+    })).into_response()
+}
+
+// ── POST /api/folio/upgrade-role ─────────────────────────────────────────────
+//
+// Initiates Landlord upgrade for a Property Owner Lite user.
+// Returns a Stripe Checkout Session URL. The Stripe webhook (stripe_webhooks.rs)
+// handles the actual role swap on payment confirmation:
+//   UPDATE atlas_user_app_roles SET role_slug = 'landlord' WHERE user_id = ...
+// G-10 asset + value history carry forward unchanged — no re-entry required.
+
+#[derive(Debug, Deserialize)]
+pub struct UpgradeRoleInput {
+    /// Stripe price ID for the Landlord plan. Falls back to STRIPE_LANDLORD_PRICE_ID env var.
+    pub price_id:    Option<String>,
+    /// Redirect URL after successful Stripe checkout.
+    pub success_url: Option<String>,
+    /// Redirect URL if the user cancels Stripe checkout.
+    pub cancel_url:  Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpgradeRoleResponse {
+    /// Stripe Checkout Session URL — redirect the browser here.
+    pub checkout_url: String,
+    pub session_id:   String,
+}
+
+pub async fn upgrade_role(
+    State(_db): State<DatabaseConnection>,
+    Json(body): Json<UpgradeRoleInput>,
+) -> impl IntoResponse {
+    let stripe_secret = match env::var("STRIPE_SECRET_KEY") {
+        Ok(k) if !k.is_empty() => k,
+        _ => {
+            tracing::warn!("upgrade_role: STRIPE_SECRET_KEY not configured");
+            return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({
+                "error": "Billing not configured on this instance."
+            }))).into_response();
+        }
+    };
+
+    let price_id = body.price_id
+        .or_else(|| env::var("STRIPE_LANDLORD_PRICE_ID").ok())
+        .unwrap_or_else(|| "price_landlord_monthly".to_string());
+
+    let frontend_url = env::var("FRONTEND_URL")
+        .unwrap_or_else(|_| "https://folio.uat.atlas.oply.co".to_string());
+
+    let success_url = body.success_url
+        .unwrap_or_else(|| format!("{}/dashboard?upgraded=1", frontend_url));
+    let cancel_url = body.cancel_url
+        .unwrap_or_else(|| format!("{}/dashboard", frontend_url));
+
+    // Build Stripe Checkout Session via REST.
+    // reqwest is compiled with json feature only — encode params as URL-encoded body manually.
+    let body_str = format!(
+        "mode=subscription\
+         &line_items[0][price]={price}\
+         &line_items[0][quantity]=1\
+         &success_url={success}\
+         &cancel_url={cancel}\
+         &metadata[app]=folio\
+         &metadata[upgrade_to]=landlord",
+        price   = urlencoding::encode(&price_id),
+        success = urlencoding::encode(&success_url),
+        cancel  = urlencoding::encode(&cancel_url),
+    );
+
+    let client = reqwest::Client::new();
+    match client
+        .post("https://api.stripe.com/v1/checkout/sessions")
+        .basic_auth(&stripe_secret, Some(""))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body_str)
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            let json: serde_json::Value = resp.json().await.unwrap_or_default();
+            let checkout_url = json["url"].as_str().unwrap_or("").to_string();
+            let session_id   = json["id"].as_str().unwrap_or("").to_string();
+            (StatusCode::OK, Json(UpgradeRoleResponse { checkout_url, session_id })).into_response()
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            let body_text = resp.text().await.unwrap_or_default();
+            tracing::error!("upgrade_role: Stripe returned {status}: {body_text}");
+            StatusCode::BAD_GATEWAY.into_response()
+        }
+        Err(e) => {
+            tracing::error!(error = %e, "upgrade_role: Stripe request failed");
+            StatusCode::BAD_GATEWAY.into_response()
+        }
+    }
 }

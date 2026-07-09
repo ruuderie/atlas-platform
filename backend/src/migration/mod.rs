@@ -324,6 +324,12 @@ pub mod m20261011_atlas_invite_codes;          // Short invite code table for de
 pub mod m20261012_platform_invite_code_fk;     // Link platform_invite → atlas_invite_codes for audit trail
 pub mod m20261013_invite_employer_fk;          // Invite codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at
 pub mod m20261014_atlas_otp_tokens;            // Inline OTP auth — wizard pre-step (6-digit email code)
+// Property Owner Lite + Vendor Reviews + Value Tracking
+pub mod m20261015_platform_invite_review_purpose;    // platform_invite: add invite_purpose + context_entity_id for review requests
+pub mod m20261015_rating_sessions_review_fields;     // atlas_rating_sessions: add testimonial, is_flagged, flag_reason, published_at
+pub mod m20261015_atlas_asset_status_owner_occupied; // atlas_asset_status enum: add 'owner_occupied' for PO Lite assets
+pub mod m20261015_atlas_asset_value_history;         // NEW TABLE: G-10 extension — property valuation ledger (PropertyValueSource)
+pub mod m20261015_g32_property_owner_lite_seed;      // G-32 seed: property_owner_lite RBAC profile + permissions
 
 pub struct Migrator;
 
@@ -618,6 +624,12 @@ impl MigratorTrait for Migrator {
             Box::new(m20261013_invite_employer_fk::Migration),
             // Inline OTP auth: atlas_otp_tokens (6-digit email codes for wizard pre-step)
             Box::new(m20261014_atlas_otp_tokens::Migration),
+            // Property Owner Lite + Vendor Reviews + Value Tracking
+            Box::new(m20261015_platform_invite_review_purpose::Migration),
+            Box::new(m20261015_rating_sessions_review_fields::Migration),
+            Box::new(m20261015_atlas_asset_status_owner_occupied::Migration),
+            Box::new(m20261015_atlas_asset_value_history::Migration),
+            Box::new(m20261015_g32_property_owner_lite_seed::Migration),
 
         ];
 

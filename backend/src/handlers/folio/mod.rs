@@ -36,3 +36,5 @@ pub mod notifications;      // G-07 ext — Notification inbox, channel prefs, t
 pub mod onboarding_submit; // POST /api/folio/onboarding/submit — atomic first-run wizard save
 pub mod provision;         // POST /api/folio/provision/invite — unified all-persona provisioning
 pub mod invite_codes;      // Invite code CRUD + public resolve endpoint for /join/:code flow
+pub mod property_value;    // G-10 ext — POST/GET /api/folio/properties/:id/value[-history]
+pub mod review_invite;     // G-27 ext — vendor review invites + public review submit + pub vendor profile
