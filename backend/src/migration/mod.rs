@@ -140,6 +140,7 @@ pub mod m20260525_000001_extend_notes_and_activities;
 pub mod m20260601_g09_portfolios;
 pub mod m20260601_g10_assets;
 pub mod m20260601_g11_contracts;
+pub mod m20260601_g11b_atlas_leases;               // Folio: atlas_leases — LTR tenancy ledger (depends on g11 contracts + atlas_assets)
 pub mod m20260601_g12_service_providers;
 pub mod m20260601_g13_cases;
 pub mod m20260601_g14_documents;
@@ -423,13 +424,6 @@ impl MigratorTrait for Migrator {
             Box::new(m20260523_000006_create_headless_email_tables::Migration),
             Box::new(m20260524_000001_extend_crm_avatar_attachments::Migration),
             Box::new(m20260525_000001_extend_notes_and_activities::Migration),
-            // GENERIC-11: atlas_leases — long-term tenancy contracts (LTR).
-            // m20260601_g11_ sorts before m20260601_g31_ — must run before any migration
-            // that adds FKs into atlas_leases (m20261004, m20261008, etc.)
-            Box::new(m20260601_g11_contracts::Migration),
-            // GENERIC-12: atlas_service_providers — vendor/contractor registry.
-            // Must precede G-34 marketplace opt-in columns (m20260819_g34_).
-            Box::new(m20260601_g12_service_providers::Migration),
             // GENERIC-31: Canonical lead / prospect entity (G-31)
             // Includes set_updated_at_column() trigger function — must run before gap-fill.
             Box::new(m20260601_g31_atlas_lead::Migration),

@@ -107,6 +107,10 @@ impl AtlasApp for CorePlatformApp {
             Box::new(crate::migration::m20260601_g10_assets::Migration),
             // GENERIC-11: Legal agreements / contracts
             Box::new(crate::migration::m20260601_g11_contracts::Migration),
+            // Folio: atlas_leases — LTR tenancy ledger
+            // Sorts after g11 (g11b > g11), before g12. Must exist before m20261004
+            // adds REFERENCES atlas_leases(id) to platform_invite.
+            Box::new(crate::migration::m20260601_g11b_atlas_leases::Migration),
             // GENERIC-12: Service providers / vendors / agents
             Box::new(crate::migration::m20260601_g12_service_providers::Migration),
             // GENERIC-13: Universal case / work item object
