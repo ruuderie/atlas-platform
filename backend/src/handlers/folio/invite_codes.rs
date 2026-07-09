@@ -68,7 +68,7 @@ fn extract_bearer(headers: &HeaderMap) -> Option<String> {
 /// Public routes — no auth required.
 pub fn public_routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/folio/invite/resolve/:code", get(resolve_code))
+        .route("/api/folio/invite/resolve/{code}", get(resolve_code))
 }
 
 /// Authenticated routes — valid Folio session required.
@@ -76,10 +76,10 @@ pub fn authenticated_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/folio/invite-codes",                       post(create_code))
         .route("/api/folio/invite-codes",                       get(list_codes))
-        .route("/api/folio/invite-codes/:id",                   patch(patch_code))
-        .route("/api/folio/invite-codes/:id/accept",            post(accept_code))
+        .route("/api/folio/invite-codes/{id}",                  patch(patch_code))
+        .route("/api/folio/invite-codes/{id}/accept",           post(accept_code))
         // Short-code accept: used by all wizards (they have the code string, not UUID)
-        .route("/api/folio/invite-codes/by-code/:code/accept",  post(accept_code_by_str))
+        .route("/api/folio/invite-codes/by-code/{code}/accept", post(accept_code_by_str))
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
