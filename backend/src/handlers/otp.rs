@@ -24,9 +24,9 @@ use axum::{
 };
 use axum::http::HeaderMap;
 use chrono::{Duration, Utc};
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter,
-              QueryOrder, Order, Set};
-use serde::{Deserialize, Serialize};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
+              QueryFilter, Set};
+use serde::Deserialize;
 use serde_json::json;
 use sha2::{Sha256, Digest};
 use uuid::Uuid;
@@ -296,7 +296,7 @@ async fn verify_otp(
     .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "Database error" }))))?;
 
     let token_id: Uuid = match row {
-        Some(r) => r.try_get("", "id")
+        Some(r) => r.try_get::<Uuid>("", "id")
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "Database error" }))))?,
         None => return Err((StatusCode::UNAUTHORIZED, Json(json!({ "error": "Invalid or expired code" })))),
     };
