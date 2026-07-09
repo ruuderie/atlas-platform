@@ -82,11 +82,8 @@ impl MigrationTrait for Migration {
                     ON atlas_leases (tenant_user_id)
                     WHERE tenant_user_id IS NOT NULL;
 
-                -- Auto-update updated_at
-                DROP TRIGGER IF EXISTS set_updated_at_atlas_leases ON atlas_leases;
-                CREATE TRIGGER set_updated_at_atlas_leases
-                    BEFORE UPDATE ON atlas_leases
-                    FOR EACH ROW EXECUTE FUNCTION set_updated_at_column();
+                -- Auto-update updated_at: trigger added in a follow-up migration
+                -- once set_updated_at_column() is defined (m20260601_g31_atlas_lead).
                 "#,
             )
             .await?;
