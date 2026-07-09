@@ -276,6 +276,7 @@ pub mod m20260816_g33_folio_pmc_seed;
 pub mod m20260817_folio_managed_account_id;
 pub mod m20260818_folio_client_role_scope;         // Folio PMC: client_account_id scope FK on atlas_user_app_roles
 pub mod m20260819_g34_vendor_marketplace;          // G-34: vendor marketplace opt-in columns on atlas_service_providers
+pub mod m20260820_g35_service_requests;            // G-35: atlas_service_requests — renter→vendor service request table
 pub mod m20260900_g10_asset_lifecycle;             // G-10: universal asset lifecycle extension (scheduled_service_date, expiry_date, condition, lifecycle_metadata)
 pub mod m20260901_platform_products;              // Platform Admin: platform_products registry (Folio, Anchor, Network, Meridian) + deploy hooks
 pub mod m20260902_app_instance_public_config;    // Platform Admin: public_slug + custom_domain + instance_status on atlas_app_deployment_config
@@ -422,6 +423,13 @@ impl MigratorTrait for Migrator {
             Box::new(m20260523_000006_create_headless_email_tables::Migration),
             Box::new(m20260524_000001_extend_crm_avatar_attachments::Migration),
             Box::new(m20260525_000001_extend_notes_and_activities::Migration),
+            // GENERIC-11: atlas_leases — long-term tenancy contracts (LTR).
+            // m20260601_g11_ sorts before m20260601_g31_ — must run before any migration
+            // that adds FKs into atlas_leases (m20261004, m20261008, etc.)
+            Box::new(m20260601_g11_contracts::Migration),
+            // GENERIC-12: atlas_service_providers — vendor/contractor registry.
+            // Must precede G-34 marketplace opt-in columns (m20260819_g34_).
+            Box::new(m20260601_g12_service_providers::Migration),
             // GENERIC-31: Canonical lead / prospect entity (G-31)
             // Includes set_updated_at_column() trigger function — must run before gap-fill.
             Box::new(m20260601_g31_atlas_lead::Migration),
@@ -530,6 +538,10 @@ impl MigratorTrait for Migrator {
             // G-34: vendor marketplace opt-in columns (is_marketplace_visible, bio, location).
             // Reuses atlas_service_providers + G-22 endorsements + G-01 PostGIS.
             Box::new(m20260819_g34_vendor_marketplace::Migration),
+            // G-35: atlas_service_requests — renter→vendor service requests
+            // Depends on atlas_service_providers (G-12) and atlas_assets.
+            // Sorts after G-34 (m20260820_ > m20260819_).
+            Box::new(m20260820_g35_service_requests::Migration),
             // G-10: universal asset lifecycle extension.
             // Adds scheduled_service_date, expiry_date, condition, lifecycle_metadata + 3 indexes.
             // Powers cross-vertical alert queries. No per-vertical migrations needed after this.
