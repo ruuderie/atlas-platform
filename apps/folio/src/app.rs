@@ -156,6 +156,9 @@ use crate::pages::property_owner::{
     review_submit::ReviewSubmitPage,
 };
 
+// Public zero-auth pages
+use crate::pages::r#pub::renter_help::RenterHelpPage;
+
 // Layouts — each already renders <Outlet/> for its child routes
 use crate::components::layouts::{
     landlord_layout::LandlordLayout,
@@ -386,6 +389,11 @@ pub fn App() -> impl IntoView {
                 // Zero-auth — vendor sends this link to past clients.
                 // Inline OTP gate lives inside ReviewSubmitPage.
                 <Route path=path!("/review/:invite_id") view=ReviewSubmitPage/>
+
+                // ── Public renter help /help ────────────────────────────
+                // Zero-auth — entry from Google, vendor links, QR codes.
+                // ?vendor_id= pre-selects vendor, ?trade= pre-filters category.
+                <Route path=path!("/help") view=RenterHelpPage/>
             </Routes>
         </Router>
     }

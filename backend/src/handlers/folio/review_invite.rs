@@ -48,6 +48,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::Utc;
 use std::env;
+use axum::extract::Query;
 
 use crate::types::pm::InvitePurpose;
 use crate::services::notification_service::{NotificationService, DispatchInput, NotificationPriority};
@@ -66,6 +67,9 @@ pub fn public_routes_raw() -> Router<DatabaseConnection> {
         .route("/api/pub/review/{invite_id}",        get(get_review_context))
         .route("/api/pub/review/{invite_id}/submit",  post(submit_review))
         .route("/api/pub/vendors/{sp_id}",            get(get_public_vendor_profile))
+        // Renter help — public vendor search + public service request
+        .route("/api/pub/vendors",                    get(search_vendors))
+        .route("/api/pub/service-requests",           post(create_public_service_request))
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -605,4 +609,267 @@ pub async fn get_public_vendor_profile(
         total_score,
         review_count,
     })).into_response()
+}
+
+// ── Public vendor search ──────────────────────────────────────────────────────
+
+/// GET /api/pub/vendors?trade=electrical&zip=33101&limit=20
+///
+/// Zero-auth. Renter help page uses this to populate the vendor grid.
+/// Entry points: Google search, vendor-shared link (/help?trade=X), QR codes.
+///
+/// Filters:
+///   trade  — case-insensitive substring match on provider_metadata->>'trade_type'
+///   zip    — future: geo filter (currently ignored, returns all matching trade)
+///   q      — free-text search against business_name
+///   limit  — max results (default 20, max 50)
+#[derive(Debug, Deserialize)]
+pub struct VendorSearchParams {
+    pub trade: Option<String>,
+    pub zip:   Option<String>,
+    pub q:     Option<String>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VendorSearchItem {
+    pub id:           Uuid,
+    pub business_name: String,
+    pub trade_type:   Option<String>,
+    pub avg_score:    Option<f64>,
+    pub review_count: i64,
+    pub bio:          Option<String>,
+    pub verified:     bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VendorSearchResponse {
+    pub vendors: Vec<VendorSearchItem>,
+    pub total:   usize,
+}
+
+pub async fn search_vendors(
+    State(db): State<DatabaseConnection>,
+    Query(params): Query<VendorSearchParams>,
+) -> impl IntoResponse {
+    let limit = params.limit.unwrap_or(20).min(50).max(1);
+
+    // Build dynamic WHERE clause
+    let mut conditions = vec!["asp.is_active = true".to_string()];
+    let mut bind_values: Vec<sea_orm::Value> = vec![];
+    let mut bind_idx = 1usize;
+
+    if let Some(ref trade) = params.trade {
+        conditions.push(format!(
+            "LOWER(asp.provider_metadata->>'trade_type') LIKE ${bind_idx}"
+        ));
+        bind_values.push(format!("%{}%", trade.to_lowercase()).into());
+        bind_idx += 1;
+    }
+
+    if let Some(ref q) = params.q {
+        conditions.push(format!(
+            "LOWER(asp.business_name) LIKE ${bind_idx}"
+        ));
+        bind_values.push(format!("%{}%", q.to_lowercase()).into());
+        bind_idx += 1;
+    }
+
+    let where_clause = conditions.join(" AND ");
+
+    let sql = format!(
+        r#"SELECT
+               asp.id,
+               asp.business_name,
+               asp.provider_metadata->>'trade_type' AS trade_type,
+               asp.provider_metadata->>'bio'        AS bio,
+               asp.provider_metadata->>'verified'   AS verified,
+               COALESCE(agg.avg_overall, NULL)      AS avg_score,
+               COALESCE(agg.review_count, 0)        AS review_count
+           FROM atlas_service_providers asp
+           LEFT JOIN LATERAL (
+               SELECT
+                   ROUND(AVG(e.score)::numeric, 1)::float8 AS avg_overall,
+                   COUNT(DISTINCT rs.id)                   AS review_count
+               FROM atlas_rating_sessions rs
+               JOIN atlas_scorecards sc
+                 ON sc.id = rs.scorecard_id
+                AND sc.subject_entity_type = 'atlas_service_provider'
+                AND sc.subject_entity_id = asp.id
+               JOIN atlas_scorecard_entries e ON e.session_id = rs.id
+               WHERE rs.published_at IS NOT NULL AND rs.is_flagged = false
+           ) agg ON true
+           WHERE {where_clause}
+           ORDER BY agg.avg_overall DESC NULLS LAST, agg.review_count DESC NULLS LAST
+           LIMIT {limit}"#,
+        where_clause = where_clause,
+        limit = limit,
+    );
+
+    let stmt = if bind_values.is_empty() {
+        Statement::from_string(DatabaseBackend::Postgres, sql)
+    } else {
+        Statement::from_sql_and_values(DatabaseBackend::Postgres, &sql, bind_values)
+    };
+
+    let rows = match db.query_all(stmt).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %e, "search_vendors: query failed");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let vendors: Vec<VendorSearchItem> = rows.into_iter().filter_map(|r| {
+        let id: Uuid   = r.try_get("", "id").ok()?;
+        let name: String = r.try_get("", "business_name").ok()?;
+        Some(VendorSearchItem {
+            id,
+            business_name: name,
+            trade_type:   r.try_get("", "trade_type").ok().flatten(),
+            avg_score:    r.try_get("", "avg_score").ok().flatten(),
+            review_count: r.try_get("", "review_count").unwrap_or(0),
+            bio:          r.try_get("", "bio").ok().flatten(),
+            verified:     r.try_get::<String>("", "verified")
+                           .map(|v| v == "true")
+                           .unwrap_or(false),
+        })
+    }).collect();
+
+    let total = vendors.len();
+    (StatusCode::OK, axum::Json(VendorSearchResponse { vendors, total })).into_response()
+}
+
+// ── Public service request (zero-auth) ───────────────────────────────────────
+
+/// POST /api/pub/service-requests
+///
+/// Zero-auth version for cold-traffic renters.
+/// Accepts renter contact info in the body (no session).
+/// Fires G35 notification to vendor identical to authenticated version.
+///
+/// Rate-limit: upstream nginx / tower middleware should enforce per-IP limits.
+#[derive(Debug, Deserialize)]
+pub struct PublicServiceRequestInput {
+    pub vendor_id:    Uuid,
+    pub description:  String,
+    pub urgency:      Option<String>,   // "not_urgent" | "this_week" | "emergency"
+    pub address:      Option<String>,
+    pub renter_name:  Option<String>,
+    pub renter_email: Option<String>,
+    pub renter_phone: Option<String>,
+    /// Optional: UTM / referral source so we know how the renter found us
+    pub utm_source:   Option<String>,
+    /// Optional: pre-fill from /help?vendor_id=X links
+    pub asset_id:     Option<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublicServiceRequestResponse {
+    pub request_id: Uuid,
+}
+
+pub async fn create_public_service_request(
+    State(db): State<DatabaseConnection>,
+    Json(body): Json<PublicServiceRequestInput>,
+) -> impl IntoResponse {
+    if body.description.trim().is_empty() {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            axum::Json(serde_json::json!({"error": "Description is required."})),
+        ).into_response();
+    }
+
+    let request_id = Uuid::new_v4();
+    let urgency    = body.urgency.as_deref().unwrap_or("not_urgent");
+    let desc_esc   = body.description.replace('\'', "''");
+    let addr_val   = body.address.as_deref()
+        .map(|a| format!("'{}'", a.replace('\'', "''")))
+        .unwrap_or_else(|| "NULL".to_string());
+    let asset_val  = body.asset_id
+        .map(|id| format!("'{id}'::uuid"))
+        .unwrap_or_else(|| "NULL".to_string());
+
+    // Renter contact info stored in request_metadata JSON
+    let meta = serde_json::json!({
+        "renter_name":  body.renter_name,
+        "renter_email": body.renter_email,
+        "renter_phone": body.renter_phone,
+        "utm_source":   body.utm_source,
+        "auth":         "public",
+    });
+
+    let insert_sql = format!(
+        "INSERT INTO atlas_service_requests \
+         (id, vendor_id, description, urgency, address, asset_id, request_metadata, status, created_at, updated_at) \
+         VALUES ('{req}'::uuid, '{vendor}'::uuid, '{desc}', '{urgency}', {addr}, {asset}, \
+                 '{meta}'::jsonb, 'pending', NOW(), NOW());",
+        req    = request_id,
+        vendor = body.vendor_id,
+        desc   = desc_esc,
+        urgency = urgency,
+        addr   = addr_val,
+        asset  = asset_val,
+        meta   = meta.to_string().replace('\'', "''"),
+    );
+
+    if let Err(e) = db.execute(
+        Statement::from_string(DatabaseBackend::Postgres, insert_sql)
+    ).await {
+        tracing::error!(error = %e, vendor_id = %body.vendor_id, "create_public_service_request: insert failed");
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    tracing::info!(
+        event       = "service_request.created.public",
+        request_id  = %request_id,
+        vendor_id   = %body.vendor_id,
+        utm_source  = ?body.utm_source,
+    );
+
+    // G35 notify vendor — identical best-effort pattern as authenticated flow
+    let vendor_sql = Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        "SELECT user_id, tenant_id, business_name FROM atlas_service_providers WHERE id = $1 LIMIT 1",
+        [body.vendor_id.into()],
+    );
+
+    if let Ok(Some(row)) = db.query_one(vendor_sql).await {
+        let v_user:   Option<Uuid> = row.try_get("", "user_id").ok();
+        let v_tenant: Option<Uuid> = row.try_get("", "tenant_id").ok();
+        let biz_name: String       = row.try_get("", "business_name").unwrap_or_default();
+
+        if let (Some(v_user), Some(v_tenant)) = (v_user, v_tenant) {
+            let renter_label = body.renter_name
+                .as_deref()
+                .unwrap_or("A renter");
+            let dispatch = DispatchInput {
+                tenant_id:         v_tenant,
+                user_id:           v_user,
+                notification_type: "service_request_received".to_string(),
+                title:             format!("New request from {renter_label}"),
+                body:              format!(
+                    "{renter_label} needs help: \"{}\"",
+                    body.description.chars().take(80).collect::<String>()
+                ),
+                priority:          NotificationPriority::High,
+                entity_type:       Some("atlas_service_requests".to_string()),
+                entity_id:         Some(request_id),
+                metadata:          Some(serde_json::json!({
+                    "request_id":   request_id,
+                    "renter_email": body.renter_email,
+                    "renter_phone": body.renter_phone,
+                    "urgency":      urgency,
+                    "utm_source":   body.utm_source,
+                    "vendor_name":  biz_name,
+                })),
+                include_broadcast: false,
+            };
+            if let Err(e) = NotificationService::dispatch(&db, dispatch).await {
+                tracing::warn!(error = %e, vendor_user_id = %v_user, "G35: public service_request notify failed (non-fatal)");
+            }
+        }
+    }
+
+    (StatusCode::CREATED, axum::Json(PublicServiceRequestResponse { request_id })).into_response()
 }
