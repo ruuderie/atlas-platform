@@ -43,7 +43,7 @@ impl MigrationTrait for Migration {
                                     REFERENCES atlas_service_providers(id) ON DELETE CASCADE,
 
                     -- Authenticated requester (NULL for public/renter zero-auth flow)
-                    requested_by_user_id UUID   REFERENCES users(id) ON DELETE SET NULL,
+                    requested_by_user_id UUID   REFERENCES "user"(id) ON DELETE SET NULL,
 
                     -- Optional: which asset/property the request relates to
                     asset_id        UUID        REFERENCES atlas_assets(id) ON DELETE SET NULL,

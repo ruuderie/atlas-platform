@@ -37,13 +37,13 @@ impl MigrationTrait for Migration {
                 r#"
                 CREATE TABLE IF NOT EXISTS atlas_leases (
                     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-                    tenant_id           UUID        NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                    tenant_id           UUID        NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
 
                     -- The unit being leased
                     asset_id            UUID        REFERENCES atlas_assets(id) ON DELETE SET NULL,
 
                     -- Assigned when tenant accepts their platform_invite
-                    tenant_user_id      UUID        REFERENCES users(id) ON DELETE SET NULL,
+                    tenant_user_id      UUID        REFERENCES "user"(id) ON DELETE SET NULL,
 
                     -- Lease terms
                     start_date          DATE        NOT NULL,
