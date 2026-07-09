@@ -17,53 +17,103 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // ── 1. Insert platform-default role profiles ──────────────────────────
+        // Columns match atlas_role_profiles schema (m20260811_g32_atlas_rbac):
+        //   NO 'permissions' column — permissions live in atlas_role_profile_permissions.
+        //   NO 'is_system' column — use is_platform_default instead.
         manager
             .get_connection()
             .execute_unprepared(
                 r#"INSERT INTO atlas_role_profiles
-                       (id, tenant_id, app_slug, role_slug, display_name, description, permissions, is_system, created_at)
+                       (id, tenant_id, app_slug, role_slug, display_name, description, is_platform_default)
                    VALUES
                    -- cohost: STR co-host, asset-scoped via atlas_user_asset_access
                    (
                        '00000000-0000-0000-0000-000000000005',
-                       NULL,
-                       'folio',
-                       'cohost',
-                       'Cohost',
+                       NULL, 'folio', 'cohost', 'Cohost',
                        'STR co-host — manages bookings, messaging, guest comms, and cleaning coordination for delegated STR properties',
-                       '["folio:str:read","folio:str:messaging","folio:reservations:read","folio:reservations:write","folio:maintenance:read","folio:calendar:read","folio:calendar:write"]'::jsonb,
-                       true,
-                       NOW()
+                       true
                    ),
-                   -- NOTE: '00000000-0000-0000-0000-000000000006' (str_host) intentionally omitted.
-                   -- STR capability is a property trait (atlas_assets.str_eligible), not a persona.
                    -- agent: real estate agent (brokerage mode)
                    (
                        '00000000-0000-0000-0000-000000000007',
-                       NULL,
-                       'folio',
-                       'agent',
-                       'Agent',
+                       NULL, 'folio', 'agent', 'Agent',
                        'Real estate agent — manages client files, listings, and deals in brokerage mode',
-                       '["folio:listings:read","folio:listings:write","folio:leads:read","folio:leads:write","folio:opportunities:read","folio:opportunities:write","folio:clients:read","folio:clients:write"]'::jsonb,
-                       true,
-                       NOW()
+                       true
                    ),
                    -- broker: licensed broker (brokerage mode)
                    (
                        '00000000-0000-0000-0000-000000000008',
-                       NULL,
-                       'folio',
-                       'broker',
-                       'Broker',
+                       NULL, 'folio', 'broker', 'Broker',
                        'Licensed real estate broker — supervises agents, co-signs deals, manages the office in brokerage mode',
-                       '["folio:listings:read","folio:listings:write","folio:leads:read","folio:leads:write","folio:opportunities:read","folio:opportunities:write","folio:clients:read","folio:clients:write","folio:agents:read","folio:agents:write","folio:commission_plans:read","folio:commission_plans:write","folio:office:read","folio:office:write"]'::jsonb,
-                       true,
-                       NOW()
+                       true
                    )
-                   ON CONFLICT (id) DO NOTHING;"#,
+                   ON CONFLICT (id) DO NOTHING;
+                   -- Conflict on id in case this migration is re-run.
+                   -- The unique constraint is (tenant_id, app_slug, role_slug) but id
+                   -- is stable so we guard on id to be safe."#,
             )
             .await?;
+
+        // ── 2. Cohost permission slugs ────────────────────────────────────────
+        manager
+            .get_connection()
+            .execute_unprepared(
+                "INSERT INTO atlas_role_profile_permissions (role_profile_id, permission_slug)
+                 VALUES
+                     ('00000000-0000-0000-0000-000000000005', 'folio:str:read'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:str:messaging'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:reservations:read'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:reservations:write'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:maintenance:read'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:calendar:read'),
+                     ('00000000-0000-0000-0000-000000000005', 'folio:calendar:write')
+                 ON CONFLICT DO NOTHING;",
+            )
+            .await?;
+
+        // ── 3. Agent permission slugs ─────────────────────────────────────────
+        manager
+            .get_connection()
+            .execute_unprepared(
+                "INSERT INTO atlas_role_profile_permissions (role_profile_id, permission_slug)
+                 VALUES
+                     ('00000000-0000-0000-0000-000000000007', 'folio:listings:read'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:listings:write'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:leads:read'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:leads:write'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:opportunities:read'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:opportunities:write'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:clients:read'),
+                     ('00000000-0000-0000-0000-000000000007', 'folio:clients:write')
+                 ON CONFLICT DO NOTHING;",
+            )
+            .await?;
+
+        // ── 4. Broker permission slugs (superset of agent) ────────────────────
+        manager
+            .get_connection()
+            .execute_unprepared(
+                "INSERT INTO atlas_role_profile_permissions (role_profile_id, permission_slug)
+                 VALUES
+                     ('00000000-0000-0000-0000-000000000008', 'folio:listings:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:listings:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:leads:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:leads:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:opportunities:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:opportunities:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:clients:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:clients:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:agents:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:agents:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:commission_plans:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:commission_plans:write'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:office:read'),
+                     ('00000000-0000-0000-0000-000000000008', 'folio:office:write')
+                 ON CONFLICT DO NOTHING;",
+            )
+            .await?;
+
         Ok(())
     }
 
