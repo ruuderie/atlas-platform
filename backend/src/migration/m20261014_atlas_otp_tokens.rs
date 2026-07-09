@@ -29,7 +29,7 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk_otp_tokens_user_id")
                             .from(AtlasOtpTokens::Table, AtlasOtpTokens::UserId)
-                            .to(Alias::new("users"), Alias::new("id"))
+                            .to(Alias::new("user"), Alias::new("id"))
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
