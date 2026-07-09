@@ -34,6 +34,7 @@ pub mod health;
 // Admin module registry
 pub mod admin_modules;
 pub mod auth_frontend;
+pub mod otp;            // Inline OTP auth — wizard pre-step (send + verify)
 pub mod my_accounts;
 pub mod ab_testing;
 pub mod feeds;

@@ -10,3 +10,4 @@ pub mod pmc_wizard;           // PmcWizard — /onboard/pmc
 pub mod vendor_wizard;        // VendorWizard — /onboard/vendor
 pub mod invite_join;          // InviteJoin — /join/:code
 pub mod invite_codes_client;  // Shared AcceptInviteCode server fn (used by all wizards)
+pub mod otp_client;           // SendOtp + VerifyOtp server fns (wizard pre-auth step)

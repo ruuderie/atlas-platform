@@ -323,6 +323,7 @@ pub mod m20261010_platform_invite_booking_tenancy; // Add booking_id, asset_id, 
 pub mod m20261011_atlas_invite_codes;          // Short invite code table for deep-link provisioning
 pub mod m20261012_platform_invite_code_fk;     // Link platform_invite → atlas_invite_codes for audit trail
 pub mod m20261013_invite_employer_fk;          // Invite codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at
+pub mod m20261014_atlas_otp_tokens;            // Inline OTP auth — wizard pre-step (6-digit email code)
 
 pub struct Migrator;
 
@@ -615,6 +616,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20261012_platform_invite_code_fk::Migration),
             // Invite Codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at audit cols
             Box::new(m20261013_invite_employer_fk::Migration),
+            // Inline OTP auth: atlas_otp_tokens (6-digit email codes for wizard pre-step)
+            Box::new(m20261014_atlas_otp_tokens::Migration),
 
         ];
 

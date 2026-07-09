@@ -56,6 +56,7 @@ pub fn create_router(db: DatabaseConnection) -> Router {
     // AnchorApp and NetworkInstanceApp in get_active_apps().
     let mut public_routes = Router::<DatabaseConnection>::new()
         .merge(auth_frontend::public_routes())
+        .merge(crate::handlers::otp::public_routes())   // inline OTP for wizard pre-step
         .merge(ab_testing::public_routes())
         .merge(crate::handlers::passkeys::public_routes())
         .merge(setup::public_routes())
