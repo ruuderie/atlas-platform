@@ -28,10 +28,10 @@ impl MigrationTrait for Migration {
             .execute_unprepared(
                 r#"CREATE TABLE IF NOT EXISTS atlas_user_asset_access (
                     id               UUID        NOT NULL DEFAULT gen_random_uuid()  PRIMARY KEY,
-                    user_id          UUID        NOT NULL REFERENCES users(id)                   ON DELETE CASCADE,
+                    user_id          UUID        NOT NULL REFERENCES "user"(id)                   ON DELETE CASCADE,
                     asset_id         UUID        NOT NULL REFERENCES atlas_assets(id)             ON DELETE CASCADE,
                     role_profile_id  UUID        NOT NULL REFERENCES atlas_role_profiles(id),
-                    granted_by       UUID                 REFERENCES users(id)                   ON DELETE SET NULL,
+                    granted_by       UUID                 REFERENCES "user"(id)                   ON DELETE SET NULL,
                     granted_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     expires_at       TIMESTAMPTZ,
                     is_active        BOOLEAN     NOT NULL DEFAULT true,

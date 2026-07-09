@@ -28,9 +28,9 @@ impl MigrationTrait for Migration {
             .execute_unprepared(
                 r#"ALTER TABLE atlas_invite_codes
                     ADD COLUMN IF NOT EXISTS employer_user_id      UUID
-                        REFERENCES users(id) ON DELETE SET NULL,
+                        REFERENCES "user"(id) ON DELETE SET NULL,
                     ADD COLUMN IF NOT EXISTS accepted_by_user_id   UUID
-                        REFERENCES users(id) ON DELETE SET NULL,
+                        REFERENCES "user"(id) ON DELETE SET NULL,
                     ADD COLUMN IF NOT EXISTS accepted_at            TIMESTAMPTZ;
 
                    -- Index for "show all PM codes sent by this landlord"

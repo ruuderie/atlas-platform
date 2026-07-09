@@ -68,12 +68,12 @@ impl MigrationTrait for Migration {
                     -- STR booking this code is pre-linked to
                     booking_id      UUID        REFERENCES atlas_bookings(id) ON DELETE SET NULL,
                     -- The landlord / property manager who owns the assets
-                    landlord_id     UUID        REFERENCES users(id) ON DELETE SET NULL,
+                    landlord_id     UUID        REFERENCES "user"(id) ON DELETE SET NULL,
                     -- The broker who is sponsoring the agent (agent role only)
-                    broker_id       UUID        REFERENCES users(id) ON DELETE SET NULL,
+                    broker_id       UUID        REFERENCES "user"(id) ON DELETE SET NULL,
 
                     -- Who created this invite code
-                    created_by      UUID        NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+                    created_by      UUID        NOT NULL REFERENCES "user"(id) ON DELETE RESTRICT,
 
                     -- Usage control
                     -- NULL max_uses = unlimited (e.g., "for-rent sign" QR)

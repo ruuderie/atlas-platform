@@ -32,7 +32,7 @@ impl MigrationTrait for Migration {
                     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
                     tenant_id       UUID        NOT NULL,
                     asset_id        UUID        NOT NULL REFERENCES atlas_assets(id) ON DELETE RESTRICT,
-                    guest_user_id   UUID        REFERENCES users(id) ON DELETE SET NULL,
+                    guest_user_id   UUID        REFERENCES "user"(id) ON DELETE SET NULL,
                     -- Date range for the stay
                     check_in_date   DATE        NOT NULL,
                     check_out_date  DATE        NOT NULL,
