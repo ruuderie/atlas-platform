@@ -934,6 +934,11 @@ pub enum FolioRole {
     #[default]
     Landlord,
     Tenant,
+    /// STR booking guest — short-term rental visitor.
+    /// Linked to a booking (atlas_bookings), not a lease.
+    /// Onboarding: select/confirm dates → profile → house rules.
+    /// Distinct from Tenant (LTR applicant/renter). Home path: `/g`.
+    StrGuest,
     Vendor,
     PropertyManager,
     Owner,
@@ -955,6 +960,7 @@ impl FolioRole {
         match self {
             Self::Landlord        => "/dashboard",
             Self::Tenant          => "/my-home",
+            Self::StrGuest        => "/g",
             Self::Vendor          => "/work-orders",
             Self::PropertyManager => "/pm",
             Self::Owner           => "/owner",
@@ -985,6 +991,7 @@ impl fmt::Display for FolioRole {
         f.write_str(match self {
             Self::Landlord        => "landlord",
             Self::Tenant          => "tenant",
+            Self::StrGuest        => "str_guest",
             Self::Vendor          => "vendor",
             Self::PropertyManager => "property_manager",
             Self::Owner           => "owner",
@@ -1001,6 +1008,7 @@ impl TryFrom<String> for FolioRole {
         match s.as_str() {
             "landlord"          => Ok(Self::Landlord),
             "tenant"            => Ok(Self::Tenant),
+            "str_guest"         => Ok(Self::StrGuest),
             "vendor"            => Ok(Self::Vendor),
             "property_manager"  => Ok(Self::PropertyManager),
             "owner"             => Ok(Self::Owner),

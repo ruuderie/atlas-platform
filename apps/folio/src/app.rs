@@ -126,6 +126,17 @@ use crate::pages::landlord::meridian_config::MeridianConfigurator;
 use crate::pages::settings::Settings;
 use crate::pages::auth::passkey_setup::PasskeySetup;
 use crate::pages::onboarding::wizard::OnboardingWizard;
+use crate::pages::onboarding::landlord_wizard::LandlordWizard;
+use crate::pages::onboarding::tenant_wizard::TenantApplicantWizard;
+use crate::pages::onboarding::str_guest_wizard::StrGuestWizard;
+use crate::pages::onboarding::cohost_wizard::CohostWizard;
+use crate::pages::onboarding::owner_wizard::OwnerWizard;
+use crate::pages::onboarding::agent_wizard::AgentWizard;
+use crate::pages::onboarding::broker_wizard::BrokerWizard;
+use crate::pages::onboarding::pmc_wizard::PmcWizard;
+use crate::pages::onboarding::vendor_wizard::VendorWizard;
+use crate::pages::onboarding::invite_join::InviteJoin;
+use crate::pages::landlord::team::LandlordTeam;
 
 // Agent pages
 use crate::pages::agent::dashboard::{
@@ -172,7 +183,19 @@ pub fn App() -> impl IntoView {
 
                 // Auth + first-run — no layout chrome
                 <Route path=path!("/auth/passkey-setup") view=PasskeySetup/>
-                <Route path=path!("/onboarding")         view=OnboardingWizard/>
+                // /onboarding → LandlordWizard (split-panel, invite-code aware)
+                <Route path=path!("/onboarding")         view=LandlordWizard/>
+                // Persona-specific onboard paths (all invite-code aware via ?code=)
+                <Route path=path!("/onboard/tenant")     view=TenantApplicantWizard/>
+                <Route path=path!("/onboard/str-guest")  view=StrGuestWizard/>
+                <Route path=path!("/onboard/cohost")     view=CohostWizard/>
+                <Route path=path!("/onboard/owner")      view=OwnerWizard/>
+                <Route path=path!("/onboard/agent")      view=AgentWizard/>
+                <Route path=path!("/onboard/broker")     view=BrokerWizard/>
+                <Route path=path!("/onboard/pmc")        view=PmcWizard/>
+                <Route path=path!("/onboard/vendor")     view=VendorWizard/>
+                // Public invite join page — no auth, resolves code and shows context card
+                <Route path=path!("/join/:code")          view=InviteJoin/>
 
                 // ── Marketing landing pages (zero-auth SSR) ───────────────────
                 // /lp              → product master page (folio.app)
@@ -229,6 +252,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("/wholesaling")   view=LandlordWholesaling/>
                     <Route path=path!("/account/billing")view=LandlordAccountBilling/>
                     <Route path=path!("/meridian/configure") view=MeridianConfigurator/>
+                    <Route path=path!("/team")           view=LandlordTeam/>
                 </ParentRoute>
 
                 // ── Tenant namespace /t/** ─────────────────────────────────────

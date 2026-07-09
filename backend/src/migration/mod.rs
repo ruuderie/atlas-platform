@@ -318,6 +318,11 @@ pub mod m20261005_atlas_user_asset_access;     // Create atlas_user_asset_access
 pub mod m20261006_folio_missing_role_profiles; // Seed cohost, agent, broker role profiles (str_host removed)
 pub mod m20261007_asset_str_traits;            // Add str_eligible, str_listing_active, str_syndicated to atlas_assets
 pub mod m20261008_lease_type;                  // Add lease_type (ltr|str) to atlas_leases
+pub mod m20261009_atlas_bookings;              // Create atlas_bookings for STR guest reservations
+pub mod m20261010_platform_invite_booking_tenancy; // Add booking_id, asset_id, tenancy_status to platform_invite
+pub mod m20261011_atlas_invite_codes;          // Short invite code table for deep-link provisioning
+pub mod m20261012_platform_invite_code_fk;     // Link platform_invite → atlas_invite_codes for audit trail
+pub mod m20261013_invite_employer_fk;          // Invite codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at
 
 pub struct Migrator;
 
@@ -603,6 +608,13 @@ impl MigratorTrait for Migrator {
             Box::new(m20261006_folio_missing_role_profiles::Migration),
             Box::new(m20261007_asset_str_traits::Migration),
             Box::new(m20261008_lease_type::Migration),
+            Box::new(m20261009_atlas_bookings::Migration),
+            Box::new(m20261010_platform_invite_booking_tenancy::Migration),
+            // Invite Code System: short-token deep-link provisioning for all 9 roles
+            Box::new(m20261011_atlas_invite_codes::Migration),
+            Box::new(m20261012_platform_invite_code_fk::Migration),
+            // Invite Codes: employer_user_id (PM hiring), accepted_by_user_id, accepted_at audit cols
+            Box::new(m20261013_invite_employer_fk::Migration),
 
         ];
 

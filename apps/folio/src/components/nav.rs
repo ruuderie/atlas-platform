@@ -72,6 +72,7 @@ pub enum NavIcon {
     // Navigation helpers (not sidebar items — used in page chrome)
     ChevronRight,    // breadcrumb separator
     ArrowBack,       // back-navigation link
+    Login,           // sign-in / check-in icon
 }
 
 impl NavIcon {
@@ -124,6 +125,7 @@ impl NavIcon {
 
             Self::ChevronRight   => "chevron_right",
             Self::ArrowBack      => "arrow_back",
+            Self::Login          => "login",
         }
     }
 }
@@ -248,6 +250,14 @@ pub enum FolioRoute {
     Settings,
     Login,
     Verify,
+
+    // ── STR Guest /g/** ───────────────────────────────────────────────────────
+    GuestDashboard,
+    GuestReservation,
+    GuestCheckIn,
+    GuestHouseRules,
+    GuestInbox,
+    GuestProfile,
 }
 
 impl FolioRoute {
@@ -344,6 +354,13 @@ impl FolioRoute {
             Self::Settings               => "/settings",
             Self::Login                  => "/login",
             Self::Verify                 => "/verify",
+
+            Self::GuestDashboard         => "/g",
+            Self::GuestReservation       => "/g/reservation",
+            Self::GuestCheckIn           => "/g/check-in",
+            Self::GuestHouseRules        => "/g/house-rules",
+            Self::GuestInbox             => "/g/inbox",
+            Self::GuestProfile           => "/g/profile",
         }
     }
 
@@ -639,6 +656,26 @@ pub(crate) static TENANT_NAV: NavConfig = NavConfig {
     ],
 };
 
+/// Guest Portal nav — STR booking guests (str_guest role).
+/// Minimal, booking-focused. Separate from TENANT_NAV because the
+/// journey is entirely different (reservation vs lease management).
+pub(crate) static GUEST_NAV: NavConfig = NavConfig {
+    role_label: "Guest",
+    groups: &[NavGroup {
+        label: None,
+        items: &[
+            NavItem::new(FolioRoute::GuestDashboard,     "My Stay",       NavIcon::Home),
+            NavItem::new(FolioRoute::GuestReservation,   "Reservation",   NavIcon::EventAvailable),
+            NavItem::new(FolioRoute::GuestCheckIn,       "Check-In",      NavIcon::Login),
+            NavItem::new(FolioRoute::GuestHouseRules,    "House Rules",   NavIcon::Gavel),
+            NavItem::new(FolioRoute::GuestInbox,         "Inbox",         NavIcon::Inbox),
+        ],
+    }],
+    footer_items: &[
+        NavItem::new(FolioRoute::GuestProfile, "Profile", NavIcon::Person),
+    ],
+};
+
 static VENDOR_NAV: NavConfig = NavConfig {
     role_label: "Vendor",
     groups: &[NavGroup {
@@ -769,6 +806,7 @@ impl FolioRole {
         match self {
             Self::Landlord        => &LANDLORD_NAV,
             Self::Tenant          => &TENANT_NAV,
+            Self::StrGuest        => &GUEST_NAV,
             Self::Vendor          => &VENDOR_NAV,
             Self::PropertyManager => &PMC_NAV,
             Self::Owner           => &OWNER_NAV,

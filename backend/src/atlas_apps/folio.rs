@@ -60,6 +60,9 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::leads::public_routes_raw())
             // ── PMC onboard: public, token-gated (invite UUID validates access) ─
             .merge(crate::handlers::folio::pm::onboard::public_routes_raw())
+            // ── Invite code resolve: public GET /api/folio/invite/resolve/:code ─
+            // Intentionally unauthenticated so /join/:code works before signup.
+            .merge(crate::handlers::folio::invite_codes::public_routes())
             // ── Multi-role identity endpoint — validates bearer internally ───
             // Listed here so no outer session middleware wraps it twice;
             // me.rs validates the bearer token and session expiry itself.
@@ -110,6 +113,8 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::owner::pmc_write_routes())
             .merge(crate::handlers::folio::str_guest::authenticated_routes())
             .merge(crate::handlers::folio::users::authenticated_routes_raw())
+            // ── Invite code CRUD: create / list / patch codes for workspace ────
+            .merge(crate::handlers::folio::invite_codes::authenticated_routes())
             .layer(middleware::from_fn(require_landlord));
 
         // ── Tenant-only sub-router ────────────────────────────────────────────

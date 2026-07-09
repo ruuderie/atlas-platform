@@ -35,3 +35,4 @@ pub mod comms;            // G-07 — Unified communications: rooms, messages, p
 pub mod notifications;      // G-07 ext — Notification inbox, channel prefs, tenant channel settings
 pub mod onboarding_submit; // POST /api/folio/onboarding/submit — atomic first-run wizard save
 pub mod provision;         // POST /api/folio/provision/invite — unified all-persona provisioning
+pub mod invite_codes;      // Invite code CRUD + public resolve endpoint for /join/:code flow

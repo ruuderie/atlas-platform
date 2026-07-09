@@ -29,3 +29,4 @@ pub mod listing_preview;
 pub mod account_billing;
 pub mod asset_alerts;
 pub mod meridian_config;
+pub mod team;

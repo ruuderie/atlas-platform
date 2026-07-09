@@ -67,21 +67,29 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 pub struct ProvisionInviteInput {
     pub email:        String,
     pub display_name: Option<String>,
-    /// Role slug: "landlord" | "tenant" | "vendor" | "cohost" |
+    /// Role slug: "landlord" | "tenant" | "str_guest" | "vendor" | "cohost" |
     ///            "owner" | "property_manager" | "agent" | "broker"
-    /// NOTE: "str_host" is NOT a valid role. STR capability is enabled
-    /// per-asset via atlas_assets.str_eligible. Use "landlord" instead.
+    /// NOTE: "str_host" is NOT a valid role. Use "landlord" + asset str_eligible.
     pub app_role:     String,
     /// Asset UUIDs for cohost/vendor/delegate scoping.
     /// REQUIRED for cohost (≥1 STR asset). Optional for vendor.
     pub asset_ids:    Option<Vec<Uuid>>,
+    /// Single asset UUID — REQUIRED for str_guest (which property the guest is booking).
+    /// Optional for tenant applicant (property they're applying for).
+    pub asset_id:     Option<Uuid>,
+    /// Booking UUID from atlas_bookings — for str_guest invites.
+    /// If provided, the guest is linked to a pre-existing reservation.
+    /// If absent, the guest selects dates during onboarding.
+    pub booking_id:   Option<Uuid>,
     /// Lease UUID for tenant invites — auto-links user to the lease on accept.
-    /// REQUIRED for tenant. Sets atlas_leases.tenant_user_id.
+    /// REQUIRED for tenant (pending/active). Not required for applicant status.
     pub lease_id:     Option<Uuid>,
-    /// Lease type carried from the lease — "ltr" (long-term) or "str" (short-term/guest).
-    /// Determines which tenant portal view the user lands in after onboarding.
-    /// Informational only at invite time; ground truth is atlas_leases.lease_type.
-    pub lease_type:   Option<String>,
+    /// Tenancy lifecycle status for tenant role: "applicant" | "pending" | "active".
+    /// Determines which onboarding wizard the tenant sees.
+    ///   applicant — filling application profile, not yet approved
+    ///   pending   — approved, completing pre-move-in steps (requires lease_id)
+    ///   active    — signed lease, full tenant portal (requires lease_id)
+    pub tenancy_status: Option<String>,
     /// Existing atlas_accounts row to link the user to on accept.
     /// REQUIRED for owner. Optional for landlord (joins existing workspace).
     pub account_id:   Option<Uuid>,
@@ -117,6 +125,16 @@ fn validate_invite(input: &ProvisionInviteInput) -> Result<FolioRole, String> {
         .map_err(|e| e.to_string())?;
 
     match role {
+        // StrGuest: must know which property the guest is booking
+        FolioRole::StrGuest => {
+            if input.asset_id.is_none() {
+                return Err(
+                    "str_guest invites require an asset_id. \
+                     The guest must be linked to a specific STR-eligible property. \
+                     Optionally include a booking_id if a reservation already exists.".to_string()
+                );
+            }
+        }
         // Cohost: must have at least one STR asset to delegate
         FolioRole::Cohost => {
             let empty = input.asset_ids.as_ref().map_or(true, |v| v.is_empty());
@@ -127,15 +145,28 @@ fn validate_invite(input: &ProvisionInviteInput) -> Result<FolioRole, String> {
                 );
             }
         }
-        // Tenant: must be linked to a specific lease
-        // The lease carries the lease_type (ltr|str) that determines portal view
+        // Tenant: lease_id required only for pending/active (not applicant)
         FolioRole::Tenant => {
-            if input.lease_id.is_none() {
-                return Err(
-                    "Tenant invites require a lease_id. \
-                     The tenant must be linked to a specific lease (LTR or STR). \
-                     Create the lease first, then invite the tenant.".to_string()
-                );
+            let status = input.tenancy_status.as_deref().unwrap_or("applicant");
+            match status {
+                "pending" | "active" => {
+                    if input.lease_id.is_none() {
+                        return Err(format!(
+                            "Tenant invites with status '{status}' require a lease_id. \
+                             Create the lease first, then invite the tenant."
+                        ));
+                    }
+                }
+                "applicant" => {
+                    // applicant status: no lease yet — they're being considered.
+                    // asset_id is optional (applying for a specific unit or the portfolio generally)
+                }
+                other => {
+                    return Err(format!(
+                        "Invalid tenancy_status '{other}'. \
+                         Valid values: 'applicant', 'pending', 'active'."
+                    ));
+                }
             }
         }
         // Owner: must be scoped to a specific client account (PMC context)
@@ -317,6 +348,11 @@ async fn send_provision_email(
             "You've been invited to your Tenant Portal",
             "Tenant Portal",
             "Pay rent, submit maintenance requests, view your lease, and message your landlord — all from one place.",
+        ),
+        FolioRole::StrGuest => (
+            "Your booking invitation is ready",
+            "Guest Portal",
+            "Complete your booking, review check-in details, house rules, and communicate with your host — all in one place.",
         ),
         FolioRole::Vendor  => (
             "You've been invited to Folio as a Vendor",

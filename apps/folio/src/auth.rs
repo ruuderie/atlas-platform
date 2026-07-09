@@ -15,6 +15,11 @@ pub enum FolioRole {
     #[default]
     Landlord,
     Tenant,
+    /// STR booking guest — short-term rental visitor.
+    /// Linked to a booking (atlas_bookings), not a lease.
+    /// Onboarding: select/confirm dates → profile → house rules.
+    /// Home path: `/g`. Distinct from Tenant (LTR applicant/renter).
+    StrGuest,
     Vendor,
     /// Property Management Company operator — manages multiple client landlord
     /// accounts. Only valid when the tenant has `pmc_enabled: true` in their
@@ -43,6 +48,7 @@ impl FolioRole {
         match self {
             Self::Landlord        => "/l",
             Self::Tenant          => "/t",
+            Self::StrGuest        => "/g",
             Self::Vendor          => "/v",
             Self::PropertyManager => "/pmc",
             Self::Owner           => "/o",
@@ -55,6 +61,7 @@ impl FolioRole {
         match self {
             Self::Landlord        => "Property Manager",
             Self::Tenant          => "Tenant Portal",
+            Self::StrGuest        => "Guest Portal",
             Self::Vendor          => "Vendor Portal",
             Self::PropertyManager => "PMC Dashboard",
             Self::Owner           => "Owner Portal",
