@@ -38,3 +38,4 @@ pub mod provision;         // POST /api/folio/provision/invite — unified all-p
 pub mod invite_codes;      // Invite code CRUD + public resolve endpoint for /join/:code flow
 pub mod property_value;    // G-10 ext — POST/GET /api/folio/properties/:id/value[-history]
 pub mod review_invite;     // G-27 ext — vendor review invites + public review submit + pub vendor profile
+pub mod service_request;   // G-35 ext — POST /api/folio/service-requests + vendor notify

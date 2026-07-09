@@ -167,7 +167,9 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::onboarding_submit::routes())
             // ── Property Owner Lite — G-10 value history + G-27 review invites ───
             .merge(crate::handlers::folio::property_value::authenticated_routes_raw())
-            .merge(crate::handlers::folio::review_invite::authenticated_routes_raw());
+            .merge(crate::handlers::folio::review_invite::authenticated_routes_raw())
+            // ── G-35 service requests — PO Lite → vendor notify ──────────────────
+            .merge(crate::handlers::folio::service_request::authenticated_routes_raw());
 
         // ── Owner-only sub-router ─────────────────────────────────────────────
         // Beneficial property owners — read-only visibility into their portfolio.

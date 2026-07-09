@@ -50,6 +50,7 @@ use chrono::Utc;
 use std::env;
 
 use crate::types::pm::InvitePurpose;
+use crate::services::notification_service::{NotificationService, DispatchInput, NotificationPriority};
 
 // ── Route registration ────────────────────────────────────────────────────────
 
@@ -348,11 +349,15 @@ pub async fn submit_review(
         sea_orm::DatabaseBackend::Postgres,
         r#"SELECT pi.context_entity_id AS vendor_id,
                   s.id AS scorecard_id,
-                  s.template_id
+                  s.template_id,
+                  asp.user_id      AS vendor_user_id,
+                  asp.tenant_id    AS vendor_tenant_id
            FROM platform_invite pi
            JOIN atlas_scorecards s
              ON s.subject_entity_type = 'atlas_service_provider'
             AND s.subject_entity_id = pi.context_entity_id
+           JOIN atlas_service_providers asp
+             ON asp.id = pi.context_entity_id
            WHERE pi.id = $1
              AND pi.invite_purpose = 'review_request'
              AND pi.expires_at > NOW()
@@ -375,6 +380,9 @@ pub async fn submit_review(
     };
 
     let scorecard_id: Uuid = ctx.try_get("", "scorecard_id").unwrap();
+    // Vendor identity — needed for G35 notification dispatch.
+    let vendor_user_id: Option<Uuid>   = ctx.try_get("", "vendor_user_id").ok();
+    let vendor_tenant_id: Option<Uuid> = ctx.try_get("", "vendor_tenant_id").ok();
 
     // 2. Resolve rater user_id (or create a stub)
     let rater_sql = Statement::from_sql_and_values(
@@ -456,6 +464,30 @@ pub async fn submit_review(
         rater_id = %rater_id,
         invite_id = %invite_id,
     );
+
+    // G35 — notify vendor that a review was submitted (held for moderation).
+    // Best-effort: errors are logged, never block the 201 response.
+    if let (Some(v_user), Some(v_tenant)) = (vendor_user_id, vendor_tenant_id) {
+        let dispatch = DispatchInput {
+            tenant_id:         v_tenant,
+            user_id:           v_user,
+            notification_type: "review_received".to_string(),
+            title:             "New review submitted".to_string(),
+            body:              "A property owner submitted a review. \
+                               It will appear on your profile after moderation.".to_string(),
+            priority:          NotificationPriority::Normal,
+            entity_type:       Some("atlas_rating_sessions".to_string()),
+            entity_id:         Some(session_id),
+            metadata:          Some(serde_json::json!({
+                "invite_id": invite_id,
+                "moderation_held": true
+            })),
+            include_broadcast: false,
+        };
+        if let Err(e) = NotificationService::dispatch(&db, dispatch).await {
+            tracing::warn!(error = %e, vendor_user_id = %v_user, "G35: review_received notify failed (non-fatal)");
+        }
+    }
 
     (StatusCode::CREATED, axum::Json(SubmitReviewResponse { session_id })).into_response()
 }
