@@ -935,27 +935,16 @@ pub enum FolioRole {
     Landlord,
     Tenant,
     Vendor,
-    /// Property Management Company operator — manages multiple client landlord accounts.
-    /// Requires `folio_mode = "pmc"` in `atlas_app_deployment_config` for the instance.
     PropertyManager,
-    /// Beneficial property owner who has delegated day-to-day management to a PMC.
-    /// Has **read-only** visibility into their own portfolio. Home path: `/o`.
     Owner,
     /// STR co-host — manages bookings, messaging, cleaning for specific STR assets
     /// they've been delegated. Access is asset-scoped via `atlas_user_asset_access`.
-    /// Home path: `/ch`.
     Cohost,
-    /// Short-term rental host — full STR suite for their own listings (not delegated).
-    /// Distinct from Landlord: portal is STR-first (calendar, channels, guests).
-    /// Home path: `/str`.
-    StrHost,
-    /// Real estate agent — manages client files, listings, and deals.
-    /// Requires `folio_mode = "brokerage"` in `atlas_app_deployment_config`.
-    /// Home path: `/a`.
+    // NOTE: StrHost is NOT a separate role. STR is an asset-level trait:
+    //   atlas_assets.str_eligible = true.
+    // A Landlord whose portfolio contains str_eligible assets gets the STR sections
+    // in their dashboard dynamically (has_str_assets in SessionInfo).
     Agent,
-    /// Licensed real estate broker — manages agents, co-signs deals, oversees the office.
-    /// Requires `folio_mode = "brokerage"` in `atlas_app_deployment_config`.
-    /// Home path: `/b`.
     Broker,
 }
 
@@ -970,7 +959,6 @@ impl FolioRole {
             Self::PropertyManager => "/pm",
             Self::Owner           => "/owner",
             Self::Cohost          => "/ch",
-            Self::StrHost         => "/str",
             Self::Agent           => "/a",
             Self::Broker          => "/b",
         }
@@ -1001,7 +989,6 @@ impl fmt::Display for FolioRole {
             Self::PropertyManager => "property_manager",
             Self::Owner           => "owner",
             Self::Cohost          => "cohost",
-            Self::StrHost         => "str_host",
             Self::Agent           => "agent",
             Self::Broker          => "broker",
         })
@@ -1018,10 +1005,11 @@ impl TryFrom<String> for FolioRole {
             "property_manager"  => Ok(Self::PropertyManager),
             "owner"             => Ok(Self::Owner),
             "cohost"            => Ok(Self::Cohost),
-            "str_host"          => Ok(Self::StrHost),
             "agent"             => Ok(Self::Agent),
             "broker"            => Ok(Self::Broker),
-            other               => Err(format!("unknown FolioRole: '{other}'")),
+            // str_host was removed — it is an asset trait, not a role.
+            // Invites with app_role="str_host" are rejected at provision validation.
+            other               => Err(format!("unknown FolioRole: '{other}' (hint: use 'landlord' — STR capability is enabled per-asset)")),
         }
     }
 }

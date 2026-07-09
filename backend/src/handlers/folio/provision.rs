@@ -67,14 +67,23 @@ pub fn authenticated_routes_raw() -> Router<DatabaseConnection> {
 pub struct ProvisionInviteInput {
     pub email:        String,
     pub display_name: Option<String>,
-    /// Role slug: "landlord" | "tenant" | "vendor" | "cohost" | "str_host" |
+    /// Role slug: "landlord" | "tenant" | "vendor" | "cohost" |
     ///            "owner" | "property_manager" | "agent" | "broker"
+    /// NOTE: "str_host" is NOT a valid role. STR capability is enabled
+    /// per-asset via atlas_assets.str_eligible. Use "landlord" instead.
     pub app_role:     String,
-    /// Asset UUIDs for cohost/vendor/delegate scoping. Required for cohost.
+    /// Asset UUIDs for cohost/vendor/delegate scoping.
+    /// REQUIRED for cohost (≥1 STR asset). Optional for vendor.
     pub asset_ids:    Option<Vec<Uuid>>,
     /// Lease UUID for tenant invites — auto-links user to the lease on accept.
+    /// REQUIRED for tenant. Sets atlas_leases.tenant_user_id.
     pub lease_id:     Option<Uuid>,
+    /// Lease type carried from the lease — "ltr" (long-term) or "str" (short-term/guest).
+    /// Determines which tenant portal view the user lands in after onboarding.
+    /// Informational only at invite time; ground truth is atlas_leases.lease_type.
+    pub lease_type:   Option<String>,
     /// Existing atlas_accounts row to link the user to on accept.
+    /// REQUIRED for owner. Optional for landlord (joins existing workspace).
     pub account_id:   Option<Uuid>,
     pub invite_note:  Option<String>,
     /// Expiry in days. Default 7. Max 30.
@@ -94,26 +103,54 @@ pub struct ProvisionInviteResponse {
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
-fn validate_invite(input: &ProvisionInviteInput) -> Result<FolioRole, &'static str> {
+fn validate_invite(input: &ProvisionInviteInput) -> Result<FolioRole, String> {
+    // str_host is a removed role — give an actionable error
+    if input.app_role == "str_host" {
+        return Err(
+            "\"str_host\" is not a valid role. STR capability is a property trait, not a persona. \
+             Invite this user as \"landlord\" and enable STR on specific assets via \
+             atlas_assets.str_eligible = true.".to_string()
+        );
+    }
+
     let role = FolioRole::try_from(input.app_role.as_str())
-        .map_err(|_| "unknown app_role")?;
+        .map_err(|e| e.to_string())?;
 
     match role {
+        // Cohost: must have at least one STR asset to delegate
         FolioRole::Cohost => {
-            if input.asset_ids.as_ref().map_or(true, |v| v.is_empty()) {
-                return Err("cohost invites require at least one asset_id");
+            let empty = input.asset_ids.as_ref().map_or(true, |v| v.is_empty());
+            if empty {
+                return Err(
+                    "Cohost invites require at least one asset_id. \
+                     The cohost must be delegated to specific STR-eligible properties.".to_string()
+                );
             }
         }
+        // Tenant: must be linked to a specific lease
+        // The lease carries the lease_type (ltr|str) that determines portal view
         FolioRole::Tenant => {
             if input.lease_id.is_none() {
-                return Err("tenant invites require a lease_id");
+                return Err(
+                    "Tenant invites require a lease_id. \
+                     The tenant must be linked to a specific lease (LTR or STR). \
+                     Create the lease first, then invite the tenant.".to_string()
+                );
             }
         }
+        // Owner: must be scoped to a specific client account (PMC context)
         FolioRole::Owner => {
             if input.account_id.is_none() {
-                return Err("owner invites require an account_id");
+                return Err(
+                    "Owner invites require an account_id. \
+                     The beneficial owner must be linked to their client account.".to_string()
+                );
             }
         }
+        // Agent: implicitly under the broker whose instance sent this invite.
+        // No explicit broker_id needed — the app_instance_id on the invite carries it.
+        FolioRole::Agent | FolioRole::Broker => {}
+        // Landlord, Vendor, PropertyManager: no mandatory dependencies at invite time
         _ => {}
     }
 
@@ -291,11 +328,8 @@ async fn send_provision_email(
             "Cohost Portal",
             "Manage bookings, guest messaging, and property operations for the properties you've been assigned.",
         ),
-        FolioRole::StrHost => (
-            "You've been invited to manage your STR portfolio",
-            "STR Host Portal",
-            "Full short-term rental management: listings, channel sync, calendar, guest messaging, and compliance.",
-        ),
+        // StrHost removed — STR is an asset trait. Landlords with STR-eligible
+        // properties use the Landlord portal with conditional STR nav sections.
         FolioRole::Owner   => (
             "You've been invited to your Owner Portal",
             "Owner Portal",

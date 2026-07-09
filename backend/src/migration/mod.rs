@@ -315,7 +315,9 @@ pub mod m20261002_seed_ruuderie_folio_domain;  // Create ruuderie tenant+app_ins
 pub mod m20261003_platform_invite_account_id;  // Add account_id to platform_invite for workspace-scoped invites
 pub mod m20261004_platform_invite_asset_lease_scope; // Add asset_ids[] + lease_id to platform_invite
 pub mod m20261005_atlas_user_asset_access;     // Create atlas_user_asset_access for per-asset permission grants
-pub mod m20261006_folio_missing_role_profiles; // Seed cohost, str_host, agent, broker role profiles
+pub mod m20261006_folio_missing_role_profiles; // Seed cohost, agent, broker role profiles (str_host removed)
+pub mod m20261007_asset_str_traits;            // Add str_eligible, str_listing_active, str_syndicated to atlas_assets
+pub mod m20261008_lease_type;                  // Add lease_type (ltr|str) to atlas_leases
 
 pub struct Migrator;
 
@@ -599,6 +601,8 @@ impl MigratorTrait for Migrator {
             Box::new(m20261004_platform_invite_asset_lease_scope::Migration),
             Box::new(m20261005_atlas_user_asset_access::Migration),
             Box::new(m20261006_folio_missing_role_profiles::Migration),
+            Box::new(m20261007_asset_str_traits::Migration),
+            Box::new(m20261008_lease_type::Migration),
 
         ];
 

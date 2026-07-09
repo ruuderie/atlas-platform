@@ -18,8 +18,11 @@ mod folio_role_tests {
         assert_eq!(FolioRole::Vendor.to_string(),          "vendor");
         assert_eq!(FolioRole::PropertyManager.to_string(), "property_manager");
         assert_eq!(FolioRole::Owner.to_string(),           "owner");
+        assert_eq!(FolioRole::Cohost.to_string(),          "cohost");
         assert_eq!(FolioRole::Agent.to_string(),           "agent");
         assert_eq!(FolioRole::Broker.to_string(),          "broker");
+        // str_host is NOT a valid role — STR is an asset trait
+        assert!(FolioRole::try_from("str_host").is_err(), "str_host must not parse");
     }
 
     // ── TryFrom roundtrip ─────────────────────────────────────────────────────
@@ -32,6 +35,7 @@ mod folio_role_tests {
             FolioRole::Vendor,
             FolioRole::PropertyManager,
             FolioRole::Owner,
+            FolioRole::Cohost,
             FolioRole::Agent,
             FolioRole::Broker,
         ];
@@ -69,6 +73,7 @@ mod folio_role_tests {
         assert_eq!(FolioRole::Vendor.home_path(),          "/work-orders");
         assert_eq!(FolioRole::PropertyManager.home_path(), "/pm");
         assert_eq!(FolioRole::Owner.home_path(),           "/owner");
+        assert_eq!(FolioRole::Cohost.home_path(),          "/ch");
         assert_eq!(FolioRole::Agent.home_path(),           "/a");
         assert_eq!(FolioRole::Broker.home_path(),          "/b");
     }
@@ -77,8 +82,8 @@ mod folio_role_tests {
     fn home_paths_start_with_slash() {
         let roles = [
             FolioRole::Landlord, FolioRole::Tenant, FolioRole::Vendor,
-            FolioRole::PropertyManager, FolioRole::Owner, FolioRole::Agent,
-            FolioRole::Broker,
+            FolioRole::PropertyManager, FolioRole::Owner, FolioRole::Cohost,
+            FolioRole::Agent, FolioRole::Broker,
         ];
         for role in &roles {
             let p = role.home_path();
@@ -95,6 +100,7 @@ mod folio_role_tests {
         assert!(!FolioRole::Tenant.is_pmc());
         assert!(!FolioRole::Vendor.is_pmc());
         assert!(!FolioRole::Owner.is_pmc());
+        assert!(!FolioRole::Cohost.is_pmc());
         assert!(!FolioRole::Agent.is_pmc());
         assert!(!FolioRole::Broker.is_pmc());
     }
@@ -128,6 +134,7 @@ mod folio_role_tests {
             FolioRole::Vendor,
             FolioRole::PropertyManager,
             FolioRole::Owner,
+            FolioRole::Cohost,
             FolioRole::Agent,
             FolioRole::Broker,
         ];
@@ -154,6 +161,7 @@ mod folio_role_tests {
             FolioRole::Vendor,
             FolioRole::PropertyManager,
             FolioRole::Owner,
+            FolioRole::Cohost,
             FolioRole::Agent,
             FolioRole::Broker,
         ];

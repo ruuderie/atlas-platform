@@ -21,4 +21,5 @@ pub mod app_instance_unit_tests;
 pub mod folio_routing_unit_tests;
 // Waitlist handler — WaitlistBody serde contract (role, portfolio_size_label, optional fields)
 pub mod waitlist_unit_tests;
-
+// Provision validation — all 8 Folio personas, dependency graph, str_host rejection
+pub mod provision_unit_tests;

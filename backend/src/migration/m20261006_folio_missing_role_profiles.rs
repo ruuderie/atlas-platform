@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
                 r#"INSERT INTO atlas_role_profiles
                        (id, tenant_id, app_slug, role_slug, display_name, description, permissions, is_system, created_at)
                    VALUES
-                   -- cohost: STR co-host, asset-scoped
+                   -- cohost: STR co-host, asset-scoped via atlas_user_asset_access
                    (
                        '00000000-0000-0000-0000-000000000005',
                        NULL,
@@ -35,18 +35,8 @@ impl MigrationTrait for Migration {
                        true,
                        NOW()
                    ),
-                   -- str_host: full STR suite for own listings
-                   (
-                       '00000000-0000-0000-0000-000000000006',
-                       NULL,
-                       'folio',
-                       'str_host',
-                       'STR Host',
-                       'Short-term rental host — full STR suite including listing management, channel sync, pricing, and guest communications for their own properties',
-                       '["folio:str:read","folio:str:write","folio:reservations:read","folio:reservations:write","folio:messaging:read","folio:messaging:write","folio:calendar:read","folio:calendar:write","folio:pricing:read","folio:pricing:write","folio:listings:read","folio:listings:write","folio:maintenance:read","folio:maintenance:write"]'::jsonb,
-                       true,
-                       NOW()
-                   ),
+                   -- NOTE: '00000000-0000-0000-0000-000000000006' (str_host) intentionally omitted.
+                   -- STR capability is a property trait (atlas_assets.str_eligible), not a persona.
                    -- agent: real estate agent (brokerage mode)
                    (
                        '00000000-0000-0000-0000-000000000007',

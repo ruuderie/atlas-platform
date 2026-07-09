@@ -773,7 +773,8 @@ impl FolioRole {
             Self::PropertyManager => &PMC_NAV,
             Self::Owner           => &OWNER_NAV,
             Self::Cohost          => &COHOST_NAV,
-            Self::StrHost         => &STR_HOST_NAV,
+            // StrHost removed — Landlord portal shows STR sections when
+            // session.has_str_assets = true (asset-level trait, not a role)
             Self::Agent           => &AGENT_NAV,
             Self::Broker          => &BROKER_NAV,
         }

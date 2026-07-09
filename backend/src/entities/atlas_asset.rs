@@ -65,6 +65,30 @@ pub struct Model {
     /// See: docs/architecture/asset_metadata_shapes.md for registered shapes.
     pub lifecycle_metadata: Option<Value>,
 
+    // ── STR (Short-Term Rental) Traits (m20261007) ────────────────────────────
+    //
+    // STR capability is a PROPERTY trait, not a user persona trait.
+    // A Landlord with str_eligible assets gets the STR nav sections shown
+    // dynamically via `has_str_assets` in SessionInfo. No role change needed.
+
+    /// Landlord has opted this property into STR and accepted the STR terms.
+    /// Gate for all STR functionality on this asset. Default: false.
+    pub str_eligible: bool,
+
+    /// Listing is live on the Folio platform marketplace (visible to cohosts
+    /// and guests searching). Requires str_eligible = true.
+    pub str_listing_active: bool,
+
+    /// Property is syndicated to the Cohost Network (internal STR marketplace).
+    /// Requires str_listing_active = true.
+    /// External OTA channels (Airbnb, VRBO) tracked separately in a future
+    /// `str_channels TEXT[]` column.
+    pub str_syndicated: bool,
+
+    /// Audit timestamp of when str_eligible was first set true.
+    #[sea_orm(column_type = "TimestampWithTimeZone", nullable)]
+    pub str_terms_accepted_at: Option<DateTime<Utc>>,
+
     pub created_at: DateTime<Utc>,
 }
 

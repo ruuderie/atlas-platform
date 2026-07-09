@@ -26,10 +26,9 @@ pub enum FolioRole {
     /// STR co-host — manages bookings, messaging, and operations for specific
     /// STR properties they've been delegated access to. Asset-scoped.
     Cohost,
-    /// Short-term rental host — full STR suite for their own listings.
-    /// Distinct from Landlord in that their portal is STR-first (calendar,
-    /// channel sync, guest messaging) rather than lease-management-first.
-    StrHost,
+    // NOTE: StrHost is NOT a separate role. STR capability is a trait on
+    // atlas_assets (str_eligible = true). A Landlord who has STR-eligible assets
+    // gets the STR nav sections shown dynamically in their Landlord portal.
     /// Real estate agent — manages client files, listings, and deals.
     /// Requires `folio_mode = "brokerage"` on the instance. Home path: `/a`.
     Agent,
@@ -48,7 +47,6 @@ impl FolioRole {
             Self::PropertyManager => "/pmc",
             Self::Owner           => "/o",
             Self::Cohost          => "/ch",
-            Self::StrHost         => "/str",
             Self::Agent           => "/a",
             Self::Broker          => "/b",
         }
@@ -61,7 +59,6 @@ impl FolioRole {
             Self::PropertyManager => "PMC Dashboard",
             Self::Owner           => "Owner Portal",
             Self::Cohost          => "Cohost Portal",
-            Self::StrHost         => "STR Host Portal",
             Self::Agent           => "Agent Portal",
             Self::Broker          => "Broker Portal",
         }
@@ -92,6 +89,16 @@ pub struct SessionInfo {
     /// True if the user previously dismissed the setup banner (persisted server-side).
     #[serde(default)]
     pub wizard_dismissed:    bool,
+    /// True if the user (Landlord role) has at least one STR-eligible asset in their portfolio.
+    /// When true, the STR nav sections (calendar, reservations, channels) are shown
+    /// in the Landlord dashboard. This is an asset trait, NOT a role distinction.
+    #[serde(default)]
+    pub has_str_assets:      bool,
+    /// Lease type for the user's active lease (Tenant role only): "ltr" | "str".
+    /// Determines which tenant portal view is shown (full portal vs guest view).
+    /// None if role != Tenant or no active lease found.
+    #[serde(default)]
+    pub active_lease_type:   Option<String>,
 }
 
 fn default_wizard_total() -> usize { 7 }
