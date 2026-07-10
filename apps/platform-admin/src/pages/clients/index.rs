@@ -400,32 +400,44 @@ pub fn ClientsPage() -> impl IntoView {
                                                 let anchor_id = t.anchor_instance_id.clone();
                                                 let tenant_id_str = t.tenant_id.clone();
 
+                                                // Avatar: colored circle with initials, color based on status
+                                                let initial = t.name.chars().next().unwrap_or('?').to_uppercase().to_string();
+                                                let avatar_style = match instance_status.as_str() {
+                                                    "active" => "width:26px;height:26px;border-radius:50%;background:var(--cobalt-dim);border:1px solid var(--cobalt);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--cobalt);flex-shrink:0;",
+                                                    "suspended" => "width:26px;height:26px;border-radius:50%;background:var(--red-dim);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--red);flex-shrink:0;",
+                                                    "provisioning" => "width:26px;height:26px;border-radius:50%;background:var(--amber-dim);border:1px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--amber);flex-shrink:0;",
+                                                    _ => "width:26px;height:26px;border-radius:50%;background:var(--cobalt-dim);border:1px solid var(--cobalt);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--cobalt);flex-shrink:0;",
+                                                };
+
                                                 view! {
                                                     <tr class="hover:bg-surface-bright/5 transition-colors cursor-pointer">
-                                                        // Client name + ID — clicking the name navigates to instance detail
+                                                        // Client avatar + name + ID
                                                         <td class="py-3.5 px-5">
-                                                            {if let Some(ref aid) = anchor_id {
-                                                                let aid2 = aid.clone();
-                                                                view! {
-                                                                    <a href=format!("/apps/{}", aid2) class="block group/link">
-                                                                        <div class="font-semibold text-on-surface group-hover/link:text-primary transition-colors">{t.name.clone()}</div>
-                                                                        <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
-                                                                            {tenant_id_str.clone().chars().take(8).collect::<String>()}
-                                                                            "..."
+                                                            <div style="display:flex;align-items:center;gap:8px;">
+                                                                <div style=avatar_style>{initial}</div>
+                                                                {if let Some(ref aid) = anchor_id {
+                                                                    let aid2 = aid.clone();
+                                                                    view! {
+                                                                        <a href=format!("/apps/{}", aid2) class="block group/link">
+                                                                            <div class="font-semibold text-on-surface group-hover/link:text-primary transition-colors" style="font-size:12px;">{t.name.clone()}</div>
+                                                                            <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                                {tenant_id_str.clone().chars().take(8).collect::<String>()}
+                                                                                "..."
+                                                                            </div>
+                                                                        </a>
+                                                                    }.into_any()
+                                                                } else {
+                                                                    view! {
+                                                                        <div>
+                                                                            <div class="font-semibold text-on-surface" style="font-size:12px;">{t.name.clone()}</div>
+                                                                            <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
+                                                                                {tenant_id_str.clone().chars().take(8).collect::<String>()}
+                                                                                "..."
+                                                                            </div>
                                                                         </div>
-                                                                    </a>
-                                                                }.into_any()
-                                                            } else {
-                                                                view! {
-                                                                    <div>
-                                                                        <div class="font-semibold text-on-surface">{t.name.clone()}</div>
-                                                                        <div class="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">
-                                                                            {tenant_id_str.clone().chars().take(8).collect::<String>()}
-                                                                            "..."
-                                                                        </div>
-                                                                    </div>
-                                                                }.into_any()
-                                                            }}
+                                                                    }.into_any()
+                                                                }}
+                                                            </div>
                                                         </td>
                                                         // App type
                                                         <td class="py-3.5 px-5">

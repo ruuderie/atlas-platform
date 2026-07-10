@@ -144,7 +144,7 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                     </div>
                                 </div>
 
-                                <div style="display:flex;gap:2px;padding:0 0 16px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:20px;">
+                                <div style="display:flex;gap:2px;padding:0 0 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:20px;">
                                     {["overview", "domain", "users", "deployment", "danger"].map(|tab| {
                                         let label = match tab {
                                             "overview"   => "Overview",
@@ -158,17 +158,17 @@ pub fn InternalInstanceConfig() -> impl IntoView {
                                             <button
                                                 on:click=move |_| active_tab.set(tab.to_string())
                                                 class=move || format!(
-                                                    "px-4 py-2 text-xs font-semibold rounded transition-all {}",
+                                                    "px-4 py-2 text-xs font-semibold transition-all border-b-2 {}",
                                                     if active_tab.get() == tab {
                                                         if tab == "danger" {
-                                                            "bg-error/15 text-error"
+                                                            "border-error text-error"
                                                         } else {
-                                                            "bg-primary/15 text-primary"
+                                                            "border-primary text-primary"
                                                         }
                                                     } else if tab == "danger" {
-                                                        "text-error/60 hover:bg-error/10"
+                                                        "border-transparent text-error/60 hover:text-error hover:bg-error/5"
                                                     } else {
-                                                        "text-on-surface-variant hover:bg-surface-container-high/40"
+                                                        "border-transparent text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/40"
                                                     }
                                                 )
                                             >{label}</button>
@@ -214,12 +214,6 @@ fn OverviewTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                         <span class="text-xs text-on-surface-variant/60">"Mode"</span>
                         <code class="text-xs font-mono text-on-surface">{app.mode.clone()}</code>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-on-surface-variant/60">"Status"</span>
-                        <span class=format!("text-xs font-semibold {}", status_cls(&app.site_status))>
-                            {app.site_status.clone()}
-                        </span>
-                    </div>
                     {app.purpose.as_ref().map(|p| {
                         let cls = purpose_badge_cls(p).to_string();
                         let lbl = purpose_label(p).to_string();
@@ -230,6 +224,12 @@ fn OverviewTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                             </div>
                         }
                     })}
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Status"</span>
+                        <span class=format!("text-xs font-semibold {}", status_cls(&app.site_status))>
+                            {app.site_status.clone()}
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -358,7 +358,7 @@ fn DomainTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
                         // ── Assign domain form ───────────────────────────────────
                         <div class="section">
                             <div class="section-hdr">
-                                <span class="section-title">"Assign Domain"</span>
+                                <span class="section-title">"Assign Custom Domain"</span>
                             </div>
                             <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
                                 <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
@@ -587,7 +587,18 @@ fn UsersTab(tenant_id: String) -> impl IntoView {
                                                 _ => u.email.clone(),
                                             };
                                             let role = u.role.clone().unwrap_or_else(|| "User".into());
-                                            let active_cls = if u.is_active { "color:var(--green)" } else { "text-on-surface-variant/40" };
+                                            let role_style = match role.to_lowercase().as_str() {
+                                                "admin" | "super_admin" | "owner" => "font-size:10px;font-weight:600;padding:1px 7px;border-radius:3px;color:var(--cobalt);border:1px solid var(--cobalt);background:var(--cobalt-dim);",
+                                                _ => "font-size:10px;font-weight:600;padding:1px 7px;border-radius:3px;color:var(--text-muted);border:1px solid rgba(255,255,255,0.08);",
+                                            };
+                                            let status_style = format!(
+                                                "font-size:10px;font-weight:600;padding:1px 7px;border-radius:3px;{}",
+                                                if u.is_active {
+                                                    "color:var(--green);border:1px solid rgba(6,150,105,0.3);background:rgba(6,150,105,0.08);"
+                                                } else {
+                                                    "color:var(--text-muted);border:1px solid rgba(255,255,255,0.06);"
+                                                }
+                                            );
                                             let status_label = if u.is_active { "Active" } else { "Inactive" };
                                             view! {
                                                 <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
@@ -598,10 +609,10 @@ fn UsersTab(tenant_id: String) -> impl IntoView {
                                                         <span class="text-xs font-mono text-on-surface-variant/70">{u.email}</span>
                                                     </td>
                                                     <td style="padding:8px 16px;">
-                                                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-surface-container-high/40 border border-outline-variant/20 text-on-surface-variant">{role}</span>
+                                                        <span style=role_style>{role}</span>
                                                     </td>
                                                     <td style="padding:8px 16px;">
-                                                        <span class=format!("text-[10px] font-semibold {}", active_cls)>{status_label}</span>
+                                                        <span style=status_style>{status_label}</span>
                                                     </td>
                                                 </tr>
                                             }
@@ -630,20 +641,84 @@ fn DeploymentTab(app: crate::api::models::PlatformAppSummary) -> impl IntoView {
     let is_busy = RwSignal::new(false);
     let is_suspended = app.site_status == "suspended";
 
+    let status_dot = |s: &str| -> &'static str {
+        match s {
+            "active" => "color:var(--green)",
+            "provisioning" | "beta" => "color:var(--cobalt)",
+            "suspended" => "color:var(--error)",
+            _ => "color:var(--text-muted)",
+        }
+    };
+    let site_st = app.site_status.clone();
+    let mode_val = app.mode.clone();
+    let is_active = site_st == "active";
+    let ingress_cls = if is_active { "color:var(--green)" } else { "color:var(--text-muted)" };
+    let ssl_cls     = if is_active { "color:var(--green)" } else { "color:var(--text-muted)" };
+
     view! {
-        <div class="section" style="max-width:640px;">
-            <div class="section-hdr"><span class="section-title">"Deployment Settings"</span></div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:16px;">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs text-on-surface-variant/60">"Deployment Mode"</span>
-                    <code class="text-xs font-mono text-on-surface">{app.mode.clone()}</code>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;">
+            // ── Current Build ────────────────────────────────────────────────
+            <div class="section">
+                <div class="section-hdr"><span class="section-title">"Current Build"</span></div>
+                <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Mode"</span>
+                        <code class="text-xs font-mono text-on-surface">{mode_val}</code>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Status"</span>
+                        <span style=format!("font-size:11px;font-weight:600;{}", status_dot(&site_st))>
+                            {format!("● {}", &site_st)}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Image"</span>
+                        <span class="text-xs font-mono" style="color:var(--text-muted);">"—"</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Replicas"</span>
+                        <span class="text-xs" style="color:var(--text-muted);">"—"</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Region"</span>
+                        <span class="text-xs" style="color:var(--text-muted);">"—"</span>
+                    </div>
                 </div>
-                <div class="flex justify-between items-center">
-                    <span class="text-xs text-on-surface-variant/60">"Instance Status"</span>
-                    <span class=format!("text-xs font-semibold {}", status_cls(&app.site_status))>
-                        {app.site_status.clone()}
-                    </span>
+            </div>
+            // ── Health ───────────────────────────────────────────────────────
+            <div class="section">
+                <div class="section-hdr"><span class="section-title">"Health"</span></div>
+                <div style="padding:12px 16px;display:flex;flex-direction:column;gap:10px;">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"App Pods"</span>
+                        <span style=format!("font-size:11px;font-weight:600;{}", status_dot(&site_st))>
+                            {if is_active { "● Running" } else { "● Stopped" }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Ingress"</span>
+                        <span style=format!("font-size:11px;font-weight:600;{}", ingress_cls)>
+                            {if is_active { "● OK" } else { "● Unknown" }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"SSL"</span>
+                        <span style=format!("font-size:11px;font-weight:600;{}", ssl_cls)>
+                            {if is_active { "● Valid" } else { "● Unknown" }}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-on-surface-variant/60">"Last Check"</span>
+                        <span class="text-xs" style="color:var(--text-muted);">"—"</span>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        // ── Suspend / Resume action ───────────────────────────────────────────
+        <div class="section" style="max-width:640px;margin-top:16px;">
+            <div class="section-hdr"><span class="section-title">"Instance Control"</span></div>
+            <div style="padding:16px;">
 
                 <div style="padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);">
                     {if is_suspended {
@@ -729,9 +804,9 @@ fn DangerZoneTab(instance_id: String, instance_name: String) -> impl IntoView {
 
     view! {
         <div class="space-y-4" style="max-width:640px;">
-            <div style="padding:12px 16px;border-left:3px solid var(--amber);border-radius:0 8px 8px 0;background:rgba(245,158,11,0.06);">
-                <p style="font-size:12px;font-weight:700;color:var(--amber);margin:0 0 2px;">
-                    "Destructive Actions — Proceed with Caution"
+            <div style="padding:12px 16px;border-left:3px solid var(--red);border-radius:0 8px 8px 0;background:rgba(229,72,77,0.06);">
+                <p style="font-size:12px;font-weight:700;color:var(--red);margin:0 0 4px;">
+                    "⚠ Danger Zone — Actions here are irreversible"
                 </p>
                 <p class="text-[11px] text-on-surface-variant/70 leading-relaxed" style="margin:0;">
                     "Archive removes the instance from active monitoring (data preserved). \

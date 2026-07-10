@@ -223,14 +223,15 @@ pub fn BillingDashboard() -> impl IntoView {
 
             // ── Tab Bar ───────────────────────────────────────────────────────
             <div class="lp-tab-bar">
-                <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>"Pricing Plans"</button>
-                <button class=move || tab_class("rev_intel")       on:click=move |_| active_tab.set("rev_intel".to_string())>"Revenue"</button>
-                <button class=move || tab_class("ledger")          on:click=move |_| active_tab.set("ledger".to_string())>"Client Billing"</button>
+                <button class=move || tab_class("products_plans") on:click=move |_| active_tab.set("products_plans".to_string())>"Products & Plans"</button>
+                <button class=move || tab_class("rev_intel")       on:click=move |_| active_tab.set("rev_intel".to_string())>"Revenue Intel"</button>
+                <button class=move || tab_class("ledger")          on:click=move |_| active_tab.set("ledger".to_string())>"Ledger · G-03"</button>
                 <button class=move || tab_class("overdue")         on:click=move |_| active_tab.set("overdue".to_string())>"Overdue & Disputes"</button>
                 <button class=move || tab_class("rails")           on:click=move |_| active_tab.set("rails".to_string())>"Payment Rails"</button>
-                <button class=move || tab_class("commissions")     on:click=move |_| active_tab.set("commissions".to_string())>"Commission Plans"</button>
-                <button class=move || tab_class("tax")             on:click=move |_| active_tab.set("tax".to_string())>"Tax & Filings"</button>
+                <button class=move || tab_class("commissions")     on:click=move |_| active_tab.set("commissions".to_string())>"Commission Plans · G-25"</button>
+                <button class=move || tab_class("tax")             on:click=move |_| active_tab.set("tax".to_string())>"Tax & Filings · G-17"</button>
             </div>
+
 
             // ── TAB CONTENT: Products & Plans ──
             <Show when=move || active_tab.get() == "products_plans">

@@ -23,7 +23,80 @@ fn lead_stage_tag(status: &str) -> &'static str {
     }
 }
 
+/// Returns an inline-style color for the stage dot/circle.
+fn stage_dot_color(status: &str) -> &'static str {
+    match status {
+        "New"          => "var(--cobalt)",
+        "Contacted"    => "var(--amber)",
+        "Qualified"    => "var(--cobalt)",
+        "Proposal"     => "var(--violet)",
+        "Converted"    => "var(--green)",
+        "Disqualified" => "var(--red)",
+        _              => "var(--text-muted)",
+    }
+}
+
+/// Returns border+color style string for a source tag badge.
+fn source_tag_style(source: &str) -> &'static str {
+    match source.to_lowercase().as_str() {
+        s if s.contains("fmcsa")    => "color:var(--cobalt);border-color:var(--cobalt);background:var(--cobalt-dim)",
+        s if s.contains("biz")      => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        s if s.contains("dot")      => "color:var(--amber);border-color:var(--amber);background:var(--amber-dim)",
+        s if s.contains("campaign") => "color:var(--violet);border-color:var(--violet);background:var(--violet-dim)",
+        s if s.contains("referral") => "color:var(--green);border-color:var(--green);background:var(--green-dim)",
+        _                           => "color:var(--text-muted);border-color:var(--border-default)",
+    }
+}
+
 fn fmt_date(s: &str) -> String { s.chars().take(10).collect() }
+
+/// Render a 5-step stage progress stepper for the lead drawer.
+fn stage_stepper(current: String) -> impl IntoView {
+    let stages = ["New", "Contacted", "Qualified", "Proposal", "Converted"];
+    let current_idx = stages.iter().position(|&s| s == current.as_str()).unwrap_or(0);
+    view! {
+        <div style="display:flex;align-items:center;padding:14px 20px 12px;border-bottom:1px solid var(--border-default);flex-shrink:0;gap:0;">
+            {stages.iter().enumerate().map(|(i, &stage)| {
+                let done   = i < current_idx;
+                let active = i == current_idx;
+                let circle_style = if done {
+                    "width:18px;height:18px;border-radius:50%;background:var(--cobalt);border:1.5px solid var(--cobalt);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;".to_string()
+                } else if active {
+                    "width:18px;height:18px;border-radius:50%;background:var(--bg-base);border:2px solid var(--cobalt);box-shadow:0 0 0 3px rgba(10,132,255,0.15);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;".to_string()
+                } else {
+                    "width:18px;height:18px;border-radius:50%;background:var(--bg-base);border:1.5px solid var(--border-default);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;".to_string()
+                };
+                let label_color = if active { "var(--cobalt)" } else if done { "var(--text-secondary)" } else { "var(--text-muted)" };
+                let label_weight = if active { "600" } else { "500" };
+                let inner = if done {
+                    view! { <span style="display:block;width:5px;height:8px;border:1.5px solid #fff;border-left:none;border-top:none;transform:rotate(45deg) translate(-1px,-1px);"></span> }.into_any()
+                } else if active {
+                    view! { <span style="display:block;width:6px;height:6px;background:var(--cobalt);border-radius:50%;"></span> }.into_any()
+                } else {
+                    view! { <></> }.into_any()
+                };
+                // connector line before node (except first)
+                let connector = if i > 0 {
+                    let line_color = if done || active { "var(--cobalt)" } else { "var(--border-default)" };
+                    view! {
+                        <div style=format!("flex:1;height:1px;background:{};margin-top:-1px;", line_color)></div>
+                    }.into_any()
+                } else {
+                    view! { <></> }.into_any()
+                };
+                view! {
+                    {connector}
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                        <div style=circle_style>{inner}</div>
+                        <span style=format!("font-size:9px;font-weight:{};color:{};text-transform:uppercase;letter-spacing:0.06em;text-align:center;", label_weight, label_color)>
+                            {stage}
+                        </span>
+                    </div>
+                }
+            }).collect_view()}
+        </div>
+    }
+}
 
 #[component]
 pub fn LeadsPage() -> impl IntoView {
@@ -188,25 +261,29 @@ pub fn LeadsPage() -> impl IntoView {
                             <table>
                                 <thead>
                                     <tr>
-                                        <th style="width:30%" class="sortable">"Lead"</th>
-                                        <th style="width:25%" class="sortable">"Email / Phone"</th>
+                                        <th style="width:28%" class="sortable">"Lead"</th>
+                                        <th style="width:22%" class="sortable">"Email / Phone"</th>
                                         <th style="width:12%" class="sortable">"Source"</th>
-                                        <th style="width:12%" class="sortable">"Stage"</th>
-                                        <th style="width:10%" class="sortable">"Created"</th>
+                                        <th style="width:14%" class="sortable">"Stage"</th>
+                                        <th style="width:12%" class="sortable">"Last Activity"</th>
                                         <th style="width:70px"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {rows.into_iter().map(|l| {
-                                        let ini       = initials(&l.name);
-                                        let email     = l.email.clone().unwrap_or_else(|| "—".to_string());
-                                        let phone     = l.phone.clone().unwrap_or_else(|| "—".to_string());
-                                        let source    = l.source.clone().unwrap_or_else(|| "—".to_string());
-                                        let status    = l.lead_status.clone().unwrap_or_else(|| "New".to_string());
-                                        let created   = l.created_at.as_deref().map(fmt_date).unwrap_or_else(|| "—".to_string());
-                                        let tag_class = lead_stage_tag(&status).to_string();
+                                        let ini        = initials(&l.name);
+                                        let email      = l.email.clone().unwrap_or_else(|| "—".to_string());
+                                        let phone      = l.phone.clone().unwrap_or_else(|| "—".to_string());
+                                        let source     = l.source.clone().unwrap_or_else(|| "—".to_string());
+                                        let status     = l.lead_status.clone().unwrap_or_else(|| "New".to_string());
+                                        // Use updated_at as proxy for last activity
+                                        let last_act   = l.updated_at.as_deref().map(fmt_date)
+                                            .or_else(|| l.created_at.as_deref().map(fmt_date))
+                                            .unwrap_or_else(|| "—".to_string());
+                                        let dot_color  = stage_dot_color(&status);
+                                        let src_style  = source_tag_style(&source);
                                         let detail_href = format!("/leads/{}", l.id);
-                                        let l_click   = l.clone();
+                                        let l_click    = l.clone();
 
                                         view! {
                                             <tr style="cursor:pointer" on:click=move |_| {
@@ -227,10 +304,17 @@ pub fn LeadsPage() -> impl IntoView {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span class="tag" style="color:var(--text-muted);border-color:var(--border-default)">{source}</span>
+                                                    // Colored source tag
+                                                    <span class="tag" style=src_style>{source}</span>
                                                 </td>
-                                                <td><span class=tag_class>{status}</span></td>
-                                                <td class="muted">{created}</td>
+                                                <td>
+                                                    // Stage cell: colored dot + label
+                                                    <div style="display:flex;align-items:center;gap:6px;">
+                                                        <span style=format!("width:6px;height:6px;border-radius:50%;flex-shrink:0;background:{}", dot_color)></span>
+                                                        <span style="font-size:12px;color:var(--text-secondary)">{status}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="muted">{last_act}</td>
                                                 <td>
                                                     <a
                                                         href=detail_href
@@ -269,20 +353,33 @@ pub fn LeadsPage() -> impl IntoView {
             let company  = if company_c.is_empty() { "—".to_string() } else { company_c };
             let title_str = l.title.clone().unwrap_or_else(|| "—".to_string());
             let phone    = l.phone.clone().unwrap_or_else(|| "—".to_string());
+            let whatsapp = l.whatsapp.clone().unwrap_or_else(|| "—".to_string());
+            let telegram = l.telegram.clone().unwrap_or_else(|| "—".to_string());
             let created  = l.created_at.as_deref().map(fmt_date).unwrap_or_else(|| "—".to_string());
-            let tag_class = lead_stage_tag(&status).to_string();
+            let src_style = source_tag_style(&source);
+            let status_for_stepper = status.clone();
 
             view! {
                 <RecordDrawer open=drawer_open title=title subtitle=subtitle detail_href=href>
+                    // Stage progress stepper
+                    {stage_stepper(status_for_stepper)}
+
                     <div class="detail-grid">
                         <span class="detail-section-label">"Lead Info"</span>
                         <div class="detail-field">
                             <div class="detail-label">"Stage"</div>
-                            <div class="detail-value"><span class=tag_class>{status}</span></div>
+                            <div class="detail-value">
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <span style=format!("width:6px;height:6px;border-radius:50%;flex-shrink:0;background:{}", stage_dot_color(&status))></span>
+                                    <span style="font-size:12px;">{status}</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="detail-field">
                             <div class="detail-label">"Source"</div>
-                            <div class="detail-value">{source}</div>
+                            <div class="detail-value">
+                                <span class="tag" style=src_style>{source}</span>
+                            </div>
                         </div>
                         <div class="detail-field">
                             <div class="detail-label">"Company"</div>
@@ -292,12 +389,22 @@ pub fn LeadsPage() -> impl IntoView {
                             <div class="detail-label">"Job Title"</div>
                             <div class="detail-value">{title_str}</div>
                         </div>
+                        <span class="detail-section-label">"Contact Channels"</span>
                         <div class="detail-field">
                             <div class="detail-label">"Phone"</div>
-                            <div class="detail-value">{phone}</div>
+                            <div class="detail-value mono">{phone}</div>
                         </div>
                         <div class="detail-field">
-                            <div class="detail-label">"Created"</div>
+                            <div class="detail-label">"WhatsApp"</div>
+                            <div class="detail-value mono">{whatsapp}</div>
+                        </div>
+                        <div class="detail-field">
+                            <div class="detail-label">"Telegram"</div>
+                            <div class="detail-value mono">{telegram}</div>
+                        </div>
+                        <div class="detail-field">
+                            <div class="detail-label">"Added"
+                            </div>
                             <div class="detail-value mono">{created}</div>
                         </div>
                     </div>
