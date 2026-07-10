@@ -223,7 +223,8 @@ impl ScorecardAnalyticsService {
                sc.subject_entity_type,
                sc.composite_score,
                sc.confidence_level,
-               sc.trend_direction,
+               -- trend_direction lives on atlas_scorecard_time_series, not atlas_scorecards
+               latest_ts.trend_direction,
                -- Percentile rank: fraction of scorecards with lower composite * 100
                ROUND(
                  100.0 * (
@@ -243,13 +244,20 @@ impl ScorecardAnalyticsService {
               AND sc2.tenant_id   = sc.tenant_id
               AND sc2.deleted_at  IS NULL
               AND sc2.composite_score IS NOT NULL
+             LEFT JOIN LATERAL (
+               SELECT ts.trend_direction
+               FROM atlas_scorecard_time_series ts
+               WHERE ts.scorecard_id = sc.id
+               ORDER BY ts.period_start DESC
+               LIMIT 1
+             ) latest_ts ON true
              WHERE sc.template_id = $1
                AND sc.tenant_id   = $2
                AND sc.deleted_at  IS NULL
                AND sc.composite_score IS NOT NULL
              GROUP BY
                sc.id, sc.subject_entity_id, sc.subject_entity_type,
-               sc.composite_score, sc.confidence_level, sc.trend_direction
+               sc.composite_score, sc.confidence_level, latest_ts.trend_direction
              ORDER BY sc.composite_score DESC NULLS LAST
              LIMIT $3",
             vec![

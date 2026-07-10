@@ -24,7 +24,8 @@ use crate::pages::crm::opportunities::OpportunitiesPage;
 use crate::pages::products::index::PlatformProducts;
 use crate::pages::products::detail::ProductDetail;
 use crate::pages::billing::scorecards::Scorecards;
-use crate::pages::billing::scorecard_session::ScorecardSession;
+use crate::pages::billing::scorecard_configure::ScorecardConfigure;
+use crate::pages::billing::scorecard_detail::ScorecardDetailPage;
 use crate::pages::network::syndication::SyndicationManager;
 use crate::pages::network::create::NetworkCreate;
 use crate::pages::network::detail::NetworkDetail;
@@ -599,7 +600,11 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                             <crate::components::redirect::Redirect to="/products" />
                         } />
                         <Route path=path!("/billing/scorecards") view=Scorecards />
-                        <Route path=path!("/billing/scorecards/session") view=ScorecardSession />
+                        <Route path=path!("/billing/scorecards/session") view=|| view! {
+                            <crate::components::redirect::Redirect to="/billing/scorecards" />
+                        } />
+                        <Route path=path!("/billing/scorecards/templates/:template_id/configure") view=ScorecardConfigure />
+                        <Route path=path!("/billing/scorecards/:scorecard_id") view=ScorecardDetailPage />
                         <Route path=path!("/verification") view=Verification />
                         <Route path=path!("/developer") view=crate::pages::admin::developer::DeveloperConsole />
                         <Route path=path!("/settings") view=crate::pages::admin::profile::Settings />

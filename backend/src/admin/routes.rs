@@ -192,5 +192,7 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
                 // Platform-admin Landing Page Builder (app-scoped acquisition pages)
                 // Routes: /api/admin/landing-pages/* + /api/admin/utm-presets/*
                 .merge(crate::handlers::landing_pages::landing_page_routes_raw())
+                // G-27 Phase 1 — scorecard admin REST (explicit tenant_id; deployments = Phase 1b)
+                .merge(crate::handlers::scorecard_admin::routes())
         })
 }

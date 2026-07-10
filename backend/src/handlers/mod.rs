@@ -54,6 +54,7 @@ pub mod admin_provision;
 pub mod scorecard_entries;
 pub mod scorecard_display_rules;
 pub mod scorecard_analytics;    // Phase 3 — portfolio analytics, leaderboard, anomalies
+pub mod scorecard_admin;        // Phase 1 — platform-admin REST (explicit tenant_id)
 
 // Folio — Property Management App
 pub mod folio;

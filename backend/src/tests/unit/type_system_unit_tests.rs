@@ -400,6 +400,8 @@ mod tests {
             (ScorecardEntityType::AtlasPortfolio, "atlas_portfolio"),
             (ScorecardEntityType::AtlasCatalogEntry, "atlas_catalog_entry"),
             (ScorecardEntityType::AtlasServiceProvider, "atlas_service_provider"),
+            (ScorecardEntityType::Tenant, "tenant"),
+            (ScorecardEntityType::AppInstance, "app_instance"),
         ];
         for (variant, slug) in &cases {
             assert_eq!(variant.to_string(), *slug);

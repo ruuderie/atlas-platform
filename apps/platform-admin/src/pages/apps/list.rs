@@ -50,7 +50,7 @@ pub fn TenantList() -> impl IntoView {
     let filter_status = RwSignal::new("all".to_string());
 
     view! {
-        <div class="main-canvas">
+        <div class="main-canvas w-full">
             // ── Page Header ──────────────────────────────────────────────────
             <div class="page-header">
                 <div>
@@ -61,7 +61,7 @@ pub fn TenantList() -> impl IntoView {
                         }).unwrap_or_else(|| "Loading…".to_string())}
                     </p>
                 </div>
-                <div class="page-header-actions" style="display:flex;align-items:center;gap:10px;">
+                <div class="page-actions" style="display:flex;align-items:center;gap:10px;">
                     // Search
                     <input
                         type="search"
@@ -146,7 +146,7 @@ pub fn TenantList() -> impl IntoView {
                 }
 
                 view! {
-                    <div style="padding:0 0 24px;">
+                    <div class="w-full" style="padding:0 0 24px;">
                         // ── Summary stats bar ─────────────────────────────────
                         {
                             let all = tenants_res.get().unwrap_or_default();
@@ -172,6 +172,8 @@ pub fn TenantList() -> impl IntoView {
                         }
 
                         // ── Table ─────────────────────────────────────────────
+                        // Setup x/4 and Health are client heuristics (not backend fields).
+                        <div class="table-container" style="background:var(--bg-surface,#111520);border:1px solid var(--border-default,rgba(255,255,255,0.08));border-radius:6px;overflow:hidden;">
                         <table style="width:100%;border-collapse:collapse;">
                             <thead>
                                 <tr>
@@ -267,6 +269,7 @@ pub fn TenantList() -> impl IntoView {
                                 }).collect_view()}
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 }.into_any()
             }}

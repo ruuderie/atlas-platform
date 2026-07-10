@@ -164,6 +164,7 @@ pub mod atlas_scorecard_entry;
 pub mod atlas_scorecard_dimension_aggregate;
 pub mod atlas_scorecard_poll_aggregate;
 pub mod atlas_scorecard_time_series;
+pub mod atlas_scorecard_template_deployment; // G-27 Phase 1b: per-instance template enablement
 
 // GENERIC-28: atlas_note — Universal Polymorphic Note (promotes `notes` table)
 pub mod atlas_note;

@@ -94,6 +94,13 @@ pub struct TemplateForm {
     pub default_scale_max: f64,
     pub min_entries_to_publish: i32,
     pub is_published: bool,
+    /// `platform` | `tenant` — see docs/contracts/g27_scorecard_platform.md
+    pub template_scope: String,
+    pub cold_start_strategy: String,
+    pub cold_start_saturation_threshold: i32,
+    pub calibration_minimum_entries: i32,
+    pub default_bayesian_prior_weight: Option<f64>,
+    pub display_config: DisplayConfigForm,
 }
 
 impl Default for TemplateForm {
@@ -108,7 +115,45 @@ impl Default for TemplateForm {
             default_scale_max: 10.0,
             min_entries_to_publish: 3,
             is_published: false,
+            template_scope: "tenant".to_string(),
+            cold_start_strategy: "suppress".to_string(),
+            cold_start_saturation_threshold: 50,
+            calibration_minimum_entries: 100,
+            default_bayesian_prior_weight: None,
+            display_config: DisplayConfigForm::default(),
         }
+    }
+}
+
+/// Frontend mirror of `ScorecardTemplateDisplayConfig` (backend types/scorecard.rs).
+/// Field-for-field with the JSONB `display_config` column.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DisplayConfigForm {
+    pub show_on_portfolio_table: bool,
+    pub show_on_anomaly_panel: bool,
+    pub show_on_leaderboard: bool,
+    pub show_on_maintenance_queue: bool,
+    pub show_on_property_detail: bool,
+    pub show_on_lead_card: bool,
+    pub show_on_public_listing: bool,
+    pub tenant_visible: bool,
+    pub nudge_on_maintenance_case_close: bool,
+    pub nudge_on_str_checkout: bool,
+    pub min_entries_before_display: Option<i32>,
+    pub collapsed_by_default: bool,
+}
+
+impl DisplayConfigForm {
+    pub fn any_surface_enabled(&self) -> bool {
+        self.show_on_portfolio_table
+            || self.show_on_anomaly_panel
+            || self.show_on_leaderboard
+            || self.show_on_maintenance_queue
+            || self.show_on_property_detail
+            || self.show_on_lead_card
+            || self.show_on_public_listing
+            || self.tenant_visible
     }
 }
 
@@ -134,6 +179,12 @@ pub struct DimensionForm {
     pub is_community_ratable: bool,
     pub is_active: bool,
     pub sort_order: i32,
+    /// Landlord/app-added dim — excluded from cross-tenant benchmark pool.
+    pub is_tenant_extension: bool,
+    pub min_entries_to_show: i32,
+    pub bayesian_prior_weight: Option<f64>,
+    pub global_reference_value: Option<f64>,
+    pub global_reference_label: String,
     pub options: Vec<OptionForm>,
     // ── Combinator criteria ───────────────────────────────────────────────────
     pub ideal_score: Option<f64>,
@@ -160,6 +211,11 @@ impl DimensionForm {
             is_community_ratable: true,
             is_active: true,
             sort_order,
+            is_tenant_extension: false,
+            min_entries_to_show: 1,
+            bayesian_prior_weight: None,
+            global_reference_value: None,
+            global_reference_label: String::new(),
             options: Vec::new(),
             ideal_score: None,
             range_min: None,

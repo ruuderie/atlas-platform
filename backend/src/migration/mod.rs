@@ -332,6 +332,7 @@ pub mod m20261015_rating_sessions_review_fields;     // atlas_rating_sessions: a
 pub mod m20261015_atlas_asset_status_owner_occupied; // atlas_asset_status enum: add 'owner_occupied' for PO Lite assets
 pub mod m20261015_atlas_asset_value_history;         // NEW TABLE: G-10 extension — property valuation ledger (PropertyValueSource)
 pub mod m20261015_g32_property_owner_lite_seed;      // G-32 seed: property_owner_lite RBAC profile + permissions
+pub mod m20261016_atlas_scorecard_template_deployments; // G-27 Phase 1b: template ↔ app-instance deployments
 
 pub struct Migrator;
 
@@ -636,6 +637,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261015_atlas_asset_status_owner_occupied::Migration),
             Box::new(m20261015_atlas_asset_value_history::Migration),
             Box::new(m20261015_g32_property_owner_lite_seed::Migration),
+            Box::new(m20261016_atlas_scorecard_template_deployments::Migration),
 
         ];
 

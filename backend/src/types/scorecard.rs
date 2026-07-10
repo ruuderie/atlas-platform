@@ -957,6 +957,10 @@ pub enum ScorecardEntityType {
     AtlasServiceProvider,
     AtlasContact,
     AtlasPortfolio,
+    /// Platform-admin pilot: rate a customer tenant as a subject.
+    Tenant,
+    /// Platform-admin pilot: rate an app instance as a subject.
+    AppInstance,
     /// Legacy — `listing` table (pre-G-10 `atlas_assets` promotion).
     Listing,
     /// Legacy — `profile` table.
@@ -985,6 +989,8 @@ impl fmt::Display for ScorecardEntityType {
             Self::AtlasServiceProvider => "atlas_service_provider",
             Self::AtlasContact         => "atlas_contact",
             Self::AtlasPortfolio       => "atlas_portfolio",
+            Self::Tenant               => "tenant",
+            Self::AppInstance          => "app_instance",
             Self::Listing              => "listing",
             Self::Profile              => "profile",
         })
@@ -1014,6 +1020,8 @@ impl TryFrom<String> for ScorecardEntityType {
             "atlas_service_provider" => Ok(Self::AtlasServiceProvider),
             "atlas_contact"         => Ok(Self::AtlasContact),
             "atlas_portfolio"       => Ok(Self::AtlasPortfolio),
+            "tenant"                => Ok(Self::Tenant),
+            "app_instance"          => Ok(Self::AppInstance),
             "listing"               => Ok(Self::Listing),
             "profile"               => Ok(Self::Profile),
             other                   => Err(format!("unknown ScorecardEntityType: '{other}'")),
