@@ -568,6 +568,7 @@ const WIZARD_CSS: &str = r#"
 }
 .msf { font-variation-settings: 'FILL' 1, 'wght' 400; }
 
+html, body { height: 100%; }
 body { font-family: 'Inter', sans-serif; margin: 0; }
 
 /* Topnav */
@@ -671,6 +672,7 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
 .wiz-fp {
     overflow-y: auto; display: flex; flex-direction: column;
     background: #f4f6fb;
+    min-height: 0; /* required for overflow-y scroll inside CSS grid */
 }
 .wiz-fi {
     flex: 1; max-width: 640px; width: 100%;
@@ -766,6 +768,7 @@ body { font-family: 'Inter', sans-serif; margin: 0; }
         height: auto; overflow: visible;
     }
     .wiz-ctx { display: none; }
+    .wiz-fp { min-height: 100svh; }
     .wiz-fi { padding: 28px 18px 120px; max-width: 100%; }
     .wiz-ftr { padding: 12px 18px; }
 }
