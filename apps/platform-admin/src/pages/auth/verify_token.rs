@@ -22,7 +22,7 @@ pub fn VerifyToken() -> impl IntoView {
                         let _ = shared_ui::auth::atlas_auth::set_session_cookie(token_str).await;
                         // The user is successfully authenticated and old passkeys are deleted.
                         // Force a refresh of the session globally.
-                        match crate::api::auth::validate_session().await {
+                        match crate::api::auth::get_session().await {
                             Ok(user) => {
                                 set_user.set(Some(user));
                                 toast_clone.show_toast("Auth", "Token consumed! Please register a new Passkey immediately.", "success");

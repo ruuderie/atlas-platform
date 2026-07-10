@@ -34,7 +34,7 @@ pub fn Login() -> impl IntoView {
         leptos::task::spawn_local(async move {
             crate::api::client::set_auth_token(&token);
             if let Ok(_) = shared_ui::auth::atlas_auth::set_session_cookie(token).await {
-                if let Ok(user) = crate::api::auth::validate_session().await {
+                if let Ok(user) = crate::api::auth::get_session().await {
                     set_user.set(Some(user));
                     navigate("/", Default::default());
                     return;

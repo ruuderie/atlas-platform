@@ -55,7 +55,7 @@ use crate::pages::admin::integrations::Integrations;
 use crate::pages::admin::compliance::Compliance;
 use crate::pages::flags::index::FeatureFlags;
 use crate::pages::support::index::SupportQueue;
-use crate::api::auth::validate_session;
+use crate::api::auth::{get_session, cache_clear};
 use crate::api::models::{UserInfo, PlatformAppModel};
 use crate::api::networks::get_networks;
 use crate::api::version::get_version;
@@ -108,9 +108,9 @@ pub fn App() -> impl IntoView {
     let toast = GlobalToast { payload: RwSignal::new(None) };
     provide_context(toast);
 
-    // Validate session on load
+    // Validate session on load — uses 15-second client-side cache (see §5.6)
     let _session_check = leptos::task::spawn_local(async move {
-        if let Ok(valid_user) = validate_session().await {
+        if let Ok(valid_user) = get_session().await {
             set_user.set(Some(valid_user));
         }
         set_auth_checked.set(true);
@@ -336,6 +336,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                                     e.stop_propagation(); 
                                     set_show_profile_menu.set(false); 
                                     leptos::task::spawn_local(async move {
+                                        cache_clear();
                                         let _ = crate::api::auth::logout().await;
                                         set_user.set(None);
                                         let _ = web_sys::window().unwrap().location().assign("/login");

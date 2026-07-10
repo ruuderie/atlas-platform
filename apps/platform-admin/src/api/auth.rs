@@ -1,6 +1,54 @@
 use super::client::{api_url, create_client, with_credentials, ApiErrorResponse};
 use super::models::{SessionResponse, UserInfo, UserLogin};
 use reqwest::StatusCode;
+use std::cell::RefCell;
+
+// ── Client-side session cache ─────────────────────────────────────────────────
+//
+// Platform-admin is pure WASM (no SSR), so only Layer 1 caching is needed.
+// TTL: 15 seconds — matches Folio's client-side cache policy.
+// See docs/leptos_architecture_decisions.md §5.6 for the full rationale.
+
+thread_local! {
+    static CACHED_SESSION: RefCell<Option<(f64, UserInfo)>> = const { RefCell::new(None) };
+}
+
+const SESSION_TTL_MS: f64 = 15_000.0;
+
+fn cache_get() -> Option<UserInfo> {
+    CACHED_SESSION.with(|c| {
+        if let Some((ts, ref info)) = *c.borrow() {
+            if js_sys::Date::now() - ts < SESSION_TTL_MS {
+                return Some(info.clone());
+            }
+        }
+        None
+    })
+}
+
+fn cache_set(info: &UserInfo) {
+    CACHED_SESSION.with(|c| *c.borrow_mut() = Some((js_sys::Date::now(), info.clone())));
+}
+
+pub fn cache_clear() {
+    CACHED_SESSION.with(|c| *c.borrow_mut() = None);
+}
+
+/// Session-cached wrapper. Use this in components instead of validate_session().
+/// Returns cached UserInfo if within TTL, otherwise fetches and re-caches.
+/// Call cache_clear() on logout to invalidate immediately.
+pub async fn get_session() -> Result<UserInfo, String> {
+    if let Some(cached) = cache_get() {
+        return Ok(cached);
+    }
+    let result = validate_session().await;
+    if let Ok(ref info) = result {
+        cache_set(info);
+    } else {
+        cache_clear();
+    }
+    result
+}
 
 pub async fn login(credentials: UserLogin) -> Result<SessionResponse, String> {
     let client = create_client();

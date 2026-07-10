@@ -31,7 +31,7 @@ pub fn MagicLogin() -> impl IntoView {
                 Ok(token_str) => {
                     crate::api::client::set_auth_token(&token_str);
                     let _ = shared_ui::auth::atlas_auth::set_session_cookie(token_str).await;
-                    if let Ok(user_info) = crate::api::auth::validate_session().await {
+                    if let Ok(user_info) = crate::api::auth::get_session().await {
                         set_user_task_inner.set(Some(user_info.clone()));
                         
                         // Check if they need passkey setup

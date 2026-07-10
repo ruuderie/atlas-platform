@@ -313,3 +313,36 @@ use crate::auth::check_session;
 let session = Resource::new(|| (), |_| check_session());
 ```
 
+#### Platform-Admin (WASM-only — Layer 1 only, July 2026)
+
+`apps/platform-admin` is a pure client-side WASM SPA — no SSR, no Axum `#[server]` functions.
+It therefore needs **only Layer 1** (client-side cache). Layer 2 (moka/SSR) is not applicable.
+
+The same pattern is implemented in `apps/platform-admin/src/api/auth.rs`:
+
+- `get_session()` — cached wrapper (15s TTL, `thread_local!`, `js_sys::Date::now()`)
+- `validate_session()` — raw network call, called internally by `get_session()` on cache miss
+- `cache_clear()` — must be called **before** `logout()` to prevent a logged-out user from
+  appearing authenticated for up to 15 seconds after sign-out
+
+```rust
+// ✅ CORRECT in platform-admin components
+use crate::api::auth::get_session;
+spawn_local(async move {
+    if let Ok(user) = get_session().await { set_user.set(Some(user)); }
+});
+
+// ✅ CORRECT on logout — clear cache first
+use crate::api::auth::{cache_clear, logout};
+spawn_local(async move {
+    cache_clear();
+    let _ = logout().await;
+    set_user.set(None);
+});
+
+// ❌ WRONG — bypasses cache, hits network on every navigation
+use crate::api::auth::validate_session;
+spawn_local(async move {
+    if let Ok(user) = validate_session().await { set_user.set(Some(user)); }
+});
+```
