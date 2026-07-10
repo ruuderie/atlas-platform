@@ -1,6 +1,7 @@
 @import url("components.css");
 @import url("pages.css");
 @import url("configurator.css");
+@import url("scorecard_widget.css");
 
 @tailwind base;
 @tailwind components;

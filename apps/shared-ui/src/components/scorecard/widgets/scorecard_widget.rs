@@ -84,7 +84,7 @@ pub fn ScorecardWidget(
                 option_id: d.draft_option_id,
                 // transcript_inferred entries come from a separate flow —
                 // here we only submit user-entered scores
-                source_type: "direct_entry".to_string(),
+                source_type: "manual".to_string(),
             })
             .collect();
 
@@ -345,7 +345,7 @@ pub struct ScoreSubmission {
     pub dimension_id: Uuid,
     pub score: Option<f64>,
     pub option_id: Option<Uuid>,
-    /// 'direct_entry' | 'transcript_inferred' | 'official_data'
+    /// Backend `SourceType` string — widget submits `"manual"` for direct entry.
     pub source_type: String,
 }
 

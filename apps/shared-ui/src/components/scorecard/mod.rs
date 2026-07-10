@@ -33,7 +33,7 @@ pub mod widgets;
 // Models — used by all consumers
 pub use models::{
     TemplateForm, DimensionForm, OptionForm, DisplayRuleForm, SessionDimension,
-    DisplayConfigForm, ConfiguratorMode, TemplateSavePayload,
+    DisplayConfigForm, ConfiguratorMode, TemplateSavePayload, ScaleType, RenderMode,
 };
 
 // Configurator sections
