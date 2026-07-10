@@ -9,6 +9,10 @@ use crate::api::crm::{
 use crate::api::models::{LeadModel, AccountModel, DealModel, ContactModel};
 use crate::api::communications::{SendEmailPayload, send_email};
 use crate::api::files::{get_admin_presign, put_to_presigned_url};
+use crate::pages::crm::contact_detail::ContactDetail;
+use crate::pages::crm::account_detail::AccountDetail;
+use crate::pages::crm::lead_detail::LeadDetail;
+use crate::pages::crm::deal_detail::DealDetail;
 
 #[derive(Clone, Debug)]
 pub enum EntityDetail {
@@ -104,7 +108,7 @@ pub fn CrmDetail() -> impl IntoView {
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    let handle_convert_lead = move |_| {
+    let handle_convert_lead = move |_: leptos::ev::MouseEvent| {
         let id = record_id();
         let toast = toast.clone();
         let navigate = leptos_router::hooks::use_navigate();
@@ -121,7 +125,7 @@ pub fn CrmDetail() -> impl IntoView {
         });
     };
 
-    let handle_add_note = move |_| {
+    let handle_add_note = move |_: leptos::ev::MouseEvent| {
         let id = record_id();
         let content = note_content.get();
         if content.is_empty() { return; }
@@ -141,7 +145,7 @@ pub fn CrmDetail() -> impl IntoView {
     };
 
     // Pre-populate email To field from the current record's email
-    let open_email_modal = move |_| {
+    let open_email_modal = move |_: leptos::ev::MouseEvent| {
         let email = match details_res.get() {
             Some(EntityDetail::Lead(ref l))    => l.email.clone().unwrap_or_default(),
             Some(EntityDetail::Contact(ref c)) => c.email.clone().unwrap_or_default(),
@@ -153,7 +157,7 @@ pub fn CrmDetail() -> impl IntoView {
         show_email_modal.set(true);
     };
 
-    let handle_send_email = move |_| {
+    let handle_send_email = move |_: leptos::ev::MouseEvent| {
         let tenant_id = match active_network.get() {
             Some(id) => id,
             None => {
@@ -233,7 +237,7 @@ pub fn CrmDetail() -> impl IntoView {
         });
     };
 
-    let handle_log_call = move |_| {
+    let handle_log_call = move |_: leptos::ev::MouseEvent| {
         let entity = entity_type();
         let id = record_id();
         let duration: u32 = call_duration.get().parse().unwrap_or(5);
@@ -276,7 +280,7 @@ pub fn CrmDetail() -> impl IntoView {
 
     let record_name = move || match details_res.get() {
         Some(EntityDetail::Lead(ref l))    => l.name.clone(),
-        Some(EntityDetail::Contact(ref c)) => c.name.clone(),
+        Some(EntityDetail::Contact(ref c)) => c.display_name().to_string(),
         Some(EntityDetail::Account(ref a)) => a.name.clone(),
         Some(EntityDetail::Deal(ref d))    => d.name.clone(),
         _ => "Record Details".to_string(),
@@ -297,308 +301,46 @@ pub fn CrmDetail() -> impl IntoView {
         <div class="main-area" style="overflow-y: auto;">
             <Suspense fallback=move || view! { <div class="p-8 text-center text-on-surface-variant">"Loading details..."</div> }>
                 {move || match details_res.get() {
-                    Some(EntityDetail::Lead(l)) => view! {
-                        // ── Lead Layout ──
-                        <div class="rec-hdr">
-                            <div class="breadcrumb">
-                                <a href="/leads">"Leads"</a>" › "{l.name.clone()}
-                            </div>
-                            <div class="rec-identity">
-                                <div class="rec-left">
-                                    <div class="lead-avatar">{avatar_initials}</div>
-                                    <div>
-                                        <div class="rec-name">
-                                            {l.name.clone()}
-                                        </div>
-                                        <div class="rec-meta">
-                                            {l.id.clone()}
-                                        </div>
-                                        <div class="rec-actions-row">
-                                            <button class="btn btn-ghost btn-sm"
-                                                on:click=open_email_modal
-                                            >"✉ Email"</button>
-                                            <button class="btn btn-ghost btn-sm"
-                                                on:click=move |_| show_call_modal.set(true)
-                                            >"📞 Log Call"</button>
-                                            <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"⇉ Convert Lead"</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div style="text-align:right;font-size:11px;color:var(--text-muted)">
-                                    <div>"Lead Owner: —"</div>
-                                    <div style="margin-top:3px">"G-27 Score: "<span style="color:var(--text-muted);font-weight:600">"—"</span></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {
-                            let status_str    = l.lead_status.clone().unwrap_or_else(|| "New".to_string());
-                            let stages        = ["New", "Contacted", "Qualified", "Proposal"];
-                            let current_idx   = stages.iter().position(|&s| s == status_str.as_str()).unwrap_or(0);
-                            let is_converted  = status_str == "Converted";
-                            let is_disqualified = status_str == "Disqualified";
-                            let sc = move |i: usize| -> &'static str {
-                                if is_converted { return "sf-step done"; }
-                                if i < current_idx { "sf-step done" }
-                                else if i == current_idx { "sf-step current" }
-                                else { "sf-step future" }
-                            };
-                            let terminal_class = if is_disqualified { "sf-step terminal-lost" }
-                                else if is_converted { "sf-step terminal-won" }
-                                else { "sf-step future" };
-                            let terminal_label = if is_disqualified { "Disqualified" } else { "Converted" };
-                            view! {
-                                <div class="status-flow">
-                                    <div class=sc(0)><div class="sf-pill">"New"</div></div>
-                                    <div class="sf-arrow">"→"</div>
-                                    <div class=sc(1)><div class="sf-pill">"Contacted"</div></div>
-                                    <div class="sf-arrow">"→"</div>
-                                    <div class=sc(2)><div class="sf-pill">"Qualified"</div></div>
-                                    <div class="sf-arrow">"→"</div>
-                                    <div class=sc(3)><div class="sf-pill">"Proposal"</div></div>
-                                    <div class="sf-arrow">"→"</div>
-                                    <div class=terminal_class><div class="sf-pill">{terminal_label}</div></div>
-                                </div>
-                            }
-                        }
-
-                        <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value mono" style="color:var(--green)">"—"</div><div class="kpi-sub">"Not yet loaded"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value mono">"—"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Activities"</div><div class="kpi-value mono">{move || activities_res.get().unwrap_or_default().len().to_string()}</div></div>
-                            <div class="kpi"><div class="kpi-label">"G-27 Score"</div><div class="kpi-value" style="font-size:15px;color:var(--text-muted)">"—"</div><div class="kpi-sub">"Not yet loaded"</div></div>
-                        </div>
-
-                        <div class="tab-bar">
-                            <button class=move || format!("tab {}", if active_tab.get() == "overview" { "active" } else { "" }) on:click=move |_| active_tab.set("overview".to_string())>"Overview"</button>
-                            <button class=move || format!("tab {}", if active_tab.get() == "details" { "active" } else { "" }) on:click=move |_| active_tab.set("details".to_string())>"All Fields · G-31"</button>
-                        </div>
-
-                        <div class="content-body">
-                            {move || match active_tab.get().as_str() {
-                                "overview" => view! {
-                                    <div class="col-7-5">
-                                        <div>
-                                            <div class="convert-panel">
-                                                <div class="convert-panel-hdr">"⇉ This lead is ready to convert"</div>
-                                                <div class="convert-panel-body">
-                                                    "This lead meets conversion parameters. Converting will atomically create an Account, a Contact, and an Opportunity."
-                                                </div>
-                                                <button class="btn btn-convert btn-sm" on:click=handle_convert_lead>"Qualification Conversion →"</button>
-                                            </div>
-
-                                            <div class="card">
-                                                <div class="composer">
-                                                    <div class="composer-tabs">
-                                                        <button class="c-tab active">"Note"</button>
-                                                    </div>
-                                                    <textarea
-                                                        class="w-full bg-surface-container border border-outline-variant/30 rounded p-2 text-sm text-text-primary"
-                                                        placeholder="Log activity on this record..."
-                                                        prop:value=move || note_content.get()
-                                                        on:input=move |e| note_content.set(event_target_value(&e))
-                                                    ></textarea>
-                                                    <div class="composer-footer">
-                                                        <button class="btn btn-primary btn-sm" on:click=handle_add_note>"Save Note"</button>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="card">
-                                                <div class="card-hdr"><span class="card-title">"Activity Timeline · G-29"</span></div>
-                                                <div>
-                                                    {move || notes_res.get().unwrap_or_default().into_iter().map(|n| view! {
-                                                        <div class="activity-item">
-                                                            <div class="act-icon" style="background:var(--cobalt-dim);color:var(--cobalt)">"📝"</div>
-                                                            <div class="act-body">
-                                                                <div class="act-title">"Internal Note added"</div>
-                                                                <div class="act-meta">"System User · " {n.created_at}</div>
-                                                                <div class="act-desc">{n.content}</div>
-                                                            </div>
-                                                        </div>
-                                                    }).collect_view()}
-                                                    {move || activities_res.get().unwrap_or_default().into_iter().map(|a| view! {
-                                                        <div class="activity-item">
-                                                            <div class="act-icon" style="background:var(--green-dim);color:var(--green)">"🤝"</div>
-                                                            <div class="act-body">
-                                                                <div class="act-title">{a.activity_type}</div>
-                                                                <div class="act-meta">"System User · " {a.created_at}</div>
-                                                                <div class="act-desc">{a.description}</div>
-                                                            </div>
-                                                        </div>
-                                                    }).collect_view()}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="card">
-                                                <div class="card-hdr"><span class="card-title">"Lead Info"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Status"</span><span class="s-value cobalt">{l.lead_status.clone().unwrap_or_else(|| "New".to_string())}</span></div>
-                                                <div class="stat-row"><span class="s-label">"Source"</span><span class="s-value">{l.source.clone().unwrap_or_else(|| "—".to_string())}</span></div>
-                                                <div class="stat-row"><span class="s-label">"Lead Owner"</span><span class="s-value">"—"</span></div>
-                                            </div>
-                                            <div class="card">
-                                                <div class="card-hdr"><span class="card-title">"Contact Info"</span></div>
-                                                <div class="stat-row"><span class="s-label">"Email"</span><span class="s-value">{l.email.clone().unwrap_or_else(|| "—".to_string())}</span></div>
-                                                <div class="stat-row"><span class="s-label">"Phone"</span><span class="s-value">{l.phone.clone().unwrap_or_else(|| "—".to_string())}</span></div>
-                                                <div class="stat-row"><span class="s-label">"Company"</span><span class="s-value">{l.company.clone().unwrap_or_else(|| "—".to_string())}</span></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }.into_any(),
-                                "details" => view! {
-                                    <div class="card">
-                                        <div class="card-hdr"><span class="card-title">"All Fields · G-31"</span></div>
-                                        <div class="field-grid">
-                                            <div class="field-row"><span class="f-label">"ID"</span><span class="f-value mono">{l.id.clone()}</span></div>
-                                            <div class="field-row"><span class="f-label">"Name"</span><span class="f-value">{l.name.clone()}</span></div>
-                                            <div class="field-row"><span class="f-label">"Email"</span><span class="f-value">{l.email.clone().unwrap_or_default()}</span></div>
-                                        </div>
-                                    </div>
-                                }.into_any(),
-                                _ => view! {}.into_any()
-                            }}
-                        </div>
-                    }.into_any(),
+                    Some(EntityDetail::Lead(l)) => {
+                        view! {
+                            <LeadDetail
+                                lead=l
+                                on_email=Callback::new(move |_: ()| {
+                                    show_email_modal.set(true);
+                                })
+                                on_convert_done=Callback::new(move |_: ()| {
+                                    leptos::task::spawn_local(async move {
+                                        if let Some(w) = web_sys::window() {
+                                            let _ = w.location().set_href("/leads");
+                                        }
+                                    });
+                                })
+                            />
+                        }.into_any()
+                    },
 
                     Some(EntityDetail::Account(a)) => view! {
-                        // ── Account Layout ──
-                        <div class="rec-hdr">
-                            <div class="breadcrumb">
-                                <a href="/accounts">"Accounts"</a>" › "{a.name.clone()}
-                            </div>
-                            <div class="rec-identity">
-                                <div class="rec-left">
-                                    <div class="lead-avatar" style="background:var(--cobalt-dim);color:var(--cobalt);border-color:var(--cobalt);">{avatar_initials}</div>
-                                    <div>
-                                        <div class="rec-name">
-                                            {a.name.clone()}
-                                            <span class="tag" style="color:var(--cobalt);border-color:var(--cobalt)">"Organization"</span>
-                                            <span class="tag" style="color:var(--green);border-color:var(--green);background:var(--green-dim)">"Active"</span>
-                                        </div>
-                                        <div class="rec-meta">
-                                            "atlas_accounts · G-31 · " {a.id.clone()} " · Brazil · CNPJ 47.382.910/0001-88"
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Open Opportunities"</div><div class="kpi-value">"—"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Contacts"</div><div class="kpi-value">"—"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Annual Revenue"</div><div class="kpi-value">"—"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Employees"</div><div class="kpi-value">"—"</div></div>
-                        </div>
-
-                        <div class="content-body">
-                            <div class="col-7-5">
-                                <div>
-                                    <div class="card">
-                                        <div class="card-hdr"><span class="card-title">"Account Info"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Type"</span><span class="s-value">"—"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Industry"</span><span class="s-value">"—"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Website"</span><span class="s-value">"—"</span></div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="card">
-                                        <div class="card-hdr"><span class="card-title">"Primary Contact"</span></div>
-                                        <div class="card-body">
-                                            <div style="font-size:12px;color:var(--text-muted);">"No primary contact linked yet."</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <AccountDetail account=a />
                     }.into_any(),
 
-                    Some(EntityDetail::Contact(c)) => view! {
-                        // ── Contact Layout ──
-                        <div class="rec-hdr">
-                            <div class="breadcrumb">
-                                <a href="/contacts">"Contacts"</a>" › "{c.name.clone()}
-                            </div>
-                            <div class="rec-identity">
-                                <div class="rec-left">
-                                    <div class="lead-avatar" style="background:var(--cobalt-dim);color:var(--cobalt);border-color:var(--cobalt);">{avatar_initials}</div>
-                                    <div>
-                                        <div class="rec-name">
-                                            {c.name.clone()}
-                                            <span class="tag tag-verified">"Verified"</span>
-                                        </div>
-                                        <div class="rec-meta">
-                                            "atlas_contacts · G-31 · " {c.id.clone()}
-                                        </div>
-                                        <div class="rec-actions-row">
-                                            <button class="btn btn-ghost btn-sm"
-                                                on:click=open_email_modal
-                                            >"✉ Email"</button>
-                                            <button class="btn btn-ghost btn-sm"
-                                                on:click=move |_| show_call_modal.set(true)
-                                            >"📞 Log Call"</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Verification Status"</div><div class="kpi-value" style="color:var(--green)">"Verified"</div><div class="kpi-sub">"G-06 Cleared"</div></div>
-                            <div class="kpi"><div class="kpi-label">"Last Active"</div><div class="kpi-value">"2 hours ago"</div><div class="kpi-sub">"Active Portal"</div></div>
-                        </div>
-
-                        <div class="content-body">
-                            <div class="col-7-5">
-                                <div>
-                                    <div class="card">
-                                        <div class="card-hdr"><span class="card-title">"Contact Info"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Email"</span><span class="s-value">{c.email.clone().unwrap_or_default()}</span></div>
-                                        <div class="stat-row"><span class="s-label">"Phone"</span><span class="s-value">{c.phone.clone().unwrap_or_default()}</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }.into_any(),
+                    Some(EntityDetail::Contact(c)) => {
+                        let contact_email = c.email.clone().unwrap_or_default();
+                        view! {
+                            <ContactDetail
+                                contact=c
+                                on_email=Callback::new(move |_: ()| {
+                                    email_to.set(contact_email.clone());
+                                    email_subj.set(String::new());
+                                    email_body.set(String::new());
+                                    show_email_modal.set(true);
+                                })
+                                on_call=Callback::new(move |_: ()| show_call_modal.set(true))
+                            />
+                        }.into_any()
+                    },
 
                     Some(EntityDetail::Deal(d)) => view! {
-                        // ── Opportunity/Deal Layout ──
-                        <div class="rec-hdr">
-                            <div class="breadcrumb">
-                                <a href="/pipeline">"Pipeline"</a>" › "{d.name.clone()}
-                            </div>
-                            <div class="rec-identity">
-                                <div class="rec-left">
-                                    <div class="lead-avatar" style="background:var(--amber-dim);color:var(--amber);border-color:var(--amber);">{avatar_initials}</div>
-                                    <div>
-                                        <div class="rec-name">
-                                            {d.name.clone()}
-                                            <span class="tag" style="color:var(--violet);border-color:var(--violet)">{d.stage.clone()}</span>
-                                        </div>
-                                        <div class="rec-meta">
-                                            "atlas_deals · G-11 · " {d.id.clone()}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="kpi-strip">
-                            <div class="kpi"><div class="kpi-label">"Deal Value"</div><div class="kpi-value mono" style="color:var(--cobalt)">{format!("${:.2}", d.amount)}</div></div>
-                            <div class="kpi"><div class="kpi-label">"Win Probability"</div><div class="kpi-value">"—"</div></div>
-                        </div>
-
-                        <div class="content-body">
-                            <div class="col-7-5">
-                                <div>
-                                    <div class="card">
-                                        <div class="card-hdr"><span class="card-title">"Deal Details"</span></div>
-                                        <div class="stat-row"><span class="s-label">"Stage"</span><span class="s-value">{d.stage.clone()}</span></div>
-                                        <div class="stat-row"><span class="s-label">"Status"</span><span class="s-value">{d.status.clone()}</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <DealDetail deal=d />
                     }.into_any(),
 
                     _ => view! {

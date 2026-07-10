@@ -1,4 +1,8 @@
 pub mod components;
+pub mod contact_detail;
+pub mod account_detail;
+pub mod lead_detail;
+pub mod deal_detail;
 pub mod create;
 pub mod detail;
 pub mod leads;

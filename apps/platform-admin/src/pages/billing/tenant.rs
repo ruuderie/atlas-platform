@@ -9,8 +9,8 @@ use shared_ui::components::ui::table::{
     Table as DataTable, TableBody as DataTableBody, TableCell as DataTableCell,
     TableHead as DataTableHead, TableHeader as DataTableHeader, TableRow as DataTableRow,
 };
-use crate::api::billing::{issue_credit, generate_invoice, change_plan};
-use crate::api::admin::{create_invite, CreateInviteInput};
+use crate::api::billing::{issue_credit, generate_invoice, change_plan, get_tenant_subscription, TenantSubscriptionDetail};
+use crate::api::admin::{create_invite, CreateInviteInput, get_tenant_stats};
 
 #[component]
 pub fn TenantLedger() -> impl IntoView {
@@ -21,6 +21,22 @@ pub fn TenantLedger() -> impl IntoView {
     
     // Active workspace tab state
     let active_tab = RwSignal::new("subscription".to_string());
+
+    // ── Live data ──
+    let sub_res = LocalResource::new(move || {
+        let tid = tenant_id_str();
+        async move { get_tenant_subscription(&tid).await.unwrap_or_default() }
+    });
+    // Tenant name from tenant-stats list
+    let tenant_name_res = LocalResource::new(move || {
+        let tid = tenant_id_str();
+        async move {
+            get_tenant_stats().await.unwrap_or_default()
+                .into_iter()
+                .find(|t| t.tenant_id == tid)
+                .map(|t| t.name)
+        }
+    });
     
     // Modals state
     let show_credit_modal = RwSignal::new(false);
@@ -162,7 +178,7 @@ pub fn TenantLedger() -> impl IntoView {
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
                 <div class="space-y-1">
                     <nav class="flex items-center gap-2 text-on-surface-variant text-xs mb-2">
-                        <a href="/apps" class="hover:text-primary transition-colors">"Tenants"</a>
+                        <a href="/tenants" class="hover:text-primary transition-colors">"Tenants"</a>
                         <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
                         <span class="text-on-surface-variant/80 font-mono">{tenant_id_str}</span>
                         <span class="material-symbols-outlined text-[12px]">"chevron_right"</span>
@@ -174,9 +190,11 @@ pub fn TenantLedger() -> impl IntoView {
                             "T"
                         </div>
                         <div>
-                            <h1 class="text-2xl font-extrabold text-on-surface tracking-tight font-mono">{tenant_id_str}</h1>
+                            <h1 class="text-2xl font-extrabold text-on-surface tracking-tight">
+                                {move || tenant_name_res.get().flatten().unwrap_or_else(|| tenant_id_str()[..8.min(tenant_id_str().len())].to_string() + "…")}
+                            </h1>
                             <p class="text-xs text-on-surface-variant font-mono mt-0.5">
-                                "tenant_id: " {tenant_id_str} " · Enterprise Plan"
+                                "tenant_id: " {tenant_id_str}
                             </p>
                         </div>
                     </div>
@@ -197,35 +215,63 @@ pub fn TenantLedger() -> impl IntoView {
 
             // ── KPI Strip ──
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 bg-surface-container-low border border-outline-variant/10 p-5 rounded-2xl shadow-xs">
-                <div class="space-y-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Current MRR"</span>
-                    <div class="text-2xl font-extrabold text-primary font-mono">"$5,260"</div>
-                    <p class="text-[10px] text-on-surface-variant/70">"Base + overage + seats"</p>
-                </div>
-                <div class="space-y-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Billing Model"</span>
-                    <div class="pt-1">
-                        <Badge intent=BadgeIntent::Primary>"Hybrid"</Badge>
-                    </div>
-                    <p class="text-[10px] text-on-surface-variant/70">"Flat base + seat add-ons"</p>
-                </div>
-                <div class="space-y-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Billable Seats"</span>
-                    <div class="text-2xl font-extrabold font-mono">"14 " <span class="text-xs font-normal text-on-surface-variant">"/ 20 incl."</span></div>
-                    <p class="text-[10px] text-on-surface-variant/70">"0 overage seats"</p>
-                </div>
-                <div class="space-y-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Payment Status"</span>
-                    <div class="pt-1">
-                        <Badge intent=BadgeIntent::Success>"Current"</Badge>
-                    </div>
-                    <p class="text-[10px] text-on-surface-variant/70">"Last paid Jun 01"</p>
-                </div>
-                <div class="space-y-1">
-                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Contract End"</span>
-                    <div class="text-lg font-bold text-on-surface pt-0.5">"Feb 2027"</div>
-                    <p class="text-[10px] text-on-surface-variant/70">"Annual · Auto-renews"</p>
-                </div>
+                {move || {
+                    let sub = sub_res.get().unwrap_or_default();
+                    // MRR
+                    let mrr_str = sub.mrr_cents
+                        .map(|c| format!("${}", c / 100))
+                        .unwrap_or_else(|| "—".to_string());
+                    // Billing interval badge label
+                    let interval_label = sub.billing_interval.as_deref()
+                        .map(|i| if i == "year" { "Annual" } else { "Monthly" })
+                        .unwrap_or("—");
+                    // Billable seats
+                    let seats = sub.billable_seats.to_string();
+                    // Payment status from subscription status
+                    let (status_label, status_color) = match sub.status.as_deref().unwrap_or("") {
+                        "active"   => ("Current",   "var(--green)"),
+                        "past_due" => ("Past Due",   "var(--amber)"),
+                        "suspended"=> ("Suspended",  "var(--red)"),
+                        "trial"    => ("Trial",       "var(--cobalt)"),
+                        "canceled" => ("Canceled",    "var(--text-muted)"),
+                        _          => ("Unknown",     "var(--text-muted)"),
+                    };
+                    // Contract end — take first 10 chars of ISO date
+                    let contract_end = sub.current_period_end.as_deref()
+                        .and_then(|s| s.get(..10))
+                        .unwrap_or("—")
+                        .to_string();
+                    view! {
+                        <>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Current MRR"</span>
+                            <div class="text-2xl font-extrabold text-primary font-mono">{mrr_str}</div>
+                            <p class="text-[10px] text-on-surface-variant/70">"From active subscription"</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Billing Interval"</span>
+                            <div class="pt-1">
+                                <span class="plan-badge" style="color:var(--cobalt);border-color:var(--cobalt)">{interval_label}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Billable Seats"</span>
+                            <div class="text-2xl font-extrabold font-mono">{seats}</div>
+                            <p class="text-[10px] text-on-surface-variant/70">"Active profiles"</p>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Payment Status"</span>
+                            <div class="pt-1">
+                                <span class="plan-badge" style=format!("color:{s};border-color:{s}", s=status_color)>{status_label}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">"Period End"</span>
+                            <div class="text-lg font-bold text-on-surface pt-0.5 font-mono">{contract_end}</div>
+                        </div>
+                        </>
+                    }
+                }}
             </div>
 
             // ── Tabs Bar ──
@@ -240,7 +286,7 @@ pub fn TenantLedger() -> impl IntoView {
                     "Invoice History"
                 </button>
                 <button class=move || tab_class("ledger") on:click=move |_| active_tab.set("ledger".to_string())>
-                    "Database Ledger"
+                    "Ledger"
                 </button>
                 <button class=move || tab_class("features") on:click=move |_| active_tab.set("features".to_string())>
                     "Features (14)"

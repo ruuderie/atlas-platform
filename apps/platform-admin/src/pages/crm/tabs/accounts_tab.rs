@@ -35,7 +35,7 @@ pub fn AccountsTab() -> impl IntoView {
         let pg     = page.get();
         async move {
             let s = if search.is_empty() { None } else { Some(search.as_str()) };
-            get_accounts(s, pg, PER_PAGE).await.unwrap_or_default()
+            get_accounts(s, pg, PER_PAGE, None, None).await.unwrap_or_default()
         }
     });
 

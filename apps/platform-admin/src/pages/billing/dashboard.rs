@@ -393,7 +393,12 @@ pub fn BillingDashboard() -> impl IntoView {
                             view! {
                                 <tr>
                                     <td class="mono" style="font-size:10px">{tx.id[..8].to_string() + "…"}</td>
-                                    <td class="mono" style="font-size:10px">{tx.tenant_id[..8].to_string() + "…"}</td>
+                                    <td class="mono" style="font-size:10px">
+                                        <a href={format!("/billing/tenant/{}", tx.tenant_id)}
+                                            style="color:var(--text-link);text-decoration:none;"
+                                            title="View tenant billing"
+                                        >{tx.tenant_id[..8].to_string() + "…"}</a>
+                                    </td>
                                     <td class="secondary">{tx.provider.clone()}</td>
                                     <td class="right mono" style="color:var(--green);font-weight:700">{amount_fmt}</td>
                                     <td class="center">
@@ -697,6 +702,7 @@ pub fn BillingDashboard() -> impl IntoView {
                                                     <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Plan"</th>
                                                     <th style="text-align:right;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"MRR"</th>
                                                     <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Status"</th>
+                                                    <th style="text-align:left;padding:8px 16px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;">"Billing"</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -714,13 +720,24 @@ pub fn BillingDashboard() -> impl IntoView {
                                                         };
                                                         view! {
                                                             <tr style="border-bottom:1px solid var(--border-subtle);">
-                                                                <td style="padding:9px 16px;font-weight:500;">{t.name.clone()}</td>
+                                                                <td style="padding:9px 16px;font-weight:500;">
+                                                                    <a href={format!("/tenants/{}", t.tenant_id)}
+                                                                        style="color:var(--text-primary);text-decoration:none;"
+                                                                        onmouseover="this.style.color='var(--text-link)'"
+                                                                        onmouseout="this.style.color='var(--text-primary)'"
+                                                                    >{t.name.clone()}</a>
+                                                                </td>
                                                                 <td style="padding:9px 16px;color:var(--text-muted);">{plan_str}</td>
                                                                 <td style="padding:9px 16px;text-align:right;font-family:monospace;font-weight:700;color:var(--cobalt);">{mrr_str}</td>
                                                                 <td style="padding:9px 16px;">
                                                                     <span style=format!("font-size:9px;font-weight:700;color:{};padding:2px 7px;background:{}22;border-radius:4px;", status_color, status_color)>
                                                                         {status_label}
                                                                     </span>
+                                                                </td>
+                                                                <td style="padding:9px 16px;">
+                                                                    <a href={format!("/billing/tenant/{}", t.tenant_id)}
+                                                                        style="font-size:10px;color:var(--text-link);text-decoration:none;"
+                                                                    >"Billing →"</a>
                                                                 </td>
                                                             </tr>
                                                         }

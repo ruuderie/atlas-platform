@@ -32,6 +32,27 @@ pub async fn get_tenant_ledger(tenant_id: &str) -> Result<Vec<TransactionModel>,
     api_get(&format!("api/admin/billing/tenant/{}", tenant_id)).await
 }
 
+/// Matches `TenantSubscriptionDetail` from `backend/src/admin/billing.rs`
+/// Returned by `GET /api/admin/billing/tenant/{id}/subscription`
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct TenantSubscriptionDetail {
+    pub subscription_id: Option<String>,
+    pub status: Option<String>,
+    /// Price in cents
+    pub mrr_cents: Option<i64>,
+    /// "month" | "year"
+    pub billing_interval: Option<String>,
+    pub current_period_end: Option<String>,
+    pub grace_period_ends_at: Option<String>,
+    pub is_billing_exempt: bool,
+    pub billing_exemption_reason: Option<String>,
+    pub billable_seats: u64,
+}
+
+pub async fn get_tenant_subscription(tenant_id: &str) -> Result<TenantSubscriptionDetail, String> {
+    api_get(&format!("api/admin/billing/tenant/{}/subscription", tenant_id)).await
+}
+
 pub async fn list_billing_plans() -> Result<Vec<BillingPlanModel>, String> {
     api_get("api/admin/billing/plans").await
 }

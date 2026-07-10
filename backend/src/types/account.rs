@@ -98,6 +98,13 @@ impl TryFrom<String> for AccountStatus {
     }
 }
 
+impl TryFrom<&str> for AccountStatus {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::try_from(s.to_string())
+    }
+}
+
 // ── Tax ID type ───────────────────────────────────────────────────────────────
 
 /// Discriminator for the type of tax identifier stored in `tax_id_primary`.

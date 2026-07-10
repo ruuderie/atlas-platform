@@ -5,341 +5,389 @@ use axum::{
     routing::{get, post, put, delete},
     Router,
 };
-
 use sea_orm::{
-    DatabaseConnection, EntityTrait, QueryFilter, Set, ColumnTrait,
-    ActiveModelTrait,
+    DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    ColumnTrait, ActiveModelTrait, Order,
 };
+use crate::entities::atlas_contact;
 use uuid::Uuid;
 use chrono::Utc;
-use crate::handlers::Validate;
-use crate::models::{address::AddressJson, contact::Contact as ContactModel};
-// ============================================================
-// LEGACY CRM HANDLER - CUTOVER IN PROGRESS
-// Use AccountService + ContactService for new work.
-// ============================================================
+use serde::{Deserialize, Serialize};
 
-use crate::entities::{contact, note, activity, user};
-
-// Cutover to unified model: Account + Contact services
-use crate::models::contact::{ CreateContactInput, UpdateContactInput};
-use crate::models::file::FileAssociation;
+// ── Notes / Activities — kept via legacy entities (no atlas_ equivalent yet) ──
+use crate::entities::{note, activity, user};
 use crate::models::note::{NoteModel, CreateNoteInput};
 use crate::models::activity::{ActivityModel, CreateActivityInput};
-use crate::models::contact::Contact;
+use crate::handlers::notes::get_user_tenant_id;
 
 pub fn routes() -> Router<DatabaseConnection> {
     Router::new()
-        .route("/api/contacts", post(create_contact))
-        .route("/api/contacts", get(get_contacts))
-        .route("/api/contacts/{id}", get(get_contact))
-        .route("/api/contacts/{id}", put(update_contact))
-        .route("/api/contacts/{id}", delete(delete_contact))
-        .route("/api/contacts/{contact_id}/files/{file_id}", post(add_file_to_contact))
-        .route("/api/contacts/{id}/files", get(get_contact_files))
-        .route("/api/contacts/{id}/notes", post(create_contact_note))
-        .route("/api/contacts/{id}/notes", get(get_contact_notes))
-        .route("/api/contacts/{id}/activities", post(create_contact_activity))
-        .route("/api/contacts/{id}/activities", get(get_contact_activities))
+        .route("/api/contacts",       get(get_contacts).post(create_contact))
+        .route("/api/contacts/{id}",  get(get_contact).put(update_contact).delete(delete_contact))
+        .route("/api/contacts/{id}/notes",      get(get_contact_notes).post(create_contact_note))
+        .route("/api/contacts/{id}/activities", get(get_contact_activities).post(create_contact_activity))
 }
 
-pub async fn create_contact(
-    Extension(db): Extension<DatabaseConnection>,
-    Json(payload): Json<CreateContactInput>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let new_contact = contact::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        customer_id: Set(payload.customer_id),
-        name: Set(payload.name),
-        first_name: Set(payload.first_name),
-        last_name: Set(payload.last_name),
-        email: Set(payload.email),
-        phone: Set(payload.phone),
-        whatsapp: Set(payload.whatsapp),
-        telegram: Set(payload.telegram),
-        twitter: Set(payload.twitter),
-        instagram: Set(payload.instagram),
-        facebook: Set(payload.facebook),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        properties: Set(payload.properties),
-        avatar_url: Set(payload.avatar_url),
-        ..Default::default()
-    };
+// ── DTOs ──────────────────────────────────────────────────────────────────────
 
-    let mut contact = new_contact.insert(&db).await.map_err(|e| {
-        tracing::error!("Failed to create contact: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    if let Some(billing_address) = payload.billing_address {
-        contact.billing_address = Some(AddressJson(billing_address.into()));
-    }
-
-    if let Some(shipping_address) = payload.shipping_address {
-        contact.shipping_address = Some(AddressJson(shipping_address.into()));
-    }
-
-    let contact_model: Contact = contact.into();
-    Ok((StatusCode::CREATED, JsonResponse(contact_model)))
-}
-
-#[derive(serde::Deserialize, Default)]
+#[derive(Deserialize, Default)]
 pub struct ContactListParams {
     pub search:   Option<String>,
+    /// Filter to contacts that belong to a given account
+    pub account_id: Option<Uuid>,
+    /// "primary" | "all" — when "primary" only returns is_primary = true contacts
+    pub role:     Option<String>,
     pub page:     Option<u64>,
     pub per_page: Option<u64>,
 }
 impl ContactListParams {
-    pub fn offset(&self) -> u64 { (self.page.unwrap_or(1).max(1) - 1) * self.per_page.unwrap_or(50).min(200).max(1) }
-    pub fn limit(&self)  -> u64 { self.per_page.unwrap_or(50).min(200).max(1) }
+    fn offset(&self) -> u64 { (self.page.unwrap_or(1).max(1) - 1) * self.limit() }
+    fn limit(&self)  -> u64 { self.per_page.unwrap_or(50).min(200).max(1) }
 }
+
+#[derive(Deserialize, Clone)]
+pub struct CreateContactDto {
+    pub first_name:  Option<String>,
+    pub last_name:   Option<String>,
+    /// Convenience field — set full_name directly if known (import path)
+    pub full_name:   Option<String>,
+    pub title:       Option<String>,
+    pub department:  Option<String>,
+    pub email:       Option<String>,
+    pub phone:       Option<String>,
+    pub whatsapp:    Option<String>,
+    pub telegram:    Option<String>,
+    pub linkedin_url: Option<String>,
+    /// Must match an atlas_accounts.id — required for all new contacts
+    pub account_id:  Option<Uuid>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct UpdateContactDto {
+    pub first_name:   Option<String>,
+    pub last_name:    Option<String>,
+    pub full_name:    Option<String>,
+    pub title:        Option<String>,
+    pub department:   Option<String>,
+    pub email:        Option<String>,
+    pub phone:        Option<String>,
+    pub whatsapp:     Option<String>,
+    pub telegram:     Option<String>,
+    pub linkedin_url: Option<String>,
+    pub twitter:      Option<String>,
+    pub instagram:    Option<String>,
+    pub is_primary:   Option<bool>,
+}
+
+// ── Response ──────────────────────────────────────────────────────────────────
+
+/// Rich contact record from `atlas_contacts`.
+///
+/// `email_verified` and `phone_verified` are DB-managed booleans set by the
+/// import pipeline (MillionVerifier output); they are read-only from the API.
+#[derive(Serialize, Clone)]
+pub struct ContactResponse {
+    pub id:            String,
+    pub account_id:    String,
+
+    // Name
+    pub first_name:    Option<String>,
+    pub last_name:     Option<String>,
+    /// Display-safe full name — prefer over concatenating first + last
+    pub full_name:     Option<String>,
+    pub preferred_name: Option<String>,
+
+    // Professional context
+    pub title:         Option<String>,
+    pub department:    Option<String>,
+    pub is_primary:    bool,
+
+    // Contact channels
+    pub email:         Option<String>,
+    pub email_verified: bool,
+    pub phone:         Option<String>,
+    pub phone_verified: bool,
+    pub whatsapp:      Option<String>,
+    pub telegram:      Option<String>,
+    pub linkedin_url:  Option<String>,
+    pub twitter:       Option<String>,
+    pub instagram:     Option<String>,
+    pub avatar_url:    Option<String>,
+
+    // Import
+    pub data_source:   Option<String>,
+
+    // Timestamps
+    pub created_at:    String,
+    pub updated_at:    String,
+}
+
+impl From<atlas_contact::Model> for ContactResponse {
+    fn from(m: atlas_contact::Model) -> Self {
+        // Build a display name: prefer full_name, fall back to first + last
+        let full_name = m.full_name.clone().or_else(|| {
+            match (&m.first_name, &m.last_name) {
+                (Some(f), Some(l)) => Some(format!("{} {}", f, l)),
+                (Some(f), None)    => Some(f.clone()),
+                (None, Some(l))    => Some(l.clone()),
+                _                  => None,
+            }
+        });
+
+        Self {
+            id:             m.id.to_string(),
+            account_id:     m.account_id.to_string(),
+            first_name:     m.first_name,
+            last_name:      m.last_name,
+            full_name,
+            preferred_name: m.preferred_name,
+            title:          m.title,
+            department:     m.department,
+            is_primary:     m.is_primary,
+            email:          m.email,
+            email_verified: m.email_verified,
+            phone:          m.phone,
+            phone_verified: m.phone_verified,
+            whatsapp:       m.whatsapp,
+            telegram:       m.telegram,
+            linkedin_url:   m.linkedin_url,
+            twitter:        m.twitter,
+            instagram:      m.instagram,
+            avatar_url:     m.avatar_url,
+            data_source:    m.data_source,
+            created_at:     m.created_at.to_rfc3339(),
+            updated_at:     m.updated_at.to_rfc3339(),
+        }
+    }
+}
+
+// ── Handlers ──────────────────────────────────────────────────────────────────
 
 pub async fn get_contacts(
     Extension(db): Extension<DatabaseConnection>,
     Query(params): Query<ContactListParams>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let mut contacts: Vec<ContactModel> = contact::Entity::find()
-        .all(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch contacts: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .into_iter()
-        .map(|c| c.into())
-        .collect();
+) -> impl IntoResponse {
+    tracing::info!(
+        "Fetching atlas_contacts (search={:?} account={:?} page={:?})",
+        params.search, params.account_id, params.page
+    );
 
-    if let Some(ref term) = params.search {
-        let t = term.to_lowercase();
-        contacts.retain(|c| {
-            c.name.to_lowercase().contains(&t)
-                || c.email.as_deref().unwrap_or("").to_lowercase().contains(&t)
-                || c.phone.as_deref().unwrap_or("").contains(&t)
-        });
+    let mut query = atlas_contact::Entity::find()
+        .filter(atlas_contact::Column::IsDuplicate.eq(false))
+        .order_by(atlas_contact::Column::FullName, Order::Asc);
+
+    if let Some(account_id) = params.account_id {
+        query = query.filter(atlas_contact::Column::AccountId.eq(account_id));
     }
+
+    if let Some(ref role) = params.role {
+        if role == "primary" {
+            query = query.filter(atlas_contact::Column::IsPrimary.eq(true));
+        }
+    }
+
+    let all: Vec<atlas_contact::Model> = match query.all(&db).await {
+        Ok(v)  => v,
+        Err(e) => {
+            tracing::error!("Error fetching atlas_contacts: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(Vec::<ContactResponse>::new()));
+        }
+    };
+
+    // In-memory search across name / email / phone / whatsapp
+    let filtered: Vec<atlas_contact::Model> = if let Some(ref term) = params.search {
+        if term.is_empty() {
+            all
+        } else {
+            let t = term.to_lowercase();
+            all.into_iter().filter(|c| {
+                c.full_name.as_deref().map(|n| n.to_lowercase().contains(&t)).unwrap_or(false)
+                    || c.first_name.as_deref().map(|n| n.to_lowercase().contains(&t)).unwrap_or(false)
+                    || c.last_name.as_deref().map(|n| n.to_lowercase().contains(&t)).unwrap_or(false)
+                    || c.email.as_deref().map(|e| e.to_lowercase().contains(&t)).unwrap_or(false)
+                    || c.phone.as_deref().map(|p| p.contains(&t)).unwrap_or(false)
+                    || c.whatsapp.as_deref().map(|w| w.contains(&t)).unwrap_or(false)
+                    || c.title.as_deref().map(|ti| ti.to_lowercase().contains(&t)).unwrap_or(false)
+            }).collect()
+        }
+    } else {
+        all
+    };
 
     let offset = params.offset() as usize;
     let limit  = params.limit()  as usize;
-    let page: Vec<ContactModel> = contacts.into_iter().skip(offset).take(limit).collect();
+    let page: Vec<ContactResponse> = filtered
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .map(ContactResponse::from)
+        .collect();
 
-    Ok((StatusCode::OK, JsonResponse(page)))
+    (StatusCode::OK, JsonResponse(page))
 }
 
 pub async fn get_contact(
     Extension(db): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch contact: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?;
+) -> impl IntoResponse {
+    tracing::info!("Fetching atlas_contact: {}", id);
 
-    let contact_model: ContactModel = contact.into();
-    Ok((StatusCode::OK, JsonResponse(contact_model)))
+    match atlas_contact::Entity::find_by_id(id).one(&db).await {
+        Ok(Some(c)) => (StatusCode::OK, JsonResponse(Some(ContactResponse::from(c)))),
+        Ok(None)    => (StatusCode::NOT_FOUND, JsonResponse(None)),
+        Err(err) => {
+            tracing::error!("Error fetching atlas_contact: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None))
+        }
+    }
+}
+
+pub async fn create_contact(
+    Extension(db): Extension<DatabaseConnection>,
+    Json(payload): Json<CreateContactDto>,
+) -> impl IntoResponse {
+    // Derive full_name from parts if not explicitly provided
+    let full_name = payload.full_name.clone().or_else(|| {
+        match (&payload.first_name, &payload.last_name) {
+            (Some(f), Some(l)) => Some(format!("{} {}", f.trim(), l.trim())),
+            (Some(f), None)    => Some(f.trim().to_string()),
+            (None, Some(l))    => Some(l.trim().to_string()),
+            _                  => None,
+        }
+    });
+
+    let new_contact = atlas_contact::ActiveModel {
+        id:           Set(Uuid::new_v4()),
+        tenant_id:    Set(Uuid::nil()),
+        account_id:   Set(payload.account_id.unwrap_or(Uuid::nil())),
+        first_name:   Set(payload.first_name),
+        last_name:    Set(payload.last_name),
+        full_name:    Set(full_name),
+        title:        Set(payload.title),
+        department:   Set(payload.department),
+        email:        Set(payload.email),
+        phone:        Set(payload.phone),
+        whatsapp:     Set(payload.whatsapp),
+        telegram:     Set(payload.telegram),
+        linkedin_url: Set(payload.linkedin_url),
+        is_primary:   Set(false),
+        email_verified: Set(false),
+        phone_verified: Set(false),
+        is_duplicate: Set(false),
+        created_at:   Set(Utc::now()),
+        updated_at:   Set(Utc::now()),
+        ..Default::default()
+    };
+
+    match new_contact.insert(&db).await {
+        Ok(c)    => (StatusCode::CREATED, JsonResponse(Some(ContactResponse::from(c)))),
+        Err(err) => {
+            tracing::error!("Error creating atlas_contact: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None::<ContactResponse>))
+        }
+    }
 }
 
 pub async fn update_contact(
     Extension(db): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-    Json(payload): Json<UpdateContactInput>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let mut contact: contact::ActiveModel = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch contact: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?
-        .into();
+    Json(payload): Json<UpdateContactDto>,
+) -> impl IntoResponse {
+    let existing = match atlas_contact::Entity::find_by_id(id).one(&db).await {
+        Ok(Some(c)) => c,
+        Ok(None)    => return (StatusCode::NOT_FOUND, JsonResponse(None::<ContactResponse>)),
+        Err(err) => {
+            tracing::error!("Error fetching atlas_contact for update: {:?}", err);
+            return (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None));
+        }
+    };
 
-    if let Some(customer_id) = payload.customer_id {
-        contact.customer_id = Set(Some(customer_id));
-    }
-    if let Some(name) = payload.name {
-        contact.name = Set(name);
-    }
-    if let Some(first_name) = payload.first_name {
-        contact.first_name = Set(Some(first_name));
-    }
-    if let Some(last_name) = payload.last_name {
-        contact.last_name = Set(Some(last_name));
-    }
-    if let Some(email) = payload.email {
-        contact.email = Set(Some(email));
-    }
-    if let Some(phone) = payload.phone {
-        contact.phone = Set(Some(phone));
-    }
-    if let Some(whatsapp) = payload.whatsapp {
-        contact.whatsapp = Set(Some(whatsapp));
-    }
-    if let Some(telegram) = payload.telegram {
-        contact.telegram = Set(Some(telegram));
-    }
-    if let Some(twitter) = payload.twitter {
-        contact.twitter = Set(Some(twitter));
-    }
-    if let Some(instagram) = payload.instagram {
-        contact.instagram = Set(Some(instagram));
-    }
-    if let Some(facebook) = payload.facebook {
-        contact.facebook = Set(Some(facebook));
-    }
-    if let Some(properties) = payload.properties {
-        contact.properties = Set(Some(properties));
-    }
-    if let Some(avatar_url) = payload.avatar_url {
-        contact.avatar_url = Set(Some(avatar_url));
-    }
-    contact.updated_at = Set(Utc::now());
+    let mut active: atlas_contact::ActiveModel = existing.into();
 
-    let mut updated_contact = contact.update(&db).await.map_err(|e| {
-        tracing::error!("Failed to update contact: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    if let Some(v) = payload.first_name   { active.first_name   = Set(Some(v)); }
+    if let Some(v) = payload.last_name    { active.last_name    = Set(Some(v)); }
+    if let Some(v) = payload.full_name    { active.full_name    = Set(Some(v)); }
+    if let Some(v) = payload.title        { active.title        = Set(Some(v)); }
+    if let Some(v) = payload.department   { active.department   = Set(Some(v)); }
+    if let Some(v) = payload.email        { active.email        = Set(Some(v)); }
+    if let Some(v) = payload.phone        { active.phone        = Set(Some(v)); }
+    if let Some(v) = payload.whatsapp     { active.whatsapp     = Set(Some(v)); }
+    if let Some(v) = payload.telegram     { active.telegram     = Set(Some(v)); }
+    if let Some(v) = payload.linkedin_url { active.linkedin_url = Set(Some(v)); }
+    if let Some(v) = payload.twitter      { active.twitter      = Set(Some(v)); }
+    if let Some(v) = payload.instagram    { active.instagram    = Set(Some(v)); }
+    if let Some(v) = payload.is_primary   { active.is_primary   = Set(v); }
+    active.updated_at = Set(Utc::now());
 
-    if let Some(billing_address) = payload.billing_address {
-        // Validate the address
-        billing_address.validate().map_err(|e| {
-            tracing::error!("Invalid billing address: {:?}", e);
-            StatusCode::BAD_REQUEST
-        })?;
-        updated_contact.billing_address = Some(AddressJson(billing_address.into()));
+    match active.update(&db).await {
+        Ok(c)    => (StatusCode::OK, JsonResponse(Some(ContactResponse::from(c)))),
+        Err(err) => {
+            tracing::error!("Error updating atlas_contact: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None))
+        }
     }
-
-    if let Some(shipping_address) = payload.shipping_address {
-        // Validate the address
-        shipping_address.validate().map_err(|e| {
-            tracing::error!("Invalid shipping address: {:?}", e);
-            StatusCode::BAD_REQUEST
-        })?;
-        updated_contact.shipping_address = Some(AddressJson(shipping_address.into()));
-    }
-
-    let contact_model: ContactModel = updated_contact.into();
-    Ok((StatusCode::OK, JsonResponse(contact_model)))
 }
 
 pub async fn delete_contact(
     Extension(db): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let result = contact::Entity::delete_by_id(id).exec(&db).await.map_err(|e| {
-        tracing::error!("Failed to delete contact: {:?}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-
-    if result.rows_affected == 0 {
-        return Err(StatusCode::NOT_FOUND);
+) -> impl IntoResponse {
+    match atlas_contact::Entity::delete_by_id(id).exec(&db).await {
+        Ok(_)    => StatusCode::NO_CONTENT,
+        Err(err) => {
+            tracing::error!("Error deleting atlas_contact: {:?}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
     }
-
-    Ok(StatusCode::NO_CONTENT)
 }
 
-pub async fn add_file_to_contact(
-    Extension(db): Extension<DatabaseConnection>,
-    Path((contact_id, file_id)): Path<(Uuid, Uuid)>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(contact_id)
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch contact: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
-    contact.add_file(&db, file_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to add file to contact: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    Ok(StatusCode::OK)
-}
-
-pub async fn get_contact_files(
-    Extension(db): Extension<DatabaseConnection>,
-    Path(contact_id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(contact_id)
-        .one(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch contact: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
-    let file_ids = contact.get_associated_files(&db)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to get associated files: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    Ok(Json(file_ids))
-}
-
-use crate::handlers::notes::get_user_tenant_id;
+// ── Notes / Activities — delegate to legacy entities ──────────────────────────
 
 pub async fn create_contact_note(
     Extension(db): Extension<DatabaseConnection>,
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<CreateNoteInput>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let tenant_id = get_user_tenant_id(&db, current_user.id).await?;
-
-    let contact = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
-    let new_note = note::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        content: Set(input.content),
-        created_by: Set(current_user.id),
-        entity_type: Set("Contact".to_string()),
-        entity_id: Set(contact.id),
-        tenant_id: Set(Some(tenant_id)),
-        is_private: Set(false),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
+) -> impl IntoResponse {
+    let tenant_id = match get_user_tenant_id(&db, current_user.id).await {
+        Ok(t)  => t,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None::<NoteModel>)),
     };
 
-    let inserted_note = new_note.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(NoteModel::from(inserted_note))))
+    let new_note = note::ActiveModel {
+        id:          Set(Uuid::new_v4()),
+        content:     Set(input.content),
+        created_by:  Set(current_user.id),
+        entity_type: Set("Contact".to_string()),
+        entity_id:   Set(id),
+        tenant_id:   Set(Some(tenant_id)),
+        is_private:  Set(false),
+        created_at:  Set(Utc::now()),
+        updated_at:  Set(Utc::now()),
+    };
+
+    match new_note.insert(&db).await {
+        Ok(n)    => (StatusCode::CREATED, JsonResponse(Some(NoteModel::from(n)))),
+        Err(err) => {
+            tracing::error!("Error creating contact note: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None))
+        }
+    }
 }
 
 pub async fn get_contact_notes(
     Extension(db): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
+) -> impl IntoResponse {
     let notes = note::Entity::find()
         .filter(note::Column::EntityType.eq("Contact"))
-        .filter(note::Column::EntityId.eq(contact.id))
+        .filter(note::Column::EntityId.eq(id))
         .all(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .unwrap_or_default();
 
-    let note_models: Vec<NoteModel> = notes.into_iter().map(NoteModel::from).collect();
-    Ok(JsonResponse(note_models))
+    let models: Vec<NoteModel> = notes.into_iter().map(NoteModel::from).collect();
+    (StatusCode::OK, JsonResponse(models))
 }
 
 pub async fn create_contact_activity(
@@ -347,52 +395,42 @@ pub async fn create_contact_activity(
     Extension(current_user): Extension<user::Model>,
     Path(id): Path<Uuid>,
     Json(input): Json<CreateActivityInput>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
+) -> impl IntoResponse {
     let new_activity = activity::ActiveModel {
-        id: Set(Uuid::new_v4()),
-        contact_id: Set(Some(contact.id)),
+        id:            Set(Uuid::new_v4()),
+        contact_id:    Set(Some(id)),
         activity_type: Set(input.activity_type),
-        title: Set(input.title),
-        description: Set(input.description),
-        status: Set(input.status),
-        due_date: Set(input.due_date),
-        completed_at: Set(None),
-        created_by: Set(current_user.id),
-        assigned_to: Set(input.assigned_to),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
+        title:         Set(input.title),
+        description:   Set(input.description),
+        status:        Set(input.status),
+        due_date:      Set(input.due_date),
+        completed_at:  Set(None),
+        created_by:    Set(current_user.id),
+        assigned_to:   Set(input.assigned_to),
+        created_at:    Set(Utc::now()),
+        updated_at:    Set(Utc::now()),
         ..Default::default()
     };
 
-    let inserted_activity = new_activity.insert(&db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    Ok((StatusCode::CREATED, JsonResponse(ActivityModel::from(inserted_activity))))
+    match new_activity.insert(&db).await {
+        Ok(a)    => (StatusCode::CREATED, JsonResponse(Some(ActivityModel::from(a)))),
+        Err(err) => {
+            tracing::error!("Error creating contact activity: {:?}", err);
+            (StatusCode::INTERNAL_SERVER_ERROR, JsonResponse(None::<ActivityModel>))
+        }
+    }
 }
 
 pub async fn get_contact_activities(
     Extension(db): Extension<DatabaseConnection>,
     Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, StatusCode> {
-    let contact = contact::Entity::find_by_id(id)
-        .one(&db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-
+) -> impl IntoResponse {
     let activities = activity::Entity::find()
-        .filter(activity::Column::ContactId.eq(Some(contact.id)))
+        .filter(activity::Column::ContactId.eq(Some(id)))
         .all(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .unwrap_or_default();
 
-    let activity_models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
-    Ok(JsonResponse(activity_models))
+    let models: Vec<ActivityModel> = activities.into_iter().map(ActivityModel::from).collect();
+    (StatusCode::OK, JsonResponse(models))
 }
-
-

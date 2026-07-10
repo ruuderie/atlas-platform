@@ -39,7 +39,7 @@ pub fn ContactsTab() -> impl IntoView {
         let pg     = page.get();
         async move {
             let s = if search.is_empty() { None } else { Some(search.as_str()) };
-            get_contacts(s, pg, PER_PAGE).await.unwrap_or_default()
+            get_contacts(s, pg, PER_PAGE, None).await.unwrap_or_default()
         }
     });
 
@@ -103,13 +103,16 @@ pub fn ContactsTab() -> impl IntoView {
                             </thead>
                             <tbody>
                                 {rows.into_iter().map(|c| {
-                                    let ini         = initials(&c.name);
+                                    let display     = c.display_name().to_string();
+                                    let ini         = initials(&display);
                                     let email       = c.email.clone().unwrap_or_else(|| "—".to_string());
                                     let phone       = c.phone.clone().unwrap_or_else(|| "—".to_string());
-                                    let job_title   = c.properties.as_ref()
-                                        .and_then(|p| p.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                                    let job_title   = c.title.clone()
+                                        .or_else(|| c.department.clone())
                                         .unwrap_or_default();
-                                    let created     = fmt_date(&c.created_at);
+                                    let created     = c.created_at.as_deref()
+                                        .map(fmt_date)
+                                        .unwrap_or_default();
                                     let c_click     = c.clone();
                                     let c_open      = c.clone();
 
@@ -122,7 +125,7 @@ pub fn ContactsTab() -> impl IntoView {
                                             <td>
                                                 <RecordRow
                                                     initials=ini
-                                                    name=c.name.clone()
+                                                    name=display
                                                     sub=job_title
                                                     bg="var(--violet-dim)"
                                                     color="var(--violet)"
@@ -152,20 +155,20 @@ pub fn ContactsTab() -> impl IntoView {
 
         // Detail Drawer
         {move || selected.get().map(|c| {
-            let name_c  = c.name.clone();
-            let email_c = c.email.clone().unwrap_or_default();
-            let id_c    = c.id.clone();
-            let title    = Signal::derive(move || name_c.clone());
-            let subtitle = Signal::derive(move || email_c.clone());
-            let href     = Signal::derive(move || format!("/contacts/{}", id_c));
+            let display_name = c.display_name().to_string();
+            let email_c      = c.email.clone().unwrap_or_default();
+            let id_c         = c.id.clone();
+            let title_sig    = Signal::derive(move || display_name.clone());
+            let subtitle_sig = Signal::derive(move || email_c.clone());
+            let href         = Signal::derive(move || format!("/contacts/{}", id_c));
             let phone    = c.phone.clone().unwrap_or_else(|| "—".to_string());
             let whatsapp = c.whatsapp.clone().unwrap_or_else(|| "—".to_string());
             let telegram = c.telegram.clone().unwrap_or_else(|| "—".to_string());
             let email    = c.email.clone().unwrap_or_else(|| "—".to_string());
-            let created  = fmt_date(&c.created_at);
+            let created  = c.created_at.as_deref().map(fmt_date).unwrap_or_default();
 
             view! {
-                <RecordDrawer open=drawer_open title=title subtitle=subtitle detail_href=href>
+                <RecordDrawer open=drawer_open title=title_sig subtitle=subtitle_sig detail_href=href>
                     <div class="detail-grid">
                         <span class="detail-section-label">"Contact Info"</span>
                         <div class="detail-field">

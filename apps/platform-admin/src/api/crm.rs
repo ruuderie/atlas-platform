@@ -21,6 +21,8 @@ pub async fn get_accounts(
     search: Option<&str>,
     page: u64,
     per_page: u64,
+    status: Option<&str>,
+    account_type: Option<&str>,
 ) -> Result<Vec<AccountModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/accounts");
@@ -29,6 +31,8 @@ pub async fn get_accounts(
         format!("per_page={}", per_page),
     ];
     if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
+    if let Some(s) = status { if s != "all" { qp.push(format!("status={}", urlencoding::encode(s))); } }
+    if let Some(t) = account_type { if t != "all" { qp.push(format!("account_type={}", urlencoding::encode(t))); } }
     if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {
@@ -175,6 +179,7 @@ pub async fn get_contacts(
     search: Option<&str>,
     page: u64,
     per_page: u64,
+    role: Option<&str>,
 ) -> Result<Vec<ContactModel>, String> {
     let client = create_client();
     let mut url = api_url("/api/admin/contacts");
@@ -183,6 +188,7 @@ pub async fn get_contacts(
         format!("per_page={}", per_page),
     ];
     if let Some(q) = search { if !q.is_empty() { qp.push(format!("search={}", urlencoding::encode(q))); } }
+    if let Some(r) = role   { qp.push(format!("role={}", urlencoding::encode(r))); }
     if !qp.is_empty() { url = format!("{}?{}", url, qp.join("&")); }
     let req = with_credentials(client.get(&url));
     if let Ok(res) = req.send().await {

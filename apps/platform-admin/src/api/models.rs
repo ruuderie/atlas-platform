@@ -226,14 +226,120 @@ pub struct CreateNetwork {
     pub deployment_strategy: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccountModel {
-    pub id: String,
-    pub name: String,
+// ── Account discriminant enums ────────────────────────────────────────────────
+//
+// Mirror of backend::types::account — kept in sync by convention since there is
+// no shared crate yet. Both sides use #[serde(rename_all = "snake_case")] so
+// JSON from the backend round-trips transparently.
+//
+// Rule: if the backend adds a variant, add it here too. The compiler will then
+// flag every non-exhaustive match site in the UI.
+
+/// Whether the account represents a natural person or a legal entity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountType {
+    #[default]
+    Organization,
+    Individual,
 }
 
-/// Lightweight account record for the platform admin CRM account search picker.
-/// Returned by `GET /api/admin/accounts`. Fields match `account::Model` serialization.
+impl AccountType {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Organization => "Org",
+            Self::Individual   => "Ind.",
+        }
+    }
+
+    pub fn badge_class(&self) -> &'static str {
+        match self {
+            Self::Organization => "tag tag-org",
+            Self::Individual   => "tag tag-ind",
+        }
+    }
+
+    pub fn is_individual(&self) -> bool {
+        matches!(self, Self::Individual)
+    }
+}
+
+/// Lifecycle status for an atlas_accounts record.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountStatus {
+    #[default]
+    Active,
+    Prospect,
+    Suspended,
+    Archived,
+}
+
+impl AccountStatus {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Active    => "Active",
+            Self::Prospect  => "Prospect",
+            Self::Suspended => "Suspended",
+            Self::Archived  => "Archived",
+        }
+    }
+
+    /// Returns the CSS custom-property color for the status dot / value.
+    pub fn color(&self) -> &'static str {
+        match self {
+            Self::Active              => "var(--green)",
+            Self::Prospect            => "var(--amber)",
+            Self::Suspended | Self::Archived => "var(--red)",
+        }
+    }
+}
+
+/// Rich account record from `atlas_accounts` — returned by `GET /api/admin/accounts`.
+///
+/// `account_type` and `status` are typed enums that serde round-trips through
+/// the same snake_case string representation used by the backend handler.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AccountModel {
+    pub id:               String,
+    pub name:             String,
+    pub account_type:     AccountType,
+    pub status:           AccountStatus,
+
+    // Identity
+    pub dba_name:         Option<String>,
+    pub website:          Option<String>,
+    pub domain:           Option<String>,
+
+    // Company contact channels
+    pub company_phone:    Option<String>,
+    pub company_email:    Option<String>,
+
+    // Firmographics
+    pub industry:         Option<String>,
+    pub company_type:     Option<String>,  // "public" | "private" | "government" | "nonprofit"
+    pub num_employees:    Option<i32>,
+    pub annual_revenue:   Option<f64>,
+    pub year_established: Option<i16>,
+
+    // Address
+    pub street_address:   Option<String>,
+    pub city:             Option<String>,
+    pub state:            Option<String>,
+    pub postal_code:      Option<String>,
+    pub country:          Option<String>,
+
+    // Import attribution
+    pub data_source:      Option<String>,
+
+    // Timestamps
+    pub created_at:       Option<String>,
+    pub updated_at:       Option<String>,
+}
+
+/// Lightweight account record for the platform admin CRM account search picker
+/// and the clients page. Kept separate from the rich `AccountModel` so the
+/// clients page does not need to pull the full firmographic payload.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AccountSummary {
     pub id:         String,
@@ -461,37 +567,77 @@ pub struct TenantSettingResponse {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Rich contact record from `atlas_contacts` — returned by `GET /api/admin/contacts`.
+///
+/// `full_name` is the canonical display name — computed server-side from
+/// `first_name + last_name` when not explicitly set, so it is always present
+/// when at least one name part exists.
+///
+/// `email_verified` / `phone_verified` are pipeline-managed flags from
+/// MillionVerifier; they are read-only from the UI.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ContactModel {
-    pub id: String,
-    pub customer_id: Option<String>,
-    pub name: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub email: Option<String>,
-    pub phone: Option<String>,
-    pub whatsapp: Option<String>,
-    pub telegram: Option<String>,
-    pub twitter: Option<String>,
-    pub instagram: Option<String>,
-    pub facebook: Option<String>,
-    pub properties: Option<serde_json::Value>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub id:              String,
+    pub account_id:      String,
+
+    // Name
+    pub first_name:      Option<String>,
+    pub last_name:       Option<String>,
+    /// Server-derived display name — first + last, or full_name if set directly
+    pub full_name:       Option<String>,
+    pub preferred_name:  Option<String>,
+
+    // Professional context
+    pub title:           Option<String>,
+    pub department:      Option<String>,
+    pub is_primary:      bool,
+
+    // Contact channels
+    pub email:           Option<String>,
+    pub email_verified:  bool,
+    pub phone:           Option<String>,
+    pub phone_verified:  bool,
+    pub whatsapp:        Option<String>,
+    pub telegram:        Option<String>,
+    pub linkedin_url:    Option<String>,
+    pub twitter:         Option<String>,
+    pub instagram:       Option<String>,
+    pub avatar_url:      Option<String>,
+
+    // Import attribution
+    pub data_source:     Option<String>,
+
+    // Timestamps
+    pub created_at:      Option<String>,
+    pub updated_at:      Option<String>,
+}
+
+/// Convenience accessor — returns the best available display name.
+impl ContactModel {
+    pub fn display_name(&self) -> &str {
+        self.full_name.as_deref()
+            .or(self.preferred_name.as_deref())
+            .or(self.first_name.as_deref())
+            .unwrap_or("Unnamed Contact")
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateContact {
-    pub name: String,
-    pub email: Option<String>,
-    pub phone: Option<String>,
-    pub whatsapp: Option<String>,
-    pub telegram: Option<String>,
-    pub twitter: Option<String>,
-    pub instagram: Option<String>,
-    pub facebook: Option<String>,
-    pub properties: Option<serde_json::Value>,
+    pub first_name:   Option<String>,
+    pub last_name:    Option<String>,
+    pub full_name:    Option<String>,
+    pub title:        Option<String>,
+    pub department:   Option<String>,
+    pub email:        Option<String>,
+    pub phone:        Option<String>,
+    pub whatsapp:     Option<String>,
+    pub telegram:     Option<String>,
+    pub linkedin_url: Option<String>,
+    /// atlas_accounts.id — required for all new contacts
+    pub account_id:   Option<String>,
 }
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrmNote {

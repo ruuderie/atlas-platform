@@ -377,11 +377,11 @@ pub fn ClientsPage() -> impl IntoView {
                                         <thead>
                                             <tr class="text-[10px] uppercase tracking-wider text-on-surface-variant border-b border-outline-variant/15 bg-surface-container-high/10">
                                                 <th class="py-3 px-5 font-semibold">"Client"</th>
-                                                <th class="py-3 px-5 font-semibold">"App"</th>
+                                                <th class="py-3 px-5 font-semibold">"CRM Account"</th>
+                                                <th class="py-3 px-5 font-semibold">"App Type"</th>
                                                 <th class="py-3 px-5 font-semibold">"Status"</th>
-                                                <th class="py-3 px-5 font-semibold">"Plan / MRR"</th>
-                                                <th class="py-3 px-5 font-semibold">"Domain"</th>
-                                                <th class="py-3 px-5 font-semibold">"Usage"</th>
+                                                <th class="py-3 px-5 font-semibold">"MRR"</th>
+                                                <th class="py-3 px-5 font-semibold">"Joined"</th>
                                                 <th class="py-3 px-5 font-semibold">"Actions"</th>
                                             </tr>
                                         </thead>
@@ -392,13 +392,16 @@ pub fn ClientsPage() -> impl IntoView {
                                                     .filter(|a| a.tenant_id == t.tenant_id)
                                                     .collect();
                                                 let primary_app = tenant_apps.first().cloned();
-                                                let domain = primary_app.map(|a| a.domain.clone()).unwrap_or("—".to_string());
-                                                let app_type = primary_app.map(|a| app_type_label(&a.app_type).to_string()).unwrap_or("—".to_string());
-                                                let instance_status = t.site_status.clone().unwrap_or("unknown".to_string());
-                                                let mrr_str = t.mrr_cents.map(|c| fmt_mrr(c)).unwrap_or("—".to_string());
-                                                let plan_str = t.plan.clone().unwrap_or("—".to_string());
-                                                let anchor_id = t.anchor_instance_id.clone();
-                                                let tenant_id_str = t.tenant_id.clone();
+                                                let crm_account_id   = primary_app.and_then(|a| a.platform_account_id.clone());
+                                                let app_type         = primary_app.map(|a| app_type_label(&a.app_type).to_string()).unwrap_or("—".to_string());
+                                                let instance_status  = t.site_status.clone().unwrap_or("unknown".to_string());
+                                                let mrr_str          = t.mrr_cents.map(|c| fmt_mrr(c)).unwrap_or("—".to_string());
+                                                let anchor_id        = t.anchor_instance_id.clone();
+                                                let tenant_id_str    = t.tenant_id.clone();
+                                                let joined_str       = t.joined_at.as_deref()
+                                                    .and_then(|s| s.get(..10))
+                                                    .unwrap_or("—")
+                                                    .to_string();
 
                                                 // Avatar: colored circle with initials, color based on status
                                                 let initial = t.name.chars().next().unwrap_or('?').to_uppercase().to_string();
@@ -439,6 +442,18 @@ pub fn ClientsPage() -> impl IntoView {
                                                                 }}
                                                             </div>
                                                         </td>
+                                                        // CRM Account
+                                                        <td class="py-3.5 px-5">
+                                                            {crm_account_id.as_ref().map(|acct_id| {
+                                                                let acct_id = acct_id.clone();
+                                                                view! {
+                                                                    <a href={format!("/crm/accounts/{}", acct_id)}
+                                                                        style="color:var(--cobalt);font-size:11px;text-decoration:none;"
+                                                                        title="View CRM Account"
+                                                                    >{if acct_id.len() >= 8 { acct_id[..8].to_string() + "…" } else { acct_id.clone() }}</a>
+                                                                }.into_any()
+                                                            }).unwrap_or_else(|| view! { <span style="color:var(--text-muted);font-size:11px">"—"</span> }.into_any())}
+                                                        </td>
                                                         // App type
                                                         <td class="py-3.5 px-5">
                                                             <span class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant/20 text-[9px] font-mono text-on-surface-variant uppercase">
@@ -451,52 +466,41 @@ pub fn ClientsPage() -> impl IntoView {
                                                                 {instance_status.clone()}
                                                             </span>
                                                         </td>
-                                                        // Plan / MRR
+                                                        // MRR
                                                         <td class="py-3.5 px-5">
-                                                            <div class="font-semibold text-on-surface">{mrr_str}</div>
-                                                            <div class="text-[9px] text-on-surface-variant/50 mt-0.5">{plan_str}</div>
+                                                            <span class="font-mono font-semibold text-on-surface">{mrr_str}</span>
                                                         </td>
-                                                        // Domain
-                                                        <td class="py-3.5 px-5 font-mono text-[10px] text-on-surface-variant/70 max-w-[200px] truncate">
-                                                            {domain}
+                                                        // Joined
+                                                        <td class="py-3.5 px-5 text-[11px] text-on-surface-variant/70 font-mono">
+                                                            {joined_str}
                                                         </td>
-                                                        // Usage
-                                                        <td class="py-3.5 px-5">
-                                                            <div class="flex gap-3 text-[10px] text-on-surface-variant/70">
-                                                                <span title="Listings">{format!("{} listings", t.listing_count)}</span>
-                                                                <span class="text-outline-variant/30">"·"</span>
-                                                                <span title="Profiles">{format!("{} users", t.profile_count)}</span>
-                                                            </div>
-                                                        </td>
-                                                        // Actions — always visible
+                                                        // Actions
                                                         <td class="py-3.5 px-5">
                                                             <div class="flex items-center gap-2">
                                                                 // View instance — always shown when anchor_id is set
                                                                 {anchor_id.clone().map(|aid| view! {
-                                                                    <a href=format!("/apps/{}", aid)
+                                                                    <a href={format!("/apps/{}", aid)}
                                                                         class="px-2.5 py-1 bg-primary/10 border border-primary/20 rounded text-[9px] font-semibold text-primary hover:bg-primary/20 transition-colors"
                                                                     >"View →"</a>
-                                                                })}
-                                                                // View CRM Account
-                                                                {primary_app.and_then(|a| a.platform_account_id.clone()).map(|acct_id| view! {
-                                                                    <a href=format!("/crm/accounts/{}", acct_id)
-                                                                        class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
-                                                                        title="View CRM Account"
-                                                                    >"CRM"</a>
                                                                 })}
                                                                 // Link Account
                                                                 <button
                                                                     class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
                                                                     on:click={
                                                                         let tid = tenant_id_str.clone();
-                                                                        let acct = primary_app.and_then(|a| a.platform_account_id.clone());
+                                                                        let acct = crm_account_id.clone();
                                                                         move |_| {
                                                                             modal_account_id.set(acct.clone());
                                                                             modal_tenant_id.set(Some(tid.clone()));
                                                                         }
                                                                     }
                                                                 >"Link Acct"</button>
-                                                                <a href=format!("/billing/tenant/{}", tenant_id_str)
+                                                                <a href={format!("/tenants/{}", tenant_id_str.clone())}
+                                                                    class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface hover:border-primary/40 transition-colors"
+                                                                    style="text-decoration:none;"
+                                                                    title="View Tenant Detail"
+                                                                >"Tenant →"</a>
+                                                                <a href={format!("/billing/tenant/{}", tenant_id_str)}
                                                                     class="px-2.5 py-1 bg-surface-container-high/50 border border-outline-variant/30 rounded text-[9px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
                                                                 >"Billing"</a>
                                                             </div>

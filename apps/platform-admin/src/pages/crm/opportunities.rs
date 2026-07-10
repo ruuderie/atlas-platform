@@ -33,6 +33,8 @@ pub fn OpportunitiesPage() -> impl IntoView {
 
     let toast = use_context::<crate::app::GlobalToast>().expect("toast context");
 
+    let view_mode = RwSignal::new("board"); // "board" | "list"
+
     // New Deal modal state
     let show_create = RwSignal::new(false);
     let new_name    = RwSignal::new(String::new());
@@ -102,14 +104,14 @@ pub fn OpportunitiesPage() -> impl IntoView {
         ]
     });
 
-    let stage_pills = vec![
+    let stage_pills = StoredValue::new(vec![
         PillOption::new("all",           "All"),
         PillOption::new("Qualification", "Qualify"),
         PillOption::new("Proposal",      "Proposal"),
         PillOption::new("Negotiation",   "Negotiate"),
         PillOption::new("Closed Won",    "Won"),
         PillOption::new("Closed Lost",   "Lost"),
-    ];
+    ]);
 
     let filtered = Signal::derive(move || {
         let search = search_filter.get().to_lowercase();
@@ -137,7 +139,22 @@ pub fn OpportunitiesPage() -> impl IntoView {
                     <h1 class="page-title">"Pipeline"</h1>
                     <p class="page-subtitle">"Platform-wide · All tenants"</p>
                 </div>
-                <div style="display:flex;gap:8px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                    // View toggle
+                    <div style="display:flex;border:1px solid var(--border-default);border-radius:5px;overflow:hidden;">
+                        <button
+                            class=move || format!("btn btn-sm", )
+                            style=move || format!("border-radius:0;border:none;padding:4px 10px;font-size:11px;{}",
+                                if view_mode.get() == "board" { "background:var(--cobalt);color:white;" } else { "background:transparent;color:var(--text-secondary);" })
+                            on:click=move |_| view_mode.set("board")
+                        >"⬛ Board"</button>
+                        <button
+                            class=move || format!("btn btn-sm")
+                            style=move || format!("border-radius:0;border:none;border-left:1px solid var(--border-default);padding:4px 10px;font-size:11px;{}",
+                                if view_mode.get() == "list" { "background:var(--cobalt);color:white;" } else { "background:transparent;color:var(--text-secondary);" })
+                            on:click=move |_| view_mode.set("list")
+                        >"☰ List"</button>
+                    </div>
                     <button
                         class="btn btn-ghost btn-sm opacity-40 cursor-not-allowed"
                         title="CSV export endpoint pending"
@@ -157,12 +174,95 @@ pub fn OpportunitiesPage() -> impl IntoView {
 
             <KpiStrip items=kpi_items />
 
-            <FilterBar
-                pills=stage_pills
-                active=stage_filter
-                search=search_filter
-                search_placeholder="Search opportunities…"
-            />
+            // ── Board View ─────────────────────────────────────────────────────
+            <Show when=move || view_mode.get() == "board">
+                <div style="flex:1;overflow-x:auto;overflow-y:hidden;padding:16px 20px;display:flex;gap:14px;min-height:0;">
+                    <Suspense fallback=move || view! {
+                        <div style="padding:32px;text-align:center;color:var(--text-muted);">"⏳ Loading pipeline…"</div>
+                    }>
+                        {move || {
+                            let all_deals = deals_res.get().unwrap_or_default();
+                            let board_stages: &[(&str, &str, &str)] = &[
+                                ("Qualification", "Qualify",     "var(--cobalt)"),
+                                ("Proposal",      "Proposal",    "var(--violet,#8b5cf6)"),
+                                ("Negotiation",   "Negotiation", "var(--amber,#f59e0b)"),
+                                ("Closed Won",    "Won",         "var(--green)"),
+                                ("Closed Lost",   "Lost",        "var(--red,#ef4444)"),
+                            ];
+                            board_stages.iter().map(|(stage_key, stage_label, color)| {
+                                let stage_k = stage_key.to_string();
+                                let stage_deals: Vec<DealModel> = all_deals.iter()
+                                    .filter(|d| d.stage == stage_k)
+                                    .cloned().collect();
+                                let col_value: f32 = stage_deals.iter().map(|d| d.amount).sum();
+                                let card_count = stage_deals.len();
+                                let col = color.to_string();
+                                let col2 = col.clone();
+                                view! {
+                                    <div style="flex:0 0 240px;display:flex;flex-direction:column;gap:8px;">
+                                        // Column header
+                                        <div style=format!("display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:6px;background:color-mix(in srgb,{} 12%,transparent);", col)>
+                                            <div style="display:flex;align-items:center;gap:7px;">
+                                                <span style=format!("width:7px;height:7px;border-radius:50%;background:{};", col)></span>
+                                                <span style="font-size:11.5px;font-weight:600;">{*stage_label}</span>
+                                                <span style="font-size:10px;color:var(--text-muted);background:var(--bg-elevated);padding:1px 5px;border-radius:10px;border:1px solid var(--border-subtle);">{card_count.to_string()}</span>
+                                            </div>
+                                            <span style=format!("font-size:10.5px;font-weight:600;color:{};", col2)>
+                                                {if col_value > 0.0 { format!("${:.1}k", col_value / 1000.0) } else { String::new() }}
+                                            </span>
+                                        </div>
+                                        // Cards
+                                        <div style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;">
+                                            {stage_deals.into_iter().map(|d| {
+                                                let href = format!("/pipeline/{}", d.id);
+                                                let name = d.name.clone();
+                                                let ini  = initials(&d.name);
+                                                let amt  = format!("${:.0}", d.amount);
+                                                let is_won = d.stage == "Closed Won";
+                                                view! {
+                                                    <a href=href style="display:block;text-decoration:none;cursor:pointer;">
+                                                        <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:7px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;transition:border-color 0.15s,box-shadow 0.15s;"
+                                                            on:mouseenter=|e| {
+                                                                use wasm_bindgen::JsCast;
+                                                                if let Some(el) = e.current_target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()) {
+                                                                    let _ = el.style().set_property("border-color", "var(--cobalt)");
+                                                                    let _ = el.style().set_property("box-shadow", "0 0 0 2px color-mix(in srgb,var(--cobalt) 18%,transparent)");
+                                                                }
+                                                            }
+                                                            on:mouseleave=|e| {
+                                                                use wasm_bindgen::JsCast;
+                                                                if let Some(el) = e.current_target().and_then(|t| t.dyn_into::<web_sys::HtmlElement>().ok()) {
+                                                                    let _ = el.style().set_property("border-color", "var(--border-subtle)");
+                                                                    let _ = el.style().set_property("box-shadow", "none");
+                                                                }
+                                                            }
+                                                        >
+                                                            <div style="display:flex;align-items:center;gap:8px;">
+                                                                <div style="width:24px;height:24px;border-radius:4px;background:var(--amber-dim,rgba(245,158,11,0.12));border:1px solid var(--amber,#f59e0b);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:var(--amber,#f59e0b);flex-shrink:0;">{ini}</div>
+                                                                <span style="font-size:12px;font-weight:500;color:var(--text-primary);line-height:1.3;">{name}</span>
+                                                            </div>
+                                                            <div style=format!("font-size:13px;font-weight:700;color:{};", if is_won { "var(--green)" } else { "var(--text-primary)" })>{amt}</div>
+                                                        </div>
+                                                    </a>
+                                                }
+                                            }).collect::<Vec<_>>()}
+                                        </div>
+                                    </div>
+                                }
+                            }).collect::<Vec<_>>()
+                        }}
+                    </Suspense>
+                </div>
+            </Show>
+
+            // ── List View ──────────────────────────────────────────────────────
+            <Show when=move || view_mode.get() == "list">
+                <FilterBar
+                    pills=stage_pills.get_value()
+                    active=stage_filter
+                    search=search_filter
+                    search_placeholder="Search opportunities…"
+                />
 
             <div class="table-container">
                 <Suspense fallback=move || view! {
@@ -237,6 +337,7 @@ pub fn OpportunitiesPage() -> impl IntoView {
             </div>
 
             <Pagination page=page per_page=PER_PAGE count=page_count />
+            </Show>
         </div>
 
         {move || selected.get().map(|d| {

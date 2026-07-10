@@ -152,6 +152,7 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/exemption", post(crate::admin::billing::set_subscription_exemption))
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/suspend", post(crate::admin::billing::suspend_subscription))
                 .route("/api/admin/billing/tenant/{tenant_id}/subscription/{id}/reactivate", post(crate::admin::billing::reactivate_subscription))
+                .route("/api/admin/billing/tenant/{tenant_id}/subscription", get(crate::admin::billing::get_tenant_subscription))
                 // AI Task logs
                 .route("/api/admin/ai-tasks/{id}/logs", get(crate::admin::ai_tasks::get_task_logs))
                 // Developer Console
