@@ -270,6 +270,11 @@ pub fn AccountDetail(account: AccountModel) -> impl IntoView {
 
                             // Right rail — Firmographics + Address
                             <div>
+                                <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                    entity_type="atlas_account".to_string()
+                                    entity_id=account_id.get_value()
+                                    subject_label=name.clone()
+                                />
                                 // Firmographics
                                 <div class="card" style="margin-bottom:14px;">
                                     <div class="card-hdr" style="padding:9px 14px;border-bottom:1px solid var(--border-default);">

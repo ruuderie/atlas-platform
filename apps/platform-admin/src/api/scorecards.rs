@@ -3,7 +3,9 @@
 //! Mirrors `backend/src/handlers/scorecard_admin.rs` response shapes.
 //! Contract: `docs/contracts/g27_scorecard_platform.md` §6.
 
-use crate::api::client::{api_get, api_post, api_put, api_request, api_url, create_client};
+use crate::api::client::{
+    api_delete, api_get, api_post, api_put, api_request, api_url, create_client,
+};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -697,4 +699,111 @@ pub async fn list_template_deployments(
         "api/admin/scorecard-templates/{template_id}/deployments"
     ))
     .await
+}
+
+// ── Display rules (existing admin routes — no tenant_id in path) ──────────────
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DisplayRuleAdminView {
+    pub id: Uuid,
+    pub template_id: Uuid,
+    pub dimension_id: Option<Uuid>,
+    pub tenant_id: Uuid,
+    pub category_target: Option<String>,
+    pub trigger_category: String,
+    pub field_reference: Option<String>,
+    pub operator: String,
+    pub value: Option<String>,
+    pub value_list: Option<serde_json::Value>,
+    pub action: String,
+    pub alert_message: Option<String>,
+    pub mode_scope: String,
+    pub priority: i32,
+    pub is_active: bool,
+    pub description: Option<String>,
+    pub created_by_user_id: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct CreateDisplayRuleInput {
+    pub template_id: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimension_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_target: Option<String>,
+    pub trigger_category: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_reference: Option<String>,
+    pub operator: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_list: Option<serde_json::Value>,
+    pub action: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alert_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode_scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Default)]
+pub struct UpdateDisplayRuleInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dimension_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_target: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trigger_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value_list: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alert_message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode_scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_active: Option<bool>,
+}
+
+pub async fn list_display_rules(template_id: &str) -> Result<Vec<DisplayRuleAdminView>, String> {
+    api_get(&format!(
+        "api/admin/scorecard-templates/{template_id}/display-rules"
+    ))
+    .await
+}
+
+pub async fn create_display_rule(
+    input: &CreateDisplayRuleInput,
+) -> Result<DisplayRuleAdminView, String> {
+    api_post("api/admin/scorecard-display-rules", input).await
+}
+
+pub async fn update_display_rule(
+    id: &str,
+    input: &UpdateDisplayRuleInput,
+) -> Result<DisplayRuleAdminView, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/scorecard-display-rules/{id}"));
+    let req = client.patch(&url).json(input);
+    api_request(req).await
+}
+
+pub async fn delete_display_rule(id: &str) -> Result<(), String> {
+    api_delete(&format!("api/admin/scorecard-display-rules/{id}")).await
 }

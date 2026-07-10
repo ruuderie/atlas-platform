@@ -197,6 +197,11 @@ pub fn DealDetail(deal: DealModel) -> impl IntoView {
 
                     // Right rail
                     <div>
+                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                            entity_type="atlas_opportunity".to_string()
+                            entity_id=d.id.clone()
+                            subject_label=name.clone()
+                        />
                         // Account link
                         {(!account_id.get_value().is_empty()).then(|| {
                             let aid = account_id.get_value();

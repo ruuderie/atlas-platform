@@ -1,12 +1,11 @@
 use leptos::prelude::*;
 use crate::components::scorecard::{
     DisplayRulesSection,
-    models::{DisplayRuleForm, TemplateForm, DimensionForm, OptionForm, ScaleType},
+    models::{DisplayRuleForm, DimensionForm, OptionForm, ScaleType, TemplateForm},
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Data Models — imported from scorecard/models.rs for unified form state
-// ═══════════════════════════════════════════════════════════════════════════
+/// Re-export for consumers that import from `configurator`.
+pub use crate::components::scorecard::models::{ConfiguratorMode, TemplateSavePayload};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Configurator — Top-level entry point
@@ -23,21 +22,37 @@ pub fn Configurator(
     #[prop(optional)] initial_template: Option<TemplateForm>,
     /// Existing dimensions for edit mode.
     #[prop(optional)] initial_dimensions: Option<Vec<DimensionForm>>,
-    /// Called on save with (template, dimensions).
-    on_save: Callback<(TemplateForm, Vec<DimensionForm>)>,
+    /// Existing display rules for edit mode.
+    #[prop(optional)] initial_display_rules: Option<Vec<DisplayRuleForm>>,
+    /// Operator vs tenant-admin field locks (default: PlatformOperator).
+    #[prop(default = ConfiguratorMode::PlatformOperator)] mode: ConfiguratorMode,
+    /// Called on save with full template payload (incl. rules + display_config).
+    on_save: Callback<TemplateSavePayload>,
     /// Called when the user cancels.
     #[prop(optional)] on_cancel: Option<Callback<()>>,
 ) -> impl IntoView {
     let template = RwSignal::new(initial_template.unwrap_or_default());
     let dimensions = RwSignal::new(initial_dimensions.unwrap_or_default());
-    let next_local_id = RwSignal::new(100usize);
-    // "overview" | "dimensions" | "combinator" | "display_rules"
+    let next_local_id = RwSignal::new({
+        let max_dim = dimensions
+            .get_untracked()
+            .iter()
+            .map(|d| d.local_id)
+            .max()
+            .unwrap_or(0);
+        let max_rule = initial_display_rules
+            .as_ref()
+            .map(|r| r.iter().map(|x| x.local_id).max().unwrap_or(0))
+            .unwrap_or(0);
+        max_dim.max(max_rule).saturating_add(1).max(100)
+    });
+    // "overview" | "dimensions" | "combinator" | "display_config" | "display_rules"
     let active_section = RwSignal::new("overview".to_string());
-    // Which dimension is open in the right-side detail editor
+    // Which dimension is open in the right-side detail editor (keyed by local_id)
     let editing_dim: RwSignal<Option<usize>> = RwSignal::new(None);
     let save_attempted = RwSignal::new(false);
-    // Display rules — tier-gated. Default empty; populated from backend on load.
-    let display_rules: RwSignal<Vec<DisplayRuleForm>> = RwSignal::new(Vec::new());
+    let display_rules: RwSignal<Vec<DisplayRuleForm>> =
+        RwSignal::new(initial_display_rules.unwrap_or_default());
 
     let alloc_id = move || {
         let id = next_local_id.get_untracked();
@@ -46,13 +61,12 @@ pub fn Configurator(
     };
 
     let add_dimension = move |_| {
+        let new_id = alloc_id();
         dimensions.update(|dims| {
             let sort = dims.len() as i32;
-            dims.push(DimensionForm::new(alloc_id(), sort));
+            dims.push(DimensionForm::new(new_id, sort));
         });
-        // Auto-open the new dimension
-        let idx = dimensions.get_untracked().len().saturating_sub(1);
-        editing_dim.set(Some(idx));
+        editing_dim.set(Some(new_id));
         active_section.set("dimensions".to_string());
     };
 
@@ -66,7 +80,6 @@ pub fn Configurator(
             if let Some(pos) = dims.iter().position(|d| d.local_id == local_id) {
                 if pos > 0 {
                     dims.swap(pos, pos - 1);
-                    // Re-stamp sort_order
                     dims.iter_mut().enumerate().for_each(|(i, d)| d.sort_order = i as i32);
                 }
             }
@@ -91,13 +104,17 @@ pub fn Configurator(
             active_section.set("overview".to_string());
             return;
         }
-        let dims = dimensions.get();
-        on_save.run((t, dims));
+        let display_config = t.display_config.clone();
+        on_save.run(TemplateSavePayload {
+            template: t,
+            dimensions: dimensions.get(),
+            display_rules: display_rules.get(),
+            display_config,
+        });
     };
 
     view! {
-        <div class="configurator-root">
-            // ── Top bar ───────────────────────────────────────────────────
+        <div class="configurator-root w-full">
             <ConfiguratorTopBar
                 template=template.read_only()
                 active_section=active_section
@@ -107,7 +124,6 @@ pub fn Configurator(
             />
 
             <div class="configurator-body">
-                // ── Left sidebar — section navigator ──────────────────────
                 <ConfiguratorSidebar
                     template=template.read_only()
                     dimensions=dimensions.read_only()
@@ -116,12 +132,12 @@ pub fn Configurator(
                     on_add_dimension=Callback::new(add_dimension)
                 />
 
-                // ── Main content panel ────────────────────────────────────
                 <div class="configurator-main">
                     <Show when=move || active_section.get() == "overview">
                         <TemplateOverviewSection
                             template=template
                             save_attempted=save_attempted.read_only()
+                            mode=mode
                         />
                     </Show>
                     <Show when=move || active_section.get() == "dimensions">
@@ -138,12 +154,14 @@ pub fn Configurator(
                     <Show when=move || active_section.get() == "combinator">
                         <CombinatorSection dimensions=dimensions />
                     </Show>
+                    <Show when=move || active_section.get() == "display_config">
+                        <DisplayConfigSection template=template />
+                    </Show>
                     <Show when=move || active_section.get() == "display_rules">
                         <DisplayRulesSection
                             dimensions=dimensions.read_only()
                             rules=display_rules
                             next_local_id=next_local_id
-                            // TODO: read from tenant_settings API response
                             rules_enabled=true
                         />
                     </Show>
@@ -200,15 +218,16 @@ fn ConfiguratorTopBar(
                 </div>
             </div>
             <div class="cfg-topbar-nav">
-                {["overview", "dimensions", "combinator", "display_rules"].iter().map(|&sec| {
+                {["overview", "dimensions", "combinator", "display_config", "display_rules"].iter().map(|&sec| {
                     let sec_str = sec.to_string();
                     let sec_str2 = sec_str.clone();
                     let label = match sec {
-                        "overview"       => "Template",
-                        "dimensions"     => "Dimensions",
-                        "combinator"     => "Combinator",
-                        "display_rules"  => "Display Rules",
-                        _                => sec,
+                        "overview"        => "Template",
+                        "dimensions"      => "Dimensions",
+                        "combinator"      => "Combinator",
+                        "display_config"  => "Display Config",
+                        "display_rules"   => "Display Rules",
+                        _                 => sec,
                     };
                     view! {
                         <button
@@ -298,6 +317,12 @@ fn ConfiguratorSidebar(
                     active_section=active_section
                 />
                 <SidebarNavItem
+                    label="Display Config"
+                    icon="▣"
+                    section="display_config"
+                    active_section=active_section
+                />
+                <SidebarNavItem
                     label="Display Rules"
                     icon="⚡"
                     section="display_rules"
@@ -318,11 +343,10 @@ fn ConfiguratorSidebar(
                             key=|d| d.local_id
                             children=move |dim| {
                                 let local_id = dim.local_id;
-                                let sort_order = dim.sort_order;
                                 view! {
                                     <button
                                         class=move || {
-                                            let selected = editing_dim.get() == Some(sort_order as usize);
+                                            let selected = editing_dim.get() == Some(local_id);
                                             if selected { "cfg-sidebar-dim cfg-sidebar-dim--active" }
                                             else { "cfg-sidebar-dim" }
                                         }
@@ -384,10 +408,12 @@ fn SidebarNavItem(
 fn TemplateOverviewSection(
     template: RwSignal<TemplateForm>,
     save_attempted: ReadSignal<bool>,
+    mode: ConfiguratorMode,
 ) -> impl IntoView {
     let name_error = move || {
         save_attempted.get() && template.get().name.trim().is_empty()
     };
+    let is_operator = mode == ConfiguratorMode::PlatformOperator;
 
     view! {
         <div class="cfg-section">
@@ -436,9 +462,11 @@ fn TemplateOverviewSection(
                             <option value="atlas_lead">"Lead"</option>
                             <option value="atlas_account">"Account"</option>
                             <option value="atlas_contact">"Contact"</option>
+                            <option value="atlas_opportunity">"Opportunity"</option>
                             <option value="atlas_asset">"Asset"</option>
                             <option value="atlas_case">"Case"</option>
-                            <option value="atlas_opportunity">"Opportunity"</option>
+                            <option value="tenant">"Tenant"</option>
+                            <option value="app_instance">"App Instance"</option>
                         </select>
                     </div>
                     <p class="cfg-hint">"Scorecards from this template will be attached to records of this type."</p>
@@ -509,6 +537,70 @@ fn TemplateOverviewSection(
                     <p class="cfg-hint">"Composite score is hidden until this many entries exist."</p>
                 </div>
 
+                // ── Template scope (PlatformOperator only) ────────────────
+                <Show when=move || is_operator>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Template Scope"</label>
+                        <div class="cfg-select-wrap">
+                            <select
+                                class="cfg-select"
+                                prop:value=move || template.get().template_scope.clone()
+                                on:change=move |ev| template.update(|t| t.template_scope = event_target_value(&ev))
+                            >
+                                <option value="platform">"Platform (benchmark-eligible)"</option>
+                                <option value="tenant">"Tenant (private)"</option>
+                            </select>
+                        </div>
+                        <p class="cfg-hint">"Platform-scoped templates can join cross-tenant benchmark pools."</p>
+                    </div>
+                </Show>
+
+                // ── Cold start / calibration (operator-facing) ────────────
+                <Show when=move || is_operator>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Cold Start Strategy"</label>
+                        <div class="cfg-select-wrap">
+                            <select
+                                class="cfg-select"
+                                prop:value=move || template.get().cold_start_strategy.clone()
+                                on:change=move |ev| template.update(|t| t.cold_start_strategy = event_target_value(&ev))
+                            >
+                                <option value="suppress">"Suppress"</option>
+                                <option value="bayesian_prior">"Bayesian Prior"</option>
+                                <option value="show_raw">"Show Raw"</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Cold Start Saturation"</label>
+                        <input
+                            type="number"
+                            class="cfg-input"
+                            min="1"
+                            prop:value=move || template.get().cold_start_saturation_threshold
+                            on:input=move |ev| {
+                                if let Ok(v) = event_target_value(&ev).parse::<i32>() {
+                                    template.update(|t| t.cold_start_saturation_threshold = v);
+                                }
+                            }
+                        />
+                    </div>
+                    <div class="cfg-field">
+                        <label class="cfg-label">"Calibration Min Entries"</label>
+                        <input
+                            type="number"
+                            class="cfg-input"
+                            min="1"
+                            prop:value=move || template.get().calibration_minimum_entries
+                            on:input=move |ev| {
+                                if let Ok(v) = event_target_value(&ev).parse::<i32>() {
+                                    template.update(|t| t.calibration_minimum_entries = v);
+                                }
+                            }
+                        />
+                    </div>
+                </Show>
+
                 // ── Published toggle ──────────────────────────────────────
                 <div class="cfg-field cfg-field--full">
                     <div class="cfg-toggle-row">
@@ -525,6 +617,125 @@ fn TemplateOverviewSection(
                             <span class="cfg-toggle-thumb"></span>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Display Config — surface toggles (separate from Display Rules)
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[component]
+fn DisplayConfigSection(template: RwSignal<TemplateForm>) -> impl IntoView {
+    let toggle = move |key: &'static str| {
+        template.update(|t| {
+            let c = &mut t.display_config;
+            match key {
+                "show_on_portfolio_table" => c.show_on_portfolio_table = !c.show_on_portfolio_table,
+                "show_on_anomaly_panel" => c.show_on_anomaly_panel = !c.show_on_anomaly_panel,
+                "show_on_leaderboard" => c.show_on_leaderboard = !c.show_on_leaderboard,
+                "show_on_maintenance_queue" => c.show_on_maintenance_queue = !c.show_on_maintenance_queue,
+                "show_on_property_detail" => c.show_on_property_detail = !c.show_on_property_detail,
+                "show_on_lead_card" => c.show_on_lead_card = !c.show_on_lead_card,
+                "show_on_public_listing" => c.show_on_public_listing = !c.show_on_public_listing,
+                "tenant_visible" => c.tenant_visible = !c.tenant_visible,
+                "nudge_on_maintenance_case_close" => {
+                    c.nudge_on_maintenance_case_close = !c.nudge_on_maintenance_case_close
+                }
+                "nudge_on_str_checkout" => c.nudge_on_str_checkout = !c.nudge_on_str_checkout,
+                "collapsed_by_default" => c.collapsed_by_default = !c.collapsed_by_default,
+                _ => {}
+            }
+        });
+    };
+
+    let row = move |key: &'static str, label: &'static str, hint: &'static str| {
+        view! {
+            <div class="cfg-field cfg-field--full">
+                <div class="cfg-toggle-row">
+                    <div>
+                        <p class="cfg-label">{label}</p>
+                        <p class="cfg-hint">{hint}</p>
+                    </div>
+                    <button
+                        class=move || {
+                            let on = match key {
+                                "show_on_portfolio_table" => template.get().display_config.show_on_portfolio_table,
+                                "show_on_anomaly_panel" => template.get().display_config.show_on_anomaly_panel,
+                                "show_on_leaderboard" => template.get().display_config.show_on_leaderboard,
+                                "show_on_maintenance_queue" => template.get().display_config.show_on_maintenance_queue,
+                                "show_on_property_detail" => template.get().display_config.show_on_property_detail,
+                                "show_on_lead_card" => template.get().display_config.show_on_lead_card,
+                                "show_on_public_listing" => template.get().display_config.show_on_public_listing,
+                                "tenant_visible" => template.get().display_config.tenant_visible,
+                                "nudge_on_maintenance_case_close" => {
+                                    template.get().display_config.nudge_on_maintenance_case_close
+                                }
+                                "nudge_on_str_checkout" => template.get().display_config.nudge_on_str_checkout,
+                                "collapsed_by_default" => template.get().display_config.collapsed_by_default,
+                                _ => false,
+                            };
+                            if on { "cfg-toggle cfg-toggle--on" } else { "cfg-toggle" }
+                        }
+                        role="switch"
+                        on:click=move |_| toggle(key)
+                    >
+                        <span class="cfg-toggle-thumb"></span>
+                    </button>
+                </div>
+            </div>
+        }
+    };
+
+    view! {
+        <div class="cfg-section">
+            <div class="cfg-section-header">
+                <h2 class="cfg-section-title">"Display Config"</h2>
+                <p class="cfg-section-desc">
+                    "Where this scorecard surfaces across product UIs. Separate from conditional Display Rules."
+                </p>
+            </div>
+            <div class="cfg-form-grid">
+                {row("show_on_portfolio_table", "Portfolio table", "Show aggregate column on portfolio views.")}
+                {row("show_on_anomaly_panel", "Anomaly panel", "Include in anomaly / alert surfaces.")}
+                {row("show_on_leaderboard", "Leaderboard", "Eligible for leaderboard rankings.")}
+                {row("show_on_maintenance_queue", "Maintenance queue", "Surface on maintenance work queues.")}
+                {row("show_on_property_detail", "Property detail", "Show on property / asset detail.")}
+                {row("show_on_lead_card", "Lead card", "Compact badge on lead cards.")}
+                {row("show_on_public_listing", "Public listing", "Visible on public listing pages.")}
+                {row("tenant_visible", "Tenant visible", "Visible to tenant-facing users.")}
+                {row("nudge_on_maintenance_case_close", "Nudge on case close", "Prompt rating when a maintenance case closes.")}
+                {row("nudge_on_str_checkout", "Nudge on STR checkout", "Prompt rating after STR checkout.")}
+                {row("collapsed_by_default", "Collapsed by default", "Widget starts collapsed on detail pages.")}
+
+                <div class="cfg-field">
+                    <label class="cfg-label">"Min Entries Before Display"</label>
+                    <input
+                        type="number"
+                        class="cfg-input"
+                        min="0"
+                        prop:value=move || {
+                            template
+                                .get()
+                                .display_config
+                                .min_entries_before_display
+                                .map(|n| n.to_string())
+                                .unwrap_or_default()
+                        }
+                        on:input=move |ev| {
+                            let raw = event_target_value(&ev);
+                            template.update(|t| {
+                                t.display_config.min_entries_before_display = if raw.trim().is_empty() {
+                                    None
+                                } else {
+                                    raw.parse::<i32>().ok()
+                                };
+                            });
+                        }
+                    />
+                    <p class="cfg-hint">"Leave empty for no minimum."</p>
                 </div>
             </div>
         </div>

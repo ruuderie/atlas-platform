@@ -373,6 +373,11 @@ pub fn LeadDetail(
 
                             // Right rail
                             <div>
+                                <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                    entity_type="atlas_lead".to_string()
+                                    entity_id=id.clone()
+                                    subject_label=name.clone()
+                                />
                                 <div class="card">
                                     <div class="card-hdr" style="padding:9px 14px;border-bottom:1px solid var(--border-default);">
                                         <span class="card-title" style="font-size:11.5px;font-weight:600;">"Lead Info"</span>

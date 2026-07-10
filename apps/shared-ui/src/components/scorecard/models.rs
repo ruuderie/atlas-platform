@@ -81,6 +81,26 @@ pub enum RenderMode {
     Alert,
 }
 
+// ── Configurator mode / save payload ─────────────────────────────────────────
+
+/// Who is editing the template — drives which fields are editable.
+/// See docs/contracts/g27_scorecard_platform.md §8.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ConfiguratorMode {
+    #[default]
+    PlatformOperator,
+    TenantAdmin,
+}
+
+/// Full save payload from the Configurator — template + dims + rules + display_config.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TemplateSavePayload {
+    pub template: TemplateForm,
+    pub dimensions: Vec<DimensionForm>,
+    pub display_rules: Vec<DisplayRuleForm>,
+    pub display_config: DisplayConfigForm,
+}
+
 // ── Template ─────────────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -349,6 +349,11 @@ pub fn ContactDetail(
 
                             // Right rail
                             <div>
+                                <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                    entity_type="atlas_contact".to_string()
+                                    entity_id=id.clone()
+                                    subject_label=display.clone()
+                                />
                                 // Contact Channels card
                                 <div class="card" style="margin-bottom:14px;">
                                     <div class="card-hdr" style="padding:9px 14px;border-bottom:1px solid var(--border-default);">

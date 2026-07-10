@@ -287,6 +287,15 @@ pub fn TenantDetail() -> impl IntoView {
                         </div>
                     </div>
 
+                    // ── Scorecard (pilot embed) ─────────────────────────────
+                    <div style="padding:16px 24px 0;">
+                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                            entity_type="tenant".to_string()
+                            entity_id=tid.clone()
+                            subject_label=tenant_name.clone()
+                        />
+                    </div>
+
                     // ── Tab Bar ─────────────────────────────────────────────
                     <div class="tab-bar">
                         <button class=move || format!("tab {}", if active_tab.get() == "apps" { "active" } else { "" }) on:click=move |_| active_tab.set("apps".to_string())>"App Instances"</button>

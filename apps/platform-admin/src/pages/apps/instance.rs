@@ -98,18 +98,48 @@ pub fn AppInstance() -> impl IntoView {
                             // Use exact string matching — never `contains()`.
                             match cfg.app_slug.as_str() {
                                 "property_management" => view! {
-                                    <FolioInstance cfg=cfg />
+                                    <div class="w-full space-y-4">
+                                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                            entity_type="app_instance".to_string()
+                                            entity_id=cfg.instance_id.to_string()
+                                            tenant_id=cfg.tenant_id.to_string()
+                                            subject_label=cfg.tenant_name.clone()
+                                        />
+                                        <FolioInstance cfg=cfg />
+                                    </div>
                                 }.into_any(),
                                 "anchor" => view! {
-                                    <AnchorInstance cfg=cfg />
+                                    <div class="w-full space-y-4">
+                                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                            entity_type="app_instance".to_string()
+                                            entity_id=cfg.instance_id.to_string()
+                                            tenant_id=cfg.tenant_id.to_string()
+                                            subject_label=cfg.tenant_name.clone()
+                                        />
+                                        <AnchorInstance cfg=cfg />
+                                    </div>
                                 }.into_any(),
                                 "network_instance" => view! {
-                                    <NetworkInstance cfg=cfg />
+                                    <div class="w-full space-y-4">
+                                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                            entity_type="app_instance".to_string()
+                                            entity_id=cfg.instance_id.to_string()
+                                            tenant_id=cfg.tenant_id.to_string()
+                                            subject_label=cfg.tenant_name.clone()
+                                        />
+                                        <NetworkInstance cfg=cfg />
+                                    </div>
                                 }.into_any(),
                                 other => view! {
                                     // Generic fallback for unknown or future app types.
                                     // Shows identity card so ops can still inspect the instance.
                                     <div class="w-full space-y-6">
+                                        <crate::pages::billing::scorecard_panel::ScorecardPanel
+                                            entity_type="app_instance".to_string()
+                                            entity_id=cfg.instance_id.to_string()
+                                            tenant_id=cfg.tenant_id.to_string()
+                                            subject_label=cfg.tenant_name.clone()
+                                        />
                                         <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 text-xs text-amber-400">
                                             "Unknown app_slug: " {other.to_string()}
                                             ". No type-specific UI is registered. Please add a new instance component."
