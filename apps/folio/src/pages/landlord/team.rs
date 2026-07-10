@@ -113,7 +113,6 @@ pub async fn deactivate_invite_code(
     crate::atlas_client::authenticated_patch::<_, serde_json::Value>(
         &format!("/api/folio/invite-codes/{}", code_id),
         &token,
-        None,
         &serde_json::json!({ "is_active": false }),
     ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
 }

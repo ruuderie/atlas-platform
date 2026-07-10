@@ -402,31 +402,6 @@ pub async fn revoke_session() -> Result<(), ServerFnError> {
     Ok(())
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-#[cfg(feature = "ssr")]
-fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Option<String> {
-    headers
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.to_string())
-        .or_else(|| {
-            headers
-                .get(axum::http::header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|cookies| {
-                    cookies.split(';').find_map(|part| {
-                        let part = part.trim();
-                        // Accept both "session=" (what the backend sets) and
-                        // "atlas_session=" (legacy alias) to avoid a hard cutover.
-                        part.strip_prefix("session=")
-                            .or_else(|| part.strip_prefix("atlas_session="))
-                            .map(|t| t.to_string())
-                    })
-                })
-        })
-}
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
 //
