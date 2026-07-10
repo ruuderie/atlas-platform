@@ -14,7 +14,7 @@ use fake::{Fake, faker::{
 }};
 use crate::models::customer::Customer;
 use crate::models::deal::DealModel;
-use crate::models::contact::Contact;
+use crate::handlers::contacts::ContactResponse;
 use crate::tests::api_tests::setup_test_app;
 
 #[tokio::test]
@@ -233,7 +233,7 @@ async fn test_crm_contacts() {
     let body_bytes = axum::body::to_bytes(contact_res.into_body(), usize::MAX).await.unwrap();
     assert_eq!(status, StatusCode::CREATED, "Contact creation failed: {:?}", String::from_utf8_lossy(&body_bytes));
 
-    let contact: Contact = serde_json::from_slice(&body_bytes).unwrap();
-    assert_eq!(contact.name, contact_name);
+    let contact: ContactResponse = serde_json::from_slice(&body_bytes).unwrap();
+    assert_eq!(contact.full_name.as_deref(), Some("John Doe"));
     assert_eq!(contact.first_name, Some("John".to_string()));
 }

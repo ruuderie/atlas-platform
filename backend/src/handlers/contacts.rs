@@ -85,7 +85,7 @@ pub struct UpdateContactDto {
 ///
 /// `email_verified` and `phone_verified` are DB-managed booleans set by the
 /// import pipeline (MillionVerifier output); they are read-only from the API.
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ContactResponse {
     pub id:            String,
     pub account_id:    String,
