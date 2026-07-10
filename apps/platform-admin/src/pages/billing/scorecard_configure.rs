@@ -2,22 +2,26 @@
 //!
 //! Contract: `docs/contracts/g27_scorecard_platform.md` §8–§9.
 
-use crate::api::admin::get_tenant_stats;
+use crate::api::admin::{get_all_platform_apps, get_tenant_stats};
+use crate::api::models::PlatformAppSummary;
 use crate::api::scorecards::{
     create_dimension, create_display_rule, create_template, get_template, list_dimensions,
-    list_display_rules, update_dimension, update_display_rule, update_template,
-    CreateDimensionInput, CreateDisplayRuleInput, CreateTemplateInput, DisplayRuleAdminView,
-    ScorecardDimension, ScorecardTemplate, UpdateDimensionInput, UpdateDisplayRuleInput,
-    UpdateTemplateInput,
+    list_display_rules, list_template_deployments, update_dimension, update_display_rule,
+    update_template, upsert_instance_deployments, CreateDimensionInput, CreateDisplayRuleInput,
+    CreateTemplateInput, DisplayRuleAdminView, ScorecardDimension, ScorecardTemplate,
+    UpdateDimensionInput, UpdateDisplayRuleInput, UpdateTemplateInput, UpsertDeploymentItem,
+    UpsertDeploymentsInput,
 };
 use crate::app::GlobalToast;
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 use leptos_router::hooks::{use_navigate, use_params_map, use_query_map};
 use shared_ui::components::configurator::Configurator;
 use shared_ui::components::scorecard::models::{
     ConfiguratorMode, DisplayConfigForm, DisplayRuleForm, DimensionForm, ModeScope, RuleAction,
     RuleOperator, ScaleType, TemplateForm, TemplateSavePayload, TriggerCategory,
 };
+use std::collections::HashMap;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -301,18 +305,244 @@ pub fn ScorecardConfigure() -> impl IntoView {
                             "Select a tenant to configure scorecard templates."
                         </div>
                     }.into_any(),
-                    Some(Ok(Some((tmpl, dims, rules)))) => view! {
-                        <Configurator
-                            mode=ConfiguratorMode::PlatformOperator
-                            initial_template=tmpl
-                            initial_dimensions=dims
-                            initial_display_rules=rules
-                            on_save=on_save
-                            on_cancel=on_cancel
-                        />
-                    }.into_any(),
+                    Some(Ok(Some((tmpl, dims, rules)))) => {
+                        let tid = selected_tenant_id.get();
+                        let tmpl_id_opt = tmpl.id;
+                        view! {
+                            <div class="space-y-4">
+                                <Configurator
+                                    mode=ConfiguratorMode::PlatformOperator
+                                    initial_template=tmpl
+                                    initial_dimensions=dims
+                                    initial_display_rules=rules
+                                    on_save=on_save
+                                    on_cancel=on_cancel
+                                />
+                                <Show when=move || {
+                                    !is_create() && tmpl_id_opt.is_some()
+                                }>
+                                    {
+                                        let template_id = tmpl_id_opt.expect("template id");
+                                        view! {
+                                            <DeploymentsPanel
+                                                tenant_id=tid.clone()
+                                                template_id=template_id
+                                            />
+                                        }
+                                    }
+                                </Show>
+                            </div>
+                        }
+                        .into_any()
+                    }
                 }}
             </Suspense>
+        </div>
+    }
+}
+
+#[component]
+fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
+    let toast = use_context::<GlobalToast>().expect("toast context");
+    let saving = RwSignal::new(false);
+    let enabled_map: RwSignal<HashMap<Uuid, bool>> = RwSignal::new(HashMap::new());
+    let initial_map: RwSignal<HashMap<Uuid, bool>> = RwSignal::new(HashMap::new());
+    let apps_sv: RwSignal<Vec<PlatformAppSummary>> = RwSignal::new(Vec::new());
+    let load_error: RwSignal<Option<String>> = RwSignal::new(None);
+    let loaded = RwSignal::new(false);
+
+    let tid = tenant_id.clone();
+    Effect::new(move |_| {
+        let tid = tid.clone();
+        let tmpl = template_id;
+        spawn_local(async move {
+            load_error.set(None);
+            let apps_result = get_all_platform_apps().await;
+            let deps_result = list_template_deployments(&tmpl.to_string()).await;
+            match (apps_result, deps_result) {
+                (Ok(all_apps), Ok(deps)) => {
+                    let tenant_apps: Vec<PlatformAppSummary> = all_apps
+                        .into_iter()
+                        .filter(|a| a.tenant_id == tid)
+                        .collect();
+                    let mut map = HashMap::new();
+                    for d in &deps {
+                        map.insert(d.app_instance_id, d.is_enabled);
+                    }
+                    // Ensure every tenant instance has a key (missing = false).
+                    for app in &tenant_apps {
+                        if let Ok(iid) = Uuid::parse_str(&app.instance_id) {
+                            map.entry(iid).or_insert(false);
+                        }
+                    }
+                    apps_sv.set(tenant_apps);
+                    initial_map.set(map.clone());
+                    enabled_map.set(map);
+                    loaded.set(true);
+                }
+                (Err(e), _) | (_, Err(e)) => {
+                    load_error.set(Some(e));
+                    loaded.set(true);
+                }
+            }
+        });
+    });
+
+    let tenant_id_save = tenant_id.clone();
+    let on_save = {
+        let toast = toast.clone();
+        move |_| {
+            if saving.get_untracked() {
+                return;
+            }
+            saving.set(true);
+            let toast = toast.clone();
+            let tid = tenant_id_save.clone();
+            let tmpl = template_id;
+            let current = enabled_map.get_untracked();
+            let initial = initial_map.get_untracked();
+            let apps = apps_sv.get_untracked();
+            spawn_local(async move {
+                let mut first_err: Option<String> = None;
+                for app in &apps {
+                    let Ok(instance_id) = Uuid::parse_str(&app.instance_id) else {
+                        continue;
+                    };
+                    let is_enabled = *current.get(&instance_id).unwrap_or(&false);
+                    let was_enabled = *initial.get(&instance_id).unwrap_or(&false);
+                    if is_enabled == was_enabled {
+                        continue;
+                    }
+                    let input = UpsertDeploymentsInput {
+                        deployments: vec![UpsertDeploymentItem {
+                            template_id: tmpl,
+                            is_enabled,
+                            trigger_event: Some("manual".into()),
+                            trigger_context_entity_type: None,
+                        }],
+                    };
+                    if let Err(e) =
+                        upsert_instance_deployments(&tid, &instance_id.to_string(), &input).await
+                    {
+                        first_err = Some(e);
+                        break;
+                    }
+                }
+                saving.set(false);
+                match first_err {
+                    Some(e) => toast.show_toast("Error", &e, "error"),
+                    None => {
+                        initial_map.set(current);
+                        toast.show_toast("Saved", "Deployments updated.", "success");
+                    }
+                }
+            });
+        }
+    };
+
+    view! {
+        <div class="w-full bg-surface-container-low border border-outline-variant/20 rounded-2xl p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+                <h2 class="text-sm font-bold tracking-tight text-on-surface">"Deployments"</h2>
+                <button
+                    type="button"
+                    class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-outline-variant/30 bg-surface-container-highest text-on-surface disabled:opacity-50"
+                    disabled=move || saving.get() || !loaded.get()
+                    on:click=on_save
+                >
+                    {move || if saving.get() { "Saving…" } else { "Save deployments" }}
+                </button>
+            </div>
+
+            <Show when=move || load_error.get().is_some()>
+                <p class="text-xs text-error">
+                    {move || load_error.get().unwrap_or_default()}
+                </p>
+            </Show>
+
+            <Show when=move || loaded.get() && load_error.get().is_none()>
+                {move || {
+                    let apps = apps_sv.get();
+                    if apps.is_empty() {
+                        return view! {
+                            <p class="text-xs text-on-surface-variant">
+                                "No app instances for this tenant."
+                            </p>
+                        }
+                        .into_any();
+                    }
+                    view! {
+                        <table class="w-full text-xs border-collapse">
+                            <thead>
+                                <tr class="text-left text-on-surface-variant border-b border-outline-variant/20">
+                                    <th class="py-2 pr-3 font-semibold">"Instance"</th>
+                                    <th class="py-2 pr-3 font-semibold">"Enabled"</th>
+                                    <th class="py-2 font-semibold">"Trigger"</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {apps.into_iter().map(|app| {
+                                    let instance_id = Uuid::parse_str(&app.instance_id).ok();
+                                    let name = app.name.clone();
+                                    let app_type = app.app_type.clone();
+                                    let short_id = {
+                                        let id = &app.instance_id;
+                                        id[..8.min(id.len())].to_string()
+                                    };
+                                    view! {
+                                        <tr class="border-b border-outline-variant/10 text-on-surface">
+                                            <td class="py-2.5 pr-3">
+                                                <div class="flex flex-col gap-0.5">
+                                                    <span class="font-semibold">{name}</span>
+                                                    <span class="text-[10px] text-on-surface-variant font-mono">
+                                                        {format!("{app_type} · {short_id}")}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="py-2.5 pr-3">
+                                                {match instance_id {
+                                                    Some(iid) => view! {
+                                                        <input
+                                                            type="checkbox"
+                                                            prop:checked=move || {
+                                                                enabled_map.with(|m| *m.get(&iid).unwrap_or(&false))
+                                                            }
+                                                            on:change=move |ev| {
+                                                                let checked = event_target_checked(&ev);
+                                                                enabled_map.update(|m| {
+                                                                    m.insert(iid, checked);
+                                                                });
+                                                            }
+                                                        />
+                                                    }.into_any(),
+                                                    None => view! {
+                                                        <span class="text-on-surface-variant">"—"</span>
+                                                    }.into_any(),
+                                                }}
+                                            </td>
+                                            <td class="py-2.5">
+                                                <select
+                                                    class="text-xs bg-surface-container-highest border border-outline-variant/30 rounded-lg px-2 py-1"
+                                                    disabled=true
+                                                >
+                                                    <option selected=true>"manual"</option>
+                                                    <option disabled=true>"on_create"</option>
+                                                    <option disabled=true>"on_update"</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    }
+                                }).collect_view()}
+                            </tbody>
+                        </table>
+                    }
+                    .into_any()
+                }}
+            </Show>
+
+            <Show when=move || !loaded.get()>
+                <p class="text-xs text-on-surface-variant">"Loading deployments…"</p>
+            </Show>
         </div>
     }
 }

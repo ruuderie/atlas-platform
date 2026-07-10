@@ -4,7 +4,7 @@
 //! Contract: `docs/contracts/g27_scorecard_platform.md` §6.
 
 use crate::api::client::{
-    api_delete, api_get, api_post, api_put, api_request, api_url, create_client,
+    api_delete, api_get, api_patch_empty, api_post, api_put, api_request, api_url, create_client,
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -593,6 +593,20 @@ pub async fn list_entries(
     api_get(&format!(
         "api/admin/tenants/{tenant_id}/scorecards/{scorecard_id}/sessions/{session_id}/entries"
     ))
+    .await
+}
+
+/// PATCH `/api/scorecard-entries/{entry_id}/verify` → 204.
+/// `confirmed=true` verifies; `confirmed=false` rejects (deletes) the entry.
+pub async fn verify_scorecard_entry(entry_id: &str, confirmed: bool) -> Result<(), String> {
+    #[derive(Serialize)]
+    struct Body {
+        confirmed: bool,
+    }
+    api_patch_empty(
+        &format!("api/scorecard-entries/{entry_id}/verify"),
+        &Body { confirmed },
+    )
     .await
 }
 

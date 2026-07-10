@@ -210,6 +210,24 @@ pub async fn api_delete(path: &str) -> Result<(), String> {
     }
 }
 
+/// PATCH with a JSON body, ignoring an empty/204 response body.
+pub async fn api_patch_empty<B: Serialize>(path: &str, body: &B) -> Result<(), String> {
+    let client = create_client();
+    let url = api_url(path);
+    let req = client.patch(&url).json(body);
+    let req = with_credentials(req);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status() == StatusCode::UNAUTHORIZED {
+        mark_session_expired();
+        return Err("Session expired.".into());
+    }
+    if res.status().is_success() {
+        Ok(())
+    } else {
+        Err(format!("PATCH {} failed: {}", path, res.status()))
+    }
+}
+
 /// GET a path and unwrap a JSON envelope.
 ///
 /// The API returns `{ "<key>": <value> }` — this helper extracts the value

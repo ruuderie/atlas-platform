@@ -3,8 +3,8 @@
 use crate::api::admin::get_tenant_stats;
 use crate::api::scorecards::{
     get_scorecard, list_dimensions, list_entries, list_sessions, list_time_series, open_session,
-    recompute, submit_entry, DimensionAggregate, OpenSessionInput, RatingSession, ScorecardDetail,
-    ScorecardEntry, SubmitEntryInput, TimeSeriesPoint,
+    recompute, submit_entry, verify_scorecard_entry, DimensionAggregate, OpenSessionInput,
+    RatingSession, ScorecardDetail, ScorecardEntry, SubmitEntryInput, TimeSeriesPoint,
 };
 use crate::pages::billing::scorecard_panel::to_session_dimension;
 use leptos::prelude::*;
@@ -639,6 +639,7 @@ fn SessionsTab(
                                         tid_sv=tid_sv
                                         scorecard_id=scorecard_id
                                         dim_names_sv=dim_names_sv
+                                        refresh=refresh
                                     />
                                 }
                             }).collect_view()}
@@ -660,6 +661,7 @@ fn SessionRow(
     tid_sv: StoredValue<String>,
     scorecard_id: Uuid,
     dim_names_sv: StoredValue<HashMap<Uuid, String>>,
+    refresh: RwSignal<u32>,
 ) -> impl IntoView {
     let session_id = session.id;
     let label = session
@@ -668,6 +670,7 @@ fn SessionRow(
         .unwrap_or_else(|| session.session_type.clone());
     let status = session.status.clone();
     let occurred = session.occurred_at.format("%Y-%m-%d %H:%M").to_string();
+    let entry_busy: RwSignal<Option<Uuid>> = RwSignal::new(None);
 
     view! {
         <div style="border:1px solid var(--border-default);border-radius:6px;overflow:hidden;">
@@ -728,22 +731,120 @@ fn SessionRow(
                                             <th style="padding:4px 6px;font-weight:600;">"Score"</th>
                                             <th style="padding:4px 6px;font-weight:600;">"Source"</th>
                                             <th style="padding:4px 6px;font-weight:600;">"Verified"</th>
+                                            <th style="padding:4px 6px;font-weight:600;">"Actions"</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {ents.into_iter().map(|e| {
+                                            let entry_id = e.id;
                                             let name = dim_names
                                                 .get(&e.dimension_id)
                                                 .cloned()
                                                 .unwrap_or_else(|| e.dimension_id.to_string());
                                             let score = e.score.clone().unwrap_or_else(|| "—".into());
-                                            let verified = if e.is_verified { "yes" } else { "no" };
+                                            let verified = e.is_verified;
+                                            let verified_label = if verified { "yes" } else { "no" };
                                             view! {
                                                 <tr style="color:var(--text-primary);border-top:1px solid var(--border-default);">
                                                     <td style="padding:5px 6px;">{name}</td>
                                                     <td style="padding:5px 6px;font-family:monospace;">{score}</td>
                                                     <td style="padding:5px 6px;">{e.source_type.clone()}</td>
-                                                    <td style="padding:5px 6px;">{verified}</td>
+                                                    <td style="padding:5px 6px;">{verified_label}</td>
+                                                    <td style="padding:5px 6px;">
+                                                        <Show
+                                                            when=move || !verified
+                                                            fallback=|| view! {
+                                                                <span style="color:var(--text-muted);">"verified"</span>
+                                                            }
+                                                        >
+                                                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                                                <button
+                                                                    type="button"
+                                                                    style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border-default);background:transparent;color:var(--text-primary);cursor:pointer;"
+                                                                    disabled=move || entry_busy.get().is_some()
+                                                                    on:click=move |_| {
+                                                                        if entry_busy.get_untracked().is_some() {
+                                                                            return;
+                                                                        }
+                                                                        entry_busy.set(Some(entry_id));
+                                                                        let tid = tid_sv.get_value();
+                                                                        spawn_local(async move {
+                                                                            let result = verify_scorecard_entry(
+                                                                                &entry_id.to_string(),
+                                                                                true,
+                                                                            )
+                                                                            .await;
+                                                                            match result {
+                                                                                Ok(()) => {
+                                                                                    let _ = recompute(
+                                                                                        &tid,
+                                                                                        &scorecard_id.to_string(),
+                                                                                    )
+                                                                                    .await;
+                                                                                    let reloaded = list_entries(
+                                                                                        &tid,
+                                                                                        &scorecard_id.to_string(),
+                                                                                        &session_id.to_string(),
+                                                                                    )
+                                                                                    .await;
+                                                                                    entries.set(Some(reloaded));
+                                                                                    refresh.update(|n| *n = n.wrapping_add(1));
+                                                                                }
+                                                                                Err(err) => {
+                                                                                    entries.set(Some(Err(err)));
+                                                                                }
+                                                                            }
+                                                                            entry_busy.set(None);
+                                                                        });
+                                                                    }
+                                                                >
+                                                                    {move || {
+                                                                        if entry_busy.get() == Some(entry_id) {
+                                                                            "…"
+                                                                        } else {
+                                                                            "Verify"
+                                                                        }
+                                                                    }}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border-default);background:transparent;color:var(--text-muted);cursor:pointer;"
+                                                                    disabled=move || entry_busy.get().is_some()
+                                                                    on:click=move |_| {
+                                                                        if entry_busy.get_untracked().is_some() {
+                                                                            return;
+                                                                        }
+                                                                        entry_busy.set(Some(entry_id));
+                                                                        let tid = tid_sv.get_value();
+                                                                        spawn_local(async move {
+                                                                            let result = verify_scorecard_entry(
+                                                                                &entry_id.to_string(),
+                                                                                false,
+                                                                            )
+                                                                            .await;
+                                                                            match result {
+                                                                                Ok(()) => {
+                                                                                    let reloaded = list_entries(
+                                                                                        &tid,
+                                                                                        &scorecard_id.to_string(),
+                                                                                        &session_id.to_string(),
+                                                                                    )
+                                                                                    .await;
+                                                                                    entries.set(Some(reloaded));
+                                                                                }
+                                                                                Err(err) => {
+                                                                                    entries.set(Some(Err(err)));
+                                                                                }
+                                                                            }
+                                                                            entry_busy.set(None);
+                                                                        });
+                                                                    }
+                                                                >
+                                                                    "Reject"
+                                                                </button>
+                                                            </div>
+                                                        </Show>
+                                                    </td>
                                                 </tr>
                                             }
                                         }).collect_view()}
