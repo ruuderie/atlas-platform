@@ -338,12 +338,12 @@ pub fn RenterHelpPage() -> impl IntoView {
                                             </div>
                                         </div>
                                         <div class="rvc-tags">
-                                            {if v.verified { Some(view! {
+                                            <Show when=move || v_clone.verified>
                                                 <span class="rvc-tag rvc-tag--verified">
                                                     <span class="ms msf" style="font-size:10px">"verified"</span>
                                                     "Verified"
                                                 </span>
-                                            }) } else { None }}
+                                            </Show>
                                         </div>
                                         <div class="rvc-footer">
                                             <button
