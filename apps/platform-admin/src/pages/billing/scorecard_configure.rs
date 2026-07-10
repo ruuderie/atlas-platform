@@ -341,12 +341,24 @@ pub fn ScorecardConfigure() -> impl IntoView {
     }
 }
 
+const TRIGGER_EVENTS: &[&str] = &[
+    "manual",
+    "post_service_session",
+    "post_checkout",
+    "deal_close",
+    "lease_end",
+    "case_resolved",
+    "scheduled",
+];
+
 #[component]
 fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
     let toast = use_context::<GlobalToast>().expect("toast context");
     let saving = RwSignal::new(false);
     let enabled_map: RwSignal<HashMap<Uuid, bool>> = RwSignal::new(HashMap::new());
     let initial_map: RwSignal<HashMap<Uuid, bool>> = RwSignal::new(HashMap::new());
+    let trigger_map: RwSignal<HashMap<Uuid, String>> = RwSignal::new(HashMap::new());
+    let initial_trigger_map: RwSignal<HashMap<Uuid, String>> = RwSignal::new(HashMap::new());
     let apps_sv: RwSignal<Vec<PlatformAppSummary>> = RwSignal::new(Vec::new());
     let load_error: RwSignal<Option<String>> = RwSignal::new(None);
     let loaded = RwSignal::new(false);
@@ -366,18 +378,30 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                         .filter(|a| a.tenant_id == tid)
                         .collect();
                     let mut map = HashMap::new();
+                    let mut triggers = HashMap::new();
                     for d in &deps {
                         map.insert(d.app_instance_id, d.is_enabled);
+                        let te = if d.trigger_event.is_empty() {
+                            "manual".to_string()
+                        } else {
+                            d.trigger_event.clone()
+                        };
+                        triggers.insert(d.app_instance_id, te);
                     }
-                    // Ensure every tenant instance has a key (missing = false).
+                    // Ensure every tenant instance has a key (missing = false / manual).
                     for app in &tenant_apps {
                         if let Ok(iid) = Uuid::parse_str(&app.instance_id) {
                             map.entry(iid).or_insert(false);
+                            triggers
+                                .entry(iid)
+                                .or_insert_with(|| "manual".to_string());
                         }
                     }
                     apps_sv.set(tenant_apps);
                     initial_map.set(map.clone());
                     enabled_map.set(map);
+                    initial_trigger_map.set(triggers.clone());
+                    trigger_map.set(triggers);
                     loaded.set(true);
                 }
                 (Err(e), _) | (_, Err(e)) => {
@@ -401,6 +425,8 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
             let tmpl = template_id;
             let current = enabled_map.get_untracked();
             let initial = initial_map.get_untracked();
+            let current_triggers = trigger_map.get_untracked();
+            let initial_triggers = initial_trigger_map.get_untracked();
             let apps = apps_sv.get_untracked();
             spawn_local(async move {
                 let mut first_err: Option<String> = None;
@@ -410,14 +436,22 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                     };
                     let is_enabled = *current.get(&instance_id).unwrap_or(&false);
                     let was_enabled = *initial.get(&instance_id).unwrap_or(&false);
-                    if is_enabled == was_enabled {
+                    let trigger = current_triggers
+                        .get(&instance_id)
+                        .cloned()
+                        .unwrap_or_else(|| "manual".into());
+                    let was_trigger = initial_triggers
+                        .get(&instance_id)
+                        .cloned()
+                        .unwrap_or_else(|| "manual".into());
+                    if is_enabled == was_enabled && trigger == was_trigger {
                         continue;
                     }
                     let input = UpsertDeploymentsInput {
                         deployments: vec![UpsertDeploymentItem {
                             template_id: tmpl,
                             is_enabled,
-                            trigger_event: Some("manual".into()),
+                            trigger_event: Some(trigger),
                             trigger_context_entity_type: None,
                         }],
                     };
@@ -433,6 +467,7 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                     Some(e) => toast.show_toast("Error", &e, "error"),
                     None => {
                         initial_map.set(current);
+                        initial_trigger_map.set(current_triggers);
                         toast.show_toast("Saved", "Deployments updated.", "success");
                     }
                 }
@@ -521,14 +556,48 @@ fn DeploymentsPanel(tenant_id: String, template_id: Uuid) -> impl IntoView {
                                                 }}
                                             </td>
                                             <td class="py-2.5">
-                                                <select
-                                                    class="text-xs bg-surface-container-highest border border-outline-variant/30 rounded-lg px-2 py-1"
-                                                    disabled=true
-                                                >
-                                                    <option selected=true>"manual"</option>
-                                                    <option disabled=true>"on_create"</option>
-                                                    <option disabled=true>"on_update"</option>
-                                                </select>
+                                                {match instance_id {
+                                                    Some(iid) => view! {
+                                                        <select
+                                                            class="text-xs bg-surface-container-highest border border-outline-variant/30 rounded-lg px-2 py-1"
+                                                            prop:value=move || {
+                                                                trigger_map.with(|m| {
+                                                                    m.get(&iid)
+                                                                        .cloned()
+                                                                        .unwrap_or_else(|| "manual".into())
+                                                                })
+                                                            }
+                                                            on:change=move |ev| {
+                                                                let val = event_target_value(&ev);
+                                                                trigger_map.update(|m| {
+                                                                    m.insert(iid, val);
+                                                                });
+                                                            }
+                                                        >
+                                                            {TRIGGER_EVENTS.iter().map(|ev_name| {
+                                                                let label = (*ev_name).to_string();
+                                                                let value = label.clone();
+                                                                let selected_val = label.clone();
+                                                                view! {
+                                                                    <option
+                                                                        value=value
+                                                                        selected=move || {
+                                                                            trigger_map.with(|m| {
+                                                                                m.get(&iid).map(|s| s.as_str())
+                                                                                    == Some(selected_val.as_str())
+                                                                            })
+                                                                        }
+                                                                    >
+                                                                        {label}
+                                                                    </option>
+                                                                }
+                                                            }).collect_view()}
+                                                        </select>
+                                                    }.into_any(),
+                                                    None => view! {
+                                                        <span class="text-on-surface-variant">"—"</span>
+                                                    }.into_any(),
+                                                }}
                                             </td>
                                         </tr>
                                     }

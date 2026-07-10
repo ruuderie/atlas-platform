@@ -5,13 +5,44 @@
 use crate::api::admin::get_tenant_stats;
 use crate::api::models::TenantStatModel;
 use crate::api::scorecards::{
-    get_analytics, get_anomalies, get_leaderboard, list_templates, refresh_analytics,
+    get_analytics, get_anomalies, get_leaderboard, list_catalog, list_templates, refresh_analytics,
     AnomalyAlert, LeaderboardEntry, PortfolioStats, ScorecardTemplate,
 };
 use leptos::prelude::*;
 
+/// Pilot-lens subject entity types (contract §2).
+const PILOT_ENTITY_TYPES: &[&str] = &[
+    "atlas_account",
+    "atlas_contact",
+    "atlas_lead",
+    "atlas_opportunity",
+    "tenant",
+    "app_instance",
+];
+
+fn is_pilot_entity(entity_type: &str) -> bool {
+    PILOT_ENTITY_TYPES.contains(&entity_type)
+}
+
+fn lens_subtitle(lens: &str) -> &'static str {
+    match lens {
+        "pilot" => "Operator tenant · rate CRM / tenant / app_instance subjects",
+        "catalog" => "Platform-scoped templates across tenants",
+        _ => "Customer tenant · templates, analytics, deployments",
+    }
+}
+
+fn lens_btn_class(active: &str, name: &str) -> &'static str {
+    if active == name {
+        "px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary/15 text-primary border border-primary/40 transition-all"
+    } else {
+        "px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-container text-on-surface-variant border border-outline-variant/30 hover:text-on-surface hover:border-outline-variant/50 transition-all"
+    }
+}
+
 #[component]
 pub fn Scorecards() -> impl IntoView {
+    let lens = RwSignal::new("customer".to_string());
     let active_tab = RwSignal::new("templates".to_string());
     let selected_tenant_id = RwSignal::new(String::new());
     let templates_refresh = RwSignal::new(0u32);
@@ -39,24 +70,53 @@ pub fn Scorecards() -> impl IntoView {
         }
     });
 
+    // Reset analytics template when lens changes (template set differs per lens).
+    // Catalog has no analytics — bounce back to templates if needed.
+    Effect::new(move |_| {
+        let current = lens.get();
+        analytics_template_id.set(String::new());
+        dimension_focus.set(String::new());
+        if current == "catalog" && active_tab.get_untracked() == "analytics" {
+            active_tab.set("templates".to_string());
+        }
+    });
+
     let templates_res = LocalResource::new(move || {
+        let current_lens = lens.get();
         let tid = selected_tenant_id.get();
         let _ = templates_refresh.get();
         async move {
-            if tid.is_empty() {
-                return Ok(Vec::<ScorecardTemplate>::new());
+            match current_lens.as_str() {
+                "catalog" => list_catalog(None).await,
+                "pilot" => {
+                    if tid.is_empty() {
+                        return Ok(Vec::<ScorecardTemplate>::new());
+                    }
+                    let all = list_templates(&tid).await?;
+                    Ok(all
+                        .into_iter()
+                        .filter(|t| is_pilot_entity(&t.entity_type))
+                        .collect())
+                }
+                _ => {
+                    // customer
+                    if tid.is_empty() {
+                        return Ok(Vec::<ScorecardTemplate>::new());
+                    }
+                    list_templates(&tid).await
+                }
             }
-            list_templates(&tid).await
         }
     });
 
     let analytics_bundle = LocalResource::new(move || {
+        let current_lens = lens.get();
         let tid = selected_tenant_id.get();
         let tmpl = analytics_template_id.get();
         let limit = leaderboard_limit.get();
         let _ = analytics_refresh.get();
         async move {
-            if tid.is_empty() || tmpl.is_empty() {
+            if current_lens == "catalog" || tid.is_empty() || tmpl.is_empty() {
                 return Ok(None);
             }
             let stats = get_analytics(&tid, &tmpl).await?;
@@ -70,30 +130,65 @@ pub fn Scorecards() -> impl IntoView {
         <div class="w-full space-y-6">
             // ── Page Header ──
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-surface-container-low border border-outline-variant/20 p-6 rounded-2xl shadow-sm">
-                <div>
-                    <h1 class="text-2xl font-extrabold tracking-tight text-on-surface">"Scorecards"</h1>
-                    <p class="text-xs text-on-surface-variant mt-1">
-                        "Universal structured evaluation engine · customer tenant lens"
-                    </p>
+                <div class="space-y-3">
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-tight text-on-surface">"Scorecards"</h1>
+                        <p class="text-xs text-on-surface-variant mt-1">
+                            {move || lens_subtitle(&lens.get())}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            class=move || lens_btn_class(&lens.get(), "pilot")
+                            on:click=move |_| lens.set("pilot".to_string())
+                        >
+                            "Pilot"
+                        </button>
+                        <button
+                            type="button"
+                            class=move || lens_btn_class(&lens.get(), "catalog")
+                            on:click=move |_| lens.set("catalog".to_string())
+                        >
+                            "Catalog"
+                        </button>
+                        <button
+                            type="button"
+                            class=move || lens_btn_class(&lens.get(), "customer")
+                            on:click=move |_| lens.set("customer".to_string())
+                        >
+                            "Customer"
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3 flex-wrap">
-                    <TenantPicker
-                        tenants_res=tenants_res
-                        selected_tenant_id=selected_tenant_id
-                    />
-                    <a
-                        href=move || {
-                            let tid = selected_tenant_id.get();
-                            if tid.is_empty() {
-                                "/billing/scorecards".to_string()
-                            } else {
-                                format!("/billing/scorecards/templates/new/configure?tenant_id={tid}")
+                    <Show when=move || lens.get() != "catalog">
+                        <TenantPicker
+                            tenants_res=tenants_res
+                            selected_tenant_id=selected_tenant_id
+                        />
+                    </Show>
+                    <Show when=move || lens.get() != "catalog">
+                        <a
+                            href=move || {
+                                let tid = selected_tenant_id.get();
+                                if tid.is_empty() {
+                                    "/billing/scorecards".to_string()
+                                } else {
+                                    format!("/billing/scorecards/templates/new/configure?tenant_id={tid}")
+                                }
                             }
-                        }
-                        class="btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
-                    >
-                        "+ New Template"
-                    </a>
+                            class=move || {
+                                if selected_tenant_id.get().is_empty() {
+                                    "btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 opacity-40 pointer-events-none"
+                                } else {
+                                    "btn-primary-gradient px-4 py-2 rounded-lg text-sm font-semibold text-on-primary-container shadow-md shadow-primary/10 hover:opacity-90 active:scale-95 transition-all"
+                                }
+                            }
+                        >
+                            "+ New Template"
+                        </a>
+                    </Show>
                 </div>
             </div>
 
@@ -105,12 +200,14 @@ pub fn Scorecards() -> impl IntoView {
                 >
                     "Templates"
                 </button>
-                <button
-                    class=move || tab_class(&active_tab.get(), "analytics")
-                    on:click=move |_| active_tab.set("analytics".to_string())
-                >
-                    "Analytics"
-                </button>
+                <Show when=move || lens.get() != "catalog">
+                    <button
+                        class=move || tab_class(&active_tab.get(), "analytics")
+                        on:click=move |_| active_tab.set("analytics".to_string())
+                    >
+                        "Analytics"
+                    </button>
+                </Show>
             </div>
 
             // ── VIEW: Templates ──
@@ -118,24 +215,34 @@ pub fn Scorecards() -> impl IntoView {
                 <TemplatesTab
                     templates_res=templates_res
                     selected_tenant_id=selected_tenant_id
+                    lens=lens
                 />
             </Show>
 
             // ── VIEW: Analytics ──
             <Show when=move || active_tab.get() == "analytics">
-                <AnalyticsTab
-                    templates_res=templates_res
-                    analytics_bundle=analytics_bundle
-                    selected_tenant_id=selected_tenant_id
-                    analytics_template_id=analytics_template_id
-                    dimension_focus=dimension_focus
-                    anomaly_direction=anomaly_direction
-                    confidence_filter=confidence_filter
-                    entity_type_filter=entity_type_filter
-                    leaderboard_limit=leaderboard_limit
-                    analytics_refresh=analytics_refresh
-                    refreshing=refreshing
-                />
+                <Show
+                    when=move || lens.get() != "catalog"
+                    fallback=move || view! {
+                        <p class="text-sm text-on-surface-variant">
+                            "Select Customer or Pilot lens for analytics"
+                        </p>
+                    }
+                >
+                    <AnalyticsTab
+                        templates_res=templates_res
+                        analytics_bundle=analytics_bundle
+                        selected_tenant_id=selected_tenant_id
+                        analytics_template_id=analytics_template_id
+                        dimension_focus=dimension_focus
+                        anomaly_direction=anomaly_direction
+                        confidence_filter=confidence_filter
+                        entity_type_filter=entity_type_filter
+                        leaderboard_limit=leaderboard_limit
+                        analytics_refresh=analytics_refresh
+                        refreshing=refreshing
+                    />
+                </Show>
             </Show>
         </div>
     }
@@ -179,14 +286,32 @@ fn TenantPicker(
     }
 }
 
+fn empty_state_message(lens: &str) -> &'static str {
+    match lens {
+        "pilot" => "No pilot-subject templates for this tenant yet.",
+        "catalog" => "No platform catalog templates found.",
+        _ => "No templates for this tenant yet.",
+    }
+}
+
+fn needs_tenant_prompt(lens: &str) -> &'static str {
+    match lens {
+        "pilot" => "Select a tenant to list pilot scorecard templates.",
+        _ => "Select a tenant to list scorecard templates.",
+    }
+}
+
 #[component]
 fn TemplatesTab(
     templates_res: LocalResource<Result<Vec<ScorecardTemplate>, String>>,
     selected_tenant_id: RwSignal<String>,
+    lens: RwSignal<String>,
 ) -> impl IntoView {
+    let show_tenant_gate = move || lens.get() != "catalog" && selected_tenant_id.get().is_empty();
+
     view! {
         <Show
-            when=move || selected_tenant_id.get().is_empty()
+            when=show_tenant_gate
             fallback=move || view! {
                 <Suspense fallback=move || view! {
                     <p class="text-sm text-on-surface-variant">"Loading templates…"</p>
@@ -197,15 +322,29 @@ fn TemplatesTab(
                             <p class="text-sm text-red-400">{format!("Failed to load templates: {e}")}</p>
                         }.into_any(),
                         Some(Ok(templates)) => {
+                            let current_lens = lens.get();
+                            let show_tenant_prefix = current_lens == "catalog";
+                            let fallback_tid = selected_tenant_id.get();
                             let published: Vec<_> = templates.iter().filter(|t| t.is_published).cloned().collect();
                             let drafts: Vec<_> = templates.iter().filter(|t| !t.is_published).cloned().collect();
+                            let empty_msg = empty_state_message(&current_lens);
                             view! {
                                 <div class="space-y-6">
-                                    <TemplateSection title=format!("Published Templates ({})", published.len()) templates=published />
-                                    <TemplateSection title=format!("Draft Templates ({})", drafts.len()) templates=drafts />
+                                    <TemplateSection
+                                        title=format!("Published Templates ({})", published.len())
+                                        templates=published
+                                        fallback_tenant_id=fallback_tid.clone()
+                                        show_tenant_prefix=show_tenant_prefix
+                                    />
+                                    <TemplateSection
+                                        title=format!("Draft Templates ({})", drafts.len())
+                                        templates=drafts
+                                        fallback_tenant_id=fallback_tid
+                                        show_tenant_prefix=show_tenant_prefix
+                                    />
                                     <Show when=move || templates.is_empty()>
                                         <p class="text-sm text-on-surface-variant">
-                                            "No templates for this tenant yet."
+                                            {empty_msg}
                                         </p>
                                     </Show>
                                 </div>
@@ -215,13 +354,20 @@ fn TemplatesTab(
                 </Suspense>
             }
         >
-            <p class="text-sm text-on-surface-variant">"Select a tenant to list scorecard templates."</p>
+            <p class="text-sm text-on-surface-variant">
+                {move || needs_tenant_prompt(&lens.get())}
+            </p>
         </Show>
     }
 }
 
 #[component]
-fn TemplateSection(title: String, templates: Vec<ScorecardTemplate>) -> impl IntoView {
+fn TemplateSection(
+    title: String,
+    templates: Vec<ScorecardTemplate>,
+    fallback_tenant_id: String,
+    show_tenant_prefix: bool,
+) -> impl IntoView {
     let is_empty = templates.is_empty();
     view! {
         <Show when=move || !is_empty>
@@ -235,7 +381,19 @@ fn TemplateSection(title: String, templates: Vec<ScorecardTemplate>) -> impl Int
                         let desc = t.description.clone().unwrap_or_default();
                         let scope = t.template_scope.clone();
                         let published = t.is_published;
-                        let href = format!("/billing/scorecards/templates/{id}/configure");
+                        let tid = if show_tenant_prefix || fallback_tenant_id.is_empty() {
+                            t.tenant_id.to_string()
+                        } else {
+                            fallback_tenant_id.clone()
+                        };
+                        let tid_short = {
+                            let s = t.tenant_id.to_string();
+                            s[..8.min(s.len())].to_string()
+                        };
+                        let href = format!(
+                            "/billing/scorecards/templates/{id}/configure?tenant_id={tid}"
+                        );
+                        let show_prefix = show_tenant_prefix;
                         view! {
                             <a
                                 href=href
@@ -260,7 +418,13 @@ fn TemplateSection(title: String, templates: Vec<ScorecardTemplate>) -> impl Int
                                     </p>
                                 </div>
                                 <div class="flex items-center justify-between mt-4 border-t border-outline-variant/10 pt-3 text-[10px] text-on-surface-variant">
-                                    <span class="uppercase tracking-wider">{scope}</span>
+                                    <span class="uppercase tracking-wider">
+                                        {if show_prefix {
+                                            format!("{scope} · {tid_short}")
+                                        } else {
+                                            scope
+                                        }}
+                                    </span>
                                     <span class="font-semibold text-primary">"Configure →"</span>
                                 </div>
                             </a>
