@@ -1,7 +1,7 @@
 // Build: ship Leptos hydration fix; pipeline now uses CI_COMMIT_CHANGED_FILES.
-pub mod leads;
-pub mod contacts;
 mod admin_tables;
+pub mod contacts;
+pub mod leads;
 use admin_tables::*;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -15,13 +15,13 @@ pub struct MailingListRecord {
 
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
-use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
-use shared_ui::components::auth::passkey_nudge::PasskeyNudge;
 use shared_ui::auth::atlas_auth::check_has_passkey;
-use shared_ui::utils::ResourceState;
 use shared_ui::components::admin_module_sidebar::{
     AdminModuleConfig, AdminModuleType, SidebarTheme,
 };
+use shared_ui::components::auth::atlas_login_panel::AtlasLoginPanel;
+use shared_ui::components::auth::passkey_nudge::PasskeyNudge;
+use shared_ui::utils::ResourceState;
 
 use crate::auth::*;
 use crate::components::admin_modal::*;
@@ -66,29 +66,29 @@ pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, ServerFnError
     // Local helper: parse SCREAMING_SNAKE_CASE string → AdminModuleType.
     fn parse_module(s: &str) -> Option<AdminModuleType> {
         match s {
-            "DASHBOARD"       => Some(AdminModuleType::Dashboard),
-            "SETTINGS"        => Some(AdminModuleType::Settings),
-            "SECURITY"        => Some(AdminModuleType::Security),
-            "BLOG"            => Some(AdminModuleType::Blog),
+            "DASHBOARD" => Some(AdminModuleType::Dashboard),
+            "SETTINGS" => Some(AdminModuleType::Settings),
+            "SECURITY" => Some(AdminModuleType::Security),
+            "BLOG" => Some(AdminModuleType::Blog),
             "RESUME_PROFILES" => Some(AdminModuleType::ResumeProfiles),
-            "RESUME_ENTRIES"  => Some(AdminModuleType::ResumeEntries),
-            "LANDING_PAGES"   => Some(AdminModuleType::LandingPages),
-            "WEBFORMS"        => Some(AdminModuleType::Webforms),
-            "NAVIGATION"      => Some(AdminModuleType::Navigation),
-            "FOOTER"          => Some(AdminModuleType::Footer),
-            "PAGE_HEADERS"    => Some(AdminModuleType::PageHeaders),
-            "LEADS"           => Some(AdminModuleType::Leads),
-            "CONTACTS"        => Some(AdminModuleType::Contacts),
-            "LEAD_OPTIONS"    => Some(AdminModuleType::LeadOptions),
-            "SERVICES"        => Some(AdminModuleType::Services),
-            "CASE_STUDIES"    => Some(AdminModuleType::CaseStudies),
-            "HIGHLIGHTS"      => Some(AdminModuleType::Highlights),
-            "PROPERTIES"      => Some(AdminModuleType::Properties),
-            "LISTINGS"        => Some(AdminModuleType::Listings),
+            "RESUME_ENTRIES" => Some(AdminModuleType::ResumeEntries),
+            "LANDING_PAGES" => Some(AdminModuleType::LandingPages),
+            "WEBFORMS" => Some(AdminModuleType::Webforms),
+            "NAVIGATION" => Some(AdminModuleType::Navigation),
+            "FOOTER" => Some(AdminModuleType::Footer),
+            "PAGE_HEADERS" => Some(AdminModuleType::PageHeaders),
+            "LEADS" => Some(AdminModuleType::Leads),
+            "CONTACTS" => Some(AdminModuleType::Contacts),
+            "LEAD_OPTIONS" => Some(AdminModuleType::LeadOptions),
+            "SERVICES" => Some(AdminModuleType::Services),
+            "CASE_STUDIES" => Some(AdminModuleType::CaseStudies),
+            "HIGHLIGHTS" => Some(AdminModuleType::Highlights),
+            "PROPERTIES" => Some(AdminModuleType::Properties),
+            "LISTINGS" => Some(AdminModuleType::Listings),
             // IMPORTANT: Unknown strings are dropped (None), not mapped to Custom.
             // This prevents future backend variants or DB typos from creating
             // phantom tabs in the sidebar. Matches the backend's own filter_map/.ok()?.
-            _                 => None,
+            _ => None,
         }
     }
 
@@ -96,13 +96,12 @@ pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, ServerFnError
     let Extension(tenant) = extract::<Extension<crate::state::TenantContext>>().await?;
 
     // Resolve the app_instance for this tenant.
-    let app_instance_id: Option<uuid::Uuid> = sqlx::query_scalar(
-        "SELECT ai.id FROM app_instances ai WHERE ai.tenant_id = $1 LIMIT 1"
-    )
-    .bind(tenant.0)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let app_instance_id: Option<uuid::Uuid> =
+        sqlx::query_scalar("SELECT ai.id FROM app_instances ai WHERE ai.tenant_id = $1 LIMIT 1")
+            .bind(tenant.0)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(|e| ServerFnError::new(e.to_string()))?;
 
     let Some(instance_id) = app_instance_id else {
         return Ok(vec![]);
@@ -112,7 +111,7 @@ pub async fn get_admin_modules() -> Result<Vec<AdminModuleConfig>, ServerFnError
         "SELECT module_type, display_name, icon, sort_order, is_fixed \
          FROM app_instance_module \
          WHERE app_instance_id = $1 AND is_enabled = true \
-         ORDER BY sort_order ASC"
+         ORDER BY sort_order ASC",
     )
     .bind(instance_id)
     .fetch_all(&state.pool)
@@ -170,9 +169,9 @@ pub struct WebformItem {
 
 #[server(GetWebforms, "/api")]
 pub async fn get_webforms() -> Result<Vec<WebformItem>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -185,27 +184,27 @@ pub async fn get_webforms() -> Result<Vec<WebformItem>, ServerFnError> {
         "SELECT id, name, slug, description, webhook_url, is_active \
          FROM form_schemas \
          WHERE tenant_id = $1 \
-         ORDER BY created_at DESC"
+         ORDER BY created_at DESC",
     )
     .bind(tenant.0)
     .fetch_all(&state.pool)
     .await?;
 
     use sqlx::Row;
-    let items = rows.into_iter().map(|row| {
-        WebformItem {
+    let items = rows
+        .into_iter()
+        .map(|row| WebformItem {
             id: row.get("id"),
             name: row.get("name"),
             slug: row.get("slug"),
             description: row.get("description"),
             webhook_url: row.get("webhook_url"),
             is_active: row.get("is_active"),
-        }
-    }).collect();
+        })
+        .collect();
 
     Ok(items)
 }
-
 
 /// Login UI — delegates entirely to the shared AtlasLoginPanel.
 /// Token verification, expired-link UI, URL cleanup — all owned by the panel.
@@ -387,9 +386,10 @@ fn AuthenticatedDashboard(
     // Passkey nudge — client-only, safe to live here because this component
     // only mounts when the user is authenticated.
     let show_passkey_nudge = RwSignal::new(false);
-    let passkey_check = LocalResource::new(move || async move {
-        check_has_passkey().await.unwrap_or_else(|_| true)
-    });
+    let passkey_check =
+        LocalResource::new(
+            move || async move { check_has_passkey().await.unwrap_or_else(|_| true) },
+        );
     Effect::new(move |_| {
         if let Some(false) = passkey_check.get() {
             show_passkey_nudge.set(true);
@@ -519,8 +519,6 @@ fn AuthenticatedDashboard(
     }
 }
 
-
-
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DashboardStats {
     pub mempool_requests_24h: i64,
@@ -547,9 +545,9 @@ pub struct GlobalActivityItem {
 
 #[server(GetGlobalActivity, "/api")]
 pub async fn get_global_activity() -> Result<Vec<GlobalActivityItem>, ServerFnError> {
+    use crate::auth::check_session;
     use axum::Extension;
     use leptos_axum::extract;
-    use crate::auth::check_session;
 
     if !check_session().await.unwrap_or(false) {
         return Err(ServerFnError::ServerError("Unauthorized".into()));
@@ -573,20 +571,23 @@ pub async fn get_global_activity() -> Result<Vec<GlobalActivityItem>, ServerFnEr
     .await?;
 
     use sqlx::Row;
-    let items = rows.into_iter().map(|row| {
-        let created_at_time: chrono::DateTime<chrono::Utc> = row.get("created_at");
-        GlobalActivityItem {
-            id: row.get("id"),
-            contact_id: row.get("contact_id"),
-            lead_id: row.get("lead_id"),
-            customer_name: row.get("customer_name"),
-            activity_type: row.get("activity_type"),
-            title: row.get("title"),
-            description: row.get("description"),
-            status: row.get("status"),
-            created_at: created_at_time.to_rfc3339(),
-        }
-    }).collect();
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            let created_at_time: chrono::DateTime<chrono::Utc> = row.get("created_at");
+            GlobalActivityItem {
+                id: row.get("id"),
+                contact_id: row.get("contact_id"),
+                lead_id: row.get("lead_id"),
+                customer_name: row.get("customer_name"),
+                activity_type: row.get("activity_type"),
+                title: row.get("title"),
+                description: row.get("description"),
+                status: row.get("status"),
+                created_at: created_at_time.to_rfc3339(),
+            }
+        })
+        .collect();
 
     Ok(items)
 }
@@ -625,13 +626,12 @@ pub async fn get_dashboard_stats() -> Result<DashboardStats, ServerFnError> {
     .await
     .unwrap_or(0);
 
-    let total_leads: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM lead WHERE tenant_id IS NOT DISTINCT FROM $1"
-    )
-    .bind(tenant.0)
-    .fetch_one(&state.pool)
-    .await
-    .unwrap_or(0);
+    let total_leads: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM lead WHERE tenant_id IS NOT DISTINCT FROM $1")
+            .bind(tenant.0)
+            .fetch_one(&state.pool)
+            .await
+            .unwrap_or(0);
 
     let converted_leads: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM lead WHERE is_converted = true AND updated_at > NOW() - INTERVAL '24 hours' AND tenant_id IS NOT DISTINCT FROM $1"
@@ -659,7 +659,6 @@ pub async fn get_dashboard_stats() -> Result<DashboardStats, ServerFnError> {
         crm_interactions_24h: crm_interactions,
     })
 }
-
 
 #[component]
 fn DashboardView() -> impl IntoView {
@@ -734,7 +733,7 @@ fn DashboardView() -> impl IntoView {
                                                             "Note" => "border-emerald-500/30 bg-emerald-500/5 text-emerald-400",
                                                             _ => "border-outline-variant/30 bg-surface-container-high text-outline-variant",
                                                         };
-                                                        
+
                                                         let entity_type_label = if item.contact_id.is_some() {
                                                             "CONTACT"
                                                         } else {
@@ -760,7 +759,7 @@ fn DashboardView() -> impl IntoView {
                                                                                 {entity_type_label}
                                                                             </span>
                                                                         </div>
-                                                                        
+
                                                                         <p class="text-xs text-on-surface-variant mt-1">
                                                                             {item.description.unwrap_or_default()}
                                                                         </p>
@@ -911,11 +910,7 @@ fn SettingsReadView() -> impl IntoView {
     }
 }
 
-
 // PasskeyRegistrationNudge was removed. PasskeyNudge (shared-ui) is used instead.
 // The old implementation used js_sys::eval + setTimeout(500) + manual DOM binding
 // which raced against WASM hydration and CDN script load timing. See Bug 3 in the
 // engineering brief (2026-05-17) for the full root-cause analysis.
-
-
-
