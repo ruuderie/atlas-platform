@@ -397,6 +397,8 @@ pub fn admin_routes_raw() -> Router<DatabaseConnection> {
             .merge(crate::handlers::syndication_admin::syndication_admin_routes())
             // G-19 Campaigns: list/create campaigns + enrollments
             .merge(crate::admin::campaigns::routes_raw())
+            // G-37 Ambassadors: CRUD + campaign attach + QR PNG + fulfillment stubs
+            .merge(crate::admin::ambassadors::routes_raw())
             // G-07 ext — Platform support inbox: cross-tenant platform_support room management
             .merge(crate::admin::support_inbox::routes_raw())
             // Platform-admin Landing Page Builder (app-scoped acquisition pages)

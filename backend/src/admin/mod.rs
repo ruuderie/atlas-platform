@@ -2,6 +2,7 @@ pub mod ai_tasks;
 pub mod analytics;
 pub mod app_instance; // App instance: public-config, lifecycle (suspend/archive)
 pub mod billing;
+pub mod ambassadors; // G-37 — Growth ambassadors / influencers / QR / fulfillment stubs
 pub mod campaigns; // G-19 — Campaign registry: list, detail, create, status update, enrollments
 pub mod compliance;
 pub mod developer_console;

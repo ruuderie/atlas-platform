@@ -1694,6 +1694,220 @@ impl TryFrom<&str> for CampaignStatus {
     }
 }
 
+/// Build unique human-readable campaign id: `{app_id}_{slug(name)}`.
+pub fn campaign_global_name(app_id: &str, name: &str) -> String {
+    let app = app_id
+        .trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect::<String>();
+    let slug = name
+        .trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    let slug = slug
+        .split('_')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("_");
+    let app = app
+        .split('_')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("_");
+    format!("{app}_{slug}")
+}
+
+// ── G-37 Ambassador enums ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbassadorPartnerType {
+    Referral,
+    Influencer,
+    Affiliate,
+    Recruiter,
+}
+
+impl fmt::Display for AmbassadorPartnerType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Referral => write!(f, "referral"),
+            Self::Influencer => write!(f, "influencer"),
+            Self::Affiliate => write!(f, "affiliate"),
+            Self::Recruiter => write!(f, "recruiter"),
+        }
+    }
+}
+
+impl TryFrom<&str> for AmbassadorPartnerType {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "referral" => Ok(Self::Referral),
+            "influencer" => Ok(Self::Influencer),
+            "affiliate" => Ok(Self::Affiliate),
+            "recruiter" => Ok(Self::Recruiter),
+            other => Err(format!("unknown AmbassadorPartnerType: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for AmbassadorPartnerType {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbassadorStatus {
+    Active,
+    Disabled,
+}
+
+impl fmt::Display for AmbassadorStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Active => write!(f, "active"),
+            Self::Disabled => write!(f, "disabled"),
+        }
+    }
+}
+
+impl TryFrom<&str> for AmbassadorStatus {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "active" => Ok(Self::Active),
+            "disabled" => Ok(Self::Disabled),
+            other => Err(format!("unknown AmbassadorStatus: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for AmbassadorStatus {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReferAudience {
+    Landlord,
+    Vendor,
+}
+
+impl fmt::Display for ReferAudience {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Landlord => write!(f, "landlord"),
+            Self::Vendor => write!(f, "vendor"),
+        }
+    }
+}
+
+impl TryFrom<&str> for ReferAudience {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "landlord" => Ok(Self::Landlord),
+            "vendor" => Ok(Self::Vendor),
+            other => Err(format!("unknown ReferAudience: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for ReferAudience {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbassadorFulfillmentKind {
+    BusinessCards,
+    Merch,
+}
+
+impl fmt::Display for AmbassadorFulfillmentKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BusinessCards => write!(f, "business_cards"),
+            Self::Merch => write!(f, "merch"),
+        }
+    }
+}
+
+impl TryFrom<&str> for AmbassadorFulfillmentKind {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "business_cards" => Ok(Self::BusinessCards),
+            "merch" => Ok(Self::Merch),
+            other => Err(format!("unknown AmbassadorFulfillmentKind: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for AmbassadorFulfillmentKind {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AmbassadorFulfillmentStatus {
+    Requested,
+    Cancelled,
+    Fulfilled,
+}
+
+impl fmt::Display for AmbassadorFulfillmentStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Requested => write!(f, "requested"),
+            Self::Cancelled => write!(f, "cancelled"),
+            Self::Fulfilled => write!(f, "fulfilled"),
+        }
+    }
+}
+
+impl TryFrom<&str> for AmbassadorFulfillmentStatus {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "requested" => Ok(Self::Requested),
+            "cancelled" => Ok(Self::Cancelled),
+            "fulfilled" => Ok(Self::Fulfilled),
+            other => Err(format!("unknown AmbassadorFulfillmentStatus: {other}")),
+        }
+    }
+}
+
+impl TryFrom<String> for AmbassadorFulfillmentStatus {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
 // ── EnrollmentStatus ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

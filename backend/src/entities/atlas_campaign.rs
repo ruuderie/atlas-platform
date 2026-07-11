@@ -18,6 +18,8 @@ pub struct Model {
 
     // ── Identity ──────────────────────────────────────────────────────────────
     pub name: String,
+    /// Unique human-readable system id: `{app_id}_{slug(name)}` (snake_case).
+    pub global_name: String,
     /// VARCHAR — validated as `CampaignType` enum at the service layer.
     pub campaign_type: String,
     /// VARCHAR — validated as `CampaignStatus` enum at the service layer.

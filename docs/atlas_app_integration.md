@@ -1,6 +1,8 @@
 # Atlas App Integration Protocol
 
-> **Strongly Recommended First Read**: [`docs/CURRENT_STATE.md`](CURRENT_STATE.md) for the current state of the 18 Platform Generics, the unified Account/Contact model, and the mandatory "Generic Fitness Test" before introducing new tables.
+> **Strongly Recommended First Read**: [`docs/CURRENT_STATE.md`](CURRENT_STATE.md) for the living registry of platform generics, the unified Account/Contact model, and ops ground truth.
+>
+> **Before any net-new table:** run **Rule 7 — Generic Fitness Test** in [`docs/architecture/generic_fitness_test.md`](architecture/generic_fitness_test.md) (diagram: [`architecture/diagrams/generic_fitness_test_flow.mmd`](architecture/diagrams/generic_fitness_test_flow.mmd)).
 
 This document contains the technical integration rules. The strategic "why" and current reality are in `CURRENT_STATE.md`.
 
@@ -234,8 +236,10 @@ Failure to forward `Host` causes the backend router to fail tenant resolution �
 
 ### 7. Generic Subsystems — Check Before Creating Net-New Tables
 
+**Mandatory:** complete **Rule 7** in [`docs/architecture/generic_fitness_test.md`](architecture/generic_fitness_test.md) and record the Q1–Q4 writeup before adding migrations.
+
 Eight structural patterns appear in 3+ roadmap apps and are implemented **once** in the
-base platform. Before writing a new app-specific migration, check this table:
+base platform. After Rule 7, use the living registry in [`CURRENT_STATE.md`](CURRENT_STATE.md) and this starter table:
 
 | Need | Platform Generic | Table(s) |
 |------|-----------------|----------|
@@ -248,8 +252,9 @@ base platform. Before writing a new app-specific migration, check this table:
 | Real-time WebSocket room scoped to an entity | `atlas_realtime` | `atlas_ws_rooms`, `atlas_ws_messages` |
 | Call an LLM or AI model asynchronously | `atlas_ai_tasks` | `atlas_ai_tasks` |
 
-> **Full DDL, Rust trait signatures, and build priority order:**
-> [`docs/architecture/platform_generics.md`](architecture/platform_generics.md)
+> **Rule 7 (living):** [`docs/architecture/generic_fitness_test.md`](architecture/generic_fitness_test.md)  
+> **Registry:** [`docs/CURRENT_STATE.md`](CURRENT_STATE.md)  
+> **Historical original-8 DDL notes:** [`docs/architecture/platform_generics.md`](architecture/platform_generics.md)
 
 ---
 

@@ -379,6 +379,7 @@ fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
         .unwrap_or(0);
 
     let utm_campaign = campaign.utm_campaign.clone().unwrap_or_default();
+    let global_name = campaign.global_name.clone();
 
     view! {
         <a href=format!("/campaigns/{}", id)
@@ -398,11 +399,18 @@ fn CampaignCard(campaign: CampaignModel) -> impl IntoView {
                 </svg>
             </div>
 
-            // Campaign name + UTM
+            // Campaign name + global_name + UTM
             <div class="px-5 pt-4 pb-3">
                 <h3 class="text-sm font-bold text-on-surface leading-tight group-hover:text-primary transition-colors">
                     {campaign.name}
                 </h3>
+                {if !global_name.is_empty() {
+                    view! {
+                        <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{global_name}</p>
+                    }.into_any()
+                } else {
+                    view! { <span></span> }.into_any()
+                }}
                 {if utm_campaign.is_empty() {
                     view! { <p class="text-[10px] mt-0.5 font-mono italic" style="color:var(--amber)">"No UTM slug — not linked to landing page"</p> }.into_any()
                 } else {
@@ -496,6 +504,7 @@ pub fn CampaignDetail() -> impl IntoView {
                     let type_class = type_color_class(&campaign.campaign_type).to_string();
                     let status_class = status_dot(&campaign.status).to_string();
                     let campaign_name = campaign.name.clone();
+                    let global_name = campaign.global_name.clone();
                     let utm_source = campaign.utm_source.clone().unwrap_or_default();
                     let utm_medium = campaign.utm_medium.clone().unwrap_or_default();
                     let utm_query = if utm_cmp.is_empty() {
@@ -508,6 +517,7 @@ pub fn CampaignDetail() -> impl IntoView {
                     };
                     let utm_for_referrers = utm_cmp.clone();
                     let utm_for_landing_pages = utm_cmp;
+                    let global_name_display = global_name.clone();
 
                     view! {
                         <div class="space-y-6">
@@ -530,6 +540,7 @@ pub fn CampaignDetail() -> impl IntoView {
                                             </span>
                                         </div>
                                         <h1 class="text-xl font-extrabold text-on-surface tracking-tight">{campaign_name.clone()}</h1>
+                                        <p class="text-xs text-on-surface-variant mt-0.5 font-mono select-all">{global_name_display}</p>
                                         {match utm_query {
                                             None => view! { <p class="text-xs text-on-surface-variant mt-0.5 font-mono italic">"utm_campaign not set"</p> }.into_any(),
                                             Some(q) => view! {
@@ -574,7 +585,7 @@ pub fn CampaignDetail() -> impl IntoView {
 
                             // ── Tabs ─────────────────────────────────────────
                             <div class="tab-bar">
-                                {[("overview", "Overview"), ("referrers", "Referrers"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
+                                {[("overview", "Overview"), ("referrers", "Referrers"), ("ambassadors", "Ambassadors"), ("members", "Members"), ("landing-pages", "Landing Pages"), ("programs", "Programs"), ("sequence", "Sequence")].iter().map(|(slug, label)| {
                                     let slug = slug.to_string();
                                     let label = label.to_string();
                                     let slug2 = slug.clone();
@@ -599,6 +610,19 @@ pub fn CampaignDetail() -> impl IntoView {
                             // ── Tab: Referrers ───────────────────────────────
                             <Show when=move || active_tab.get() == "referrers">
                                 <ReferrersTab campaign_id=id utm_campaign=utm_for_referrers.clone() />
+                            </Show>
+
+                            // ── Tab: Ambassadors ─────────────────────────────
+                            <Show when=move || active_tab.get() == "ambassadors">
+                                <div class="bg-surface-container-low border border-outline-variant/20 rounded-xl p-6 space-y-3">
+                                    <h3 class="text-sm font-bold text-on-surface">"Growth ambassadors"</h3>
+                                    <p class="text-xs text-on-surface-variant max-w-lg">
+                                        "Mint partner codes and dual QR card packs (landlord + vendor) on the Ambassadors page. Attachments default to both Friends & Family campaigns."
+                                    </p>
+                                    <a href="/ambassadors" class="btn btn-primary btn-sm inline-flex" style="text-decoration:none">
+                                        "Open Ambassadors"
+                                    </a>
+                                </div>
                             </Show>
 
                             // ── Tab: Members ─────────────────────────────────

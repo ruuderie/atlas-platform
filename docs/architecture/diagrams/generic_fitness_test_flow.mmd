@@ -4,23 +4,25 @@ flowchart TD
     end
 
     subgraph FitnessTest ["Rule 7 — Generic Fitness Test (MANDATORY)"]
-        Q1{"Which of the 18 generics\ncomes closest?"}
+        Q1{"Which existing generic\ncomes closest?\n(see CURRENT_STATE registry)"}
         Q2{"What specific field\nor behavior is missing?"}
         Q3{"Can it be modeled via\n*_type + *_metadata JSONB\n+ app-level service typing?"}
-        Q4{"What is the cross-app benefit\nthat justifies a new generic?"}
+        Q4{"Cross-app benefit that\njustifies a NEW G-number?\nOr still that generic's family?"}
     end
 
     subgraph Decision ["Decision Gate"]
         UseGeneric["USE EXISTING GENERIC\nInstantiate via service layer\n(e.g. AtlasCase.case_type = 'maintenance')"]
         ExtendGeneric["EXTEND JSONB ATTRIBUTES\nAdd app-specific keys to\n*_metadata JSONB column"]
+        ExtendCompanion["EXTEND COMPANION TABLES\nSame G-number family\n(e.g. campaign enrollments)\nNOT a new G-id"]
         NewGeneric["PROMOTE TO NEW GENERIC\nRequires arch review +\nCoreApp::migrations() registration"]
         AppTable["APP-SPECIFIC TABLE\nLast resort — must justify\nin atlas_app_integration.md"]
     end
 
     subgraph Implementation ["Implementation Path"]
         CoreSvc["Use Platform Generic Service\n(AccountService, CaseService, etc.)"]
+        CompanionMig["CorePlatform migration\nunder existing G-XX family"]
         AppMigration["Write app-specific migration\nregistered in AtlasApp::migrations()"]
-        NewGenericMigration["Create new m20260601_gXX_*.rs\nAdd XxxService to services/mod.rs\nRegister in CorePlatformApp::migrations()"]
+        NewGenericMigration["Create new m*_gXX_*.rs\nAdd XxxService to services/\nRegister in CorePlatformApp::migrations()"]
     end
 
     New --> Q1
@@ -29,10 +31,12 @@ flowchart TD
     Q3 -->|Yes| UseGeneric
     Q3 -->|No - field gap| ExtendGeneric
     Q3 -->|No - structural gap| Q4
+    Q4 -->|Belongs to existing G family| ExtendCompanion
     Q4 -->|Cross-app benefit clear| NewGeneric
     Q4 -->|App-specific only| AppTable
 
     UseGeneric --> CoreSvc
     ExtendGeneric --> CoreSvc
+    ExtendCompanion --> CompanionMig
     NewGeneric --> NewGenericMigration
     AppTable --> AppMigration

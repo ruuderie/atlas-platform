@@ -31,6 +31,7 @@ pub struct CampaignDto {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub name: String,
+    pub global_name: String,
     pub campaign_type: String,
     pub status: String,
     pub goal_type: Option<String>,
@@ -56,6 +57,7 @@ impl From<atlas_campaign::Model> for CampaignDto {
             id: m.id,
             tenant_id: m.tenant_id,
             name: m.name,
+            global_name: m.global_name,
             campaign_type: m.campaign_type,
             status: m.status,
             goal_type: m.goal_type,
@@ -114,6 +116,9 @@ pub struct CreateCampaignPayload {
     pub name: String,
     pub campaign_type: String,
     pub tenant_id: Uuid,
+    /// App slug for `global_name` (defaults to `"folio"`).
+    #[serde(default)]
+    pub app_id: Option<String>,
     pub goal_type: Option<String>,
     pub budget_cents: Option<i64>,
     pub utm_source: Option<String>,
@@ -182,11 +187,29 @@ pub async fn create_campaign(
         .as_deref()
         .and_then(|s| s.parse::<chrono::DateTime<Utc>>().ok());
 
+    let app_id = payload.app_id.as_deref().unwrap_or("folio");
+    let global_name = crate::types::pm::campaign_global_name(app_id, &payload.name);
+
+    // Reject duplicate global_name
+    if atlas_campaign::Entity::find()
+        .filter(atlas_campaign::Column::GlobalName.eq(&global_name))
+        .one(&db)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .is_some()
+    {
+        return Err((
+            axum::http::StatusCode::CONFLICT,
+            format!("global_name '{global_name}' already exists"),
+        ));
+    }
+
     let active = atlas_campaign::ActiveModel {
         id: Set(id),
         tenant_id: Set(payload.tenant_id),
         parent_campaign_id: NotSet,
         name: Set(payload.name),
+        global_name: Set(global_name),
         campaign_type: Set(payload.campaign_type),
         status: Set("draft".to_string()),
         audience_segment_id: NotSet,

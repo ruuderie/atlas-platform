@@ -477,6 +477,14 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v5c0 2.5-2.5 4.5-6 5-3.5-.5-6-2.5-6-5V5z"/><path d="M8 8l2 1.5-2 1"/></svg>
                         "Campaigns"
                     </a>
+                    // Ambassadors = G-37 growth partners / dual QR card packs
+                    <a href="/ambassadors" data-label="Ambassadors" class=move || {
+                        let p = current_path.get();
+                        if p.starts_with("/ambassadors") { "nav-item active" } else { "nav-item" }
+                    }>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="2.5"/><path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4"/><path d="M12 4.5l1.5 1.5M13.5 4.5L12 6"/></svg>
+                        "Ambassadors"
+                    </a>
                     // Programs = G-36 growth/incentive templates administered for downstream apps.
                     <a href="/programs" data-label="Programs" class=move || {
                         let p = current_path.get();
@@ -609,6 +617,7 @@ pub fn AuthenticatedLayout() -> impl IntoView {
                         <Route path=path!("/products/:id") view=ProductDetail />
                         <Route path=path!("/campaigns") view=crate::pages::marketing::campaigns::CampaignsPage />
                         <Route path=path!("/campaigns/:id") view=crate::pages::marketing::campaigns::CampaignDetail />
+                        <Route path=path!("/ambassadors") view=crate::pages::marketing::ambassadors::AmbassadorsPage />
                         <Route path=path!("/programs") view=crate::pages::programs::index::ProgramsPage />
                         <Route path=path!("/programs/:id") view=crate::pages::programs::detail::ProgramDetail />
                         <Route path=path!("/landing-pages") view=crate::pages::marketing::landing_pages::LandingPagesPage />

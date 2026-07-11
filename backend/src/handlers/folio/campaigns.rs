@@ -225,6 +225,7 @@ async fn create_campaign(
     let payload = CreateCampaignPayload {
         parent_campaign_id: req.parent_campaign_id,
         name: req.name,
+        app_id: None,
         campaign_type,
         goal_type,
         goal_entity_type: req.goal_entity_type,

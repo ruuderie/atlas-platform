@@ -1,11 +1,13 @@
 # Atlas Platform — Generic Subsystems (Original 8 — Historical Reference)
 
-> **Important**: This document covers the original 8 infrastructure generics. The complete current architecture (all 18 generics + Account/Contact unification + service layer) is documented in:
-> - [`platform_generics_v2.md`](./platform_generics_v2.md)
-> - [`../CURRENT_STATE.md`](../CURRENT_STATE.md)
+> **Important**: This document covers the original 8 infrastructure generics. The complete current architecture (all generics + Account/Contact unification + service layer) is documented in:
+> - [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — living registry
+> - [`platform_generics_v2.md`](./platform_generics_v2.md) / [`platform_generics_v3.md`](./platform_generics_v3.md) — historical/implemented specs
+>
+> **Rule 7 — Generic Fitness Test (living):** [`generic_fitness_test.md`](./generic_fitness_test.md)
 
 > See also:
-> - [`docs/atlas_app_integration.md`](../atlas_app_integration.md) — AtlasApp trait and Rule 7 (check generics first)
+> - [`docs/atlas_app_integration.md`](../atlas_app_integration.md) — AtlasApp trait (must run Rule 7 before new tables)
 > - [`docs/architecture.md`](../architecture.md) — Full ERD including these tables
 > - [`docs/architecture/auth_and_permissions.md`](./auth_and_permissions.md) — Permission model
 
@@ -19,7 +21,7 @@ These subsystems are promoted to the **Atlas base platform** — they are regist
 `CorePlatformApp::migrations()` and exposed as shared Rust services in
 `backend/src/services/`.
 
-**Rule:** Before writing a net-new app migration, check this table:
+**Rule:** Before writing a net-new app migration, complete Rule 7 in [`generic_fitness_test.md`](./generic_fitness_test.md), then check this table:
 
 | Need | Use |
 |------|-----|

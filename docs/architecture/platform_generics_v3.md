@@ -8,11 +8,15 @@
 >
 > **See also:** `../CURRENT_STATE.md` for the absolute latest high-level summary.
 >
+> **Living Rule 7 text:** [`generic_fitness_test.md`](./generic_fitness_test.md) — use that doc (not §1 alone) before any net-new table or new G-number.
+>
 > **NOTE (Rev 5):** G-32 and G-33 as originally designed in this spec referred to `atlas_memberships` and `atlas_entitlements` (Agency Provisioning vertical). The **actual implemented** G-32 is `atlas_rbac` (platform-generic Role Based Access Control) and the **actual implemented** G-33 is `atlas_app_deployment_config` (multi-tenant deployment topology). The original G-32/G-33 design content is preserved below for reference but marked as pending. See CURRENT_STATE.md for ground truth.
 
 ---
 
 ## 1. Philosophy & Rule 7
+
+> **Canonical living document:** [`generic_fitness_test.md`](./generic_fitness_test.md). The questions below are preserved for history; prefer the living doc for gates (including **EXTEND COMPANION** under an existing G-id).
 
 **Core Principle:** Before any AtlasApp writes a net-new table, it must prove that none of the platform generics can satisfy the need.
 

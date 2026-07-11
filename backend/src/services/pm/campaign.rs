@@ -53,8 +53,8 @@ use crate::{
         atlas_campaign, atlas_campaign_enrollment, atlas_campaign_event, atlas_sequence_step,
     },
     types::pm::{
-        CampaignChannel, CampaignEventType, CampaignGoalType, CampaignStatus, CampaignType,
-        EnrollmentStatus, SequenceStepType,
+        campaign_global_name, CampaignChannel, CampaignEventType, CampaignGoalType, CampaignStatus,
+        CampaignType, EnrollmentStatus, SequenceStepType,
     },
 };
 
@@ -67,6 +67,9 @@ pub struct CreateCampaignPayload {
     /// child (tactic) under a program or parent campaign.
     pub parent_campaign_id: Option<Uuid>,
     pub name: String,
+    /// App slug for `global_name` (defaults to `"folio"`).
+    #[serde(default)]
+    pub app_id: Option<String>,
     pub campaign_type: CampaignType,
     pub goal_type: Option<CampaignGoalType>,
     /// Entity type that a conversion creates (e.g. "atlas_applications").
@@ -167,12 +170,15 @@ impl CampaignService {
     ) -> Result<atlas_campaign::Model> {
         let id = Uuid::new_v4();
         let now = Utc::now();
+        let app_id = payload.app_id.as_deref().unwrap_or("folio");
+        let global_name = campaign_global_name(app_id, &payload.name);
 
         let active = atlas_campaign::ActiveModel {
             id: Set(id),
             tenant_id: Set(tenant_id),
             parent_campaign_id: Set(payload.parent_campaign_id),
             name: Set(payload.name),
+            global_name: Set(global_name),
             campaign_type: Set(payload.campaign_type.to_string()),
             status: Set(CampaignStatus::Draft.to_string()),
             audience_segment_id: Set(None),

@@ -953,6 +953,7 @@ pub struct CampaignModel {
     pub id: uuid::Uuid,
     pub tenant_id: uuid::Uuid,
     pub name: String,
+    pub global_name: String,
     pub campaign_type: String,
     pub status: String,
     pub goal_type: Option<String>,
@@ -1135,6 +1136,136 @@ pub fn campaign_export_url(campaign_id: uuid::Uuid) -> String {
         "api/admin/campaigns/{}/enrollments/export.csv",
         campaign_id
     ))
+}
+
+// ── Ambassadors API (G-37) ───────────────────────────────────────────────────
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Default)]
+#[serde(default)]
+pub struct AmbassadorModel {
+    pub id: uuid::Uuid,
+    pub tenant_id: uuid::Uuid,
+    pub code: String,
+    pub display_name: String,
+    pub partner_type: String,
+    pub status: String,
+    pub notes: Option<String>,
+    pub campaign_ids: Vec<uuid::Uuid>,
+    pub fulfillment_requests: serde_json::Value,
+    pub landlord_url: String,
+    pub vendor_url: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CreateAmbassadorInput {
+    pub code: String,
+    pub display_name: String,
+    pub partner_type: String,
+    pub notes: Option<String>,
+    pub campaign_ids: Vec<uuid::Uuid>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CreateFulfillmentInput {
+    pub kind: String,
+    pub landlord_qty: i32,
+    pub vendor_qty: i32,
+}
+
+/// GET /api/admin/ambassadors
+pub async fn list_ambassadors() -> Result<Vec<AmbassadorModel>, String> {
+    let client = create_client();
+    let url = api_url("api/admin/ambassadors");
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<Vec<AmbassadorModel>>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+/// POST /api/admin/ambassadors
+pub async fn create_ambassador(input: CreateAmbassadorInput) -> Result<AmbassadorModel, String> {
+    let client = create_client();
+    let url = api_url("api/admin/ambassadors");
+    let req = with_credentials(client.post(&url)).json(&input);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<AmbassadorModel>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+/// POST /api/admin/ambassadors/:id/fulfillments
+pub async fn create_ambassador_fulfillment(
+    id: uuid::Uuid,
+    input: CreateFulfillmentInput,
+) -> Result<AmbassadorModel, String> {
+    let client = create_client();
+    let url = api_url(&format!("api/admin/ambassadors/{}/fulfillments", id));
+    let req = with_credentials(client.post(&url)).json(&input);
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if res.status().is_success() {
+        res.json::<AmbassadorModel>()
+            .await
+            .map_err(|e| e.to_string())
+    } else {
+        Err(res.text().await.unwrap_or_default())
+    }
+}
+
+/// Download QR PNG for an ambassador by audience (`landlord` | `vendor`).
+pub async fn download_ambassador_qr(id: uuid::Uuid, audience: &str) -> Result<(), String> {
+    let client = create_client();
+    let url = api_url(&format!(
+        "api/admin/ambassadors/{}/qr?audience={}",
+        id, audience
+    ));
+    let req = with_credentials(client.get(&url));
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        return Err(res.text().await.unwrap_or_default());
+    }
+    let bytes = res.bytes().await.map_err(|e| e.to_string())?;
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::JsCast;
+        let uint8 = js_sys::Uint8Array::new_with_length(bytes.len() as u32);
+        uint8.copy_from(&bytes);
+        let parts = js_sys::Array::new();
+        parts.push(&uint8);
+        let mut opts = web_sys::BlobPropertyBag::new();
+        opts.type_("image/png");
+        let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &opts)
+            .map_err(|_| "blob create failed".to_string())?;
+        let object_url = web_sys::Url::create_object_url_with_blob(&blob)
+            .map_err(|_| "object url failed".to_string())?;
+        let document = web_sys::window()
+            .and_then(|w| w.document())
+            .ok_or_else(|| "no document".to_string())?;
+        let anchor = document
+            .create_element("a")
+            .map_err(|_| "create a failed".to_string())?
+            .dyn_into::<web_sys::HtmlAnchorElement>()
+            .map_err(|_| "cast a failed".to_string())?;
+        anchor.set_href(&object_url);
+        anchor.set_download(&format!("ambassador-qr-{audience}.png"));
+        anchor.click();
+        let _ = web_sys::Url::revoke_object_url(&object_url);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = (bytes, audience);
+    }
+    Ok(())
 }
 
 // ============================================================

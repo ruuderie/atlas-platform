@@ -128,6 +128,8 @@ pub mod atlas_tax_filing; // GENERIC-23: Time-bounded reservation with inventory
 
 // GENERIC-26: Product catalog, pricebook & availability grid
 pub mod atlas_attribution_touchpoint; // G20 — marketing touchpoint + identity resolution
+pub mod atlas_ambassador; // G37 — growth ambassadors / influencers / affiliates
+pub mod atlas_ambassador_campaign; // G37 — ambassador ↔ campaign attach
 pub mod atlas_campaign; // G19 — campaign definition
 pub mod atlas_campaign_enrollment; // G19 — contact enrollment + progress
 pub mod atlas_campaign_event; // G19 — interaction event (open/click/convert)
