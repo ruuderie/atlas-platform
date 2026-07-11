@@ -14,13 +14,43 @@ pub fn OwnerDashboard() -> impl IntoView {
 
     view! {
         <div class="page-header">
-            <h1 class="page-title">{move || format!("Owner Portal — {}", name())}</h1>
+            <h1 class="page-title">{move || format!("Owner Portal - {}", name())}</h1>
             <p class="page-subtitle">
                 "Read-only view of your property portfolio. Contact your property manager to make changes."
             </p>
         </div>
         <div class="stat-grid">
-            <StatCard label="Properties" value="—" icon="🏠" href="/o/properties"/>
+            <StatCard label="Properties" value="-" icon="🏠" href="/o/properties"/>
+        </div>
+        <div style="margin-top:20px;">
+            <h2 style="font-size:18px;font-weight:700;margin:0 0 6px;">"Invite an owner"</h2>
+            <p style="font-size:14px;color:#64748b;margin:0 0 14px;line-height:1.5;max-width:560px;">
+                "Share this portal with fellow investors, or introduce Folio to a self-managed landlord in your circle."
+            </p>
+            {
+                use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+                view! {
+                    <NetworkInvitePanel
+                        actor_role="owner"
+                        preferred_slug="owner_invite_peers"
+                        angles=vec![
+                            AngleCard {
+                                icon: "star",
+                                title: "Other managed owners",
+                                body: "Fellow investors get the same visibility into statements and approvals.",
+                            },
+                            AngleCard {
+                                icon: "apartment",
+                                title: "Self-managed landlords",
+                                body: "Share Folio with landlords who still track rent in spreadsheets.",
+                            },
+                        ]
+                        allow_multi=false
+                        send_label="Send invite".to_string()
+                        show_history=true
+                    />
+                }
+            }
         </div>
     }
 }

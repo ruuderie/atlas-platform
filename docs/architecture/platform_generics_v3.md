@@ -98,6 +98,15 @@ Only after passing the Fitness Test may a new migration be added to an `AtlasApp
 | 33 | `atlas_app_deployment_config` | Multi-tenant deployment topology + operational instance config | `atlas_app_deployment_config` (`folio_mode`: standard\|pmc\|brokerage; `deployment_mode`: standard\|internal_operator) | Deployed with API | Partial UI |
 | 34 | `atlas_vendor_marketplace` | Opt-in cross-tenant vendor/service provider discovery | `atlas_service_providers` extension (`is_marketplace_visible`, `marketplace_bio`, `marketplace_trade_types`, `marketplace_location` PostGIS point) | Deployed | No UI |
 
+### Round 4 — Growth Programs (G35–G36) ✅
+
+| ID | Name | Core Need | Key Tables | Backend Status | Frontend Status |
+|----|------|-----------|------------|----------------|-----------------|
+| 35 | `atlas_notifications` | Multi-channel in-app notification inbox + prefs | `atlas_notifications`, `atlas_user_notification_preferences` | Deployed with API | Partial UI |
+| 36 | `atlas_programs` | Productized growth/incentive programs (invite is one kind) with actions, outcomes, reward grants | `atlas_programs`, `atlas_program_actions`, `atlas_program_outcomes`, `atlas_program_reward_rules`, `atlas_program_reward_grants` | Deployed with API | Partial UI |
+
+See [`g36_atlas_programs_spec.md`](./g36_atlas_programs_spec.md) for Rule 7 writeup, DDL, and seed programs.
+
 ---
 
 ## 3. Implemented Generic Detail — G-32: `atlas_rbac`

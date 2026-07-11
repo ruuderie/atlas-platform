@@ -1,16 +1,18 @@
 // apps/folio/src/pages/onboarding/landlord_wizard.rs
 //
-// LandlordWizard — /onboarding (replaces the original OnboardingWizard)
+// LandlordWizard — /onboard/landlord
 //
 // 5 steps mirroring wiz_landlord_onboard/code.html:
-//   1. Profile
-//   2. Jurisdiction & License
+//   1. Your Profile
+//   2. Portfolio Setup
 //   3. First Property
-//   4. Payment Rails
-//   5. Go Live
+//   4. Workspace Settings
+//   5. Ready to Launch
 //
 // Invite code support: if ?code= is in the URL query string, the wizard
 // pre-populates the context panel with the resolved landlord / entity info.
+//
+// Email OTP is handled by WizardShell as a pre-auth gate (not a wizard step).
 
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -92,22 +94,29 @@ pub async fn save_landlord_property(
     ).await.map(|_| ()).map_err(server_fn::error::ServerFnError::new)
 }
 
-// ── Steps ─────────────────────────────────────────────────────────────────────
+fn country_to_jurisdiction(country: &str) -> String {
+    match country {
+        "CA" => "CA-ON".to_string(),
+        "BR" => "BR-SP".to_string(),
+        "GB" => "GB-ENG".to_string(),
+        _ => "US-FL".to_string(),
+    }
+}
+
+// ── Steps (labels match wiz_landlord_onboard) ─────────────────────────────────
 
 const STEPS: &[WizardStepDesc] = &[
-    WizardStepDesc { id: "profile",      label: "Your Profile",    skippable: false },
-    WizardStepDesc { id: "jurisdiction", label: "Jurisdiction",     skippable: false },
-    WizardStepDesc { id: "property",     label: "First Property",   skippable: false },
-    WizardStepDesc { id: "payments",     label: "Payment Rails",    skippable: true  },
-    WizardStepDesc { id: "go_live",      label: "Go Live",          skippable: false },
+    WizardStepDesc { id: "profile",   label: "Your Profile",       skippable: false },
+    WizardStepDesc { id: "portfolio", label: "Portfolio Setup",    skippable: false },
+    WizardStepDesc { id: "property",  label: "First Property",     skippable: false },
+    WizardStepDesc { id: "workspace", label: "Workspace Settings", skippable: true  },
+    WizardStepDesc { id: "launch",    label: "Ready to Launch",    skippable: false },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 #[component]
 pub fn LandlordWizard() -> impl IntoView {
-    // ── Invite code resolution ─────────────────────────────────────────────
-    // Read ?code= from query string
     let query    = leptos_router::hooks::use_query_map();
     let code_key = move || query.with(|q| q.get("code").map(|s| s.to_string()).unwrap_or_default());
 
@@ -120,7 +129,6 @@ pub fn LandlordWizard() -> impl IntoView {
         }
     });
 
-    // ── Navigation ─────────────────────────────────────────────────────────
     let current_idx = RwSignal::new(0usize);
     let total       = STEPS.len();
 
@@ -129,58 +137,97 @@ pub fn LandlordWizard() -> impl IntoView {
         if is_last.get() { "Launch Folio" } else { "Continue" }
     });
 
-    // ── Form signals ───────────────────────────────────────────────────────
+    // Profile
     let first_name     = RwSignal::new(String::new());
     let last_name      = RwSignal::new(String::new());
+    let display_name   = RwSignal::new(String::new());
     let phone          = RwSignal::new(String::new());
-    let jurisdiction   = RwSignal::new("US-FL".to_string());
-    let license_number = RwSignal::new(String::new());
+    let account_type   = RwSignal::new("individual".to_string()); // individual | company
 
+    // Portfolio
+    let business_name  = RwSignal::new(String::new());
+    let country        = RwSignal::new("US".to_string());
+    let currency       = RwSignal::new("USD".to_string());
+    let portfolio_size = RwSignal::new("1-5".to_string());
+    let type_ltr       = RwSignal::new(true);
+    let type_str       = RwSignal::new(false);
+    let type_commercial = RwSignal::new(false);
+
+    // Property
     let prop_name      = RwSignal::new(String::new());
     let prop_address   = RwSignal::new(String::new());
     let prop_city      = RwSignal::new(String::new());
     let prop_state     = RwSignal::new("FL".to_string());
-    let prop_type      = RwSignal::new("single_family".to_string());
+    let prop_postal    = RwSignal::new(String::new());
+    let prop_type      = RwSignal::new("apartment".to_string());
     let unit_count     = RwSignal::new("1".to_string());
+    let beds           = RwSignal::new("2".to_string());
+    let monthly_rent   = RwSignal::new(String::new());
     let str_eligible   = RwSignal::new(false);
 
-    let saving:     RwSignal<bool>          = RwSignal::new(false);
+    // Workspace
+    let notify_maint   = RwSignal::new(true);
+    let notify_rent    = RwSignal::new(true);
+    let notify_lease   = RwSignal::new(true);
+    let notify_str     = RwSignal::new(false);
+    let enable_str     = RwSignal::new(false);
+    let list_network   = RwSignal::new(false);
+
+    let saving:     RwSignal<bool>           = RwSignal::new(false);
     let save_error: RwSignal<Option<String>> = RwSignal::new(None);
 
-    // ── Draft fetch ────────────────────────────────────────────────────────
     let draft = Resource::new(|| (), |_| get_landlord_draft());
     Effect::new(move |_| {
         if let Some(Ok(d)) = draft.get() {
-            if let Some(v) = d.first_name        { first_name.set(v); }
-            if let Some(v) = d.last_name         { last_name.set(v);  }
-            if let Some(v) = d.jurisdiction_code { jurisdiction.set(v); }
+            if let Some(v) = d.first_name { first_name.set(v.clone()); display_name.update(|dn| if dn.is_empty() { *dn = v; }); }
+            if let Some(v) = d.last_name  { last_name.set(v); }
+            if let Some(v) = d.phone      { phone.set(v); }
         }
     });
 
-    // ── Navigation callbacks ───────────────────────────────────────────────
     let on_next = Callback::new(move |_| {
         let idx = current_idx.get();
-        if idx == 0 || idx == 1 {
-            // Save profile + jurisdiction together on step 1 advance
-            if idx == 0 {
-                let f  = first_name.get(); let l  = last_name.get();
-                let ph = phone.get();       let j  = jurisdiction.get();
-                let li = license_number.get();
-                saving.set(true); save_error.set(None);
-                leptos::task::spawn_local(async move {
-                    match save_landlord_profile(f, l, ph, j, li).await {
-                        Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
-                        Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
-                    }
-                });
-                return;
-            }
+        if idx == 0 {
+            let f  = first_name.get();
+            let l  = last_name.get();
+            let ph = phone.get();
+            let j  = country_to_jurisdiction(&country.get());
+            saving.set(true); save_error.set(None);
+            leptos::task::spawn_local(async move {
+                match save_landlord_profile(f, l, ph, j, String::new()).await {
+                    Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
+                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                }
+            });
+            return;
+        }
+        if idx == 1 {
+            // Portfolio is local + jurisdiction refresh from country
+            let f  = first_name.get();
+            let l  = last_name.get();
+            let ph = phone.get();
+            let j  = country_to_jurisdiction(&country.get());
+            saving.set(true); save_error.set(None);
+            leptos::task::spawn_local(async move {
+                match save_landlord_profile(f, l, ph, j, String::new()).await {
+                    Ok(_)  => { saving.set(false); current_idx.set(idx + 1); }
+                    Err(e) => { saving.set(false); save_error.set(Some(e.to_string())); }
+                }
+            });
+            return;
         }
         if idx == 2 {
-            let n  = prop_name.get();    let a  = prop_address.get();
-            let c  = prop_city.get();    let s  = prop_state.get();
-            let t  = prop_type.get();    let u  = unit_count.get();
-            let st = str_eligible.get();
+            let n  = if prop_name.get().trim().is_empty() {
+                format!("{} property", prop_city.get())
+            } else {
+                prop_name.get()
+            };
+            let a  = prop_address.get();
+            let c  = prop_city.get();
+            let s  = prop_state.get();
+            let t  = prop_type.get();
+            let u  = unit_count.get();
+            let st = str_eligible.get() || type_str.get() || enable_str.get();
             saving.set(true); save_error.set(None);
             leptos::task::spawn_local(async move {
                 match save_landlord_property(n, a, c, s, t, u, st).await {
@@ -191,7 +238,6 @@ pub fn LandlordWizard() -> impl IntoView {
             return;
         }
         if idx + 1 >= total {
-            // Final step — redirect to dashboard
             let navigate = leptos_router::hooks::use_navigate();
             navigate("/l", Default::default());
         } else {
@@ -204,18 +250,14 @@ pub fn LandlordWizard() -> impl IntoView {
         if idx > 0 { current_idx.set(idx - 1); }
     });
 
-    // ── Context panel body (generic copy when no invite code) ──────────────
     let ctx_body = ViewFn::from(|| view! {
         <p class="wiz-ctx-p">
-            "Set up your Folio landlord workspace. You'll be able to manage properties, "
-            "leases, maintenance, and tenant communications from a single dashboard."
+            "Your profile is how tenants, vendors, and your team will recognise you across the platform."
         </p>
         <ul class="wiz-ctx-list">
-            <li><span class="ms msf">"check_circle"</span>"Full portfolio management"</li>
-            <li><span class="ms msf">"check_circle"</span>"Lease management &amp; e-sign"</li>
-            <li><span class="ms msf">"check_circle"</span>"Tenant onboarding &amp; screening"</li>
-            <li><span class="ms msf">"check_circle"</span>"Maintenance tracking"</li>
-            <li><span class="ms msf">"check_circle"</span>"Payments &amp; ledger"</li>
+            <li><span class="ms msf">"check_circle"</span>"Shown on lease documents and communications"</li>
+            <li><span class="ms msf">"check_circle"</span>"Displayed to tenants in their portal"</li>
+            <li><span class="ms msf">"check_circle"</span>"Used for legal signature attribution"</li>
         </ul>
     });
 
@@ -225,9 +267,9 @@ pub fn LandlordWizard() -> impl IntoView {
             current_idx=current_idx
             persona_pill="Landlord"
             persona_icon="apartment"
-            accent_color="#0284c7"
-            panel_bg="#0e1c36"
-            ctx_headline="Set up your landlord workspace"
+            accent_color="#6366f1"
+            panel_bg="#0f1117"
+            ctx_headline="Let's get to know you"
             ctx_body=ctx_body
             invite_code=invite_sig
             on_next=on_next
@@ -235,7 +277,6 @@ pub fn LandlordWizard() -> impl IntoView {
             is_last_step=is_last
             next_label=next_label
         >
-            // Error banner
             <Show when=move || save_error.get().is_some()>
                 <div class="wiz-error-banner">
                     <span class="ms">"warning"</span>
@@ -243,70 +284,148 @@ pub fn LandlordWizard() -> impl IntoView {
                 </div>
             </Show>
 
-            // ── Step 1: Profile ─────────────────────────────────────────────
+            // ── Step 1: Your Profile ────────────────────────────────────────
             <Show when=move || current_idx.get() == 0>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(2,132,199,.08); color:#0369a1;">
+                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
                         <span class="ms" style="font-size:13px;">"person"</span>
                         "Step 1 of 5"
                     </div>
                     <h1 class="wiz-s-title">"Your Profile"</h1>
-                    <p class="wiz-s-sub">"Tell us about yourself. This appears on lease documents and tenant communications."</p>
+                    <p class="wiz-s-sub">"How should people see you in the platform? This appears on leases, comms, and your team's workspace."</p>
+
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Personal Info"</div>
+                        <div class="wiz-ct">"Name & Contact"</div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
                                 <label class="wiz-label">"First Name"</label>
-                                <input class="wiz-inp" type="text" placeholder="Jamie"
+                                <input class="wiz-inp" type="text" placeholder="Ruud"
                                     prop:value=move || first_name.get()
                                     on:input=move |e| first_name.set(event_target_value(&e))/>
                             </div>
                             <div class="wiz-f">
                                 <label class="wiz-label">"Last Name"</label>
-                                <input class="wiz-inp" type="text" placeholder="Rivera"
+                                <input class="wiz-inp" type="text" placeholder="Erie"
                                     prop:value=move || last_name.get()
                                     on:input=move |e| last_name.set(event_target_value(&e))/>
                             </div>
                         </div>
                         <div class="wiz-f">
+                            <label class="wiz-label">"Display Name"</label>
+                            <input class="wiz-inp" type="text" placeholder="e.g. Ruud Erie or Meridian Property Group"
+                                prop:value=move || display_name.get()
+                                on:input=move |e| display_name.set(event_target_value(&e))/>
+                        </div>
+                        <div class="wiz-f">
                             <label class="wiz-label">"Phone"</label>
-                            <input class="wiz-inp" type="tel" placeholder="+1 (305) 000-0000"
+                            <input class="wiz-inp" type="tel" placeholder="+1 (555) 000-0000"
                                 prop:value=move || phone.get()
                                 on:input=move |e| phone.set(event_target_value(&e))/>
+                        </div>
+                    </div>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"Account Type"</div>
+                        <div class="wiz-og wiz-og2">
+                            <button type="button"
+                                class=move || if account_type.get() == "individual" { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| account_type.set("individual".into())>
+                                <span class="ms msf">"person"</span>
+                                <div class="wiz-oc-label">"Individual"</div>
+                                <div class="wiz-oc-desc">"I manage properties personally"</div>
+                            </button>
+                            <button type="button"
+                                class=move || if account_type.get() == "company" { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| account_type.set("company".into())>
+                                <span class="ms msf">"apartment"</span>
+                                <div class="wiz-oc-label">"Company / LLC"</div>
+                                <div class="wiz-oc-desc">"I operate under a business entity"</div>
+                            </button>
                         </div>
                     </div>
                 </div>
             </Show>
 
-            // ── Step 2: Jurisdiction ────────────────────────────────────────
+            // ── Step 2: Portfolio Setup ─────────────────────────────────────
             <Show when=move || current_idx.get() == 1>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(2,132,199,.08); color:#0369a1;">
-                        <span class="ms" style="font-size:13px;">"gavel"</span>
+                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                        <span class="ms" style="font-size:13px;">"apartment"</span>
                         "Step 2 of 5"
                     </div>
-                    <h1 class="wiz-s-title">"Jurisdiction &amp; License"</h1>
-                    <p class="wiz-s-sub">"We use your jurisdiction to surface the right lease templates and compliance requirements."</p>
+                    <h1 class="wiz-s-title">"Your Portfolio"</h1>
+                    <p class="wiz-s-sub">"This configures which tools, currencies, and compliance rules apply to your workspace."</p>
+
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Primary Jurisdiction"</div>
+                        <div class="wiz-ct">"Business Details"</div>
                         <div class="wiz-f">
-                            <label class="wiz-label">"State / Province"</label>
-                            <select class="wiz-inp"
-                                prop:value=move || jurisdiction.get()
-                                on:change=move |e| jurisdiction.set(event_target_value(&e))>
-                                <option value="US-FL">"Florida"</option>
-                                <option value="US-NY">"New York"</option>
-                                <option value="US-CA">"California"</option>
-                                <option value="US-TX">"Texas"</option>
-                                <option value="US-GA">"Georgia"</option>
-                                <option value="US-NC">"North Carolina"</option>
-                            </select>
+                            <label class="wiz-label">"Business / Brand Name"</label>
+                            <input class="wiz-inp" type="text" placeholder="e.g. Meridian Property Group"
+                                prop:value=move || business_name.get()
+                                on:input=move |e| business_name.set(event_target_value(&e))/>
+                        </div>
+                        <div class="wiz-inp-row">
+                            <div class="wiz-f">
+                                <label class="wiz-label">"Primary Country"</label>
+                                <select class="wiz-inp"
+                                    prop:value=move || country.get()
+                                    on:change=move |e| country.set(event_target_value(&e))>
+                                    <option value="US">"United States"</option>
+                                    <option value="CA">"Canada"</option>
+                                    <option value="GB">"United Kingdom"</option>
+                                    <option value="BR">"Brazil"</option>
+                                </select>
+                            </div>
+                            <div class="wiz-f">
+                                <label class="wiz-label">"Default Currency"</label>
+                                <select class="wiz-inp"
+                                    prop:value=move || currency.get()
+                                    on:change=move |e| currency.set(event_target_value(&e))>
+                                    <option value="USD">"USD – US Dollar"</option>
+                                    <option value="CAD">"CAD – Dollar"</option>
+                                    <option value="EUR">"EUR – Euro"</option>
+                                    <option value="GBP">"GBP – Pound"</option>
+                                    <option value="BRL">"BRL – Real"</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="wiz-f">
-                            <label class="wiz-label">"Real Estate License # (optional)"</label>
-                            <input class="wiz-inp" type="text" placeholder="BK3000000"
-                                prop:value=move || license_number.get()
-                                on:input=move |e| license_number.set(event_target_value(&e))/>
+                            <label class="wiz-label">"Portfolio Size"</label>
+                            <select class="wiz-inp"
+                                prop:value=move || portfolio_size.get()
+                                on:change=move |e| portfolio_size.set(event_target_value(&e))>
+                                <option value="1-5">"1–5 units"</option>
+                                <option value="6-25">"6–25 units"</option>
+                                <option value="26-100">"26–100 units"</option>
+                                <option value="100+">"100+ units"</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"Portfolio Type"</div>
+                        <div class="wiz-og wiz-og3">
+                            <button type="button"
+                                class=move || if type_ltr.get() { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| type_ltr.update(|v| *v = !*v)>
+                                <span class="ms msf">"key"</span>
+                                <div class="wiz-oc-label">"Long-Term"</div>
+                                <div class="wiz-oc-desc">"6+ month leases"</div>
+                            </button>
+                            <button type="button"
+                                class=move || if type_str.get() { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| type_str.update(|v| *v = !*v)>
+                                <span class="ms msf">"hotel"</span>
+                                <div class="wiz-oc-label">"Short-Term"</div>
+                                <div class="wiz-oc-desc">"Nightly / weekly"</div>
+                            </button>
+                            <button type="button"
+                                class=move || if type_commercial.get() { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| type_commercial.update(|v| *v = !*v)>
+                                <span class="ms msf">"storefront"</span>
+                                <div class="wiz-oc-label">"Commercial"</div>
+                                <div class="wiz-oc-desc">"Office / retail"</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -315,75 +434,110 @@ pub fn LandlordWizard() -> impl IntoView {
             // ── Step 3: First Property ──────────────────────────────────────
             <Show when=move || current_idx.get() == 2>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(2,132,199,.08); color:#0369a1;">
-                        <span class="ms" style="font-size:13px;">"apartment"</span>
+                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                        <span class="ms" style="font-size:13px;">"home"</span>
                         "Step 3 of 5"
                     </div>
                     <h1 class="wiz-s-title">"Add Your First Property"</h1>
-                    <p class="wiz-s-sub">"You can add more properties and units after setup. Start with one to get your workspace configured."</p>
+                    <p class="wiz-s-sub">"You can add more later. Starting with one property brings your workspace to life."</p>
+
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Property Details"</div>
-                        <div class="wiz-f">
-                            <label class="wiz-label">"Property Name"</label>
-                            <input class="wiz-inp" type="text" placeholder="The Meridian at Brickell"
-                                prop:value=move || prop_name.get()
-                                on:input=move |e| prop_name.set(event_target_value(&e))/>
-                        </div>
+                        <div class="wiz-ct">"Property Address"</div>
                         <div class="wiz-f">
                             <label class="wiz-label">"Street Address"</label>
-                            <input class="wiz-inp" type="text" placeholder="123 Oak Street"
+                            <input class="wiz-inp" type="text" placeholder="123 Main Street"
                                 prop:value=move || prop_address.get()
                                 on:input=move |e| prop_address.set(event_target_value(&e))/>
                         </div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
                                 <label class="wiz-label">"City"</label>
-                                <input class="wiz-inp" type="text" placeholder="Miami"
+                                <input class="wiz-inp" type="text" placeholder="San Francisco"
                                     prop:value=move || prop_city.get()
                                     on:input=move |e| prop_city.set(event_target_value(&e))/>
                             </div>
                             <div class="wiz-f">
-                                <label class="wiz-label">"State"</label>
-                                <select class="wiz-inp"
+                                <label class="wiz-label">"State / Province"</label>
+                                <input class="wiz-inp" type="text" placeholder="CA"
                                     prop:value=move || prop_state.get()
-                                    on:change=move |e| prop_state.set(event_target_value(&e))>
-                                    <option>"FL"</option><option>"NY"</option>
-                                    <option>"CA"</option><option>"TX"</option>
-                                </select>
+                                    on:input=move |e| prop_state.set(event_target_value(&e))/>
                             </div>
                         </div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
-                                <label class="wiz-label">"Property Type"</label>
-                                <select class="wiz-inp"
-                                    prop:value=move || prop_type.get()
-                                    on:change=move |e| prop_type.set(event_target_value(&e))>
-                                    <option value="single_family">"Single Family"</option>
-                                    <option value="condo">"Condo"</option>
-                                    <option value="multi_family">"Multi-Family"</option>
-                                    <option value="commercial">"Commercial"</option>
-                                </select>
+                                <label class="wiz-label">"Postal Code"</label>
+                                <input class="wiz-inp" type="text" placeholder="94102"
+                                    prop:value=move || prop_postal.get()
+                                    on:input=move |e| prop_postal.set(event_target_value(&e))/>
                             </div>
                             <div class="wiz-f">
-                                <label class="wiz-label">"Units"</label>
-                                <select class="wiz-inp"
-                                    prop:value=move || unit_count.get()
-                                    on:change=move |e| unit_count.set(event_target_value(&e))>
-                                    <option>"1"</option><option>"2"</option>
-                                    <option>"3"</option><option>"4–10"</option>
-                                    <option>"11–50"</option><option>"50+"</option>
-                                </select>
+                                <label class="wiz-label">"Property Name (optional)"</label>
+                                <input class="wiz-inp" type="text" placeholder="The Meridian"
+                                    prop:value=move || prop_name.get()
+                                    on:input=move |e| prop_name.set(event_target_value(&e))/>
                             </div>
                         </div>
                     </div>
+
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Short-Term Rental"</div>
-                        <div style="display:flex; align-items:center; justify-content:space-between; padding:4px 0;">
-                            <div>
-                                <div style="font-size:14px; font-weight:500; color:#0f172a;">"STR Eligible"</div>
-                                <div style="font-size:12px; color:#64748b; margin-top:2px;">"Allow short-term bookings on this property"</div>
+                        <div class="wiz-ct">"Property Type"</div>
+                        <div class="wiz-og wiz-og3">
+                            {[
+                                ("apartment", "apartment", "Apartment"),
+                                ("house", "house", "House"),
+                                ("multi_unit", "domain", "Multi-Unit"),
+                                ("villa", "villa", "Villa / STR"),
+                                ("commercial", "storefront", "Commercial"),
+                                ("industrial", "warehouse", "Industrial"),
+                            ].into_iter().map(|(val, icon, label)| {
+                                let val = val.to_string();
+                                let val2 = val.clone();
+                                view! {
+                                    <button type="button"
+                                        class=move || if prop_type.get() == val { "wiz-oc sel" } else { "wiz-oc" }
+                                        on:click=move |_| prop_type.set(val2.clone())>
+                                        <span class="ms msf">{icon}</span>
+                                        <div class="wiz-oc-label">{label}</div>
+                                    </button>
+                                }
+                            }).collect_view()}
+                        </div>
+                    </div>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"Unit Info"</div>
+                        <div class="wiz-inp-row">
+                            <div class="wiz-f">
+                                <label class="wiz-label">"Number of Units"</label>
+                                <input class="wiz-inp" type="number" min="1"
+                                    prop:value=move || unit_count.get()
+                                    on:input=move |e| unit_count.set(event_target_value(&e))/>
                             </div>
-                            <button
+                            <div class="wiz-f">
+                                <label class="wiz-label">"Beds per Unit"</label>
+                                <select class="wiz-inp"
+                                    prop:value=move || beds.get()
+                                    on:change=move |e| beds.set(event_target_value(&e))>
+                                    <option value="studio">"Studio"</option>
+                                    <option value="1">"1"</option>
+                                    <option value="2">"2"</option>
+                                    <option value="3">"3"</option>
+                                    <option value="4+">"4+"</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="wiz-f">
+                            <label class="wiz-label">"Monthly Rent"</label>
+                            <input class="wiz-inp" type="text" placeholder="$2,500"
+                                prop:value=move || monthly_rent.get()
+                                on:input=move |e| monthly_rent.set(event_target_value(&e))/>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"STR Eligible"</div>
+                                <div class="wiz-tr-desc">"Allow short-term bookings on this property"</div>
+                            </div>
+                            <button type="button"
                                 class=move || if str_eligible.get() { "wiz-toggle on" } else { "wiz-toggle" }
                                 on:click=move |_| str_eligible.update(|v| *v = !*v)
                             ></button>
@@ -392,59 +546,159 @@ pub fn LandlordWizard() -> impl IntoView {
                 </div>
             </Show>
 
-            // ── Step 4: Payment Rails ───────────────────────────────────────
+            // ── Step 4: Workspace Settings ──────────────────────────────────
             <Show when=move || current_idx.get() == 3>
                 <div class="wiz-anim">
-                    <div class="wiz-s-badge" style="background:rgba(2,132,199,.08); color:#0369a1;">
-                        <span class="ms" style="font-size:13px;">"payments"</span>
+                    <div class="wiz-s-badge" style="background:rgba(99,102,241,.08); color:#6366f1;">
+                        <span class="ms" style="font-size:13px;">"settings"</span>
                         "Step 4 of 5"
                     </div>
-                    <h1 class="wiz-s-title">"Payment Rails"</h1>
-                    <p class="wiz-s-sub">"Connect a payout method so rent payments flow directly to your account."</p>
+                    <h1 class="wiz-s-title">"Workspace Settings"</h1>
+                    <p class="wiz-s-sub">"Configure notifications, invite your team, and choose platform features. Adjustable any time."</p>
+
                     <div class="wiz-card">
-                        <div class="wiz-ct">"Payout Method"</div>
-                        <div style="display:flex; flex-direction:column; gap:10px;">
-                            <div class="wiz-pay-option">
-                                <span class="ms msf" style="font-size:22px; color:#0284c7;">"account_balance"</span>
-                                <div>
-                                    <div style="font-size:14px; font-weight:600;">"Bank Account (ACH)"</div>
-                                    <div style="font-size:12px; color:#64748b;">"2–3 business days · No fees"</div>
-                                </div>
-                                <span class="ms msf" style="margin-left:auto; color:#10b981;">"check_circle"</span>
+                        <div class="wiz-ct">"Notifications"</div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Maintenance requests"</div>
+                                <div class="wiz-tr-desc">"Notify when tenants submit new requests"</div>
                             </div>
+                            <button type="button"
+                                class=move || if notify_maint.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| notify_maint.update(|v| *v = !*v)
+                            ></button>
                         </div>
-                        <p style="font-size:12px; color:#94a3b8; margin-top:14px;">"You can add or change payout methods later in Settings → Billing."</p>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Rent payment alerts"</div>
+                                <div class="wiz-tr-desc">"Payments received, late, or failed"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if notify_rent.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| notify_rent.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Lease expiry reminders"</div>
+                                <div class="wiz-tr-desc">"60-day and 30-day advance notices"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if notify_lease.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| notify_lease.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"STR booking inquiries"</div>
+                                <div class="wiz-tr-desc">"New requests and guest messages"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if notify_str.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| notify_str.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                    </div>
+
+                    {
+                        use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+                        view! {
+                            <NetworkInvitePanel
+                                actor_role="landlord"
+                                preferred_slug="landlord_invite_peers"
+                                angles=vec![
+                                    AngleCard {
+                                        icon: "apartment",
+                                        title: "Fellow landlords & owners",
+                                        body: "Share Folio with owners in your circle so you can coordinate vendors and compare notes.",
+                                    },
+                                    AngleCard {
+                                        icon: "handyman",
+                                        title: "Trusted contractors",
+                                        body: "Invite your plumber, HVAC tech, or cleaner. Dispatch and invoice live on Folio next time.",
+                                    },
+                                ]
+                                section_title="Grow your network".to_string()
+                                footnote="Folio works better with people you already trust. Skip if you like. Invite anytime from your dashboard.".to_string()
+                                show_history=false
+                            />
+                        }
+                    }
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"STR & Network"</div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Enable STR on eligible properties"</div>
+                                <div class="wiz-tr-desc">"STR tools appear on properties you mark eligible"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if enable_str.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| enable_str.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"List on Cohost Network"</div>
+                                <div class="wiz-tr-desc">"STR listings visible to partner network instances"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if list_network.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| list_network.update(|v| *v = !*v)
+                            ></button>
+                        </div>
                     </div>
                 </div>
             </Show>
 
-            // ── Step 5: Go Live ─────────────────────────────────────────────
+            // ── Step 5: Ready to Launch ─────────────────────────────────────
             <Show when=move || current_idx.get() == 4>
                 <div class="wiz-anim">
-                    <div style="text-align:center; padding:40px 0;">
-                        <div style="width:80px; height:80px; background:linear-gradient(135deg,#0e1c36,#1a3356); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px;">
-                            <span class="ms msf" style="font-size:36px; color:#38bdf8;">"rocket_launch"</span>
+                    <div class="wiz-s-badge" style="background:rgba(16,185,129,.1); color:#059669;">
+                        <span class="ms msf" style="font-size:13px;">"check_circle"</span>
+                        "All done!"
+                    </div>
+                    <h1 class="wiz-s-title">"You're ready to launch"</h1>
+                    <p class="wiz-s-sub">"Your Folio workspace is configured. Here's what you can do first."</p>
+
+                    <div class="wiz-card" style="background:linear-gradient(135deg,#0f1117 0%,#1a1b2e 100%);color:#fff;border:none;">
+                        <div style="text-align:center;padding:12px 0 4px;">
+                            <div style="width:68px;height:68px;background:rgba(16,185,129,.12);border:2px solid rgba(16,185,129,.35);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;">
+                                <span class="ms msf" style="font-size:32px;color:#10b981;">"verified"</span>
+                            </div>
+                            <div style="font-size:22px;font-weight:800;margin-bottom:6px;">"Workspace ready"</div>
+                            <div style="font-size:13px;color:rgba(255,255,255,.55);">
+                                {move || {
+                                    let brand = business_name.get();
+                                    let brand = if brand.trim().is_empty() { "Your portfolio".to_string() } else { brand };
+                                    format!("{brand} · 1 property")
+                                }}
+                            </div>
                         </div>
-                        <h1 class="wiz-s-title" style="text-align:center;">"Your Workspace Is Ready"</h1>
-                        <p style="font-size:14px; color:#64748b; line-height:1.7; max-width:400px; margin:0 auto 36px;">
-                            "Folio is configured and ready. Head to your dashboard to add more properties, invite tenants, and start managing your portfolio."
-                        </p>
-                        <div class="wiz-card" style="text-align:left;">
-                            <div class="wiz-ct">"Quick Actions After Launch"</div>
-                            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px;">
-                                <li style="display:flex; align-items:center; gap:10px; font-size:14px;">
-                                    <span class="ms msf" style="color:#0284c7;">"apartment"</span>
-                                    "Add more properties and units"
-                                </li>
-                                <li style="display:flex; align-items:center; gap:10px; font-size:14px;">
-                                    <span class="ms msf" style="color:#10b981;">"person_add"</span>
-                                    "Invite tenants with a single link"
-                                </li>
-                                <li style="display:flex; align-items:center; gap:10px; font-size:14px;">
-                                    <span class="ms msf" style="color:#f59e0b;">"qr_code_2"</span>
-                                    "Generate invite codes for units"
-                                </li>
-                            </ul>
+                    </div>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"What to do next"</div>
+                        <div class="wiz-na-row">
+                            <span class="ms msf" style="font-size:28px;color:#6366f1;">"description"</span>
+                            <div>
+                                <div style="font-size:14px;font-weight:600;">"Create a lease"</div>
+                                <div style="font-size:12px;color:#64748b;">"Add a tenant to your first property"</div>
+                            </div>
+                        </div>
+                        <div class="wiz-na-row">
+                            <span class="ms msf" style="font-size:28px;color:#10b981;">"add_home"</span>
+                            <div>
+                                <div style="font-size:14px;font-weight:600;">"Add more properties"</div>
+                                <div style="font-size:12px;color:#64748b;">"Import from CSV or add individually"</div>
+                            </div>
+                        </div>
+                        <div class="wiz-na-row">
+                            <span class="ms msf" style="font-size:28px;color:#f59e0b;">"dashboard"</span>
+                            <div>
+                                <div style="font-size:14px;font-weight:600;">"Explore your dashboard"</div>
+                                <div style="font-size:12px;color:#64748b;">"See your full portfolio at a glance"</div>
+                            </div>
                         </div>
                     </div>
                 </div>

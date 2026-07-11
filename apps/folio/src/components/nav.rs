@@ -181,6 +181,7 @@ pub enum FolioRoute {
     LandlordTenantProfile,    // /l/tenants/:id — landlord view of a counterparty tenant
     LandlordCommunications,   // /l/communications — multi-party messaging
     LandlordNotifications,    // /l/notifications  — notification inbox + channel prefs
+    LandlordTeam,             // /l/team — team access + G-36 network invites
 
     // ── Tenant /t/** ──────────────────────────────────────────────────────────
     TenantDashboard,
@@ -300,6 +301,7 @@ impl FolioRoute {
             Self::LandlordTenantProfile  => "/l/tenants/:id",
             Self::LandlordCommunications => "/l/communications",
             Self::LandlordNotifications  => "/l/notifications",
+            Self::LandlordTeam           => "/l/team",
 
             Self::TenantDashboard        => "/t",
             Self::TenantMyLease          => "/t/my-lease",
@@ -634,6 +636,7 @@ pub(crate) static LANDLORD_NAV: NavConfig = NavConfig {
             items: &[
                 NavItem::new(FolioRoute::LandlordCommunications, "Messages",      NavIcon::Inbox),
                 NavItem::new(FolioRoute::LandlordNotifications,  "Notifications", NavIcon::Campaign),
+                NavItem::new(FolioRoute::LandlordTeam,           "Network",       NavIcon::Group),
             ],
         },
         NavGroup {

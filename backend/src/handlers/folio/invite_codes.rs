@@ -689,6 +689,29 @@ async fn accept_code(
         }
     }
 
+    // G-36: mark linked program action accepted; complete signup outcomes only
+    // (wizard_complete outcomes stay pending until the wizard finish hook).
+    if let Err(e) = crate::services::program_service::ProgramService::mark_action_accepted(
+        &db,
+        "invite_code",
+        id,
+        accepting_user_id,
+    )
+    .await
+    {
+        tracing::warn!("accept_code: G-36 mark_action_accepted failed (non-fatal): {e}");
+    }
+    if let Err(e) = crate::services::program_service::ProgramService::complete_outcomes_for_invite_code(
+        &db,
+        id,
+        crate::types::pm::ProgramOutcomeType::Signup,
+        accepting_user_id,
+    )
+    .await
+    {
+        tracing::warn!("accept_code: G-36 complete_outcomes failed (non-fatal): {e}");
+    }
+
     (StatusCode::OK, Json(serde_json::json!({
         "ok": true,
         "role": role,

@@ -119,6 +119,7 @@ impl AtlasApp for FolioApp {
             .merge(crate::handlers::folio::users::authenticated_routes_raw())
             // ── Invite code CRUD: create / list / patch codes for workspace ────
             .merge(crate::handlers::folio::invite_codes::authenticated_routes())
+            .merge(crate::handlers::folio::programs::authenticated_routes())
             .layer(middleware::from_fn(require_landlord));
 
         // ── Tenant-only sub-router ────────────────────────────────────────────

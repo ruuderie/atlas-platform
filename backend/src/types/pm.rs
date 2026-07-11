@@ -1121,13 +1121,16 @@ pub enum InvitePurpose {
     /// Vendor-initiated G-27 review request sent to a property owner.
     /// `context_entity_id` = the `atlas_service_providers.id` of the vendor.
     ReviewRequest,
+    /// G-36 NetworkInvite peer growth invite.
+    NetworkReferral,
 }
 
 impl fmt::Display for InvitePurpose {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Onboarding    => "onboarding",
-            Self::ReviewRequest => "review_request",
+            Self::Onboarding      => "onboarding",
+            Self::ReviewRequest   => "review_request",
+            Self::NetworkReferral => "network_referral",
         })
     }
 }
@@ -1136,8 +1139,9 @@ impl TryFrom<String> for InvitePurpose {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "onboarding"     => Ok(Self::Onboarding),
-            "review_request" => Ok(Self::ReviewRequest),
+            "onboarding"       => Ok(Self::Onboarding),
+            "review_request"   => Ok(Self::ReviewRequest),
+            "network_referral" => Ok(Self::NetworkReferral),
             other => Err(format!("unknown InvitePurpose: '{other}'")),
         }
     }
@@ -1740,17 +1744,23 @@ pub enum CampaignGoalType {
     Registration,
     /// Prospect enrolls in a subscription — creates an atlas_subscriptions record.
     Subscription,
+    /// Prospect creates an account / signs up (G-36 program outcomes).
+    Signup,
+    /// Prospect finishes an onboarding wizard (G-36 program outcomes).
+    OnboardingComplete,
 }
 
 impl fmt::Display for CampaignGoalType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CampaignGoalType::LeadCapture   => write!(f, "lead_capture"),
-            CampaignGoalType::Booking       => write!(f, "booking"),
-            CampaignGoalType::Application   => write!(f, "application"),
-            CampaignGoalType::Sale          => write!(f, "sale"),
-            CampaignGoalType::Registration  => write!(f, "registration"),
-            CampaignGoalType::Subscription  => write!(f, "subscription"),
+            CampaignGoalType::LeadCapture         => write!(f, "lead_capture"),
+            CampaignGoalType::Booking             => write!(f, "booking"),
+            CampaignGoalType::Application         => write!(f, "application"),
+            CampaignGoalType::Sale                => write!(f, "sale"),
+            CampaignGoalType::Registration        => write!(f, "registration"),
+            CampaignGoalType::Subscription        => write!(f, "subscription"),
+            CampaignGoalType::Signup              => write!(f, "signup"),
+            CampaignGoalType::OnboardingComplete  => write!(f, "onboarding_complete"),
         }
     }
 }
@@ -1759,13 +1769,15 @@ impl TryFrom<String> for CampaignGoalType {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.to_lowercase().as_str() {
-            "lead_capture"  => Ok(CampaignGoalType::LeadCapture),
-            "booking"       => Ok(CampaignGoalType::Booking),
-            "application"   => Ok(CampaignGoalType::Application),
-            "sale"          => Ok(CampaignGoalType::Sale),
-            "registration"  => Ok(CampaignGoalType::Registration),
-            "subscription"  => Ok(CampaignGoalType::Subscription),
-            other           => Err(format!("unknown CampaignGoalType: {other}")),
+            "lead_capture"         => Ok(CampaignGoalType::LeadCapture),
+            "booking"              => Ok(CampaignGoalType::Booking),
+            "application"          => Ok(CampaignGoalType::Application),
+            "sale"                 => Ok(CampaignGoalType::Sale),
+            "registration"         => Ok(CampaignGoalType::Registration),
+            "subscription"         => Ok(CampaignGoalType::Subscription),
+            "signup"               => Ok(CampaignGoalType::Signup),
+            "onboarding_complete"  => Ok(CampaignGoalType::OnboardingComplete),
+            other                  => Err(format!("unknown CampaignGoalType: {other}")),
         }
     }
 }
@@ -2575,5 +2587,181 @@ impl TryFrom<&str> for CommissionCapType {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         CommissionCapType::try_from(s.to_string())
+    }
+}
+
+// ── G-36 atlas_programs ───────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramKind {
+    NetworkInvite,
+    Referral,
+    ReviewRequest,
+    WaitlistAccess,
+    LeadCapture,
+    PartnerShare,
+}
+
+impl fmt::Display for ProgramKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::NetworkInvite  => "network_invite",
+            Self::Referral       => "referral",
+            Self::ReviewRequest  => "review_request",
+            Self::WaitlistAccess => "waitlist_access",
+            Self::LeadCapture    => "lead_capture",
+            Self::PartnerShare   => "partner_share",
+        })
+    }
+}
+
+impl TryFrom<&str> for ProgramKind {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "network_invite"  => Ok(Self::NetworkInvite),
+            "referral"        => Ok(Self::Referral),
+            "review_request"  => Ok(Self::ReviewRequest),
+            "waitlist_access" => Ok(Self::WaitlistAccess),
+            "lead_capture"    => Ok(Self::LeadCapture),
+            "partner_share"   => Ok(Self::PartnerShare),
+            other => Err(format!("unknown ProgramKind: {other}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramOutcomeType {
+    Signup,
+    WizardComplete,
+    FormSubmit,
+    ReviewSubmitted,
+    FirstJobLogged,
+    SubscriptionActivated,
+}
+
+impl fmt::Display for ProgramOutcomeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Signup                 => "signup",
+            Self::WizardComplete         => "wizard_complete",
+            Self::FormSubmit             => "form_submit",
+            Self::ReviewSubmitted        => "review_submitted",
+            Self::FirstJobLogged         => "first_job_logged",
+            Self::SubscriptionActivated  => "subscription_activated",
+        })
+    }
+}
+
+impl TryFrom<&str> for ProgramOutcomeType {
+    type Error = String;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "signup"                  => Ok(Self::Signup),
+            "wizard_complete"         => Ok(Self::WizardComplete),
+            "form_submit"             => Ok(Self::FormSubmit),
+            "review_submitted"        => Ok(Self::ReviewSubmitted),
+            "first_job_logged"        => Ok(Self::FirstJobLogged),
+            "subscription_activated"  => Ok(Self::SubscriptionActivated),
+            other => Err(format!("unknown ProgramOutcomeType: {other}")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramActionStatus {
+    Created,
+    Sent,
+    Opened,
+    Accepted,
+    OutcomeComplete,
+    Expired,
+    Revoked,
+}
+
+impl fmt::Display for ProgramActionStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Created         => "created",
+            Self::Sent            => "sent",
+            Self::Opened          => "opened",
+            Self::Accepted        => "accepted",
+            Self::OutcomeComplete => "outcome_complete",
+            Self::Expired         => "expired",
+            Self::Revoked         => "revoked",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramRewardBeneficiary {
+    Actor,
+    Target,
+}
+
+impl fmt::Display for ProgramRewardBeneficiary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Actor  => "actor",
+            Self::Target => "target",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramRewardType {
+    SubscriptionCreditDays,
+    FeatureUnlock,
+    None,
+}
+
+impl fmt::Display for ProgramRewardType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::SubscriptionCreditDays => "subscription_credit_days",
+            Self::FeatureUnlock          => "feature_unlock",
+            Self::None                   => "none",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramRewardGrantStatus {
+    Pending,
+    Granted,
+    Revoked,
+}
+
+impl fmt::Display for ProgramRewardGrantStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Pending => "pending",
+            Self::Granted => "granted",
+            Self::Revoked => "revoked",
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProgramOutcomeStatus {
+    Pending,
+    Completed,
+    Failed,
+}
+
+impl fmt::Display for ProgramOutcomeStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Pending   => "pending",
+            Self::Completed => "completed",
+            Self::Failed    => "failed",
+        })
     }
 }

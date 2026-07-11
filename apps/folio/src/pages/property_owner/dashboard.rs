@@ -28,7 +28,7 @@ pub fn PropertyOwnerDashboard() -> impl IntoView {
             <div class="upgrade-banner__body">
                 <p class="upgrade-banner__title">"Unlock the full landlord suite"</p>
                 <p class="upgrade-banner__sub">
-                    "Add tenants, manage leases, collect rent, and automate maintenance — "
+                    "Add tenants, manage leases, collect rent, and automate maintenance, "
                     "all in one place. Upgrade to Landlord for $X/mo."
                 </p>
             </div>
@@ -43,14 +43,14 @@ pub fn PropertyOwnerDashboard() -> impl IntoView {
                 <span class="stat-icon ms msf">"home"</span>
                 <div class="stat-body">
                     <p class="stat-label">"Est. Value"</p>
-                    <p class="stat-value" id="po-stat-value">"—"</p>
+                    <p class="stat-value" id="po-stat-value">"-"</p>
                 </div>
             </div>
             <div class="stat-card">
                 <span class="stat-icon ms msf">"trending_up"</span>
                 <div class="stat-body">
                     <p class="stat-label">"Since Purchase"</p>
-                    <p class="stat-value" id="po-stat-change">"—"</p>
+                    <p class="stat-value" id="po-stat-change">"-"</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -81,6 +81,36 @@ pub fn PropertyOwnerDashboard() -> impl IntoView {
                 <span class="ms">"chevron_right"</span>
             </a>
         </div>
+
+        // ── G-36 Network invites ──────────────────────────────────────────
+        <div class="section-header" style="margin-top:28px">
+            <h2 class="section-title">"Grow your network"</h2>
+        </div>
+        <p style="font-size:14px;color:#64748b;margin:0 0 14px;line-height:1.5;max-width:560px;">
+            "Invite other owners and landlords you know, and vendors you trust. Optional anytime."
+        </p>
+        {
+            use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+            view! {
+                <NetworkInvitePanel
+                    actor_role="property_owner"
+                    preferred_slug="property_owner_invite_peers"
+                    angles=vec![
+                        AngleCard {
+                            icon: "apartment",
+                            title: "Other owners & landlords",
+                            body: "Share Folio with owners in your circle so they can track value and vendors the same way you do.",
+                        },
+                        AngleCard {
+                            icon: "handyman",
+                            title: "Vendors you recommend",
+                            body: "Invite a contractor you trust. The next job stays on Folio with shared history and reviews.",
+                        },
+                    ]
+                    show_history=true
+                />
+            }
+        }
 
         // ── Value history mini chart placeholder ──────────────────────────
         <div class="section-header" style="margin-top:28px">

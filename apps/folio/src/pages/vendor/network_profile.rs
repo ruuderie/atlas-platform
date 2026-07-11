@@ -136,7 +136,37 @@ pub fn VendorNetworkProfile() -> impl IntoView {
         <div class="vp-page">
             <div class="vp-header">
                 <h1 class="vp-title">"Network Profile"</h1>
-                <p class="vp-subtitle">"Manage your service listing, insurance status, and payout credentials."</p>
+                <p class="vp-subtitle">"Manage your service listing, insurance status, and payout credentials. Invite clients and contractors below."</p>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <h3 class="vp-section-title" style="margin-bottom:6px;">"Grow your network"</h3>
+                <p style="font-size:14px;color:#64748b;margin:0 0 14px;line-height:1.5;max-width:560px;">
+                    "Invite past clients so you can log jobs and reviews, and invite contractors you already collaborate with."
+                </p>
+                {
+                    use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+                    view! {
+                        <NetworkInvitePanel
+                            actor_role="vendor"
+                            preferred_slug="vendor_invite_clients"
+                            angles=vec![
+                                AngleCard {
+                                    icon: "home_work",
+                                    title: "Past clients & owners",
+                                    body: "Invite an owner from a recent job to log the work, request a review, and stay visible for the next dispatch.",
+                                },
+                                AngleCard {
+                                    icon: "engineering",
+                                    title: "Other contractors",
+                                    body: "Invite trades you trust. When a job needs a second specialty, refer each other inside Folio.",
+                                },
+                            ]
+                            show_stats=true
+                            show_history=true
+                        />
+                    }
+                }
             </div>
 
             <Suspense fallback=|| view! { <div class="vp-loading-skeleton" /> }>

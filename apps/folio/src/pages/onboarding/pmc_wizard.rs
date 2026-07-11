@@ -126,14 +126,28 @@ pub fn PmcWizard() -> impl IntoView {
 
     // ── Form state — Standalone ───────────────────────────────────────────────
     let company_name   = RwSignal::new(String::new());
+    let dba_name       = RwSignal::new(String::new());
     let license_num    = RwSignal::new(String::new());
     let license_state  = RwSignal::new("FL".to_string());
     let contact_first  = RwSignal::new(String::new());
     let contact_last   = RwSignal::new(String::new());
     let contact_email  = RwSignal::new(String::new());
     let contact_phone  = RwSignal::new(String::new());
+    let office_address = RwSignal::new(String::new());
+    let portfolio_mode = RwSignal::new("full_pmc".to_string());
     let fee_model      = RwSignal::new("percent".to_string());
+    let default_rate   = RwSignal::new("8".to_string());
+    let leasing_fee    = RwSignal::new(String::new());
     let approval_limit = RwSignal::new("1000".to_string());
+
+    // Modules
+    let mod_statements = RwSignal::new(true);
+    let mod_tenant     = RwSignal::new(true);
+    let mod_vendor     = RwSignal::new(true);
+    let mod_maint      = RwSignal::new(true);
+    let mod_str        = RwSignal::new(false);
+    let mod_ota        = RwSignal::new(false);
+    let mod_crm        = RwSignal::new(false);
 
     // ── Form state — Hired ────────────────────────────────────────────────────
     let pm_first  = RwSignal::new(String::new());
@@ -286,6 +300,12 @@ pub fn PmcWizard() -> impl IntoView {
                                 prop:value=move || company_name.get()
                                 on:input=move |e| company_name.set(event_target_value(&e))/>
                         </div>
+                        <div class="wiz-f">
+                            <label class="wiz-label">"DBA / Trading Name (if different)"</label>
+                            <input class="wiz-inp" type="text" placeholder="Meridian PM"
+                                prop:value=move || dba_name.get()
+                                on:input=move |e| dba_name.set(event_target_value(&e))/>
+                        </div>
                         <div class="wiz-inp-row">
                             <div class="wiz-f">
                                 <label class="wiz-label">"License Number"</label>
@@ -304,6 +324,12 @@ pub fn PmcWizard() -> impl IntoView {
                                     <option value="TX">"TX"</option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="wiz-f">
+                            <label class="wiz-label">"Office Address"</label>
+                            <input class="wiz-inp" type="text" placeholder="100 Brickell Ave, Miami, FL"
+                                prop:value=move || office_address.get()
+                                on:input=move |e| office_address.set(event_target_value(&e))/>
                         </div>
                     </div>
 
@@ -349,6 +375,27 @@ pub fn PmcWizard() -> impl IntoView {
                     </div>
                     <h1 class="wiz-s-title">"PM Mode & Billing"</h1>
                     <p class="wiz-s-sub">"Choose how your workspace operates. These defaults apply to all clients and can be overridden per-account."</p>
+
+                    <div class="wiz-card">
+                        <div class="wiz-ct">"Portfolio Mode"</div>
+                        <div class="wiz-og wiz-og2">
+                            <button type="button"
+                                class=move || if portfolio_mode.get() == "full_pmc" { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| portfolio_mode.set("full_pmc".into())>
+                                <span class="ms msf">"corporate_fare"</span>
+                                <div class="wiz-oc-label">"Full PMC"</div>
+                                <div class="wiz-oc-desc">"Multiple landlord clients under one seat"</div>
+                            </button>
+                            <button type="button"
+                                class=move || if portfolio_mode.get() == "single" { "wiz-oc sel" } else { "wiz-oc" }
+                                on:click=move |_| portfolio_mode.set("single".into())>
+                                <span class="ms msf">"home"</span>
+                                <div class="wiz-oc-label">"Single Portfolio"</div>
+                                <div class="wiz-oc-desc">"Manage one landlord's properties"</div>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="wiz-card">
                         <div class="wiz-ct">"Fee Structure"</div>
                         <div class="wiz-f">
@@ -360,6 +407,16 @@ pub fn PmcWizard() -> impl IntoView {
                                 <option value="flat">"Flat monthly fee per unit"</option>
                                 <option value="hybrid">"Hybrid (flat + performance)"</option>
                             </select>
+                        </div>
+                        <div class="wiz-inp-row">
+                            <div class="wiz-f"><label class="wiz-label">"Default Rate"</label>
+                                <input class="wiz-inp" type="text" placeholder="8%"
+                                    prop:value=move || default_rate.get()
+                                    on:input=move |e| default_rate.set(event_target_value(&e))/></div>
+                            <div class="wiz-f"><label class="wiz-label">"Leasing Fee (one-time, per placement)"</label>
+                                <input class="wiz-inp" type="text" placeholder="50% of first month"
+                                    prop:value=move || leasing_fee.get()
+                                    on:input=move |e| leasing_fee.set(event_target_value(&e))/></div>
                         </div>
                     </div>
                     <div class="wiz-card">
@@ -386,17 +443,34 @@ pub fn PmcWizard() -> impl IntoView {
                     <div class="wiz-s-badge" style="background:rgba(2,132,199,.08); color:#0369a1;">
                         <span class="ms" style="font-size:13px;">"people"</span>"Step 3 of 5"
                     </div>
-                    <h1 class="wiz-s-title">"Add Client Portfolios"</h1>
-                    <p class="wiz-s-sub">"Add the landlord clients whose properties you manage. Each gets an Owner portal with statements and reporting."</p>
-                    <div class="wiz-card">
-                        <div class="wiz-ct">"Invite a New Client"</div>
-                        <p style="font-size:13px; color:#64748b; margin-bottom:14px;">"Send an invite to a new owner client. They'll complete an Owner onboarding wizard pre-linked to your PMC."</p>
-                        <div class="wiz-f">
-                            <label class="wiz-label">"Owner Email"</label>
-                            <input class="wiz-inp" type="email" placeholder="owner@email.com"/>
-                        </div>
-                        <p style="font-size:12px; color:#94a3b8; margin-top:4px;">"You can also add clients later from the PMC Client Book."</p>
-                    </div>
+                    <h1 class="wiz-s-title">"Invite your clients"</h1>
+                    <p class="wiz-s-sub">"Bring landlord clients onto Folio so they get an Owner portal with statements and reporting. Your PMC stays the hub."</p>
+                    {
+                        use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+                        view! {
+                            <NetworkInvitePanel
+                                actor_role="property_manager"
+                                preferred_slug="pmc_invite_clients"
+                                angles=vec![
+                                    AngleCard {
+                                        icon: "apartment",
+                                        title: "Existing owner clients",
+                                        body: "Invite landlords you already manage. They see statements here while you keep operations centralized.",
+                                    },
+                                    AngleCard {
+                                        icon: "campaign",
+                                        title: "Prospects & referrals",
+                                        body: "When pitching a new owner, send a Folio invite instead of a PDF.",
+                                    },
+                                ]
+                                section_title="Invite a new client".to_string()
+                                send_label="Send Owner Invite".to_string()
+                                show_note=true
+                                allow_multi=false
+                                show_history=false
+                            />
+                        }
+                    }
                 </div>
             </Show>
 
@@ -407,14 +481,82 @@ pub fn PmcWizard() -> impl IntoView {
                         <span class="ms" style="font-size:13px;">"extension"</span>"Step 4 of 5"
                     </div>
                     <h1 class="wiz-s-title">"Modules & Features"</h1>
-                    <p class="wiz-s-sub">"Enable the modules your PMC needs. All can be toggled per-client later."</p>
+                    <p class="wiz-s-sub">"Enable the modules your PMC needs. All can be toggled per-client later from the client settings panel."</p>
                     <div class="wiz-card">
                         <div class="wiz-ct">"Core PM Modules"</div>
-                        <p style="font-size:13px; color:#64748b;">"Owner Statements, Tenant Portal, Vendor Dispatch, and Maintenance Tracker are enabled by default for all PMC accounts."</p>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Owner Statements"</div>
+                                <div class="wiz-tr-desc">"Monthly owner reporting and distributions"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_statements.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_statements.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Tenant Portal"</div>
+                                <div class="wiz-tr-desc">"Rent pay, maintenance, lease docs"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_tenant.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_tenant.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Vendor Dispatch"</div>
+                                <div class="wiz-tr-desc">"Work order matching and invoices"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_vendor.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_vendor.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Maintenance Tracker"</div>
+                                <div class="wiz-tr-desc">"Request triage and SLA tracking"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_maint.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_maint.update(|v| *v = !*v)
+                            ></button>
+                        </div>
                     </div>
                     <div class="wiz-card">
                         <div class="wiz-ct">"Optional Add-ons"</div>
-                        <p style="font-size:13px; color:#64748b;">"STR Booking Engine, OTA Syndication, and Lease Application CRM can be activated per-client from the Client Settings panel."</p>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"STR Booking Engine"</div>
+                                <div class="wiz-tr-desc">"Direct bookings for short-term units"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_str.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_str.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"OTA Syndication"</div>
+                                <div class="wiz-tr-desc">"Airbnb / VRBO channel sync"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_ota.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_ota.update(|v| *v = !*v)
+                            ></button>
+                        </div>
+                        <div class="wiz-tr">
+                            <div>
+                                <div class="wiz-tr-label">"Lease Application CRM"</div>
+                                <div class="wiz-tr-desc">"Applicant pipeline and screening"</div>
+                            </div>
+                            <button type="button"
+                                class=move || if mod_crm.get() { "wiz-toggle on" } else { "wiz-toggle" }
+                                on:click=move |_| mod_crm.update(|v| *v = !*v)
+                            ></button>
+                        </div>
                     </div>
                 </div>
             </Show>

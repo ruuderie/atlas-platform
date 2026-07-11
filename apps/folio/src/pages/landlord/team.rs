@@ -313,13 +313,47 @@ pub fn LandlordTeam() -> impl IntoView {
             </div>
             <div class="team-divider"></div>
 
+            // ── G-36 Network invites ──────────────────────────────────────────
+            <div style="margin-bottom:28px;">
+                <div class="team-sh">
+                    <div class="team-sh-title">"Grow your network"</div>
+                    <div class="team-sh-meta">"Connect"</div>
+                </div>
+                <p style="font-size:14px;color:#64748b;margin:0 0 14px;line-height:1.5;max-width:560px;">
+                    "Invite fellow landlords and trusted contractors. Track who joined and which outcomes completed."
+                </p>
+                {
+                    use crate::components::network_invite_panel::{AngleCard, NetworkInvitePanel};
+                    view! {
+                        <NetworkInvitePanel
+                            actor_role="landlord"
+                            preferred_slug="landlord_invite_peers"
+                            angles=vec![
+                                AngleCard {
+                                    icon: "apartment",
+                                    title: "Fellow landlords & owners",
+                                    body: "Share Folio with owners in your circle so you can coordinate vendors and compare notes.",
+                                },
+                                AngleCard {
+                                    icon: "handyman",
+                                    title: "Trusted contractors",
+                                    body: "Invite trades you already use. Dispatch and invoice live on Folio next time.",
+                                },
+                            ]
+                            show_stats=true
+                            show_history=true
+                        />
+                    }
+                }
+            </div>
+
             // ── Stats ─────────────────────────────────────────────────────────
             <div class="team-stats">
                 <Suspense fallback=|| view! {
-                    <div class="team-stat"><div class="team-stat-val">"—"</div><div class="team-stat-lbl">"Property Managers"</div></div>
-                    <div class="team-stat"><div class="team-stat-val">"—"</div><div class="team-stat-lbl">"Vendors"</div></div>
-                    <div class="team-stat"><div class="team-stat-val">"—"</div><div class="team-stat-lbl">"Active Codes"</div></div>
-                    <div class="team-stat"><div class="team-stat-val">"—"</div><div class="team-stat-lbl">"Total Uses"</div></div>
+                    <div class="team-stat"><div class="team-stat-val">"-"</div><div class="team-stat-lbl">"Property Managers"</div></div>
+                    <div class="team-stat"><div class="team-stat-val">"-"</div><div class="team-stat-lbl">"Vendors"</div></div>
+                    <div class="team-stat"><div class="team-stat-val">"-"</div><div class="team-stat-lbl">"Active Codes"</div></div>
+                    <div class="team-stat"><div class="team-stat-val">"-"</div><div class="team-stat-lbl">"Total Uses"</div></div>
                 }>
                     {move || {
                         let codes = codes_resource_reloadable.get()

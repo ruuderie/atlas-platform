@@ -334,6 +334,7 @@ pub mod m20261015_atlas_asset_value_history;         // NEW TABLE: G-10 extensio
 pub mod m20261015_g32_property_owner_lite_seed;      // G-32 seed: property_owner_lite RBAC profile + permissions
 pub mod m20261016_atlas_scorecard_template_deployments; // G-27 Phase 1b: template ↔ app-instance deployments
 pub mod m20261017_rating_sessions_app_instance_id;      // G-27 Phase C: app_instance_id on rating sessions
+pub mod m20261018_g36_atlas_programs;                   // G-36: atlas_programs + actions + outcomes + rewards
 
 pub struct Migrator;
 
@@ -640,6 +641,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261015_g32_property_owner_lite_seed::Migration),
             Box::new(m20261016_atlas_scorecard_template_deployments::Migration),
             Box::new(m20261017_rating_sessions_app_instance_id::Migration),
+            // G-36 atlas_programs is registered via CorePlatformApp::migrations()
 
         ];
 

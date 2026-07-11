@@ -134,6 +134,7 @@ use crate::pages::onboarding::tenant_wizard::TenantApplicantWizard;
 use crate::pages::onboarding::str_guest_wizard::StrGuestWizard;
 use crate::pages::onboarding::cohost_wizard::CohostWizard;
 use crate::pages::onboarding::owner_wizard::OwnerWizard;
+use crate::pages::onboarding::property_owner_wizard::PropertyOwnerWizard;
 use crate::pages::onboarding::agent_wizard::AgentWizard;
 use crate::pages::onboarding::broker_wizard::BrokerWizard;
 use crate::pages::onboarding::pmc_wizard::PmcWizard;
@@ -204,6 +205,7 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/onboard/str-guest")  view=StrGuestWizard/>
                 <Route path=path!("/onboard/cohost")     view=CohostWizard/>
                 <Route path=path!("/onboard/owner")      view=OwnerWizard/>
+                <Route path=path!("/onboard/property-owner") view=PropertyOwnerWizard/>
                 <Route path=path!("/onboard/agent")      view=AgentWizard/>
                 <Route path=path!("/onboard/broker")     view=BrokerWizard/>
                 <Route path=path!("/onboard/pmc")        view=PmcWizard/>
